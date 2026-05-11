@@ -86,7 +86,13 @@ Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines
 
 ## ライセンス
 
-[AGPL-3.0](LICENSE)（公開時に LICENSE ファイルを同梱予定）
+[GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）
+
+## 法務・安全に関する文書
+
+- [DISCLAIMER.md](DISCLAIMER.md) — 免責事項（実申告・税法準拠・LLM 利用リスク）
+- [SECURITY.md](SECURITY.md) — セキュリティポリシー、脆弱性報告手順
+- [PRIVACY.md](PRIVACY.md) — プライバシーポリシー、収集・送信データの内訳
 
 ## 開発規範
 
