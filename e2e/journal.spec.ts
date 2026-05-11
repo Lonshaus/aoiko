@@ -1,12 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { acceptDisclaimer } from './helpers';
 
 // 仕訳の新規作成 → 直近一覧に反映までのゴールデンパス。
-// シンプルな単一借方・単一貸方の現金売上を想定。
-
 test('新規仕訳作成 → 直近一覧に表示される', async ({ page }) => {
   await page.goto('/');
+  await acceptDisclaimer(page);
 
-  // 日付・摘要
   const today = new Date().toISOString().slice(0, 10);
   await page.locator('input[type="date"]').first().fill(today);
   await page.getByPlaceholder('例：電気代').fill('テスト売上 e2e');
@@ -20,9 +19,7 @@ test('新規仕訳作成 → 直近一覧に表示される', async ({ page }) =
   await page.locator('form select').nth(2).selectOption('4110');
   await page.getByPlaceholder('金額').nth(1).fill('10000');
 
-  // 確定
   await page.getByRole('button', { name: /仕訳を追加/ }).click();
 
-  // 直近の仕訳に反映（liveQuery 経由なのでリロード不要）
   await expect(page.getByText('テスト売上 e2e').first()).toBeVisible({ timeout: 5000 });
 });

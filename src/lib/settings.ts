@@ -10,7 +10,12 @@ export type SettingsMap = {
   userInvoiceNumber: string;
   geminiApiKey: string;
   disclaimerAcceptedAt: number | null;
+  disclaimerAcceptedVersion: number | null;
 };
+
+// DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
+// バージョン mismatch で再同意を要求する。
+export const DISCLAIMER_VERSION = 1;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K

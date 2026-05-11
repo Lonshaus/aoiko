@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
-  import { getSetting, setSetting } from '../lib/settings';
+  import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import { parseBackupJson, restoreFromJson } from '../domain/restore';
   import {
@@ -76,6 +76,9 @@
   let carryoverStatus = $state('');
   let carryoverError = $state('');
 
+  let disclaimerAcceptedAt = $state<number | null>(null);
+  let disclaimerAcceptedVersion = $state<number | null>(null);
+
   const accountGroups = $derived(ledger.groupedAccounts());
 
   const subGroups = $derived.by(() => {
@@ -122,7 +125,15 @@
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
+    disclaimerAcceptedAt = (await getSetting('disclaimerAcceptedAt')) ?? null;
+    disclaimerAcceptedVersion = (await getSetting('disclaimerAcceptedVersion')) ?? null;
   });
+
+  async function revokeDisclaimer() {
+    await deleteSetting('disclaimerAcceptedAt');
+    await deleteSetting('disclaimerAcceptedVersion');
+    location.reload();
+  }
 
   async function saveBasic(e: Event) {
     e.preventDefault();
@@ -1029,6 +1040,35 @@
       >
         全データを置換して復元
       </button>
+    {/if}
+  </section>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">免責事項の同意状態</h3>
+    {#if disclaimerAcceptedAt}
+      <p class="text-sm">
+        ✓ 同意済み（{new Date(disclaimerAcceptedAt).toISOString().slice(0, 10)} 時点・version {disclaimerAcceptedVersion}）
+      </p>
+      <p class="text-xs text-muted-foreground">
+        全文：
+        <a
+          href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline hover:text-foreground"
+        >DISCLAIMER.md</a>
+      </p>
+      <div>
+        <button
+          type="button"
+          onclick={revokeDisclaimer}
+          class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
+        >
+          同意を取り消す（再表示）
+        </button>
+      </div>
+    {:else}
+      <p class="text-sm text-muted-foreground">未同意</p>
     {/if}
   </section>
 
