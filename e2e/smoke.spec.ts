@@ -1,15 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { acceptDisclaimer } from './helpers';
 
 // 各ルートが読み込めて主要見出しが表示されるかの最低限スモークテスト。
-// IndexedDB シードは src/db/seed.ts が onMount で走る前提。
 
-test.beforeEach(async ({ context }) => {
+test.beforeEach(async ({ page, context }) => {
   await context.clearCookies();
   await context.clearPermissions();
+  await page.goto('/');
+  await acceptDisclaimer(page);
 });
 
 test('home ルートが読み込まれる', async ({ page }) => {
-  await page.goto('/');
   await expect(page.getByRole('heading', { name: '新規仕訳' })).toBeVisible();
 });
 
@@ -34,7 +35,6 @@ test('設定ルート', async ({ page }) => {
 });
 
 test('ナビゲーション：home → reports → settings', async ({ page }) => {
-  await page.goto('/');
   await page.getByRole('link', { name: 'レポート' }).click();
   await expect(page).toHaveURL(/\/reports$/);
   await page.getByRole('link', { name: '設定' }).click();

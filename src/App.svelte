@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { router, link } from './router.svelte';
   import Home from './routes/Home.svelte';
   import JournalList from './routes/JournalList.svelte';
@@ -8,6 +9,25 @@
   import Receipt from './routes/Receipt.svelte';
   import Settings from './routes/Settings.svelte';
   import UpdatePrompt from './components/UpdatePrompt.svelte';
+  import DisclaimerConsent from './components/DisclaimerConsent.svelte';
+  import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
+
+  type ConsentState = 'checking' | 'required' | 'granted';
+  let consentState = $state<ConsentState>('checking');
+
+  onMount(async () => {
+    const acceptedAt = await getSetting('disclaimerAcceptedAt');
+    const acceptedVersion = await getSetting('disclaimerAcceptedVersion');
+    if (acceptedAt && acceptedVersion === DISCLAIMER_VERSION) {
+      consentState = 'granted';
+    } else {
+      consentState = 'required';
+    }
+  });
+
+  function onConsentAccepted() {
+    consentState = 'granted';
+  }
 </script>
 
 <div class="min-h-screen flex flex-col">
@@ -45,3 +65,7 @@
 </div>
 
 <UpdatePrompt />
+
+{#if consentState === 'required'}
+  <DisclaimerConsent onaccept={onConsentAccepted} />
+{/if}
