@@ -1,0 +1,57 @@
+# Claude Code（強制）
+.claude/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+dev-dist/
+
+# Vite / Vitest cache & coverage
+.vite/
+coverage/
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+
+# Vite/Vitest ローカル上書き
+*.local
+
+# Playwright（Phase 4）
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# aoiko 手動 export（誤コミット防止）
+aoiko-ledger-*.json
+aoiko-*.xtx
