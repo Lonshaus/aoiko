@@ -36,29 +36,29 @@
 
 ```
 src/
-├── domain/              # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
-│   ├── journal.ts          # 仕訳の作成・確定
-│   ├── reverse.ts          # 訂正仕訳
-│   ├── reports.ts          # PL / BS / 月別 / 取引先別
-│   ├── depreciation.ts     # 定額法・定率法 減価償却
-│   ├── carryover.ts        # 前期繰越（期首振替）
-│   ├── home-office.ts      # 家事按分
-│   ├── snapshots.ts        # 年度ロック（申告済み）
-│   ├── amended.ts          # 修正申告ガイド
-│   ├── llm-classify.ts     # LLM による CSV 行分類
-│   ├── ocr.ts              # 領収書 OCR
-│   ├── rules.ts            # ルール エンジン
-│   ├── import.ts           # CSV インポートのオーケストレーション
-│   └── restore.ts          # バックアップ復元
-├── parsers/             # 銀行・カード CSV パーサ（プラグイン）
-├── routes/              # Svelte ルート（Home / Journal / Reports / Import / Receipt / Settings）
-├── components/          # 再利用 Svelte コンポーネント
-├── stores/              # グローバル state（class + singleton）
-├── lib/                 # Decimal / id / settings ヘルパ
-├── db/                  # Dexie スキーマ
-├── backup/              # バックアップ adapter（FSA / OPFS）
-└── tax-schema/          # 年度別税制スキーマ
-    └── 2026/               # 勘定科目テーブル・.xtx 出力（仮）
+├── domain/             # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
+│   ├── journal.ts      # 仕訳の作成・確定
+│   ├── reverse.ts      # 訂正仕訳
+│   ├── reports.ts      # PL / BS / 月別 / 取引先別
+│   ├── depreciation.ts # 定額法・定率法 減価償却
+│   ├── carryover.ts    # 前期繰越（期首振替）
+│   ├── home-office.ts  # 家事按分
+│   ├── snapshots.ts    # 年度ロック（申告済み）
+│   ├── amended.ts      # 修正申告ガイド
+│   ├── llm-classify.ts # LLM による CSV 行分類
+│   ├── ocr.ts          # 領収書 OCR
+│   ├── rules.ts        # ルール エンジン
+│   ├── import.ts       # CSV インポートのオーケストレーション
+│   └── restore.ts      # バックアップ復元
+├── parsers/            # 銀行・カード CSV パーサ（プラグイン）
+├── routes/             # Svelte ルート（Home / Journal / Reports / Import / Receipt / Settings）
+├── components/         # 再利用 Svelte コンポーネント
+├── stores/             # グローバル state（class + singleton）
+├── lib/                # Decimal / id / settings ヘルパ
+├── db/                 # Dexie スキーマ
+├── backup/             # バックアップ adapter（FSA / OPFS）
+└── tax-schema/         # 年度別税制スキーマ
+    └── 2026/           # 勘定科目テーブル・.xtx 出力（仮）
 ```
 
 ## 開発
@@ -86,7 +86,13 @@ Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines
 
 ## ライセンス
 
-[AGPL-3.0](LICENSE)（公開時に LICENSE ファイルを同梱予定）
+[GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）
+
+## 法務・安全に関する文書
+
+- [DISCLAIMER.md](DISCLAIMER.md) — 免責事項（実申告・税法準拠・LLM 利用リスク）
+- [SECURITY.md](SECURITY.md) — セキュリティポリシー、脆弱性報告手順
+- [PRIVACY.md](PRIVACY.md) — プライバシーポリシー、収集・送信データの内訳
 
 ## 開発規範
 
