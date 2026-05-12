@@ -8,6 +8,7 @@
     type LedgerRow,
   } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { m } from '../paraglide/messages';
 
   const PAGE_SIZE = 50;
   const now = new Date();
@@ -138,7 +139,7 @@
 
   function fmtTax(rate: number): string {
     if (rate === 0) {
-      return '対象外';
+      return m.journal_tax_exempt();
     }
     return `${Math.round(rate * 100)}%`;
   }
@@ -152,15 +153,15 @@
 <div class="space-y-6">
   <header class="flex items-end justify-between">
     <div>
-      <h2 class="text-2xl font-bold">仕訳一覧</h2>
-      <p class="text-xs text-muted-foreground">確定済み・訂正済みの全仕訳を年月で絞り込んで閲覧</p>
+      <h2 class="text-2xl font-bold">{m.journal_list_title()}</h2>
+      <p class="text-xs text-muted-foreground">{m.journal_list_subtitle()}</p>
     </div>
   </header>
 
   <section class="bg-card text-card-foreground rounded-xl p-5 space-y-4 shadow-sm">
-    <div class="grid grid-cols-1 sm:grid-cols-[auto_auto_1fr_auto] gap-3 items-end">
+    <div class="flex flex-wrap gap-3 items-end">
       <label class="block">
-        <span class="text-xs text-muted-foreground">年</span>
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
         <input
           type="number"
           bind:value={year}
@@ -172,20 +173,20 @@
         />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">月</span>
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_month()}</span>
         <select
           bind:value={month}
           onchange={onMonthChange}
           class="mt-1 px-3 py-2 bg-background border rounded text-foreground"
         >
-          <option value={null}>全月</option>
-          {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as m (m)}
-            <option value={m}>{m} 月</option>
+          <option value={null}>{m.journal_list_filter_month_all()}</option>
+          {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as mo (mo)}
+            <option value={mo}>{m.journal_list_filter_month_label({ m: mo })}</option>
           {/each}
         </select>
       </label>
-      <label class="block">
-        <span class="text-xs text-muted-foreground">摘要に含む文字</span>
+      <label class="block flex-1 min-w-48">
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_description()}</span>
         <input
           type="text"
           bind:value={descInput}
@@ -196,7 +197,7 @@
             }
           }}
           onblur={applyDescQuery}
-          placeholder="Enter で適用"
+          placeholder={m.journal_list_filter_description_placeholder()}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
       </label>
@@ -205,16 +206,16 @@
         onclick={resetFilters}
         class="px-4 py-2 border rounded hover:bg-accent text-sm"
       >
-        リセット
+        {m.journal_list_filter_reset()}
       </button>
     </div>
 
     <div class="flex items-center justify-between text-xs text-muted-foreground">
       <span class="tabular-nums">
         {#if loading}
-          読み込み中…
+          {m.journal_list_loading()}
         {:else}
-          {totalCount} 件 — {currentPage} / {totalPages} ページ
+          {m.journal_list_pagination({ total: totalCount, current: currentPage, pages: totalPages })}
         {/if}
       </span>
       <div class="flex gap-2">
@@ -224,7 +225,7 @@
           onclick={gotoPrev}
           class="px-3 py-1 border rounded hover:bg-accent disabled:opacity-30"
         >
-          ← 前
+          {m.journal_list_pagination_prev()}
         </button>
         <button
           type="button"
@@ -232,7 +233,7 @@
           onclick={gotoNext}
           class="px-3 py-1 border rounded hover:bg-accent disabled:opacity-30"
         >
-          次 →
+          {m.journal_list_pagination_next()}
         </button>
       </div>
     </div>
@@ -250,11 +251,11 @@
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-4 py-3 w-8"></th>
-            <th class="text-left font-normal px-4 py-3">日付</th>
-            <th class="text-left font-normal px-4 py-3">摘要</th>
-            <th class="text-left font-normal px-4 py-3">借方科目</th>
-            <th class="text-left font-normal px-4 py-3">貸方科目</th>
-            <th class="text-right font-normal px-4 py-3">金額</th>
+            <th class="text-left font-normal px-4 py-3">{m.journal_th_date()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.journal_th_description()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.journal_th_debit()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.journal_th_credit()}</th>
+            <th class="text-right font-normal px-4 py-3">{m.journal_th_amount()}</th>
           </tr>
         </thead>
         <tbody>
@@ -303,7 +304,7 @@
                   <div class="space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <div class="text-xs text-muted-foreground mb-1">借方</div>
+                        <div class="text-xs text-muted-foreground mb-1">{m.journal_side_debit()}</div>
                         <ul class="space-y-1">
                           {#each row.debits as l, i (`d-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
@@ -321,7 +322,7 @@
                         </ul>
                       </div>
                       <div>
-                        <div class="text-xs text-muted-foreground mb-1">貸方</div>
+                        <div class="text-xs text-muted-foreground mb-1">{m.journal_side_credit()}</div>
                         <ul class="space-y-1">
                           {#each row.credits as l, i (`c-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
@@ -351,10 +352,10 @@
                           }}
                           class="px-3 py-1 text-sm border border-destructive/50 text-destructive rounded hover:bg-destructive/10"
                         >
-                          訂正する
+                          {m.journal_list_reverse_button()}
                         </button>
                       {:else}
-                        <span class="text-xs text-muted-foreground">訂正済み</span>
+                        <span class="text-xs text-muted-foreground">{m.journal_list_reversed_label()}</span>
                       {/if}
                     </div>
                   </div>
@@ -368,7 +369,7 @@
   {:else if !loading}
     <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
       <p class="text-sm text-muted-foreground">
-        条件に合う仕訳がないみたい。フィルタを変えてみてね。
+        {m.journal_list_empty()}
       </p>
     </div>
   {/if}
@@ -384,18 +385,18 @@
 >
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>この仕訳を訂正しますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.journal_list_reverse_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        借方と貸方を入れ替えた打消し仕訳を本日付で作成し、元の仕訳は「訂正済み」となります。両方の仕訳は履歴として保持されます（電子帳簿保存法の要件）。
+        {m.journal_list_reverse_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={confirmReverse}
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
-        訂正する
+        {m.journal_list_reverse_button()}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>

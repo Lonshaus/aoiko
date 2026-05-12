@@ -133,9 +133,14 @@ describe('getAmendmentDiff', () => {
 });
 
 describe('amendmentChecklist', () => {
-  test('5 ステップ・年度埋め込み', () => {
-    const items = amendmentChecklist(2026);
-    expect(items).toHaveLength(5);
-    expect(items[0]!.label).toContain('2026');
+  test('5 ステップの key を順に返す', () => {
+    const items = amendmentChecklist();
+    expect(items.map((i) => i.key)).toEqual([
+      'unlock',
+      'reverse',
+      'review',
+      'submit',
+      'relock',
+    ]);
   });
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { DISCLAIMER_VERSION, setSetting } from '../lib/settings';
+  import { m } from '../paraglide/messages';
 
   type Props = {
     onaccept: () => void;
@@ -28,41 +29,29 @@
 >
   <div class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-xl">
     <header class="space-y-2">
-      <h2 id="disclaimer-title" class="text-2xl font-bold">aoiko へようこそ</h2>
+      <h2 id="disclaimer-title" class="text-2xl font-bold">{m.disclaimer_welcome_title()}</h2>
       <p class="text-sm text-muted-foreground">
-        ご利用前に以下の <strong>免責事項</strong> をご確認ください。
+        {@html m.disclaimer_intro_html()}
       </p>
     </header>
 
     <section class="space-y-3 text-sm">
       <div class="rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 px-4 py-3">
-        <p class="font-medium">aoiko は <span class="underline">試作段階</span> のツールです。</p>
-        <p class="text-xs mt-1">実申告での使用は利用者の自己責任となります。</p>
+        <p class="font-medium">{@html m.disclaimer_prototype_title_html()}</p>
+        <p class="text-xs mt-1">{m.disclaimer_prototype_subtitle()}</p>
       </div>
 
       <ul class="space-y-2 list-disc list-inside">
-        <li>
-          出力する数値・<code>.xtx</code> ファイルの <strong>正確性は保証されません</strong>。最終的な数字は <strong>税理士・税務署</strong> に確認してください。
-        </li>
-        <li>
-          税法・帳簿要件は <strong>年度ごとに改正</strong> されます。同梱の <code>tax-schema/</code> が最新の国税庁公告と一致しているかは利用者が確認してください。
-        </li>
-        <li>
-          <code>.xtx</code> 出力は仮実装です。<strong>実申告での `.xtx` 利用は禁止</strong>。e-Tax ソフトで別途作成してください。
-        </li>
-        <li>
-          LLM 分類・OCR を使う場合、CSV 行・領収書画像が <strong>Google Gemini</strong> に送信されます。機微情報の送信前にご確認ください。
-        </li>
-        <li>
-          データは <strong>ブラウザ IndexedDB</strong> に保存されます。ブラウザのキャッシュクリアで消失するため、バックアップは利用者の責任で運用してください。
-        </li>
-        <li>
-          確定申告・修正申告・税務調査対応で発生した <strong>いかなる損害</strong> についても開発者は責任を負いません。
-        </li>
+        <li>{@html m.disclaimer_bullet_accuracy_html()}</li>
+        <li>{@html m.disclaimer_bullet_tax_law_html()}</li>
+        <li>{@html m.disclaimer_bullet_xtx_html()}</li>
+        <li>{@html m.disclaimer_bullet_llm_html()}</li>
+        <li>{@html m.disclaimer_bullet_storage_html()}</li>
+        <li>{@html m.disclaimer_bullet_liability_html()}</li>
       </ul>
 
       <p class="text-xs text-muted-foreground pt-2 border-t">
-        全文：<a
+        {m.disclaimer_docs_prefix()}<a
           href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
           target="_blank"
           rel="noopener noreferrer"
@@ -97,7 +86,7 @@
         data-testid="disclaimer-accept"
         class="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 disabled:opacity-50 font-medium"
       >
-        {accepting ? '保存中…' : '上記を理解し、同意して開始する'}
+        {accepting ? m.disclaimer_accept_button_saving() : m.disclaimer_accept_button()}
       </button>
     </footer>
   </div>

@@ -13,6 +13,9 @@ dev-dist/
 .vite/
 coverage/
 
+# Paraglide compiled output（messages/ から自動生成）
+src/paraglide/
+
 # 環境変数
 .env
 .env.*
