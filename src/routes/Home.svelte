@@ -3,6 +3,7 @@
   import { formatJPY } from '../lib/decimal';
   import JournalEntryForm from './JournalEntryForm.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
+  import { m } from '../paraglide/messages';
 
   const overview = $derived(ledger.monthlyOverview);
   const isPositive = $derived(Number(overview.netIncome) >= 0);
@@ -14,26 +15,26 @@
   <section class="bg-card text-card-foreground rounded-2xl p-8 space-y-6 shadow-sm">
     <header class="flex items-end justify-between">
       <div>
-        <div class="text-xs text-muted-foreground">今月の概況</div>
+        <div class="text-xs text-muted-foreground">{m.home_overview_label()}</div>
         <div class="text-lg font-semibold tabular-nums">
-          {overview.year} 年 {overview.month} 月
+          {m.home_overview_year_month({ year: overview.year, month: overview.month })}
         </div>
       </div>
       <div class="text-xs text-muted-foreground tabular-nums">
-        仕訳 {overview.entryCount} 件
+        {m.home_overview_entry_count({ count: overview.entryCount })}
       </div>
     </header>
     <div class="grid grid-cols-3 gap-8">
       <div>
-        <div class="text-xs text-muted-foreground mb-1">売上</div>
+        <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
         <div class="text-3xl font-bold tabular-nums">{formatJPY(overview.revenue)}</div>
       </div>
       <div>
-        <div class="text-xs text-muted-foreground mb-1">経費</div>
+        <div class="text-xs text-muted-foreground mb-1">{m.home_overview_expense()}</div>
         <div class="text-3xl font-bold tabular-nums">{formatJPY(overview.expense)}</div>
       </div>
       <div>
-        <div class="text-xs text-muted-foreground mb-1">想定所得</div>
+        <div class="text-xs text-muted-foreground mb-1">{m.home_overview_income()}</div>
         <div
           class="text-3xl font-bold tabular-nums"
           class:text-destructive={!isPositive}
@@ -48,10 +49,10 @@
 
   <section class="space-y-3">
     <header class="flex items-baseline justify-between">
-      <h2 class="text-lg font-semibold">直近の仕訳</h2>
+      <h2 class="text-lg font-semibold">{m.home_recent_title()}</h2>
       {#if ledger.recentLedgerRows.length > 0}
         <span class="text-xs text-muted-foreground">
-          直近 {ledger.recentLedgerRows.length} 件
+          {m.home_recent_count({ count: ledger.recentLedgerRows.length })}
         </span>
       {/if}
     </header>
@@ -61,11 +62,11 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
-              <th class="text-left font-normal px-4 py-3">日付</th>
-              <th class="text-left font-normal px-4 py-3">摘要</th>
-              <th class="text-left font-normal px-4 py-3">借方科目</th>
-              <th class="text-left font-normal px-4 py-3">貸方科目</th>
-              <th class="text-right font-normal px-4 py-3">金額</th>
+              <th class="text-left font-normal px-4 py-3">{m.home_recent_th_date()}</th>
+              <th class="text-left font-normal px-4 py-3">{m.home_recent_th_description()}</th>
+              <th class="text-left font-normal px-4 py-3">{m.home_recent_th_debit()}</th>
+              <th class="text-left font-normal px-4 py-3">{m.home_recent_th_credit()}</th>
+              <th class="text-right font-normal px-4 py-3">{m.home_recent_th_amount()}</th>
             </tr>
           </thead>
           <tbody>
@@ -114,7 +115,7 @@
     {:else}
       <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
         <p class="text-sm text-muted-foreground">
-          今月の仕訳、まだ 0 件だよ。最初の一歩、書いてみる？
+          {m.home_recent_empty()}
         </p>
       </div>
     {/if}

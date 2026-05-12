@@ -2,6 +2,7 @@ import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { copyFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
@@ -9,6 +10,11 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig({
   plugins: [
     tailwindcss(),
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
+    }),
     svelte(),
     VitePWA({
       registerType: 'prompt',
