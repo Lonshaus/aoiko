@@ -55,7 +55,7 @@
   let currentYear = $state(2026);
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
-  let basicSaveLabel = $state('保存');
+  let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let confirmingRestore = $state(false);
   let restorePayload = $state<ReturnType<typeof parseBackupJson> | null>(null);
@@ -125,17 +125,17 @@
   const allAccountGroups = $derived.by(() => {
     type G = { category: string; label: string; items: Account[] };
     const groups: G[] = [];
-    const order: Array<{ key: Account['category']; label: string }> = [
-      { key: 'asset', label: '資産' },
-      { key: 'liability', label: '負債' },
-      { key: 'equity', label: '純資産' },
-      { key: 'revenue', label: '収益' },
-      { key: 'expense', label: '費用' },
+    const order: Account['category'][] = [
+      'asset',
+      'liability',
+      'equity',
+      'revenue',
+      'expense',
     ];
-    for (const { key, label } of order) {
+    for (const key of order) {
       const items = ledger.allAccounts.filter((a) => a.category === key);
       if (items.length > 0) {
-        groups.push({ category: key, label, items });
+        groups.push({ category: key, label: categoryLabel(key), items });
       }
     }
     return groups;
@@ -161,9 +161,9 @@
     await setSetting('currentYear', currentYear);
     await setSetting('userBusinessName', userBusinessName);
     await setSetting('userInvoiceNumber', userInvoiceNumber);
-    basicSaveLabel = '✓ 保存しました';
+    basicSaved = true;
     setTimeout(() => {
-      basicSaveLabel = '保存';
+      basicSaved = false;
     }, 2000);
   }
 
@@ -189,12 +189,12 @@
     try {
       const r = await applyCarryover(currentYear);
       if ('entryId' in r) {
-        carryoverStatus = '✓ 期首振替仕訳を作成しました';
+        carryoverStatus = m.settings_carryover_applied();
         carryoverPreview = null;
       } else if (r.reason === 'already-exists') {
-        carryoverError = 'すでに前期繰越仕訳が存在します。先に削除してください。';
+        carryoverError = m.settings_carryover_already_exists();
       } else {
-        carryoverError = '前年に仕訳がないため繰越できません';
+        carryoverError = m.settings_carryover_no_prior();
       }
     } catch (err) {
       carryoverError = err instanceof Error ? err.message : String(err);
@@ -206,7 +206,7 @@
     carryoverStatus = '';
     try {
       const r = await removeCarryover(currentYear);
-      carryoverStatus = r.removed ? '✓ 削除しました' : '対象なし';
+      carryoverStatus = r.removed ? m.settings_carryover_deleted() : m.settings_carryover_no_target();
     } catch (err) {
       carryoverError = err instanceof Error ? err.message : String(err);
     }
@@ -218,14 +218,14 @@
     const parent = newSubParent.trim();
     const name = newSubName.trim();
     if (!parent || !name) {
-      subError = '親科目と名前を入力してください';
+      subError = m.settings_subaccount_error_required();
       return;
     }
     const exists = ledger.subAccounts.some(
       (s) => s.accountCode === parent && s.name === name
     );
     if (exists) {
-      subError = '同名の補助科目がすでに存在します';
+      subError = m.settings_subaccount_error_duplicate();
       return;
     }
     await db.subAccounts.add({ id: newId(), accountCode: parent, name });
@@ -249,11 +249,11 @@
     vendorError = '';
     const name = newVendorName.trim();
     if (!name) {
-      vendorError = '名前を入力してください';
+      vendorError = m.settings_vendor_error_required();
       return;
     }
     if (ledger.vendors.some((v) => v.name === name)) {
-      vendorError = '同名の取引先がすでに存在します';
+      vendorError = m.settings_vendor_error_duplicate();
       return;
     }
     const v: Vendor = {
@@ -283,7 +283,7 @@
     ruleError = '';
     const pattern = newRulePattern.trim();
     if (!pattern || !newRuleAccountCode) {
-      ruleError = 'パターンと対方科目は必須です';
+      ruleError = m.settings_rule_error_required();
       return;
     }
     const rule: ParserRule = {
@@ -308,11 +308,11 @@
     e.preventDefault();
     assetError = '';
     if (!newAssetName.trim() || !newAssetCost.trim()) {
-      assetError = '名前と取得価額は必須です';
+      assetError = m.settings_asset_error_required();
       return;
     }
     if (newAssetLife < 1) {
-      assetError = '耐用年数は 1 以上を指定してください';
+      assetError = m.settings_asset_error_life();
       return;
     }
     const a: FixedAsset = {
@@ -338,9 +338,11 @@
     depreciationStatus = '';
     try {
       const r = await generateYearEndDepreciation(depreciationYear);
-      depreciationStatus = `✓ ${r.created} 件の仕訳を作成${r.skipped > 0 ? `（${r.skipped} 件は既存のためスキップ）` : ''}`;
+      depreciationStatus = r.skipped > 0
+        ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
+        : m.settings_asset_run_success({ created: r.created });
     } catch (e) {
-      depreciationStatus = `⚠ ${e instanceof Error ? e.message : String(e)}`;
+      depreciationStatus = m.settings_asset_run_error({ message: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -354,23 +356,23 @@
 
   async function saveGeminiKey() {
     await setSetting('geminiApiKey', geminiKey.trim());
-    geminiKeySaved = '✓ 保存しました';
+    geminiKeySaved = m.settings_llm_saved();
     setTimeout(() => {
       geminiKeySaved = '';
     }, 2000);
   }
 
   async function testGeminiKey() {
-    geminiTestStatus = '⏳ テスト中…';
+    geminiTestStatus = m.settings_llm_testing();
     try {
       const { GeminiAdapter } = await import('../domain/llm');
       const adapter = new GeminiAdapter(geminiKey.trim());
       await adapter.generateJson(
         '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。'
       );
-      geminiTestStatus = '✓ 接続成功';
+      geminiTestStatus = m.settings_llm_test_success();
     } catch (e) {
-      geminiTestStatus = `⚠ ${e instanceof Error ? e.message : String(e)}`;
+      geminiTestStatus = m.settings_llm_test_error({ message: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -399,7 +401,7 @@
     confirmingRestore = false;
     try {
       const result = await restoreFromJson(restorePayload);
-      restoreSuccess = `${result.tableCount} テーブル / ${result.rowCount} 行 を復元しました。ページを再読み込みしてください。`;
+      restoreSuccess = m.settings_restore_success({ tables: result.tableCount, rows: result.rowCount });
       restorePayload = null;
     } catch (err) {
       restoreError = err instanceof Error ? err.message : String(err);
@@ -410,31 +412,52 @@
     if (!t || t === 'unknown') {
       return '—';
     }
-    return ({
-      corporation: '法人',
-      individual: '個人',
-      public: '公共',
-      foreign: '海外',
-      unknown: '—',
-    } as const)[t];
+    switch (t) {
+      case 'corporation':
+        return m.settings_vendor_entity_corporation();
+      case 'individual':
+        return m.settings_vendor_entity_individual();
+      case 'public':
+        return m.settings_vendor_entity_public();
+      case 'foreign':
+        return m.settings_vendor_entity_foreign();
+    }
   }
 
   function matchTypeLabel(t: ParserRuleMatchType): string {
-    return ({
-      'description-includes': '内容に含む',
-      'vendor-name': '取引先名一致',
-      regex: '正規表現',
-    } as const)[t];
+    switch (t) {
+      case 'description-includes':
+        return m.settings_rule_match_includes();
+      case 'vendor-name':
+        return m.settings_rule_match_vendor();
+      case 'regex':
+        return m.settings_rule_match_regex();
+    }
+  }
+
+  function categoryLabel(key: Account['category']): string {
+    switch (key) {
+      case 'asset':
+        return m.settings_account_category_asset();
+      case 'liability':
+        return m.settings_account_category_liability();
+      case 'equity':
+        return m.settings_account_category_equity();
+      case 'revenue':
+        return m.settings_account_category_revenue();
+      case 'expense':
+        return m.settings_account_category_expense();
+    }
   }
 </script>
 
 <div class="space-y-8">
-  <h2 class="text-2xl font-bold">設定</h2>
+  <h2 class="text-2xl font-bold">{m.settings_title()}</h2>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.language_label()}</h3>
     <p class="text-xs text-muted-foreground">
-      UI 表示言語を切り替えます。変更すると画面がリロードされます。勘定科目名や帳票項目・.xtx 出力は日本語のままです。
+      {m.settings_language_hint()}
     </p>
     <label class="block sm:max-w-xs">
       <select
@@ -453,22 +476,22 @@
     onsubmit={saveBasic}
     class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
   >
-    <h3 class="text-lg font-semibold">基本情報</h3>
+    <h3 class="text-lg font-semibold">{m.settings_basic_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      決算書・確定申告書 B・<code class="text-foreground">.xtx</code> ファイルに記載される事業者情報。
+      {@html m.settings_basic_intro_html()}
     </p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block sm:col-span-2">
-        <span class="text-xs text-muted-foreground">事業名 / 屋号</span>
+        <span class="text-xs text-muted-foreground">{m.settings_basic_business_name()}</span>
         <input
           type="text"
           bind:value={userBusinessName}
-          placeholder="例：青井ウェブ事務所"
+          placeholder={m.settings_basic_business_name_placeholder()}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">インボイス登録番号</span>
+        <span class="text-xs text-muted-foreground">{m.settings_basic_invoice_number()}</span>
         <input
           type="text"
           bind:value={userInvoiceNumber}
@@ -478,7 +501,7 @@
         />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">処理中の年度</span>
+        <span class="text-xs text-muted-foreground">{m.settings_basic_year()}</span>
         <input
           type="number"
           bind:value={currentYear}
@@ -494,16 +517,15 @@
         type="submit"
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        {basicSaveLabel}
+        {basicSaved ? m.settings_basic_saved() : m.settings_basic_save()}
       </button>
     </div>
   </form>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">前期繰越（期首残高）</h3>
+    <h3 class="text-lg font-semibold">{m.settings_carryover_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      前年の資産・負債残高を <strong>{currentYear}-01-01</strong> 付けの期首振替仕訳として今年度に持ち越します。
-      事業主貸・事業主借・前年純利益は元入金へ吸収されます。年度の最初に 1 回だけ実行してください。
+      {@html m.settings_carryover_intro_html({ year: currentYear })}
     </p>
     <div class="flex flex-wrap gap-2">
       <button
@@ -511,21 +533,21 @@
         onclick={previewCarryover}
         class="px-4 py-2 border rounded hover:bg-accent"
       >
-        プレビュー
+        {m.settings_carryover_preview_button()}
       </button>
       <button
         type="button"
         onclick={runCarryover}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        期首振替仕訳を作成
+        {m.settings_carryover_apply_button()}
       </button>
       <button
         type="button"
         onclick={deleteCarryover}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
-        既存の繰越仕訳を削除
+        {m.settings_carryover_delete_button()}
       </button>
     </div>
     {#if carryoverStatus}
@@ -538,9 +560,9 @@
       {@const p = carryoverPreview}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm pt-2">
         <div>
-          <h4 class="font-medium mb-1">借方（資産）</h4>
+          <h4 class="font-medium mb-1">{m.settings_carryover_assets_label()}</h4>
           {#if p.assets.length === 0}
-            <p class="text-muted-foreground text-xs">なし</p>
+            <p class="text-muted-foreground text-xs">{m.settings_carryover_none()}</p>
           {:else}
             <ul class="space-y-1">
               {#each p.assets as a (a.accountCode)}
@@ -553,9 +575,9 @@
           {/if}
         </div>
         <div>
-          <h4 class="font-medium mb-1">貸方（負債・元入金）</h4>
+          <h4 class="font-medium mb-1">{m.settings_carryover_liabilities_label()}</h4>
           {#if p.liabilities.length === 0 && p.capitalAmount === '0'}
-            <p class="text-muted-foreground text-xs">なし</p>
+            <p class="text-muted-foreground text-xs">{m.settings_carryover_none()}</p>
           {:else}
             <ul class="space-y-1">
               {#each p.liabilities as l (l.accountCode)}
@@ -565,7 +587,7 @@
                 </li>
               {/each}
               <li class="flex justify-between border-t pt-1">
-                <span>{p.capitalCode} 元入金</span>
+                <span>{p.capitalCode} {m.settings_carryover_capital_label()}</span>
                 <span class="font-mono">{formatJPY(p.capitalAmount)}</span>
               </li>
             </ul>
@@ -573,17 +595,17 @@
         </div>
       </div>
       <div class="text-xs text-muted-foreground border-t pt-2 space-y-0.5">
-        <p>前年純利益：<span class="font-mono">{formatJPY(p.priorNetIncome)}</span></p>
-        <p>前年末元入金：<span class="font-mono">{formatJPY(p.priorEndingCapital)}</span></p>
-        <p>事業主貸：<span class="font-mono">{formatJPY(p.priorOwnerWithdrawals)}</span> / 事業主借：<span class="font-mono">{formatJPY(p.priorOwnerContributions)}</span></p>
+        <p>{m.settings_carryover_prior_net_income()}：<span class="font-mono">{formatJPY(p.priorNetIncome)}</span></p>
+        <p>{m.settings_carryover_prior_capital()}：<span class="font-mono">{formatJPY(p.priorEndingCapital)}</span></p>
+        <p>{m.settings_carryover_prior_owner_movements({ withdrawals: formatJPY(p.priorOwnerWithdrawals), contributions: formatJPY(p.priorOwnerContributions) })}</p>
       </div>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">補助科目</h3>
+    <h3 class="text-lg font-semibold">{m.settings_subaccount_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      銀行口座の区別（例：普通預金 / 三菱UFJ）や経費の細目（例：通信費 / AWS）に使えます。
+      {m.settings_subaccount_intro()}
     </p>
     <form onsubmit={addSubAccount} class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
       <select
@@ -591,7 +613,7 @@
         required
         class="px-3 py-2 bg-background border rounded text-foreground"
       >
-        <option value="">親科目を選択</option>
+        <option value="">{m.settings_subaccount_parent_select()}</option>
         {#each accountGroups as group (group.category)}
           <optgroup label={group.label}>
             {#each group.items as a (a.code)}
@@ -604,14 +626,14 @@
         type="text"
         bind:value={newSubName}
         required
-        placeholder="補助科目名（例：三菱UFJ 本店）"
+        placeholder={m.settings_subaccount_name_placeholder()}
         class="px-3 py-2 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        追加
+        {m.settings_action_add()}
       </button>
     </form>
     {#if subError}
@@ -633,7 +655,7 @@
                     onclick={() => deleteSubAccount(sa.id)}
                     class="text-xs text-muted-foreground hover:text-destructive"
                   >
-                    削除
+                    {m.settings_action_delete()}
                   </button>
                 </li>
               {/each}
@@ -642,37 +664,37 @@
         {/each}
       </ul>
     {:else}
-      <p class="text-sm text-muted-foreground">まだ補助科目がありません。</p>
+      <p class="text-sm text-muted-foreground">{m.settings_subaccount_empty()}</p>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">取引先</h3>
+    <h3 class="text-lg font-semibold">{m.settings_vendor_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      インボイス登録番号や既定の対方科目を登録しておくと、CSV インポート時の自動分類に使えます。
+      {m.settings_vendor_intro()}
     </p>
     <form onsubmit={addVendor} class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_1fr_auto] gap-3">
       <input
         type="text"
         bind:value={newVendorName}
         required
-        placeholder="取引先名"
+        placeholder={m.settings_vendor_name_placeholder()}
         class="px-3 py-2 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newVendorEntityType}
         class="px-3 py-2 bg-background border rounded text-foreground"
       >
-        <option value="unknown">区分</option>
-        <option value="corporation">法人</option>
-        <option value="individual">個人</option>
-        <option value="public">公共</option>
-        <option value="foreign">海外</option>
+        <option value="unknown">{m.settings_vendor_entity_label()}</option>
+        <option value="corporation">{m.settings_vendor_entity_corporation()}</option>
+        <option value="individual">{m.settings_vendor_entity_individual()}</option>
+        <option value="public">{m.settings_vendor_entity_public()}</option>
+        <option value="foreign">{m.settings_vendor_entity_foreign()}</option>
       </select>
       <input
         type="text"
         bind:value={newVendorInvoice}
-        placeholder="T1234567890123 (任意)"
+        placeholder={m.settings_vendor_invoice_placeholder()}
         pattern={INVOICE_NUMBER_PATTERN}
         class="px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
       />
@@ -680,7 +702,7 @@
         bind:value={newVendorAccountCode}
         class="px-3 py-2 bg-background border rounded text-foreground"
       >
-        <option value="">既定科目（任意）</option>
+        <option value="">{m.settings_vendor_default_account()}</option>
         {#each accountGroups as group (group.category)}
           <optgroup label={group.label}>
             {#each group.items as a (a.code)}
@@ -693,7 +715,7 @@
         type="submit"
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        追加
+        {m.settings_action_add()}
       </button>
     </form>
     {#if vendorError}
@@ -719,7 +741,7 @@
                   rel="noreferrer noopener"
                   class="text-xs text-primary hover:underline"
                 >
-                  公表サイト
+                  {m.settings_vendor_official_site()}
                 </a>
               {/if}
               <button
@@ -727,22 +749,21 @@
                 onclick={() => deleteVendor(v.id)}
                 class="text-xs text-muted-foreground hover:text-destructive"
               >
-                削除
+                {m.settings_action_delete()}
               </button>
             </div>
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="text-sm text-muted-foreground">まだ取引先がありません。</p>
+      <p class="text-sm text-muted-foreground">{m.settings_vendor_empty()}</p>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">固定資産</h3>
+    <h3 class="text-lg font-semibold">{m.settings_asset_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      取得価額 10 万円以上の機材は固定資産として登録し、減価償却（直接法）で経費計上します。
-      年末に「減価償却仕訳を生成」で当年度の償却仕訳を一括作成します。
+      {m.settings_asset_intro()}
     </p>
 
     <form
@@ -753,14 +774,14 @@
         type="text"
         bind:value={newAssetName}
         required
-        placeholder="名前（例：MacBook Pro）"
+        placeholder={m.settings_asset_name_placeholder()}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm"
       />
       <input
         type="date"
         bind:value={newAssetDate}
         required
-        title="取得日"
+        title={m.settings_asset_date_title()}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
       />
       <input
@@ -769,7 +790,7 @@
         required
         min="0"
         step="1"
-        placeholder="取得価額"
+        placeholder={m.settings_asset_cost_placeholder()}
         class="w-32 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
       />
       <input
@@ -779,12 +800,12 @@
         min="1"
         max="50"
         step="1"
-        title="耐用年数"
+        title={m.settings_asset_life_title()}
         class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
       />
       <select
         bind:value={newAssetAccount}
-        title="科目"
+        title={m.settings_asset_account_title()}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm"
       >
         <option value="1510">1510 工具器具備品</option>
@@ -793,17 +814,17 @@
       </select>
       <select
         bind:value={newAssetMethod}
-        title="償却方法"
+        title={m.settings_asset_method_title()}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm"
       >
-        <option value="straight-line">定額法</option>
-        <option value="declining-balance">定率法（200%）</option>
+        <option value="straight-line">{m.settings_asset_method_straight()}</option>
+        <option value="declining-balance">{m.settings_asset_method_declining()}</option>
       </select>
       <button
         type="submit"
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        追加
+        {m.settings_action_add()}
       </button>
     </form>
     {#if assetError}
@@ -814,12 +835,12 @@
       <table class="w-full text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
-            <th class="text-left font-normal py-1">名前</th>
-            <th class="text-left font-normal py-1">取得日</th>
-            <th class="text-right font-normal py-1">取得価額</th>
-            <th class="text-right font-normal py-1">耐用年数</th>
-            <th class="text-right font-normal py-1">当年度償却</th>
-            <th class="text-right font-normal py-1">期末簿価</th>
+            <th class="text-left font-normal py-1">{m.settings_asset_th_name()}</th>
+            <th class="text-left font-normal py-1">{m.settings_asset_th_date()}</th>
+            <th class="text-right font-normal py-1">{m.settings_asset_th_cost()}</th>
+            <th class="text-right font-normal py-1">{m.settings_asset_th_life()}</th>
+            <th class="text-right font-normal py-1">{m.settings_asset_th_year_depreciation()}</th>
+            <th class="text-right font-normal py-1">{m.settings_asset_th_book_value()}</th>
             <th class="py-1"></th>
           </tr>
         </thead>
@@ -830,7 +851,7 @@
               <td class="py-2">{a.name}</td>
               <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
-              <td class="py-2 text-right tabular-nums">{a.usefulLifeYears} 年</td>
+              <td class="py-2 text-right tabular-nums">{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
               <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td>
               <td class="py-2 text-right">
@@ -839,7 +860,7 @@
                   onclick={() => deleteAsset(a.id)}
                   class="text-xs text-muted-foreground hover:text-destructive"
                 >
-                  削除
+                  {m.settings_action_delete()}
                 </button>
               </td>
             </tr>
@@ -847,12 +868,12 @@
         </tbody>
       </table>
     {:else}
-      <p class="text-sm text-muted-foreground">まだ固定資産がありません。</p>
+      <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
 
     <div class="flex items-end gap-3 pt-3 border-t border-border/50">
       <label class="block">
-        <span class="text-xs text-muted-foreground">対象年度</span>
+        <span class="text-xs text-muted-foreground">{m.settings_asset_target_year()}</span>
         <input
           type="number"
           bind:value={depreciationYear}
@@ -868,7 +889,7 @@
         disabled={ledger.fixedAssets.length === 0}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
-        減価償却仕訳を生成
+        {m.settings_asset_run_button()}
       </button>
       {#if depreciationStatus}
         <span class="text-sm">{depreciationStatus}</span>
@@ -877,9 +898,9 @@
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">自動分類ルール</h3>
+    <h3 class="text-lg font-semibold">{m.settings_rule_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      CSV インポート時に内容文字列でマッチして対方科目を自動入力します。優先度が高いルールから評価されます。
+      {m.settings_rule_intro()}
     </p>
     <form
       onsubmit={addRule}
@@ -889,15 +910,15 @@
         bind:value={newRuleMatchType}
         class="px-3 py-2 bg-background border rounded text-foreground"
       >
-        <option value="description-includes">内容に含む</option>
-        <option value="vendor-name">取引先名一致</option>
-        <option value="regex">正規表現</option>
+        <option value="description-includes">{m.settings_rule_match_includes()}</option>
+        <option value="vendor-name">{m.settings_rule_match_vendor()}</option>
+        <option value="regex">{m.settings_rule_match_regex()}</option>
       </select>
       <input
         type="text"
         bind:value={newRulePattern}
         required
-        placeholder="例：amazon"
+        placeholder={m.settings_rule_pattern_placeholder()}
         class="px-3 py-2 bg-background border rounded text-foreground"
       />
       <select
@@ -905,7 +926,7 @@
         required
         class="px-3 py-2 bg-background border rounded text-foreground"
       >
-        <option value="">対方科目</option>
+        <option value="">{m.settings_rule_account_select()}</option>
         {#each accountGroups as group (group.category)}
           <optgroup label={group.label}>
             {#each group.items as a (a.code)}
@@ -919,14 +940,14 @@
         bind:value={newRulePriority}
         min="0"
         step="1"
-        title="優先度"
+        title={m.settings_rule_priority_title()}
         class="w-20 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
       />
       <button
         type="submit"
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        追加
+        {m.settings_action_add()}
       </button>
     </form>
     {#if ruleError}
@@ -939,34 +960,34 @@
             <span class="text-xs text-muted-foreground">{matchTypeLabel(r.matchType)}</span>
             <span class="font-mono">{r.pattern}</span>
             <span class="font-mono text-xs text-muted-foreground">→ {r.accountCode}</span>
-            <span class="text-xs text-muted-foreground tabular-nums">優{r.priority}</span>
-            <span class="text-xs text-muted-foreground tabular-nums">{r.hitCount} 回</span>
+            <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_priority_short({ n: r.priority })}</span>
+            <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_hits({ n: r.hitCount })}</span>
             <button
               type="button"
               onclick={() => deleteRule(r.id)}
               class="text-xs text-muted-foreground hover:text-destructive"
             >
-              削除
+              {m.settings_action_delete()}
             </button>
           </li>
         {/each}
       </ul>
     {:else}
-      <p class="text-sm text-muted-foreground">まだルールがありません。</p>
+      <p class="text-sm text-muted-foreground">{m.settings_rule_empty()}</p>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">勘定科目</h3>
+    <h3 class="text-lg font-semibold">{m.settings_account_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      使わない科目を非表示にすると、仕訳入力時の選択肢が短くなります。会計記録から削除されることはありません。
+      {m.settings_account_intro()}
     </p>
     {#each allAccountGroups as group (group.category)}
       <details class="border rounded">
         <summary class="cursor-pointer px-3 py-2 text-sm font-medium">
           {group.label}
           <span class="text-xs text-muted-foreground ml-2">
-            {group.items.filter((a) => a.isActive !== false).length} / {group.items.length} 有効
+            {m.settings_account_active_count({ active: group.items.filter((a) => a.isActive !== false).length, total: group.items.length })}
           </span>
         </summary>
         <ul class="border-t divide-y divide-border/50">
@@ -984,7 +1005,7 @@
                   checked={a.isActive !== false}
                   onchange={() => toggleAccountActive(a)}
                 />
-                有効
+                {m.settings_account_active_label()}
               </label>
             </li>
           {/each}
@@ -994,15 +1015,13 @@
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">LLM 連携（任意）</h3>
+    <h3 class="text-lg font-semibold">{m.settings_llm_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      Google Gemini API キーを入れると、CSV インポート時にルールにマッチしなかった行を
-      LLM で自動分類できます。<strong class="text-foreground">BYOK 方式</strong>：キーはあなたのブラウザ内のみに保存され、Google API に直接送信されます（aoiko 側に経由しません）。
-      <a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" class="text-primary hover:underline">Google AI Studio</a> で無料取得可能。
+      {@html m.settings_llm_intro_html()}
     </p>
     <div class="flex gap-3 items-end">
       <label class="block flex-1">
-        <span class="text-xs text-muted-foreground">Gemini API キー</span>
+        <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
         <input
           type="password"
           bind:value={geminiKey}
@@ -1015,7 +1034,7 @@
         onclick={saveGeminiKey}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        保存
+        {m.settings_llm_save()}
       </button>
       <button
         type="button"
@@ -1023,7 +1042,7 @@
         disabled={!geminiKey.trim()}
         class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
       >
-        接続テスト
+        {m.settings_llm_test()}
       </button>
     </div>
     <div class="flex gap-3 text-xs">
@@ -1039,9 +1058,9 @@
   <BackupPanel />
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">JSON から復元</h3>
+    <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      バックアップした JSON ファイルから完全復元します。<strong class="text-foreground">現在の全データは削除されます。</strong>
+      {@html m.settings_restore_intro_html()}
     </p>
     <input
       type="file"
@@ -1050,7 +1069,7 @@
       class="w-full text-sm text-muted-foreground"
     />
     {#if restoreFileName}
-      <p class="text-xs text-muted-foreground">選択中：{restoreFileName}</p>
+      <p class="text-xs text-muted-foreground">{m.settings_restore_selected({ name: restoreFileName })}</p>
     {/if}
     {#if restoreError}
       <div class="text-sm text-destructive">{restoreError}</div>
@@ -1063,33 +1082,32 @@
           onclick={() => location.reload()}
           class="ml-2 text-primary underline"
         >
-          再読み込み
+          {m.settings_restore_reload()}
         </button>
       </div>
     {/if}
     {#if restorePayload}
       <div class="text-xs text-muted-foreground">
-        version {restorePayload.version} ・ {Object.keys(restorePayload.tables).length} テーブル ・
-        {Object.values(restorePayload.tables).reduce((s, t) => s + t.length, 0)} 行
+        {m.settings_restore_summary({ version: restorePayload.version, tables: Object.keys(restorePayload.tables).length, rows: Object.values(restorePayload.tables).reduce((s, t) => s + t.length, 0) })}
       </div>
       <button
         type="button"
         onclick={() => (confirmingRestore = true)}
         class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"
       >
-        全データを置換して復元
+        {m.settings_restore_apply()}
       </button>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">免責事項の同意状態</h3>
+    <h3 class="text-lg font-semibold">{m.settings_disclaimer_title()}</h3>
     {#if disclaimerAcceptedAt}
       <p class="text-sm">
-        ✓ 同意済み（{new Date(disclaimerAcceptedAt).toISOString().slice(0, 10)} 時点・version {disclaimerAcceptedVersion}）
+        {m.settings_disclaimer_accepted({ date: new Date(disclaimerAcceptedAt).toISOString().slice(0, 10), version: disclaimerAcceptedVersion ?? 0 })}
       </p>
       <p class="text-xs text-muted-foreground">
-        全文：
+        {m.settings_disclaimer_full_text_label()}
         <a
           href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
           target="_blank"
@@ -1103,18 +1121,18 @@
           onclick={revokeDisclaimer}
           class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
         >
-          同意を取り消す（再表示）
+          {m.settings_disclaimer_revoke()}
         </button>
       </div>
     {:else}
-      <p class="text-sm text-muted-foreground">未同意</p>
+      <p class="text-sm text-muted-foreground">{m.settings_disclaimer_not_accepted()}</p>
     {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">データ管理</h3>
+    <h3 class="text-lg font-semibold">{m.settings_data_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      ローカル IndexedDB のすべてのデータを削除します。バックアップファイルは保持されます。
+      {m.settings_data_intro()}
     </p>
     <div>
       <button
@@ -1122,7 +1140,7 @@
         onclick={() => (confirmingClear = true)}
         class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"
       >
-        全データ削除
+        {m.settings_data_clear_button()}
       </button>
     </div>
   </section>
@@ -1131,19 +1149,18 @@
 <AlertDialog.Root bind:open={confirmingClear}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>本当に全データを削除しますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.settings_clear_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        IndexedDB の仕訳・取引先・固定資産・設定などすべてのデータが完全に削除されます。この操作は元に戻せません。
-        バックアップフォルダ内のファイルは削除されません。
+        {m.settings_clear_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={clearAll}
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
-        削除する
+        {m.settings_clear_confirm_action()}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
@@ -1152,18 +1169,18 @@
 <AlertDialog.Root bind:open={confirmingRestore}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>JSON で全データを置換しますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.settings_restore_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        現在の全データが削除され、選択した JSON の内容で完全置換されます。この操作は元に戻せません。
+        {m.settings_restore_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={confirmRestore}
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
-        置換して復元
+        {m.settings_restore_confirm_action()}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
