@@ -1,0 +1,15 @@
+{
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "app_name": "aoiko",
+  "nav_home": "ホーム",
+  "nav_journal": "一覧",
+  "nav_reports": "レポート",
+  "nav_import": "インポート",
+  "nav_receipt": "領収書",
+  "nav_import_history": "履歴",
+  "nav_settings": "設定",
+  "language_label": "言語",
+  "language_ja": "日本語",
+  "language_zh_tw": "繁體中文（台灣）",
+  "language_en": "English"
+}

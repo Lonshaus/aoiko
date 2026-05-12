@@ -3,6 +3,8 @@
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
+  import { m } from '../paraglide/messages';
+  import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
   import { parseBackupJson, restoreFromJson } from '../domain/restore';
   import {
@@ -30,6 +32,25 @@
   } from '../db/types';
 
   const INVOICE_NUMBER_PATTERN = '^T\\d{13}$';
+
+  let currentLocale = $state<Locale>(getLocale());
+
+  function onLocaleChange(e: Event) {
+    const v = (e.currentTarget as HTMLSelectElement).value as Locale;
+    currentLocale = v;
+    // setLocale 既定で reload を伴う — 即座に UI 全体へ反映される
+    setLocale(v);
+  }
+
+  function localeLabel(loc: Locale): string {
+    if (loc === 'ja') {
+      return m.language_ja();
+    } else if (loc === 'zh-TW') {
+      return m.language_zh_tw();
+    } else {
+      return m.language_en();
+    }
+  }
 
   let currentYear = $state(2026);
   let userBusinessName = $state('');
@@ -409,6 +430,24 @@
 
 <div class="space-y-8">
   <h2 class="text-2xl font-bold">設定</h2>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.language_label()}</h3>
+    <p class="text-xs text-muted-foreground">
+      UI 表示言語を切り替えます。変更すると画面がリロードされます。勘定科目名や帳票項目・.xtx 出力は日本語のままです。
+    </p>
+    <label class="block sm:max-w-xs">
+      <select
+        value={currentLocale}
+        onchange={onLocaleChange}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+      >
+        {#each locales as loc (loc)}
+          <option value={loc}>{localeLabel(loc)}</option>
+        {/each}
+      </select>
+    </label>
+  </section>
 
   <form
     onsubmit={saveBasic}
