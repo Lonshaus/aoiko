@@ -159,7 +159,7 @@
   </header>
 
   <section class="bg-card text-card-foreground rounded-xl p-5 space-y-4 shadow-sm">
-    <div class="grid grid-cols-1 sm:grid-cols-[auto_auto_1fr_auto] gap-3 items-end">
+    <div class="flex flex-wrap gap-3 items-end">
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
         <input
@@ -185,7 +185,7 @@
           {/each}
         </select>
       </label>
-      <label class="block">
+      <label class="block flex-1 min-w-48">
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_description()}</span>
         <input
           type="text"

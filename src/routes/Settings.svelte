@@ -607,11 +607,11 @@
     <p class="text-xs text-muted-foreground">
       {m.settings_subaccount_intro()}
     </p>
-    <form onsubmit={addSubAccount} class="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-3">
+    <form onsubmit={addSubAccount} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newSubParent}
         required
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_subaccount_parent_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -627,11 +627,11 @@
         bind:value={newSubName}
         required
         placeholder={m.settings_subaccount_name_placeholder()}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -724,8 +724,8 @@
     {#if ledger.vendors.length > 0}
       <ul class="space-y-1">
         {#each ledger.vendors as v (v.id)}
-          <li class="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
-            <span>
+          <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+            <span class="flex-1 min-w-40 break-all">
               {v.name}
               <span class="text-xs text-muted-foreground ml-2">{vendorEntityLabel(v.entityType)}</span>
             </span>
@@ -733,7 +733,7 @@
             <span class="text-xs text-muted-foreground">
               {v.defaultAccountCode ?? ''}
             </span>
-            <div class="flex gap-2">
+            <div class="ml-auto flex gap-2">
               {#if v.invoiceNumber}
                 <a
                   href={`https://www.invoice-kohyo.nta.go.jp/regno-search/list?selRegNo=${v.invoiceNumber.replace(/^T/, '')}`}
@@ -952,16 +952,16 @@
     {#if ledger.parserRules.length > 0}
       <ul class="space-y-1">
         {#each ledger.parserRules as r (r.id)}
-          <li class="grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+          <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
             <span class="text-xs text-muted-foreground">{matchTypeLabel(r.matchType)}</span>
-            <span class="font-mono">{r.pattern}</span>
+            <span class="font-mono flex-1 min-w-32 break-all">{r.pattern}</span>
             <span class="font-mono text-xs text-muted-foreground">→ {r.accountCode}</span>
             <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_priority_short({ n: r.priority })}</span>
             <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_hits({ n: r.hitCount })}</span>
             <button
               type="button"
               onclick={() => deleteRule(r.id)}
-              class="text-xs text-muted-foreground hover:text-destructive"
+              class="ml-auto text-xs text-muted-foreground hover:text-destructive"
             >
               {m.settings_action_delete()}
             </button>
