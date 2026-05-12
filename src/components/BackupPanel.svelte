@@ -1,5 +1,6 @@
 <script lang="ts">
   import { backup } from '../stores/backup.svelte';
+  import { m } from '../paraglide/messages';
 
   function formatTime(ts: number | null): string {
     if (!ts) {
@@ -24,68 +25,67 @@
 
   const statusLabel = $derived(
     backup.status === 'initializing'
-      ? '初期化中…'
+      ? m.backup_panel_status_initializing()
       : backup.status === 'unsupported'
-        ? '⚠ ブラウザ非対応'
+        ? m.backup_panel_status_unsupported()
         : backup.status === 'unconfigured'
-          ? '未設定'
+          ? m.backup_panel_status_unconfigured()
           : backup.status === 'permission-required'
-            ? '🔒 アクセス許可待ち'
+            ? m.backup_panel_status_permission_required()
             : backup.status === 'writing'
-              ? '💾 書き込み中…'
+              ? m.backup_panel_status_writing()
               : backup.status === 'error'
-                ? '⚠ エラー'
-                : '✓ 正常'
+                ? m.backup_panel_status_error()
+                : m.backup_panel_status_ok()
   );
 
   const adapterLabel = $derived(
     backup.adapterKind === 'fsa'
-      ? 'クラウド同期フォルダ（FSA API）'
+      ? m.backup_panel_adapter_fsa()
       : backup.adapterKind === 'opfs'
-        ? 'ブラウザ内 OPFS（フォルバック）'
-        : '未対応'
+        ? m.backup_panel_adapter_opfs()
+        : m.backup_panel_adapter_none()
   );
 </script>
 
 <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
   <header class="flex items-baseline justify-between">
-    <h3 class="text-lg font-semibold">バックアップ</h3>
+    <h3 class="text-lg font-semibold">{m.backup_panel_title()}</h3>
     <span class="text-xs text-muted-foreground">{adapterLabel}</span>
   </header>
 
   {#if backup.adapterKind === 'fsa'}
     <p class="text-xs text-muted-foreground">
-      iCloud Drive・Google Drive Desktop・Dropbox 等の同期フォルダを指定すると、仕訳を変更するたびに
-      <code class="text-foreground">aoiko-ledger-YYYY-MM-DD.json</code> が自動的に書き出されます。
+      {@html m.backup_panel_intro_fsa_html()}
     </p>
   {:else if backup.adapterKind === 'opfs'}
     <p class="text-xs text-muted-foreground">
-      このブラウザは外部フォルダへの書き込みに対応していないため、ブラウザ内のサンドボックス領域（OPFS）に自動保存します。<strong class="text-foreground">ブラウザのデータを消すと失われる</strong>ため、定期的に下の「JSON をダウンロード」を押して iCloud Drive 等に保存してください。
+      {@html m.backup_panel_intro_opfs_html()}
     </p>
   {:else if backup.adapterKind === 'none'}
     <p class="text-xs text-muted-foreground">
-      このブラウザは自動バックアップに対応していません。「JSON をダウンロード」を頻繁に実行してください。
+      {m.backup_panel_intro_none()}
     </p>
   {/if}
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
     <div>
-      <div class="text-xs text-muted-foreground">状態</div>
+      <div class="text-xs text-muted-foreground">{m.backup_panel_label_status()}</div>
       <div>{statusLabel}</div>
     </div>
     {#if backup.adapterKind === 'fsa'}
       <div>
-        <div class="text-xs text-muted-foreground">フォルダ</div>
+        <div class="text-xs text-muted-foreground">{m.backup_panel_label_folder()}</div>
         <div class="font-mono text-xs break-all">{backup.folderName ?? '—'}</div>
       </div>
     {/if}
     <div>
-      <div class="text-xs text-muted-foreground">最終バックアップ</div>
+      <div class="text-xs text-muted-foreground">{m.backup_panel_label_last_backup()}</div>
       <div>{lastBackupLabel}</div>
     </div>
     <div>
       <div class="text-xs text-muted-foreground">
-        最終 JSON ダウンロード
+        {m.backup_panel_label_last_download()}
         {#if downloadStale}
           <span class="text-destructive">⚠</span>
         {/if}
@@ -94,7 +94,7 @@
     </div>
     {#if backup.lastError}
       <div class="sm:col-span-2">
-        <div class="text-xs text-muted-foreground">最終エラー</div>
+        <div class="text-xs text-muted-foreground">{m.backup_panel_label_last_error()}</div>
         <div class="text-destructive text-xs break-all">{backup.lastError}</div>
       </div>
     {/if}
@@ -108,7 +108,7 @@
           onclick={() => backup.configure()}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
-          フォルダを選ぶ
+          {m.backup_panel_action_choose_folder()}
         </button>
       {:else if backup.status === 'permission-required'}
         <button
@@ -116,14 +116,14 @@
           onclick={() => backup.grantPermission()}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
-          アクセスを許可
+          {m.backup_panel_action_grant_access()}
         </button>
         <button
           type="button"
           onclick={() => backup.configure()}
           class="px-4 py-2 border rounded hover:bg-accent"
         >
-          フォルダを変更
+          {m.backup_panel_action_change_folder()}
         </button>
       {:else}
         <button
@@ -132,14 +132,14 @@
           disabled={backup.status === 'writing'}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
-          今すぐバックアップ
+          {m.backup_panel_action_backup_now()}
         </button>
         <button
           type="button"
           onclick={() => backup.configure()}
           class="px-4 py-2 border rounded hover:bg-accent"
         >
-          フォルダを変更
+          {m.backup_panel_action_change_folder()}
         </button>
       {/if}
     {:else if backup.adapterKind === 'opfs'}
@@ -149,7 +149,7 @@
         disabled={backup.status === 'writing'}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
-        今すぐバックアップ
+        {m.backup_panel_action_backup_now()}
       </button>
     {/if}
 
@@ -161,7 +161,7 @@
       class:text-destructive-foreground={downloadStale}
       class:border-destructive={downloadStale}
     >
-      JSON をダウンロード
+      {m.backup_panel_action_download_json()}
     </button>
   </div>
 </section>

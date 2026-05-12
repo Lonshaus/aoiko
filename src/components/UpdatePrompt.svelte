@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { registerSW } from 'virtual:pwa-register';
+  import { m } from '../paraglide/messages';
 
   let updateAvailable = $state(false);
   let offlineReady = $state(false);
@@ -29,9 +30,9 @@
   <div
     class="fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-lg p-4 max-w-sm"
   >
-    <p class="text-sm font-medium mb-1">新しいバージョンがあります</p>
+    <p class="text-sm font-medium mb-1">{m.update_available_title()}</p>
     <p class="text-xs text-muted-foreground mb-3">
-      仕訳の入力中は次回起動時に更新するのをおすすめします。
+      {m.update_available_hint()}
     </p>
     <div class="flex gap-2 justify-end">
       <button
@@ -39,14 +40,14 @@
         onclick={() => (updateAvailable = false)}
         class="px-3 py-1 text-xs border rounded hover:bg-accent"
       >
-        後で
+        {m.update_action_later()}
       </button>
       <button
         type="button"
         onclick={refresh}
         class="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        更新する
+        {m.update_action_now()}
       </button>
     </div>
   </div>
@@ -55,12 +56,12 @@
     class="fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
   >
     <span class="text-xs text-muted-foreground">
-      ✓ オフラインで利用可能になりました
+      {m.update_offline_ready()}
     </span>
     <button
       type="button"
       onclick={() => (dismissOffline = true)}
-      aria-label="閉じる"
+      aria-label={m.common_close()}
       class="text-muted-foreground hover:text-foreground"
     >
       ×

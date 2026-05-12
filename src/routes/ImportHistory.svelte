@@ -6,6 +6,7 @@
   import type { ImportBatch, JournalEntry } from '../db/types';
   import { findParser } from '../parsers';
   import { formatJPY } from '../lib/decimal';
+  import { m } from '../paraglide/messages';
 
   let batches = $state<ImportBatch[]>([]);
   let entriesByBatch = $state<Map<string, JournalEntry[]>>(new Map());
@@ -55,7 +56,9 @@
     lastSuccess = '';
     try {
       const r = await reverseImportBatch(id);
-      lastSuccess = `${r.reversedCount} 件を訂正しました${r.alreadyReversedCount > 0 ? `（${r.alreadyReversedCount} 件は訂正済み）` : ''}`;
+      lastSuccess = r.alreadyReversedCount > 0
+        ? m.import_history_reverse_success_with_skipped({ count: r.reversedCount, skipped: r.alreadyReversedCount })
+        : m.import_history_reverse_success({ count: r.reversedCount });
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
     }
@@ -82,8 +85,8 @@
 
 <div class="space-y-6">
   <header>
-    <h2 class="text-2xl font-bold">インポート履歴</h2>
-    <p class="text-xs text-muted-foreground">過去の CSV インポートの一覧と整批訂正</p>
+    <h2 class="text-2xl font-bold">{m.import_history_title()}</h2>
+    <p class="text-xs text-muted-foreground">{m.import_history_subtitle()}</p>
   </header>
 
   {#if lastError}
@@ -99,7 +102,7 @@
 
   {#if batches.length === 0}
     <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
-      <p class="text-sm text-muted-foreground">まだインポート履歴がありません。</p>
+      <p class="text-sm text-muted-foreground">{m.import_history_empty()}</p>
     </div>
   {:else}
     <div class="bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden">
@@ -107,11 +110,11 @@
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-4 py-3 w-8"></th>
-            <th class="text-left font-normal px-4 py-3">インポート日時</th>
-            <th class="text-left font-normal px-4 py-3">パーサー</th>
-            <th class="text-left font-normal px-4 py-3">ファイル名</th>
-            <th class="text-right font-normal px-4 py-3">件数</th>
-            <th class="text-left font-normal px-4 py-3">状態</th>
+            <th class="text-left font-normal px-4 py-3">{m.import_history_th_imported_at()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.import_history_th_parser()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.import_history_th_filename()}</th>
+            <th class="text-right font-normal px-4 py-3">{m.import_history_th_count()}</th>
+            <th class="text-left font-normal px-4 py-3">{m.import_history_th_status()}</th>
           </tr>
         </thead>
         <tbody>
@@ -134,11 +137,11 @@
               <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">{batch.rowCount}</td>
               <td class="px-4 py-3 text-xs">
                 {#if reversed === 0}
-                  <span class="text-foreground">有効 {active}</span>
+                  <span class="text-foreground">{m.import_history_status_active({ n: active })}</span>
                 {:else if active === 0}
-                  <span class="text-muted-foreground">全件訂正済み</span>
+                  <span class="text-muted-foreground">{m.import_history_status_all_reversed()}</span>
                 {:else}
-                  <span class="text-foreground">有効 {active} / 訂正 {reversed}</span>
+                  <span class="text-foreground">{m.import_history_status_mixed({ active, reversed })}</span>
                 {/if}
               </td>
             </tr>
@@ -160,7 +163,7 @@
                       {/each}
                     </ul>
                   {:else}
-                    <p class="text-xs text-muted-foreground mb-3">仕訳が見つかりません</p>
+                    <p class="text-xs text-muted-foreground mb-3">{m.import_history_no_entries()}</p>
                   {/if}
 
                   {#if active > 0}
@@ -172,10 +175,10 @@
                       }}
                       class="px-3 py-1 text-sm border border-destructive/50 text-destructive rounded hover:bg-destructive/10"
                     >
-                      バッチを全件訂正（{active} 件）
+                      {m.import_history_batch_reverse_button({ count: active })}
                     </button>
                   {:else}
-                    <span class="text-xs text-muted-foreground">このバッチはすべて訂正済みです</span>
+                    <span class="text-xs text-muted-foreground">{m.import_history_batch_already_reversed()}</span>
                   {/if}
                 </td>
               </tr>
@@ -197,18 +200,18 @@
 >
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>バッチを全件訂正しますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.import_history_reverse_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        このバッチで作成された有効な仕訳すべてを「訂正済み」にします。各仕訳に打消し仕訳が新しく作成され、両方とも履歴として保持されます。
+        {m.import_history_reverse_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={confirmReverse}
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
-        全件訂正
+        {m.import_history_reverse_confirm_action()}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
