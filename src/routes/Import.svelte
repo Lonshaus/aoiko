@@ -15,6 +15,7 @@
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
   import type { Account } from '../db/types';
+  import { m } from '../paraglide/messages';
 
   type RowState = {
     transaction: ParsedTransaction;
@@ -71,7 +72,10 @@
         .equals(fileHash)
         .first();
       if (dup) {
-        error = `このファイルは ${new Date(dup.importedAt).toLocaleDateString('ja-JP')} に既にインポート済みです（${dup.fileName}）`;
+        error = m.import_duplicate_error({
+          date: new Date(dup.importedAt).toLocaleDateString('ja-JP'),
+          name: dup.fileName,
+        });
         return;
       }
 
@@ -125,7 +129,7 @@
 
     const apiKey = await getSetting('geminiApiKey');
     if (!apiKey) {
-      error = 'Gemini API キーが設定されていません。設定 → LLM 連携 で登録してください。';
+      error = m.import_no_api_key();
       return;
     }
 
@@ -133,7 +137,7 @@
       .map((row, index) => ({ row, index }))
       .filter(({ row }) => !row.skip && !row.counterpartAccountCode);
     if (targets.length === 0) {
-      llmStatus = '分類対象がありません';
+      llmStatus = m.import_llm_no_target();
       return;
     }
 
@@ -182,7 +186,9 @@
           }
         }
       }
-      llmStatus = `✓ ${highCount + lowCount} 件を分類（高信頼 ${highCount} / 低信頼 ${lowCount}${noneCount > 0 ? ` / 判別不能 ${noneCount}` : ''}）`;
+      llmStatus = noneCount > 0
+        ? m.import_llm_status_with_none({ count: highCount + lowCount, high: highCount, low: lowCount, none: noneCount })
+        : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -241,7 +247,7 @@
       for (const id of ruleIds) {
         await recordRuleHit(id);
       }
-      success = `${result.entryCount} 件の仕訳を登録しました`;
+      success = m.import_success({ count: result.entryCount });
       reset();
     } catch (e) {
       if (e instanceof DuplicateImportError) {
@@ -257,14 +263,14 @@
 
 <div class="space-y-6">
   <header>
-    <h2 class="text-2xl font-bold">CSV インポート</h2>
-    <p class="text-xs text-muted-foreground">銀行・カードの取引履歴 CSV から仕訳をまとめて作成</p>
+    <h2 class="text-2xl font-bold">{m.import_title()}</h2>
+    <p class="text-xs text-muted-foreground">{m.import_subtitle()}</p>
   </header>
 
   <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
     <div class="space-y-3">
       <label class="block">
-        <span class="text-xs text-muted-foreground">1. パーサー</span>
+        <span class="text-xs text-muted-foreground">{m.import_step_parser()}</span>
         <select
           bind:value={selectedParserName}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -276,18 +282,18 @@
       </label>
       {#if knownAccount}
         <p class="text-xs text-muted-foreground">
-          既知側科目：<span class="font-mono">{knownAccount.code}</span> {knownAccount.name}
+          {m.import_known_account({ code: knownAccount.code, name: knownAccount.name })}
         </p>
       {/if}
 
       {#if knownSubAccounts.length > 0}
         <label class="block">
-          <span class="text-xs text-muted-foreground">補助科目（任意）</span>
+          <span class="text-xs text-muted-foreground">{m.import_known_subaccount()}</span>
           <select
             bind:value={knownSubAccountId}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
-            <option value="">—（補助科目なし）</option>
+            <option value="">{m.import_known_subaccount_none()}</option>
             {#each knownSubAccounts as s (s.id)}
               <option value={s.id}>{s.name}</option>
             {/each}
@@ -296,7 +302,7 @@
       {/if}
 
       <label class="block">
-        <span class="text-xs text-muted-foreground">2. CSV ファイル</span>
+        <span class="text-xs text-muted-foreground">{m.import_step_file()}</span>
         <input
           type="file"
           accept=".csv,text/csv"
@@ -305,7 +311,7 @@
         />
         {#if fileName}
           <span class="text-xs text-muted-foreground mt-1 block">
-            選択中：{fileName}
+            {m.import_file_selected({ name: fileName })}
           </span>
         {/if}
       </label>
@@ -326,9 +332,9 @@
   {#if rows.length > 0}
     <section class="bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden">
       <header class="flex items-baseline justify-between p-4 border-b border-border/50">
-        <h3 class="text-sm font-semibold">3. 各行の対方科目を選ぶ</h3>
+        <h3 class="text-sm font-semibold">{m.import_step_review()}</h3>
         <span class="text-xs text-muted-foreground tabular-nums">
-          {validCount} / {rows.length} 件 登録予定
+          {m.import_planned_count({ valid: validCount, total: rows.length })}
         </span>
       </header>
 
@@ -339,7 +345,7 @@
           disabled={llmClassifying}
           class="px-3 py-1 border rounded hover:bg-accent disabled:opacity-50"
         >
-          {llmClassifying ? '⏳ LLM で分類中…' : 'LLM で残りを分類'}
+          {llmClassifying ? m.import_llm_button_running() : m.import_llm_button()}
         </button>
         {#if llmStatus}
           <span class="text-muted-foreground">{llmStatus}</span>
@@ -350,11 +356,11 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
-              <th class="text-left font-normal px-3 py-2">日付</th>
-              <th class="text-left font-normal px-3 py-2">摘要</th>
-              <th class="text-right font-normal px-3 py-2">金額</th>
-              <th class="text-left font-normal px-3 py-2">対方科目</th>
-              <th class="text-center font-normal px-3 py-2">除外</th>
+              <th class="text-left font-normal px-3 py-2">{m.journal_th_date()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.journal_th_description()}</th>
+              <th class="text-right font-normal px-3 py-2">{m.journal_th_amount()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.import_th_counterpart()}</th>
+              <th class="text-center font-normal px-3 py-2">{m.import_th_skip()}</th>
             </tr>
           </thead>
           <tbody>
@@ -391,7 +397,7 @@
                       disabled={row.skip}
                       class="flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
                     >
-                      <option value="">科目を選択</option>
+                      <option value="">{m.journal_form_account_select()}</option>
                       {#each accountGroups as group (group.category)}
                         <optgroup label={group.label}>
                           {#each group.items as a (a.code)}
@@ -401,11 +407,11 @@
                       {/each}
                     </select>
                     {#if row.matchedRuleId}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title="ルール命中">規則</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title={m.import_badge_rule_title()}>{m.import_badge_rule()}</span>
                     {:else if row.llmConfidence === 'high'}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title="LLM 高信頼">LLM↑</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title={m.import_badge_llm_high_title()}>{m.import_badge_llm_high()}</span>
                     {:else if row.llmConfidence === 'low'}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap" title="LLM 低信頼、確認推奨">LLM↓</span>
+                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap" title={m.import_badge_llm_low_title()}>{m.import_badge_llm_low()}</span>
                     {/if}
                   </div>
                   {#if subs.length > 0}
@@ -437,7 +443,7 @@
           disabled={importing}
           class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
-          キャンセル
+          {m.common_cancel()}
         </button>
         <button
           type="button"
@@ -445,7 +451,7 @@
           disabled={importing || validCount === 0}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
-          {importing ? '登録中…' : `${validCount} 件登録`}
+          {importing ? m.import_submit_running() : m.import_submit({ count: validCount })}
         </button>
       </div>
     </section>
