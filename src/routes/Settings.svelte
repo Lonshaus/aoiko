@@ -673,13 +673,13 @@
     <p class="text-xs text-muted-foreground">
       {m.settings_vendor_intro()}
     </p>
-    <form onsubmit={addVendor} class="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_1fr_auto] gap-3">
+    <form onsubmit={addVendor} class="flex flex-wrap gap-3 items-center">
       <input
         type="text"
         bind:value={newVendorName}
         required
         placeholder={m.settings_vendor_name_placeholder()}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newVendorEntityType}
@@ -696,11 +696,11 @@
         bind:value={newVendorInvoice}
         placeholder={m.settings_vendor_invoice_placeholder()}
         pattern={INVOICE_NUMBER_PATTERN}
-        class="px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
       />
       <select
         bind:value={newVendorAccountCode}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_vendor_default_account()}</option>
         {#each accountGroups as group (group.category)}
@@ -713,7 +713,7 @@
       </select>
       <button
         type="submit"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -766,66 +766,65 @@
       {m.settings_asset_intro()}
     </p>
 
-    <form
-      onsubmit={addAsset}
-      class="grid grid-cols-1 sm:grid-cols-[1.5fr_auto_auto_auto_auto_auto] gap-2"
-    >
+    <form onsubmit={addAsset} class="space-y-2">
       <input
         type="text"
         bind:value={newAssetName}
         required
         placeholder={m.settings_asset_name_placeholder()}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
       />
-      <input
-        type="date"
-        bind:value={newAssetDate}
-        required
-        title={m.settings_asset_date_title()}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
-      />
-      <input
-        type="number"
-        bind:value={newAssetCost}
-        required
-        min="0"
-        step="1"
-        placeholder={m.settings_asset_cost_placeholder()}
-        class="w-32 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-      />
-      <input
-        type="number"
-        bind:value={newAssetLife}
-        required
-        min="1"
-        max="50"
-        step="1"
-        title={m.settings_asset_life_title()}
-        class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
-      />
-      <select
-        bind:value={newAssetAccount}
-        title={m.settings_asset_account_title()}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-      >
-        <option value="1510">1510 工具器具備品</option>
-        <option value="1540">1540 車両運搬具</option>
-        <option value="1550">1550 建物附属設備</option>
-      </select>
-      <select
-        bind:value={newAssetMethod}
-        title={m.settings_asset_method_title()}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-      >
-        <option value="straight-line">{m.settings_asset_method_straight()}</option>
-        <option value="declining-balance">{m.settings_asset_method_declining()}</option>
-      </select>
-      <button
-        type="submit"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
-      >
-        {m.settings_action_add()}
-      </button>
+      <div class="flex flex-wrap gap-2 items-center">
+        <input
+          type="date"
+          bind:value={newAssetDate}
+          required
+          title={m.settings_asset_date_title()}
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        />
+        <input
+          type="number"
+          bind:value={newAssetCost}
+          required
+          min="0"
+          step="1"
+          placeholder={m.settings_asset_cost_placeholder()}
+          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+        />
+        <input
+          type="number"
+          bind:value={newAssetLife}
+          required
+          min="1"
+          max="50"
+          step="1"
+          title={m.settings_asset_life_title()}
+          class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        />
+        <select
+          bind:value={newAssetAccount}
+          title={m.settings_asset_account_title()}
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        >
+          <option value="1510">1510 工具器具備品</option>
+          <option value="1540">1540 車両運搬具</option>
+          <option value="1550">1550 建物附属設備</option>
+        </select>
+        <select
+          bind:value={newAssetMethod}
+          title={m.settings_asset_method_title()}
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        >
+          <option value="straight-line">{m.settings_asset_method_straight()}</option>
+          <option value="declining-balance">{m.settings_asset_method_declining()}</option>
+        </select>
+        <button
+          type="submit"
+          class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.settings_action_add()}
+        </button>
+      </div>
     </form>
     {#if assetError}
       <div class="text-sm text-destructive">{assetError}</div>
@@ -902,10 +901,7 @@
     <p class="text-xs text-muted-foreground">
       {m.settings_rule_intro()}
     </p>
-    <form
-      onsubmit={addRule}
-      class="grid grid-cols-1 sm:grid-cols-[auto_2fr_1fr_auto_auto] gap-3"
-    >
+    <form onsubmit={addRule} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newRuleMatchType}
         class="px-3 py-2 bg-background border rounded text-foreground"
@@ -919,12 +915,12 @@
         bind:value={newRulePattern}
         required
         placeholder={m.settings_rule_pattern_placeholder()}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newRuleAccountCode}
         required
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_rule_account_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -945,7 +941,7 @@
       />
       <button
         type="submit"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
