@@ -5,6 +5,7 @@
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { ledger } from '../stores/ledger.svelte';
+  import { m } from '../paraglide/messages';
   import type { JournalLine } from '../db/types';
 
   type DraftLine = {
@@ -17,10 +18,10 @@
     homeOfficeRatio: string;  // '' = 未設定 (=100%), '0.30' 等
   };
 
-  const TAX_OPTIONS: Array<{ value: number; label: string }> = [
-    { value: 0, label: '対象外' },
-    { value: 0.08, label: '軽減 8%' },
-    { value: 0.1, label: '標準 10%' },
+  const TAX_OPTIONS: Array<{ value: number; label: () => string }> = [
+    { value: 0, label: () => m.journal_tax_exempt() },
+    { value: 0.08, label: () => m.journal_tax_reduced() },
+    { value: 0.1, label: () => m.journal_tax_standard() },
   ];
 
   const today = () => new Date().toISOString().slice(0, 10);
@@ -176,11 +177,11 @@
   onsubmit={handleSubmit}
   class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
 >
-  <h2 class="text-lg font-semibold">新規仕訳</h2>
+  <h2 class="text-lg font-semibold">{m.journal_form_title()}</h2>
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <label class="block sm:col-span-1">
-      <span class="text-xs text-muted-foreground">日付</span>
+      <span class="text-xs text-muted-foreground">{m.journal_form_label_date()}</span>
       <input
         type="date"
         bind:value={date}
@@ -189,12 +190,12 @@
       />
     </label>
     <label class="block sm:col-span-2">
-      <span class="text-xs text-muted-foreground">摘要</span>
+      <span class="text-xs text-muted-foreground">{m.journal_form_label_description()}</span>
       <input
         type="text"
         bind:value={description}
         required
-        placeholder="例：電気代"
+        placeholder={m.journal_form_placeholder_description()}
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
     </label>
@@ -202,8 +203,8 @@
 
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium text-muted-foreground">借方</h3>
-      <span class="text-xs text-muted-foreground tabular-nums">計 {formatJPY(debitTotal)}</span>
+      <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_debit()}</h3>
+      <span class="text-xs text-muted-foreground tabular-nums">{m.journal_form_total({ amount: formatJPY(debitTotal) })}</span>
     </div>
     {#each debits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
@@ -215,7 +216,7 @@
             required
             class="w-full px-3 py-2 bg-background border rounded text-foreground"
           >
-            <option value="" disabled>科目を選択</option>
+            <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
               <optgroup label={group.label}>
                 {#each group.items as a (a.code)}
@@ -229,7 +230,7 @@
               bind:value={line.subAccountId}
               class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
             >
-              <option value="">補助科目を選択（任意）</option>
+              <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
                 <option value={s.id}>{s.name}</option>
               {/each}
@@ -243,7 +244,7 @@
           required
           min="0"
           step="1"
-          placeholder="金額"
+          placeholder={m.journal_form_amount_placeholder()}
           class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
         />
         <select
@@ -251,14 +252,14 @@
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
-            <option value={opt.value}>{opt.label}</option>
+            <option value={opt.value}>{opt.label()}</option>
           {/each}
         </select>
         <button
           type="button"
           onclick={() => removeLine('debit', line.id)}
           disabled={debits.length <= 1}
-          aria-label="この行を削除"
+          aria-label={m.journal_form_remove_line_label()}
           class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
@@ -267,10 +268,10 @@
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" bind:checked={line.taxIncluded} /> 内税
+            <input type="checkbox" bind:checked={line.taxIncluded} /> {m.journal_form_tax_included()}
           </label>
           <label class="flex items-center gap-1">
-            家事按分
+            {m.journal_form_home_office()}
             <input
               type="number"
               bind:value={line.homeOfficeRatio}
@@ -289,14 +290,14 @@
       onclick={addDebit}
       class="text-xs text-muted-foreground hover:text-foreground"
     >
-      ＋ 借方を追加
+      {m.journal_form_add_debit()}
     </button>
   </div>
 
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
-      <h3 class="text-sm font-medium text-muted-foreground">貸方</h3>
-      <span class="text-xs text-muted-foreground tabular-nums">計 {formatJPY(creditTotal)}</span>
+      <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_credit()}</h3>
+      <span class="text-xs text-muted-foreground tabular-nums">{m.journal_form_total({ amount: formatJPY(creditTotal) })}</span>
     </div>
     {#each credits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
@@ -308,7 +309,7 @@
             required
             class="w-full px-3 py-2 bg-background border rounded text-foreground"
           >
-            <option value="" disabled>科目を選択</option>
+            <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
               <optgroup label={group.label}>
                 {#each group.items as a (a.code)}
@@ -322,7 +323,7 @@
               bind:value={line.subAccountId}
               class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
             >
-              <option value="">補助科目を選択（任意）</option>
+              <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
                 <option value={s.id}>{s.name}</option>
               {/each}
@@ -335,7 +336,7 @@
           required
           min="0"
           step="1"
-          placeholder="金額"
+          placeholder={m.journal_form_amount_placeholder()}
           class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
         />
         <select
@@ -343,14 +344,14 @@
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
-            <option value={opt.value}>{opt.label}</option>
+            <option value={opt.value}>{opt.label()}</option>
           {/each}
         </select>
         <button
           type="button"
           onclick={() => removeLine('credit', line.id)}
           disabled={credits.length <= 1}
-          aria-label="この行を削除"
+          aria-label={m.journal_form_remove_line_label()}
           class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
@@ -359,10 +360,10 @@
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" bind:checked={line.taxIncluded} /> 内税
+            <input type="checkbox" bind:checked={line.taxIncluded} /> {m.journal_form_tax_included()}
           </label>
           <label class="flex items-center gap-1">
-            家事按分
+            {m.journal_form_home_office()}
             <input
               type="number"
               bind:value={line.homeOfficeRatio}
@@ -381,16 +382,16 @@
       onclick={addCredit}
       class="text-xs text-muted-foreground hover:text-foreground"
     >
-      ＋ 貸方を追加
+      {m.journal_form_add_credit()}
     </button>
   </div>
 
   <div class="border-t pt-4 flex items-center justify-between text-sm">
     <div class="space-x-4 tabular-nums">
-      <span class="text-muted-foreground">差額</span>
+      <span class="text-muted-foreground">{m.journal_form_diff()}</span>
       <span class:text-destructive={!balanced} class="font-medium">{formatJPY(diff)}</span>
       {#if balanced}
-        <span class="text-xs text-muted-foreground">✓ 一致</span>
+        <span class="text-xs text-muted-foreground">{m.journal_form_balanced()}</span>
       {/if}
     </div>
   </div>
@@ -406,14 +407,14 @@
       disabled={saving}
       class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
     >
-      クリア
+      {m.journal_form_clear()}
     </button>
     <button
       type="submit"
       disabled={saving || !balanced}
       class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
     >
-      {saving ? '保存中…' : '仕訳を追加'}
+      {saving ? m.common_saving() : m.journal_form_submit()}
     </button>
   </div>
 </form>

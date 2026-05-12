@@ -1,6 +1,7 @@
 <script lang="ts">
   import { backup } from '../stores/backup.svelte';
   import { link } from '../router.svelte';
+  import { m } from '../paraglide/messages';
 
   function daysSince(ts: number | null): number | null {
     if (!ts) {
@@ -18,28 +19,28 @@
 
 {#if backup.status === 'unconfigured'}
   <div class="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2 bg-card text-card-foreground">
-    <span class="text-muted-foreground">⚠ バックアップフォルダが未設定です</span>
-    <a href="/settings" use:link class="text-primary hover:underline">設定で構成 →</a>
+    <span class="text-muted-foreground">{m.backup_notice_unconfigured()}</span>
+    <a href="/settings" use:link class="text-primary hover:underline">{m.backup_notice_action_configure()}</a>
   </div>
 {:else if backup.status === 'permission-required'}
   <div class="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2 bg-card text-card-foreground">
-    <span class="text-muted-foreground">🔒 「{backup.folderName}」へのアクセス許可が必要</span>
-    <a href="/settings" use:link class="text-primary hover:underline">設定で許可 →</a>
+    <span class="text-muted-foreground">{m.backup_notice_permission_required({ folderName: backup.folderName ?? '' })}</span>
+    <a href="/settings" use:link class="text-primary hover:underline">{m.backup_notice_action_grant()}</a>
   </div>
 {:else if backup.status === 'unsupported'}
   <div class="text-xs border border-destructive/50 rounded-lg px-3 py-2 bg-card text-destructive">
-    ⚠ このブラウザは自動バックアップに対応していません。設定から JSON をこまめにダウンロードしてください。
+    {m.backup_notice_unsupported()}
   </div>
 {:else if backup.status === 'error'}
   <div class="flex items-center justify-between gap-3 text-xs border border-destructive rounded-lg px-3 py-2 bg-card">
-    <span class="text-destructive">バックアップエラー: {backup.lastError}</span>
-    <a href="/settings" use:link class="text-primary hover:underline">設定 →</a>
+    <span class="text-destructive">{m.backup_notice_error({ error: backup.lastError ?? '' })}</span>
+    <a href="/settings" use:link class="text-primary hover:underline">{m.backup_notice_action_settings()}</a>
   </div>
 {:else if opfsStale}
   <div class="flex items-center justify-between gap-3 text-xs border border-destructive/50 rounded-lg px-3 py-2 bg-card">
     <span class="text-destructive">
-      ⚠ OPFS のみで保存中、{downloadDays === null ? '一度も' : `${downloadDays} 日`} JSON をダウンロードしていません。ブラウザのデータが消えると全損します。
+      {downloadDays === null ? m.backup_notice_opfs_stale_never() : m.backup_notice_opfs_stale_days({ days: downloadDays })}
     </span>
-    <a href="/settings" use:link class="text-primary hover:underline">設定で操作 →</a>
+    <a href="/settings" use:link class="text-primary hover:underline">{m.backup_notice_action_operate()}</a>
   </div>
 {/if}

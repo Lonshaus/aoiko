@@ -13,6 +13,7 @@
   import { getSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
+  import { m } from '../paraglide/messages';
 
   let file = $state<File | null>(null);
   let preview = $state<string | null>(null);
@@ -50,7 +51,7 @@
     try {
       const apiKey = await getSetting('geminiApiKey');
       if (!apiKey) {
-        throw new Error('Gemini API キーが未設定です。設定 → LLM 連携 で登録してください。');
+        throw new Error(m.receipt_no_api_key());
       }
       const image = await fileToBase64(file);
       const adapter = new GeminiAdapter(apiKey);
@@ -98,7 +99,7 @@
       ];
       validateLines(lines);
 
-      const description = data.vendorName || '領収書 OCR';
+      const description = data.vendorName || m.receipt_default_description();
       await db.transaction(
         'rw',
         [db.journalEntries, db.journalLines],
@@ -117,7 +118,7 @@
         }
       );
 
-      success = `✓ 仕訳を登録しました（${description} ${formatJPY(data.totalAmount)}）`;
+      success = m.receipt_success({ name: description, amount: formatJPY(data.totalAmount) });
       extracted = null;
       file = null;
       if (preview) {
@@ -143,15 +144,15 @@
 
 <div class="space-y-6">
   <header>
-    <h2 class="text-2xl font-bold">領収書 OCR</h2>
+    <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      レシート画像から Gemini Vision で取引情報を抽出 → 確認 → 仕訳化（BYOK、API キーが必要）
+      {m.receipt_subtitle()}
     </p>
   </header>
 
   <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
     <label class="block">
-      <span class="text-xs text-muted-foreground">1. 画像を選ぶ（カメラ撮影も可）</span>
+      <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
       <input
         type="file"
         accept="image/*"
@@ -163,7 +164,7 @@
 
     {#if preview}
       <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
-        <img src={preview} alt="プレビュー" class="max-h-80 object-contain" />
+        <img src={preview} alt={m.receipt_preview_alt()} class="max-h-80 object-contain" />
       </div>
     {/if}
 
@@ -174,7 +175,7 @@
         disabled={processing}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
-        {processing ? '⏳ 解析中…' : '解析する（Gemini Vision）'}
+        {processing ? m.receipt_analyze_running() : m.receipt_analyze_button()}
       </button>
     {/if}
 
@@ -192,11 +193,11 @@
 
   {#if extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
-      <h3 class="text-lg font-semibold">2. 抽出結果（編集可）</h3>
+      <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label class="block">
-          <span class="text-xs text-muted-foreground">取引日</span>
+          <span class="text-xs text-muted-foreground">{m.receipt_label_date()}</span>
           <input
             type="date"
             bind:value={extracted.date}
@@ -204,7 +205,7 @@
           />
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">店名 / 取引先</span>
+          <span class="text-xs text-muted-foreground">{m.receipt_label_vendor()}</span>
           <input
             type="text"
             bind:value={extracted.vendorName}
@@ -212,7 +213,7 @@
           />
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">合計金額（円）</span>
+          <span class="text-xs text-muted-foreground">{m.receipt_label_amount()}</span>
           <input
             type="number"
             bind:value={extracted.totalAmount}
@@ -223,7 +224,7 @@
         </label>
         {#if extracted.invoiceNumber}
           <div class="block">
-            <span class="text-xs text-muted-foreground">インボイス登録番号</span>
+            <span class="text-xs text-muted-foreground">{m.receipt_label_invoice_number()}</span>
             <div class="mt-1 px-3 py-2 bg-background border rounded font-mono text-sm">
               {extracted.invoiceNumber}
             </div>
@@ -234,7 +235,7 @@
       {#if extracted.items.length > 0}
         <details class="border rounded-lg">
           <summary class="cursor-pointer px-3 py-2 text-sm text-muted-foreground">
-            内訳 {extracted.items.length} 件
+            {m.receipt_items_summary({ count: extracted.items.length })}
           </summary>
           <ul class="border-t divide-y divide-border/50">
             {#each extracted.items as item, i (i)}
@@ -249,7 +250,7 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-border/50">
         <label class="block">
-          <span class="text-xs text-muted-foreground">対方科目（経費）</span>
+          <span class="text-xs text-muted-foreground">{m.receipt_label_counterpart()}</span>
           <select
             bind:value={counterpartAccount}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -264,7 +265,7 @@
           </select>
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">支払元</span>
+          <span class="text-xs text-muted-foreground">{m.receipt_label_known_account()}</span>
           <select
             bind:value={knownAccount}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -286,14 +287,14 @@
           onclick={reset}
           class="px-4 py-2 border rounded hover:bg-accent"
         >
-          キャンセル
+          {m.common_cancel()}
         </button>
         <button
           type="button"
           onclick={commit}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
-          仕訳を登録
+          {m.receipt_submit()}
         </button>
       </div>
     </section>

@@ -11,6 +11,7 @@
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
+  import { m } from './paraglide/messages';
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
@@ -33,15 +34,15 @@
 <div class="min-h-screen flex flex-col">
   <header class="border-b bg-card text-card-foreground">
     <div class="container mx-auto max-w-3xl px-8 py-4 flex items-center justify-between">
-      <a href="/" use:link class="text-xl font-bold hover:opacity-80">aoiko</a>
+      <a href="/" use:link class="text-xl font-bold hover:opacity-80">{m.app_name()}</a>
       <nav class="flex gap-6 text-sm">
-        <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors">ホーム</a>
-        <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">一覧</a>
-        <a href="/reports" use:link class="text-muted-foreground hover:text-foreground transition-colors">レポート</a>
-        <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">インポート</a>
-        <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">領収書</a>
-        <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">履歴</a>
-        <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">設定</a>
+        <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_home()}</a>
+        <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a>
+        <a href="/reports" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a>
+        <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a>
+        <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
+        <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import_history()}</a>
+        <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_settings()}</a>
       </nav>
     </div>
   </header>
