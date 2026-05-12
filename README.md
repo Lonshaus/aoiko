@@ -61,6 +61,50 @@ src/
     └── 2026/           # 勘定科目テーブル・.xtx 出力（仮）
 ```
 
+## 利用者向け：ローカル起動
+
+ホスティング先は未定のため、現状は **自分の PC で起動して使う** 形式。データはブラウザの IndexedDB に保存されローカル端末から外に出ない（[PRIVACY.md](PRIVACY.md) 参照）。
+
+### 前提
+
+- [Node.js 22 LTS](https://nodejs.org/) 以上（npm 同梱）
+- Git（リポジトリ取得用、ZIP ダウンロードでも可）
+- モダンブラウザ（Chrome / Edge / Safari / Firefox）
+
+### 起動手順
+
+```bash
+git clone https://github.com/Lonshaus/aoiko.git
+cd aoiko
+npm install
+npm run build
+npm run preview
+```
+
+ブラウザで <http://localhost:4173> を開く。初回は免責事項に同意し、「設定」画面で事業名・年度・（OCR/LLM を使う場合は）Gemini API キーを入力。
+
+### PWA としてインストール（推奨）
+
+Chrome / Edge のアドレスバー右に出る「インストール」ボタンからインストールすれば、デスクトップアプリのように起動でき、オフラインでも動く。Safari は「共有」→「ホーム画面に追加」。
+
+### データ保存場所
+
+- 仕訳・固定資産・取引先・設定 → ブラウザの IndexedDB（端末内、サーバ送信なし）
+- 「設定」→「バックアップ」でローカルフォルダを指定すると自動 JSON バックアップ（File System Access API、対応外ブラウザは OPFS）
+
+ブラウザのデータを消去すると IndexedDB も消えるため、定期的な手動エクスポート（設定画面）かバックアップフォルダ指定を推奨。
+
+### アップデート方法
+
+```bash
+git pull
+npm install
+npm run build
+npm run preview
+```
+
+PWA としてインストール済みの場合、起動時に新バージョン検出ダイアログが出る。
+
 ## 開発
 
 ```bash
