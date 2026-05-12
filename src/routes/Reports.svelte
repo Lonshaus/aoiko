@@ -23,6 +23,37 @@
   import { buildXtx2026 } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import { m } from '../paraglide/messages';
+  import type { AmendmentChecklistKey } from '../domain/amended';
+
+  function checklistLabel(key: AmendmentChecklistKey, year: number): string {
+    switch (key) {
+      case 'unlock':
+        return m.reports_amendment_checklist_unlock_label({ year });
+      case 'reverse':
+        return m.reports_amendment_checklist_reverse_label();
+      case 'review':
+        return m.reports_amendment_checklist_review_label();
+      case 'submit':
+        return m.reports_amendment_checklist_submit_label();
+      case 'relock':
+        return m.reports_amendment_checklist_relock_label();
+    }
+  }
+  function checklistDetail(key: AmendmentChecklistKey): string {
+    switch (key) {
+      case 'unlock':
+        return m.reports_amendment_checklist_unlock_detail();
+      case 'reverse':
+        return m.reports_amendment_checklist_reverse_detail();
+      case 'review':
+        return m.reports_amendment_checklist_review_detail();
+      case 'submit':
+        return m.reports_amendment_checklist_submit_detail();
+      case 'relock':
+        return m.reports_amendment_checklist_relock_detail();
+    }
+  }
 
   const now = new Date();
   let year = $state(now.getFullYear());
@@ -137,7 +168,7 @@
       return;
     }
     if (year !== 2026) {
-      lockError = `${year} 年度の .xtx 出力は未対応（現状 2026 年度のみ）`;
+      lockError = m.reports_xtx_unsupported_year({ year });
       return;
     }
     const businessName = (await getSetting('userBusinessName')) ?? '';
@@ -185,11 +216,11 @@
 <div class="space-y-8">
   <header class="flex items-end justify-between">
     <div>
-      <h2 class="text-2xl font-bold">レポート</h2>
-      <p class="text-xs text-muted-foreground">月別売上・損益計算書（年度ごと）</p>
+      <h2 class="text-2xl font-bold">{m.reports_title()}</h2>
+      <p class="text-xs text-muted-foreground">{m.reports_subtitle()}</p>
     </div>
     <label class="block">
-      <span class="text-xs text-muted-foreground">年</span>
+      <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
       <input
         type="number"
         bind:value={year}
@@ -210,16 +241,16 @@
   {#if pl}
     <section class="bg-card text-card-foreground rounded-2xl p-8 space-y-4 shadow-sm">
       <header class="flex items-center justify-between">
-        <h3 class="text-lg font-semibold">{year} 年 概況</h3>
+        <h3 class="text-lg font-semibold">{m.reports_overview_title({ year })}</h3>
         <div class="flex items-center gap-3">
           {#if locked}
-            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary">🔒 申告済み</span>
+            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary">{m.reports_filed_badge()}</span>
             <button
               type="button"
               onclick={() => (confirmingUnlock = true)}
               class="text-xs text-muted-foreground hover:text-destructive"
             >
-              ロック解除
+              {m.reports_unlock_button()}
             </button>
           {:else}
             <button
@@ -227,22 +258,22 @@
               onclick={() => (confirmingLock = true)}
               class="text-xs px-3 py-1 border rounded hover:bg-accent"
             >
-              申告済みとしてロック
+              {m.reports_lock_button()}
             </button>
           {/if}
         </div>
       </header>
       <div class="grid grid-cols-4 gap-6 text-sm">
         <div>
-          <div class="text-xs text-muted-foreground mb-1">売上</div>
+          <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalRevenue)}</div>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground mb-1">経費</div>
+          <div class="text-xs text-muted-foreground mb-1">{m.home_overview_expense()}</div>
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalExpense)}</div>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground mb-1">所得</div>
+          <div class="text-xs text-muted-foreground mb-1">{m.reports_overview_income()}</div>
           <div
             class="text-2xl font-bold tabular-nums"
             class:text-destructive={D(pl.netIncome).isNegative()}
@@ -251,7 +282,7 @@
           </div>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground mb-1">仕訳数</div>
+          <div class="text-xs text-muted-foreground mb-1">{m.reports_overview_entries()}</div>
           <div class="text-2xl font-bold tabular-nums">{pl.entryCount}</div>
         </div>
       </div>
@@ -261,23 +292,23 @@
   {#if monthly}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
-        <h3 class="text-lg font-semibold">月別売上</h3>
+        <h3 class="text-lg font-semibold">{m.reports_monthly_title()}</h3>
         <span class="text-xs text-muted-foreground tabular-nums">
-          年計 {formatJPY(monthly.totalSales)}
+          {m.reports_monthly_annual({ amount: formatJPY(monthly.totalSales) })}
         </span>
       </header>
       <ul class="space-y-1">
-        {#each monthly.months as m (m.month)}
+        {#each monthly.months as mo (mo.month)}
           <li class="grid grid-cols-[3rem_1fr_auto] gap-3 items-center text-sm">
-            <span class="text-muted-foreground tabular-nums">{m.month} 月</span>
+            <span class="text-muted-foreground tabular-nums">{m.reports_monthly_month({ m: mo.month })}</span>
             <div class="h-2 bg-background rounded overflow-hidden">
               <div
                 class="h-full bg-primary/60 transition-all"
-                style:width={barWidth(m.sales)}
+                style:width={barWidth(mo.sales)}
               ></div>
             </div>
             <span class="tabular-nums whitespace-nowrap text-right w-28">
-              {formatJPY(m.sales)}
+              {formatJPY(mo.sales)}
             </span>
           </li>
         {/each}
@@ -287,10 +318,10 @@
 
   {#if pl}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-6 shadow-sm">
-      <h3 class="text-lg font-semibold">損益計算書</h3>
+      <h3 class="text-lg font-semibold">{m.reports_pl_title()}</h3>
 
       <div>
-        <h4 class="text-sm text-muted-foreground mb-2">収益</h4>
+        <h4 class="text-sm text-muted-foreground mb-2">{m.reports_pl_revenue()}</h4>
         {#if pl.revenue.length > 0}
           <ul class="space-y-1 text-sm">
             {#each pl.revenue as row (row.accountCode)}
@@ -302,16 +333,16 @@
             {/each}
           </ul>
           <div class="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-medium">
-            <span>収益計</span>
+            <span>{m.reports_pl_revenue_total()}</span>
             <span class="tabular-nums">{formatJPY(pl.totalRevenue)}</span>
           </div>
         {:else}
-          <p class="text-sm text-muted-foreground">計上なし</p>
+          <p class="text-sm text-muted-foreground">{m.reports_pl_no_entries()}</p>
         {/if}
       </div>
 
       <div>
-        <h4 class="text-sm text-muted-foreground mb-2">経費</h4>
+        <h4 class="text-sm text-muted-foreground mb-2">{m.reports_pl_expense()}</h4>
         {#if pl.expense.length > 0}
           <ul class="space-y-1 text-sm">
             {#each pl.expense as row (row.accountCode)}
@@ -323,16 +354,16 @@
             {/each}
           </ul>
           <div class="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-medium">
-            <span>経費計</span>
+            <span>{m.reports_pl_expense_total()}</span>
             <span class="tabular-nums">{formatJPY(pl.totalExpense)}</span>
           </div>
         {:else}
-          <p class="text-sm text-muted-foreground">計上なし</p>
+          <p class="text-sm text-muted-foreground">{m.reports_pl_no_entries()}</p>
         {/if}
       </div>
 
       <div class="pt-4 border-t border-border flex justify-between items-baseline">
-        <span class="text-base font-semibold">所得（収益 − 経費）</span>
+        <span class="text-base font-semibold">{m.reports_pl_net_income_label()}</span>
         <span
           class="text-2xl font-bold tabular-nums"
           class:text-destructive={D(pl.netIncome).isNegative()}
@@ -346,13 +377,13 @@
   {#if bs && (bs.assets.length > 0 || bs.liabilities.length > 0 || bs.equity.length > 0)}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-6 shadow-sm">
       <header class="flex items-baseline justify-between">
-        <h3 class="text-lg font-semibold">貸借対照表</h3>
-        <span class="text-xs text-muted-foreground tabular-nums">{bs.asOf} 時点</span>
+        <h3 class="text-lg font-semibold">{m.reports_bs_title()}</h3>
+        <span class="text-xs text-muted-foreground tabular-nums">{m.reports_bs_asof({ date: bs.asOf })}</span>
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <h4 class="text-sm text-muted-foreground mb-2">資産</h4>
+          <h4 class="text-sm text-muted-foreground mb-2">{m.reports_bs_assets()}</h4>
           {#if bs.assets.length > 0}
             <ul class="space-y-1 text-sm">
               {#each bs.assets as r (r.accountCode)}
@@ -364,17 +395,17 @@
               {/each}
             </ul>
             <div class="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-medium">
-              <span>資産合計</span>
+              <span>{m.reports_bs_assets_total()}</span>
               <span class="tabular-nums">{formatJPY(bs.totalAssets)}</span>
             </div>
           {:else}
-            <p class="text-sm text-muted-foreground">計上なし</p>
+            <p class="text-sm text-muted-foreground">{m.reports_pl_no_entries()}</p>
           {/if}
         </div>
 
         <div class="space-y-6">
           <div>
-            <h4 class="text-sm text-muted-foreground mb-2">負債</h4>
+            <h4 class="text-sm text-muted-foreground mb-2">{m.reports_bs_liabilities()}</h4>
             {#if bs.liabilities.length > 0}
               <ul class="space-y-1 text-sm">
                 {#each bs.liabilities as r (r.accountCode)}
@@ -386,12 +417,12 @@
                 {/each}
               </ul>
             {:else}
-              <p class="text-sm text-muted-foreground">計上なし</p>
+              <p class="text-sm text-muted-foreground">{m.reports_pl_no_entries()}</p>
             {/if}
           </div>
 
           <div>
-            <h4 class="text-sm text-muted-foreground mb-2">純資産</h4>
+            <h4 class="text-sm text-muted-foreground mb-2">{m.reports_bs_equity()}</h4>
             <ul class="space-y-1 text-sm">
               {#each bs.equity as r (r.accountCode)}
                 <li class="grid grid-cols-[auto_1fr_auto] gap-3 items-baseline">
@@ -402,7 +433,7 @@
               {/each}
               <li class="grid grid-cols-[auto_1fr_auto] gap-3 items-baseline">
                 <span class="font-mono text-xs text-muted-foreground">—</span>
-                <span>当期純利益</span>
+                <span>{m.reports_bs_net_income_row()}</span>
                 <span
                   class="tabular-nums whitespace-nowrap"
                   class:text-destructive={D(bs.netIncome).isNegative()}
@@ -414,7 +445,7 @@
           </div>
 
           <div class="pt-2 border-t border-border/50 flex justify-between text-sm font-medium">
-            <span>負債・純資産合計</span>
+            <span>{m.reports_bs_liab_equity_total()}</span>
             <span class="tabular-nums">{formatJPY(bs.totalLiabilitiesAndEquity)}</span>
           </div>
         </div>
@@ -422,7 +453,7 @@
 
       {#if !bs.balanced}
         <div class="border border-destructive bg-destructive/10 text-destructive rounded px-3 py-2 text-xs">
-          ⚠ 資産合計 {formatJPY(bs.totalAssets)} と 負債・純資産合計 {formatJPY(bs.totalLiabilitiesAndEquity)} が一致しません。仕訳に不整合がある可能性があります。
+          {m.reports_bs_imbalance_warning({ assets: formatJPY(bs.totalAssets), liabEquity: formatJPY(bs.totalLiabilitiesAndEquity) })}
         </div>
       {/if}
     </section>
@@ -431,7 +462,7 @@
   {#if pl && pl.entryCount === 0}
     <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
       <p class="text-sm text-muted-foreground">
-        {year} 年の仕訳がありません。
+        {m.reports_empty({ year })}
       </p>
     </div>
   {/if}
@@ -439,26 +470,26 @@
   {#if monthlyPL && (monthlyPL.revenue.length > 0 || monthlyPL.expense.length > 0)}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
-        <h3 class="text-lg font-semibold">月別 PL（科目 × 月）</h3>
+        <h3 class="text-lg font-semibold">{m.reports_monthly_pl_title()}</h3>
         <span class="text-xs text-muted-foreground tabular-nums">
-          純利益 {formatJPY(monthlyPL.netIncome)}
+          {m.reports_monthly_pl_net_income({ amount: formatJPY(monthlyPL.netIncome) })}
         </span>
       </header>
       <div class="overflow-x-auto">
         <table class="w-full text-xs tabular-nums">
           <thead>
             <tr class="text-muted-foreground border-b">
-              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card">科目</th>
+              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_th_account()}</th>
               {#each Array(12) as _, i (i)}
-                <th class="text-right font-normal px-2">{i + 1}月</th>
+                <th class="text-right font-normal px-2">{m.reports_monthly_pl_th_month({ m: i + 1 })}</th>
               {/each}
-              <th class="text-right font-medium px-2">計</th>
+              <th class="text-right font-medium px-2">{m.reports_monthly_pl_th_total()}</th>
             </tr>
           </thead>
           <tbody>
             {#if monthlyPL.revenue.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">収益</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_row()}</td>
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.revenue as row (row.accountCode)}
@@ -473,7 +504,7 @@
                 </tr>
               {/each}
               <tr class="border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card">収益計</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_total()}</td>
                 {#each monthlyPL.monthlyRevenueTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -484,7 +515,7 @@
             {/if}
             {#if monthlyPL.expense.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">経費</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_row()}</td>
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.expense as row (row.accountCode)}
@@ -499,7 +530,7 @@
                 </tr>
               {/each}
               <tr class="border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card">経費計</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_total()}</td>
                 {#each monthlyPL.monthlyExpenseTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -509,7 +540,7 @@
               </tr>
             {/if}
             <tr class="font-semibold border-t-2">
-              <td class="py-1 pr-2 sticky left-0 bg-card">純利益</td>
+              <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_net_income_row()}</td>
               {#each monthlyPL.monthlyNetIncomes as v, i (i)}
                 <td class="text-right px-2" class:text-destructive={D(v).isNegative()}>
                   {v === '0' ? '' : formatJPY(v)}
@@ -528,7 +559,7 @@
   {#if breakdown && breakdown.groups.length > 0}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
-        <h3 class="text-lg font-semibold">明細集計</h3>
+        <h3 class="text-lg font-semibold">{m.reports_breakdown_title()}</h3>
         <div class="flex gap-1 text-xs">
           <button
             type="button"
@@ -538,7 +569,7 @@
             class:text-primary-foreground={breakdownAxis === 'vendor'}
             class:hover:bg-accent={breakdownAxis !== 'vendor'}
           >
-            取引先別
+            {m.reports_breakdown_by_vendor()}
           </button>
           <button
             type="button"
@@ -548,7 +579,7 @@
             class:text-primary-foreground={breakdownAxis === 'subAccount'}
             class:hover:bg-accent={breakdownAxis !== 'subAccount'}
           >
-            補助科目別
+            {m.reports_breakdown_by_subaccount()}
           </button>
         </div>
       </header>
@@ -563,7 +594,7 @@
               {#each g.entries as e (e.key)}
                 <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
                   <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                  <span class="text-xs text-muted-foreground tabular-nums">{e.count} 件</span>
+                  <span class="text-xs text-muted-foreground tabular-nums">{m.reports_breakdown_count({ n: e.count })}</span>
                   <span class="tabular-nums whitespace-nowrap w-28 text-right">{formatJPY(e.amount)}</span>
                 </li>
               {/each}
@@ -582,43 +613,43 @@
       class:border-amber-500={a.hasChange}
     >
       <header class="flex items-baseline justify-between">
-        <h3 class="text-lg font-semibold">修正申告ガイド</h3>
+        <h3 class="text-lg font-semibold">{m.reports_amendment_title()}</h3>
         <span class="text-xs text-muted-foreground">
-          申告日：{new Date(a.filedAt).toISOString().slice(0, 10)}
+          {m.reports_amendment_filed_at({ date: new Date(a.filedAt).toISOString().slice(0, 10) })}
         </span>
       </header>
       {#if !a.hasChange}
         <p class="text-sm text-muted-foreground">
-          申告時のスナップショットと現在の集計に差分はありません。修正申告は不要です。
+          {m.reports_amendment_no_change()}
         </p>
       {:else}
         <p class="text-sm text-amber-600">
-          ⚠ 申告後に仕訳が変更されています。修正申告（amended return）の対象です。
+          {m.reports_amendment_has_change()}
         </p>
         <div class="grid grid-cols-3 gap-4 text-sm tabular-nums border rounded p-3">
           <div>
-            <div class="text-xs text-muted-foreground">収益</div>
-            <div>申告時：{formatJPY(a.filedTotalRevenue)}</div>
-            <div class="font-medium">現在：{formatJPY(a.currentTotalRevenue)}</div>
+            <div class="text-xs text-muted-foreground">{m.reports_amendment_revenue()}</div>
+            <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedTotalRevenue) })}</div>
+            <div class="font-medium">{m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalRevenue) })}</div>
           </div>
           <div>
-            <div class="text-xs text-muted-foreground">経費</div>
-            <div>申告時：{formatJPY(a.filedTotalExpense)}</div>
-            <div class="font-medium">現在：{formatJPY(a.currentTotalExpense)}</div>
+            <div class="text-xs text-muted-foreground">{m.reports_amendment_expense()}</div>
+            <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedTotalExpense) })}</div>
+            <div class="font-medium">{m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalExpense) })}</div>
           </div>
           <div>
-            <div class="text-xs text-muted-foreground">所得（純利益）</div>
-            <div>申告時：{formatJPY(a.filedNetIncome)}</div>
+            <div class="text-xs text-muted-foreground">{m.reports_amendment_net_income()}</div>
+            <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedNetIncome) })}</div>
             <div class="font-medium" class:text-destructive={D(a.netIncomeDelta).isNegative()}>
-              現在：{formatJPY(a.currentNetIncome)}（差 {formatJPY(a.netIncomeDelta)}）
+              {m.reports_amendment_current_value_with_delta({ amount: formatJPY(a.currentNetIncome), delta: formatJPY(a.netIncomeDelta) })}
             </div>
           </div>
         </div>
         <ol class="space-y-2 text-sm list-decimal list-inside pt-2">
-          {#each amendmentChecklist(year) as item (item.key)}
+          {#each amendmentChecklist() as item (item.key)}
             <li>
-              <span class="font-medium">{item.label}</span>
-              <p class="text-xs text-muted-foreground pl-5">{item.detail}</p>
+              <span class="font-medium">{checklistLabel(item.key, year)}</span>
+              <p class="text-xs text-muted-foreground pl-5">{checklistDetail(item.key)}</p>
             </li>
           {/each}
         </ol>
@@ -628,17 +659,16 @@
 
   {#if monthly && pl && bs && pl.entryCount > 0}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-3 shadow-sm">
-      <h3 class="text-lg font-semibold">e-Tax 出力</h3>
+      <h3 class="text-lg font-semibold">{m.reports_xtx_title()}</h3>
       <p class="text-xs text-muted-foreground">
-        当年度の決算データを <code class="text-foreground">.xtx</code> として書き出し、e-Taxソフト(WEB版) にインポートして送信できます。
-        <strong class="text-foreground">⚠ 現在の .xtx 出力は仮形式で、国税庁公式 XSD との照合が未完了です。実申告には使用しないでください。</strong>
+        {@html m.reports_xtx_intro_html()}
       </p>
       <button
         type="button"
         onclick={downloadXtx}
         class="px-4 py-2 border rounded hover:bg-accent"
       >
-        .xtx をダウンロード
+        {m.reports_xtx_download()}
       </button>
     </section>
   {/if}
@@ -647,14 +677,14 @@
 <AlertDialog.Root bind:open={confirmingLock}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>{year} 年を「申告済み」としてロックしますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.reports_lock_confirm_title({ year })}</AlertDialog.Title>
       <AlertDialog.Description>
-        現在の損益計算書・月別売上のスナップショットを保存し、{year} 年内の仕訳を訂正できなくなります。e-Tax 送信後の操作を想定。後から「ロック解除」で取り消せます。
+        {m.reports_lock_confirm_desc({ year })}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={lockYear}>ロックする</AlertDialog.Action>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={lockYear}>{m.reports_lock_confirm_action()}</AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
@@ -662,18 +692,18 @@
 <AlertDialog.Root bind:open={confirmingUnlock}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>申告ロックを解除しますか？</AlertDialog.Title>
+      <AlertDialog.Title>{m.reports_unlock_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        {year} 年の申告済みフラグを削除し、再び訂正可能になります。修正申告対応の管理者操作向け。
+        {m.reports_unlock_confirm_desc({ year })}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>キャンセル</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action
         onclick={unlock}
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
-        ロック解除
+        {m.reports_unlock_button()}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
