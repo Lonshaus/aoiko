@@ -225,3 +225,146 @@ describe('generateYearEndDepreciation', () => {
     expect(r.skipped).toBe(1)
   })
 })
+
+describe('computeDepreciation - small-asset-special', () => {
+  test('取得年度に全額損金、簿価 0', () => {
+    const a = asset({
+      acquisitionDate: '2026-04-01',
+      acquisitionCost: '350000',
+      depreciationMethod: 'small-asset-special',
+    })
+    const r = computeDepreciation(a, 2026)
+    expect(r.amount).toBe('350000')
+    expect(r.accumulatedEnd).toBe('350000')
+    expect(r.bookValueEnd).toBe('0')
+    expect(r.fullyDepreciated).toBe(true)
+  })
+
+  test('取得年度以降は償却 0', () => {
+    const a = asset({
+      acquisitionDate: '2026-04-01',
+      acquisitionCost: '350000',
+      depreciationMethod: 'small-asset-special',
+    })
+    const r = computeDepreciation(a, 2027)
+    expect(r.amount).toBe('0')
+    expect(r.bookValueEnd).toBe('0')
+  })
+
+  test('取得月按分なし（即時全額）', () => {
+    // 通常の定額/定率法と違って、月按分なしで全額損金
+    const a = asset({
+      acquisitionDate: '2026-12-15',
+      acquisitionCost: '399000',
+      depreciationMethod: 'small-asset-special',
+    })
+    const r = computeDepreciation(a, 2026)
+    expect(r.amount).toBe('399000')
+  })
+})
+
+describe('generateYearEndDepreciation - small-asset-special', () => {
+  test('適用要件外（取得価額が閾値以上）は smallAssetIneligible でカウント', async () => {
+    // 2026-04-01 取得で 40 万以上 → 要件外
+    await db.fixedAssets.add(
+      asset({
+        id: 'big',
+        name: 'high-end PC',
+        acquisitionDate: '2026-04-01',
+        acquisitionCost: '400000',
+        depreciationMethod: 'small-asset-special',
+      })
+    )
+    const r = await generateYearEndDepreciation(2026)
+    expect(r.created).toBe(0)
+    expect(r.smallAssetIneligible).toBe(1)
+  })
+
+  test('2026-03 取得で 30 万以上は要件外', async () => {
+    await db.fixedAssets.add(
+      asset({
+        acquisitionDate: '2026-03-31',
+        acquisitionCost: '300000',
+        depreciationMethod: 'small-asset-special',
+      })
+    )
+    const r = await generateYearEndDepreciation(2026)
+    expect(r.smallAssetIneligible).toBe(1)
+    expect(r.created).toBe(0)
+  })
+
+  test('閾値未満は仕訳作成、摘要に「措法28の2」付与', async () => {
+    await db.fixedAssets.add(
+      asset({
+        id: 'pc',
+        name: 'Mac mini',
+        acquisitionDate: '2026-04-15',
+        acquisitionCost: '250000',
+        depreciationMethod: 'small-asset-special',
+      })
+    )
+    const r = await generateYearEndDepreciation(2026)
+    expect(r.created).toBe(1)
+    const entries = await db.journalEntries.toArray()
+    expect(entries[0]?.description).toContain('措法28の2')
+    const lines = await db.journalLines.toArray()
+    const expense = lines.find((l) => l.accountCode === '5210')
+    expect(expense?.amount).toBe('250000')
+  })
+
+  test('年合計 300 万円 cap：取得日昇順で打ち切り', async () => {
+    // 40 万 × 8 個 = 320 万、上限 300 万なので 7 個目までで 280 万、8 個目は cap 超過
+    const acqs = [
+      { id: 'a1', date: '2026-04-01', cost: '400000' },
+      { id: 'a2', date: '2026-05-01', cost: '400000' },
+      { id: 'a3', date: '2026-06-01', cost: '400000' },
+      { id: 'a4', date: '2026-07-01', cost: '400000' },
+      { id: 'a5', date: '2026-08-01', cost: '400000' },
+      { id: 'a6', date: '2026-09-01', cost: '400000' },
+      { id: 'a7', date: '2026-10-01', cost: '400000' },
+      { id: 'a8', date: '2026-11-01', cost: '400000' },
+    ]
+    // 注意：40 万「未満」が閾値なので、400000 そのものは要件外。
+    // この test では「cap」の挙動を確認するため、閾値未満（399999）を使う。
+    for (const a of acqs) {
+      await db.fixedAssets.add(
+        asset({
+          id: a.id,
+          name: `asset-${a.id}`,
+          acquisitionDate: a.date,
+          acquisitionCost: '399999',
+          depreciationMethod: 'small-asset-special',
+        })
+      )
+    }
+    const r = await generateYearEndDepreciation(2026)
+    // 399999 × 7 = 2,799,993（300 万以下）、+ 8 個目 → 3,199,992（300 万超）
+    // なので 7 個 created、1 個 cap 超過
+    expect(r.created).toBe(7)
+    expect(r.smallAssetCapExceeded).toBe(1)
+  })
+
+  test('通常償却と少額特例の混在もカウントが正しい', async () => {
+    await db.fixedAssets.bulkAdd([
+      asset({
+        id: 'small',
+        name: 'iPhone',
+        acquisitionDate: '2026-05-01',
+        acquisitionCost: '150000',
+        depreciationMethod: 'small-asset-special',
+      }),
+      asset({
+        id: 'normal',
+        name: 'Mac Studio',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '500000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'straight-line',
+      }),
+    ])
+    const r = await generateYearEndDepreciation(2026)
+    expect(r.created).toBe(2)
+    expect(r.smallAssetIneligible).toBe(0)
+    expect(r.smallAssetCapExceeded).toBe(0)
+  })
+})

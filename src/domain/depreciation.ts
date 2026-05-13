@@ -2,11 +2,17 @@ import { D } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
+import {
+  SMALL_ASSET_ANNUAL_CAP,
+  isSmallAssetEligible,
+} from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 減価償却の計算と仕訳生成。
-// 直接法（straight-line）と 200% 定率法（declining-balance）に対応。
+// 直接法（straight-line）と 200% 定率法（declining-balance）に加え、
+// 少額減価償却資産の特例（措法28の2、small-asset-special）に対応。
 // 取得月から決算月まで月按分、耐用年数満了後は 1 円残し（2007年改正後の標準）。
 // 200% 定率法は平成24年4月1日以後取得分の標準。改定償却率による均等償却切替も実装。
+// 少額特例は取得年度に全額損金算入、以降の償却なし。年間 300 万円の上限あり。
 
 const DEPRECIATION_EXPENSE = '5210';
 const ACCUMULATED_DEPRECIATION = '1520';
@@ -82,8 +88,35 @@ export function computeDepreciation(
     return computeStraightLine(asset, year, acqYear, acqMonth, cost);
   } else if (asset.depreciationMethod === 'declining-balance') {
     return computeDecliningBalance(asset, year, acqYear, acqMonth, cost);
+  } else if (asset.depreciationMethod === 'small-asset-special') {
+    return computeSmallAssetSpecial(asset, year, acqYear, cost);
   }
   throw new Error(`未対応の償却方法：${asset.depreciationMethod}`);
+}
+
+// 少額減価償却資産の特例（措法28の2）：取得年度に全額損金算入。
+// 取得日・取得価額が適用範囲外でもこの関数は計算自体は実施する（呼出元で eligibility は検証する想定）。
+// 年合計 300 万円上限は呼出元（generateYearEndDepreciation）で資産横断的にチェックする。
+function computeSmallAssetSpecial(
+  asset: FixedAsset,
+  year: number,
+  acqYear: number,
+  cost: ReturnType<typeof D>
+): DepreciationResult {
+  if (year === acqYear) {
+    return {
+      amount: cost.toString(),
+      accumulatedEnd: cost.toString(),
+      bookValueEnd: '0',
+      fullyDepreciated: true,
+    };
+  }
+  return {
+    amount: '0',
+    accumulatedEnd: cost.toString(),
+    bookValueEnd: '0',
+    fullyDepreciated: true,
+  };
 }
 
 function computeStraightLine(
@@ -205,23 +238,80 @@ function computeDecliningBalance(
     fullyDepreciated: false,
   };
 }
+export interface YearEndDepreciationResult {
+  /** 仕訳を新規作成した件数 */
+  created: number;
+  /** 既存仕訳があり重複回避でスキップした件数 */
+  skipped: number;
+  /** 少額特例だが年合計 300 万円 cap で適用不可となった件数（仕訳未作成） */
+  smallAssetCapExceeded: number;
+  /** 少額特例として設定されているが取得日・価額が要件外で適用不可の件数（仕訳未作成） */
+  smallAssetIneligible: number;
+}
+
+function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
+  if (asset.depreciationMethod !== 'small-asset-special') {
+    return false;
+  }
+  return Number(asset.acquisitionDate.slice(0, 4)) === year;
+}
+
 // 指定年度の全資産の償却仕訳をまとめて作成する。
 // 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
+// 少額減価償却資産の特例：年合計 300 万円 cap を超える資産は取得日昇順で打ち切り、超過分は仕訳未作成。
+//   要件外の指定（適用期限超過 / 取得価額が閾値以上）も仕訳未作成として返す。
 export async function generateYearEndDepreciation(
   year: number
-): Promise<{ created: number; skipped: number }> {
+): Promise<YearEndDepreciationResult> {
   const assets = await db.fixedAssets.toArray();
   const date = `${year}-12-31`;
   const now = Date.now();
+  // 少額特例の年合計 300 万円 cap は「取得日昇順で順次充当」が国税庁基準なので
+  // 当年取得・少額特例の資産を先に取得日昇順で処理する。
+  const sorted = [...assets].sort((a, b) => {
+    const aSmall = isSmallAssetSpecialForYear(a, year);
+    const bSmall = isSmallAssetSpecialForYear(b, year);
+    if (aSmall && !bSmall) {
+      return -1;
+    }
+    if (!aSmall && bSmall) {
+      return 1;
+    }
+    if (aSmall && bSmall) {
+      return a.acquisitionDate.localeCompare(b.acquisitionDate);
+    }
+    return 0;
+  });
 
   let created = 0;
   let skipped = 0;
+  let smallAssetCapExceeded = 0;
+  let smallAssetIneligible = 0;
+  let smallAssetUsed = D(0);
 
-  for (const asset of assets) {
+  for (const asset of sorted) {
+    const isSmallThisYear = isSmallAssetSpecialForYear(asset, year);
+    if (isSmallThisYear) {
+      if (!isSmallAssetEligible(asset.acquisitionDate, asset.acquisitionCost)) {
+        smallAssetIneligible++;
+        continue;
+      }
+    }
+
     const result = computeDepreciation(asset, year);
     if (D(result.amount).isZero()) {
       continue;
     }
+
+    if (isSmallThisYear) {
+      const candidate = smallAssetUsed.plus(result.amount);
+      if (candidate.greaterThan(SMALL_ASSET_ANNUAL_CAP)) {
+        smallAssetCapExceeded++;
+        continue;
+      }
+      smallAssetUsed = candidate;
+    }
+
     const existing = await db.journalEntries
       .where('[year+date]')
       .equals([year, date])
@@ -233,6 +323,9 @@ export async function generateYearEndDepreciation(
     }
 
     const entryId = newId();
+    const description = isSmallThisYear
+      ? `減価償却（措法28の2）${asset.name} #${asset.id.slice(0, 8)}`
+      : `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`;
     await db.transaction(
       'rw',
       [db.journalEntries, db.journalLines],
@@ -241,7 +334,7 @@ export async function generateYearEndDepreciation(
           id: entryId,
           date,
           year,
-          description: `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`,
+          description,
           status: 'confirmed',
           source: 'manual',
           createdAt: now,
@@ -278,5 +371,5 @@ export async function generateYearEndDepreciation(
     created++;
   }
 
-  return { created, skipped };
+  return { created, skipped, smallAssetCapExceeded, smallAssetIneligible };
 }
