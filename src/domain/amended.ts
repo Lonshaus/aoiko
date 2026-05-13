@@ -15,7 +15,6 @@ export interface AmendmentDiff {
   currentTotalExpense: string;
   hasChange: boolean;
 }
-
 // 申告済み年度の filed スナップショットと現在の集計結果を比較し、
 // 訂正仕訳によってどれだけ数値が変わったかを返す。
 // 修正申告（amended return）の提出要否判断・提出用差分把握に使う。
@@ -59,7 +58,6 @@ export type AmendmentChecklistKey =
 export interface AmendmentChecklistItem {
   key: AmendmentChecklistKey;
 }
-
 // 修正申告の標準的な手順 key 列。ラベル本文は UI 層で i18n 経由解決。
 export function amendmentChecklist(): AmendmentChecklistItem[] {
   return [

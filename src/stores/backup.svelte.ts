@@ -36,7 +36,6 @@ class BackupManager {
 
   constructor() {
     void this.initAdapter();
-
     // 仕訳・明細・取引先・固定資産の変更を購読し、デバウンスでバックアップ
     this.subs.push(
       liveQuery(async () => ({
@@ -175,7 +174,6 @@ class BackupManager {
       this.status = prev === 'permission-required' ? 'permission-required' : 'error';
     }
   }
-
   // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ JSON を書き出す。
   // 全環境で動作。OPFS 使用環境では iCloud Drive 等への手動コピーの起点となる。
   async downloadJson(): Promise<void> {

@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction, ParserEncoding } from './types';
-
 // JSON で宣言的に CSV パーサーを定義する。
 // 「ヘッダー名でカラムを指し、値を Decimal 字串に正規化する」というほぼ全銀行・カードに共通する
 // パターンを設定だけで表現できる。複雑な分岐（PayPay 符号判定、複数行マージ等）は TypeScript で書く。
@@ -29,7 +28,6 @@ export type ColumnsConfig = (BankColumns | CardColumns | SignedAmountColumns) & 
   balance?: { header: string };
   memo?: { header: string };
 };
-
 // 銀行型：出金/入金で側を判定（例：三菱UFJ、SBI）
 export interface BankColumns {
   date: { header: string };
@@ -37,14 +35,12 @@ export interface BankColumns {
   withdrawal: { header: string };
   deposit: { header: string };
 }
-
 // カード型：固定側（例：楽天カード、JCB は常に credit）
 export interface CardColumns {
   date: { header: string };
   description: { header: string; fallbackHeader?: string };
   amount: { header: string; side: 'debit' | 'credit' };
 }
-
 // 符号付き型：単一金額欄の符号で判定（例：PayPay）
 export interface SignedAmountColumns {
   date: { header: string };
@@ -61,7 +57,6 @@ function isCard(c: ColumnsConfig): c is CardColumns & { balance?: { header: stri
 function isSigned(c: ColumnsConfig): c is SignedAmountColumns & { balance?: { header: string }; memo?: { header: string } } {
   return 'signedAmount' in c;
 }
-
 // JsonParserConfig を CsvParser インスタンスに変換する。
 export function defineParser(config: JsonParserConfig): CsvParser {
   return {

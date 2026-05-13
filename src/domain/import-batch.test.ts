@@ -55,7 +55,6 @@ describe('reverseImportBatch', () => {
       { transaction: tx(), counterpartAccountCode: '4110' },
       { transaction: tx(), counterpartAccountCode: '4110' },
     ])
-
     // first invocation reverses both
     await reverseImportBatch(result.batchId)
     // second invocation should report 2 already-reversed
