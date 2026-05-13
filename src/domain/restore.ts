@@ -9,7 +9,6 @@ export class IncompatibleBackupError extends Error {
     this.name = 'IncompatibleBackupError';
   }
 }
-
 // JSON バックアップの内容で IndexedDB を完全置換する。
 // 既存データはすべて削除されるため、UI 側で必ず確認ダイアログを挟むこと。
 export async function restoreFromJson(
@@ -37,7 +36,6 @@ export async function restoreFromJson(
 
   return { tableCount, rowCount };
 }
-
 // JSON テキストをパース・検証する。形式不正時は throw。
 export function parseBackupJson(text: string): BackupPayload {
   let parsed: unknown;

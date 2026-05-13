@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
 import { acceptDisclaimer } from './helpers';
-
 // 各ルートが読み込めて主要見出しが表示されるかの最低限スモークテスト。
 
 test.beforeEach(async ({ page, context }) => {

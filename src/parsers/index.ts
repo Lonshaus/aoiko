@@ -3,7 +3,6 @@ import type { CsvParser } from './types';
 export type { CsvParser, ParsedTransaction, ParserEncoding } from './types';
 export type { JsonParserConfig } from './json-config';
 export { defineParser } from './json-config';
-
 // Auto-discovery：./xxx.ts に default export された CsvParser を全件収集する。
 // 新しい parser を追加するには：
 //   1. src/parsers/my-bank.ts を作成、`export default { ... satisfies CsvParser }` する
@@ -49,7 +48,6 @@ for (const [path, mod] of Object.entries(modules)) {
     }
   }
 }
-
 // 銀行 → カード → 電子マネー の順で並べる。同種は displayName 50 音順
 const KIND_ORDER: Record<string, number> = {
   '1110': 0, '1120': 0, '1130': 0, '1140': 0,  // 預金

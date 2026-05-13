@@ -32,7 +32,6 @@ export interface PLReport {
   netIncome: string;
   entryCount: number;
 }
-
 // 取引先別 / 補助科目別の集計。指定した軸（vendor / subAccount）で
 // 各勘定科目内の取引を分解する。経費分析・実績把握に使う。
 export type BreakdownAxis = 'vendor' | 'subAccount';
@@ -70,7 +69,6 @@ export async function buildBreakdown(
   const subAccounts = axis === 'subAccount' ? await db.subAccounts.toArray() : [];
   const vendorMap = new Map(vendors.map((v) => [v.id, v.name]));
   const subMap = new Map(subAccounts.map((s) => [s.id, s.name]));
-
   // accountCode → key → { amount, count }
   const matrix = new Map<string, Map<string, { amount: Decimal; count: number }>>();
 
@@ -149,7 +147,6 @@ export async function buildBreakdown(
 
   return { year, axis, groups };
 }
-
 // 月別 PL：勘定科目 × 月（12 ヶ月）のマトリックス。
 export interface MonthlyPLRow {
   accountCode: string;
@@ -190,7 +187,6 @@ export interface BSReport {
   totalLiabilitiesAndEquity: string;
   balanced: boolean;
 }
-
 // 訂正済みの原仕訳は除外し、訂正仕訳（status='confirmed' で originalEntryId 持ち）は普通に算入する。
 // 現状ではこの方針で full-year / 当月双方を集計しており、訂正前後の差分は現時点ではキャンセルアウトされる
 // （訂正月で打ち消し、原月では status='reversed' により除外）。
@@ -262,7 +258,6 @@ export async function buildMonthly(year: number): Promise<MonthlyReport> {
     totalExpense: totalExpense.toString(),
   };
 }
-
 // 貸借対照表（B/S）。年度末時点で各勘定科目の残高を計算する。
 // 資産は借方残、負債・純資産は貸方残として算出。
 // 当期純利益（PL から）を純資産に加算して表示する。
@@ -271,7 +266,6 @@ export async function buildBS(year: number): Promise<BSReport> {
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryMap = new Map(entries.map((e) => [e.id, e]));
   const asOf = `${year}-12-31`;
-
   // 年度内仕訳のみを集計（簡易：開始残高 = 0 前提。実運用では前年繰越が必要だが Phase 2 ではスキップ）
   const balances = new Map<string, Decimal>();
   for (const line of lines) {
@@ -315,7 +309,6 @@ export async function buildBS(year: number): Promise<BSReport> {
   const assets = buildRows('asset');
   const liabilities = buildRows('liability');
   const equity = buildRows('equity');
-
   // 当期純利益 = 収益合計 − 経費合計（純資産に加算）
   let revenue = D(0);
   let expense = D(0);
@@ -358,7 +351,6 @@ export async function buildMonthlyPL(year: number): Promise<MonthlyPLReport> {
   const { entries, lines, accounts } = await loadYearData(year);
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryMonthMap = new Map(entries.map((e) => [e.id, Number(e.date.slice(5, 7))]));
-
   // accountCode → [12 ヶ月分の Decimal]
   const matrix = new Map<string, Decimal[]>();
   const ensureRow = (code: string): Decimal[] => {

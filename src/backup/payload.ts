@@ -1,6 +1,5 @@
 import { db } from '../db/db';
 import type { BackupPayload } from './types';
-
 // シリアライズ不可能な settings キー（バックアップ対象外）
 const SKIP_SETTING_KEYS = new Set(['backupFolderHandle']);
 

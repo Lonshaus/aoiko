@@ -10,7 +10,6 @@ export class JournalValidationError extends Error {
     this.name = 'JournalValidationError';
   }
 }
-
 // 訂正仕訳は負数ではなく借方↔貸方の入れ替えで表現する。
 // 各 line の金額は常に非負。符号は `side` が担う。
 export function validateLines(lines: JournalLine[]): void {

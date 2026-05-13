@@ -44,7 +44,6 @@ export function buildXtx2026(ctx: XtxContext): string {
     lines.push(`    <InvoiceNumber>${escape(ctx.invoiceNumber)}</InvoiceNumber>`);
   }
   lines.push('  </Taxpayer>');
-
   // 月別売上（売上高の月内訳）
   lines.push('  <MonthlySales>');
   for (const m of ctx.monthly.months) {
@@ -54,7 +53,6 @@ export function buildXtx2026(ctx: XtxContext): string {
   }
   lines.push(`    <YearTotal sales="${ctx.monthly.totalSales}" expense="${ctx.monthly.totalExpense}"/>`);
   lines.push('  </MonthlySales>');
-
   // 損益計算書
   lines.push('  <ProfitAndLoss>');
   lines.push('    <Revenue>');
@@ -75,7 +73,6 @@ export function buildXtx2026(ctx: XtxContext): string {
   lines.push('    </Expense>');
   lines.push(`    <NetIncome>${ctx.pl.netIncome}</NetIncome>`);
   lines.push('  </ProfitAndLoss>');
-
   // 貸借対照表
   lines.push('  <BalanceSheet>');
   lines.push(`    <AsOf>${ctx.bs.asOf}</AsOf>`);

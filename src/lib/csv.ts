@@ -50,13 +50,11 @@ export function parseCsv(text: string): string[][] {
       current += c;
     }
   }
-
   // 末尾に終端改行が無い場合のフラッシュ
   if (current.length > 0 || row.length > 0) {
     row.push(current);
     rows.push(row);
   }
-
   // 完全に空の行は除外
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }

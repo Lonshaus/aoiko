@@ -1,6 +1,5 @@
 import { D } from '../lib/decimal';
 import { newId } from '../lib/id';
-
 // 家事按分の自動分解。借方明細で homeOfficeRatio が 1 未満の場合、
 // 「事業使用分（経費）」と「個人使用分（1610 事業主貸）」の 2 行に分解する。
 // 個人使用分は複数行から合算して 1 行にまとめる（仕訳全体の可読性向上）。
@@ -24,7 +23,6 @@ export class HomeOfficeRatioError extends Error {
     this.name = 'HomeOfficeRatioError';
   }
 }
-
 // homeOfficeRatio が有効な値か検証。空文字、'1'、'0' .. '1' の範囲のみ許可。
 function parseRatio(ratio: string): { apply: boolean; value: ReturnType<typeof D> } {
   const trimmed = ratio.trim();
@@ -49,7 +47,6 @@ function parseRatio(ratio: string): { apply: boolean; value: ReturnType<typeof D
   }
   return { apply: true, value: d };
 }
-
 // 借方明細群を受け取り、家事按分のあるものを分解した新しい配列を返す。
 // 個人使用分（事業主貸）は合算され、必要なら 1 行追加される。
 export function expandHomeOffice(debits: SplittableLine[]): SplittableLine[] {
@@ -72,7 +69,6 @@ export function expandHomeOffice(debits: SplittableLine[]): SplittableLine[] {
       result.push(line);
       continue;
     }
-
     // 事業使用分（四捨五入）、個人使用分は差額で計算（円が消えないように）
     const businessAmount = fullAmount.times(ratio).toDecimalPlaces(0);
     const personalAmount = fullAmount.minus(businessAmount);
