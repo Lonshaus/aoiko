@@ -57,7 +57,6 @@ export interface MonthlyOverview {
   netIncome: string;
   entryCount: number;
 }
-
 // 仕訳一覧 / 直近の仕訳で共通利用する LedgerRow 構築ヘルパー。
 // 与えられた entries に対して lines / accounts / subAccounts を一括取得して結合する。
 export async function buildLedgerRows(
@@ -114,7 +113,6 @@ function emptyOverview(): MonthlyOverview {
     entryCount: 0,
   };
 }
-
 // Dexie の liveQuery を Svelte 5 のルーンへ橋渡しするシングルトン。
 // SPA のライフサイクル全体で生存するので unsubscribe は不要。
 class LedgerStore {

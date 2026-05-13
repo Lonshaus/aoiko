@@ -24,7 +24,6 @@ export class LlmError extends Error {
     this.name = 'LlmError';
   }
 }
-
 // Google Gemini API アダプター（無料枠あり、レイテンシ・コストともに低い）。
 // 2026 時点で gemini-2.5-flash 推奨。設定で他モデルも可能。
 export class GeminiAdapter implements LlmAdapter {

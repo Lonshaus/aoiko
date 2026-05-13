@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // PayPay 取引履歴 CSV（推定）。
 // エンコーディング：UTF-8
 // ヘッダー：取引日, 取引内容, 取引金額(円), 残高(円), 出金元/入金先

@@ -1,6 +1,5 @@
 import { db } from '../db/db';
 import type { ParserRule } from '../db/types';
-
 // 取引内容（CSV 行の description）と既存ルールをマッチング、最初にヒットしたルールを返す。
 // ルールは priority 降順で評価される。
 export async function findMatchingRule(

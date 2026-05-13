@@ -1,7 +1,6 @@
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import type { ReportSnapshot, ReportSnapshotData } from '../db/types';
-
 // 年度を「申告済み」としてロックする。
 // PL / BS / 月別売上 の 3 種類のスナップショットを `status='filed'` で記録し、
 // 以降その年度の仕訳を訂正できなくする。
@@ -59,7 +58,6 @@ export async function isYearLocked(year: number): Promise<boolean> {
     .first();
   return !!filed;
 }
-
 // 申告ロック解除（誤ロック・修正申告対応の管理者向け）。
 // 既存の filed スナップショットをすべて削除する。
 export async function unlockYear(year: number): Promise<{ removed: number }> {

@@ -12,7 +12,6 @@ export function D(value: DecimalLike): Decimal {
 
 const INT_DIGITS = 14;
 const FRAC_DIGITS = 2;
-
 // IndexedDB の辞書順インデックス用、14+2 桁ゼロパディングの固定幅文字列。
 // 範囲：0 〜 99,999,999,999,999.99。非負前提（符号は借方/貸方で表現）。
 export function toIndexable(value: DecimalLike): string {

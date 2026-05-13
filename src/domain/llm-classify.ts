@@ -22,7 +22,6 @@ export interface ClassifyOptions {
   /** UI から候補に提示する科目（カテゴリ別に絞り込み済を推奨） */
   candidateAccounts: Account[];
 }
-
 // LLM で 1 ファイル分のトランザクション群を一括分類する。
 // 既存の rule engine と組み合わせて、rule で hit しなかった行のみ LLM に投げる用途を想定。
 export async function classifyWithLlm(
@@ -37,7 +36,6 @@ export async function classifyWithLlm(
   const raw = await adapter.generateJson(prompt);
   return parseResponse(raw, inputs, options.candidateAccounts);
 }
-
 // プロンプト生成：日本語で会計コンテキストを明示し、JSON 出力を要求する
 export function buildPrompt(
   inputs: ClassifyInput[],
@@ -122,7 +120,6 @@ function parseResponse(
     }
     byRef.set(ref, result);
   }
-
   // 入力順に並べて返す。レスポンスに含まれない ref は confidence 'none' で補完
   return inputs.map(
     (t) =>

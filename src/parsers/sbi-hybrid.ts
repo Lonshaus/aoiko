@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // 住信SBIネット銀行 ハイブリッド預金の CSV ダウンロード形式。
 // エンコーディング：UTF-8（BOM 有無どちらも可）
 // ヘッダー：日付, 内容, 出金金額(円), 入金金額(円), 残高(円), メモ

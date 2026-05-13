@@ -20,7 +20,6 @@ export interface CarryoverPreview {
 const CAPITAL_CODE = '3110';        // 元入金
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
 const OWNER_CONTRIB_CODE = '3120';  // 事業主借
-
 // 個人事業主の期首振替仕訳を生成する。
 // 仕組み：前年の資産・負債残高をそのまま翌年期首に持ち越し、
 // 事業主貸・事業主借・前期純利益はすべて元入金へ吸収する。
@@ -61,7 +60,6 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
     .where('entryId')
     .anyOf(entries.map((e) => e.id))
     .toArray();
-
   // 残高集計：資産=借方残、負債/純資産=貸方残、収益=貸方残、費用=借方残。
   const balances = new Map<string, Decimal>();
   for (const line of lines) {
@@ -77,7 +75,6 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
         : (line.side === 'credit' ? amount : amount.negated());
     balances.set(line.accountCode, cur.plus(signed));
   }
-
   // 前年純利益 = 収益合計 − 費用合計
   let revenue = D(0);
   let expense = D(0);
@@ -97,7 +94,6 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
   const ownerWithdrawals = balances.get(OWNER_WITHDRAW_CODE) ?? D(0);
   const ownerContributions = balances.get(OWNER_CONTRIB_CODE) ?? D(0);
   const priorCapital = balances.get(CAPITAL_CODE) ?? D(0);
-
   // 元入金更新：前期末元入金 + 純利益 + 事業主借 − 事業主貸
   const newCapital = priorCapital
     .plus(netIncome)
@@ -137,7 +133,6 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
     priorEndingCapital: priorCapital.toString(),
   };
 }
-
 // 期首振替を実際の仕訳としてデータベースへ書き込む。
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
 export async function applyCarryover(year: number): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
