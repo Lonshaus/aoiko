@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // 三井住友カード（NL 含む）Vpass の CSV 形式（推定）。
 // エンコーディング：Shift_JIS
 // ヘッダー：ご利用日, ご利用店名・ご利用内容, ご利用者, 支払方法, 利用金額, ...

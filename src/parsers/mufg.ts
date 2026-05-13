@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // 三菱UFJ 銀行 Direct ダウンロードの CSV 形式（推定）。
 // エンコーディング：Shift_JIS
 // ヘッダー：日付, 摘要, 摘要内容, 支払い金額, 預かり金額, 差引残高, メモ, ラベル

@@ -26,7 +26,6 @@ export function buildRawRow(
   }
   return result;
 }
-
 // 必須列のインデックスを取得。1 つでも欠けたら早期に投げる。
 export function requireColumns(
   header: string[],
@@ -50,7 +49,6 @@ export function requireColumns(
   }
   return indices;
 }
-
 // オプショナル列のインデックス。無ければ -1。
 export function optionalColumn(header: string[], name: string): number {
   return header.indexOf(name);

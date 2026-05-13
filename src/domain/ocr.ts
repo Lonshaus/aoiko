@@ -1,5 +1,4 @@
 import { LlmError, type LlmAdapter, type LlmImageInput } from './llm';
-
 // 領収書 OCR：画像 → 構造化された取引データ。
 // Gemini Vision を使用。BYOK モデル、ユーザー API キー必須。
 
@@ -126,7 +125,6 @@ function sanitizeAmount(s: string): string {
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
-
 // File / Blob を base64 文字列に変換（data URL prefix を除去）
 export async function fileToBase64(file: Blob): Promise<{ base64: string; mimeType: string }> {
   const buffer = await file.arrayBuffer();
