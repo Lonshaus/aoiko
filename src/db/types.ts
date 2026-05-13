@@ -5,10 +5,19 @@ export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'ex
 export type TaxCategory = 'taxable10' | 'taxable8' | 'exempt' | 'nontaxable';
 export type CandidateConfidence = 'rule' | 'history' | 'llm-high' | 'llm-low' | 'none';
 export type CandidateStatus = 'pending' | 'confirmed' | 'discarded';
-export type DepreciationMethod = 'straight-line' | 'declining-balance';
+// 'small-asset-special' は少額減価償却資産の特例（措法28の2）。取得年度に全額損金算入し、以降の償却なし。
+export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'small-asset-special';
 export type ReportType = 'monthly-sales' | 'pl' | 'bs';
 export type ReportStatus = 'draft' | 'filed';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
+// 消費税の納税義務区分。免税事業者は仕入税額控除の計算対象外。
+export type TaxRegistration = 'taxable' | 'tax-free';
+// 消費税の課税方式。
+// - general：本則課税（売上税額 − 仕入税額）
+// - simplified：簡易課税（売上税額 × (1 − みなし仕入率)）
+// - two-wari：2 割特例（2023/10〜2026/9、売上税額 × 20%）
+// - three-wari：3 割特例（令和 9・10 限定、売上税額 × 30%）
+export type TaxFilingMethod = 'general' | 'simplified' | 'two-wari' | 'three-wari';
 
 export interface JournalEntry {
   id: string;
