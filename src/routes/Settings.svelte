@@ -32,9 +32,12 @@
     ParserRule,
     ParserRuleMatchType,
     SubAccount,
+    TaxFilingMethod,
+    TaxRegistration,
     Vendor,
     VendorEntityType,
   } from '../db/types';
+  import { simplifiedTaxCategoryLabel, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 
   const INVOICE_NUMBER_PATTERN = '^T\\d{13}$';
 
@@ -105,6 +108,11 @@
   let disclaimerAcceptedAt = $state<number | null>(null);
   let disclaimerAcceptedVersion = $state<number | null>(null);
 
+  let taxRegistration = $state<TaxRegistration>('tax-free');
+  let taxFilingMethod = $state<TaxFilingMethod>('general');
+  let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
+  let consumptionTaxSaved = $state(false);
+
   const accountGroups = $derived(ledger.groupedAccounts());
 
   const subGroups = $derived.by(() => {
@@ -153,7 +161,20 @@
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     disclaimerAcceptedAt = (await getSetting('disclaimerAcceptedAt')) ?? null;
     disclaimerAcceptedVersion = (await getSetting('disclaimerAcceptedVersion')) ?? null;
+    taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
+    taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
+    simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
   });
+
+  async function saveConsumptionTax() {
+    await setSetting('taxRegistration', taxRegistration);
+    await setSetting('taxFilingMethod', taxFilingMethod);
+    await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
+    consumptionTaxSaved = true;
+    setTimeout(() => {
+      consumptionTaxSaved = false;
+    }, 2000);
+  }
 
   async function revokeDisclaimer() {
     await deleteSetting('disclaimerAcceptedAt');
@@ -561,6 +582,58 @@
       </button>
     </div>
   </form>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_consumption_tax_title()}</h3>
+    <p class="text-xs text-muted-foreground">
+      {m.settings_consumption_tax_intro()}
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_registration()}</span>
+        <select
+          bind:value={taxRegistration}
+          onchange={saveConsumptionTax}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          <option value="tax-free">{m.settings_consumption_tax_registration_tax_free()}</option>
+          <option value="taxable">{m.settings_consumption_tax_registration_taxable()}</option>
+        </select>
+      </label>
+      {#if taxRegistration === 'taxable'}
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_method()}</span>
+          <select
+            bind:value={taxFilingMethod}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            <option value="general">{m.settings_consumption_tax_method_general()}</option>
+            <option value="simplified">{m.settings_consumption_tax_method_simplified()}</option>
+            <option value="two-wari">{m.settings_consumption_tax_method_two_wari()}</option>
+            <option value="three-wari">{m.settings_consumption_tax_method_three_wari()}</option>
+          </select>
+        </label>
+        {#if taxFilingMethod === 'simplified'}
+          <label class="block sm:col-span-2">
+            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_simplified_category()}</span>
+            <select
+              bind:value={simplifiedTaxCategory}
+              onchange={saveConsumptionTax}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            >
+              {#each [1, 2, 3, 4, 5, 6] as cat (cat)}
+                <option value={cat}>{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+      {/if}
+    </div>
+    {#if consumptionTaxSaved}
+      <p class="text-xs text-green-600">{m.settings_consumption_tax_saved()}</p>
+    {/if}
+  </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_carryover_title()}</h3>
