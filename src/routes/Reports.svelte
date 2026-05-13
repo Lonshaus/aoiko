@@ -22,6 +22,9 @@
   } from '../domain/amended';
   import { buildXtx2026 } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
+  import { compareAll, type ConsumptionTaxResult } from '../domain/consumption-tax';
+  import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+  import type { TaxRegistration } from '../db/types';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
   import type { AmendmentChecklistKey } from '../domain/amended';
@@ -65,6 +68,9 @@
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
   let amendment = $state<AmendmentDiff | null>(null);
+  let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
+  let taxRegistration = $state<TaxRegistration>('tax-free');
+  let simplifiedCategory = $state<SimplifiedTaxCategory>(4);
   let locked = $state(false);
   let confirmingLock = $state(false);
   let confirmingUnlock = $state(false);
@@ -73,25 +79,72 @@
   $effect(() => {
     const yr = year;
     const ax = breakdownAxis;
-    const sub = liveQuery(async () => ({
-      monthly: await buildMonthly(yr),
-      pl: await buildPL(yr),
-      bs: await buildBS(yr),
-      monthlyPL: await buildMonthlyPL(yr),
-      breakdown: await buildBreakdown(yr, ax),
-      amendment: await getAmendmentDiff(yr),
-      locked: await isYearLocked(yr),
-    })).subscribe((v) => {
+    const sub = liveQuery(async () => {
+      const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
+      const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
+      return {
+        monthly: await buildMonthly(yr),
+        pl: await buildPL(yr),
+        bs: await buildBS(yr),
+        monthlyPL: await buildMonthlyPL(yr),
+        breakdown: await buildBreakdown(yr, ax),
+        amendment: await getAmendmentDiff(yr),
+        consumptionTax: await compareAll(yr, cat),
+        taxRegistration: reg,
+        simplifiedCategory: cat,
+        locked: await isYearLocked(yr),
+      };
+    }).subscribe((v) => {
       monthly = v.monthly;
       pl = v.pl;
       bs = v.bs;
       monthlyPL = v.monthlyPL;
       breakdown = v.breakdown;
       amendment = v.amendment;
+      consumptionTax = v.consumptionTax;
+      taxRegistration = v.taxRegistration;
+      simplifiedCategory = v.simplifiedCategory;
       locked = v.locked;
     });
     return () => sub.unsubscribe();
   });
+
+  function consumptionTaxMethodLabel(r: ConsumptionTaxResult, simplifiedCat: SimplifiedTaxCategory): string {
+    switch (r.method) {
+      case 'general':
+        return m.reports_consumption_tax_method_general();
+      case 'simplified':
+        return m.reports_consumption_tax_method_simplified({ n: simplifiedCat });
+      case 'two-wari':
+        return m.reports_consumption_tax_method_two_wari();
+      case 'three-wari':
+        return m.reports_consumption_tax_method_three_wari();
+    }
+  }
+
+  // 4 方式中で最少納付額の method を返す。同額時は先に来た方を優先。
+  function bestMethod(results: ConsumptionTaxResult[]): ConsumptionTaxResult['method'] | null {
+    if (results.length === 0) {
+      return null;
+    }
+    let best = results[0];
+    if (!best) {
+      return null;
+    }
+    let bestNet = Number(best.netTax.total);
+    for (let i = 1; i < results.length; i++) {
+      const r = results[i];
+      if (!r) {
+        continue;
+      }
+      const net = Number(r.netTax.total);
+      if (net < bestNet) {
+        best = r;
+        bestNet = net;
+      }
+    }
+    return best.method;
+  }
 
   async function lockYear() {
     confirmingLock = false;
@@ -653,6 +706,78 @@
           {/each}
         </ol>
       {/if}
+    </section>
+  {/if}
+
+  {#if consumptionTax && consumptionTax.length > 0}
+    {@const ct = consumptionTax}
+    {@const cat = simplifiedCategory}
+    {@const best = bestMethod(ct)}
+    <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
+      <header class="flex items-baseline justify-between">
+        <h3 class="text-lg font-semibold">{m.reports_consumption_tax_title()}</h3>
+      </header>
+      {#if taxRegistration === 'tax-free'}
+        <p class="text-sm text-muted-foreground">{m.reports_consumption_tax_tax_free()}</p>
+      {/if}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm tabular-nums">
+          <thead>
+            <tr class="text-xs text-muted-foreground border-b">
+              <th class="text-left font-normal py-2 pr-2">{m.reports_consumption_tax_th_method()}</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_output()}</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input_raw()}</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input()}</th>
+              <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_net()}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each ct as r (r.method)}
+              <tr class="border-b border-border/40" class:bg-primary={r.method === best} class:text-primary-foreground={r.method === best}>
+                <td class="py-2 pr-2">
+                  {consumptionTaxMethodLabel(r, cat)}
+                  {#if r.method === best}
+                    <span class="ml-1 text-xs">{m.reports_consumption_tax_best()}</span>
+                  {/if}
+                </td>
+                <td class="text-right px-2">{formatJPY(r.outputTax.total)}</td>
+                <td class="text-right px-2 text-muted-foreground" class:text-primary-foreground={r.method === best}>
+                  {r.method === 'general' ? formatJPY(r.inputTaxRaw.total) : '—'}
+                </td>
+                <td class="text-right px-2">{formatJPY(r.inputTax.total)}</td>
+                <td class="text-right px-2 font-medium">{formatJPY(r.netTax.total)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <details class="text-xs text-muted-foreground">
+        <summary class="cursor-pointer">{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary>
+        <table class="w-full text-xs tabular-nums mt-2">
+          <thead>
+            <tr class="text-muted-foreground border-b">
+              <th class="text-left font-normal py-1 pr-2">{m.reports_consumption_tax_th_method()}</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each ct as r (`bd-${r.method}`)}
+              <tr class="border-b border-border/30">
+                <td class="py-1 pr-2">{consumptionTaxMethodLabel(r, cat)}</td>
+                <td class="text-right px-2">{formatJPY(r.netTax.national)}</td>
+                <td class="text-right px-2">{formatJPY(r.netTax.local)}</td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </details>
+      <p class="text-xs text-muted-foreground border-t pt-2">
+        {m.reports_consumption_tax_caveat()}
+      </p>
+      <p class="text-xs text-muted-foreground">
+        {m.reports_consumption_tax_settings_link()}
+      </p>
     </section>
   {/if}
 

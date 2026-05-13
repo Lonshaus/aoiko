@@ -22,7 +22,7 @@ export default defineConfig({
       manifest: {
         name: 'aoiko - 青色申告ツール',
         short_name: 'aoiko',
-        description: '個人事業主向けの青色申告 65 万円控除対応の記帳ツール',
+        description: '個人事業主向けの青色申告 75 万円控除（令和 9 年分以降、要 e-Tax + 優良な電子帳簿）対応の記帳ツール',
         lang: 'ja',
         theme_color: '#15374a',
         background_color: '#15374a',
