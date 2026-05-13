@@ -1,4 +1,6 @@
 import { db } from '../db/db';
+import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 
 export type SettingsMap = {
   currentYear: number;
@@ -11,6 +13,10 @@ export type SettingsMap = {
   geminiApiKey: string;
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
+  // 消費税関連設定
+  taxRegistration: TaxRegistration;
+  taxFilingMethod: TaxFilingMethod;
+  simplifiedTaxCategory: SimplifiedTaxCategory;
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
