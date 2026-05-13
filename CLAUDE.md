@@ -1,6 +1,6 @@
 # Project Guidelines: PJ_aoiko
 
-Pure-frontend bookkeeping tool for Japanese sole proprietors (青色申告 65万円 deduction). BYOK, no backend.
+Pure-frontend bookkeeping tool for Japanese sole proprietors (青色申告 75万円 deduction from 令和 9 年分: requires e-Tax + 優良な電子帳簿; 65万円 deduction still supported). BYOK, no backend.
 
 ## Stack
 
