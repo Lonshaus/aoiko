@@ -17,6 +17,11 @@
     removeCarryover,
     type CarryoverPreview,
   } from '../domain/carryover';
+  import {
+    SMALL_ASSET_EXPIRY,
+    isSmallAssetEligible,
+    smallAssetThreshold,
+  } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
   import BackupPanel from '../components/BackupPanel.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -304,6 +309,24 @@
     await db.parserRules.delete(id);
   }
 
+  // 少額特例の適用可否（フォーム入力に応じて反応）。
+  // 用途：i) 入力中の即時フィードバック、ii) 送信ブロック
+  type SmallAssetCheck =
+    | { state: 'eligible'; threshold: number }
+    | { state: 'cost'; threshold: number }
+    | { state: 'expired' };
+
+  const newAssetSmallCheck = $derived.by<SmallAssetCheck>(() => {
+    const threshold = smallAssetThreshold(newAssetDate);
+    if (newAssetDate > SMALL_ASSET_EXPIRY) {
+      return { state: 'expired' };
+    }
+    if (isSmallAssetEligible(newAssetDate, newAssetCost.trim())) {
+      return { state: 'eligible', threshold };
+    }
+    return { state: 'cost', threshold };
+  });
+
   async function addAsset(e: Event) {
     e.preventDefault();
     assetError = '';
@@ -313,6 +336,13 @@
     }
     if (newAssetLife < 1) {
       assetError = m.settings_asset_error_life();
+      return;
+    }
+    if (
+      newAssetMethod === 'small-asset-special' &&
+      newAssetSmallCheck.state !== 'eligible'
+    ) {
+      assetError = m.settings_asset_error_small_ineligible();
       return;
     }
     const a: FixedAsset = {
@@ -338,9 +368,19 @@
     depreciationStatus = '';
     try {
       const r = await generateYearEndDepreciation(depreciationYear);
-      depreciationStatus = r.skipped > 0
-        ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
-        : m.settings_asset_run_success({ created: r.created });
+      const parts: string[] = [];
+      parts.push(
+        r.skipped > 0
+          ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
+          : m.settings_asset_run_success({ created: r.created })
+      );
+      if (r.smallAssetCapExceeded > 0) {
+        parts.push(m.settings_asset_run_warn_small_cap({ count: r.smallAssetCapExceeded }));
+      }
+      if (r.smallAssetIneligible > 0) {
+        parts.push(m.settings_asset_run_warn_small_ineligible({ count: r.smallAssetIneligible }));
+      }
+      depreciationStatus = parts.join(' / ');
     } catch (e) {
       depreciationStatus = m.settings_asset_run_error({ message: e instanceof Error ? e.message : String(e) });
     }
@@ -817,6 +857,7 @@
         >
           <option value="straight-line">{m.settings_asset_method_straight()}</option>
           <option value="declining-balance">{m.settings_asset_method_declining()}</option>
+          <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
         </select>
         <button
           type="submit"
@@ -826,6 +867,21 @@
         </button>
       </div>
     </form>
+    {#if newAssetMethod === 'small-asset-special'}
+      {#if newAssetSmallCheck.state === 'eligible'}
+        <p class="text-xs text-green-600">
+          {m.settings_asset_small_eligible({ date: newAssetDate, threshold: formatJPY(newAssetSmallCheck.threshold) })}
+        </p>
+      {:else if newAssetSmallCheck.state === 'cost'}
+        <p class="text-xs text-destructive">
+          {m.settings_asset_small_ineligible_cost({ threshold: formatJPY(newAssetSmallCheck.threshold) })}
+        </p>
+      {:else if newAssetSmallCheck.state === 'expired'}
+        <p class="text-xs text-destructive">
+          {m.settings_asset_small_ineligible_expired()}
+        </p>
+      {/if}
+    {/if}
     {#if assetError}
       <div class="text-sm text-destructive">{assetError}</div>
     {/if}

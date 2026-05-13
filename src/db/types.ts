@@ -5,7 +5,8 @@ export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'ex
 export type TaxCategory = 'taxable10' | 'taxable8' | 'exempt' | 'nontaxable';
 export type CandidateConfidence = 'rule' | 'history' | 'llm-high' | 'llm-low' | 'none';
 export type CandidateStatus = 'pending' | 'confirmed' | 'discarded';
-export type DepreciationMethod = 'straight-line' | 'declining-balance';
+// 'small-asset-special' は少額減価償却資産の特例（措法28の2）。取得年度に全額損金算入し、以降の償却なし。
+export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'small-asset-special';
 export type ReportType = 'monthly-sales' | 'pl' | 'bs';
 export type ReportStatus = 'draft' | 'filed';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
