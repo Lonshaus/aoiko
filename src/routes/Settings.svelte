@@ -17,6 +17,11 @@
     removeCarryover,
     type CarryoverPreview,
   } from '../domain/carryover';
+  import {
+    SMALL_ASSET_EXPIRY,
+    isSmallAssetEligible,
+    smallAssetThreshold,
+  } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
   import BackupPanel from '../components/BackupPanel.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -27,9 +32,12 @@
     ParserRule,
     ParserRuleMatchType,
     SubAccount,
+    TaxFilingMethod,
+    TaxRegistration,
     Vendor,
     VendorEntityType,
   } from '../db/types';
+  import { simplifiedTaxCategoryLabel, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 
   const INVOICE_NUMBER_PATTERN = '^T\\d{13}$';
 
@@ -100,6 +108,11 @@
   let disclaimerAcceptedAt = $state<number | null>(null);
   let disclaimerAcceptedVersion = $state<number | null>(null);
 
+  let taxRegistration = $state<TaxRegistration>('tax-free');
+  let taxFilingMethod = $state<TaxFilingMethod>('general');
+  let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
+  let consumptionTaxSaved = $state(false);
+
   const accountGroups = $derived(ledger.groupedAccounts());
 
   const subGroups = $derived.by(() => {
@@ -148,7 +161,20 @@
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     disclaimerAcceptedAt = (await getSetting('disclaimerAcceptedAt')) ?? null;
     disclaimerAcceptedVersion = (await getSetting('disclaimerAcceptedVersion')) ?? null;
+    taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
+    taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
+    simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
   });
+
+  async function saveConsumptionTax() {
+    await setSetting('taxRegistration', taxRegistration);
+    await setSetting('taxFilingMethod', taxFilingMethod);
+    await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
+    consumptionTaxSaved = true;
+    setTimeout(() => {
+      consumptionTaxSaved = false;
+    }, 2000);
+  }
 
   async function revokeDisclaimer() {
     await deleteSetting('disclaimerAcceptedAt');
@@ -304,6 +330,24 @@
     await db.parserRules.delete(id);
   }
 
+  // 少額特例の適用可否（フォーム入力に応じて反応）。
+  // 用途：i) 入力中の即時フィードバック、ii) 送信ブロック
+  type SmallAssetCheck =
+    | { state: 'eligible'; threshold: number }
+    | { state: 'cost'; threshold: number }
+    | { state: 'expired' };
+
+  const newAssetSmallCheck = $derived.by<SmallAssetCheck>(() => {
+    const threshold = smallAssetThreshold(newAssetDate);
+    if (newAssetDate > SMALL_ASSET_EXPIRY) {
+      return { state: 'expired' };
+    }
+    if (isSmallAssetEligible(newAssetDate, newAssetCost.trim())) {
+      return { state: 'eligible', threshold };
+    }
+    return { state: 'cost', threshold };
+  });
+
   async function addAsset(e: Event) {
     e.preventDefault();
     assetError = '';
@@ -313,6 +357,13 @@
     }
     if (newAssetLife < 1) {
       assetError = m.settings_asset_error_life();
+      return;
+    }
+    if (
+      newAssetMethod === 'small-asset-special' &&
+      newAssetSmallCheck.state !== 'eligible'
+    ) {
+      assetError = m.settings_asset_error_small_ineligible();
       return;
     }
     const a: FixedAsset = {
@@ -338,9 +389,19 @@
     depreciationStatus = '';
     try {
       const r = await generateYearEndDepreciation(depreciationYear);
-      depreciationStatus = r.skipped > 0
-        ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
-        : m.settings_asset_run_success({ created: r.created });
+      const parts: string[] = [];
+      parts.push(
+        r.skipped > 0
+          ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
+          : m.settings_asset_run_success({ created: r.created })
+      );
+      if (r.smallAssetCapExceeded > 0) {
+        parts.push(m.settings_asset_run_warn_small_cap({ count: r.smallAssetCapExceeded }));
+      }
+      if (r.smallAssetIneligible > 0) {
+        parts.push(m.settings_asset_run_warn_small_ineligible({ count: r.smallAssetIneligible }));
+      }
+      depreciationStatus = parts.join(' / ');
     } catch (e) {
       depreciationStatus = m.settings_asset_run_error({ message: e instanceof Error ? e.message : String(e) });
     }
@@ -521,6 +582,58 @@
       </button>
     </div>
   </form>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_consumption_tax_title()}</h3>
+    <p class="text-xs text-muted-foreground">
+      {m.settings_consumption_tax_intro()}
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_registration()}</span>
+        <select
+          bind:value={taxRegistration}
+          onchange={saveConsumptionTax}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          <option value="tax-free">{m.settings_consumption_tax_registration_tax_free()}</option>
+          <option value="taxable">{m.settings_consumption_tax_registration_taxable()}</option>
+        </select>
+      </label>
+      {#if taxRegistration === 'taxable'}
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_method()}</span>
+          <select
+            bind:value={taxFilingMethod}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            <option value="general">{m.settings_consumption_tax_method_general()}</option>
+            <option value="simplified">{m.settings_consumption_tax_method_simplified()}</option>
+            <option value="two-wari">{m.settings_consumption_tax_method_two_wari()}</option>
+            <option value="three-wari">{m.settings_consumption_tax_method_three_wari()}</option>
+          </select>
+        </label>
+        {#if taxFilingMethod === 'simplified'}
+          <label class="block sm:col-span-2">
+            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_simplified_category()}</span>
+            <select
+              bind:value={simplifiedTaxCategory}
+              onchange={saveConsumptionTax}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            >
+              {#each [1, 2, 3, 4, 5, 6] as cat (cat)}
+                <option value={cat}>{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option>
+              {/each}
+            </select>
+          </label>
+        {/if}
+      {/if}
+    </div>
+    {#if consumptionTaxSaved}
+      <p class="text-xs text-green-600">{m.settings_consumption_tax_saved()}</p>
+    {/if}
+  </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_carryover_title()}</h3>
@@ -817,6 +930,7 @@
         >
           <option value="straight-line">{m.settings_asset_method_straight()}</option>
           <option value="declining-balance">{m.settings_asset_method_declining()}</option>
+          <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
         </select>
         <button
           type="submit"
@@ -826,6 +940,21 @@
         </button>
       </div>
     </form>
+    {#if newAssetMethod === 'small-asset-special'}
+      {#if newAssetSmallCheck.state === 'eligible'}
+        <p class="text-xs text-green-600">
+          {m.settings_asset_small_eligible({ date: newAssetDate, threshold: formatJPY(newAssetSmallCheck.threshold) })}
+        </p>
+      {:else if newAssetSmallCheck.state === 'cost'}
+        <p class="text-xs text-destructive">
+          {m.settings_asset_small_ineligible_cost({ threshold: formatJPY(newAssetSmallCheck.threshold) })}
+        </p>
+      {:else if newAssetSmallCheck.state === 'expired'}
+        <p class="text-xs text-destructive">
+          {m.settings_asset_small_ineligible_expired()}
+        </p>
+      {/if}
+    {/if}
     {#if assetError}
       <div class="text-sm text-destructive">{assetError}</div>
     {/if}
@@ -1052,6 +1181,34 @@
   </section>
 
   <BackupPanel />
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_qualified_book_title()}</h3>
+    <p class="text-xs text-muted-foreground">
+      {@html m.settings_qualified_book_intro_html()}
+    </p>
+    <ul class="space-y-2 text-sm">
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req1()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req1_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req2()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req2_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req3()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req3_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req4()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req4_status()}</div>
+      </li>
+    </ul>
+    <p class="text-xs text-muted-foreground border-t pt-2">
+      {@html m.settings_qualified_book_caveat_html()}
+    </p>
+  </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>

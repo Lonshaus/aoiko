@@ -17,6 +17,11 @@
   let month = $state<number | null>(now.getMonth() + 1);
   let descInput = $state('');
   let descQuery = $state('');
+  // 金額範囲フィルタ：「優良な電子帳簿」要件（金額検索）対応。空文字は無制限。
+  let amountMinInput = $state('');
+  let amountMaxInput = $state('');
+  let amountMinQuery = $state('');
+  let amountMaxQuery = $state('');
   let pageOffset = $state(0);
 
   let rows = $state<LedgerRow[]>([]);
@@ -39,6 +44,8 @@
     year: number,
     month: number | null,
     desc: string,
+    amountMin: string,
+    amountMax: string,
     offset: number
   ): Promise<{ rows: LedgerRow[]; total: number }> {
     let entries = month
@@ -57,6 +64,34 @@
       const q = desc.toLowerCase();
       entries = entries.filter((e) => e.description.toLowerCase().includes(q));
     }
+    const minNum = amountMin === '' ? null : Number(amountMin);
+    const maxNum = amountMax === '' ? null : Number(amountMax);
+    if (
+      (minNum !== null && Number.isFinite(minNum)) ||
+      (maxNum !== null && Number.isFinite(maxNum))
+    ) {
+      // 金額範囲：いずれかの明細行が範囲内に入る仕訳だけ残す
+      const entryIds = entries.map((e) => e.id);
+      const matchingLines = await db.journalLines
+        .where('entryId')
+        .anyOf(entryIds)
+        .filter((l) => {
+          const v = Number(l.amount);
+          if (!Number.isFinite(v)) {
+            return false;
+          }
+          if (minNum !== null && v < minNum) {
+            return false;
+          }
+          if (maxNum !== null && v > maxNum) {
+            return false;
+          }
+          return true;
+        })
+        .toArray();
+      const hits = new Set(matchingLines.map((l) => l.entryId));
+      entries = entries.filter((e) => hits.has(e.id));
+    }
     entries.sort((a, b) => b.date.localeCompare(a.date));
     const total = entries.length;
     const page = entries.slice(offset, offset + PAGE_SIZE);
@@ -68,8 +103,10 @@
     const yr = year;
     const mo = month;
     const q = descQuery;
+    const aMin = amountMinQuery;
+    const aMax = amountMaxQuery;
     const off = pageOffset;
-    const sub = liveQuery(() => fetchFiltered(yr, mo, q, off)).subscribe(
+    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, off)).subscribe(
       (result) => {
         rows = result.rows;
         totalCount = result.total;
@@ -85,6 +122,13 @@
 
   function applyDescQuery() {
     descQuery = descInput.trim();
+    pageOffset = 0;
+    markLoading();
+  }
+
+  function applyAmountQuery() {
+    amountMinQuery = amountMinInput.trim();
+    amountMaxQuery = amountMaxInput.trim();
     pageOffset = 0;
     markLoading();
   }
@@ -114,6 +158,10 @@
     month = now.getMonth() + 1;
     descInput = '';
     descQuery = '';
+    amountMinInput = '';
+    amountMaxInput = '';
+    amountMinQuery = '';
+    amountMaxQuery = '';
     pageOffset = 0;
     markLoading();
   }
@@ -199,6 +247,42 @@
           onblur={applyDescQuery}
           placeholder={m.journal_list_filter_description_placeholder()}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_min()}</span>
+        <input
+          type="number"
+          bind:value={amountMinInput}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              applyAmountQuery();
+            }
+          }}
+          onblur={applyAmountQuery}
+          min="0"
+          step="1"
+          placeholder="0"
+          class="mt-1 w-28 px-3 py-2 bg-background border rounded text-foreground tabular-nums text-right"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_max()}</span>
+        <input
+          type="number"
+          bind:value={amountMaxInput}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              applyAmountQuery();
+            }
+          }}
+          onblur={applyAmountQuery}
+          min="0"
+          step="1"
+          placeholder="—"
+          class="mt-1 w-28 px-3 py-2 bg-background border rounded text-foreground tabular-nums text-right"
         />
       </label>
       <button
