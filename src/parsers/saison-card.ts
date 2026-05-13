@@ -6,7 +6,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // セゾンカード Net Answer の CSV 形式（推定）。
 // エンコーディング：Shift_JIS
 // ヘッダー：ご利用日, ご利用店名, ご利用金額

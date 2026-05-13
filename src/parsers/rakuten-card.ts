@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // 楽天カード 利用明細 CSV（推定）。
 // エンコーディング：Shift_JIS
 // ヘッダー：利用日, 利用店名・商品名, 利用者, 支払方法, 利用金額, 支払手数料, 支払総額, ...

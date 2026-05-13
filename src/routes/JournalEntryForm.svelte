@@ -77,7 +77,6 @@
   function onAccountChange(line: DraftLine) {
     line.subAccountId = '';
   }
-
   // 借方・貸方ともに 1 行のみ、かつ貸方が空のときに借方金額を貸方へ初期コピー
   function onDebitAmountInput(line: DraftLine, value: string) {
     line.amount = value;
@@ -129,7 +128,6 @@
           invoiceCompliant: false,
           ...(d.homeOfficeRatio ? { homeOfficeRatio: d.homeOfficeRatio } : {}),
         }));
-
       // 家事按分のある借方明細を「事業使用分」+「事業主貸」に分解
       const debitsForExpansion: SplittableLine[] = debits.map((d) => ({
         id: d.id,

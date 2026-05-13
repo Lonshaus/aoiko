@@ -23,7 +23,6 @@ class Router {
 }
 
 export const router = new Router();
-
 // <a href='/journal' use:link> のように使う。同一オリジンの内部リンクのみを SPA 遷移にする。
 export function link(node: HTMLAnchorElement) {
   function handle(e: MouseEvent) {

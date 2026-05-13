@@ -1,7 +1,6 @@
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { isYearLocked } from './snapshots';
-
 // 訂正仕訳：原仕訳の借方/貸方を入れ替えた打消し仕訳を新規作成し、
 // 原仕訳を status='reversed' に変更する。元データは削除しない（電子帳簿保存法の要件）。
 // 戻り値は新しく作られた訂正仕訳の id。

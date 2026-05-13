@@ -7,7 +7,6 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-
 // JCB MyJCB の CSV 形式（推定）。
 // エンコーディング：Shift_JIS
 // ヘッダー：ご利用日, ご利用先, ご利用金額, お支払金額, 摘要

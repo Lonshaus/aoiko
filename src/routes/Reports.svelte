@@ -191,7 +191,6 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
-
   // 月別売上のバー高さ計算用、月内の最大売上を取る
   function maxSales(rep: MonthlyReport | null): number {
     if (!rep) {
