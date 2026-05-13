@@ -1,5 +1,4 @@
 import type { BackupAdapter, BackupPayload } from './types';
-
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
 // FSA API 非対応（Safari / Firefox / iOS）の主要な永続化フォルバック。
 // 同期フォルダではないため、ブラウザのデータ削除で失われる。
@@ -18,7 +17,6 @@ export class OpfsBackupAdapter implements BackupAdapter {
   async isReady(): Promise<boolean> {
     return this.isAvailable();
   }
-
   // OPFS は明示的なユーザー許可不要
   async ensurePermission(): Promise<boolean> {
     if (!(await this.isAvailable())) return false;
@@ -41,13 +39,11 @@ export class OpfsBackupAdapter implements BackupAdapter {
     const date = payload.exportedAt.slice(0, 10);
     const dailyName = `aoiko-ledger-${date}.json`;
     const json = JSON.stringify(payload, null, 2);
-
     // 当日分（複数回上書き可、無視で OK）
     const dailyHandle = await root.getFileHandle(dailyName, { create: true });
     const dailyWritable = await dailyHandle.createWritable();
     await dailyWritable.write(json);
     await dailyWritable.close();
-
     // 復元時に参照しやすいよう「最新」固定名のコピーも保持
     const latestHandle = await root.getFileHandle('aoiko-ledger-latest.json', {
       create: true,

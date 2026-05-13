@@ -1,6 +1,5 @@
 import { db } from '../db/db';
 import { reverseEntry } from './reverse';
-
 // インポートバッチに紐付くすべての仕訳を訂正する。
 // 既に訂正済みの行も件数に含めて返す（UI が「全件訂正済み」を表示できるように）。
 export async function reverseImportBatch(

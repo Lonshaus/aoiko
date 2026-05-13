@@ -3,7 +3,6 @@ import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
-
 // 減価償却の計算と仕訳生成。
 // 直接法（straight-line）と 200% 定率法（declining-balance）に対応。
 // 取得月から決算月まで月按分、耐用年数満了後は 1 円残し（2007年改正後の標準）。
@@ -12,7 +11,6 @@ import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 const DEPRECIATION_EXPENSE = '5210';
 const ACCUMULATED_DEPRECIATION = '1520';
 const RESIDUAL_VALUE = 1;
-
 // 200% 定率法の償却率・改定償却率・保証率テーブル。
 // 出典：国税庁「減価償却資産の償却率等表」（平成24年4月1日以後取得分）。
 const DECLINING_RATE_TABLE: Record<
@@ -172,12 +170,10 @@ function computeDecliningBalance(
         yearAmount = standard;
       }
     }
-
     // 取得年は月按分
     if (y === acqYear) {
       yearAmount = yearAmount.times(12 - acqMonth + 1).dividedBy(12).toDecimalPlaces(0);
     }
-
     // 残存簿価 1 円を下回らないよう調整
     const remaining = cost.minus(accumulated).minus(RESIDUAL_VALUE);
     if (yearAmount.greaterThan(remaining)) {
@@ -209,7 +205,6 @@ function computeDecliningBalance(
     fullyDepreciated: false,
   };
 }
-
 // 指定年度の全資産の償却仕訳をまとめて作成する。
 // 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
 export async function generateYearEndDepreciation(

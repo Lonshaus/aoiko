@@ -26,7 +26,6 @@ export class DuplicateImportError extends Error {
     this.name = 'DuplicateImportError';
   }
 }
-
 // CSV インポートを 1 トランザクションで確定する。
 // - fileHash で重複チェック → 同じ内容なら DuplicateImportError
 // - skip / counterpartAccountCode 未設定の行は除外
@@ -124,7 +123,6 @@ export async function commitImport(
 
   return { batchId, entryCount: validRows.length };
 }
-
 // SHA-256 を 16 進数文字列で返す。crypto.subtle はブラウザ・Node 22 双方で利用可能。
 export async function computeFileHash(text: string): Promise<string> {
   const buf = new TextEncoder().encode(text);

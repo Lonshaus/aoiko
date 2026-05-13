@@ -20,6 +20,7 @@ Svelte 5 + TypeScript + Vite (no SvelteKit, pure SPA) · bits-ui + shadcn-svelte
 - **Code comments are written in Japanese** (target users and domain terminology are Japanese). User-facing strings are also Japanese. Identifiers stay English.
 - `if`, `else`, `for`, `while` must always use `{}`, even for single-line bodies. The body must be on a new line, never on the same line as the opening `{`. `else` must be cuddled with the preceding closing brace on the same line: `} else {` or `} else if (...) {`, never on its own line.
 - **No trailing blank lines**. Files must end with the last content character — no terminating LF (the visual empty line VS Code shows after the final `\n` counts as a trailing blank line). No redundant blank lines anywhere.
+- **No blank line immediately before a comment.** Comments are attached to the code they describe. Even section-divider comments are written without a leading blank line. Applies to `//`, `/* */`, `/** */`, `<!-- -->`, `#`, etc. Consecutive comment lines do not need blank lines between them either.
 
 ## Domain Rules
 
