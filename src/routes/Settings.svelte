@@ -1110,6 +1110,34 @@
   <BackupPanel />
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_qualified_book_title()}</h3>
+    <p class="text-xs text-muted-foreground">
+      {@html m.settings_qualified_book_intro_html()}
+    </p>
+    <ul class="space-y-2 text-sm">
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req1()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req1_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req2()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req2_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req3()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req3_status()}</div>
+      </li>
+      <li>
+        <div class="font-medium">{m.settings_qualified_book_req4()}</div>
+        <div class="text-xs text-muted-foreground">{m.settings_qualified_book_req4_status()}</div>
+      </li>
+    </ul>
+    <p class="text-xs text-muted-foreground border-t pt-2">
+      {@html m.settings_qualified_book_caveat_html()}
+    </p>
+  </section>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_restore_intro_html()}
