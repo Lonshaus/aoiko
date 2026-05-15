@@ -275,7 +275,7 @@
   "reports_consumption_tax_best": "★ Lowest payable",
   "reports_consumption_tax_settings_link": "Save your filing method in Settings. The Reports view always shows all 4 methods side by side.",
   "reports_xtx_title": "e-Tax export",
-  "reports_xtx_intro_html": "Export this year's settlement data as <code class=\"text-foreground\">.xtx</code> for import into e-Tax software (web edition). <strong class=\"text-foreground\">⚠ The current .xtx output is a tentative format and has not been validated against the official NTA XSD. Do not use for actual filings.</strong>",
+  "reports_xtx_intro_html": "Export this year's data as <code class=\"text-foreground\">.xtx</code> for import into e-Tax software (web edition). <strong class=\"text-foreground\">⚠ The tax return form (KOA020) section conforms to the Reiwa 8 Ver23 spec, but the blue-return financial statements section is still a tentative, unsupported format. Do not use for actual filings.</strong>",
   "reports_xtx_unsupported_year": ".xtx output for fiscal year {year} is not supported (only 2026 for now)",
   "reports_xtx_download": "Download .xtx",
   "reports_lock_confirm_title": "Lock {year} as filed?",
