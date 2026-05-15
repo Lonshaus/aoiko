@@ -4,7 +4,7 @@ Pure-frontend bookkeeping tool for Japanese sole proprietors (青色申告 75万
 
 ## Stack
 
-Svelte 5 + TypeScript + Vite (no SvelteKit, pure SPA) · bits-ui + shadcn-svelte + Tailwind · Dexie · Decimal.js · npm · Node 22 LTS · VS Code
+Svelte 5 + TypeScript + Vite (no SvelteKit, pure SPA) · bits-ui + shadcn-svelte + Tailwind · Dexie · Decimal.js · pnpm · Node 22 LTS · VS Code
 
 ## Hard Rules
 
@@ -34,7 +34,7 @@ Svelte 5 + TypeScript + Vite (no SvelteKit, pure SPA) · bits-ui + shadcn-svelte
 - **Every new pure-logic module ships with co-located `*.test.ts`**: `lib/`, `domain/`, `parsers/`, `backup/payload.ts`, `tax-schema/*` — no exceptions.
 - **Every new component with non-trivial logic ships with `*.test.svelte.ts` or component test.** Pure presentational shells without state are exempt.
 - **DB-dependent tests use `fake-indexeddb`** (loaded via `vitest.setup.ts`). Do not mock Dexie; exercise the real Dexie API against the in-memory IDB.
-- **`npm run test` must pass before considering any feature done.** When refactoring, update tests in the same change.
+- **`pnpm run test` must pass before considering any feature done.** When refactoring, update tests in the same change.
 - **CSV parsers must include fixture-based snapshot tests**: anonymized real CSV input + expected `JournalEntry[]` JSON.
 - Keep tests focused on observable behavior, not implementation detail. Don't test private getters; do test edge cases (empty, one-sided, negative, unicode, encoding boundaries).
 
