@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  aoiko テスト用 XSD validation ラッパ（非公式）。詳細は _valwrap-KOA210.xsd 参照。
+  公式 KOA020-023.xsd を xsd:include し KOA020-23-0group を参照するだけ。
+  公式 xsd には一切手を加えない。
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  targetNamespace="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  elementFormDefault="qualified">
+  <xsd:include schemaLocation="KOA020-023.xsd"/>
+  <xsd:element name="ValidationRoot">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:group ref="KOA020-23-0group"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
