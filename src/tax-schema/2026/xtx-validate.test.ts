@@ -17,6 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { buildFormFragment } from './xtx-document';
+import { mapKoa020Values } from './xtx-mapping-koa020';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import type { XtxSchema } from './xtx-schema';
@@ -79,5 +80,57 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     );
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
+  });
+
+  maybe('KOA020 実 mapping 経路（年分・屋号）が公式 xsd に適合する', () => {
+    const values = mapKoa020Values({
+      year: 2026,
+      businessName: '青井ウェブ事務所',
+      invoiceNumber: '',
+      monthly: {
+        year: 2026,
+        months: [],
+        totalSales: '0',
+        totalExpense: '0',
+      },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+    });
+    const frag = buildFormFragment(koa020 as XtxSchema, values, {
+      creatorName: '青井ウェブ事務所',
+      creationDate: '2026-05-16',
+    });
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA020.xsd'), xmlPath],
+      { encoding: 'utf8' }
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
   });
 });
