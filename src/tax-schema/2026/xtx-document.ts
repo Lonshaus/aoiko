@@ -133,23 +133,34 @@ interface FormAttrs {
   sakuseiDay: string;
 }
 
-// 参照側：leaf は idref に対応する定義 ID があるときのみ IDREF 空要素を出力。
+// 直接値 leaf（idref 無し）の値マップ：leaf tag → 値文字列。
+// KOA210 決算書の金額等はこちら（IT部を経由しない）。
+export type XtxLeafValues = Record<string, string>;
+
+// 参照側：
+//  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素を出力（2 段式）
+//  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG> を直接出力
 // branch は出力対象の子があるときのみ自身を出力。
 // ルート様式要素は gen:FormAttribute（softNM/sakuseiNM/sakuseiDay 必須）+ VR を付与。
 function renderRefSide(
   formRoot: RefNode,
   schema: XtxSchema,
   idByName: Map<string, string>,
+  leafValues: XtxLeafValues,
   indent: string,
   attrs: FormAttrs
 ): string {
   function render(node: RefNode, ind: string): string | null {
     if (node.kind === 'leaf') {
-      const id = node.idref ? idByName.get(node.idref) : undefined;
-      if (!id) {
+      if (node.idref) {
+        const id = idByName.get(node.idref);
+        return id ? `${ind}<${node.tag} IDREF="${id}"/>` : null;
+      }
+      const v = leafValues[node.tag];
+      if (v === undefined || v === '') {
         return null;
       }
-      return `${ind}<${node.tag} IDREF="${id}"/>`;
+      return `${ind}<${node.tag}>${escapeXml(v)}</${node.tag}>`;
     }
     const inner: string[] = [];
     for (const c of node.children) {
@@ -188,7 +199,8 @@ function resolveFormAttrs(options: XtxDocumentOptions): FormAttrs {
 export function buildFormFragment(
   schema: XtxSchema,
   values: XtxValues,
-  options: XtxDocumentOptions = {}
+  options: XtxDocumentOptions = {},
+  leafValues: XtxLeafValues = {}
 ): string {
   const { idByName } = buildDefinitionInstances(schema, values);
   const formRoot = buildRefTreeNodes(schema);
@@ -196,6 +208,7 @@ export function buildFormFragment(
     formRoot,
     schema,
     idByName,
+    leafValues,
     '',
     resolveFormAttrs(options)
   );
@@ -204,7 +217,8 @@ export function buildFormFragment(
 export function buildXtxDocument(
   schema: XtxSchema,
   values: XtxValues,
-  options: XtxDocumentOptions = {}
+  options: XtxDocumentOptions = {},
+  leafValues: XtxLeafValues = {}
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const { instances, idByName } = buildDefinitionInstances(schema, values);
@@ -222,6 +236,7 @@ export function buildXtxDocument(
       formRoot,
       schema,
       idByName,
+      leafValues,
       '      ',
       resolveFormAttrs(options)
     )
