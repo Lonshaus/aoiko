@@ -1,239 +1,353 @@
 #!/usr/bin/env node
-// 国税庁 e-Tax 仕様書 xlsx を読んで、xtx 出力用の構造化 JSON を生成する。
-// 入力：docs/xtx-spec/ver23-shotoku-shinkokusho.xlsx
-// 出力：src/tax-schema/2026/xtx-schema.generated.json
+// 国税庁公式 W3C XSD（e-tax19.CAB「XMLスキーマ」由来、docs/xtx-spec/）から
+// .xtx 出力用の構造化 JSON を生成する。
 //
-// xlsx は ZIP コンテナで、中身は OOXML（sharedStrings.xml + worksheets/sheet1.xml）。
-// 重い依存を避けるため、unzip(1) でファイル抽出 → 正規表現で XML をパースする方式。
+// 出力（src/tax-schema/2026/）：
+//  - xtx-schema-koa020.generated.json … 確定申告書（参照側ツリー + 定義側カタログ）
+//  - xtx-schema-koa210.generated.json … 青色申告決算書(一般用)
+//
+// e-Tax .xtx は 2 段式 ID/IDREF モデル。詳細は src/tax-schema/2026/xtx-schema.ts 参照。
 
-import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { XMLParser } from 'fast-xml-parser';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
-const XLSX_PATH = join(ROOT, 'docs/xtx-spec/ver23-shotoku-shinkokusho.xlsx');
-const README_PATH = join(ROOT, 'docs/xtx-spec/README.md');
-const OUT_PATH = join(ROOT, 'src/tax-schema/2026/xtx-schema.generated.json');
+const SPEC = join(ROOT, 'docs/xtx-spec');
+const OUT = join(ROOT, 'src/tax-schema/2026');
+const FETCHED_AT = '2026-05-16';
 
-const EXPECTED_SHA256 =
-  'e3869b75f49e7999f59aeee241ba3d44bb65283ca62bdfdeca30aa58991e5b51';
+const EXPECTED_SHA256 = {
+  'shotoku/KOA020-023.xsd':
+    '8de959bacc36112f0ae6972dadc809a9f793dd30da169af98f83ee5c91107d0d',
+  'shotoku/KOA210-011.xsd':
+    '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
+  'general/ITdefinition.xsd':
+    'b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643',
+  'general/ITreference.xsd':
+    '09117f8c211ed60d1b86284da56593da55f1e0405c0bcd74d306ec2178e1c8d4',
+};
+
+const parser = new XMLParser({
+  preserveOrder: true,
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  trimValues: true,
+});
 
 function fail(msg) {
   console.error(`[build-xtx-schema] ${msg}`);
   process.exit(1);
 }
 
-function unzipEntry(xlsxPath, entry) {
-  const r = spawnSync('unzip', ['-p', xlsxPath, entry], { encoding: 'utf8' });
-  if (r.status !== 0) {
-    fail(`unzip -p failed: ${r.stderr}`);
-  }
-  return r.stdout;
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
 }
 
-function parseSharedStrings(xml) {
-  const strings = [];
-  const re = /<si\b[^>]*>([\s\S]*?)<\/si>/g;
-  let m;
-  while ((m = re.exec(xml)) !== null) {
-    const inner = m[1];
-    const texts = [...inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((x) =>
-      decodeXmlText(x[1])
-    );
-    strings.push(texts.join(''));
-  }
-  return strings;
-}
-
-function decodeXmlText(s) {
-  return s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
-}
-
-function colLetterToIndex(letters) {
-  let n = 0;
-  for (const c of letters) {
-    n = n * 26 + (c.charCodeAt(0) - 64);
-  }
-  return n;
-}
-
-function parseSheet(xml, strings) {
-  const rows = new Map();
-  const rowRe = /<row\b[^>]*r="(\d+)"[^>]*>([\s\S]*?)<\/row>/g;
-  let rm;
-  while ((rm = rowRe.exec(xml)) !== null) {
-    const rNum = Number(rm[1]);
-    const inner = rm[2];
-    const cells = new Map();
-    const cellRe =
-      /<c\b[^>]*r="([A-Z]+)\d+"([^/>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
-    let cm;
-    while ((cm = cellRe.exec(inner)) !== null) {
-      const colRef = cm[1];
-      const attrs = cm[2] ?? '';
-      const body = cm[3] ?? '';
-      const colIdx = colLetterToIndex(colRef);
-      const isShared = /\bt="s"/.test(attrs);
-      const isInline = /\bt="inlineStr"/.test(attrs);
-      let val = '';
-      if (isInline) {
-        const tm = body.match(/<t[^>]*>([\s\S]*?)<\/t>/);
-        if (tm) {
-          val = decodeXmlText(tm[1]);
-        }
-      } else {
-        const vm = body.match(/<v>([\s\S]*?)<\/v>/);
-        if (vm) {
-          const raw = vm[1];
-          if (isShared) {
-            const idx = Number(raw);
-            val = strings[idx] ?? '';
-          } else {
-            val = raw;
-          }
-        }
-      }
-      if (val !== '') {
-        cells.set(colIdx, val);
-      }
-    }
-    rows.set(rNum, cells);
-  }
-  return rows;
-}
-
-function pickJa(row) {
-  for (let c = 3; c <= 12; c++) {
-    const v = row.get(c);
-    if (v) {
-      return { ja: v, level: c };
+function loadXsd(rel) {
+  const path = join(SPEC, rel);
+  const expected = EXPECTED_SHA256[rel];
+  if (expected) {
+    const actual = sha256(path);
+    if (actual !== expected) {
+      fail(
+        `SHA256 mismatch: ${rel}\n expected ${expected}\n actual   ${actual}`
+      );
     }
   }
-  return { ja: '', level: 0 };
+  return parser.parse(readFileSync(path, 'utf8'));
 }
 
-function parseMaxOccurs(raw) {
-  if (!raw) {
-    return 1;
+// preserveOrder ノードヘルパ
+function tagOf(node) {
+  for (const k of Object.keys(node)) {
+    if (k !== ':@') {
+      return k;
+    }
   }
-  if (raw === 'unbounded') {
-    return 'unbounded';
+  return null;
+}
+const childrenOf = (node) => node[tagOf(node)] ?? [];
+const attrsOf = (node) => node[':@'] ?? {};
+const kids = (node, tag) => childrenOf(node).filter((c) => tagOf(c) === tag);
+const kid = (node, tag) => kids(node, tag)[0];
+
+function textOf(node) {
+  for (const c of childrenOf(node)) {
+    if (Object.prototype.hasOwnProperty.call(c, '#text')) {
+      return String(c['#text']);
+    }
   }
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : raw;
+  return '';
 }
 
-function buildSchema() {
-  if (!existsSync(XLSX_PATH)) {
-    fail(`xlsx not found: ${XLSX_PATH}`);
+// xsd:annotation/xsd:appinfo のテキスト（前後の引用符・空白を除去）
+function appinfoOf(node) {
+  const ann = kid(node, 'xsd:annotation');
+  if (!ann) {
+    return '';
   }
-  const buf = readFileSync(XLSX_PATH);
-  const sha = createHash('sha256').update(buf).digest('hex');
-  if (sha !== EXPECTED_SHA256) {
-    fail(
-      `SHA256 mismatch.\n  expected: ${EXPECTED_SHA256}\n  actual:   ${sha}\n→ docs/xtx-spec/README.md と整合させてください`
-    );
+  const ai = kid(ann, 'xsd:appinfo');
+  if (!ai) {
+    return '';
   }
-  const ssXml = unzipEntry(XLSX_PATH, 'xl/sharedStrings.xml');
-  const sheetXml = unzipEntry(XLSX_PATH, 'xl/worksheets/sheet1.xml');
-  const strings = parseSharedStrings(ssXml);
-  const rows = parseSheet(sheetXml, strings);
+  return textOf(ai).replace(/^["'\s]+|["'\s]+$/g, '');
+}
 
-  const sheetMeta = rows.get(2);
-  if (!sheetMeta) {
-    fail('row 2 (sheet metadata) not found');
+function schemaRoot(doc) {
+  const s = doc.find((n) => tagOf(n) === 'xsd:schema');
+  if (!s) {
+    fail('xsd:schema 要素が見つかりません');
   }
-  const formDesc = (sheetMeta.get(1) ?? '').trim();
-  const formId = (sheetMeta.get(12) ?? '').trim() || 'UNKNOWN';
-  const namespace = (sheetMeta.get(19) ?? '').trim() || 'UNKNOWN';
-  const version = (sheetMeta.get(21) ?? '').trim() || 'UNKNOWN';
+  return s;
+}
 
-  const elements = [];
-  const sortedRowNums = [...rows.keys()].sort((a, b) => a - b);
-  for (const rNum of sortedRowNums) {
-    if (rNum < 5) {
+// 同一ファイル内の named complexType / simpleType を索引化
+function indexTypes(schema) {
+  const complex = new Map();
+  const simple = new Map();
+  for (const n of childrenOf(schema)) {
+    const t = tagOf(n);
+    const name = attrsOf(n)['@_name'];
+    if (!name) {
       continue;
     }
-    const row = rows.get(rNum);
-    const noRaw = row.get(1);
-    if (!noRaw) {
-      continue;
+    if (t === 'xsd:complexType') {
+      complex.set(name, n);
+    } else if (t === 'xsd:simpleType') {
+      simple.set(name, n);
     }
-    const no = Number(noRaw);
-    if (!Number.isFinite(no)) {
-      continue;
-    }
-    const levelRaw = row.get(2) ?? '';
-    const level = Number(levelRaw);
-    if (!Number.isFinite(level)) {
-      continue;
-    }
-    const { ja } = pickJa(row);
-    const dataType = (row.get(13) ?? '').trim();
-    const minOccurs = Number(row.get(14) ?? '0');
-    const maxOccursRaw = (row.get(15) ?? '').trim();
-    const idAttr = (row.get(16) ?? '').trim();
-    const attrName = (row.get(17) ?? '').trim();
-    const extraAttrsRaw = (row.get(18) ?? '').trim();
-    const tag = (row.get(19) ?? '').trim();
-    const order = (row.get(20) ?? '').trim();
-    const note = (row.get(21) ?? '').trim();
-
-    const extraAttrs = extraAttrsRaw
-      ? extraAttrsRaw.split(/[\n\r]+/).map((s) => s.trim()).filter(Boolean)
-      : [];
-
-    elements.push({
-      no,
-      level,
-      ja,
-      tag,
-      attrName,
-      idAttr: idAttr || undefined,
-      extraAttrs,
-      dataType,
-      minOccurs: Number.isFinite(minOccurs) ? minOccurs : 0,
-      maxOccurs: parseMaxOccurs(maxOccursRaw),
-      order,
-      note,
-    });
   }
+  return { complex, simple };
+}
 
-  const formName = elements[0]?.ja ?? '';
+// complexType ノードから子 xsd:element 列を取り出す
+// （xsd:sequence / xsd:complexContent>xsd:extension>xsd:sequence を吸収）
+function sequenceElements(ctype) {
+  let seq = kid(ctype, 'xsd:sequence');
+  if (!seq) {
+    const cc = kid(ctype, 'xsd:complexContent');
+    const ext = cc && kid(cc, 'xsd:extension');
+    if (ext) {
+      seq = kid(ext, 'xsd:sequence');
+    }
+  }
+  if (!seq) {
+    return [];
+  }
+  return kids(seq, 'xsd:element');
+}
 
+function parseOccurs(attrs) {
+  const min = attrs['@_minOccurs'];
+  const max = attrs['@_maxOccurs'];
   return {
-    meta: {
-      formId,
-      formName,
-      namespace,
-      version,
-      fetchedAt: '2026-05-14',
-    },
-    elements,
+    minOccurs: min === undefined ? 1 : Number(min),
+    maxOccurs:
+      max === undefined ? 1 : max === 'unbounded' ? 'unbounded' : Number(max),
   };
 }
 
-function main() {
-  const schema = buildSchema();
-  const json = JSON.stringify(schema, null, 2) + '\n';
-  writeFileSync(OUT_PATH, json, 'utf8');
-  const expectedSha = EXPECTED_SHA256;
-  const readmeOk = readFileSync(README_PATH, 'utf8').includes(expectedSha);
-  if (!readmeOk) {
-    fail('README.md と EXPECTED_SHA256 が整合しません');
+// 様式 xsd の参照側ツリーを level でフラット化
+function buildRefTree(schema, types, idrefMap) {
+  const group = kid(schema, 'xsd:group');
+  if (!group) {
+    fail('xsd:group（ルート）が見つかりません');
   }
+  const gseq = kid(group, 'xsd:sequence');
+  const rootEl = kid(gseq, 'xsd:element');
+  const out = [];
+  let counter = 0;
+
+  function walk(elNode, level) {
+    const a = attrsOf(elNode);
+    const tag = a['@_name'];
+    const occ = parseOccurs(a);
+    const ja = appinfoOf(elNode);
+    const typeRef = a['@_type'];
+    let kind = 'leaf';
+    let childCtype = null;
+
+    if (typeRef && !typeRef.includes(':') && types.complex.has(typeRef)) {
+      kind = 'branch';
+      childCtype = types.complex.get(typeRef);
+    } else if (!typeRef) {
+      const inline = kid(elNode, 'xsd:complexType');
+      if (inline) {
+        kind = 'branch';
+        childCtype = inline;
+      }
+    }
+
+    let idref = '';
+    let refType = '';
+    if (kind === 'leaf') {
+      refType = typeRef ?? '';
+      const bare = refType.includes(':') ? refType.split(':')[1] : refType;
+      idref = idrefMap.get(bare) ?? '';
+    }
+
+    out.push({
+      no: ++counter,
+      level,
+      tag,
+      ja,
+      kind,
+      idref,
+      refType,
+      minOccurs: occ.minOccurs,
+      maxOccurs: occ.maxOccurs,
+    });
+
+    if (childCtype) {
+      for (const child of sequenceElements(childCtype)) {
+        walk(child, level + 1);
+      }
+    }
+  }
+
+  walk(rootEl, 0);
+  return out;
+}
+
+// ITreference.xsd: complexType 名 → IDREF fixed 値（例 NENBUNref → NENBUN）
+function buildIdrefMap() {
+  const doc = loadXsd('general/ITreference.xsd');
+  const schema = schemaRoot(doc);
+  const map = new Map();
+  for (const n of childrenOf(schema)) {
+    if (tagOf(n) !== 'xsd:complexType') {
+      continue;
+    }
+    const name = attrsOf(n)['@_name'];
+    if (!name) {
+      continue;
+    }
+    for (const at of kids(n, 'xsd:attribute')) {
+      const aa = attrsOf(at);
+      if (aa['@_name'] === 'IDREF' && aa['@_fixed']) {
+        map.set(name, aa['@_fixed']);
+      }
+    }
+  }
+  return map;
+}
+
+// ITdefinition.xsd の complexType name="ITtype" → 定義側カタログ
+function buildDefinitions() {
+  const doc = loadXsd('general/ITdefinition.xsd');
+  const schema = schemaRoot(doc);
+  const types = indexTypes(schema);
+  const itType = types.complex.get('ITtype');
+  if (!itType) {
+    fail('ITdefinition.xsd に complexType ITtype が見つかりません');
+  }
+  const defs = [];
+  for (const el of sequenceElements(itType)) {
+    const a = attrsOf(el);
+    const name = a['@_name'];
+    if (!name) {
+      continue;
+    }
+    const occ = parseOccurs(a);
+    const ja = appinfoOf(el);
+    let baseType = '';
+    let hasId = false;
+    const ctype = kid(el, 'xsd:complexType');
+    if (ctype) {
+      const cc =
+        kid(ctype, 'xsd:complexContent') ?? kid(ctype, 'xsd:simpleContent');
+      const ext = cc && kid(cc, 'xsd:extension');
+      if (ext) {
+        baseType = attrsOf(ext)['@_base'] ?? '';
+        for (const at of kids(ext, 'xsd:attribute')) {
+          if (attrsOf(at)['@_name'] === 'ID') {
+            hasId = true;
+          }
+        }
+      }
+      for (const at of kids(ctype, 'xsd:attribute')) {
+        if (attrsOf(at)['@_name'] === 'ID') {
+          hasId = true;
+        }
+      }
+    } else if (a['@_type']) {
+      baseType = a['@_type'];
+    }
+    defs.push({ name, ja, baseType, hasId, minOccurs: occ.minOccurs });
+  }
+  return defs;
+}
+
+function metaOf(schema, formId, rel) {
+  const ns = attrsOf(schema)['@_targetNamespace'] ?? '';
+  const ann = kid(schema, 'xsd:annotation');
+  const docu = ann && kid(ann, 'xsd:documentation');
+  const docText = docu ? textOf(docu) : '';
+  const nameLine = docText.split('\n')[0] ?? '';
+  const formName = nameLine.replace(/^様式名[:：]\s*/, '').trim();
+  let version = '';
+  for (const n of childrenOf(schema)) {
+    if (
+      tagOf(n) === 'xsd:simpleType' &&
+      String(attrsOf(n)['@_name']).endsWith('VRtype')
+    ) {
+      const r = kid(n, 'xsd:restriction');
+      const e = r && kid(r, 'xsd:enumeration');
+      if (e) {
+        version = attrsOf(e)['@_value'] ?? '';
+      }
+    }
+  }
+  return {
+    formId,
+    formName,
+    namespace: ns,
+    version,
+    source: `e-tax19.CAB ${rel}`,
+    fetchedAt: FETCHED_AT,
+  };
+}
+
+function buildForm(rel, formId, outFile, idrefMap, definitions) {
+  const doc = loadXsd(rel);
+  const schema = schemaRoot(doc);
+  const types = indexTypes(schema);
+  const refTree = buildRefTree(schema, types, idrefMap);
+  const meta = metaOf(schema, formId, rel);
+  const schemaJson = { meta, refTree, definitions };
+  writeFileSync(
+    join(OUT, outFile),
+    JSON.stringify(schemaJson, null, 2) + '\n',
+    'utf8'
+  );
+  const leaves = refTree.filter((e) => e.kind === 'leaf').length;
   console.log(
-    `[build-xtx-schema] wrote ${OUT_PATH}\n  formId=${schema.meta.formId}` +
-      ` namespace=${schema.meta.namespace} version=${schema.meta.version}` +
-      ` elements=${schema.elements.length}`
+    `[build-xtx-schema] ${outFile}: formId=${meta.formId}` +
+      ` ns=${meta.namespace} ver=${meta.version}` +
+      ` refTree=${refTree.length}(leaf ${leaves}) defs=${definitions.length}`
+  );
+}
+
+function main() {
+  const idrefMap = buildIdrefMap();
+  const definitions = buildDefinitions();
+  buildForm(
+    'shotoku/KOA020-023.xsd',
+    'KOA020',
+    'xtx-schema-koa020.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shotoku/KOA210-011.xsd',
+    'KOA210',
+    'xtx-schema-koa210.generated.json',
+    idrefMap,
+    definitions
   );
 }
 

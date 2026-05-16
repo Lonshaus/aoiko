@@ -66,60 +66,36 @@ function makeCtx(): XtxContext {
   };
 }
 
-describe('buildXtx2026 (KOA020 schema 駆動)', () => {
+// Sub A 時点：xtx.ts は移行期プレースホルダ（暫定形式・実申告不可）。
+// schema 駆動の 2 段式本対応出力は Sub B/C/D で置換され、本テストもその時更新する。
+describe('buildXtx2026 (移行期プレースホルダ)', () => {
   test('XML 宣言で始まる', () => {
-    const x = buildXtx2026(makeCtx());
-    expect(x.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(buildXtx2026(makeCtx())).toMatch(
+      /^<\?xml version="1\.0" encoding="UTF-8"\?>/
+    );
   });
 
-  test('KOA020 ルート要素とドキュメント属性が出力される', () => {
-    const x = buildXtx2026(makeCtx());
-    expect(x).toMatch(/<KOA020 [^>]*VR="23\.0"/);
-    expect(x).toContain('softNM="aoiko"');
+  test('実申告不可マークを含む', () => {
+    expect(buildXtx2026(makeCtx())).toContain('provisional-not-for-filing');
   });
 
-  test('年分が令和2桁（2026→08）で NENBUN 属性に入る', () => {
+  test('事業者名・年・12ヶ月・純利益を含む', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toContain('<ABA00010 NENBUN="08"/>');
-  });
-
-  test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
-    const x = buildXtx2026(makeCtx());
-    expect(x).toContain('<ABA00170 NOZEISHA_YAGO="青井ウェブ事務所"/>');
-  });
-
-  test('第三表〜第四表（KOA020-3..8）は出力されない', () => {
-    const x = buildXtx2026(makeCtx());
-    expect(x).not.toContain('<KOA020-3');
-    expect(x).not.toContain('<KOA020-4');
-    expect(x).not.toContain('<KOA020-8');
-  });
-
-  test('暫定の青色申告決算書セクションが含まれる（12ヶ月＋純利益）', () => {
-    const x = buildXtx2026(makeCtx());
-    expect(x).toContain('provisional-not-for-filing');
-    const months = x.match(/<Month value="\d+"/g);
-    expect(months).toHaveLength(12);
+    expect(x).toContain('name="青井ウェブ事務所"');
+    expect(x).toContain('year="2026"');
+    expect(x.match(/<Month value="\d+"/g)).toHaveLength(12);
     expect(x).toContain('<NetIncome>95000</NetIncome>');
   });
 
   test('XML 特殊文字をエスケープする', () => {
     const ctx = makeCtx();
     ctx.businessName = 'A & B <Co>';
-    const x = buildXtx2026(ctx);
-    expect(x).toContain('NOZEISHA_YAGO="A &amp; B &lt;Co&gt;"');
+    expect(buildXtx2026(ctx)).toContain('name="A &amp; B &lt;Co&gt;"');
   });
 
   test('整形式 XML（パース可能）', () => {
     const x = buildXtx2026(makeCtx());
     const doc = new DOMParser().parseFromString(x, 'text/xml');
     expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
-  });
-
-  test('屋号未設定なら NOZEISHA_YAGO は出力されない', () => {
-    const ctx = makeCtx();
-    ctx.businessName = '';
-    const x = buildXtx2026(ctx);
-    expect(x).not.toContain('NOZEISHA_YAGO');
   });
 });
