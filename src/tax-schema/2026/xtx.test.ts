@@ -1,47 +1,38 @@
-import { describe, expect, test } from 'vitest'
-import { buildXtx2026, type XtxContext } from './xtx'
-import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports'
+import { describe, expect, test } from 'vitest';
+import { buildXtx2026, type XtxContext } from './xtx';
+import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 
 function makeCtx(): XtxContext {
   const monthly: MonthlyReport = {
     year: 2026,
-    months: [
-      { month: 1, sales: '100000', expense: '5000' },
-      { month: 2, sales: '0', expense: '0' },
-      { month: 3, sales: '0', expense: '0' },
-      { month: 4, sales: '0', expense: '0' },
-      { month: 5, sales: '0', expense: '0' },
-      { month: 6, sales: '0', expense: '0' },
-      { month: 7, sales: '0', expense: '0' },
-      { month: 8, sales: '0', expense: '0' },
-      { month: 9, sales: '0', expense: '0' },
-      { month: 10, sales: '0', expense: '0' },
-      { month: 11, sales: '0', expense: '0' },
-      { month: 12, sales: '0', expense: '0' },
-    ],
-    totalSales: '100000',
-    totalExpense: '5000',
-  }
+    months: Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      sales: '0',
+      expense: '0',
+    })),
+    totalSales: '0',
+    totalExpense: '0',
+  };
   const pl: PLReport = {
     year: 2026,
-    revenue: [{ accountCode: '4110', accountName: '売上高', category: 'revenue', amount: '100000', displayOrder: 110 }],
-    expense: [{ accountCode: '5130', accountName: '水道光熱費', category: 'expense', amount: '5000', displayOrder: 130 }],
-    totalRevenue: '100000',
-    totalExpense: '5000',
-    netIncome: '95000',
-    entryCount: 2,
-  }
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
   const bs: BSReport = {
     year: 2026,
     asOf: '2026-12-31',
-    assets: [{ accountCode: '1130', accountName: '普通預金', category: 'asset', balance: '95000' }],
+    assets: [],
     liabilities: [],
     equity: [],
-    netIncome: '95000',
-    totalAssets: '95000',
-    totalLiabilitiesAndEquity: '95000',
+    netIncome: '0',
+    totalAssets: '0',
+    totalLiabilitiesAndEquity: '0',
     balanced: true,
-  }
+  };
   return {
     year: 2026,
     businessName: '青井ウェブ事務所',
@@ -49,50 +40,79 @@ function makeCtx(): XtxContext {
     monthly,
     pl,
     bs,
-  }
+  };
 }
 
-describe('buildXtx2026', () => {
-  test('starts with XML declaration', () => {
-    const x = buildXtx2026(makeCtx())
-    expect(x.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true)
-  })
+describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => {
+  test('エンベロープ骨格を持つ（手続 RKO0010）', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+    expect(x).toContain('<DATA id="DATA">');
+    expect(x).toContain('<RKO0010 VR="1.0" id="手続ID">');
+    expect(x).toContain('<CONTENTS id="CONTENTS">');
+    expect(x).toContain('<IT VR="1.0" id="IT">');
+  });
 
-  test('contains business name and invoice number', () => {
-    const x = buildXtx2026(makeCtx())
-    expect(x).toContain('<BusinessName>青井ウェブ事務所</BusinessName>')
-    expect(x).toContain('<InvoiceNumber>T1234567890123</InvoiceNumber>')
-  })
+  test('1 エンベロープに申告書 KOA020 と決算書 KOA210 を併載', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toMatch(/<KOA020 VR="23\.0"/);
+    expect(x).toMatch(/<KOA210 VR="11\.0"/);
+    // CONTENTS / IT部 は 1 つだけ
+    expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
+    expect(x.match(/<IT VR="1\.0" id="IT">/g)).toHaveLength(1);
+  });
 
-  test('includes 12 month rows in MonthlySales', () => {
-    const x = buildXtx2026(makeCtx())
-    const matches = x.match(/<Month value="\d+"/g)
-    expect(matches).toHaveLength(12)
-  })
+  test('年分が令和（2026→8）で定義側 NENBUN に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain('<NENBUN ID="NENBUN">8</NENBUN>');
+  });
 
-  test('includes PL totals and net income', () => {
-    const x = buildXtx2026(makeCtx())
-    expect(x).toContain('<NetIncome>95000</NetIncome>')
-  })
+  test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain(
+      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">青井ウェブ事務所</NOZEISHA_YAGO>'
+    );
+  });
 
-  test('includes BS asof + assets', () => {
-    const x = buildXtx2026(makeCtx())
-    expect(x).toContain('<AsOf>2026-12-31</AsOf>')
-    expect(x).toContain('code="1130"')
-  })
+  test('参照側ルートは KOA020＋FormAttribute', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toMatch(/<KOA020 VR="23\.0" softNM="aoiko"/);
+    expect(x).toContain('sakuseiNM="青井ウェブ事務所"');
+  });
 
-  test('escapes XML special characters', () => {
-    const ctx = makeCtx()
-    ctx.businessName = 'A & B <Co>'
-    const x = buildXtx2026(ctx)
-    expect(x).toContain('A &amp; B &lt;Co&gt;')
-  })
+  test('参照側 IDREF が定義側 ID に解決する', () => {
+    const x = buildXtx2026(makeCtx());
+    const ids = new Set(
+      [...x.matchAll(/\sID="([A-Z_0-9]+)"/g)].map((m) => m[1])
+    );
+    const idrefs = [...x.matchAll(/\sIDREF="([A-Z_0-9]+)"/g)].map(
+      (m) => m[1]
+    );
+    expect(idrefs.length).toBeGreaterThan(0);
+    for (const r of idrefs) {
+      expect(ids.has(r)).toBe(true);
+    }
+  });
 
-  test('output is well-formed XML (parseable)', () => {
-    const x = buildXtx2026(makeCtx())
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(x, 'text/xml')
-    const errors = doc.getElementsByTagName('parsererror')
-    expect(errors).toHaveLength(0)
-  })
-})
+  test('整形式 XML（パース可能）', () => {
+    const x = buildXtx2026(makeCtx());
+    const doc = new DOMParser().parseFromString(x, 'text/xml');
+    expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
+  });
+
+  test('XML 特殊文字をエスケープ', () => {
+    const ctx = makeCtx();
+    ctx.businessName = 'A & B <Co>';
+    const x = buildXtx2026(ctx);
+    expect(x).toContain(
+      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">A &amp; B &lt;Co&gt;</NOZEISHA_YAGO>'
+    );
+  });
+
+  test('屋号未設定なら NOZEISHA_YAGO は出力されない', () => {
+    const ctx = makeCtx();
+    ctx.businessName = '';
+    const x = buildXtx2026(ctx);
+    expect(x).not.toContain('NOZEISHA_YAGO');
+  });
+});
