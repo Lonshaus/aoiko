@@ -27,9 +27,19 @@ export interface XtxDocumentOptions {
    * 現状はプレースホルダで文書モデルの検証を優先する。
    */
   procedureTag?: string;
+  /** 作成ソフト名（gen:FormAttribute softNM、必須）。既定 'aoiko' */
+  softwareName?: string;
+  /** 作成者名（gen:FormAttribute sakuseiNM、必須）。通常は屋号/事業者名 */
+  creatorName?: string;
+  /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
+  creationDate?: string;
 }
 
 const DEFAULT_PROCEDURE_TAG = 'TETSUZUKI_ID_TODO';
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function escapeXml(s: string): string {
   return s
@@ -46,21 +56,21 @@ interface DefInstance {
   value: string;
 }
 
-// 定義側：値が与えられた定義項目に xsd:ID を採番
+// 定義側：値が与えられた定義項目を出力。
+// xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を
+// fixed="<定義名>" で固定しているため、参照側 IDREF＝定義名＝定義側 ID）。
 function buildDefinitionInstances(
   schema: XtxSchema,
   values: XtxValues
 ): { instances: DefInstance[]; idByName: Map<string, string> } {
   const instances: DefInstance[] = [];
   const idByName = new Map<string, string>();
-  let seq = 0;
   for (const def of schema.definitions) {
     const v = values[def.name];
     if (v === undefined || v === '') {
       continue;
     }
-    seq += 1;
-    const id = `IT${seq}`;
+    const id = def.name;
     instances.push({ id, name: def.name, value: v });
     idByName.set(def.name, id);
   }
@@ -117,13 +127,21 @@ function buildRefTreeNodes(schema: XtxSchema): RefNode {
   return root.children[0]!;
 }
 
+interface FormAttrs {
+  softNM: string;
+  sakuseiNM: string;
+  sakuseiDay: string;
+}
+
 // 参照側：leaf は idref に対応する定義 ID があるときのみ IDREF 空要素を出力。
 // branch は出力対象の子があるときのみ自身を出力。
+// ルート様式要素は gen:FormAttribute（softNM/sakuseiNM/sakuseiDay 必須）+ VR を付与。
 function renderRefSide(
   formRoot: RefNode,
   schema: XtxSchema,
   idByName: Map<string, string>,
-  indent: string
+  indent: string,
+  attrs: FormAttrs
 ): string {
   function render(node: RefNode, ind: string): string | null {
     if (node.kind === 'leaf') {
@@ -146,13 +164,41 @@ function renderRefSide(
     if (node.level === 0) {
       const open =
         `${ind}<${node.tag} VR="${schema.meta.version}"` +
-        ` id="${node.tag}" page="1">`;
+        ` softNM="${escapeXml(attrs.softNM)}"` +
+        ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
+        ` sakuseiDay="${attrs.sakuseiDay}" id="${node.tag}" page="1">`;
       return `${open}\n${inner.join('\n')}\n${ind}</${node.tag}>`;
     }
     return `${ind}<${node.tag}>\n${inner.join('\n')}\n${ind}</${node.tag}>`;
   }
   const out = render(formRoot, indent);
   return out ?? `${indent}<!-- 参照側：出力対象データなし -->`;
+}
+
+function resolveFormAttrs(options: XtxDocumentOptions): FormAttrs {
+  return {
+    softNM: options.softwareName ?? 'aoiko',
+    sakuseiNM: options.creatorName ?? 'aoiko',
+    sakuseiDay: options.creationDate ?? todayIso(),
+  };
+}
+
+// 参照側（帳票個別部分）のみを返す。実 XSD validation 用に様式サブツリーを
+// 単体で取り出すために公開する。
+export function buildFormFragment(
+  schema: XtxSchema,
+  values: XtxValues,
+  options: XtxDocumentOptions = {}
+): string {
+  const { idByName } = buildDefinitionInstances(schema, values);
+  const formRoot = buildRefTreeNodes(schema);
+  return renderRefSide(
+    formRoot,
+    schema,
+    idByName,
+    '',
+    resolveFormAttrs(options)
+  );
 }
 
 export function buildXtxDocument(
@@ -171,7 +217,15 @@ export function buildXtxDocument(
   lines.push('    <CATALOG id="CATALOG"></CATALOG>');
   lines.push('    <CONTENTS id="CONTENTS">');
   lines.push(renderItBlock(instances, '      '));
-  lines.push(renderRefSide(formRoot, schema, idByName, '      '));
+  lines.push(
+    renderRefSide(
+      formRoot,
+      schema,
+      idByName,
+      '      ',
+      resolveFormAttrs(options)
+    )
+  );
   lines.push('    </CONTENTS>');
   lines.push(`  </${procedureTag}>`);
   lines.push('</DATA>');

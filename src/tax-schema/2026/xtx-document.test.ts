@@ -33,44 +33,49 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル)', () => {
     expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
   });
 
-  test('定義側：値が入った項目だけ ID 付きで IT 部に出る', () => {
+  test('定義側：値が入った項目だけ ID=定義名 付きで IT 部に出る', () => {
     const xml = buildXtxDocument(k210, { NENBUN: '08', ZEIMUSHO: '渋谷' });
-    expect(xml).toMatch(/<NENBUN ID="IT\d+">08<\/NENBUN>/);
-    expect(xml).toMatch(/<ZEIMUSHO ID="IT\d+">渋谷<\/ZEIMUSHO>/);
+    // ITreference の IDREF は fixed=定義名 のため ID=定義名
+    expect(xml).toContain('<NENBUN ID="NENBUN">08</NENBUN>');
+    expect(xml).toContain('<ZEIMUSHO ID="ZEIMUSHO">渋谷</ZEIMUSHO>');
     // 値の無い定義は出ない
     expect(xml).not.toContain('<TEISYUTSU_DAY');
-    // ID は定義カタログ順の連番
-    expect(xml).toContain('ID="IT1"');
-    expect(xml).toContain('ID="IT2"');
   });
 
-  test('参照側 IDREF は必ず定義側の ID に解決する', () => {
+  test('参照側 IDREF は必ず定義側の ID（定義名）に解決する', () => {
     const xml = buildXtxDocument(k210, dummyValues(k210, 20));
     const ids = new Set(
-      [...xml.matchAll(/\sID="(IT\d+)"/g)].map((m) => m[1])
+      [...xml.matchAll(/\sID="([A-Z_0-9]+)"/g)].map((m) => m[1])
     );
-    const idrefs = [...xml.matchAll(/\sIDREF="(IT\d+)"/g)].map((m) => m[1]);
+    const idrefs = [...xml.matchAll(/\sIDREF="([A-Z_0-9]+)"/g)].map(
+      (m) => m[1]
+    );
     expect(idrefs.length).toBeGreaterThan(0);
     for (const ref of idrefs) {
       expect(ids.has(ref)).toBe(true);
     }
   });
 
-  test('参照側ルートは様式要素＋VR/id/page 属性', () => {
-    const xml = buildXtxDocument(k210, dummyValues(k210, 10));
-    expect(xml).toMatch(/<KOA210 VR="11\.0" id="KOA210" page="1">/);
+  test('参照側ルートは様式要素＋FormAttribute（softNM 等）', () => {
+    const xml = buildXtxDocument(k210, dummyValues(k210, 10), {
+      creatorName: '青井事務所',
+      creationDate: '2026-05-16',
+    });
+    expect(xml).toMatch(
+      /<KOA210 VR="11\.0" softNM="aoiko" sakuseiNM="青井事務所" sakuseiDay="2026-05-16" id="KOA210" page="1">/
+    );
   });
 
   test('KOA020 でもエンベロープが組める', () => {
     const xml = buildXtxDocument(k020, { NENBUN: '08' });
     expect(xml).toContain('<DATA id="DATA">');
     expect(xml).toMatch(/<KOA020 VR="23\.0" /);
-    expect(xml).toContain('<NENBUN ID="IT1">08</NENBUN>');
+    expect(xml).toContain('<NENBUN ID="NENBUN">08</NENBUN>');
   });
 
   test('XML 特殊文字を定義側でエスケープ', () => {
     const xml = buildXtxDocument(k210, { NENBUN: 'A & B <x>' });
-    expect(xml).toContain('<NENBUN ID="IT1">A &amp; B &lt;x&gt;</NENBUN>');
+    expect(xml).toContain('<NENBUN ID="NENBUN">A &amp; B &lt;x&gt;</NENBUN>');
   });
 
   test('値が空なら参照側にも出力されない（IDREF 整合維持）', () => {
