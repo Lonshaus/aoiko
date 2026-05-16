@@ -7,53 +7,30 @@ function makeCtx(): XtxContext {
     year: 2026,
     months: Array.from({ length: 12 }, (_, i) => ({
       month: i + 1,
-      sales: i === 0 ? '100000' : '0',
-      expense: i === 0 ? '5000' : '0',
+      sales: '0',
+      expense: '0',
     })),
-    totalSales: '100000',
-    totalExpense: '5000',
+    totalSales: '0',
+    totalExpense: '0',
   };
   const pl: PLReport = {
     year: 2026,
-    revenue: [
-      {
-        accountCode: '4110',
-        accountName: '売上高',
-        category: 'revenue',
-        amount: '100000',
-        displayOrder: 110,
-      },
-    ],
-    expense: [
-      {
-        accountCode: '5130',
-        accountName: '水道光熱費',
-        category: 'expense',
-        amount: '5000',
-        displayOrder: 130,
-      },
-    ],
-    totalRevenue: '100000',
-    totalExpense: '5000',
-    netIncome: '95000',
-    entryCount: 2,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
   };
   const bs: BSReport = {
     year: 2026,
     asOf: '2026-12-31',
-    assets: [
-      {
-        accountCode: '1130',
-        accountName: '普通預金',
-        category: 'asset',
-        balance: '95000',
-      },
-    ],
+    assets: [],
     liabilities: [],
     equity: [],
-    netIncome: '95000',
-    totalAssets: '95000',
-    totalLiabilitiesAndEquity: '95000',
+    netIncome: '0',
+    totalAssets: '0',
+    totalLiabilitiesAndEquity: '0',
     balanced: true,
   };
   return {
@@ -66,36 +43,66 @@ function makeCtx(): XtxContext {
   };
 }
 
-// Sub A 時点：xtx.ts は移行期プレースホルダ（暫定形式・実申告不可）。
-// schema 駆動の 2 段式本対応出力は Sub B/C/D で置換され、本テストもその時更新する。
-describe('buildXtx2026 (移行期プレースホルダ)', () => {
-  test('XML 宣言で始まる', () => {
-    expect(buildXtx2026(makeCtx())).toMatch(
-      /^<\?xml version="1\.0" encoding="UTF-8"\?>/
+describe('buildXtx2026 (KOA020 / 2 段式モデル駆動)', () => {
+  test('エンベロープ骨格を持つ', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+    expect(x).toContain('<DATA id="DATA">');
+    expect(x).toContain('<CONTENTS id="CONTENTS">');
+    expect(x).toContain('<IT VR="1.0" id="IT">');
+  });
+
+  test('年分が令和（2026→8）で定義側 NENBUN に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain('<NENBUN ID="NENBUN">8</NENBUN>');
+  });
+
+  test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain(
+      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">青井ウェブ事務所</NOZEISHA_YAGO>'
     );
   });
 
-  test('実申告不可マークを含む', () => {
-    expect(buildXtx2026(makeCtx())).toContain('provisional-not-for-filing');
-  });
-
-  test('事業者名・年・12ヶ月・純利益を含む', () => {
+  test('参照側ルートは KOA020＋FormAttribute', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toContain('name="青井ウェブ事務所"');
-    expect(x).toContain('year="2026"');
-    expect(x.match(/<Month value="\d+"/g)).toHaveLength(12);
-    expect(x).toContain('<NetIncome>95000</NetIncome>');
+    expect(x).toMatch(/<KOA020 VR="23\.0" softNM="aoiko"/);
+    expect(x).toContain('sakuseiNM="青井ウェブ事務所"');
   });
 
-  test('XML 特殊文字をエスケープする', () => {
-    const ctx = makeCtx();
-    ctx.businessName = 'A & B <Co>';
-    expect(buildXtx2026(ctx)).toContain('name="A &amp; B &lt;Co&gt;"');
+  test('参照側 IDREF が定義側 ID に解決する', () => {
+    const x = buildXtx2026(makeCtx());
+    const ids = new Set(
+      [...x.matchAll(/\sID="([A-Z_0-9]+)"/g)].map((m) => m[1])
+    );
+    const idrefs = [...x.matchAll(/\sIDREF="([A-Z_0-9]+)"/g)].map(
+      (m) => m[1]
+    );
+    expect(idrefs.length).toBeGreaterThan(0);
+    for (const r of idrefs) {
+      expect(ids.has(r)).toBe(true);
+    }
   });
 
   test('整形式 XML（パース可能）', () => {
     const x = buildXtx2026(makeCtx());
     const doc = new DOMParser().parseFromString(x, 'text/xml');
     expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
+  });
+
+  test('XML 特殊文字をエスケープ', () => {
+    const ctx = makeCtx();
+    ctx.businessName = 'A & B <Co>';
+    const x = buildXtx2026(ctx);
+    expect(x).toContain(
+      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">A &amp; B &lt;Co&gt;</NOZEISHA_YAGO>'
+    );
+  });
+
+  test('屋号未設定なら NOZEISHA_YAGO は出力されない', () => {
+    const ctx = makeCtx();
+    ctx.businessName = '';
+    const x = buildXtx2026(ctx);
+    expect(x).not.toContain('NOZEISHA_YAGO');
   });
 });
