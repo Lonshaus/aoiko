@@ -35,7 +35,9 @@ export interface XtxDocumentOptions {
   creationDate?: string;
 }
 
-const DEFAULT_PROCEDURE_TAG = 'TETSUZUKI_ID_TODO';
+// e-tax07「01手続一覧」Ver231 より：所得税及び復興特別所得税申告。
+// 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
+const DEFAULT_PROCEDURE_TAG = 'RKO0010';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -220,9 +222,45 @@ export function buildXtxDocument(
   options: XtxDocumentOptions = {},
   leafValues: XtxLeafValues = {}
 ): string {
+  return buildXtxBundle(
+    [{ schema, values, leafValues }],
+    options
+  );
+}
+
+/** 1 エンベロープに併載する 1 様式分の入力 */
+export interface XtxFormInput {
+  schema: XtxSchema;
+  /** 定義側（IT部 IDREF）値：定義名→値 */
+  values: XtxValues;
+  /** 直接値 leaf：leaf tag→値 */
+  leafValues?: XtxLeafValues;
+}
+
+// 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
+// IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは
+// 全所得税様式で共通）。各様式の参照側（帳票個別部分）を順に出力する。
+export function buildXtxBundle(
+  forms: XtxFormInput[],
+  options: XtxDocumentOptions = {}
+): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
-  const { instances, idByName } = buildDefinitionInstances(schema, values);
-  const formRoot = buildRefTreeNodes(schema);
+  const attrs = resolveFormAttrs(options);
+
+  // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
+  // いずれかの schema で採番すれば全様式の IDREF が解決する。
+  const mergedValues: XtxValues = {};
+  for (const f of forms) {
+    Object.assign(mergedValues, f.values);
+  }
+  const catalogSchema = forms[0]?.schema;
+  if (!catalogSchema) {
+    throw new Error('buildXtxBundle: forms が空です');
+  }
+  const { instances, idByName } = buildDefinitionInstances(
+    catalogSchema,
+    mergedValues
+  );
 
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
@@ -231,16 +269,19 @@ export function buildXtxDocument(
   lines.push('    <CATALOG id="CATALOG"></CATALOG>');
   lines.push('    <CONTENTS id="CONTENTS">');
   lines.push(renderItBlock(instances, '      '));
-  lines.push(
-    renderRefSide(
-      formRoot,
-      schema,
-      idByName,
-      leafValues,
-      '      ',
-      resolveFormAttrs(options)
-    )
-  );
+  for (const f of forms) {
+    const formRoot = buildRefTreeNodes(f.schema);
+    lines.push(
+      renderRefSide(
+        formRoot,
+        f.schema,
+        idByName,
+        f.leafValues ?? {},
+        '      ',
+        attrs
+      )
+    );
+  }
   lines.push('    </CONTENTS>');
   lines.push(`  </${procedureTag}>`);
   lines.push('</DATA>');

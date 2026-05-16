@@ -274,7 +274,7 @@
   "reports_consumption_tax_best": "★ 最少納付",
   "reports_consumption_tax_settings_link": "設定で課税方式を保存できます。Reports は常に 4 方式を比較表示します。",
   "reports_xtx_title": "e-Tax 出力",
-  "reports_xtx_intro_html": "当年度のデータを <code class=\"text-foreground\">.xtx</code> として書き出し、e-Taxソフト(WEB版) にインポートできます。 <strong class=\"text-foreground\">⚠ 確定申告書（KOA020）部分は令和8年版 Ver23 仕様に対応済ですが、青色申告決算書部分は暫定形式で未対応です。実申告には使用しないでください。</strong>",
+  "reports_xtx_intro_html": "当年度のデータを <code class=\"text-foreground\">.xtx</code> として書き出し、e-Taxソフト(WEB版) にインポートできます。確定申告書と青色申告決算書を国税庁公式 XSD（令和8年版）準拠で 1 ファイルに併載します。 <strong class=\"text-foreground\">⚠ 実申告前に必ず e-Taxソフト(WEB版) で実機取込検証を。申告書側は aoiko の収集範囲上 年分・屋号のみ入ります。</strong>",
   "reports_xtx_unsupported_year": "{year} 年度の .xtx 出力は未対応（現状 2026 年度のみ）",
   "reports_xtx_download": ".xtx をダウンロード",
   "reports_lock_confirm_title": "{year} 年を「申告済み」としてロックしますか？",
