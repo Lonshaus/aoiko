@@ -275,7 +275,7 @@
   "reports_consumption_tax_best": "★ 最少應納",
   "reports_consumption_tax_settings_link": "可在設定中保存課税方式。報表始終並列顯示 4 方式比較。",
   "reports_xtx_title": "e-Tax 輸出",
-  "reports_xtx_intro_html": "將本年度決算資料輸出為 <code class=\"text-foreground\">.xtx</code>，可匯入 e-Tax 軟體(WEB 版) 送出。 <strong class=\"text-foreground\">⚠ 目前的 .xtx 輸出為暫定格式，尚未通過国税庁公式 XSD 比對。請勿用於實際申告。</strong>",
+  "reports_xtx_intro_html": "將本年度資料輸出為 <code class=\"text-foreground\">.xtx</code>，可匯入 e-Tax 軟體(WEB 版)。確定申告書與青色申告決算書依国税庁公式 XSD（令和8年版）併載於同一檔。 <strong class=\"text-foreground\">⚠ 實際申告前務必先用 e-Tax 軟體(WEB 版) 做実機取込驗證。申告書側受 aoiko 收集範圍所限、僅填入年分與屋号。</strong>",
   "reports_xtx_unsupported_year": "{year} 年度的 .xtx 輸出尚未支援（目前僅 2026 年度）",
   "reports_xtx_download": "下載 .xtx",
   "reports_lock_confirm_title": "要將 {year} 年標記為「已申報」並鎖定嗎？",
