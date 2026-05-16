@@ -1,5 +1,15 @@
-# Claude Code（強制）
+# AI 関連（規範・エージェント設定）および AI 生成の計画書・レポートは
+# git 追跡対象外（AI 利用の秘匿目的ではなく、規範や計画書をリポジトリに
+# 置く必要が無いため）。ローカルには残し Claude は引き続き参照する。
 .claude/
+CLAUDE.md
+AGENTS.md
+.cursor/
+.github/copilot-instructions.md
+# AI 生成の計画書・設計メモ・レポート
+PLAN.md
+PLAN-*.md
+*.plan.md
 
 # Dependencies
 node_modules/
