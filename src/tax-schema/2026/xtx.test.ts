@@ -43,13 +43,23 @@ function makeCtx(): XtxContext {
   };
 }
 
-describe('buildXtx2026 (KOA020 / 2 段式モデル駆動)', () => {
-  test('エンベロープ骨格を持つ', () => {
+describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => {
+  test('エンベロープ骨格を持つ（手続 RKO0010）', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     expect(x).toContain('<DATA id="DATA">');
+    expect(x).toContain('<RKO0010 VR="1.0" id="手続ID">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
     expect(x).toContain('<IT VR="1.0" id="IT">');
+  });
+
+  test('1 エンベロープに申告書 KOA020 と決算書 KOA210 を併載', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toMatch(/<KOA020 VR="23\.0"/);
+    expect(x).toMatch(/<KOA210 VR="11\.0"/);
+    // CONTENTS / IT部 は 1 つだけ
+    expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
+    expect(x.match(/<IT VR="1\.0" id="IT">/g)).toHaveLength(1);
   });
 
   test('年分が令和（2026→8）で定義側 NENBUN に入る', () => {

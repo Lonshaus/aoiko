@@ -16,6 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { buildXtx2026 } from './xtx';
 import { buildFormFragment } from './xtx-document';
 import { mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
@@ -239,5 +240,97 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
+  });
+
+  maybe('組立済バンドル（buildXtx2026）の各様式が公式 xsd に適合する', () => {
+    const ctx = {
+      year: 2026,
+      businessName: '青井ウェブ事務所',
+      invoiceNumber: '',
+      monthly: {
+        year: 2026,
+        months: Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          sales: String((i + 1) * 100000),
+          expense: String((i + 1) * 10000),
+        })),
+        totalSales: '7800000',
+        totalExpense: '780000',
+      },
+      pl: {
+        year: 2026,
+        revenue: [
+          {
+            accountCode: '4110',
+            accountName: '売上高',
+            category: 'revenue' as const,
+            amount: '7800000',
+            displayOrder: 110,
+          },
+        ],
+        expense: [
+          {
+            accountCode: '5130',
+            accountName: '水道光熱費',
+            category: 'expense' as const,
+            amount: '120000',
+            displayOrder: 130,
+          },
+        ],
+        totalRevenue: '7800000',
+        totalExpense: '120000',
+        netIncome: '7680000',
+        entryCount: 4,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [
+          {
+            accountCode: '1110',
+            accountName: '現金',
+            category: 'asset' as const,
+            balance: '7680000',
+          },
+        ],
+        liabilities: [],
+        equity: [
+          {
+            accountCode: '3110',
+            accountName: '元入金',
+            category: 'equity' as const,
+            balance: '7680000',
+          },
+        ],
+        netIncome: '7680000',
+        totalAssets: '7680000',
+        totalLiabilitiesAndEquity: '7680000',
+        balanced: true,
+      },
+    };
+    const xtx = buildXtx2026(ctx);
+    // バンドルから各様式サブツリーを抜き出し、各々を公式 xsd で検証
+    const forms: Array<[string, string]> = [
+      ['KOA020', '_valwrap-KOA020.xsd'],
+      ['KOA210', '_valwrap-KOA210.xsd'],
+    ];
+    for (const [tag, wrapper] of forms) {
+      const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xtx);
+      expect(m, `${tag} subtree not found`).not.toBeNull();
+      const doc =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
+      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+      const xmlPath = join(dir, 'doc.xml');
+      writeFileSync(xmlPath, doc, 'utf8');
+      const r = spawnSync(
+        'xmllint',
+        ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath],
+        { encoding: 'utf8' }
+      );
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      expect(out).not.toContain('Schemas parser error');
+      expect(r.status, `${tag}: ${out}`).toBe(0);
+    }
   });
 });
