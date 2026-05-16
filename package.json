@@ -18,7 +18,8 @@
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify": "pnpm run check && pnpm run test && pnpm run build"
+    "verify": "pnpm run check && pnpm run test && pnpm run build",
+    "xtx:build-schema": "node scripts/build-xtx-schema.js"
   },
   "devDependencies": {
     "@fontsource-variable/inter": "^5.2.8",
@@ -35,6 +36,7 @@
     "bits-ui": "^2.18.1",
     "clsx": "^2.1.1",
     "fake-indexeddb": "^6.2.5",
+    "fast-xml-parser": "^5.8.0",
     "happy-dom": "^20.9.0",
     "shadcn-svelte": "^1.2.7",
     "svelte": "^5.55.4",
