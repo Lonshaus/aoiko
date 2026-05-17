@@ -7,12 +7,15 @@
     fileToBase64,
     type ReceiptExtracted,
   } from '../domain/ocr';
+  import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import { getSetting } from '../lib/settings';
+  import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
+  import type { LlmImageInput } from '../domain/llm';
+  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
   let file = $state<File | null>(null);
@@ -23,6 +26,12 @@
   let processing = $state(false);
   let error = $state('');
   let success = $state('');
+  let confirmOpen = $state(false);
+  let pending = $state<{
+    adapter: GeminiAdapter;
+    image: LlmImageInput;
+    host: string;
+  } | null>(null);
 
   const accountGroups = $derived(ledger.groupedAccounts());
 
@@ -55,12 +64,52 @@
       }
       const image = await fileToBase64(file);
       const adapter = new GeminiAdapter(apiKey);
+      const skip = await getSetting('skipExternalSendConfirm');
+      if (
+        shouldConfirmExternalSend(
+          { external: adapter.external, host: adapter.destinationHost },
+          skip
+        )
+      ) {
+        pending = { adapter, image, host: adapter.destinationHost };
+        confirmOpen = true;
+        return;
+      }
+      await runExtract(adapter, image);
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+      processing = false;
+    }
+  }
+
+  async function runExtract(adapter: GeminiAdapter, image: LlmImageInput) {
+    try {
       extracted = await extractReceipt(adapter, image);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
       processing = false;
     }
+  }
+
+  async function onConfirmSend(dontAskAgain: boolean) {
+    confirmOpen = false;
+    const p = pending;
+    pending = null;
+    if (!p) {
+      processing = false;
+      return;
+    }
+    if (dontAskAgain) {
+      await setSetting('skipExternalSendConfirm', true);
+    }
+    await runExtract(p.adapter, p.image);
+  }
+
+  function onCancelSend() {
+    confirmOpen = false;
+    pending = null;
+    processing = false;
   }
 
   async function commit() {
@@ -300,3 +349,10 @@
     </section>
   {/if}
 </div>
+
+<CloudSendConfirmDialog
+  open={confirmOpen}
+  host={pending?.host ?? ''}
+  onconfirm={onConfirmSend}
+  oncancel={onCancelSend}
+/>
