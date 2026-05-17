@@ -11,6 +11,10 @@ export interface LlmImageInput {
 }
 
 export interface LlmAdapter {
+  /** 端末外へデータを送るか（クラウド = true、ローカル = false） */
+  readonly external: boolean;
+  /** 送信先ホスト（確認ダイアログ表示用。例：generativelanguage.googleapis.com） */
+  readonly destinationHost: string;
   /** プロンプトを送り、JSON 文字列としてパース可能なレスポンスを返す */
   generateJson(prompt: string, image?: LlmImageInput): Promise<unknown>;
 }
@@ -27,6 +31,8 @@ export class LlmError extends Error {
 // Google Gemini API アダプター（無料枠あり、レイテンシ・コストともに低い）。
 // 2026 時点で gemini-2.5-flash 推奨。設定で他モデルも可能。
 export class GeminiAdapter implements LlmAdapter {
+  readonly external = true;
+  readonly destinationHost = 'generativelanguage.googleapis.com';
   constructor(
     private readonly apiKey: string,
     private readonly model: string = 'gemini-2.5-flash'
