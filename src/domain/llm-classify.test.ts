@@ -15,6 +15,8 @@ const ACCOUNTS: Account[] = [
 
 function fakeAdapter(response: unknown): LlmAdapter {
   return {
+    external: false,
+    destinationHost: '',
     generateJson: async () => response,
   }
 }
@@ -130,6 +132,8 @@ describe('classifyWithLlm', () => {
   test('returns empty array for empty input without calling adapter', async () => {
     let called = false
     const adapter: LlmAdapter = {
+      external: false,
+      destinationHost: '',
       generateJson: async () => {
         called = true
         return { classifications: [] }

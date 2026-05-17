@@ -3,7 +3,11 @@ import { extractReceipt, buildOcrPrompt } from './ocr'
 import type { LlmAdapter } from './llm'
 
 function fakeAdapter(response: unknown): LlmAdapter {
-  return { generateJson: async () => response }
+  return {
+    external: false,
+    destinationHost: '',
+    generateJson: async () => response,
+  }
 }
 
 describe('buildOcrPrompt', () => {
