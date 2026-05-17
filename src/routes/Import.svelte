@@ -9,8 +9,10 @@
   import { findMatchingRule, recordRuleHit } from '../domain/rules';
   import { GeminiAdapter } from '../domain/llm';
   import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
-  import { getSetting } from '../lib/settings';
+  import { shouldConfirmExternalSend } from '../domain/send-confirm';
+  import { getSetting, setSetting } from '../lib/settings';
   import { formatJPY } from '../lib/decimal';
+  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
@@ -35,6 +37,12 @@
   let importing = $state(false);
   let llmClassifying = $state(false);
   let llmStatus = $state('');
+  let llmConfirmOpen = $state(false);
+  let llmPending = $state<{
+    adapter: GeminiAdapter;
+    targets: { row: RowState; index: number }[];
+    host: string;
+  } | null>(null);
   let error = $state('');
   let success = $state('');
 
@@ -141,9 +149,30 @@
       return;
     }
 
+    const adapter = new GeminiAdapter(apiKey);
+    const skip = await getSetting('skipExternalSendConfirm');
+    if (
+      shouldConfirmExternalSend(
+        { external: adapter.external, host: adapter.destinationHost },
+        skip
+      )
+    ) {
+      llmPending = { adapter, targets, host: adapter.destinationHost };
+      llmConfirmOpen = true;
+      return;
+    }
+    await runClassify(adapter, targets);
+  }
+
+  async function runClassify(
+    adapter: GeminiAdapter,
+    targets: { row: RowState; index: number }[]
+  ) {
+    if (!currentParser) {
+      return;
+    }
     llmClassifying = true;
     try {
-      const adapter = new GeminiAdapter(apiKey);
       const bySide = new Map<'debit' | 'credit', typeof targets>();
       for (const t of targets) {
         const s = t.row.transaction.side;
@@ -194,6 +223,24 @@
     } finally {
       llmClassifying = false;
     }
+  }
+
+  async function onLlmConfirm(dontAskAgain: boolean) {
+    llmConfirmOpen = false;
+    const p = llmPending;
+    llmPending = null;
+    if (!p) {
+      return;
+    }
+    if (dontAskAgain) {
+      await setSetting('skipExternalSendConfirm', true);
+    }
+    await runClassify(p.adapter, p.targets);
+  }
+
+  function onLlmCancel() {
+    llmConfirmOpen = false;
+    llmPending = null;
   }
 
   function reset() {
@@ -457,3 +504,10 @@
     </section>
   {/if}
 </div>
+
+<CloudSendConfirmDialog
+  open={llmConfirmOpen}
+  host={llmPending?.host ?? ''}
+  onconfirm={onLlmConfirm}
+  oncancel={onLlmCancel}
+/>
