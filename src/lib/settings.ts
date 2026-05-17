@@ -11,6 +11,8 @@ export type SettingsMap = {
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
+  // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
+  skipExternalSendConfirm: boolean;
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
   // 消費税関連設定
