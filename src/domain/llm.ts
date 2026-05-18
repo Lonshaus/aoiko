@@ -94,3 +94,155 @@ export class GeminiAdapter implements LlmAdapter {
     }
   }
 }
+
+const LOCAL_HOSTS = new Set([
+  'localhost',
+  '127.0.0.1',
+  '0.0.0.0',
+  '::1',
+  '[::1]',
+]);
+
+export function hostOf(baseUrl: string): string {
+  try {
+    return new URL(baseUrl).host;
+  } catch {
+    return baseUrl;
+  }
+}
+
+export function isLocalHost(host: string): boolean {
+  const name = host.replace(/:\d+$/, '').toLowerCase();
+  return LOCAL_HOSTS.has(name) || name.endsWith('.local');
+}
+
+// ローカル LLM が ```json フェンス等で囲って返すケースに耐性を持たせて JSON 抽出
+function parseLooseJson(text: string): unknown {
+  const t = text.trim();
+  try {
+    return JSON.parse(t);
+  } catch {
+    const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const candidate = fenced
+      ? fenced[1]!.trim()
+      : t.slice(t.search(/[[{]/), t.lastIndexOf('}') + 1 || undefined);
+    return JSON.parse(candidate);
+  }
+}
+
+// OpenAI 互換 Chat Completions アダプター。
+// Ollama / LM Studio / llama.cpp server / vLLM / OpenAI 等を 1 つで包括。
+// baseUrl 例：http://localhost:11434/v1（末尾 /chat/completions・/models を付与）。
+// localhost 宛は external=false（送信前確認スキップ）。OCR には vision モデル必須。
+export class OpenAICompatibleAdapter implements LlmAdapter {
+  readonly external: boolean;
+  readonly destinationHost: string;
+  private readonly base: string;
+
+  constructor(
+    baseUrl: string,
+    private readonly model: string,
+    private readonly apiKey: string = ''
+  ) {
+    this.base = baseUrl.replace(/\/+$/, '');
+    this.destinationHost = hostOf(this.base);
+    this.external = !isLocalHost(this.destinationHost);
+  }
+
+  private headers(): Record<string, string> {
+    const h: Record<string, string> = { 'content-type': 'application/json' };
+    if (this.apiKey) {
+      h.authorization = `Bearer ${this.apiKey}`;
+    }
+    return h;
+  }
+
+  async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
+    if (!this.model) {
+      throw new LlmError('モデルが選択されていません');
+    }
+    const content: unknown = image
+      ? [
+          { type: 'text', text: prompt },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${image.mimeType};base64,${image.base64}`,
+            },
+          },
+        ]
+      : prompt;
+    const body = {
+      model: this.model,
+      messages: [{ role: 'user', content }],
+      temperature: 0.1,
+      response_format: { type: 'json_object' },
+    };
+
+    let response: Response;
+    try {
+      response = await fetch(`${this.base}/chat/completions`, {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      throw new LlmError(
+        `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,
+        e
+      );
+    }
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new LlmError(
+        `LLM API エラー ${response.status}: ${errText.slice(0, 200)}`
+      );
+    }
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const text = payload.choices?.[0]?.message?.content;
+    if (!text) {
+      throw new LlmError('LLM レスポンスに想定外の構造');
+    }
+    try {
+      return parseLooseJson(text);
+    } catch (e) {
+      throw new LlmError(
+        `LLM レスポンスを JSON として解析できません: ${text.slice(0, 200)}`,
+        e
+      );
+    }
+  }
+}
+
+// OpenAI 互換 /models からインストール済モデル ID 一覧を取得（Page Assist 方式）
+export async function listOpenAiModels(
+  baseUrl: string,
+  apiKey: string = ''
+): Promise<string[]> {
+  const base = baseUrl.replace(/\/+$/, '');
+  const headers: Record<string, string> = {};
+  if (apiKey) {
+    headers.authorization = `Bearer ${apiKey}`;
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${base}/models`, { headers });
+  } catch (e) {
+    throw new LlmError(
+      `${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`,
+      e
+    );
+  }
+  if (!response.ok) {
+    throw new LlmError(`モデル一覧取得エラー ${response.status}`);
+  }
+  const payload = (await response.json()) as {
+    data?: Array<{ id?: string }>;
+  };
+  return (payload.data ?? [])
+    .map((m) => m.id)
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    .sort();
+}
