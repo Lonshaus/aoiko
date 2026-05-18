@@ -68,3 +68,6 @@ pnpm-debug.log*
 # aoiko 手動 export（誤コミット防止）
 aoiko-ledger-*.json
 aoiko-*.xtx
+
+# 実銀行・カード CSV サンプル（実データ・機微情報。絶対にコミットしない）
+parser_sample/
