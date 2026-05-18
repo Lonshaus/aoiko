@@ -1,7 +1,6 @@
 <script lang="ts">
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
-  import { GeminiAdapter } from '../domain/llm';
   import {
     extractReceipt,
     fileToBase64,
@@ -11,10 +10,11 @@
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
+  import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
-  import type { LlmImageInput } from '../domain/llm';
+  import type { LlmAdapter, LlmImageInput } from '../domain/llm';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
@@ -28,7 +28,7 @@
   let success = $state('');
   let confirmOpen = $state(false);
   let pending = $state<{
-    adapter: GeminiAdapter;
+    adapter: LlmAdapter;
     image: LlmImageInput;
     host: string;
   } | null>(null);
@@ -58,12 +58,8 @@
     processing = true;
     error = '';
     try {
-      const apiKey = await getSetting('geminiApiKey');
-      if (!apiKey) {
-        throw new Error(m.receipt_no_api_key());
-      }
       const image = await fileToBase64(file);
-      const adapter = new GeminiAdapter(apiKey);
+      const adapter = await createLlmAdapter('ocr');
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
@@ -82,7 +78,7 @@
     }
   }
 
-  async function runExtract(adapter: GeminiAdapter, image: LlmImageInput) {
+  async function runExtract(adapter: LlmAdapter, image: LlmImageInput) {
     try {
       extracted = await extractReceipt(adapter, image);
     } catch (e) {
