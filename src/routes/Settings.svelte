@@ -100,6 +100,14 @@
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
   let geminiTestStatus = $state('');
+  let ocrEngine = $state<'gemini' | 'openai-compatible'>('gemini');
+  let openaiBaseUrl = $state('');
+  let openaiOcrModel = $state('');
+  let openaiClassifyModel = $state('');
+  let openaiApiKey = $state('');
+  let openaiModels = $state<string[]>([]);
+  let openaiStatus = $state('');
+  let openaiSaved = $state('');
 
   let carryoverPreview = $state<CarryoverPreview | null>(null);
   let carryoverStatus = $state('');
@@ -159,6 +167,11 @@
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
+    ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
+    openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
+    openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
+    openaiApiKey = (await getSetting('openaiApiKey')) ?? '';
     disclaimerAcceptedAt = (await getSetting('disclaimerAcceptedAt')) ?? null;
     disclaimerAcceptedVersion = (await getSetting('disclaimerAcceptedVersion')) ?? null;
     taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
@@ -434,6 +447,56 @@
       geminiTestStatus = m.settings_llm_test_success();
     } catch (e) {
       geminiTestStatus = m.settings_llm_test_error({ message: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async function saveOcrEngine() {
+    await setSetting('ocrEngine', ocrEngine);
+    await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
+    await setSetting('openaiOcrModel', openaiOcrModel.trim());
+    await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
+    await setSetting('openaiApiKey', openaiApiKey.trim());
+    openaiSaved = m.settings_llm_saved();
+    setTimeout(() => {
+      openaiSaved = '';
+    }, 2000);
+  }
+
+  async function fetchOpenaiModels() {
+    openaiStatus = m.settings_llm_testing();
+    try {
+      const { listOpenAiModels } = await import('../domain/llm');
+      openaiModels = await listOpenAiModels(
+        openaiBaseUrl.trim(),
+        openaiApiKey.trim()
+      );
+      openaiStatus = m.settings_openai_models_loaded({
+        count: openaiModels.length,
+      });
+    } catch (e) {
+      openaiStatus = m.settings_llm_test_error({
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+
+  async function testOpenai() {
+    openaiStatus = m.settings_llm_testing();
+    try {
+      const { OpenAICompatibleAdapter } = await import('../domain/llm');
+      const adapter = new OpenAICompatibleAdapter(
+        openaiBaseUrl.trim(),
+        openaiClassifyModel.trim() || openaiOcrModel.trim(),
+        openaiApiKey.trim()
+      );
+      await adapter.generateJson(
+        '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。'
+      );
+      openaiStatus = m.settings_llm_test_success();
+    } catch (e) {
+      openaiStatus = m.settings_llm_test_error({
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -1177,6 +1240,119 @@
       {#if geminiTestStatus}
         <span>{geminiTestStatus}</span>
       {/if}
+    </div>
+
+    <div class="border-t pt-4 space-y-3">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
+        <select
+          bind:value={ocrEngine}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+        >
+          <option value="gemini">{m.settings_engine_gemini()}</option>
+          <option value="openai-compatible">{m.settings_engine_openai()}</option>
+        </select>
+      </label>
+
+      {#if ocrEngine === 'openai-compatible'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_openai_intro_html()}
+        </p>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_openai_baseurl_label()}</span>
+          <input
+            type="text"
+            bind:value={openaiBaseUrl}
+            placeholder="http://localhost:11434/v1"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_openai_apikey_label()}</span>
+          <input
+            type="password"
+            bind:value={openaiApiKey}
+            placeholder="(Ollama 等ローカルでは不要)"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+          />
+        </label>
+        <div class="flex gap-3 items-end">
+          <button
+            type="button"
+            onclick={fetchOpenaiModels}
+            disabled={!openaiBaseUrl.trim()}
+            class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.settings_openai_fetch_models()}
+          </button>
+          <button
+            type="button"
+            onclick={testOpenai}
+            disabled={!openaiBaseUrl.trim()}
+            class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.settings_llm_test()}
+          </button>
+        </div>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_openai_ocr_model_label()}</span>
+          {#if openaiModels.length > 0}
+            <select
+              bind:value={openaiOcrModel}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+            >
+              <option value="">—</option>
+              {#each openaiModels as mdl (mdl)}
+                <option value={mdl}>{mdl}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              bind:value={openaiOcrModel}
+              placeholder="llama3.2-vision 等（vision 必須）"
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+            />
+          {/if}
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_openai_classify_model_label()}</span>
+          {#if openaiModels.length > 0}
+            <select
+              bind:value={openaiClassifyModel}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+            >
+              <option value="">—</option>
+              {#each openaiModels as mdl (mdl)}
+                <option value={mdl}>{mdl}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              bind:value={openaiClassifyModel}
+              placeholder="任意のテキストモデル"
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+            />
+          {/if}
+        </label>
+      {/if}
+
+      <div class="flex gap-3 items-center">
+        <button
+          type="button"
+          onclick={saveOcrEngine}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.settings_llm_save()}
+        </button>
+        {#if openaiSaved}
+          <span class="text-xs">{openaiSaved}</span>
+        {/if}
+        {#if openaiStatus}
+          <span class="text-xs">{openaiStatus}</span>
+        {/if}
+      </div>
     </div>
   </section>
 
