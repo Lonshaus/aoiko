@@ -7,9 +7,10 @@
     type ImportRow,
   } from '../domain/import';
   import { findMatchingRule, recordRuleHit } from '../domain/rules';
-  import { GeminiAdapter } from '../domain/llm';
+  import type { LlmAdapter } from '../domain/llm';
   import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
+  import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
   import { formatJPY } from '../lib/decimal';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
@@ -39,7 +40,7 @@
   let llmStatus = $state('');
   let llmConfirmOpen = $state(false);
   let llmPending = $state<{
-    adapter: GeminiAdapter;
+    adapter: LlmAdapter;
     targets: { row: RowState; index: number }[];
     host: string;
   } | null>(null);
@@ -135,12 +136,6 @@
     llmStatus = '';
     error = '';
 
-    const apiKey = await getSetting('geminiApiKey');
-    if (!apiKey) {
-      error = m.import_no_api_key();
-      return;
-    }
-
     const targets = rows
       .map((row, index) => ({ row, index }))
       .filter(({ row }) => !row.skip && !row.counterpartAccountCode);
@@ -149,7 +144,13 @@
       return;
     }
 
-    const adapter = new GeminiAdapter(apiKey);
+    let adapter;
+    try {
+      adapter = await createLlmAdapter('classify');
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+      return;
+    }
     const skip = await getSetting('skipExternalSendConfirm');
     if (
       shouldConfirmExternalSend(
@@ -165,7 +166,7 @@
   }
 
   async function runClassify(
-    adapter: GeminiAdapter,
+    adapter: LlmAdapter,
     targets: { row: RowState; index: number }[]
   ) {
     if (!currentParser) {
