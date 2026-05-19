@@ -1,7 +1,12 @@
 // CSV パーサー間で共有される小さなユーティリティ。
 
+// YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日 を 'YYYY-MM-DD' に正規化。
+// 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
 export function normalizeDate(s: string): string {
-  const parts = s.split(/[/\-.]/).map((p) => p.trim());
+  const dateOnly = (s.trim().split(/[ \t]/)[0] ?? '')
+    .replace(/年|月/g, '/')
+    .replace(/日/g, '');
+  const parts = dateOnly.split(/[/\-.]/).map((p) => p.trim());
   if (parts.length !== 3) {
     throw new Error(`日付形式が認識できません: ${s}`);
   }
@@ -72,7 +77,11 @@ export function findHeaderRow(
 }
 // 明細セクションの後にさらに別表（内訳表・契約情報等）が続く CSV があるため、
 // 行が取引データか否かは「日付列が日付らしいか」で判定する。
-// YYYY/M/D・YYYY-M-D・YYYY.M.D（前後空白可）を日付とみなす。
+// YYYY/M/D・YYYY-M-D・YYYY.M.D・YYYY年M月D日（前後空白可）を日付とみなす。
 export function isDateLike(s: string): boolean {
-  return /^\s*\d{4}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{1,2}/.test(s);
+  const t = s.trim();
+  return (
+    /^\d{4}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{1,2}/.test(t) ||
+    /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日/.test(t)
+  );
 }
