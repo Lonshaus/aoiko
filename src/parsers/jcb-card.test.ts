@@ -9,13 +9,30 @@ describe('jcbCardParser', () => {
     expect(jcbCardParser.encoding).toBe('shift_jis')
   })
 
-  test('parses sample fixture; all rows credit', () => {
+  test('skips支払サマリ前言 and parses明細; all rows credit', () => {
     const r = jcbCardParser.parse(sample)
     expect(r).toHaveLength(3)
     for (const tx of r) {
       expect(tx.side).toBe('credit')
     }
-    expect(r[0]?.description).toBe('ETC利用')
+    expect(r[0]).toMatchObject({
+      date: '2026-05-02',
+      description: 'ＥＴＣチャージ',
+      amount: '1200',
+    })
     expect(r[1]?.amount).toBe('3300')
+  })
+
+  test('trims leading space in date and keeps摘要 as memo', () => {
+    const r = jcbCardParser.parse(sample)
+    expect(r[2]?.date).toBe('2026-05-07')
+    expect(r[2]?.amount).toBe('3080')
+    expect(r[2]?.memo).toBe('内手数料１９円')
+  })
+
+  test('throws when no header row is found', () => {
+    expect(() => jcbCardParser.parse('foo,bar\n1,2')).toThrow(
+      /CSV ヘッダー形式/
+    )
   })
 })

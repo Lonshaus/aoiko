@@ -7,11 +7,11 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// 三菱UFJ 銀行 Direct ダウンロードの CSV 形式（推定）。
+// 三菱UFJ 銀行 Direct ダウンロードの CSV 形式（実データ確認済）。
 // エンコーディング：Shift_JIS
-// ヘッダー：日付, 摘要, 摘要内容, 支払い金額, 預かり金額, 差引残高, メモ, ラベル
+// ヘッダー：日付, 摘要, 摘要内容, 支払い金額, 預かり金額, 差引残高,
+//           メモ, 未資金化区分, 入払区分
 // 説明：摘要内容（詳細）優先、無ければ摘要をフォールバック
-// TODO: 実際の CSV で確認・修正
 
 const DISPLAY = '三菱UFJ 銀行';
 const REQUIRED = ['日付', '摘要', '支払い金額', '預かり金額'] as const;
