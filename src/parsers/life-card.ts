@@ -2,24 +2,28 @@ import { parseCsv } from '../lib/csv';
 import {
   buildRawRow,
   findHeaderRow,
+  isDateLike,
   normalizeDate,
   optionalColumn,
   requireColumns,
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// セゾンカード（Net Answer）の利用明細 CSV（実データ確認済）。
+// ライフカード（LIFE-Web Desk）の利用明細 CSV（実データ確認済）。
 // エンコーディング：Shift_JIS
-// 前言：カード名称 / お支払日 / 今回ご請求額 の 3 行 ＋ 空行の後に表頭が来る。
-// 表頭：利用日, ご利用店名及び商品名, 本人・家族区分, 支払区分名称,
-//       締前入金区分, 利用金額, 備考
-// クレジットカードのため、全行 credit 側（未払金 増加）。
+// 前言：支払日 / 会員氏名 / カード名、当月ご請求金額の内訳、ご契約内容など
+// 複数の小表が前後に並ぶ。明細表の表頭は次のとおり：
+//   明細No., 契約, 回数, 利用日, 利用先, 利用金額, ATM利用料, 手数料,
+//   支払総額, 支払回数/何回目, 当月支払金額, 支払残高
+// 明細表の後ろにも別の内訳表（回数指定払・リボ等）が続くため、
+// 利用日が日付らしくない行は読み飛ばす（後続表の見出し・データを除外）。
+// クレジットのため全行 credit 側（未払金 増加）。
 
-const DISPLAY = 'セゾンカード';
-const REQUIRED = ['利用日', 'ご利用店名及び商品名', '利用金額'] as const;
+const DISPLAY = 'ライフカード';
+const REQUIRED = ['利用日', '利用先', '利用金額'] as const;
 
-const saisonCardParser: CsvParser = {
-  name: 'saison-card',
+const lifeCardParser: CsvParser = {
+  name: 'life-card',
   displayName: DISPLAY,
   accountCode: '2120',
   encoding: 'shift_jis',
@@ -32,40 +36,33 @@ const saisonCardParser: CsvParser = {
     }
     const header = rows[headerIdx]!;
     const idx = requireColumns(header, REQUIRED, DISPLAY);
-    const idxKubun = optionalColumn(header, '本人・家族区分');
-    const idxShiharai = optionalColumn(header, '支払区分名称');
-    const idxBiko = optionalColumn(header, '備考');
+    const idxKeiyaku = optionalColumn(header, '契約');
+    const idxKaisu = optionalColumn(header, '支払回数/何回目');
 
     const result: ParsedTransaction[] = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i]!;
       const dateRaw = (row[idx['利用日']!] ?? '').trim();
-      if (!dateRaw) {
+      if (!isDateLike(dateRaw)) {
         continue;
       }
-      const description = (row[idx['ご利用店名及び商品名']!] ?? '').trim();
+      const description = (row[idx['利用先']!] ?? '').trim();
       const amountRaw = (row[idx['利用金額']!] ?? '').trim();
       if (!amountRaw) {
         continue;
       }
 
       const memoParts: string[] = [];
-      if (idxKubun >= 0) {
-        const k = (row[idxKubun] ?? '').trim();
-        if (k && k !== '本人') {
+      if (idxKeiyaku >= 0) {
+        const k = (row[idxKeiyaku] ?? '').trim();
+        if (k && k !== 'ショッピング') {
           memoParts.push(k);
         }
       }
-      if (idxShiharai >= 0) {
-        const s = (row[idxShiharai] ?? '').trim();
-        if (s && s !== '1回') {
-          memoParts.push(s);
-        }
-      }
-      if (idxBiko >= 0) {
-        const b = (row[idxBiko] ?? '').trim();
-        if (b) {
-          memoParts.push(b);
+      if (idxKaisu >= 0) {
+        const k = (row[idxKaisu] ?? '').trim();
+        if (k && k !== '1回払') {
+          memoParts.push(k);
         }
       }
       const memo = memoParts.length > 0 ? memoParts.join(' / ') : undefined;
@@ -86,5 +83,5 @@ const saisonCardParser: CsvParser = {
   },
 };
 
-export default saisonCardParser;
-export { saisonCardParser };
+export default lifeCardParser;
+export { lifeCardParser };
