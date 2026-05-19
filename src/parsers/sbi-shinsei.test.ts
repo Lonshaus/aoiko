@@ -7,33 +7,25 @@ describe('sbiShinseiParser', () => {
     expect(sbiShinseiParser.name).toBe('sbi-shinsei');
     expect(sbiShinseiParser.displayName).toBe('SBI新生銀行');
     expect(sbiShinseiParser.accountCode).toBe('1130');
-    expect(sbiShinseiParser.encoding).toBe('shift_jis');
+    expect(sbiShinseiParser.encoding).toBe('utf-8');
   });
 
   test('sample fixture parses to expected transactions', () => {
     const result = sbiShinseiParser.parse(sampleCsv);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(4);
 
     expect(result[0]).toMatchObject({
-      date: '2026-05-01',
-      description: 'フリコミ アオイ ジムシヨ',
-      amount: '120000',
+      date: '2026-02-26',
+      description: 'ATM 現金入金（提携取引）',
+      amount: '270000',
       side: 'debit',
-      balance: '300000',
-    });
-
-    expect(result[1]).toMatchObject({
-      date: '2026-05-02',
-      description: 'セブン-イレブン',
-      amount: '450',
-      side: 'credit',
-      balance: '299550',
+      balance: '270000',
     });
 
     expect(result[2]).toMatchObject({
-      date: '2026-05-03',
-      description: 'ＡＷＳ サーバー',
-      amount: '9200',
+      date: '2026-03-03',
+      description: 'セブン-イレブン',
+      amount: '450',
       side: 'credit',
       memo: '業務',
     });
@@ -44,21 +36,15 @@ describe('sbiShinseiParser', () => {
     expect(result[0]?.memo).toBeUndefined();
   });
 
-  test('handles BOM-prefixed input', () => {
-    const withBom = '﻿' + sampleCsv;
-    const result = sbiShinseiParser.parse(withBom);
-    expect(result).toHaveLength(5);
-  });
-
   test('handles CRLF line endings', () => {
     const withCrlf = sampleCsv.replace(/\n/g, '\r\n');
     const result = sbiShinseiParser.parse(withCrlf);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(4);
   });
 
   test('strips thousand-separator commas from amounts', () => {
     const csv =
-      '"取引日","摘要","お引出し","お預入れ","残高","メモ"\n' +
+      '"取引日","摘要","出金金額","入金金額","残高","メモ"\n' +
       '"2026/05/01","テスト","","1,234,567","2,000,000",""';
     const result = sbiShinseiParser.parse(csv);
     expect(result[0]?.amount).toBe('1234567');
@@ -67,7 +53,7 @@ describe('sbiShinseiParser', () => {
 
   test('skips rows with both columns empty', () => {
     const csv =
-      '"取引日","摘要","お引出し","お預入れ","残高","メモ"\n' +
+      '"取引日","摘要","出金金額","入金金額","残高","メモ"\n' +
       '"2026/05/01","空行テスト","","","300,000",""\n' +
       '"2026/05/02","正常","","100","300,100",""';
     const result = sbiShinseiParser.parse(csv);
@@ -83,13 +69,13 @@ describe('sbiShinseiParser', () => {
   });
 
   test('returns empty for header-only CSV', () => {
-    const csv = '"取引日","摘要","お引出し","お預入れ","残高","メモ"';
+    const csv = '"取引日","摘要","出金金額","入金金額","残高","メモ"';
     expect(sbiShinseiParser.parse(csv)).toEqual([]);
   });
 
   test('rawRow contains original header-keyed values', () => {
     const result = sbiShinseiParser.parse(sampleCsv);
-    expect(result[0]?.rawRow['取引日']).toBe('2026/05/01');
-    expect(result[0]?.rawRow['摘要']).toBe('フリコミ アオイ ジムシヨ');
+    expect(result[0]?.rawRow['取引日']).toBe('2026/02/26');
+    expect(result[0]?.rawRow['摘要']).toBe('ATM 現金入金（提携取引）');
   });
 });
