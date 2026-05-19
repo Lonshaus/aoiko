@@ -30,7 +30,7 @@ describe('mufgParser', () => {
 
   test('falls back to 摘要 when 摘要内容 is empty', () => {
     const csv =
-      '日付,摘要,摘要内容,支払い金額,預かり金額,差引残高,メモ,ラベル\n' +
+      '日付,摘要,摘要内容,支払い金額,預かり金額,差引残高,メモ,未資金化区分,入払区分\n' +
       '2026/05/01,給与,,300000,,300000,,'
     const r = mufgParser.parse(csv)
     expect(r[0]?.description).toBe('給与')

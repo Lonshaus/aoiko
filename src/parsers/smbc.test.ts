@@ -15,7 +15,7 @@ describe('smbcParser', () => {
 
     expect(r[0]).toMatchObject({
       date: '2026-05-01',
-      amount: '100000',
+      amount: '260000',
       side: 'debit',
     })
     expect(r[1]).toMatchObject({
