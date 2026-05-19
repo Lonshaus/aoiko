@@ -1,24 +1,39 @@
 import { parseCsv } from '../lib/csv';
 import {
   buildRawRow,
+  isDateLike,
   normalizeDate,
-  optionalColumn,
-  requireColumns,
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// 三井住友カード（NL 含む）Vpass の CSV 形式（推定）。
-// エンコーディング：Shift_JIS
-// ヘッダー：ご利用日, ご利用店名・ご利用内容, ご利用者, 支払方法, 利用金額, ...
-// クレジットカードのため、すべての行は credit 側（未払金 増加）。
-// TODO: 実際の CSV で確認・修正
+// 三井住友カード（NL / Olive 含む）Vpass の利用明細 CSV（実データ確認済）。
+// この CSV には表頭行が無く、1 行目はカード会員情報（氏名 / 番号 / 種別）。
+// 2 行目以降がデータで、列は位置で解釈する（1 サンプルからの推定。
+// 列構成が異なる個体が出たら要再確認）：
+//   [0]利用日 [1]ご利用店名・内容 [2]ご利用金額 [3]支払区分
+//   [4]何回目 [5]今回お支払額（確定額。キャッシュバックは負値）[6]備考
+// 末尾に日付の無い請求合計行が付くため、利用日が日付らしくない行は読み飛ばす。
+// クレジットのため通常は credit（未払金 増）。キャッシュバック等の負値は
+// debit（未払金 減）として扱う。
 
 const DISPLAY = '三井住友カード';
-const REQUIRED = [
-  'ご利用日',
-  'ご利用店名・ご利用内容',
-  '利用金額',
-] as const;
+const COL = {
+  date: 0,
+  desc: 1,
+  amount: 2,
+  plan: 3,
+  count: 4,
+  settled: 5,
+} as const;
+const HEADER = [
+  '利用日',
+  'ご利用店名・内容',
+  'ご利用金額',
+  '支払区分',
+  '何回目',
+  '今回お支払額',
+  '備考',
+];
 
 const smbcCardParser: CsvParser = {
   name: 'smbc-card',
@@ -27,43 +42,51 @@ const smbcCardParser: CsvParser = {
   encoding: 'shift_jis',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
-    if (rows.length < 2) {
-      return [];
-    }
-    const header = rows[0]!;
-    const idx = requireColumns(header, REQUIRED, DISPLAY);
-    const idxMethod = optionalColumn(header, '支払方法');
 
     const result: ParsedTransaction[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i]!;
-      const dateRaw = (row[idx['ご利用日']!] ?? '').trim();
-      if (!dateRaw) {
+    for (const row of rows) {
+      const dateRaw = (row[COL.date] ?? '').trim();
+      if (!isDateLike(dateRaw)) {
         continue;
       }
-      const description = (
-        row[idx['ご利用店名・ご利用内容']!] ?? ''
-      ).trim();
-      const amountRaw = (row[idx['利用金額']!] ?? '').trim();
-      if (!amountRaw) {
-        continue;
-      }
-      const amount = stripComma(amountRaw);
+      const description = (row[COL.desc] ?? '').trim();
+      const useRaw = (row[COL.amount] ?? '').trim();
+      const settledRaw = (row[COL.settled] ?? '').trim();
 
-      let memo: string | undefined;
-      if (idxMethod >= 0) {
-        const m = (row[idxMethod] ?? '').trim();
-        if (m && m !== '1回払い') {
-          memo = m;
-        }
+      let amount: string;
+      let side: 'debit' | 'credit';
+      if (useRaw) {
+        amount = stripComma(useRaw);
+        side = 'credit';
+      } else if (settledRaw) {
+        const cleaned = stripComma(settledRaw);
+        const negative = cleaned.startsWith('-');
+        amount = cleaned.replace(/^[-+]/, '');
+        side = negative ? 'debit' : 'credit';
+      } else {
+        continue;
       }
+      if (!amount) {
+        continue;
+      }
+
+      const memoParts: string[] = [];
+      const plan = (row[COL.plan] ?? '').trim();
+      if (plan && plan !== '１' && plan !== '1') {
+        memoParts.push(plan);
+      }
+      const count = (row[COL.count] ?? '').trim();
+      if (count && count !== '１' && count !== '1') {
+        memoParts.push(`${count}回目`);
+      }
+      const memo = memoParts.length > 0 ? memoParts.join(' / ') : undefined;
 
       const transaction: ParsedTransaction = {
         date: normalizeDate(dateRaw),
         description,
         amount,
-        side: 'credit',
-        rawRow: buildRawRow(header, row),
+        side,
+        rawRow: buildRawRow(HEADER, row),
       };
       if (memo) {
         transaction.memo = memo;
