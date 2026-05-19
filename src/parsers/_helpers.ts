@@ -53,3 +53,26 @@ export function requireColumns(
 export function optionalColumn(header: string[], name: string): number {
   return header.indexOf(name);
 }
+// カード明細 CSV はカード名・支払日等の前言行＋空行の後に表頭が来る形式が多い。
+// 必須列名をすべて含む最初の行を表頭とみなし、その行インデックスを返す。
+// 見つからなければ -1。
+export function findHeaderRow(
+  rows: string[][],
+  required: readonly string[],
+  searchLimit = 30
+): number {
+  const limit = Math.min(rows.length, searchLimit);
+  for (let i = 0; i < limit; i++) {
+    const cells = (rows[i] ?? []).map((c) => c.trim());
+    if (required.every((name) => cells.includes(name))) {
+      return i;
+    }
+  }
+  return -1;
+}
+// 明細セクションの後にさらに別表（内訳表・契約情報等）が続く CSV があるため、
+// 行が取引データか否かは「日付列が日付らしいか」で判定する。
+// YYYY/M/D・YYYY-M-D・YYYY.M.D（前後空白可）を日付とみなす。
+export function isDateLike(s: string): boolean {
+  return /^\s*\d{4}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{1,2}/.test(s);
+}
