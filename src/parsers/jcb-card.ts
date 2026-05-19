@@ -1,19 +1,23 @@
 import { parseCsv } from '../lib/csv';
 import {
   buildRawRow,
+  findHeaderRow,
   normalizeDate,
   optionalColumn,
   requireColumns,
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// JCB MyJCB の CSV 形式（推定）。
+// JCB 発行カード（MyJCB Web 明細。リクルートカード等の提携カードも同形式）の
+// 利用明細 CSV（実データ確認済）。
 // エンコーディング：Shift_JIS
-// ヘッダー：ご利用日, ご利用先, ご利用金額, お支払金額, 摘要
-// TODO: 実際の CSV で確認・修正
+// 前言：今回のお支払日等 4 行 ＋「【ご利用明細】」行の後に表頭が来る。
+// 表頭：ご利用者, カテゴリ, ご利用日, ご利用先など, ご利用金額(￥),
+//       支払区分, 今回回数, 訂正サイン, お支払い金額(￥), 国内／海外, 摘要, 備考
+// 取込額は「ご利用金額(￥)」（利用総額）。クレジットのため全行 credit 側。
 
 const DISPLAY = 'JCBカード';
-const REQUIRED = ['ご利用日', 'ご利用先', 'ご利用金額'] as const;
+const REQUIRED = ['ご利用日', 'ご利用先など', 'ご利用金額(￥)'] as const;
 
 const jcbCardParser: CsvParser = {
   name: 'jcb-card',
@@ -22,22 +26,24 @@ const jcbCardParser: CsvParser = {
   encoding: 'shift_jis',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
-    if (rows.length < 2) {
+    const headerIdx = findHeaderRow(rows, REQUIRED);
+    if (headerIdx < 0) {
+      requireColumns(rows[0] ?? [], REQUIRED, DISPLAY);
       return [];
     }
-    const header = rows[0]!;
+    const header = rows[headerIdx]!;
     const idx = requireColumns(header, REQUIRED, DISPLAY);
     const idxNote = optionalColumn(header, '摘要');
 
     const result: ParsedTransaction[] = [];
-    for (let i = 1; i < rows.length; i++) {
+    for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i]!;
       const dateRaw = (row[idx['ご利用日']!] ?? '').trim();
       if (!dateRaw) {
         continue;
       }
-      const description = (row[idx['ご利用先']!] ?? '').trim();
-      const amountRaw = (row[idx['ご利用金額']!] ?? '').trim();
+      const description = (row[idx['ご利用先など']!] ?? '').trim();
+      const amountRaw = (row[idx['ご利用金額(￥)']!] ?? '').trim();
       if (!amountRaw) {
         continue;
       }
