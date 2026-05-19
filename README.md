@@ -7,7 +7,7 @@
 ## 主な機能
 
 - **複式簿記**：仕訳・訂正仕訳（修正仕訳）・電子帳簿保存法準拠の監査履歴
-- **CSV 取り込み**：MUFG / SMBC / SBI / 楽天 / SMBCカード / JCB / セゾン / PayPay（7/8 は実 CSV 未検証）
+- **CSV 取り込み**：銀行＝三菱UFJ／三井住友／住信SBIネット（ハイブリッド預金）／SBI新生／PayPay（残高）、カード＝楽天／JCB（リクルートカード等含む）／セゾン／三井住友／PayPay／ビュー（JRE CARD）／ライフ。三菱UFJ・三井住友・楽天・JCB・セゾン・ビュー・ライフは実 CSV 検証済、その他は暫定対応
 - **OCR**：領収書 → 仕訳候補。エンジンは Gemini Vision（既定）または OpenAI 互換 / Ollama 等のローカル AI（vision モデル必須）から選択
 - **LLM 分類**：CSV 行 → 勘定科目（ルール優先・LLM フォールバック）。エンジンは Gemini またはローカル AI を選択可
 - **OCR/LLM のプライバシー**：外部送信前に確認ダイアログ。Ollama 等を localhost 指定すれば端末外送信なし（ローカル実行版限定・`OLLAMA_ORIGINS` 設定要）
