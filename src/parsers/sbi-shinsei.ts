@@ -7,23 +7,22 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// SBI新生銀行 パワーダイレクトの入出金明細 CSV ダウンロード形式（暫定）。
+// SBI新生銀行 パワーダイレクトの入出金明細 CSV ダウンロード形式（実データ確認済）。
 // 旧「新生銀行」が 2023-01 に SBI 集団へ加入し改名した個人向け銀行。
 // 住信SBIネット銀行（sbi-hybrid）とは別行なので注意。
-// エンコーディング：Shift_JIS（多くの邦銀 CSV の既定。UTF-8 で配信される個体も許容）
-// ヘッダー（暫定）：取引日, 摘要, お引出し, お預入れ, 残高, メモ
+// エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）
+// ヘッダー：取引日, 摘要, 出金金額, 入金金額, 残高, メモ
 // 数値：千分位カンマあり、片側のみ取引（出金 or 入金）
 // 日付：YYYY/MM/DD
-// TODO: 実 CSV で header 名・順序・encoding を検証して必要なら修正する
 
 const DISPLAY = 'SBI新生銀行';
-const REQUIRED = ['取引日', '摘要', 'お引出し', 'お預入れ'] as const;
+const REQUIRED = ['取引日', '摘要', '出金金額', '入金金額'] as const;
 
 const sbiShinseiParser: CsvParser = {
   name: 'sbi-shinsei',
   displayName: DISPLAY,
   accountCode: '1130',
-  encoding: 'shift_jis',
+  encoding: 'utf-8',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
     if (rows.length < 2) {
@@ -42,8 +41,8 @@ const sbiShinseiParser: CsvParser = {
         continue;
       }
       const description = (row[idx['摘要']!] ?? '').trim();
-      const outRaw = (row[idx['お引出し']!] ?? '').trim();
-      const inRaw = (row[idx['お預入れ']!] ?? '').trim();
+      const outRaw = (row[idx['出金金額']!] ?? '').trim();
+      const inRaw = (row[idx['入金金額']!] ?? '').trim();
 
       let amount: string;
       let side: 'debit' | 'credit';

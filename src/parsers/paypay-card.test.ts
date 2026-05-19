@@ -7,68 +7,54 @@ describe('paypayCardParser', () => {
     expect(paypayCardParser.name).toBe('paypay-card');
     expect(paypayCardParser.displayName).toBe('PayPayカード');
     expect(paypayCardParser.accountCode).toBe('2120');
-    expect(paypayCardParser.encoding).toBe('shift_jis');
+    expect(paypayCardParser.encoding).toBe('utf-8');
   });
 
   test('sample fixture parses to expected transactions', () => {
     const result = paypayCardParser.parse(sampleCsv);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(3);
 
     expect(result[0]).toMatchObject({
-      date: '2026-05-02',
-      description: 'アマゾン.コ.ジエイピー',
-      amount: '3280',
+      date: '2026-01-31',
+      description: 'ネットフリックス',
+      amount: '2290',
       side: 'credit',
     });
     expect(result[0]?.memo).toBeUndefined();
 
-    expect(result[2]).toMatchObject({
-      date: '2026-05-08',
+    expect(result[1]).toMatchObject({
+      date: '2026-02-03',
       description: 'ヨドバシカメラ',
-      amount: '48400',
+      amount: '48000',
       side: 'credit',
-      memo: '分割3回 / 業務用機材',
-    });
-
-    expect(result[3]).toMatchObject({
-      date: '2026-05-12',
-      description: 'ＡＤＯＢＥ',
-      amount: '6480',
-      side: 'credit',
-      memo: 'Creative Cloud',
+      memo: '分割3回',
     });
   });
 
-  test('一括 alone is not surfaced as memo', () => {
+  test('1回 / 本人* alone are not surfaced as memo', () => {
     const result = paypayCardParser.parse(sampleCsv);
-    expect(result[1]?.memo).toBeUndefined();
-  });
-
-  test('handles BOM-prefixed input', () => {
-    const withBom = '﻿' + sampleCsv;
-    const result = paypayCardParser.parse(withBom);
-    expect(result).toHaveLength(5);
+    expect(result[2]?.memo).toBeUndefined();
   });
 
   test('handles CRLF line endings', () => {
     const withCrlf = sampleCsv.replace(/\n/g, '\r\n');
     const result = paypayCardParser.parse(withCrlf);
-    expect(result).toHaveLength(5);
+    expect(result).toHaveLength(3);
   });
 
   test('strips thousand-separator commas from amounts', () => {
     const csv =
-      '"ご利用日","ご利用店名","ご利用金額","支払区分","摘要"\n' +
-      '"2026/05/01","テスト","1,234,567","一括",""';
+      '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' +
+      '"2026/05/01","テスト","1,234,567"';
     const result = paypayCardParser.parse(csv);
     expect(result[0]?.amount).toBe('1234567');
   });
 
   test('skips rows with empty amount', () => {
     const csv =
-      '"ご利用日","ご利用店名","ご利用金額","支払区分","摘要"\n' +
-      '"2026/05/01","空","","一括",""\n' +
-      '"2026/05/02","正常","100","一括",""';
+      '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' +
+      '"2026/05/01","空",""\n' +
+      '"2026/05/02","正常","100"';
     const result = paypayCardParser.parse(csv);
     expect(result).toHaveLength(1);
     expect(result[0]?.description).toBe('正常');
@@ -82,13 +68,13 @@ describe('paypayCardParser', () => {
   });
 
   test('returns empty for header-only CSV', () => {
-    const csv = '"ご利用日","ご利用店名","ご利用金額","支払区分","摘要"';
+    const csv = '"利用日/キャンセル日","利用店名・商品名","利用金額"';
     expect(paypayCardParser.parse(csv)).toEqual([]);
   });
 
   test('rawRow contains original header-keyed values', () => {
     const result = paypayCardParser.parse(sampleCsv);
-    expect(result[0]?.rawRow['ご利用日']).toBe('2026/05/02');
-    expect(result[0]?.rawRow['ご利用店名']).toBe('アマゾン.コ.ジエイピー');
+    expect(result[0]?.rawRow['利用日/キャンセル日']).toBe('2026/1/31');
+    expect(result[0]?.rawRow['利用店名・商品名']).toBe('ネットフリックス');
   });
 });

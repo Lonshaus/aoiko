@@ -9,17 +9,29 @@ describe('smbcCardParser', () => {
     expect(smbcCardParser.encoding).toBe('shift_jis')
   })
 
-  test('parses sample fixture; all rows credit', () => {
+  test('カード会員行と請求合計行をスキップして明細を抽出', () => {
     const r = smbcCardParser.parse(sample)
     expect(r).toHaveLength(3)
-    for (const tx of r) {
-      expect(tx.side).toBe('credit')
-    }
-    expect(r[1]?.amount).toBe('12800')
+    expect(r[0]).toMatchObject({
+      date: '2026-04-01',
+      description: 'コンビニ店',
+      amount: '1110',
+      side: 'credit',
+    })
+    expect(r[0]?.memo).toBeUndefined()
+    expect(r[1]).toMatchObject({ amount: '48000', memo: '３' })
   })
 
-  test('throws on missing required column', () => {
-    const csv = '"ご利用日","利用金額"\n"2026/05/01","350"'
-    expect(() => smbcCardParser.parse(csv)).toThrow(/CSV ヘッダー形式/)
+  test('キャッシュバック等の負値は debit（未払金 減）', () => {
+    const r = smbcCardParser.parse(sample)
+    expect(r[2]).toMatchObject({
+      description: 'キャッシュバック（ポイント交換）',
+      amount: '732',
+      side: 'debit',
+    })
+  })
+
+  test('日付の無い行のみの入力は空配列', () => {
+    expect(smbcCardParser.parse(',,,,,100,\n,,,,,200,')).toEqual([])
   })
 })
