@@ -7,10 +7,9 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// 三井住友銀行 SMBCダイレクト の CSV 形式（推定）。
+// 三井住友銀行 SMBCダイレクト の CSV 形式（実データ確認済）。
 // エンコーディング：Shift_JIS
-// ヘッダー：年月日, お引出し, お預入れ, お取り扱い内容, 残高, メモ
-// TODO: 実際の CSV で確認・修正
+// ヘッダー：年月日, お引出し, お預入れ, お取り扱い内容, 残高, メモ, ラベル
 
 const DISPLAY = '三井住友銀行';
 const REQUIRED = ['年月日', 'お引出し', 'お預入れ', 'お取り扱い内容'] as const;

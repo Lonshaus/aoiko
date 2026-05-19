@@ -9,10 +9,29 @@ describe('saisonCardParser', () => {
     expect(saisonCardParser.encoding).toBe('shift_jis')
   })
 
-  test('parses sample fixture', () => {
+  test('skips card-info preamble and parses明細', () => {
     const r = saisonCardParser.parse(sample)
     expect(r).toHaveLength(3)
-    expect(r[1]?.description).toBe('紀伊國屋書店')
+    for (const tx of r) {
+      expect(tx.side).toBe('credit')
+    }
+    expect(r[0]).toMatchObject({
+      date: '2026-05-01',
+      description: 'コンビニ店',
+      amount: '450',
+    })
     expect(r[1]?.amount).toBe('2200')
+  })
+
+  test('omits memo for default 本人 / 1回, keeps非デフォルト', () => {
+    const r = saisonCardParser.parse(sample)
+    expect(r[0]?.memo).toBeUndefined()
+    expect(r[2]?.memo).toBe('家族 / 3回 / 分割手数料あり')
+  })
+
+  test('throws when no header row is found', () => {
+    expect(() => saisonCardParser.parse('foo,bar\n1,2')).toThrow(
+      /CSV ヘッダー形式/
+    )
   })
 })
