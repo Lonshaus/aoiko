@@ -29,7 +29,7 @@
 | Build | Vite + vite-plugin-pwa |
 | Storage | IndexedDB（Dexie）+ File System Access API / OPFS |
 | Money | Decimal.js（14+2 ゼロパディング辞書順インデックス） |
-| LLM | Google Gemini API（BYOK） |
+| OCR / LLM | 設定で選択：Google Gemini API（BYOK）／OpenAI 互換・Ollama 等のローカル vision LLM／Tesseract（純ローカル WASM OCR） |
 | Test | Vitest + fake-indexeddb |
 | Lang | TypeScript strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` |
 
@@ -86,7 +86,7 @@ pnpm run build
 pnpm run preview
 ```
 
-ブラウザで <http://localhost:4173> を開く。初回は免責事項に同意し、「設定」画面で事業名・年度を入力。OCR/LLM を使う場合は「設定」でエンジンを選択（Gemini API キー、または Ollama 等の OpenAI 互換エンドポイント）。
+ブラウザで <http://localhost:4173> を開く。初回は免責事項に同意し、「設定」画面で事業名・年度を入力。OCR/LLM を使う場合は「設定」でエンジンを選択（Gemini API キー／Ollama 等の OpenAI 互換エンドポイント／Tesseract〔OCR 限定・精度限定〕のいずれか）。
 
 ### PWA としてインストール（推奨）
 
