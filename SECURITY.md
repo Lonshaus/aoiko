@@ -22,15 +22,15 @@ aoiko は純フロントエンドの BYOK（Bring Your Own Key）アプリです
 
 ### BYOK モデル
 
-- Google Gemini API キーは **利用者自身が発行・自分のブラウザ IndexedDB に保管** します
-- 開発者・配布者は利用者の API キーを **取得・転送・保管しません**
-- API リクエストは **利用者のブラウザから直接 Gemini エンドポイントへ送信** されます（プロキシ無し）
+- 利用者が選択した OCR/LLM エンジン（Google Gemini API ／ OpenAI 互換 ／ Tesseract）の API キー・エンドポイント設定は **利用者自身が登録・自分のブラウザ IndexedDB に保管** します
+- 開発者・配布者は利用者の API キー・エンドポイント情報を **取得・転送・保管しません**
+- 外部 API 利用時のリクエストは **利用者のブラウザから直接、選択中のエンドポイントへ送信** されます（プロキシ無し）。Tesseract 選択時は LLM API 送信そのものが発生しません
 
 ### ストレージ
 
 - 帳簿データ、API キー、設定はすべて **IndexedDB（端末のローカル）** に保存
 - バックアップ：File System Access API（Chromium）／ OPFS（Safari, Firefox）／ 手動 JSON ダウンロード
-- **サーバへの送信は一切ありません**（LLM/OCR API 利用時の Gemini への送信を除く）
+- **aoiko の管理サーバへの送信は一切ありません**（aoiko には管理サーバが存在しません）。LLM/OCR API 利用時は利用者が設定した外部エンドポイント（Gemini / OpenAI 互換等）にのみ送信されます
 
 ## 既知のリスク
 
@@ -47,10 +47,12 @@ aoiko は純フロントエンドの BYOK（Bring Your Own Key）アプリです
 
 ### 3. LLM API 送信内容のリスク
 
-- CSV 行・領収書画像が Google Gemini に送信されます
-- **Google のデータ取り扱い方針** に従って処理されます（学習利用の有無は契約形態による）
-- 機密度の高いデータの送信前に確認してください
-- LLM 機能は **任意起動**（UI ボタン）であり、自動送信はしません
+- CSV 行・領収書画像は、利用者が選択中のエンジンに従って以下へ送信されます：
+  - **Gemini** → `generativelanguage.googleapis.com`（Google のデータ取り扱い方針に従い、学習利用の有無は契約形態による）
+  - **OpenAI 互換**（Ollama 等） → 利用者が指定した baseURL。localhost 指定時は端末外送信なし
+  - **Tesseract** → 送信なし（WASM で端末内処理。traineddata 初回 DL のみ）
+- 機密度の高いデータの送信前に確認してください（外部エンジン使用時は送信直前に確認ダイアログを表示）
+- LLM/OCR 機能は **任意起動**（UI ボタン）であり、自動送信はしません
 
 ### 4. 拡張機能（将来）
 
