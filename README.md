@@ -8,9 +8,9 @@
 
 - **複式簿記**：仕訳・訂正仕訳（修正仕訳）・電子帳簿保存法準拠の監査履歴
 - **CSV 取り込み**：銀行＝三菱UFJ／三井住友／住信SBIネット（ハイブリッド預金）／SBI新生／PayPay（残高）、カード＝楽天／JCB（リクルートカード等含む）／セゾン／三井住友／PayPay／ビュー（JRE CARD）／ライフ。三菱UFJ・三井住友・楽天・JCB・セゾン・ビュー・ライフは実 CSV 検証済、その他は暫定対応
-- **OCR**：領収書 → 仕訳候補。エンジンは Gemini Vision（既定）または OpenAI 互換 / Ollama 等のローカル AI（vision モデル必須）から選択
+- **OCR**：領収書 → 仕訳候補。エンジンは Gemini Vision（既定）／OpenAI 互換 / Ollama 等のローカル vision LLM／**Tesseract（純ローカル WASM OCR・精度限定・人手確認前提）** から選択
 - **LLM 分類**：CSV 行 → 勘定科目（ルール優先・LLM フォールバック）。エンジンは Gemini またはローカル AI を選択可
-- **OCR/LLM のプライバシー**：外部送信前に確認ダイアログ。Ollama 等を localhost 指定すれば端末外送信なし（ローカル実行版限定・`OLLAMA_ORIGINS` 設定要）
+- **OCR/LLM のプライバシー**：外部送信前に確認ダイアログ。Ollama 等を localhost 指定または Tesseract 選択時は画像が端末外に出ない（Ollama はローカル実行版限定・`OLLAMA_ORIGINS` 設定要、Tesseract は traineddata 初回 DL のみ・自己ホスト可で完全オフライン）
 - **家事按分**：自宅兼事務所の経費を事業使用分・事業主貸へ自動分割
 - **減価償却**：定額法・200% 定率法（耐用年数 2〜20 年）、月按分・1 円残し
 - **少額減価償却資産特例**：措法 28 の 2（30→40 万、2026-04-01〜）、年合計 300 万円上限管理
@@ -29,7 +29,7 @@
 | Build | Vite + vite-plugin-pwa |
 | Storage | IndexedDB（Dexie）+ File System Access API / OPFS |
 | Money | Decimal.js（14+2 ゼロパディング辞書順インデックス） |
-| LLM | Google Gemini API（BYOK） |
+| OCR / LLM | 設定で選択：Google Gemini API（BYOK）／OpenAI 互換・Ollama 等のローカル vision LLM／Tesseract（純ローカル WASM OCR） |
 | Test | Vitest + fake-indexeddb |
 | Lang | TypeScript strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` |
 
@@ -86,7 +86,7 @@ pnpm run build
 pnpm run preview
 ```
 
-ブラウザで <http://localhost:4173> を開く。初回は免責事項に同意し、「設定」画面で事業名・年度を入力。OCR/LLM を使う場合は「設定」でエンジンを選択（Gemini API キー、または Ollama 等の OpenAI 互換エンドポイント）。
+ブラウザで <http://localhost:4173> を開く。初回は免責事項に同意し、「設定」画面で事業名・年度を入力。OCR/LLM を使う場合は「設定」でエンジンを選択（Gemini API キー／Ollama 等の OpenAI 互換エンドポイント／Tesseract〔OCR 限定・精度限定〕のいずれか）。
 
 ### PWA としてインストール（推奨）
 
