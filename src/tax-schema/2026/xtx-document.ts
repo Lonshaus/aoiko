@@ -21,10 +21,9 @@ export type XtxValues = Record<string, string>;
 
 export interface XtxDocumentOptions {
   /**
-   * 手続ID 要素のタグ名（手続コード）。
-   * TODO(#50): 所得税確定申告（青色・決算書同梱）の正確な手続コードを
-   * e-tax07「手続一覧」で確定する。実申告は Sub E の e-Tax 実機検証まで不可のため
-   * 現状はプレースホルダで文書モデルの検証を優先する。
+   * 手続ID 要素のタグ名（手続コード）。既定は所得税確定申告（青色・決算書同梱）の
+   * `RKO0010`（e-tax07「手続一覧」由来、#22 / #33 で確定）。
+   * 他の手続を流用する場合のみ上書きする。
    */
   procedureTag?: string;
   /** 作成ソフト名（gen:FormAttribute softNM、必須）。既定 'aoiko' */
