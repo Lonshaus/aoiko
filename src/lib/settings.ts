@@ -11,8 +11,10 @@ export type SettingsMap = {
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
-  // OCR/LLM エンジン選択（既定 gemini）。openai-compatible は Ollama 等ローカル AI
-  ocrEngine: 'gemini' | 'openai-compatible';
+  // OCR/LLM エンジン選択（既定 gemini）。
+  // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
+  // - tesseract：WASM の純ローカル OCR（LLM 不要。精度は限定的、人手確認前提）
+  ocrEngine: 'gemini' | 'openai-compatible' | 'tesseract';
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
   openaiBaseUrl: string;
   // OCR 用モデル（vision 必須）／LLM 分類用モデル（テキストのみで可）
@@ -20,6 +22,10 @@ export type SettingsMap = {
   openaiClassifyModel: string;
   // OpenAI 互換 API キー（ローカル Ollama 等では通常不要）
   openaiApiKey: string;
+  // Tesseract traineddata の取得元。空＝tesseract.js 既定の CDN を使用。
+  // 完全オフラインで運用したい場合は jpn.traineddata / eng.traineddata を
+  // 自己ホストした URL（末尾スラッシュ無し）を指定する。
+  tesseractLangPath: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
   disclaimerAcceptedAt: number | null;

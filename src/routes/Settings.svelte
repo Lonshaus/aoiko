@@ -100,8 +100,9 @@
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
   let geminiTestStatus = $state('');
-  let ocrEngine = $state<'gemini' | 'openai-compatible'>('gemini');
+  let ocrEngine = $state<'gemini' | 'openai-compatible' | 'tesseract'>('gemini');
   let openaiBaseUrl = $state('');
+  let tesseractLangPath = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
   let openaiApiKey = $state('');
@@ -169,6 +170,7 @@
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
+    tesseractLangPath = (await getSetting('tesseractLangPath')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
     openaiApiKey = (await getSetting('openaiApiKey')) ?? '';
@@ -453,6 +455,7 @@
   async function saveOcrEngine() {
     await setSetting('ocrEngine', ocrEngine);
     await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
+    await setSetting('tesseractLangPath', tesseractLangPath.trim());
     await setSetting('openaiOcrModel', openaiOcrModel.trim());
     await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
     await setSetting('openaiApiKey', openaiApiKey.trim());
@@ -1251,8 +1254,24 @@
         >
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
+          <option value="tesseract">{m.settings_engine_tesseract()}</option>
         </select>
       </label>
+
+      {#if ocrEngine === 'tesseract'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_tesseract_intro_html()}
+        </p>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_tesseract_langpath_label()}</span>
+          <input
+            type="text"
+            bind:value={tesseractLangPath}
+            placeholder={m.settings_tesseract_langpath_placeholder()}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+          />
+        </label>
+      {/if}
 
       {#if ocrEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">

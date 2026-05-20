@@ -2,7 +2,6 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import {
-    extractReceipt,
     fileToBase64,
     type ReceiptExtracted,
   } from '../domain/ocr';
@@ -10,11 +9,14 @@
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import { createLlmAdapter } from '../lib/llm-adapter';
+  import {
+    createReceiptExtractor,
+    type ReceiptExtractor,
+  } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
-  import type { LlmAdapter, LlmImageInput } from '../domain/llm';
+  import type { LlmImageInput } from '../domain/llm';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
@@ -27,8 +29,9 @@
   let error = $state('');
   let success = $state('');
   let confirmOpen = $state(false);
+  let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
   let pending = $state<{
-    adapter: LlmAdapter;
+    extractor: ReceiptExtractor;
     image: LlmImageInput;
     host: string;
   } | null>(null);
@@ -59,28 +62,29 @@
     error = '';
     try {
       const image = await fileToBase64(file);
-      const adapter = await createLlmAdapter('ocr');
+      const extractor = await createReceiptExtractor();
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
-          { external: adapter.external, host: adapter.destinationHost },
+          { external: extractor.external, host: extractor.destinationHost },
           skip
         )
       ) {
-        pending = { adapter, image, host: adapter.destinationHost };
+        pending = { extractor, image, host: extractor.destinationHost };
         confirmOpen = true;
         return;
       }
-      await runExtract(adapter, image);
+      await runExtract(extractor, image);
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
       processing = false;
     }
   }
 
-  async function runExtract(adapter: LlmAdapter, image: LlmImageInput) {
+  async function runExtract(extractor: ReceiptExtractor, image: LlmImageInput) {
     try {
-      extracted = await extractReceipt(adapter, image);
+      extracted = await extractor.extract(image);
+      lastEngine = extractor.engine;
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -99,7 +103,7 @@
     if (dontAskAgain) {
       await setSetting('skipExternalSendConfirm', true);
     }
-    await runExtract(p.adapter, p.image);
+    await runExtract(p.extractor, p.image);
   }
 
   function onCancelSend() {
@@ -115,6 +119,11 @@
     const data = extracted;  // 以降のクロージャ内でも narrowed 保証
     error = '';
     success = '';
+    // ローカル OCR は totalAmount が空のまま戻ることがあるため、ここで必須検証
+    if (!data.totalAmount || !/^\d+$/.test(data.totalAmount)) {
+      error = m.receipt_amount_required();
+      return;
+    }
     try {
       const entryId = newId();
       const now = Date.now();
@@ -177,6 +186,7 @@
 
   function reset() {
     extracted = null;
+    lastEngine = null;
     file = null;
     if (preview) {
       URL.revokeObjectURL(preview);
@@ -239,6 +249,11 @@
   {#if extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
+      {#if lastEngine === 'tesseract'}
+        <div class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs">
+          {m.receipt_local_engine_notice()}
+        </div>
+      {/if}
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label class="block">
