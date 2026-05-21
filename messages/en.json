@@ -124,6 +124,8 @@
   "journal_list_filter_description_placeholder": "Press Enter to apply",
   "journal_list_filter_amount_min": "Amount (min)",
   "journal_list_filter_amount_max": "Amount (max)",
+  "journal_list_filter_vendor": "Vendor",
+  "journal_list_filter_vendor_all": "All",
   "journal_list_filter_reset": "Reset",
   "journal_list_loading": "Loading…",
   "journal_list_pagination": "{total} entries — page {current} / {pages}",
