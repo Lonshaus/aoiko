@@ -124,6 +124,8 @@
   "journal_list_filter_description_placeholder": "按 Enter 套用",
   "journal_list_filter_amount_min": "金額（下限）",
   "journal_list_filter_amount_max": "金額（上限）",
+  "journal_list_filter_vendor": "交易對象",
+  "journal_list_filter_vendor_all": "全部",
   "journal_list_filter_reset": "重設",
   "journal_list_loading": "載入中…",
   "journal_list_pagination": "{total} 筆 — 第 {current} / {pages} 頁",
