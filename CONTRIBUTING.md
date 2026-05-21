@@ -100,9 +100,9 @@ export default myBankParser;
 
 | パターン | 例 | 設定キー |
 |---------|------|--------|
-| 銀行型（出金/入金で側決定） | 三菱UFJ、SBI | `withdrawal` + `deposit` |
-| カード型（全行固定側） | 楽天カード、JCB | `amount` + `side` |
-| 符号付き型（金額符号で判定） | PayPay | `signedAmount` |
+| 銀行型（出金/入金で側決定） | 三菱UFJ、三井住友、SBI新生 | `withdrawal` + `deposit` |
+| カード型（全行固定側） | 楽天カード、JCBカード、au PAY カード | `amount` + `side` |
+| 符号付き型（金額符号で判定） | 単一の金額列に符号付き数値（+/-）で入出金が混在する形式 | `signedAmount` |
 
 複雑な分岐（複数列マージ、特殊な日付フォーマット、ユーザー欄含む）は TypeScript で書いてください。
 
