@@ -9,6 +9,7 @@
   } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
+  import type { Vendor } from '../db/types';
 
   const PAGE_SIZE = 50;
   const now = new Date();
@@ -22,6 +23,9 @@
   let amountMaxInput = $state('');
   let amountMinQuery = $state('');
   let amountMaxQuery = $state('');
+  // 取引先フィルタ：「優良な電子帳簿」要件の主要記録項目検索対応。空文字＝全件。
+  let vendorIdQuery = $state('');
+  let vendors = $state<Vendor[]>([]);
   let pageOffset = $state(0);
 
   let rows = $state<LedgerRow[]>([]);
@@ -46,6 +50,7 @@
     desc: string,
     amountMin: string,
     amountMax: string,
+    vendorId: string,
     offset: number
   ): Promise<{ rows: LedgerRow[]; total: number }> {
     let entries = month
@@ -92,6 +97,17 @@
       const hits = new Set(matchingLines.map((l) => l.entryId));
       entries = entries.filter((e) => hits.has(e.id));
     }
+    if (vendorId) {
+      // 取引先：いずれかの明細行に vendorId 一致する仕訳だけ残す
+      const entryIds = entries.map((e) => e.id);
+      const matchingLines = await db.journalLines
+        .where('entryId')
+        .anyOf(entryIds)
+        .filter((l) => l.vendorId === vendorId)
+        .toArray();
+      const hits = new Set(matchingLines.map((l) => l.entryId));
+      entries = entries.filter((e) => hits.has(e.id));
+    }
     entries.sort((a, b) => b.date.localeCompare(a.date));
     const total = entries.length;
     const page = entries.slice(offset, offset + PAGE_SIZE);
@@ -100,13 +116,23 @@
   }
 
   $effect(() => {
+    const sub = liveQuery(() =>
+      db.vendors.orderBy('name').toArray()
+    ).subscribe((v) => {
+      vendors = v;
+    });
+    return () => sub.unsubscribe();
+  });
+
+  $effect(() => {
     const yr = year;
     const mo = month;
     const q = descQuery;
     const aMin = amountMinQuery;
     const aMax = amountMaxQuery;
+    const vid = vendorIdQuery;
     const off = pageOffset;
-    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, off)).subscribe(
+    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, vid, off)).subscribe(
       (result) => {
         rows = result.rows;
         totalCount = result.total;
@@ -129,6 +155,11 @@
   function applyAmountQuery() {
     amountMinQuery = amountMinInput.trim();
     amountMaxQuery = amountMaxInput.trim();
+    pageOffset = 0;
+    markLoading();
+  }
+
+  function onVendorChange() {
     pageOffset = 0;
     markLoading();
   }
@@ -162,6 +193,7 @@
     amountMaxInput = '';
     amountMinQuery = '';
     amountMaxQuery = '';
+    vendorIdQuery = '';
     pageOffset = 0;
     markLoading();
   }
@@ -284,6 +316,19 @@
           placeholder="—"
           class="mt-1 w-28 px-3 py-2 bg-background border rounded text-foreground tabular-nums text-right"
         />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.journal_list_filter_vendor()}</span>
+        <select
+          bind:value={vendorIdQuery}
+          onchange={onVendorChange}
+          class="mt-1 px-3 py-2 bg-background border rounded text-foreground max-w-56"
+        >
+          <option value="">{m.journal_list_filter_vendor_all()}</option>
+          {#each vendors as v (v.id)}
+            <option value={v.id}>{v.name}</option>
+          {/each}
+        </select>
       </label>
       <button
         type="button"
