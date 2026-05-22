@@ -8,6 +8,7 @@
 
 - **複式簿記**：仕訳・訂正仕訳（修正仕訳）・電子帳簿保存法準拠の監査履歴
 - **CSV 取り込み**：銀行＝三菱UFJ／三井住友／SBI新生／PayPay（クレジット決済運用、残高は未対応）、カード＝楽天／JCB（リクルートカード等含む）／セゾン／三井住友／三菱UFJ／au PAY／PayPay／ビュー（JRE CARD）／ライフ。すべて実 CSV で検証済
+- **取込履歴**：CSV インポートのバッチ単位履歴、ファイルハッシュによる重複検知、バッチごとの一括 reverse 対応
 - **OCR**：領収書 → 仕訳候補。エンジンは Gemini Vision（既定）／OpenAI 互換 / Ollama 等のローカル vision LLM／**Tesseract（純ローカル WASM OCR・精度限定・人手確認前提）** から選択
 - **LLM 分類**：CSV 行 → 勘定科目（ルール優先・LLM フォールバック）。エンジンは Gemini またはローカル AI を選択可
 - **OCR/LLM のプライバシー**：外部送信前に確認ダイアログ。Ollama 等を localhost 指定または Tesseract 選択時は画像が端末外に出ない（Ollama はローカル実行版限定・`OLLAMA_ORIGINS` 設定要、Tesseract は traineddata 初回 DL のみ・自己ホスト可で完全オフライン）
@@ -17,6 +18,7 @@
 - **前期繰越**：前年末残高 → 期首振替仕訳の自動生成（純利益・事業主貸借を元入金へ吸収）
 - **消費税概算**：本則・簡易（第 1〜6 種）・2 割特例・3 割特例の 4 方式比較、経過措置 80/70/50/30% 自動適用
 - **報表**：月別売上・損益計算書・貸借対照表・月別 PL（科目 × 月）・取引先別 / 補助科目別集計・消費税 4 方式比較
+- **複合検索（優良な電子帳簿要件）**：仕訳一覧で 年/月/摘要/金額範囲/取引先 の組み合わせ検索（電子帳簿保存法の「2 以上の任意の組み合わせ」要件対応）
 - **修正申告ガイド**：申告済スナップショットと現在値の差分表示 + 提出手順
 - **バックアップ**：File System Access API（Chromium）→ OPFS（Safari/Firefox）の自動フォールバック
 - **PWA**：オフライン動作
@@ -39,29 +41,42 @@
 
 ```
 src/
-├── domain/             # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
-│   ├── journal.ts      # 仕訳の作成・確定
-│   ├── reverse.ts      # 訂正仕訳
-│   ├── reports.ts      # PL / BS / 月別 / 取引先別
-│   ├── depreciation.ts # 定額法・定率法 減価償却
-│   ├── carryover.ts    # 前期繰越（期首振替）
-│   ├── home-office.ts  # 家事按分
-│   ├── snapshots.ts    # 年度ロック（申告済み）
-│   ├── amended.ts      # 修正申告ガイド
-│   ├── llm-classify.ts # LLM による CSV 行分類
-│   ├── ocr.ts          # 領収書 OCR
-│   ├── rules.ts        # ルール エンジン
-│   ├── import.ts       # CSV インポートのオーケストレーション
-│   └── restore.ts      # バックアップ復元
-├── parsers/            # 銀行・カード CSV パーサ（プラグイン）
-├── routes/             # Svelte ルート（Home / Journal / Reports / Import / Receipt / Settings）
-├── components/         # 再利用 Svelte コンポーネント
-├── stores/             # グローバル state（class + singleton）
-├── lib/                # Decimal / id / settings ヘルパ
-├── db/                 # Dexie スキーマ
-├── backup/             # バックアップ adapter（FSA / OPFS）
-└── tax-schema/         # 年度別税制スキーマ
-    └── 2026/           # 勘定科目テーブル・.xtx 出力（公式 XSD 準拠・要実機検証）
+├── domain/                    # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
+│   ├── journal.ts             # 仕訳の作成・確定
+│   ├── reverse.ts             # 訂正仕訳
+│   ├── reports.ts             # PL / BS / 月別 / 取引先別
+│   ├── depreciation.ts        # 定額法・定率法 減価償却
+│   ├── carryover.ts           # 前期繰越（期首振替）
+│   ├── home-office.ts         # 家事按分
+│   ├── consumption-tax.ts     # 消費税 4 方式（本則/簡易/2割/3割）+ 経過措置
+│   ├── snapshots.ts           # 年度ロック（申告済み）
+│   ├── amended.ts             # 修正申告ガイド
+│   ├── llm-classify.ts        # LLM による CSV 行分類
+│   ├── ocr.ts                 # 領収書 OCR（vision LLM 路）
+│   ├── receipt-text-extract.ts # OCR 生テキスト → 構造化（Tesseract 路の確定性抽出）
+│   ├── rules.ts               # ルール エンジン
+│   ├── send-confirm.ts        # 外部送信前確認ロジック
+│   ├── import.ts              # CSV インポートのオーケストレーション
+│   ├── import-batch.ts        # CSV 取込履歴・バッチ単位 reverse
+│   └── restore.ts             # バックアップ復元
+├── parsers/                   # 銀行・カード CSV パーサ（プラグイン）
+├── routes/                    # Svelte ルート（Home / JournalList / JournalEntryForm /
+│                              #   Import / ImportHistory / Receipt / Reports / Settings）
+├── components/                # 再利用 Svelte コンポーネント（送信確認ダイアログ等）
+├── stores/                    # グローバル state（class + singleton）
+├── lib/                       # 共有ヘルパ
+│   ├── decimal.ts             # Decimal.js ラッパ + ソート可能インデックス変換
+│   ├── csv.ts                 # 標準 CSV パーサ（BOM 除去・引用付き対応）
+│   ├── llm-adapter.ts         # vision LLM アダプタ factory（Gemini / OpenAI 互換）
+│   ├── receipt-extractor.ts   # OCR 引擎抽象（vision LLM / Tesseract 共通）
+│   ├── ocr/tesseract-engine.ts # Tesseract WASM 包装（動的 import）
+│   ├── settings.ts            # 設定 KV ストア
+│   ├── id.ts                  # ID 生成
+│   └── utils.ts               # shadcn-svelte 由来ユーティリティ
+├── db/                        # Dexie スキーマ
+├── backup/                    # バックアップ adapter（FSA / OPFS）
+└── tax-schema/                # 年度別税制スキーマ
+    └── 2026/                  # 勘定科目テーブル・.xtx 出力（公式 XSD 準拠・要実機検証）
 ```
 
 ## 利用者向け：ローカル起動
