@@ -1,8 +1,8 @@
 # aoiko（あおいこ / 青い子）
 
-日本の個人事業主向け、純フロントエンド帳簿ツール。青色申告 **75 万円**控除（令和 9 年分以降、要 e-Tax 期限内提出 + 優良な電子帳簿保存 / 改正前の 65 万円控除にも引き続き対応）を目標に、CSV/OCR/拡張機能からの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力までを Web App 単体で完結させる。バックエンド無し、BYOK（API キーは利用者が持参）。
+日本の個人事業主向け、純フロントエンド帳簿ツール。青色申告 **75 万円**控除（令和 9 年分以降、要 e-Tax 期限内提出 + 優良な電子帳簿保存 / 改正前の 65 万円控除にも引き続き対応）を目標に、CSV/OCR/EC 注文ページからの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力までを Web App 単体で完結させる。バックエンド無し、BYOK（API キーは利用者が持参）。
 
-> 🚧 **Phase 2.5 完了。Phase 3（Chrome 拡張）・Phase 4（対外発布）作業中。実申告で使用しないこと。**
+> 🚧 **Phase 2.5 完了。Phase 3（注文取込）・Phase 4（対外発布）作業中。実申告で使用しないこと。**
 
 ## 主な機能
 
@@ -10,6 +10,7 @@
 - **CSV 取り込み**：銀行＝三菱UFJ／三井住友／SBI新生／PayPay（クレジット決済運用、残高は未対応）、カード＝楽天／JCB（リクルートカード等含む）／セゾン／三井住友／三菱UFJ／au PAY／PayPay／ビュー（JRE CARD）／ライフ。すべて実 CSV で検証済
 - **取込履歴**：CSV インポートのバッチ単位履歴、ファイルハッシュによる重複検知、バッチごとの一括 reverse 対応
 - **OCR**：領収書 → 仕訳候補。エンジンは Gemini Vision（既定）／OpenAI 互換 / Ollama 等のローカル vision LLM／**Tesseract（純ローカル WASM OCR・精度限定・人手確認前提）** から選択
+- **注文取込（貼り付け → LLM 抽出）**：Amazon・楽天 等の注文ページ全文を貼り付け、LLM で品目内訳を抽出 → 確認 → 仕訳化。DOM 爬取に依存せずサイト改修に強い
 - **LLM 分類**：CSV 行 → 勘定科目（ルール優先・LLM フォールバック）。エンジンは Gemini またはローカル AI を選択可
 - **OCR/LLM のプライバシー**：外部送信前に確認ダイアログ。Ollama 等を localhost 指定または Tesseract 選択時は画像が端末外に出ない（Ollama はローカル実行版限定・`OLLAMA_ORIGINS` 設定要、Tesseract は traineddata 初回 DL のみ・自己ホスト可で完全オフライン）
 - **家事按分**：自宅兼事務所の経費を事業使用分・事業主貸へ自動分割
@@ -54,6 +55,7 @@ src/
 │   ├── llm-classify.ts        # LLM による CSV 行分類
 │   ├── ocr.ts                 # 領収書 OCR（vision LLM 路）
 │   ├── receipt-text-extract.ts # OCR 生テキスト → 構造化（Tesseract 路の確定性抽出）
+│   ├── order-extract.ts       # 注文ページ貼り付けテキスト → 構造化（LLM 抽出）
 │   ├── rules.ts               # ルール エンジン
 │   ├── send-confirm.ts        # 外部送信前確認ロジック
 │   ├── import.ts              # CSV インポートのオーケストレーション
@@ -61,7 +63,8 @@ src/
 │   └── restore.ts             # バックアップ復元
 ├── parsers/                   # 銀行・カード CSV パーサ（プラグイン）
 ├── routes/                    # Svelte ルート（Home / JournalList / JournalEntryForm /
-│                              #   Import / ImportHistory / Receipt / Reports / Settings）
+│                              #   Import / OrderImport / ImportHistory / Receipt /
+│                              #   Reports / Settings）
 ├── components/                # 再利用 Svelte コンポーネント（送信確認ダイアログ等）
 ├── stores/                    # グローバル state（class + singleton）
 ├── lib/                       # 共有ヘルパ
@@ -69,6 +72,7 @@ src/
 │   ├── csv.ts                 # 標準 CSV パーサ（BOM 除去・引用付き対応）
 │   ├── llm-adapter.ts         # vision LLM アダプタ factory（Gemini / OpenAI 互換）
 │   ├── receipt-extractor.ts   # OCR 引擎抽象（vision LLM / Tesseract 共通）
+│   ├── order-extractor.ts     # 注文取込 引擎抽象（LLM Adapter 包装）
 │   ├── ocr/tesseract-engine.ts # Tesseract WASM 包装（動的 import）
 │   ├── settings.ts            # 設定 KV ストア
 │   ├── id.ts                  # ID 生成
@@ -146,8 +150,10 @@ Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines
 | 1（仕訳・基本 UI・スキーマ） | ✅ |
 | 2（CSV インポート・LLM・OCR・家事按分・減価償却） | ✅ |
 | 2.5（前期繰越・月別 PL・取引先別・定率法・修正申告） | ✅ |
-| 3（Chrome 拡張：Amazon / 楽天 履歴擷取） | ⬜ |
+| 3（注文取込：Amazon / 楽天 等の貼り付け → LLM 抽出） | ✅ |
 | 4（対外発布：LICENSE / README polish / DISCLAIMER / CI / E2E / 法務） | 進行中 |
+
+> **やらないこと**：当初 Phase 3 で検討した「Chrome 拡張による DOM 爬取」は採用見送り。理由は (1) Amazon / 楽天 のレイアウト改修で scraper が頻繁に壊れる長期負債、(2) 拡張機能の権限要求が利用者の心理的ハードルになる、(3) モバイル Chrome で動かない、の三点。「貼り付け → LLM 抽出」方式に置き換えることで、DOM 改修の影響を受けず・モバイル含めた全環境で動作・既存 LLM Adapter（Gemini / Ollama）をそのまま再利用、を達成。
 
 ## ライセンス
 
