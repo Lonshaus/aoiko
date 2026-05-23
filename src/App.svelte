@@ -6,6 +6,7 @@
   import Reports from './routes/Reports.svelte';
   import Import from './routes/Import.svelte';
   import ImportHistory from './routes/ImportHistory.svelte';
+  import OrderImport from './routes/OrderImport.svelte';
   import Receipt from './routes/Receipt.svelte';
   import Settings from './routes/Settings.svelte';
   import UpdatePrompt from './components/UpdatePrompt.svelte';
@@ -40,6 +41,7 @@
         <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a>
         <a href="/reports" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a>
         <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a>
+        <a href="/order-import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_order_import()}</a>
         <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
         <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import_history()}</a>
         <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_settings()}</a>
@@ -53,6 +55,8 @@
       <Reports />
     {:else if router.path === '/import'}
       <Import />
+    {:else if router.path === '/order-import'}
+      <OrderImport />
     {:else if router.path === '/import-history'}
       <ImportHistory />
     {:else if router.path === '/receipt'}
