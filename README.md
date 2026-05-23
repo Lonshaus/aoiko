@@ -1,8 +1,8 @@
 # aoiko（あおいこ / 青い子）
 
-日本の個人事業主向け、純フロントエンド帳簿ツール。青色申告 **75 万円**控除（令和 9 年分以降、要 e-Tax 期限内提出 + 優良な電子帳簿保存 / 改正前の 65 万円控除にも引き続き対応）を目標に、CSV/OCR/EC 注文ページからの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力までを Web App 単体で完結させる。バックエンド無し、BYOK（API キーは利用者が持参）。
+**Language**: **日本語** | [English](README_en.md) | [繁體中文](README_zh-TW.md)
 
-> 🚧 **Phase 2.5 完了。Phase 3（注文取込）・Phase 4（対外発布）作業中。実申告で使用しないこと。**
+日本の個人事業主向け、純フロントエンド帳簿ツール。青色申告 **75 万円**控除（令和 9 年分以降、要 e-Tax 期限内提出 + 優良な電子帳簿保存 / 改正前の 65 万円控除にも引き続き対応）を目標に、CSV/OCR/EC 注文ページからの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力までを Web App 単体で完結させる。バックエンド無し、BYOK（API キーは利用者が持参）。
 
 ## 主な機能
 
@@ -143,18 +143,6 @@ pnpm run verify     # test + check + build
 
 Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines: >=22`）/ pnpm（`packageManager` フィールドで版数固定）。
 
-## ステータス
-
-| Phase | 状態 |
-|-------|------|
-| 1（仕訳・基本 UI・スキーマ） | ✅ |
-| 2（CSV インポート・LLM・OCR・家事按分・減価償却） | ✅ |
-| 2.5（前期繰越・月別 PL・取引先別・定率法・修正申告） | ✅ |
-| 3（注文取込：Amazon / 楽天 等の貼り付け → LLM 抽出） | ✅ |
-| 4（対外発布：LICENSE / README polish / DISCLAIMER / CI / E2E / 法務） | 進行中 |
-
-> **やらないこと**：当初 Phase 3 で検討した「Chrome 拡張による DOM 爬取」は採用見送り。理由は (1) Amazon / 楽天 のレイアウト改修で scraper が頻繁に壊れる長期負債、(2) 拡張機能の権限要求が利用者の心理的ハードルになる、(3) モバイル Chrome で動かない、の三点。「貼り付け → LLM 抽出」方式に置き換えることで、DOM 改修の影響を受けず・モバイル含めた全環境で動作・既存 LLM Adapter（Gemini / Ollama）をそのまま再利用、を達成。
-
 ## ライセンス
 
 [GNU Affero General Public License v3.0](LICENSE)（AGPL-3.0）
@@ -164,7 +152,3 @@ Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines
 - [DISCLAIMER.md](DISCLAIMER.md) — 免責事項（実申告・税法準拠・LLM 利用リスク）
 - [SECURITY.md](SECURITY.md) — セキュリティポリシー、脆弱性報告手順
 - [PRIVACY.md](PRIVACY.md) — プライバシーポリシー、収集・送信データの内訳
-
-## 開発規範
-
-`CLAUDE.md` 参照。
