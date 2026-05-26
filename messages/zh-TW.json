@@ -37,7 +37,7 @@
   "update_offline_ready": "✓ 已可離線使用",
   "disclaimer_welcome_title": "歡迎使用 aoiko",
   "disclaimer_intro_html": "使用前請確認以下 <strong>免責事項</strong>。（以日文版為正本，本翻譯僅供參考。）",
-  "disclaimer_prototype_title_html": "aoiko 為 <span class=\"underline\">試作階段</span> 工具。",
+  "disclaimer_prototype_title_html": "<span class=\"underline\">使用前注意事項</span>",
   "disclaimer_prototype_subtitle": "用於實際申報所產生之結果，使用者自行負責。",
   "disclaimer_bullet_accuracy_html": "輸出之數值與 <code>.xtx</code> 檔案的 <strong>正確性不予保證</strong>。最終數字請與 <strong>稅理士・税務署</strong> 確認。",
   "disclaimer_bullet_tax_law_html": "税法與帳簿要件 <strong>每年度修訂</strong>。同捆的 <code>tax-schema/</code> 是否符合最新国税庁公告，由使用者自行確認。",
