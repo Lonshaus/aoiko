@@ -36,7 +36,7 @@
   "update_offline_ready": "✓ オフラインで利用可能になりました",
   "disclaimer_welcome_title": "aoiko へようこそ",
   "disclaimer_intro_html": "ご利用前に以下の <strong>免責事項</strong> をご確認ください。",
-  "disclaimer_prototype_title_html": "aoiko は <span class=\"underline\">試作段階</span> のツールです。",
+  "disclaimer_prototype_title_html": "<span class=\"underline\">ご利用前のご注意</span>",
   "disclaimer_prototype_subtitle": "実申告での使用は利用者の自己責任となります。",
   "disclaimer_bullet_accuracy_html": "出力する数値・<code>.xtx</code> ファイルの <strong>正確性は保証されません</strong>。最終的な数字は <strong>税理士・税務署</strong> に確認してください。",
   "disclaimer_bullet_tax_law_html": "税法・帳簿要件は <strong>年度ごとに改正</strong> されます。同梱の <code>tax-schema/</code> が最新の国税庁公告と一致しているかは利用者が確認してください。",
