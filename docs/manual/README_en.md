@@ -17,17 +17,17 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 
 ### B. Additional import paths (as needed)
 
-5. Receipt OCR — paper receipt → journal candidate (TBD)
-6. Order import — paste Amazon / 楽天 etc. → LLM extract (TBD)
+5. [Receipt OCR](04-receipt-ocr_en.md) — paper receipt → journal candidate
+6. [Order import](05-order-import_en.md) — paste Amazon / 楽天 etc. → LLM extract
 
 ### C. Advanced features (as needed)
 
-7. Consumption tax — choosing among 4 methods, transitional credit, input tax credit (TBD)
-8. Depreciation — fixed assets, straight-line / declining balance, ¥400k small-asset rule (TBD)
-9. Prior-period carryover — fiscal year transition, opening journal (TBD)
-10. `.xtx` export — e-Tax format generation and import verification (TBD)
-11. Backup and restore — File System Access API, OPFS, JSON export (TBD)
-12. Amended filing — filed snapshots, diff detection, submission steps (TBD)
+7. [Consumption tax](07-consumption-tax_en.md) — choosing among 4 methods, transitional credit, input tax credit
+8. [Depreciation](08-depreciation_en.md) — fixed assets, straight-line / declining balance, ¥400k small-asset rule
+9. [Prior-period carryover](09-carryover_en.md) — fiscal year transition, opening journal
+10. [`.xtx` export](10-xtx-export_en.md) — e-Tax format generation and import verification
+11. [Backup and restore](11-backup_en.md) — File System Access API, OPFS, JSON export
+12. [Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
 
 ## Conventions
 
