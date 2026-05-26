@@ -1,5 +1,7 @@
 # 免責事項（Disclaimer）
 
+**Language**: **日本語** | [English](DISCLAIMER_en.md) | [繁體中文](DISCLAIMER_zh-TW.md)
+
 aoiko は日本の個人事業主の青色申告作業を補助する **試作段階のツール** です。本ツールの利用にあたっては以下の点に同意したものとみなします。
 
 ## 1. 利用は自己責任
