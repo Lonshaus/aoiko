@@ -129,6 +129,10 @@ pnpm run preview
 
 裝成 PWA 的話、啟動時會跳「新版本」提示。
 
+## 使用方式
+
+操作手順請見 [docs/manual/](docs/manual/README_zh-TW.md)。分章節說明初次設定・建立傳票・CSV 匯入・報表（日文・英文版也有）。
+
 ## 開發
 
 ```bash

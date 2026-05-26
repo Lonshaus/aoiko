@@ -129,6 +129,10 @@ pnpm run preview
 
 If you've installed it as a PWA, a "new version" prompt appears on launch.
 
+## Usage
+
+See [docs/manual/](docs/manual/README_en.md) for step-by-step operating instructions. Covers initial setup, journal entries, CSV import, and reports in dedicated chapters (Japanese and Traditional Chinese versions also available).
+
 ## Development
 
 ```bash
