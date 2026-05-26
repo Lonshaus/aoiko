@@ -17,7 +17,7 @@
 
 看完點**「同意」**進入本體畫面。同意紀錄存在 IndexedDB、之後不會再跳（除非免責文有重大改版）。
 
-> 細節請看 [DISCLAIMER.md](../../DISCLAIMER.md)。
+> 細節請看 [DISCLAIMER_zh-TW.md](../../DISCLAIMER_zh-TW.md)。
 
 ## 2. 切換語言（選填）
 
@@ -119,7 +119,7 @@
 2. aoiko 的**「Gemini API 金鑰」**貼進去
 3. **「儲存」** → **「連線測試」**確認 `✓ 連線成功`
 
-> **注意**：CSV 行與收據圖片會送到 Google 伺服器。送出前會跳**確認對話框**。資料按 Google 隱私政策處理，免費額度可能被用於訓練。詳見 [PRIVACY.md](../../PRIVACY.md)（日文版，繁中翻譯待補）。
+> **注意**：CSV 行與收據圖片會送到 Google 伺服器。送出前會跳**確認對話框**。資料按 Google 隱私政策處理，免費額度可能被用於訓練。詳見 [PRIVACY_zh-TW.md](../../PRIVACY_zh-TW.md)。
 
 ### 7-B. OpenAI 相容 / Ollama 等（可本地）
 
