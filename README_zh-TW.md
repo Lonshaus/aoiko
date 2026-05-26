@@ -153,6 +153,6 @@ Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ pn
 
 ## 法務・安全相關文件
 
-- [DISCLAIMER.md](DISCLAIMER.md) — 免責事項（實際申告、稅法遵循、LLM 使用風險）
-- [SECURITY.md](SECURITY.md) — 安全政策、漏洞回報手順
-- [PRIVACY.md](PRIVACY.md) — 隱私政策、資料收集／傳送內訳
+- [DISCLAIMER_zh-TW.md](DISCLAIMER_zh-TW.md) — 免責事項（實際申告、稅法遵循、LLM 使用風險）
+- [SECURITY_zh-TW.md](SECURITY_zh-TW.md) — 安全政策、漏洞回報手順
+- [PRIVACY_zh-TW.md](PRIVACY_zh-TW.md) — 隱私政策、資料收集／傳送內訳
