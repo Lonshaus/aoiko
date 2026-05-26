@@ -16,7 +16,7 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 
 Card CSV only shows "楽天市場 ¥3,280" — fine for the payment side, but it doesn't help when you need to split by line item (book → news/books expense; consumable → office supplies; computer → fixed asset).
 
-**Order import** asks an LLM to extract line items from a pasted order page. Because it's LLM-based and not DOM-scraping, it isn't broken by Amazon / 楽天 UI redesigns.
+**Order import** asks an LLM to extract line items from a pasted order page.
 
 ## 2. Import flow
 
@@ -148,17 +148,7 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 - For sensitive addresses, prefer localhost Ollama, or remove personal-info lines from the textarea before clicking Analyze
 - See [PRIVACY_en.md](../../PRIVACY_en.md)
 
-## 6. Why not a Chrome extension
-
-aoiko's original Phase 3 plan was "Amazon / 楽天 history scraping via a Chrome extension", but we replaced it with paste → LLM extract for three reasons:
-
-1. **Resilience to UI redesigns**: avoid the long-term debt of a scraper that breaks on every site refresh
-2. **Avoid the friction of extension permissions and distribution**: user trust barrier, Chrome Web Store overhead
-3. **Mobile support**: extensions don't run on mobile Chrome
-
-LLM extraction sidesteps all three, works on every platform, and reuses the existing LLM Adapter (Gemini / Ollama).
-
-## 7. Next steps
+## 6. Next steps
 
 - Confirm/edit imported entries → [02. Creating journal entries § 2-3](02-journal_en.md)
 - Aggregate / verify → [06. Reports](06-reports_en.md)
