@@ -29,13 +29,6 @@
 11. [備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
 12. [修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
 
-## 體例
-
-- **UI 元素名**完全照畫面顯示引用（例：「設定」→「LLM 連動」）
-- **程式碼塊**寫實際指令、檔案路徑或 JSON 值
-- **> 引用塊**標注意點、地雷、補充
-- **截圖**：之後視需要放 `docs/manual/images/`，目前以純文字為主
-
 ## 意見回饋
 
 不清楚的地方、錯誤、改善建議請到 [GitHub Issues](https://github.com/Lonshaus/aoiko/issues)。
