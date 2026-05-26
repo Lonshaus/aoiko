@@ -13,7 +13,7 @@ What to do from launching aoiko to being ready to book transactions.
 
 ## 1. Accept the disclaimer
 
-On first launch, a **disclaimer dialog** appears in the center of the screen. aoiko is experimental; the figures and books it produces are not guaranteed correct. For actual tax filing, always verify with a tax accountant or your tax office.
+On first launch, a **disclaimer dialog** appears in the center of the screen. The figures and books aoiko produces are not guaranteed correct. For actual tax filing, always verify with a tax accountant or your tax office.
 
 After reading, click **"I agree"** to proceed to the main UI. The acceptance is stored in IndexedDB and won't be shown again (unless the disclaimer is materially revised).
 
@@ -66,7 +66,7 @@ If you chose simplified taxation, pick a **business category** (1st–6th):
 
 Press **"Save"**.
 
-> Detailed guidance on choosing a method is in the "Consumption tax" chapter (TBD). When in doubt, start with general taxation and use the **Consumption tax 4-method comparison** on the Reports screen at year-end to compare real numbers.
+> Detailed guidance on choosing a method is in [07. Consumption tax](07-consumption-tax_en.md). When in doubt, start with general taxation and use the **Consumption tax 4-method comparison** on the Reports screen at year-end to compare real numbers.
 
 ## 5. Register sub-accounts (per account / per expense)
 
@@ -153,13 +153,13 @@ The following Settings sections have their own dedicated chapters and are covere
 
 | Section | Chapter |
 |---|---|
-| Fixed assets | "Depreciation" (TBD) |
-| Prior-period carryover (opening balances) | "Prior-period carryover" (TBD) |
-| Auto-classification rules | [CSV import](03-csv-import_en.md) |
+| Fixed assets | [08. Depreciation](08-depreciation_en.md) |
+| Prior-period carryover (opening balances) | [09. Prior-period carryover](09-carryover_en.md) |
+| Auto-classification rules | [03. CSV import](03-csv-import_en.md) |
 | Accounts | Read-only view of the standard chart of accounts. No add UI ([seed.ts](../../src/tax-schema/2026/accounts.ts) is the source) |
 | Qualified electronic ledger | Self-check display for the search-capability requirements |
-| Restore | "Backup and restore" (TBD) |
-| Data management | JSON export / wipe everything (TBD) |
+| Restore | [11. Backup and restore](11-backup_en.md) |
+| Data management | [11. Backup and restore](11-backup_en.md) (JSON export / wipe everything) |
 
 ## 9. Sanity check: create your first journal entry
 
