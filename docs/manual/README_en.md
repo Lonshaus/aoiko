@@ -29,13 +29,6 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 11. [Backup and restore](11-backup_en.md) — File System Access API, OPFS, JSON export
 12. [Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
 
-## Conventions
-
-- **UI labels** are quoted exactly as shown on screen (e.g. "Settings" → "LLM integration")
-- **Code blocks** are actual commands, file paths, or JSON values
-- **> Block quotes** indicate cautions, pitfalls, or supplementary notes
-- **Images**: when needed they go in `docs/manual/images/`; the guide is text-first to begin with
-
 ## Feedback
 
 Please report unclear points, errors, or suggestions on [GitHub Issues](https://github.com/Lonshaus/aoiko/issues).
