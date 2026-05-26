@@ -16,7 +16,7 @@
 
 信用卡 CSV 只看到「楽天市場 ¥3,280」，要按品項分經費科目（書 → 新聞圖書費、消耗品 → 消耗品費 等）就要手動拆。
 
-**注文取込**讓你貼上訂單頁全文、LLM 幫你抽出品項內訳。不是 DOM 爬取而是 LLM 解析、所以 Amazon / 楽天 等 UI 改版不影響。
+**注文取込**讓你貼上訂單頁全文、LLM 幫你抽出品項內訳。
 
 ## 2. 取込步驟
 
@@ -148,17 +148,7 @@ aoiko 的**「1. 貼上訂單頁文字」**textarea 用 `Cmd+V` 貼。
 - 自宅住址混進去的話用 localhost 的 Ollama、或把 textarea 個資行手動刪掉再按「解析」比較安全
 - 詳見 [PRIVACY_zh-TW.md](../../PRIVACY_zh-TW.md)
 
-## 6. 為什麼不是 Chrome 擴充
-
-aoiko 當初 Phase 3 有考慮過「用 Chrome 擴充爬 Amazon / 楽天 歷史」，但下面 3 個原因改成「貼上 → LLM 抽取」：
-
-1. **抗 DOM 改版**：EC 站 UI 改版時 scraper 會壞、長期維護負債大
-2. **避開擴充權限・發布的摩擦**：使用者心理門檻、Chrome Web Store 配信成本
-3. **行動端對應**：擴充功能在手機 Chrome 不能跑
-
-LLM 抽取方式對 DOM 改版有耐性、行動端含全環境都能跑、現有 LLM Adapter（Gemini / Ollama）能直接再利用。
-
-## 7. 下一步
+## 6. 下一步
 
 - 取込的傳票確認・修正 → [02. 建立傳票 § 2-3](02-journal_zh-TW.md)
 - 集計・確認 → [06. 報表](06-reports_zh-TW.md)
