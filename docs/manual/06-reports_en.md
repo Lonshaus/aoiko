@@ -26,7 +26,7 @@ The top **"{year} Overview"** block:
 
 If the year is locked as filed, **🔒 Filed** appears on the right with an **"Unlock"** button.
 
-> **Year lock**: protects the year from accidental edits/additions. To file an amendment, "Unlock" → edit → re-lock (see "Amended filing" chapter, TBD).
+> **Year lock**: protects the year from accidental edits/additions. To file an amendment, "Unlock" → edit → re-lock (see [12. Amended filing](12-amended_en.md)).
 
 ## 2. Monthly sales
 
@@ -52,7 +52,7 @@ If you used home-office allocation ([02. § 1-2](02-journal_en.md#1-2-use-the-ho
 
 ### 3-2. Depreciation reflected
 
-After running "Settings → Fixed assets → 'Generate depreciation entries'" at year-end, `5210 Depreciation` appears in P/L expenses. See the "Depreciation" chapter (TBD).
+After running "Settings → Fixed assets → 'Generate depreciation entries'" at year-end, `5210 Depreciation` appears in P/L expenses. See [08. Depreciation](08-depreciation_en.md).
 
 ## 4. Balance sheet (BS)
 
@@ -117,7 +117,7 @@ For taxable businesses, **"Consumption-tax 4-method comparison"** runs the year'
 
 Lined up like this, the **lowest-payable method** is easy to spot.
 
-> **Important**: aoiko provides **estimates and comparison only**. The actual consumption-tax return form (and supporting tables 2-3 etc.) is out of scope. Use e-Tax software or a tax accountant for actual filing. Details in the "Consumption tax" chapter (TBD).
+> **Important**: aoiko provides **estimates and comparison only**. The actual consumption-tax return form (and supporting tables 2-3 etc.) is out of scope. Use e-Tax software or a tax accountant for actual filing. Details in [07. Consumption tax](07-consumption-tax_en.md).
 
 ## 8. Year lock (Filed)
 
@@ -134,7 +134,7 @@ After locking:
 
 ### 8-2. Unlocking
 
-For an amended return: **"Unlock"** → add correcting entries → **"Lock as Filed"** again. The diff is saved as a new snapshot, overwriting the old. The amended-filing flow is in its own chapter (TBD).
+For an amended return: **"Unlock"** → add correcting entries → **"Lock as Filed"** again. The diff is saved as a new snapshot, overwriting the old. The amended-filing flow is in [12. Amended filing](12-amended_en.md).
 
 ## 9. Sanity-check perspectives
 
@@ -152,6 +152,6 @@ When looking at Reports, scan these points for anything off:
 
 ## 10. Next steps
 
-- Once books are stable, export to e-Tax format → "`.xtx` export" (TBD)
+- Once books are stable, export to e-Tax format → [10. `.xtx` export](10-xtx-export_en.md)
 - Lock the year after filing → § 8
-- Set up backups → "Backup and restore" (TBD)
+- Set up backups → [11. Backup and restore](11-backup_en.md)
