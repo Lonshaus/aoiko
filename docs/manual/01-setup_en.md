@@ -13,7 +13,7 @@ What to do from launching aoiko to being ready to book transactions.
 
 ## 1. Accept the disclaimer
 
-On first launch, a **disclaimer dialog** appears in the center of the screen. aoiko is experimental; the figures and books it produces are not guaranteed correct. For actual tax filing, always verify with a tax accountant or your tax office.
+On first launch, a **disclaimer dialog** appears in the center of the screen. The figures and books aoiko produces are not guaranteed correct. For actual tax filing, always verify with a tax accountant or your tax office.
 
 After reading, click **"I agree"** to proceed to the main UI. The acceptance is stored in IndexedDB and won't be shown again (unless the disclaimer is materially revised).
 
