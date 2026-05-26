@@ -2,7 +2,7 @@
 
 **Language**: [日本語](DISCLAIMER.md) | **English** | [繁體中文](DISCLAIMER_zh-TW.md)
 
-aoiko is an **experimental tool** intended to help Japanese sole proprietors with Blue Return (青色申告) bookkeeping. By using this tool, you agree to the following.
+aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申告) bookkeeping. By using this tool, you agree to the following.
 
 ## 1. Use at your own risk
 
