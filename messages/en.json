@@ -37,7 +37,7 @@
   "update_offline_ready": "✓ Now available offline",
   "disclaimer_welcome_title": "Welcome to aoiko",
   "disclaimer_intro_html": "Please review the <strong>Disclaimer</strong> below before use. (The Japanese version is the authoritative version; this translation is for reference only.)",
-  "disclaimer_prototype_title_html": "aoiko is a <span class=\"underline\">prototype-stage</span> tool.",
+  "disclaimer_prototype_title_html": "<span class=\"underline\">Please note before use</span>",
   "disclaimer_prototype_subtitle": "Use for actual tax filings is at the user's own risk.",
   "disclaimer_bullet_accuracy_html": "Output values and <code>.xtx</code> files are <strong>not guaranteed to be accurate</strong>. Verify final figures with your <strong>tax accountant / tax office</strong>.",
   "disclaimer_bullet_tax_law_html": "Tax law and bookkeeping requirements <strong>are revised annually</strong>. The bundled <code>tax-schema/</code> may not reflect the latest National Tax Agency announcements — it is the user's responsibility to verify.",
