@@ -153,6 +153,6 @@ Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) 
 
 ## Legal & safety documents
 
-- [DISCLAIMER.md](DISCLAIMER.md) — Disclaimer (actual filing / tax-law compliance / LLM usage risks)
-- [SECURITY.md](SECURITY.md) — Security policy, vulnerability reporting
-- [PRIVACY.md](PRIVACY.md) — Privacy policy, data collection / transmission breakdown
+- [DISCLAIMER_en.md](DISCLAIMER_en.md) — Disclaimer (actual filing / tax-law compliance / LLM usage risks)
+- [SECURITY_en.md](SECURITY_en.md) — Security policy, vulnerability reporting
+- [PRIVACY_en.md](PRIVACY_en.md) — Privacy policy, data collection / transmission breakdown
