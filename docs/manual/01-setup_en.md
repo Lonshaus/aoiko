@@ -17,7 +17,7 @@ On first launch, a **disclaimer dialog** appears in the center of the screen. ao
 
 After reading, click **"I agree"** to proceed to the main UI. The acceptance is stored in IndexedDB and won't be shown again (unless the disclaimer is materially revised).
 
-> See [DISCLAIMER.md](../../DISCLAIMER.md) for details.
+> See [DISCLAIMER_en.md](../../DISCLAIMER_en.md) for details.
 
 ## 2. Switch language (optional)
 
@@ -119,7 +119,7 @@ Free tier available; easiest setup.
 2. Paste it into the **"Gemini API key"** field in aoiko
 3. **"Save"** → **"Test connection"** → confirm `✓ Connected`
 
-> **Note**: CSV lines and receipt images are sent to Google. A **pre-send confirmation dialog** is shown before each send. Data is handled per Google's privacy policy; the free tier may be used for training. See [PRIVACY.md](../../PRIVACY.md) (Japanese; English translation pending).
+> **Note**: CSV lines and receipt images are sent to Google. A **pre-send confirmation dialog** is shown before each send. Data is handled per Google's privacy policy; the free tier may be used for training. See [PRIVACY_en.md](../../PRIVACY_en.md).
 
 ### 7-B. OpenAI-compatible / Ollama etc. (local OK)
 
