@@ -22,12 +22,12 @@
 
 ### C 群：進階功能（視需要）
 
-7. 消費税 — 4 方式怎麼選、經過措置、仕入税額控除（執筆中）
-8. 減價償卻 — 固定資產、定額・定率法、少額 40 萬日圓特例（執筆中）
-9. 前期繰越 — 年度切換、期首振替傳票（執筆中）
-10. `.xtx` 輸出 — e-Tax 格式產生與匯入驗證（執筆中）
-11. 備份與還原 — File System Access API、OPFS、JSON 匯出（執筆中）
-12. 修正申告 — 申告済 snapshot、差分偵測、提交手順（執筆中）
+7. [消費税](07-consumption-tax_zh-TW.md) — 4 方式怎麼選、經過措置、仕入税額控除
+8. [減價償卻](08-depreciation_zh-TW.md) — 固定資產、定額・定率法、少額 40 萬日圓特例
+9. [前期繰越](09-carryover_zh-TW.md) — 年度切換、期首振替傳票
+10. [`.xtx` 輸出](10-xtx-export_zh-TW.md) — e-Tax 格式產生與匯入驗證
+11. [備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
+12. [修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
 
 ## 體例
 
