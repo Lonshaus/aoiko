@@ -17,8 +17,8 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 
 ### B. Additional import paths (as needed)
 
-5. Receipt OCR — paper receipt → journal candidate (TBD)
-6. Order import — paste Amazon / 楽天 etc. → LLM extract (TBD)
+5. [Receipt OCR](04-receipt-ocr_en.md) — paper receipt → journal candidate
+6. [Order import](05-order-import_en.md) — paste Amazon / 楽天 etc. → LLM extract
 
 ### C. Advanced features (as needed)
 
