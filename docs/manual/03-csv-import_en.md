@@ -182,5 +182,5 @@ The **"Auto-classification rules"** section of Settings lets you register rules 
 ## 7. Next steps
 
 - See aggregates of what you booked → [06. Reports](06-reports_en.md)
-- Import paper receipts → "Receipt OCR" (TBD)
-- Import order details from Amazon / 楽天 etc. → "Order import" (TBD)
+- Import paper receipts → [04. Receipt OCR](04-receipt-ocr_en.md)
+- Import order details from Amazon / 楽天 etc. → [05. Order import](05-order-import_en.md)
