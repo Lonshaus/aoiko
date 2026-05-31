@@ -1,0 +1,43 @@
+name: 税制改正の報告
+description: 税法・勘定科目・.xtx スキーマの年度変更を報告する
+labels: ["tax-law"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        年度ごとに変わる税制・勘定科目・e-Tax スキーマの変更を教えてください。
+        **一次情報（国税庁・e-Tax の公式ページ）の出典を添えてください。**
+  - type: input
+    id: year
+    attributes:
+      label: 対象年度
+      placeholder: "令和8年分（2026年）"
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: 改正内容
+      description: 何がどう変わったか
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: 出典 URL
+      description: 国税庁・e-Tax 等の公式ページ
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影響する箇所
+      options:
+        - 控除額 / 申告区分
+        - 勘定科目コード
+        - 消費税（税率・経過措置・特例）
+        - 減価償却（耐用年数・特例）
+        - .xtx スキーマ
+        - その他
+    validations:
+      required: true
