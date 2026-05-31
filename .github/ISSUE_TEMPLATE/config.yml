@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 使い方の質問
+    url: https://github.com/Lonshaus/aoiko/discussions
+    about: 不具合ではない使い方の相談は Discussions へ
+  - name: セキュリティ上の問題
+    url: https://github.com/Lonshaus/aoiko/blob/master/SECURITY.md
+    about: 脆弱性は公開 issue ではなく SECURITY.md の手順で報告してください
