@@ -2,6 +2,10 @@
 
 **Language**: [日本語](README.md) | [English](README_en.md) | **繁體中文**
 
+[![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+
+🌐 **線上試用**: <https://aoiko.pages.dev>（僅供試用・注意事項見「[使用者向：本機啟動](#使用者向本機啟動)」）
+
 給日本個人事業主用的純前端記帳工具。目標是青色申告 **75 萬日圓**特別控除（令和 9 年分以後、需 e-Tax 期限內提交＋優良な電子帳簿保存／改正前的 65 萬日圓控除也持續支援），把 CSV／OCR／EC 訂單頁取込、複式簿記、減價償卻、資產負債表、`.xtx`（e-Tax 申報檔）輸出全部在單一 Web App 中完成。無後端、BYOK（API 金鑰使用者自備）。
 
 ## 主要功能
@@ -85,7 +89,13 @@ src/
 
 ## 使用者向：本機啟動
 
-目前還沒決定 hosting 位置，所以暫時就**自己用 PC 啟動**。資料存在瀏覽器 IndexedDB、不會離開本機（請見 [PRIVACY.md](PRIVACY.md)）。
+線上版公開於 <https://aoiko.pages.dev>。但**僅供試用**，請注意以下幾點：
+
+- 每次 push 到 master 就自動部署，**版本會不預告變動**（更新時機無法自行掌控）。
+- 實際記帳・申報，**建議自行在本機架設、可固定版本**（步驟見下）。
+- 資料僅存於瀏覽器（IndexedDB），不會送到伺服器。請自負責任使用。
+
+想在本機跑請照以下步驟啟動。資料存在瀏覽器 IndexedDB、不會離開本機（請見 [PRIVACY.md](PRIVACY.md)）。
 
 ### 前提
 
@@ -142,7 +152,7 @@ pnpm run dev        # 開發伺服器
 pnpm run test       # Vitest
 pnpm run check      # svelte-check 型別檢查
 pnpm run build      # 正式建置
-pnpm run verify     # test ＋ check ＋ build
+pnpm run verify     # check ＋ test ＋ build
 ```
 
 Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ pnpm（用 `packageManager` 欄位鎖定版本）。
