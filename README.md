@@ -2,6 +2,10 @@
 
 **Language**: **日本語** | [English](README_en.md) | [繁體中文](README_zh-TW.md)
 
+[![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+
+🌐 **オンラインでお試し**: <https://aoiko.pages.dev>（お試し版・注意点は「[利用者向け：ローカル起動](#利用者向けローカル起動)」を参照）
+
 日本の個人事業主向け、純フロントエンド帳簿ツール。青色申告 **75 万円**控除（令和 9 年分以降、要 e-Tax 期限内提出 + 優良な電子帳簿保存 / 改正前の 65 万円控除にも引き続き対応）を目標に、CSV/OCR/EC 注文ページからの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力までを Web App 単体で完結させる。バックエンド無し、BYOK（API キーは利用者が持参）。
 
 ## 主な機能
@@ -85,7 +89,13 @@ src/
 
 ## 利用者向け：ローカル起動
 
-ホスティング先は未定のため、現状は **自分の PC で起動して使う** 形式。データはブラウザの IndexedDB に保存されローカル端末から外に出ない（[PRIVACY.md](PRIVACY.md) 参照）。
+オンライン版を <https://aoiko.pages.dev> で公開している。ただし **お試し用途** であり、以下の点に注意：
+
+- master への push ごとに自動デプロイされるため、**バージョンは予告なく変わる**（更新タイミングを自分で選べない）。
+- 実際の記帳・申告には、**バージョンを固定できるローカル自己ホストを推奨**（下記手順）。
+- データはブラウザ内（IndexedDB）にのみ保存され、サーバへ送信されない。自己責任で利用すること。
+
+手元で動かす場合は以下の手順でローカル起動する。データはブラウザの IndexedDB に保存されローカル端末から外に出ない（[PRIVACY.md](PRIVACY.md) 参照）。
 
 ### 前提
 
@@ -142,7 +152,7 @@ pnpm run dev        # 開発サーバ
 pnpm run test       # Vitest 実行
 pnpm run check      # svelte-check 型チェック
 pnpm run build      # 本番ビルド
-pnpm run verify     # test + check + build
+pnpm run verify     # check + test + build
 ```
 
 Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines: >=22`）/ pnpm（`packageManager` フィールドで版数固定）。
