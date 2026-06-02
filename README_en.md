@@ -2,6 +2,10 @@
 
 **Language**: [日本語](README.md) | **English** | [繁體中文](README_zh-TW.md)
 
+[![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+
+🌐 **Try it online**: <https://aoiko.pages.dev> (trial only — see [Running locally](#running-locally) for caveats)
+
 A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥750,000 Blue Return (青色申告) deduction** for Reiwa 9 (2027) and later filings (requires on-time e-Tax submission + qualified electronic ledger storage; the older ¥650,000 deduction is still supported). Covers CSV/OCR/EC order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export — all in a single web app. No backend, BYOK (you bring your own API key).
 
 ## Features
@@ -85,7 +89,13 @@ src/
 
 ## Running locally
 
-Hosting is not decided yet, so the current usage model is **run it yourself on your PC**. Data lives in your browser's IndexedDB and never leaves your device (see [PRIVACY.md](PRIVACY.md)).
+An online version is available at <https://aoiko.pages.dev>. However, it is **for trial only**, with the following caveats:
+
+- It auto-deploys on every push to master, so **the version can change without notice** (you don't control update timing).
+- For real bookkeeping/filing, **self-host locally where you can pin a version** (steps below).
+- Data is stored only in your browser (IndexedDB) and never sent to a server. Use at your own risk.
+
+To run it yourself, follow the steps below. Data lives in your browser's IndexedDB and never leaves your device (see [PRIVACY.md](PRIVACY.md)).
 
 ### Prerequisites
 
@@ -142,7 +152,7 @@ pnpm run dev        # Dev server
 pnpm run test       # Vitest
 pnpm run check      # svelte-check type checking
 pnpm run build      # Production build
-pnpm run verify     # test + check + build
+pnpm run verify     # check + test + build
 ```
 
 Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) / pnpm (version pinned via the `packageManager` field).
