@@ -3,7 +3,6 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
-import { copyFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
@@ -57,16 +56,6 @@ export default defineConfig({
         enabled: false,
       },
     }),
-    {
-      // GitHub Pages 用：ビルド後 dist/index.html を dist/404.html に複製。
-      // history routing で直接 URL を叩いた時、GitHub が 404.html を返すと SPA が起動して所定ルートを描画する。
-      // Cloudflare Pages / Netlify は public/_redirects が優先されるためこの 404.html は使われない（無害）。
-      name: 'spa-404-fallback',
-      apply: 'build',
-      closeBundle() {
-        copyFileSync('dist/index.html', 'dist/404.html')
-      },
-    },
   ],
   resolve: {
     alias: {
