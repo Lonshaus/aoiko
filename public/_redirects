@@ -1,2 +1,2 @@
 /*    /index.html   200
-# 上の SPA フォールバック規則を改行終端させるためのダミー行。Cloudflare は末尾改行が無いと最終行の規則を無視するため、規則を最終行にしない（# 行は解析時に無視される）。
+# SPA fallback for Cloudflare Pages. Keep this comment as the last line so the rule above stays newline-terminated.
