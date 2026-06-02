@@ -30,6 +30,16 @@
   function onConsentAccepted() {
     consentState = 'granted';
   }
+
+  // 使い方ページ（marked + 全マニュアル本文）は初回ロードを軽くするため遅延読み込みする。
+  // 同一 promise を返してマニュアル内のページ遷移で再 import されないようにする。
+  let manualModule: Promise<typeof import('./routes/Manual.svelte')> | null = null;
+  function loadManual() {
+    if (!manualModule) {
+      manualModule = import('./routes/Manual.svelte');
+    }
+    return manualModule;
+  }
 </script>
 
 <div class="min-h-screen flex flex-col">
@@ -45,6 +55,7 @@
         <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
         <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import_history()}</a>
         <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_settings()}</a>
+        <a href="/manual" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_manual()}</a>
       </nav>
     </div>
   </header>
@@ -63,6 +74,11 @@
       <Receipt />
     {:else if router.path === '/settings'}
       <Settings />
+    {:else if router.path === '/manual' || router.path.startsWith('/manual/')}
+      {#await loadManual() then mod}
+        {@const Manual = mod.default}
+        <Manual />
+      {/await}
     {:else}
       <Home />
     {/if}
