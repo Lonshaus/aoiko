@@ -10,6 +10,7 @@
     extractTitle,
     adjacentChapters,
     rewriteLinks,
+    stripLanguageNav,
   } from '../lib/manual'
 
   const locale = getLocale()
@@ -20,7 +21,9 @@
 
   const content = $derived(getManualContent(slug, locale))
 
-  const html = $derived(content === null ? null : (marked.parse(rewriteLinks(content), { async: false }) as string))
+  const html = $derived(
+    content === null ? null : (marked.parse(rewriteLinks(stripLanguageNav(content)), { async: false }) as string),
+  )
 
   const chapterTitle = $derived(content === null ? '' : extractTitle(content))
 

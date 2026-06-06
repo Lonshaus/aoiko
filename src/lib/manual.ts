@@ -85,3 +85,9 @@ export function rewriteLinks(markdown: string): string {
     },
   )
 }
+
+// アプリ内では言語は UI 設定に追従するため、各 .md 冒頭の言語切替行（GitHub 閲覧用）は不要。
+// 行内のリンクが同一ルートへ収束して機能しないため、レンダリング前に取り除く。
+export function stripLanguageNav(markdown: string): string {
+  return markdown.replace(/^\*\*Language\*\*:.*$\n?/m, '')
+}
