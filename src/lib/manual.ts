@@ -9,10 +9,11 @@ const modules = import.meta.glob('../../docs/manual/*.md', {
 export const INDEX_SLUG = 'README'
 
 export function slugFromPath(path: string): string {
-  if (path === '/manual' || path === '/manual/') {
+  const clean = path.replace(/[#?].*$/, '')
+  if (clean === '/manual' || clean === '/manual/') {
     return INDEX_SLUG
   }
-  return decodeURIComponent(path.slice('/manual/'.length).replace(/\/$/, ''))
+  return decodeURIComponent(clean.slice('/manual/'.length).replace(/\/$/, ''))
 }
 
 function parseFilename(path: string): { slug: string; locale: Locale } {
@@ -56,9 +57,19 @@ export function getManualContent(slug: string, locale: Locale): string | null {
   return byLocale.get(locale) ?? byLocale.get(baseLocale) ?? null
 }
 
+// 見出しをプレーンテキスト表示する箇所（サイドバー・前後章・検索結果・章内目次）向けに
+// インライン記法（`code`・太字・斜体・リンク）を除去する。アンカー id は元テキストから算出するため影響しない。
+export function stripInline(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+}
+
 export function extractTitle(markdown: string): string {
   const match = markdown.match(/^#\s+(.+)$/m)
-  return match?.[1]?.trim() ?? ''
+  return stripInline(match?.[1]?.trim() ?? '')
 }
 
 export function adjacentChapters(slug: string): { prev: string | null; next: string | null } {
@@ -90,4 +101,79 @@ export function rewriteLinks(markdown: string): string {
 // 行内のリンクが同一ルートへ収束して機能しないため、レンダリング前に取り除く。
 export function stripLanguageNav(markdown: string): string {
   return markdown.replace(/^\*\*Language\*\*:.*$\n?/m, '')
+}
+
+// GitHub 互換の見出し slug。既存の章間 `#アンカー` リンクと一致させる必要があるため
+// 小文字化・記号除去・空白→ハイフン・CJK 保持で揃える。
+export function slugifyHeading(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\p{L}\p{N} -]/gu, '')
+    .replace(/ +/g, '-')
+}
+
+export interface Heading {
+  level: number
+  text: string
+  id: string
+}
+
+// h2 / h3 のみを章内目次として抽出する。コードブロック内は対象外。
+export function extractHeadings(markdown: string): Heading[] {
+  const headings: Heading[] = []
+  let inFence = false
+  for (const line of markdown.split('\n')) {
+    if (line.startsWith('```')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) {
+      continue
+    }
+    const m = line.match(/^(#{2,3})\s+(.+)$/)
+    if (m?.[1] && m[2]) {
+      const raw = m[2].trim()
+      headings.push({ level: m[1].length, text: stripInline(raw), id: slugifyHeading(raw) })
+    }
+  }
+  return headings
+}
+
+export interface SearchHit {
+  slug: string
+  title: string
+  snippet: string
+}
+
+function makeSnippet(content: string, idx: number, len: number): string {
+  const start = Math.max(0, idx - 30)
+  const end = Math.min(content.length, idx + len + 40)
+  const body = content
+    .slice(start, end)
+    .replace(/[#*`|>]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return `${start > 0 ? '…' : ''}${body}${end < content.length ? '…' : ''}`
+}
+
+// 全マニュアルを対象に大文字小文字を無視して全文検索する。索引（README）を先頭に章番号順。
+export function searchManual(query: string, locale: Locale): SearchHit[] {
+  const q = query.trim().toLowerCase()
+  if (q.length === 0) {
+    return []
+  }
+  const hits: SearchHit[] = []
+  for (const slug of [INDEX_SLUG, ...chapterSlugs()]) {
+    const content = getManualContent(slug, locale)
+    if (!content) {
+      continue
+    }
+    const idx = content.toLowerCase().indexOf(q)
+    if (idx === -1) {
+      continue
+    }
+    hits.push({ slug, title: extractTitle(content) || slug, snippet: makeSnippet(content, idx, q.length) })
+  }
+  return hits
 }
