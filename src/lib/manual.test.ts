@@ -9,7 +9,59 @@ import {
   adjacentChapters,
   rewriteLinks,
   stripLanguageNav,
+  stripInline,
+  slugifyHeading,
+  extractHeadings,
+  searchManual,
 } from './manual'
+
+describe('stripInline', () => {
+  it('インラインコード・太字・リンクを除去する', () => {
+    expect(stripInline('`.xtx` 出力')).toBe('.xtx 出力')
+    expect(stripInline('**重要** な点')).toBe('重要 な点')
+    expect(stripInline('[詳細](x.md) はこちら')).toBe('詳細 はこちら')
+  })
+})
+
+describe('slugifyHeading', () => {
+  it('既存の章間アンカーと一致する（CJK 保持・記号除去）', () => {
+    expect(slugifyHeading('4. 選擇消費税方式')).toBe('4-選擇消費税方式')
+    expect(slugifyHeading('7. 要用 OCR/LLM 才做的設定')).toBe('7-要用-ocrllm-才做的設定')
+    expect(slugifyHeading('2-1. Filters')).toBe('2-1-filters')
+    expect(slugifyHeading('1-2. Use the home-office (mixed-use) allocation')).toBe(
+      '1-2-use-the-home-office-mixed-use-allocation',
+    )
+  })
+})
+
+describe('extractHeadings', () => {
+  it('h2 / h3 を抽出し h1 とコードブロックは除外', () => {
+    const md = '# 章タイトル\n\n## 1. 節\n本文\n### 1-1. 小節\n\n```bash\n## これはコード\n```\n## 2. `.xtx` 出力'
+    expect(extractHeadings(md)).toEqual([
+      { level: 2, text: '1. 節', id: '1-節' },
+      { level: 3, text: '1-1. 小節', id: '1-1-小節' },
+      { level: 2, text: '2. .xtx 出力', id: '2-xtx-出力' },
+    ])
+  })
+})
+
+describe('searchManual', () => {
+  it('該当章をヒットさせスニペットを返す', () => {
+    const hits = searchManual('消費税', 'ja')
+    expect(hits.length).toBeGreaterThan(0)
+    expect(hits.map((h) => h.slug)).toContain('07-consumption-tax')
+    expect(hits[0]?.snippet.length).toBeGreaterThan(0)
+  })
+
+  it('空クエリは空配列', () => {
+    expect(searchManual('   ', 'ja')).toEqual([])
+  })
+
+  it('ヒット無しは空配列', () => {
+    expect(searchManual('zzzznonexistentqueryzzz', 'ja')).toEqual([])
+  })
+})
+
 
 describe('stripLanguageNav', () => {
   it('言語切替行を取り除く', () => {
@@ -38,6 +90,11 @@ describe('slugFromPath', () => {
 
   it('末尾スラッシュを除去する', () => {
     expect(slugFromPath('/manual/02-journal/')).toBe('02-journal')
+  })
+
+  it('#アンカーやクエリを除去する', () => {
+    expect(slugFromPath('/manual/01-setup#4-選擇消費税方式')).toBe('01-setup')
+    expect(slugFromPath('/manual/01-setup?x=1')).toBe('01-setup')
   })
 })
 
@@ -92,6 +149,10 @@ describe('extractTitle', () => {
 
   it('見出しが無ければ空文字', () => {
     expect(extractTitle('本文だけ')).toBe('')
+  })
+
+  it('タイトル内のインライン記法を除去する', () => {
+    expect(extractTitle('# 10. `.xtx` 出力')).toBe('10. .xtx 出力')
   })
 })
 
