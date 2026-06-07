@@ -54,7 +54,7 @@
   "dependencies": {
     "decimal.js": "^10.6.0",
     "dexie": "^4.4.3",
-    "marked": "^18.0.4",
+    "marked": "^18.0.5",
     "tesseract.js": "^7.0.0"
   },
   "pnpm": {
