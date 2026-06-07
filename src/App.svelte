@@ -12,7 +12,11 @@
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
+  import { pathToChapter } from './lib/manual-routes';
   import { m } from './paraglide/messages';
+
+  const helpChapter = $derived(pathToChapter(router.path));
+  const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
@@ -59,7 +63,18 @@
       </nav>
     </div>
   </header>
-  <main class="flex-1 container mx-auto max-w-3xl px-8 py-8">
+  <main class="flex-1 container mx-auto px-8 py-8 {isManual ? 'max-w-5xl' : 'max-w-3xl'}">
+    {#if helpChapter}
+      <div class="mb-4 flex justify-end">
+        <a
+          href="/manual/{helpChapter}"
+          use:link
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ？{m.nav_manual()}
+        </a>
+      </div>
+    {/if}
     {#if router.path === '/journal'}
       <JournalList />
     {:else if router.path === '/reports'}
