@@ -9,10 +9,19 @@ import {
   adjacentChapters,
   rewriteLinks,
   stripLanguageNav,
+  stripInline,
   slugifyHeading,
   extractHeadings,
   searchManual,
 } from './manual'
+
+describe('stripInline', () => {
+  it('インラインコード・太字・リンクを除去する', () => {
+    expect(stripInline('`.xtx` 出力')).toBe('.xtx 出力')
+    expect(stripInline('**重要** な点')).toBe('重要 な点')
+    expect(stripInline('[詳細](x.md) はこちら')).toBe('詳細 はこちら')
+  })
+})
 
 describe('slugifyHeading', () => {
   it('既存の章間アンカーと一致する（CJK 保持・記号除去）', () => {
@@ -27,11 +36,11 @@ describe('slugifyHeading', () => {
 
 describe('extractHeadings', () => {
   it('h2 / h3 を抽出し h1 とコードブロックは除外', () => {
-    const md = '# 章タイトル\n\n## 1. 節\n本文\n### 1-1. 小節\n\n```bash\n## これはコード\n```\n## 2. 節'
+    const md = '# 章タイトル\n\n## 1. 節\n本文\n### 1-1. 小節\n\n```bash\n## これはコード\n```\n## 2. `.xtx` 出力'
     expect(extractHeadings(md)).toEqual([
       { level: 2, text: '1. 節', id: '1-節' },
       { level: 3, text: '1-1. 小節', id: '1-1-小節' },
-      { level: 2, text: '2. 節', id: '2-節' },
+      { level: 2, text: '2. .xtx 出力', id: '2-xtx-出力' },
     ])
   })
 })
@@ -140,6 +149,10 @@ describe('extractTitle', () => {
 
   it('見出しが無ければ空文字', () => {
     expect(extractTitle('本文だけ')).toBe('')
+  })
+
+  it('タイトル内のインライン記法を除去する', () => {
+    expect(extractTitle('# 10. `.xtx` 出力')).toBe('10. .xtx 出力')
   })
 })
 
