@@ -57,9 +57,19 @@ export function getManualContent(slug: string, locale: Locale): string | null {
   return byLocale.get(locale) ?? byLocale.get(baseLocale) ?? null
 }
 
+// 見出しをプレーンテキスト表示する箇所（サイドバー・前後章・検索結果・章内目次）向けに
+// インライン記法（`code`・太字・斜体・リンク）を除去する。アンカー id は元テキストから算出するため影響しない。
+export function stripInline(text: string): string {
+  return text
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+}
+
 export function extractTitle(markdown: string): string {
   const match = markdown.match(/^#\s+(.+)$/m)
-  return match?.[1]?.trim() ?? ''
+  return stripInline(match?.[1]?.trim() ?? '')
 }
 
 export function adjacentChapters(slug: string): { prev: string | null; next: string | null } {
@@ -123,8 +133,8 @@ export function extractHeadings(markdown: string): Heading[] {
     }
     const m = line.match(/^(#{2,3})\s+(.+)$/)
     if (m?.[1] && m[2]) {
-      const text = m[2].trim()
-      headings.push({ level: m[1].length, text, id: slugifyHeading(text) })
+      const raw = m[2].trim()
+      headings.push({ level: m[1].length, text: stripInline(raw), id: slugifyHeading(raw) })
     }
   }
   return headings
