@@ -1,13 +1,11 @@
 // インボイス制度 経過措置：免税事業者等からの仕入れに係る仕入税額控除割合。
 // 令和8年度税制改正で 80% → 70% → 50% → 30% に細分化、令和 13/9 完全廃止まで延長。
 // 出典：消費税法附則 52・53、令和8年度税制改正大綱 第二 7。
-
 // 各境界日（取引日がその日以後にこの区分に入る）。
 export const TRANSITIONAL_BOUNDARY_2026_10 = '2026-10-01';
 export const TRANSITIONAL_BOUNDARY_2028_10 = '2028-10-01';
 export const TRANSITIONAL_BOUNDARY_2030_10 = '2030-10-01';
 export const TRANSITIONAL_BOUNDARY_2031_10 = '2031-10-01';
-
 // 取引日（仕入日）に応じた仕入税額控除の控除割合を返す。
 // - 2023/10/01 〜 2026/09/30：80%
 // - 2026/10/01 〜 2028/09/30：70%（令和 8 改正で新設）
@@ -32,7 +30,6 @@ export function transitionalCreditRate(transactionDate: string): number {
   }
   return 0;
 }
-
 // 経過措置の人間可読ラベル（UI 表示用）。
 export type TransitionalPeriodLabel =
   | '80%（2023/10〜2026/9）'

@@ -71,5 +71,5 @@ aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有後端伺服器、利
 
 ## 相依函式庫的漏洞
 
-- 計畫在 CI 跑 `pnpm audit`（未實裝）
+- 計畫在 CI 跑 `npm audit`（未實裝）
 - 高嚴重度 CVE 會盡快反映，但無法保證

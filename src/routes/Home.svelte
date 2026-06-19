@@ -1,12 +1,12 @@
 <script lang="ts">
   import { ledger } from '../stores/ledger.svelte';
-  import { formatJPY } from '../lib/decimal';
+  import { D, formatJPY } from '../lib/decimal';
   import JournalEntryForm from './JournalEntryForm.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
   import { m } from '../paraglide/messages';
 
   const overview = $derived(ledger.monthlyOverview);
-  const isPositive = $derived(Number(overview.netIncome) >= 0);
+  const isPositive = $derived(!D(overview.netIncome).isNegative());
 </script>
 
 <div class="space-y-8">
