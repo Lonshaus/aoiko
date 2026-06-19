@@ -1,7 +1,8 @@
-import { D } from '../lib/decimal';
+import { D, Decimal } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
+import { countsTowardTotals } from './journal';
 import {
   SMALL_ASSET_ANNUAL_CAP,
   isSmallAssetEligible,
@@ -17,6 +18,27 @@ import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 const DEPRECIATION_EXPENSE = '5210';
 const ACCUMULATED_DEPRECIATION = '1520';
 const RESIDUAL_VALUE = 1;
+// 平成19年4月1日以後取得分の定額法償却率。償却費 = 取得価額 × 償却率。
+// 率は 1/耐用年数 を小数第3位未満で切り上げた値（国税庁「減価償却資産の償却率表」）。
+// 例：3年→0.334、6年→0.167、7年→0.143、9年→0.112（単純な 1/N とは一致しない）。
+export function straightLineRate(usefulLifeYears: number): Decimal {
+  if (usefulLifeYears < 1) {
+    throw new Error(`耐用年数が不正です：${usefulLifeYears}`);
+  }
+  return D(1).dividedBy(usefulLifeYears).toDecimalPlaces(3, Decimal.ROUND_UP);
+}
+// 当年の償却対象月数。取得年は取得月から、処分年は処分月まで月割する。
+function activeMonths(
+  y: number,
+  acqYear: number,
+  acqMonth: number,
+  disposedYear: number | null,
+  disposedMonth: number
+): number {
+  const start = y === acqYear ? acqMonth : 1;
+  const end = disposedYear !== null && y === disposedYear ? disposedMonth : 12;
+  return Math.max(0, end - start + 1);
+}
 // 200% 定率法の償却率・改定償却率・保証率テーブル。
 // 出典：国税庁「減価償却資産の償却率等表」（平成24年4月1日以後取得分）。
 const DECLINING_RATE_TABLE: Record<
@@ -75,11 +97,14 @@ export function computeDepreciation(
   if (asset.disposedDate) {
     const disposedYear = Number(asset.disposedDate.slice(0, 4));
     if (year > disposedYear) {
+      // 除却済み：当年の償却額は 0。簿価は除却年度末の状態をそのまま引き継ぐ
+      // （少額特例なら 0、通常償却なら除却年までの償却後簿価）。
+      const finalState = computeDepreciation(asset, disposedYear);
       return {
         amount: '0',
-        accumulatedEnd: cost.minus(RESIDUAL_VALUE).toString(),
-        bookValueEnd: String(RESIDUAL_VALUE),
-        fullyDepreciated: true,
+        accumulatedEnd: finalState.accumulatedEnd,
+        bookValueEnd: finalState.bookValueEnd,
+        fullyDepreciated: finalState.fullyDepreciated,
       };
     }
   }
@@ -93,7 +118,6 @@ export function computeDepreciation(
   }
   throw new Error(`未対応の償却方法：${asset.depreciationMethod}`);
 }
-
 // 少額減価償却資産の特例（措法28の2）：取得年度に全額損金算入。
 // 取得日・取得価額が適用範囲外でもこの関数は計算自体は実施する（呼出元で eligibility は検証する想定）。
 // 年合計 300 万円上限は呼出元（generateYearEndDepreciation）で資産横断的にチェックする。
@@ -126,14 +150,16 @@ function computeStraightLine(
   acqMonth: number,
   cost: ReturnType<typeof D>
 ): DepreciationResult {
+  // 平成19年以後の定額法：満年度額 = 取得価額 × 定額法償却率。
+  // 残存簿価 1 円は償却を最終年で打ち切ることで担保する（取得価額そのものを基準にする）。
   const depreciableBase = cost.minus(RESIDUAL_VALUE);
-  const fullYearAmount = depreciableBase
-    .dividedBy(asset.usefulLifeYears)
-    .toDecimalPlaces(0);
+  const fullYearAmount = cost.times(straightLineRate(asset.usefulLifeYears)).toDecimalPlaces(0);
+  const disposedYear = asset.disposedDate ? Number(asset.disposedDate.slice(0, 4)) : null;
+  const disposedMonth = asset.disposedDate ? Number(asset.disposedDate.slice(5, 7)) : 12;
 
   let accumulated = D(0);
   for (let y = acqYear; y <= year; y++) {
-    const monthsThisYear = y === acqYear ? 12 - acqMonth + 1 : 12;
+    const monthsThisYear = activeMonths(y, acqYear, acqMonth, disposedYear, disposedMonth);
     let yearAmount = fullYearAmount
       .times(monthsThisYear)
       .dividedBy(12)
@@ -182,6 +208,8 @@ function computeDecliningBalance(
   }
 
   const guaranteeAmount = cost.times(rates.guarantee);
+  const disposedYear = asset.disposedDate ? Number(asset.disposedDate.slice(0, 4)) : null;
+  const disposedMonth = asset.disposedDate ? Number(asset.disposedDate.slice(5, 7)) : 12;
 
   let bookValue = cost;
   let accumulated = D(0);
@@ -203,9 +231,10 @@ function computeDecliningBalance(
         yearAmount = standard;
       }
     }
-    // 取得年は月按分
-    if (y === acqYear) {
-      yearAmount = yearAmount.times(12 - acqMonth + 1).dividedBy(12).toDecimalPlaces(0);
+    // 取得年・処分年は月按分
+    const monthsThisYear = activeMonths(y, acqYear, acqMonth, disposedYear, disposedMonth);
+    if (monthsThisYear < 12) {
+      yearAmount = yearAmount.times(monthsThisYear).dividedBy(12).toDecimalPlaces(0);
     }
     // 残存簿価 1 円を下回らないよう調整
     const remaining = cost.minus(accumulated).minus(RESIDUAL_VALUE);
@@ -255,7 +284,6 @@ function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
   }
   return Number(asset.acquisitionDate.slice(0, 4)) === year;
 }
-
 // 指定年度の全資産の償却仕訳をまとめて作成する。
 // 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
 // 少額減価償却資産の特例：年合計 300 万円 cap を超える資産は取得日昇順で打ち切り、超過分は仕訳未作成。
@@ -311,11 +339,14 @@ export async function generateYearEndDepreciation(
       }
       smallAssetUsed = candidate;
     }
-
+    // 訂正済み（reversed）や訂正仕訳は重複判定の対象外。
+    // これにより誤った償却仕訳を reverseEntry で訂正したあと、正しい仕訳を再生成できる。
     const existing = await db.journalEntries
       .where('[year+date]')
       .equals([year, date])
-      .filter((e) => e.description.includes(`#${asset.id.slice(0, 8)}`))
+      .filter(
+        (e) => countsTowardTotals(e) && e.description.includes(`#${asset.id.slice(0, 8)}`)
+      )
       .first();
     if (existing) {
       skipped++;

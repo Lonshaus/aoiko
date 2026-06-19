@@ -1,7 +1,7 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { db } from '../db';
-  import { formatJPY } from '../lib/decimal';
+  import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
   import {
     buildLedgerRows,
@@ -69,26 +69,30 @@
       const q = desc.toLowerCase();
       entries = entries.filter((e) => e.description.toLowerCase().includes(q));
     }
-    const minNum = amountMin === '' ? null : Number(amountMin);
-    const maxNum = amountMax === '' ? null : Number(amountMax);
-    if (
-      (minNum !== null && Number.isFinite(minNum)) ||
-      (maxNum !== null && Number.isFinite(maxNum))
-    ) {
+    const parseAmount = (s: string): Decimal | null => {
+      if (s === '') {
+        return null;
+      }
+      try {
+        return D(s);
+      } catch {
+        return null;
+      }
+    };
+    const min = parseAmount(amountMin);
+    const max = parseAmount(amountMax);
+    if (min !== null || max !== null) {
       // 金額範囲：いずれかの明細行が範囲内に入る仕訳だけ残す
       const entryIds = entries.map((e) => e.id);
       const matchingLines = await db.journalLines
         .where('entryId')
         .anyOf(entryIds)
         .filter((l) => {
-          const v = Number(l.amount);
-          if (!Number.isFinite(v)) {
+          const v = D(l.amount);
+          if (min !== null && v.lessThan(min)) {
             return false;
           }
-          if (minNum !== null && v < minNum) {
-            return false;
-          }
-          if (maxNum !== null && v > maxNum) {
+          if (max !== null && v.greaterThan(max)) {
             return false;
           }
           return true;
@@ -285,7 +289,10 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_min()}</span>
         <input
           type="number"
-          bind:value={amountMinInput}
+          value={amountMinInput}
+          oninput={(e) => {
+            amountMinInput = (e.target as HTMLInputElement).value;
+          }}
           onkeydown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();
@@ -303,7 +310,10 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_max()}</span>
         <input
           type="number"
-          bind:value={amountMaxInput}
+          value={amountMaxInput}
+          oninput={(e) => {
+            amountMaxInput = (e.target as HTMLInputElement).value;
+          }}
           onkeydown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault();

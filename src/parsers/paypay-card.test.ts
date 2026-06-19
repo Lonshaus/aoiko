@@ -12,7 +12,7 @@ describe('paypayCardParser', () => {
 
   test('sample fixture parses to expected transactions', () => {
     const result = paypayCardParser.parse(sampleCsv);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
 
     expect(result[0]).toMatchObject({
       date: '2026-01-31',
@@ -36,10 +36,20 @@ describe('paypayCardParser', () => {
     expect(result[2]?.memo).toBeUndefined();
   });
 
+  test('キャンセル行（負数）は絶対値 + debit（未払金の減少）', () => {
+    const result = paypayCardParser.parse(sampleCsv);
+    expect(result[3]).toMatchObject({
+      date: '2026-02-12',
+      description: 'ヨドバシカメラ キャンセル',
+      amount: '3000',
+      side: 'debit',
+    });
+  });
+
   test('handles CRLF line endings', () => {
     const withCrlf = sampleCsv.replace(/\n/g, '\r\n');
     const result = paypayCardParser.parse(withCrlf);
-    expect(result).toHaveLength(3);
+    expect(result).toHaveLength(4);
   });
 
   test('strips thousand-separator commas from amounts', () => {

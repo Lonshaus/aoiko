@@ -17,12 +17,10 @@ export const DEEMED_INPUT_RATES: Record<SimplifiedTaxCategory, number> = {
   5: 0.5, // サービス・金融・運輸通信
   6: 0.4, // 不動産
 };
-
 // みなし仕入率を取得。
 export function deemedInputRate(category: SimplifiedTaxCategory): number {
   return DEEMED_INPUT_RATES[category];
 }
-
 // 事業区分の人間可読ラベル（UI 表示用）。
 export function simplifiedTaxCategoryLabel(
   category: SimplifiedTaxCategory

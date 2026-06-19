@@ -6,19 +6,18 @@
   "engines": {
     "node": ">=22"
   },
-  "packageManager": "pnpm@11.1.2",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --silent",
-    "check": "pnpm run paraglide:compile && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
-    "test": "pnpm run paraglide:compile && vitest run",
+    "check": "npm run paraglide:compile && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test": "npm run paraglide:compile && vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "verify": "pnpm run check && pnpm run test && pnpm run build",
+    "verify": "npm run check && npm run test && npm run build",
     "xtx:build-schema": "node scripts/build-xtx-schema.js"
   },
   "devDependencies": {
@@ -56,10 +55,5 @@
     "dexie": "^4.4.3",
     "marked": "^18.0.4",
     "tesseract.js": "^7.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "tesseract.js"
-    ]
   }
 }
