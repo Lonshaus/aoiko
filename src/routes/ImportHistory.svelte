@@ -22,9 +22,11 @@
       batches = v;
     });
     const sub2 = liveQuery(async () => {
-      const all = await db.journalEntries.toArray();
+      // sourceImportId 索引で走査（undefined キーの行はインデックスに載らないため、
+      // CSV 由来の仕訳だけが返る。全件走査を避ける）。
+      const imported = await db.journalEntries.orderBy('sourceImportId').toArray();
       const map = new Map<string, JournalEntry[]>();
-      for (const e of all) {
+      for (const e of imported) {
         if (!e.sourceImportId) {
           continue;
         }

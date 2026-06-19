@@ -3,7 +3,7 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { amendmentChecklist, getAmendmentDiff } from './amended';
-import { markYearFiled } from './snapshots';
+import { markYearFiled, unlockYear } from './snapshots';
 import type { Account, LineSide } from '../db/types';
 
 const TEST_ACCOUNTS: Account[] = [
@@ -129,6 +129,47 @@ describe('getAmendmentDiff', () => {
     expect(r!.currentNetIncome).toBe('80000');
     expect(r!.netIncomeDelta).toBe('-20000');
     expect(r!.currentTotalExpense).toBe('20000');
+  });
+
+  test('ロック解除（unlockYear）後も当初申告との差分を計算できる', async () => {
+    // 修正申告の手順は unlock → reverse → review。unlock 後も基準が残ることを確認する。
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: {
+            rows: [{ accountCode: '4110', amount: '100000' }],
+            totalRevenue: '100000',
+            totalExpense: '0',
+            netIncome: '100000',
+          },
+        },
+      },
+      '2026-12-31'
+    );
+    await unlockYear(2026);
+    // 解除後に経費を追加
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '20000' },
+        { side: 'credit', accountCode: '1130', amount: '20000' },
+      ],
+    });
+    const r = await getAmendmentDiff(2026);
+    expect(r).not.toBeNull();
+    expect(r!.filedNetIncome).toBe('100000');
+    expect(r!.currentNetIncome).toBe('80000');
+    expect(r!.netIncomeDelta).toBe('-20000');
   });
 });
 

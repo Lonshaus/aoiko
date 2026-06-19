@@ -132,7 +132,7 @@
 5. **「儲存」** → **「連線測試」**
 
 > - OCR 必須選 **vision 對應模型**（llama3.2-vision / qwen2-vl / minicpm-v 等）
-> - 指向 localhost 的話、aoiko 本身也要**本機執行**（`pnpm run preview`）。HTTPS 配信版的 aoiko 連不到 localhost
+> - 指向 localhost 的話、aoiko 本身也要**本機執行**（`npm run preview`）。HTTPS 配信版的 aoiko 連不到 localhost
 > - Ollama 那邊要設 `OLLAMA_ORIGINS` 把 aoiko 的 URL 加進白名單
 
 ### 7-C. Tesseract（純本地 WASM OCR）

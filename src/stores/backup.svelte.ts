@@ -7,6 +7,7 @@ import {
   type BackupAdapter,
 } from '../backup';
 import { getSetting, setSetting } from '../lib/settings';
+import { todayISO } from '../lib/date';
 
 export type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
 
@@ -43,12 +44,18 @@ class BackupManager {
         l: await db.journalLines.count(),
         v: await db.vendors.count(),
         a: await db.fixedAssets.count(),
-      })).subscribe(() => {
-        if (this.skipFirstAutoBackup) {
-          this.skipFirstAutoBackup = false;
-          return;
-        }
-        this.scheduleBackup();
+      })).subscribe({
+        next: () => {
+          if (this.skipFirstAutoBackup) {
+            this.skipFirstAutoBackup = false;
+            return;
+          }
+          this.scheduleBackup();
+        },
+        error: (e: unknown) => {
+          this.lastError = e instanceof Error ? e.message : String(e);
+          this.status = 'error';
+        },
       })
     );
   }
@@ -163,7 +170,8 @@ class BackupManager {
     const prev = this.status;
     this.status = 'writing';
     try {
-      const payload = await buildPayload();
+      const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+      const payload = await buildPayload({ includeApiKeys });
       await this.adapter.backup(payload);
       this.lastBackupAt = Date.now();
       await setSetting('lastBackupAt', this.lastBackupAt);
@@ -179,13 +187,14 @@ class BackupManager {
   async downloadJson(): Promise<void> {
     this.lastError = '';
     try {
-      const payload = await buildPayload();
+      const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+      const payload = await buildPayload({ includeApiKeys });
       const json = JSON.stringify(payload, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `aoiko-ledger-${payload.exportedAt.slice(0, 10)}.json`;
+      a.download = `aoiko-ledger-${todayISO()}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

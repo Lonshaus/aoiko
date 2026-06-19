@@ -1,5 +1,6 @@
 import { db } from '../db/db';
 import { PAYLOAD_VERSION, type BackupPayload } from '../backup';
+import { validateBackupPayload } from './restore-validate';
 
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
@@ -17,6 +18,8 @@ export async function restoreFromJson(
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
   }
+  // 全消去の前に検証する。不正なバックアップで既存データを失わないため。
+  validateBackupPayload(payload);
 
   await db.delete();
   await db.open();
