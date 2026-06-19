@@ -100,7 +100,7 @@ To run it yourself, follow the steps below. Data lives in your browser's Indexed
 ### Prerequisites
 
 - [Node.js 22 LTS](https://nodejs.org/) or later
-- pnpm (enable via Node's bundled Corepack: `corepack enable pnpm`)
+- npm (bundled with Node.js)
 - Git (to clone the repo; ZIP download also OK)
 - A modern browser (Chrome / Edge / Safari / Firefox)
 
@@ -109,10 +109,9 @@ To run it yourself, follow the steps below. Data lives in your browser's Indexed
 ```bash
 git clone https://github.com/Lonshaus/aoiko.git
 cd aoiko
-corepack enable pnpm
-pnpm install
-pnpm run build
-pnpm run preview
+npm install
+npm run build
+npm run preview
 ```
 
 Open <http://localhost:4173> in your browser. On first launch, accept the disclaimer, then enter your business name and fiscal year in Settings. To use OCR/LLM, pick an engine in Settings (Gemini API key / Ollama or other OpenAI-compatible endpoint / Tesseract [OCR-only, limited accuracy]).
@@ -132,9 +131,9 @@ If you clear browser data, IndexedDB is wiped. Regularly export manually (in Set
 
 ```bash
 git pull
-pnpm install
-pnpm run build
-pnpm run preview
+npm install
+npm run build
+npm run preview
 ```
 
 If you've installed it as a PWA, a "new version" prompt appears on launch.
@@ -146,16 +145,15 @@ See [docs/manual/](docs/manual/README_en.md) for step-by-step operating instruct
 ## Development
 
 ```bash
-corepack enable pnpm
-pnpm install
-pnpm run dev        # Dev server
-pnpm run test       # Vitest
-pnpm run check      # svelte-check type checking
-pnpm run build      # Production build
-pnpm run verify     # check + test + build
+npm install
+npm run dev        # Dev server
+npm run test       # Vitest
+npm run check      # svelte-check type checking
+npm run build      # Production build
+npm run verify     # check + test + build
 ```
 
-Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) / pnpm (version pinned via the `packageManager` field).
+Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) / npm (bundled with Node.js).
 
 ## License
 

@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
-import type { Account, AccountCategory } from '../db/types';
+import { countsTowardTotals, plContribution } from './journal';
+import type { Account, AccountCategory, JournalEntry, JournalLine } from '../db/types';
 
 export interface MonthlyTotal {
   month: number;
@@ -59,9 +60,10 @@ export interface BreakdownReport {
 
 export async function buildBreakdown(
   year: number,
-  axis: BreakdownAxis
+  axis: BreakdownAxis,
+  data?: YearData
 ): Promise<BreakdownReport> {
-  const { entries, lines, accounts } = await loadYearData(year);
+  const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryIds = new Set(entries.map((e) => e.id));
 
@@ -80,17 +82,15 @@ export async function buildBreakdown(
     if (!acc) {
       continue;
     }
-    let contrib: Decimal | null = null;
-    if (acc.category === 'revenue' && line.side === 'credit') {
-      contrib = D(line.amount);
-    } else if (acc.category === 'expense' && line.side === 'debit') {
-      contrib = D(line.amount);
-    } else if (acc.category === 'asset' && line.side === 'debit') {
-      contrib = D(line.amount);
-    } else if (acc.category === 'liability' && line.side === 'credit') {
-      contrib = D(line.amount);
+    let contrib = plContribution(acc.category, line);
+    if (contrib === null) {
+      if (acc.category === 'asset' && line.side === 'debit') {
+        contrib = D(line.amount);
+      } else if (acc.category === 'liability' && line.side === 'credit') {
+        contrib = D(line.amount);
+      }
     }
-    if (!contrib) {
+    if (contrib === null || contrib.isZero()) {
       continue;
     }
     const key = axis === 'vendor' ? (line.vendorId ?? '') : (line.subAccountId ?? '');
@@ -187,16 +187,18 @@ export interface BSReport {
   totalLiabilitiesAndEquity: string;
   balanced: boolean;
 }
-// 訂正済みの原仕訳は除外し、訂正仕訳（status='confirmed' で originalEntryId 持ち）は普通に算入する。
-// 現状ではこの方針で full-year / 当月双方を集計しており、訂正前後の差分は現時点ではキャンセルアウトされる
-// （訂正月で打ち消し、原月では status='reversed' により除外）。
+// 訂正は成対排除方式：原仕訳（status='reversed'）と訂正仕訳（originalEntryId 持ち）を
+// 両方とも集計から除外する（countsTowardTotals）。片方だけ算入すると正味が −1×原仕訳 になり、
+// B/S・繰越に幻の残高が生じるため、必ずペアで除外すること。
 // 期締め後の訂正処理（修正申告ロジック）は reportSnapshots の filed フラグ機構で対応予定。
 
-async function loadYearData(year: number) {
+type YearData = { entries: JournalEntry[]; lines: JournalLine[]; accounts: Account[] };
+
+async function loadYearData(year: number): Promise<YearData> {
   const entries = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter((e) => e.status === 'confirmed')
+    .filter(countsTowardTotals)
     .toArray();
   if (entries.length === 0) {
     return { entries: [], lines: [], accounts: [] as Account[] };
@@ -209,8 +211,28 @@ async function loadYearData(year: number) {
   return { entries, lines, accounts };
 }
 
-export async function buildMonthly(year: number): Promise<MonthlyReport> {
-  const { entries, lines, accounts } = await loadYearData(year);
+export interface AllReports {
+  monthly: MonthlyReport;
+  pl: PLReport;
+  bs: BSReport;
+  monthlyPL: MonthlyPLReport;
+  breakdown: BreakdownReport;
+}
+// 同一年度の全レポートを 1 回の loadYearData で計算する。
+// 各 buildX を個別に呼ぶと同じ年度データを 5 回読み込むため、共有して IDB アクセスを削減する。
+export async function buildAll(year: number, breakdownAxis: BreakdownAxis): Promise<AllReports> {
+  const data = await loadYearData(year);
+  return {
+    monthly: await buildMonthly(year, data),
+    pl: await buildPL(year, data),
+    bs: await buildBS(year, data),
+    monthlyPL: await buildMonthlyPL(year, data),
+    breakdown: await buildBreakdown(year, breakdownAxis, data),
+  };
+}
+
+export async function buildMonthly(year: number, data?: YearData): Promise<MonthlyReport> {
+  const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryMonthMap = new Map(entries.map((e) => [e.id, Number(e.date.slice(5, 7))]));
 
@@ -232,10 +254,14 @@ export async function buildMonthly(year: number): Promise<MonthlyReport> {
     if (!acc) {
       continue;
     }
-    if (acc.category === 'revenue' && line.side === 'credit') {
-      sales[idx] = (sales[idx] ?? D(0)).plus(line.amount);
-    } else if (acc.category === 'expense' && line.side === 'debit') {
-      expense[idx] = (expense[idx] ?? D(0)).plus(line.amount);
+    const contrib = plContribution(acc.category, line);
+    if (contrib === null) {
+      continue;
+    }
+    if (acc.category === 'revenue') {
+      sales[idx] = (sales[idx] ?? D(0)).plus(contrib);
+    } else {
+      expense[idx] = (expense[idx] ?? D(0)).plus(contrib);
     }
   }
 
@@ -261,8 +287,8 @@ export async function buildMonthly(year: number): Promise<MonthlyReport> {
 // 貸借対照表（B/S）。年度末時点で各勘定科目の残高を計算する。
 // 資産は借方残、負債・純資産は貸方残として算出。
 // 当期純利益（PL から）を純資産に加算して表示する。
-export async function buildBS(year: number): Promise<BSReport> {
-  const { entries, lines, accounts } = await loadYearData(year);
+export async function buildBS(year: number, data?: YearData): Promise<BSReport> {
+  const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryMap = new Map(entries.map((e) => [e.id, e]));
   const asOf = `${year}-12-31`;
@@ -321,10 +347,14 @@ export async function buildBS(year: number): Promise<BSReport> {
     if (!acc) {
       continue;
     }
-    if (acc.category === 'revenue' && line.side === 'credit') {
-      revenue = revenue.plus(line.amount);
-    } else if (acc.category === 'expense' && line.side === 'debit') {
-      expense = expense.plus(line.amount);
+    const contrib = plContribution(acc.category, line);
+    if (contrib === null) {
+      continue;
+    }
+    if (acc.category === 'revenue') {
+      revenue = revenue.plus(contrib);
+    } else {
+      expense = expense.plus(contrib);
     }
   }
   const netIncome = revenue.minus(expense);
@@ -347,8 +377,8 @@ export async function buildBS(year: number): Promise<BSReport> {
   };
 }
 
-export async function buildMonthlyPL(year: number): Promise<MonthlyPLReport> {
-  const { entries, lines, accounts } = await loadYearData(year);
+export async function buildMonthlyPL(year: number, data?: YearData): Promise<MonthlyPLReport> {
+  const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryMonthMap = new Map(entries.map((e) => [e.id, Number(e.date.slice(5, 7))]));
   // accountCode → [12 ヶ月分の Decimal]
@@ -371,13 +401,8 @@ export async function buildMonthlyPL(year: number): Promise<MonthlyPLReport> {
     if (!acc) {
       continue;
     }
-    let contrib: Decimal | null = null;
-    if (acc.category === 'revenue' && line.side === 'credit') {
-      contrib = D(line.amount);
-    } else if (acc.category === 'expense' && line.side === 'debit') {
-      contrib = D(line.amount);
-    }
-    if (!contrib) {
+    const contrib = plContribution(acc.category, line);
+    if (contrib === null) {
       continue;
     }
     const row = ensureRow(line.accountCode);
@@ -437,8 +462,8 @@ export async function buildMonthlyPL(year: number): Promise<MonthlyPLReport> {
   };
 }
 
-export async function buildPL(year: number): Promise<PLReport> {
-  const { entries, lines, accounts } = await loadYearData(year);
+export async function buildPL(year: number, data?: YearData): Promise<PLReport> {
+  const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
   const totals = new Map<string, Decimal>();
@@ -447,13 +472,8 @@ export async function buildPL(year: number): Promise<PLReport> {
     if (!acc) {
       continue;
     }
-    let contrib: Decimal | null = null;
-    if (acc.category === 'revenue' && line.side === 'credit') {
-      contrib = D(line.amount);
-    } else if (acc.category === 'expense' && line.side === 'debit') {
-      contrib = D(line.amount);
-    }
-    if (!contrib) {
+    const contrib = plContribution(acc.category, line);
+    if (contrib === null) {
       continue;
     }
     totals.set(line.accountCode, (totals.get(line.accountCode) ?? D(0)).plus(contrib));
