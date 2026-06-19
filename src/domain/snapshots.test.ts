@@ -54,10 +54,14 @@ describe('isYearLocked', () => {
 })
 
 describe('unlockYear', () => {
-  test('removes filed snapshots', async () => {
+  test('ロックを解除し、filed を superseded に変更（削除しない）', async () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31')
     const r = await unlockYear(2026)
     expect(r.removed).toBe(2)
     expect(await isYearLocked(2026)).toBe(false)
+    // スナップショット自体は残る（修正申告差分の基準として保持）
+    const remaining = await db.reportSnapshots.where('year').equals(2026).toArray()
+    expect(remaining).toHaveLength(2)
+    expect(remaining.every((s) => s.status === 'superseded')).toBe(true)
   })
 })

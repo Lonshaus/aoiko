@@ -1,12 +1,9 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { D, formatJPY } from '../lib/decimal';
+  import { toISODateLocal } from '../lib/date';
   import {
-    buildBS,
-    buildBreakdown,
-    buildMonthly,
-    buildMonthlyPL,
-    buildPL,
+    buildAll,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -82,12 +79,9 @@
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
+      const reports = await buildAll(yr, ax);
       return {
-        monthly: await buildMonthly(yr),
-        pl: await buildPL(yr),
-        bs: await buildBS(yr),
-        monthlyPL: await buildMonthlyPL(yr),
-        breakdown: await buildBreakdown(yr, ax),
+        ...reports,
         amendment: await getAmendmentDiff(yr),
         consumptionTax: await compareAll(yr, cat),
         taxRegistration: reg,
@@ -121,7 +115,6 @@
         return m.reports_consumption_tax_method_three_wari();
     }
   }
-
   // 4 方式中で最少納付額の method を返す。同額時は先に来た方を優先。
   function bestMethod(results: ConsumptionTaxResult[]): ConsumptionTaxResult['method'] | null {
     if (results.length === 0) {
@@ -131,14 +124,14 @@
     if (!best) {
       return null;
     }
-    let bestNet = Number(best.netTax.total);
+    let bestNet = D(best.netTax.total);
     for (let i = 1; i < results.length; i++) {
       const r = results[i];
       if (!r) {
         continue;
       }
-      const net = Number(r.netTax.total);
-      if (net < bestNet) {
+      const net = D(r.netTax.total);
+      if (net.lessThan(bestNet)) {
         best = r;
         bestNet = net;
       }
@@ -245,23 +238,20 @@
     URL.revokeObjectURL(url);
   }
   // 月別売上のバー高さ計算用、月内の最大売上を取る
-  function maxSales(rep: MonthlyReport | null): number {
+  function maxSales(rep: MonthlyReport | null) {
     if (!rep) {
-      return 0;
+      return D(0);
     }
-    return rep.months.reduce(
-      (m, x) => Math.max(m, Number(x.sales)),
-      0
-    );
+    return rep.months.reduce((mx, x) => (mx.greaterThan(x.sales) ? mx : D(x.sales)), D(0));
   }
   const monthlyMax = $derived(maxSales(monthly));
 
   function barWidth(value: string): string {
-    if (monthlyMax === 0) {
+    if (monthlyMax.isZero()) {
       return '0%';
     }
-    const pct = (Number(value) / monthlyMax) * 100;
-    return `${Math.min(100, pct)}%`;
+    const pct = D(value).dividedBy(monthlyMax).times(100).toNumber();
+    return `${Math.min(100, Math.max(0, pct))}%`;
   }
 </script>
 
@@ -667,7 +657,7 @@
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_amendment_title()}</h3>
         <span class="text-xs text-muted-foreground">
-          {m.reports_amendment_filed_at({ date: new Date(a.filedAt).toISOString().slice(0, 10) })}
+          {m.reports_amendment_filed_at({ date: toISODateLocal(new Date(a.filedAt)) })}
         </span>
       </header>
       {#if !a.hasChange}

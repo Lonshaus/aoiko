@@ -19,10 +19,16 @@ export interface AmendmentDiff {
 // 訂正仕訳によってどれだけ数値が変わったかを返す。
 // 修正申告（amended return）の提出要否判断・提出用差分把握に使う。
 export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | null> {
-  const snap = await db.reportSnapshots
-    .where('[year+type+status]')
-    .equals([year, 'pl', 'filed'])
-    .first();
+  // 当初申告の基準スナップショット。ロック中は 'filed'、ロック解除後（修正申告中）は
+  // 'superseded' になっているため、どちらも基準として採用する。複数あれば最新の申告を使う。
+  const candidates = await db.reportSnapshots
+    .where('year')
+    .equals(year)
+    .filter((s) => s.type === 'pl' && (s.status === 'filed' || s.status === 'superseded'))
+    .toArray();
+  const snap = candidates.sort(
+    (a, b) => (b.filedAt ?? b.generatedAt) - (a.filedAt ?? a.generatedAt)
+  )[0];
   if (!snap || snap.payload.type !== 'pl') {
     return null;
   }

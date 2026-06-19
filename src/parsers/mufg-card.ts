@@ -1,5 +1,6 @@
 import { parseCsv } from '../lib/csv';
 import {
+  applySign,
   buildRawRow,
   isDateLike,
   normalizeDate,
@@ -61,12 +62,14 @@ const mufgCardParser: CsvParser = {
           memo = `${c}回払い`;
         }
       }
+      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const transaction: ParsedTransaction = {
         date: normalizeDate(dateRaw),
         description,
-        amount: stripComma(amountRaw),
-        side: 'credit',
+        amount,
+        side,
         rawRow: buildRawRow(header, row),
       };
       if (memo) {

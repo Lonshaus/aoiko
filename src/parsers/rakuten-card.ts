@@ -1,5 +1,6 @@
 import { parseCsv } from '../lib/csv';
 import {
+  applySign,
   buildRawRow,
   normalizeDate,
   optionalColumn,
@@ -44,7 +45,8 @@ const rakutenCardParser: CsvParser = {
       if (!amountRaw) {
         continue;
       }
-      const amount = stripComma(amountRaw);
+      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const memoParts: string[] = [];
       if (idxUser >= 0) {
@@ -65,7 +67,7 @@ const rakutenCardParser: CsvParser = {
         date: normalizeDate(dateRaw),
         description,
         amount,
-        side: 'credit',  // 未払金が増える方向
+        side,
         rawRow: buildRawRow(header, row),
       };
       if (memo) {

@@ -132,7 +132,7 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 5. **"Save"** → **"Test connection"**
 
 > - OCR requires a **vision-capable model** (llama3.2-vision / ministral-3 / moondream etc.)
-> - To use localhost, aoiko must also run **locally** (`pnpm run preview`); aoiko served over HTTPS cannot reach `http://localhost`
+> - To use localhost, aoiko must also run **locally** (`npm run preview`); aoiko served over HTTPS cannot reach `http://localhost`
 > - Set `OLLAMA_ORIGINS` on the Ollama side to allow aoiko's URL
 
 ### 7-C. Tesseract (purely-local WASM OCR)
