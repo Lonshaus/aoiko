@@ -60,4 +60,4 @@ b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643  general/ITdefi
 1. `e-tax19.CAB` を再取得し `7z x` で展開
 2. 最新版 xsd（`KOA020-0NN.xsd` 等）を本ディレクトリへ更新（旧版は履歴で追跡）
 3. 本 README の SHA256 と `scripts/build-xtx-schema.js` の `EXPECTED_SHA256` を更新
-4. `pnpm run xtx:build-schema` で JSON 再生成、`pnpm run verify`
+4. `npm run xtx:build-schema` で JSON 再生成、`npm run verify`

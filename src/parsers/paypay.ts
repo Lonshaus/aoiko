@@ -16,12 +16,14 @@ import type { CsvParser, ParsedTransaction } from './types';
 //
 // このアカウントは PayPay 残高ではなくクレジット（PayPayカード／クレジット VISA）
 // 決済で運用されている前提のため accountCode は 2120（未払金）。
-// 出金金額（円）がある支払い行のみを credit（未払金 増）として取り込む。
-// 入金行（ポイント・残高の獲得など）は仕訳対象外として読み飛ばす。
+// 出金金額（円）がある支払い行は credit（未払金 増）として取り込む。
+// 入金行のうち「返金・返品・キャンセル」は debit（未払金 減）として取り込み、
+// それ以外の入金（ポイント・残高の獲得など）は仕訳対象外として読み飛ばす。
 // 残高チャージ運用が必要になった場合は別 parser で対応する。
 
 const DISPLAY = 'PayPay（クレジット決済）';
 const REQUIRED = ['取引日', '出金金額（円）', '取引先'] as const;
+const REFUND_PATTERN = /返金|返品|キャンセル/;
 
 function clean(v: string): string {
   const t = v.trim();
@@ -42,6 +44,7 @@ const paypayParser: CsvParser = {
     const idx = requireColumns(header, REQUIRED, DISPLAY);
     const idxContent = optionalColumn(header, '取引内容');
     const idxMethod = optionalColumn(header, '取引方法');
+    const idxIn = optionalColumn(header, '入金金額（円）');
 
     const result: ParsedTransaction[] = [];
     for (let i = 1; i < rows.length; i++) {
@@ -50,11 +53,23 @@ const paypayParser: CsvParser = {
       if (!dateRaw) {
         continue;
       }
+      const content = idxContent >= 0 ? clean(row[idxContent] ?? '') : '';
       const outRaw = clean(row[idx['出金金額（円）']!] ?? '');
-      if (!outRaw) {
+      const inRaw = idxIn >= 0 ? clean(row[idxIn] ?? '') : '';
+
+      let amount: string;
+      let side: 'debit' | 'credit';
+      if (outRaw) {
+        amount = stripComma(outRaw);
+        side = 'credit';
+      } else if (inRaw && REFUND_PATTERN.test(content)) {
+        // 返金・返品・キャンセルの入金は未払金の減少（debit）として取り込む
+        amount = stripComma(inRaw);
+        side = 'debit';
+      } else {
+        // その他の入金（ポイント・残高の獲得など）は対象外
         continue;
       }
-      const amount = stripComma(outRaw);
       if (!amount) {
         continue;
       }
@@ -67,11 +82,8 @@ const paypayParser: CsvParser = {
           memoParts.push(m);
         }
       }
-      if (idxContent >= 0) {
-        const c = clean(row[idxContent] ?? '');
-        if (c && c !== '支払い') {
-          memoParts.push(c);
-        }
+      if (content && content !== '支払い') {
+        memoParts.push(content);
       }
       const memo = memoParts.length > 0 ? memoParts.join(' / ') : undefined;
 
@@ -79,7 +91,7 @@ const paypayParser: CsvParser = {
         date: normalizeDate(dateRaw),
         description,
         amount,
-        side: 'credit',
+        side,
         rawRow: buildRawRow(header, row),
       };
       if (memo) {
