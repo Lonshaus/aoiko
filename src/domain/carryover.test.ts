@@ -4,6 +4,8 @@ import { D, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
 import { applyCarryover, computeCarryover, removeCarryover } from './carryover';
+import { reverseEntry } from './reverse';
+import { todayISO } from '../lib/date';
 import type { Account, EntrySource, LineSide } from '../db/types';
 
 async function seedAccounts(year: number): Promise<void> {
@@ -205,6 +207,57 @@ describe('computeCarryover', () => {
     await db.journalEntries.update(id, { status: 'reversed' });
     const p = await computeCarryover(2026);
     expect(p.assets).toEqual([]);
+    expect(p.capitalAmount).toBe('0');
+  });
+
+  test('reverseEntry による訂正は繰越に影響しない（成対排除）', async () => {
+    await seedAccounts(2025);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '3110', amount: '100000' },
+      ],
+    });
+    // 誤った経費 5,000 を計上し、reverseEntry で訂正する
+    const wrongId = await seedEntry({
+      date: '2025-07-01',
+      description: '誤計上',
+      pairs: [
+        { side: 'debit', accountCode: '5200', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    });
+    await reverseEntry(wrongId);
+
+    const p = await computeCarryover(2026);
+    // 訂正ペアは正味ゼロ：開業仕訳だけが繰越される
+    expect(p.assets).toEqual([
+      { accountCode: '1130', accountName: '普通預金', amount: '100000' },
+    ]);
+    expect(p.priorNetIncome).toBe('0');
+    expect(p.capitalAmount).toBe('100000');
+  });
+
+  test('訂正仕訳（鏡像側）も翌年の繰越に幻の残高を作らない', async () => {
+    // 鏡像は「今日」の年度に記帳されるため、その翌年の繰越で混入しないことを確認する
+    const mirrorYear = Number(todayISO().slice(0, 4));
+    await seedAccounts(2025);
+    await seedAccounts(mirrorYear);
+    const wrongId = await seedEntry({
+      date: '2025-07-01',
+      description: '誤計上',
+      pairs: [
+        { side: 'debit', accountCode: '5200', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    });
+    await reverseEntry(wrongId);
+
+    const p = await computeCarryover(mirrorYear + 1);
+    expect(p.assets).toEqual([]);
+    expect(p.liabilities).toEqual([]);
     expect(p.capitalAmount).toBe('0');
   });
 });

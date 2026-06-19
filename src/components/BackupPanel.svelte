@@ -1,6 +1,19 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { backup } from '../stores/backup.svelte';
+  import { getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+
+  let includeApiKeys = $state(false);
+
+  onMount(async () => {
+    includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+  });
+
+  async function onToggleIncludeApiKeys(e: Event) {
+    includeApiKeys = (e.target as HTMLInputElement).checked;
+    await setSetting('backupIncludeApiKeys', includeApiKeys);
+  }
 
   function formatTime(ts: number | null): string {
     if (!ts) {
@@ -164,4 +177,19 @@
       {m.backup_panel_action_download_json()}
     </button>
   </div>
+
+  <label class="flex items-start gap-2 text-sm border-t pt-4">
+    <input
+      type="checkbox"
+      checked={includeApiKeys}
+      onchange={onToggleIncludeApiKeys}
+      class="mt-0.5"
+    />
+    <span>
+      {m.backup_panel_include_api_keys()}
+      <span class="block text-xs text-muted-foreground mt-1">
+        {m.backup_panel_include_api_keys_warning()}
+      </span>
+    </span>
+  </label>
 </section>

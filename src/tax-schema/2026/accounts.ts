@@ -39,7 +39,6 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '1530', year: 2026, name: '開業費',         category: 'asset', displayOrder: 530 },
   // 資産（1xxx）— 事業主貸
   { code: '1610', year: 2026, name: '事業主貸',       category: 'asset', displayOrder: 610 },
-
   // 負債（2xxx）
   { code: '2105', year: 2026, name: '支払手形',       category: 'liability', displayOrder: 105 },
   { code: '2110', year: 2026, name: '買掛金',         category: 'liability', displayOrder: 110 },
@@ -49,15 +48,12 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '2150', year: 2026, name: '前受金',         category: 'liability', displayOrder: 150 },
   { code: '2160', year: 2026, name: '借入金',         category: 'liability', displayOrder: 160 },
   { code: '2170', year: 2026, name: '貸倒引当金',     category: 'liability', displayOrder: 170 },
-
   // 純資産（3xxx）
   { code: '3110', year: 2026, name: '元入金',         category: 'equity', displayOrder: 110 },
   { code: '3120', year: 2026, name: '事業主借',       category: 'equity', displayOrder: 120 },
-
   // 収益（4xxx）
   { code: '4110', year: 2026, name: '売上高',         category: 'revenue', taxCategory: 'taxable10', displayOrder: 110 },
   { code: '4910', year: 2026, name: '雑収入',         category: 'revenue', taxCategory: 'taxable10', displayOrder: 910 },
-
   // 費用（5xxx）— 売上原価
   { code: '5010', year: 2026, name: '期首商品棚卸高', category: 'expense', taxCategory: 'nontaxable', displayOrder: 10 },
   { code: '5020', year: 2026, name: '仕入',           category: 'expense', taxCategory: 'taxable10', displayOrder: 20 },

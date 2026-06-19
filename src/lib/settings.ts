@@ -28,6 +28,9 @@ export type SettingsMap = {
   tesseractLangPath: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
+  // バックアップ・エクスポートに API キーを含めるか（既定 false）。
+  // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。
+  backupIncludeApiKeys: boolean;
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
   // 消費税関連設定
