@@ -4,6 +4,7 @@
     commitImport,
     computeFileHash,
     DuplicateImportError,
+    findOverlappingRows,
     type ImportRow,
   } from '../domain/import';
   import { findMatchingRule, recordRuleHit } from '../domain/rules';
@@ -17,6 +18,9 @@
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
+  import { taxRateForCategory } from '../lib/tax-category';
+  import { exceedsLimit, formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
+  import { decodeCsv } from '../lib/encoding';
   import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
 
@@ -28,13 +32,21 @@
     skip: boolean;
     matchedRuleId: string;       // ルール命中時の ID、'' = 非適用
     llmConfidence: '' | 'high' | 'low';  // LLM 分類の信頼度、'' = LLM 未適用
+    taxRate: number;             // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
+    invoiceCompliant: boolean;   // 適格請求書あり（仕入税額控除 100%）
   };
+  // 相手科目コードから税区分由来の既定税率を引く。
+  function defaultTaxRateFor(accountCode: string): number {
+    const acc = ledger.accounts.find((a) => a.code === accountCode);
+    return taxRateForCategory(acc?.taxCategory);
+  }
 
   let selectedParserName = $state(PARSERS[0]?.name ?? '');
   let fileName = $state('');
   let fileHash = $state('');
   let rows = $state<RowState[]>([]);
   let knownSubAccountId = $state('');
+  let duplicateNotice = $state('');
   let importing = $state(false);
   let llmClassifying = $state(false);
   let llmStatus = $state('');
@@ -70,10 +82,15 @@
     if (!file || !currentParser) {
       return;
     }
+    if (exceedsLimit(file.size, MAX_CSV_BYTES)) {
+      error = m.common_file_too_large({ size: formatBytes(file.size), limit: formatBytes(MAX_CSV_BYTES) });
+      input.value = '';
+      return;
+    }
     fileName = file.name;
     try {
       const buffer = await file.arrayBuffer();
-      const text = new TextDecoder(currentParser.encoding).decode(buffer);
+      const text = decodeCsv(buffer, currentParser.encoding);
       fileHash = await computeFileHash(text);
 
       const dup = await db.importBatches
@@ -89,20 +106,27 @@
       }
 
       const txs = currentParser.parse(text);
+      // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
+      const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
       rows = await Promise.all(
-        txs.map(async (t): Promise<RowState> => {
+        txs.map(async (t, i): Promise<RowState> => {
           const rule = await findMatchingRule(t.description);
+          const code = rule?.accountCode ?? '';
           return {
             transaction: t,
-            counterpartAccountCode: rule?.accountCode ?? '',
+            counterpartAccountCode: code,
             counterpartSubAccountId: '',
             description: t.description,
-            skip: false,
+            skip: overlapping.has(i),
             matchedRuleId: rule?.id ?? '',
             llmConfidence: '',
+            taxRate: defaultTaxRateFor(code),
+            invoiceCompliant: false,
           };
         })
       );
+      duplicateNotice =
+        overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     }
@@ -113,6 +137,8 @@
     // ユーザーが上書きしたら自動分類の出所を解除
     row.matchedRuleId = '';
     row.llmConfidence = '';
+    // 科目変更時は税区分由来の既定税率に追従する
+    row.taxRate = defaultTaxRateFor(row.counterpartAccountCode);
   }
 
   function counterpartCandidates(knownSide: 'debit' | 'credit'): Account[] {
@@ -205,6 +231,7 @@
           }
           if (s.accountCode && s.confidence !== 'none') {
             row.counterpartAccountCode = s.accountCode;
+            row.taxRate = defaultTaxRateFor(s.accountCode);
             row.llmConfidence = s.confidence;
             if (s.confidence === 'high') {
               highCount++;
@@ -249,6 +276,7 @@
     fileName = '';
     fileHash = '';
     knownSubAccountId = '';
+    duplicateNotice = '';
     error = '';
   }
 
@@ -270,6 +298,8 @@
           ? { description: r.description }
           : {}),
         skip: r.skip,
+        counterpartTaxRate: r.taxRate,
+        counterpartInvoiceCompliant: r.invoiceCompliant,
       }));
       const result = await commitImport(
         {
@@ -375,6 +405,11 @@
         ✓ {success}
       </div>
     {/if}
+    {#if duplicateNotice}
+      <div class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm">
+        ⚠ {duplicateNotice}
+      </div>
+    {/if}
   </section>
 
   {#if rows.length > 0}
@@ -408,6 +443,7 @@
               <th class="text-left font-normal px-3 py-2">{m.journal_th_description()}</th>
               <th class="text-right font-normal px-3 py-2">{m.journal_th_amount()}</th>
               <th class="text-left font-normal px-3 py-2">{m.import_th_counterpart()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.import_th_tax()}</th>
               <th class="text-center font-normal px-3 py-2">{m.import_th_skip()}</th>
             </tr>
           </thead>
@@ -473,6 +509,23 @@
                         <option value={s.id}>{s.name}</option>
                       {/each}
                     </select>
+                  {/if}
+                </td>
+                <td class="px-3 py-2 space-y-1 whitespace-nowrap">
+                  <select
+                    bind:value={row.taxRate}
+                    disabled={row.skip}
+                    class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs disabled:opacity-50"
+                  >
+                    <option value={0}>{m.journal_tax_exempt()}</option>
+                    <option value={0.08}>{m.journal_tax_reduced()}</option>
+                    <option value={0.1}>{m.journal_tax_standard()}</option>
+                  </select>
+                  {#if row.taxRate > 0}
+                    <label class="flex items-center gap-1 text-xs text-muted-foreground" title={m.import_invoice_compliant_title()}>
+                      <input type="checkbox" bind:checked={row.invoiceCompliant} disabled={row.skip} />
+                      {m.import_invoice_compliant()}
+                    </label>
                   {/if}
                 </td>
                 <td class="px-3 py-2 text-center">

@@ -225,6 +225,74 @@ describe('computeGeneral - 本則課税', () => {
     const r = await computeGeneral(2026);
     expect(r.outputTax.national).toBe('78');
   });
+
+  test('端数は切捨て（四捨五入しない）', async () => {
+    // 税込 1,000 円 10% → 国税 = 1000 × 7.8/110 = 70.909… → 切捨て 70（四捨五入なら 71）
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1000' },
+        { side: 'credit', accountCode: '4110', amount: '1000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.outputTax.national).toBe('70');
+  });
+
+  test('売上値引（revenue 借方）は課税標準から控除される', async () => {
+    // 売上 11,000 円税込 → 国税 780。値引 1,100 円税込 → 国税 −78。正味 702
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '11000' },
+        { side: 'credit', accountCode: '4110', amount: '11000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-04-10',
+      pairs: [
+        { side: 'debit', accountCode: '4110', amount: '1100', taxRate: 0.1, taxIncluded: true },
+        { side: 'credit', accountCode: '1130', amount: '1100' },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.outputTax.national).toBe('702');
+  });
+
+  test('仕入の返金（expense 貸方）は仕入税額から控除される', async () => {
+    // 適格仕入 5,500 円税込 → 控除 390。返金 1,100 円税込 → −78。正味 312
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5200',
+          amount: '5500',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '5500' },
+      ],
+    });
+    await seedEntry({
+      date: '2026-04-15',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100' },
+        {
+          side: 'credit',
+          accountCode: '5200',
+          amount: '1100',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.inputTaxRaw.national).toBe('312');
+    expect(r.inputTax.national).toBe('312');
+  });
 });
 
 describe('computeSimplified - 簡易課税', () => {
@@ -289,8 +357,8 @@ describe('computeThreeWari - 3 割特例', () => {
   });
 });
 
-describe('compareAll - 4 方式比較', () => {
-  test('4 件のリザルトを返し、それぞれ method が異なる', async () => {
+describe('compareAll - 方式比較', () => {
+  test('2026 年は本則・簡易・2割特例（3割特例は適用外）', async () => {
     await seedEntry({
       date: '2026-04-01',
       pairs: [
@@ -299,12 +367,24 @@ describe('compareAll - 4 方式比較', () => {
       ],
     });
     const all = await compareAll(2026, 4);
-    expect(all).toHaveLength(4);
-    expect(all.map((r) => r.method)).toEqual([
-      'general',
-      'simplified',
-      'two-wari',
-      'three-wari',
-    ]);
+    expect(all.map((r) => r.method)).toEqual(['general', 'simplified', 'two-wari']);
+  });
+
+  test('2027 年は本則・簡易・3割特例（2割特例は適用外）', async () => {
+    await seedAccounts(2027);
+    await seedEntry({
+      date: '2027-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    const all = await compareAll(2027, 4);
+    expect(all.map((r) => r.method)).toEqual(['general', 'simplified', 'three-wari']);
+  });
+
+  test('2029 年以降は特例なし（本則・簡易のみ）', async () => {
+    const all = await compareAll(2029, 4);
+    expect(all.map((r) => r.method)).toEqual(['general', 'simplified']);
   });
 });

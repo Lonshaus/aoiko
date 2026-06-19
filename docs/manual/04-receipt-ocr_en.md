@@ -116,7 +116,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - **Vision-capable model required** (text-only models fail on image input)
 - Recommended: `llama3.2-vision`, `ministral-3`, `moondream` family
 - On the Ollama side: add aoiko's URL (e.g. `http://localhost:4173`) to `OLLAMA_ORIGINS`
-- aoiko itself must run locally too (`pnpm run preview`); HTTPS-served aoiko can't reach localhost
+- aoiko itself must run locally too (`npm run preview`); HTTPS-served aoiko can't reach localhost
 
 ### Tesseract
 

@@ -3,6 +3,7 @@ import { db } from '../db/db'
 import { newId } from '../lib/id'
 import { toIndexable } from '../lib/decimal'
 import { buildBS } from './reports'
+import { reverseEntry } from './reverse'
 import type { Account, JournalLine } from '../db/types'
 
 const TEST_ACCOUNTS: Account[] = [
@@ -131,6 +132,34 @@ describe('buildBS', () => {
 
     const bs = await buildBS(2026)
     expect(bs.assets).toHaveLength(0)
+  })
+
+  test('訂正仕訳（reverseEntry）後も B/S はバランスし、幻の残高が出ない', async () => {
+    // 売上 50,000
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '50000' },
+        { side: 'credit', accountCode: '4110', amount: '50000' },
+      ],
+    })
+    // 経費 5,000 → 誤記として訂正
+    const wrongId = await addEntry({
+      date: '2026-04-20',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    })
+    await reverseEntry(wrongId)
+
+    const bs = await buildBS(2026)
+    // 訂正ペアは正味ゼロ：経費 5,000 がなかったのと同じ状態に戻る
+    expect(bs.assets[0]?.balance).toBe('50000')
+    expect(bs.netIncome).toBe('50000')
+    expect(bs.totalAssets).toBe('50000')
+    expect(bs.totalLiabilitiesAndEquity).toBe('50000')
+    expect(bs.balanced).toBe(true)
   })
 
   test('残高ゼロの科目は出力に含まれない', async () => {

@@ -61,7 +61,6 @@
   onMount(() => {
     scrollToHash(window.location.hash.slice(1))
   })
-
   // {@html} 内・章内目次のリンクを SPA 遷移／アンカージャンプに変換する。
   function onContentClick(e: MouseEvent) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {

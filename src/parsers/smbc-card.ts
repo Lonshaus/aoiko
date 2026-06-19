@@ -42,12 +42,22 @@ const smbcCardParser: CsvParser = {
   encoding: 'shift_jis',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
+    // 表頭が無い形式のため、位置解釈の前に最低限の指紋を確認する（パーサー誤選択の検出）。
+    // 1 行目はカード会員情報（日付ではない）。先頭が日付なら別形式とみなす。
+    const firstNonEmpty = rows.find((r) => r.some((c) => c.trim() !== ''));
+    if (firstNonEmpty && isDateLike((firstNonEmpty[COL.date] ?? '').trim())) {
+      throw new Error(`${DISPLAY} の CSV 形式と一致しません（カード会員情報の行が見つかりません）`);
+    }
 
     const result: ParsedTransaction[] = [];
     for (const row of rows) {
       const dateRaw = (row[COL.date] ?? '').trim();
       if (!isDateLike(dateRaw)) {
         continue;
+      }
+      // 位置で列を解釈するため、データ行には最低 6 列（利用日〜今回お支払額）が必要。
+      if (row.length < 6) {
+        throw new Error(`${DISPLAY} の CSV 形式と一致しません（列数が不足しています）`);
       }
       const description = (row[COL.desc] ?? '').trim();
       const useRaw = (row[COL.amount] ?? '').trim();
