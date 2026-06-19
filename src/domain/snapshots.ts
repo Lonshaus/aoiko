@@ -59,13 +59,18 @@ export async function isYearLocked(year: number): Promise<boolean> {
   return !!filed;
 }
 // 申告ロック解除（誤ロック・修正申告対応の管理者向け）。
-// 既存の filed スナップショットをすべて削除する。
+// filed スナップショットは削除せず status='superseded' に変更する。
+// これにより当初申告の数値が残り、修正申告差分（getAmendmentDiff）の基準として使える。
 export async function unlockYear(year: number): Promise<{ removed: number }> {
-  const removed = await db.reportSnapshots
+  const filed = await db.reportSnapshots
     .where('year')
     .equals(year)
     .filter((s) => s.status === 'filed')
     .toArray();
-  await db.reportSnapshots.bulkDelete(removed.map((s) => s.id));
-  return { removed: removed.length };
+  await db.transaction('rw', db.reportSnapshots, async () => {
+    for (const s of filed) {
+      await db.reportSnapshots.update(s.id, { status: 'superseded' });
+    }
+  });
+  return { removed: filed.length };
 }

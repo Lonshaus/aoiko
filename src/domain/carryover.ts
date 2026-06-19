@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
+import { countsTowardTotals } from './journal';
 import type { JournalEntry, JournalLine } from '../db/types';
 
 export interface CarryoverPreview {
@@ -35,7 +36,7 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
   const entries = await db.journalEntries
     .where('year')
     .equals(priorYear)
-    .filter((e) => e.status === 'confirmed')
+    .filter(countsTowardTotals)
     .toArray();
   const accounts = await db.accounts.where('year').equals(priorYear).toArray();
   const accountMap = new Map(accounts.map((a) => [a.code, a]));

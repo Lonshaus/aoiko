@@ -9,10 +9,10 @@ describe('jcbCardParser', () => {
     expect(jcbCardParser.encoding).toBe('shift_jis')
   })
 
-  test('skips支払サマリ前言 and parses明細; all rows credit', () => {
+  test('skips支払サマリ前言 and parses明細; 利用行は credit', () => {
     const r = jcbCardParser.parse(sample)
-    expect(r).toHaveLength(3)
-    for (const tx of r) {
+    expect(r).toHaveLength(4)
+    for (const tx of r.slice(0, 3)) {
       expect(tx.side).toBe('credit')
     }
     expect(r[0]).toMatchObject({
@@ -21,6 +21,14 @@ describe('jcbCardParser', () => {
       amount: '1200',
     })
     expect(r[1]?.amount).toBe('3300')
+  })
+
+  test('返品行（負数）は絶対値 + debit（未払金の減少）', () => {
+    const r = jcbCardParser.parse(sample)
+    const refund = r[3]
+    expect(refund?.description).toBe('家電量販店 返品')
+    expect(refund?.amount).toBe('5500')
+    expect(refund?.side).toBe('debit')
   })
 
   test('trims leading space in date and keeps摘要 as memo', () => {

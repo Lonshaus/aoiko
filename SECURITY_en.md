@@ -71,5 +71,5 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 
 ## Dependency vulnerabilities
 
-- `pnpm audit` in CI is planned (not yet implemented)
+- `npm audit` in CI is planned (not yet implemented)
 - High-severity CVEs are addressed promptly when found, but coverage is not guaranteed

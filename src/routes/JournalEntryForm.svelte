@@ -3,6 +3,7 @@
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
+  import { todayISO } from '../lib/date';
   import { newId } from '../lib/id';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
@@ -24,7 +25,7 @@
     { value: 0.1, label: () => m.journal_tax_standard() },
   ];
 
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => todayISO();
   const emptyLine = (): DraftLine => ({
     id: newId(),
     accountCode: '',
@@ -272,7 +273,10 @@
             {m.journal_form_home_office()}
             <input
               type="number"
-              bind:value={line.homeOfficeRatio}
+              value={line.homeOfficeRatio}
+              oninput={(e) => {
+                line.homeOfficeRatio = (e.target as HTMLInputElement).value;
+              }}
               min="0"
               max="1"
               step="0.01"
@@ -330,7 +334,10 @@
         </div>
         <input
           type="number"
-          bind:value={line.amount}
+          value={line.amount}
+          oninput={(e) => {
+            line.amount = (e.target as HTMLInputElement).value;
+          }}
           required
           min="0"
           step="1"
@@ -364,7 +371,10 @@
             {m.journal_form_home_office()}
             <input
               type="number"
-              bind:value={line.homeOfficeRatio}
+              value={line.homeOfficeRatio}
+              oninput={(e) => {
+                line.homeOfficeRatio = (e.target as HTMLInputElement).value;
+              }}
               min="0"
               max="1"
               step="0.01"

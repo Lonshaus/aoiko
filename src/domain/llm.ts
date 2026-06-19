@@ -115,7 +115,6 @@ export function isLocalHost(host: string): boolean {
   const name = host.replace(/:\d+$/, '').toLowerCase();
   return LOCAL_HOSTS.has(name) || name.endsWith('.local');
 }
-
 // ローカル LLM が ```json フェンス等で囲って返すケースに耐性を持たせて JSON 抽出
 function parseLooseJson(text: string): unknown {
   const t = text.trim();
@@ -129,7 +128,6 @@ function parseLooseJson(text: string): unknown {
     return JSON.parse(candidate);
   }
 }
-
 // OpenAI 互換 Chat Completions アダプター。
 // Ollama / LM Studio / llama.cpp server / vLLM / OpenAI 等を 1 つで包括。
 // baseUrl 例：http://localhost:11434/v1（末尾 /chat/completions・/models を付与）。
@@ -215,7 +213,6 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     }
   }
 }
-
 // OpenAI 互換 /models からインストール済モデル ID 一覧を取得（Page Assist 方式）
 export async function listOpenAiModels(
   baseUrl: string,

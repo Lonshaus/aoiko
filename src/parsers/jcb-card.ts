@@ -1,5 +1,6 @@
 import { parseCsv } from '../lib/csv';
 import {
+  applySign,
   buildRawRow,
   findHeaderRow,
   normalizeDate,
@@ -47,7 +48,8 @@ const jcbCardParser: CsvParser = {
       if (!amountRaw) {
         continue;
       }
-      const amount = stripComma(amountRaw);
+      // キャンセル・返金行は負数 → 絶対値 + debit（未払金の減少）
+      const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       let memo: string | undefined;
       if (idxNote >= 0) {
@@ -61,7 +63,7 @@ const jcbCardParser: CsvParser = {
         date: normalizeDate(dateRaw),
         description,
         amount,
-        side: 'credit',
+        side,
         rawRow: buildRawRow(header, row),
       };
       if (memo) {

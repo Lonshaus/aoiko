@@ -2,6 +2,8 @@
   import { onMount } from 'svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
+  import { toISODateLocal, todayISO } from '../lib/date';
+  import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
@@ -88,7 +90,7 @@
   let ruleError = $state('');
 
   let newAssetName = $state('');
-  let newAssetDate = $state(new Date().toISOString().slice(0, 10));
+  let newAssetDate = $state(todayISO());
   let newAssetCost = $state('');
   let newAssetLife = $state(4);
   let newAssetAccount = $state('1510');
@@ -344,7 +346,6 @@
   async function deleteRule(id: string) {
     await db.parserRules.delete(id);
   }
-
   // 少額特例の適用可否（フォーム入力に応じて反応）。
   // 用途：i) 入力中の即時フィードバック、ii) 送信ブロック
   type SmallAssetCheck =
@@ -510,6 +511,11 @@
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
+      return;
+    }
+    if (exceedsLimit(file.size, MAX_BACKUP_BYTES)) {
+      restoreError = m.common_file_too_large({ size: formatBytes(file.size), limit: formatBytes(MAX_BACKUP_BYTES) });
+      input.value = '';
       return;
     }
     restoreFileName = file.name;
@@ -963,7 +969,10 @@
         />
         <input
           type="number"
-          bind:value={newAssetCost}
+          value={newAssetCost}
+          oninput={(e) => {
+            newAssetCost = (e.target as HTMLInputElement).value;
+          }}
           required
           min="0"
           step="1"
@@ -1452,7 +1461,7 @@
     <h3 class="text-lg font-semibold">{m.settings_disclaimer_title()}</h3>
     {#if disclaimerAcceptedAt}
       <p class="text-sm">
-        {m.settings_disclaimer_accepted({ date: new Date(disclaimerAcceptedAt).toISOString().slice(0, 10), version: disclaimerAcceptedVersion ?? 0 })}
+        {m.settings_disclaimer_accepted({ date: toISODateLocal(new Date(disclaimerAcceptedAt)), version: disclaimerAcceptedVersion ?? 0 })}
       </p>
       <p class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}

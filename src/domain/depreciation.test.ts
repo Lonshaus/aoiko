@@ -4,7 +4,10 @@ import { newId } from '../lib/id'
 import {
   computeDepreciation,
   generateYearEndDepreciation,
+  straightLineRate,
 } from './depreciation'
+import { D } from '../lib/decimal'
+import { reverseEntry } from './reverse'
 import type { FixedAsset } from '../db/types'
 
 function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
@@ -29,14 +32,49 @@ afterEach(async () => {
   await db.delete()
 })
 
+describe('straightLineRate（定額法償却率＝1/N の小数第3位未満切上げ）', () => {
+  test('整除する年数はそのまま', () => {
+    expect(straightLineRate(2).toString()).toBe('0.5')
+    expect(straightLineRate(4).toString()).toBe('0.25')
+    expect(straightLineRate(5).toString()).toBe('0.2')
+    expect(straightLineRate(8).toString()).toBe('0.125')
+    expect(straightLineRate(10).toString()).toBe('0.1')
+  })
+
+  test('割り切れない年数は切り上げ（国税庁償却率表に一致）', () => {
+    expect(straightLineRate(3).toString()).toBe('0.334')
+    expect(straightLineRate(6).toString()).toBe('0.167')
+    expect(straightLineRate(7).toString()).toBe('0.143')
+    expect(straightLineRate(9).toString()).toBe('0.112')
+  })
+})
+
 describe('computeDepreciation - straight-line', () => {
-  test('全期間取得：年額 ≈ (cost - 1) / years', () => {
-    // 300,000 円、4 年、1 月取得 → 各年 (300000-1)/4 = 74,999.75 → 75,000（half-up）
+  test('全期間取得：年額 = 取得価額 × 定額法償却率', () => {
+    // 300,000 円、4 年、1 月取得 → 300000 × 0.25 = 75,000
     const r = computeDepreciation(
       asset({ acquisitionDate: '2026-01-01' }),
       2026
     )
     expect(r.amount).toBe('75000')
+  })
+
+  test('割り切れない耐用年数は法定償却率を使う（単純 1/N ではない）', () => {
+    // 3 年資産 300,000 円：率 0.334 → 年額 300000 × 0.334 = 100,200（単純 1/3=100,000 ではない）
+    const r = computeDepreciation(
+      asset({ acquisitionDate: '2026-01-01', acquisitionCost: '300000', usefulLifeYears: 3 }),
+      2026
+    )
+    expect(r.amount).toBe('100200')
+  })
+
+  test('3 年資産は最終年で簿価 1 円に収束', () => {
+    const a = asset({ acquisitionDate: '2026-01-01', acquisitionCost: '300000', usefulLifeYears: 3 })
+    // 100,200 / 100,200 → 累計 200,400、残 99,599
+    const r2028 = computeDepreciation(a, 2028)
+    expect(r2028.amount).toBe('99599')
+    expect(r2028.bookValueEnd).toBe('1')
+    expect(r2028.fullyDepreciated).toBe(true)
   })
 
   test('取得月按分：4 月取得は初年度 9 ヶ月分', () => {
@@ -102,6 +140,18 @@ describe('computeDepreciation - straight-line', () => {
     expect(r.amount).toBe('0')
   })
 
+  test('処分年度は処分月まで月割（定額法）', () => {
+    // 300,000 円・4 年・2026/01 取得、2027/06 処分。
+    // 2026: 75,000（満年度）。2027: 75000 × 6/12 = 37,500（1〜6月）
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '300000',
+      usefulLifeYears: 4,
+      disposedDate: '2027-06-30',
+    })
+    const r = computeDepreciation(a, 2027)
+    expect(r.amount).toBe('37500')
+  })
 })
 
 describe('computeDepreciation - declining-balance (200%)', () => {
@@ -224,6 +274,22 @@ describe('generateYearEndDepreciation', () => {
     expect(r.created).toBe(0)
     expect(r.skipped).toBe(1)
   })
+
+  test('訂正（reverseEntry）後は再生成できる（reversed は重複判定外）', async () => {
+    await db.fixedAssets.add(
+      asset({ id: 'a1', name: 'PC', acquisitionDate: '2026-01-01' })
+    )
+    await generateYearEndDepreciation(2026)
+    // 生成した償却仕訳を訂正する
+    const dep = await db.journalEntries
+      .filter((e) => e.description.includes('#a1') && e.originalEntryId === undefined)
+      .first()
+    await reverseEntry(dep!.id)
+
+    const r = await generateYearEndDepreciation(2026)
+    expect(r.created).toBe(1)
+    expect(r.skipped).toBe(0)
+  })
 })
 
 describe('computeDepreciation - small-asset-special', () => {
@@ -247,6 +313,19 @@ describe('computeDepreciation - small-asset-special', () => {
       depreciationMethod: 'small-asset-special',
     })
     const r = computeDepreciation(a, 2027)
+    expect(r.amount).toBe('0')
+    expect(r.bookValueEnd).toBe('0')
+  })
+
+  test('除却後の年も簿価 0（少額特例は残存簿価 1 円を残さない）', () => {
+    // 取得年度に全額損金算入済みなので、除却後の簿価は 1 円ではなく 0
+    const a = asset({
+      acquisitionDate: '2026-04-01',
+      acquisitionCost: '350000',
+      depreciationMethod: 'small-asset-special',
+      disposedDate: '2027-08-31',
+    })
+    const r = computeDepreciation(a, 2028)
     expect(r.amount).toBe('0')
     expect(r.bookValueEnd).toBe('0')
   })

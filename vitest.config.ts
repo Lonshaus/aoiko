@@ -14,6 +14,6 @@ export default defineConfig({
     setupFiles: ['./vitest.setup.ts'],
     globals: false,
     include: ['src/**/*.test.{ts,svelte.ts}'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/_*.test.ts'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/_template.*.test.ts'],
   },
 })

@@ -8,7 +8,6 @@
 // 名前空間/型解決が intricate なため Sub E（実エンベロープ・e-Tax 実機）で扱う。
 // 本テストは Sub C/D の mapping 誤りが集中する参照側の構造・型・FormAttribute を
 // 公式 xsd で担保する。
-
 /// <reference types="node" />
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync } from 'node:fs';

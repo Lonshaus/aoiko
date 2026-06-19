@@ -1,6 +1,10 @@
 import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
 import { D } from '../lib/decimal';
+import { countsTowardTotals, plContribution } from '../domain/journal';
+import { getSetting } from '../lib/settings';
+// 現状の勘定科目スキーマは 2026 年分のみ。年度セレクタ／翌年分スキーマ追加までの既定値。
+const DEFAULT_YEAR = 2026;
 import type {
   Account,
   AccountCategory,
@@ -128,54 +132,113 @@ class LedgerStore {
   recentEntries = $state<JournalEntry[]>([]);
   recentLedgerRows = $state<LedgerRow[]>([]);
   monthlyOverview = $state<MonthlyOverview>(emptyOverview());
+  currentYear = $state<number>(DEFAULT_YEAR);
+  // liveQuery がエラー（DB 障害・容量超過等）を出した場合のメッセージ。null＝正常。
+  lastError = $state<string | null>(null);
 
   private subs: Subscription[] = [];
+  private yearSubs: Subscription[] = [];
 
   constructor() {
+    // 年度に依存しない購読
     this.subs.push(
-      liveQuery(() =>
-        db.accounts.where({ year: 2026 }).sortBy('code')
-      ).subscribe((v) => {
-        this.allAccounts = v;
-        this.accounts = v.filter((a) => a.isActive !== false);
-      }),
-      liveQuery(() => db.subAccounts.orderBy('name').toArray()).subscribe((v) => {
-        this.subAccounts = v;
-      }),
-      liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe((v) => {
-        this.vendors = v;
-      }),
-      liveQuery(() =>
-        db.parserRules.orderBy('priority').reverse().toArray()
-      ).subscribe((v) => {
-        this.parserRules = v;
-      }),
-      liveQuery(() =>
-        db.fixedAssets.orderBy('acquisitionDate').toArray()
-      ).subscribe((v) => {
-        this.fixedAssets = v;
-      }),
-      liveQuery(() => db.accounts.count()).subscribe((v) => {
-        this.accountsCount = v;
-      }),
-      liveQuery(() => db.journalEntries.count()).subscribe((v) => {
-        this.entriesCount = v;
-      }),
-      liveQuery(() => db.journalLines.count()).subscribe((v) => {
-        this.linesCount = v;
-      }),
-      liveQuery(() =>
-        db.journalEntries.orderBy('date').reverse().limit(5).toArray()
-      ).subscribe((v) => {
-        this.recentEntries = v;
-      }),
-      liveQuery(async () => this.computeRecentRows()).subscribe((v) => {
-        this.recentLedgerRows = v;
-      }),
-      liveQuery(async () => this.computeMonthlyOverview()).subscribe((v) => {
-        this.monthlyOverview = v;
-      })
+      this.sub(
+        () => db.subAccounts.orderBy('name').toArray(),
+        (v) => {
+          this.subAccounts = v;
+        }
+      ),
+      this.sub(
+        () => db.vendors.orderBy('name').toArray(),
+        (v) => {
+          this.vendors = v;
+        }
+      ),
+      this.sub(
+        () => db.parserRules.orderBy('priority').reverse().toArray(),
+        (v) => {
+          this.parserRules = v;
+        }
+      ),
+      this.sub(
+        () => db.fixedAssets.orderBy('acquisitionDate').toArray(),
+        (v) => {
+          this.fixedAssets = v;
+        }
+      ),
+      this.sub(
+        () => db.accounts.count(),
+        (v) => {
+          this.accountsCount = v;
+        }
+      ),
+      this.sub(
+        () => db.journalEntries.count(),
+        (v) => {
+          this.entriesCount = v;
+        }
+      ),
+      this.sub(
+        () => db.journalLines.count(),
+        (v) => {
+          this.linesCount = v;
+        }
+      ),
+      this.sub(
+        () => db.journalEntries.orderBy('date').reverse().limit(5).toArray(),
+        (v) => {
+          this.recentEntries = v;
+        }
+      )
     );
+    // 年度依存の購読は currentYear 設定を読んでから（既定値で先に張り、設定値が違えば張り直す）
+    this.subscribeYearScoped();
+    void getSetting('currentYear').then((y) => {
+      if (typeof y === 'number' && y !== this.currentYear) {
+        this.currentYear = y;
+        this.subscribeYearScoped();
+      }
+    });
+  }
+  // liveQuery を購読し、エラーを lastError に集約する共通ラッパー。
+  private sub<T>(query: () => T | Promise<T>, next: (v: T) => void): Subscription {
+    return liveQuery(query).subscribe({
+      next: (v) => {
+        this.lastError = null;
+        next(v);
+      },
+      error: (e: unknown) => {
+        this.lastError = e instanceof Error ? e.message : String(e);
+      },
+    });
+  }
+  // currentYear に依存する購読を張り直す（年度切替時に呼ぶ）。
+  private subscribeYearScoped(): void {
+    for (const s of this.yearSubs) {
+      s.unsubscribe();
+    }
+    const year = this.currentYear;
+    this.yearSubs = [
+      this.sub(
+        () => db.accounts.where({ year }).sortBy('code'),
+        (v) => {
+          this.allAccounts = v;
+          this.accounts = v.filter((a) => a.isActive !== false);
+        }
+      ),
+      this.sub(
+        () => this.computeRecentRows(year),
+        (v) => {
+          this.recentLedgerRows = v;
+        }
+      ),
+      this.sub(
+        () => this.computeMonthlyOverview(year),
+        (v) => {
+          this.monthlyOverview = v;
+        }
+      ),
+    ];
   }
 
   subAccountsFor(accountCode: string): SubAccount[] {
@@ -197,19 +260,17 @@ class LedgerStore {
     });
   }
 
-  private async computeRecentRows(): Promise<LedgerRow[]> {
+  private async computeRecentRows(year: number): Promise<LedgerRow[]> {
     const entries = await db.journalEntries
       .orderBy('date')
       .reverse()
       .limit(10)
       .toArray();
-    return buildLedgerRows(entries, 2026);
+    return buildLedgerRows(entries, year);
   }
 
-  private async computeMonthlyOverview(): Promise<MonthlyOverview> {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth() + 1;
+  private async computeMonthlyOverview(year: number): Promise<MonthlyOverview> {
+    const month = new Date().getMonth() + 1;
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const nextMonthStart =
       month === 12
@@ -220,7 +281,7 @@ class LedgerStore {
       .where('[year+date]')
       .between([year, monthStart], [year, nextMonthStart], true, false)
       .toArray();
-    const confirmed = entries.filter((e) => e.status === 'confirmed');
+    const confirmed = entries.filter(countsTowardTotals);
 
     if (confirmed.length === 0) {
       return { year, month, revenue: '0', expense: '0', netIncome: '0', entryCount: 0 };
@@ -240,10 +301,14 @@ class LedgerStore {
       if (!acc) {
         continue;
       }
-      if (acc.category === 'revenue' && line.side === 'credit') {
-        revenue = revenue.plus(line.amount);
-      } else if (acc.category === 'expense' && line.side === 'debit') {
-        expense = expense.plus(line.amount);
+      const contrib = plContribution(acc.category, line);
+      if (contrib === null) {
+        continue;
+      }
+      if (acc.category === 'revenue') {
+        revenue = revenue.plus(contrib);
+      } else {
+        expense = expense.plus(contrib);
       }
     }
     return {
