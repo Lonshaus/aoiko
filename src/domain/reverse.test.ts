@@ -4,6 +4,7 @@ import { toIndexable } from '../lib/decimal'
 import { newId } from '../lib/id'
 import { reverseEntry } from './reverse'
 import { markYearFiled } from './snapshots'
+import { todayISO } from '../lib/date'
 import type { ReportSnapshotData } from '../db/types'
 
 async function seedEntry(opts: {
@@ -120,9 +121,9 @@ describe('reverseEntry', () => {
     })
     const reversalId = await reverseEntry(origId)
     const reversal = await db.journalEntries.get(reversalId)
-
-    const today = new Date().toISOString().slice(0, 10)
-    expect(reversal?.date).toBe(today)
+    // ローカル日付（UTC 変換だと JST 早朝に前日へずれる）
+    expect(reversal?.date).toBe(todayISO())
+    expect(reversal?.year).toBe(Number(todayISO().slice(0, 4)))
   })
 
   test('rejects already-reversed entry', async () => {
@@ -140,6 +141,19 @@ describe('reverseEntry', () => {
 
   test('rejects nonexistent entry', async () => {
     await expect(reverseEntry('does-not-exist')).rejects.toThrow(/見つかりません/)
+  })
+
+  test('rejects reversing a correction entry (訂正の訂正は不可)', async () => {
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    })
+    const reversalId = await reverseEntry(origId)
+
+    await expect(reverseEntry(reversalId)).rejects.toThrow(/訂正仕訳そのもの/)
   })
 
   test('rejects when entry year is locked (申告済み)', async () => {
@@ -166,5 +180,34 @@ describe('reverseEntry', () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31')
 
     await expect(reverseEntry(origId)).rejects.toThrow(/申告済み.*ロック/)
+  })
+
+  test('rejects when the correction would land in a locked year (記帳先の年度ロック)', async () => {
+    // 訂正仕訳は「今日」の年度に記帳される。原仕訳の年度が未ロックでも、
+    // 今日の年度がロック済みなら訂正できない（申告済み年度への注入防止）
+    const currentYear = Number(todayISO().slice(0, 4))
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: `${currentYear - 1}-04-15`,
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    })
+    const monthlySales: ReportSnapshotData & { type: 'monthly-sales' } = {
+      type: 'monthly-sales',
+      data: { months: [] },
+    }
+    const pl: ReportSnapshotData & { type: 'pl' } = {
+      type: 'pl',
+      data: {
+        rows: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+      },
+    }
+    await markYearFiled(currentYear, { monthlySales, pl }, `${currentYear}-12-31`)
+
+    await expect(reverseEntry(origId)).rejects.toThrow(/記帳できません/)
   })
 })

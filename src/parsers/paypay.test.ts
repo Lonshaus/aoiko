@@ -9,22 +9,28 @@ describe('paypayParser', () => {
     expect(paypayParser.encoding).toBe('utf-8')
   })
 
-  test('入金（ポイント獲得）行は除外し、出金の支払い行のみ credit 取込', () => {
+  test('ポイント獲得入金は除外、支払いは credit、返金入金は debit で取込', () => {
     const r = paypayParser.parse(sample)
-    expect(r).toHaveLength(2)
-    for (const tx of r) {
-      expect(tx.side).toBe('credit')
-    }
+    expect(r).toHaveLength(3)
     expect(r[0]).toMatchObject({
       date: '2026-03-28',
       description: '飲食店チェーン - 吉祥寺店',
       amount: '9500',
+      side: 'credit',
       memo: 'クレジット VISA 0000',
     })
     expect(r[1]).toMatchObject({
       date: '2026-03-30',
       amount: '1200',
       description: 'コンビニ店',
+      side: 'credit',
+    })
+    // 返金入金は未払金の減少（debit）
+    expect(r[2]).toMatchObject({
+      date: '2026-03-31',
+      amount: '3000',
+      side: 'debit',
+      memo: 'クレジット VISA 0000 / 返金',
     })
   })
 

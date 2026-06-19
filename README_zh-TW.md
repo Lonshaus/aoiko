@@ -100,7 +100,7 @@ src/
 ### 前提
 
 - [Node.js 22 LTS](https://nodejs.org/) 以上
-- pnpm（用 Node 內建 Corepack 啟用：`corepack enable pnpm`）
+- npm（Node.js 內建）
 - Git（取得 repo 用、ZIP 下載也行）
 - 現代瀏覽器（Chrome / Edge / Safari / Firefox）
 
@@ -109,10 +109,9 @@ src/
 ```bash
 git clone https://github.com/Lonshaus/aoiko.git
 cd aoiko
-corepack enable pnpm
-pnpm install
-pnpm run build
-pnpm run preview
+npm install
+npm run build
+npm run preview
 ```
 
 瀏覽器打開 <http://localhost:4173>。首次啟動會請你同意免責事項，接著在「設定」畫面輸入事業名稱、年度。要用 OCR/LLM 的話在「設定」選引擎（Gemini API 金鑰／Ollama 等 OpenAI 相容 endpoint／Tesseract〔僅 OCR、精度有限〕）。
@@ -132,9 +131,9 @@ Chrome / Edge 網址列右側的「安裝」按鈕點下去，aoiko 就會像桌
 
 ```bash
 git pull
-pnpm install
-pnpm run build
-pnpm run preview
+npm install
+npm run build
+npm run preview
 ```
 
 裝成 PWA 的話、啟動時會跳「新版本」提示。
@@ -146,16 +145,15 @@ pnpm run preview
 ## 開發
 
 ```bash
-corepack enable pnpm
-pnpm install
-pnpm run dev        # 開發伺服器
-pnpm run test       # Vitest
-pnpm run check      # svelte-check 型別檢查
-pnpm run build      # 正式建置
-pnpm run verify     # check ＋ test ＋ build
+npm install
+npm run dev        # 開發伺服器
+npm run test       # Vitest
+npm run check      # svelte-check 型別檢查
+npm run build      # 正式建置
+npm run verify     # check ＋ test ＋ build
 ```
 
-Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ pnpm（用 `packageManager` 欄位鎖定版本）。
+Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ npm（Node.js 內建）。
 
 ## 授權
 
