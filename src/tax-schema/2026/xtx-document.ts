@@ -15,7 +15,7 @@
 //   </DATA>
 
 import type { XtxSchema } from './xtx-schema';
-
+import { todayISO } from '../../lib/date';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
 
@@ -33,14 +33,9 @@ export interface XtxDocumentOptions {
   /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
   creationDate?: string;
 }
-
 // e-tax07「01手続一覧」Ver231 より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
 const DEFAULT_PROCEDURE_TAG = 'RKO0010';
-
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function escapeXml(s: string): string {
   return s
@@ -56,7 +51,6 @@ interface DefInstance {
   name: string;
   value: string;
 }
-
 // 定義側：値が与えられた定義項目を出力。
 // xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を
 // fixed="<定義名>" で固定しているため、参照側 IDREF＝定義名＝定義側 ID）。
@@ -98,7 +92,6 @@ interface RefNode {
   idref: string;
   children: RefNode[];
 }
-
 // フラット refTree（level 付き）をネスト木へ再構成
 function buildRefTreeNodes(schema: XtxSchema): RefNode {
   const root: RefNode = {
@@ -133,11 +126,9 @@ interface FormAttrs {
   sakuseiNM: string;
   sakuseiDay: string;
 }
-
 // 直接値 leaf（idref 無し）の値マップ：leaf tag → 値文字列。
 // KOA210 決算書の金額等はこちら（IT部を経由しない）。
 export type XtxLeafValues = Record<string, string>;
-
 // 参照側：
 //  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素を出力（2 段式）
 //  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG> を直接出力
@@ -191,10 +182,9 @@ function resolveFormAttrs(options: XtxDocumentOptions): FormAttrs {
   return {
     softNM: options.softwareName ?? 'aoiko',
     sakuseiNM: options.creatorName ?? 'aoiko',
-    sakuseiDay: options.creationDate ?? todayIso(),
+    sakuseiDay: options.creationDate ?? todayISO(),
   };
 }
-
 // 参照側（帳票個別部分）のみを返す。実 XSD validation 用に様式サブツリーを
 // 単体で取り出すために公開する。
 export function buildFormFragment(
@@ -226,7 +216,6 @@ export function buildXtxDocument(
     options
   );
 }
-
 /** 1 エンベロープに併載する 1 様式分の入力 */
 export interface XtxFormInput {
   schema: XtxSchema;
@@ -235,7 +224,6 @@ export interface XtxFormInput {
   /** 直接値 leaf：leaf tag→値 */
   leafValues?: XtxLeafValues;
 }
-
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは
 // 全所得税様式で共通）。各様式の参照側（帳票個別部分）を順に出力する。
@@ -245,7 +233,6 @@ export function buildXtxBundle(
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const attrs = resolveFormAttrs(options);
-
   // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
   // いずれかの schema で採番すれば全様式の IDREF が解決する。
   const mergedValues: XtxValues = {};

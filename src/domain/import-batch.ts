@@ -6,7 +6,8 @@ export async function reverseImportBatch(
   batchId: string
 ): Promise<{ reversedCount: number; alreadyReversedCount: number }> {
   const entries = await db.journalEntries
-    .filter((e) => e.sourceImportId === batchId)
+    .where('sourceImportId')
+    .equals(batchId)
     .toArray();
 
   let reversedCount = 0;
@@ -24,6 +25,7 @@ export async function reverseImportBatch(
 
 export async function getBatchEntries(batchId: string) {
   return db.journalEntries
-    .filter((e) => e.sourceImportId === batchId)
+    .where('sourceImportId')
+    .equals(batchId)
     .toArray();
 }

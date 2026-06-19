@@ -6,7 +6,6 @@ import type { XtxSchema } from './xtx-schema';
 
 const k210 = koa210 as XtxSchema;
 const k020 = koa020 as XtxSchema;
-
 // 定義側カタログから先頭数件にダミー値を入れる
 function dummyValues(s: XtxSchema, n: number): XtxValues {
   const v: XtxValues = {};
