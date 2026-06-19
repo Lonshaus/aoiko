@@ -3,12 +3,12 @@ export type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
 export type TaxCategory = 'taxable10' | 'taxable8' | 'exempt' | 'nontaxable';
-export type CandidateConfidence = 'rule' | 'history' | 'llm-high' | 'llm-low' | 'none';
-export type CandidateStatus = 'pending' | 'confirmed' | 'discarded';
 // 'small-asset-special' は少額減価償却資産の特例（措法28の2）。取得年度に全額損金算入し、以降の償却なし。
 export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'small-asset-special';
 export type ReportType = 'monthly-sales' | 'pl' | 'bs';
-export type ReportStatus = 'draft' | 'filed';
+// 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
+// ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
+export type ReportStatus = 'draft' | 'filed' | 'superseded';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
 // 消費税の納税義務区分。免税事業者は仕入税額控除の計算対象外。
 export type TaxRegistration = 'taxable' | 'tax-free';
@@ -79,20 +79,6 @@ export interface Vendor {
   aliases?: string[];
 }
 
-export interface CandidateEntry {
-  id: string;
-  importBatchId: string;
-  date: string;
-  description: string;
-  amount: string;
-  vendorGuess?: string;
-  vendorId?: string;
-  accountCodeGuess?: string;
-  confidence: CandidateConfidence;
-  rawData: Record<string, unknown>;
-  status: CandidateStatus;
-}
-
 export type ParserRuleMatchType = 'vendor-name' | 'description-includes' | 'regex';
 
 export interface ParserRule {
@@ -115,15 +101,6 @@ export interface FixedAsset {
   depreciationMethod: DepreciationMethod;
   accountCode: string;
   disposedDate?: string;
-}
-
-export interface HomeOfficeRule {
-  id: string;
-  accountCode: string;
-  vendorId?: string;
-  ratio: string;
-  validFrom: string;
-  validTo?: string;
 }
 
 export interface ImportBatch {

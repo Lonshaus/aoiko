@@ -7,13 +7,11 @@
 
 import type { XtxContext } from './xtx';
 import type { XtxValues } from './xtx-document';
-
 // 西暦 → 令和年（令和1年=2019）。NENBUN は gen:yy（非負整数）
 function toReiwa(year: number): string {
   const r = year - 2018;
   return r >= 1 ? String(r) : '';
 }
-
 // 改行・タブを除去（nametype/yagotype の pattern [^\n\r\t]* に適合させる）
 function sanitizeLine(s: string): string {
   return s.replace(/[\n\r\t]+/g, ' ').trim();

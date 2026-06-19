@@ -15,6 +15,7 @@ import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import { buildXtxBundle } from './xtx-document';
+import { todayISO } from '../../lib/date';
 import { mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 
@@ -44,7 +45,7 @@ export function buildXtx2026(ctx: XtxContext): string {
     ],
     {
       creatorName,
-      creationDate: new Date().toISOString().slice(0, 10),
+      creationDate: todayISO(),
     }
   );
 }
