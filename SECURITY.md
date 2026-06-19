@@ -71,5 +71,5 @@ aoiko は純フロントエンドの BYOK（Bring Your Own Key）アプリです
 
 ## 依存ライブラリの脆弱性
 
-- `pnpm audit` を CI で実行する予定（未実装）
+- `npm audit` を CI で実行する予定（未実装）
 - 緊急性の高い CVE は反映を急ぎますが、対応は保証されません
