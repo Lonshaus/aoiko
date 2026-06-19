@@ -1,5 +1,6 @@
 import { parseCsv } from '../lib/csv';
 import {
+  applySign,
   buildRawRow,
   normalizeDate,
   optionalColumn,
@@ -105,14 +106,16 @@ export function defineParser(config: JsonParserConfig): CsvParser {
           } else if (inRaw && !outRaw) {
             amount = stripComma(inRaw);
             side = 'debit';
-          } else continue;
+          } else {
+            continue;
+          }
         } else if (isCard(cols)) {
           const raw = (row[idxMap[cols.amount.header]!] ?? '').trim();
           if (!raw) {
             continue;
           }
-          amount = stripComma(raw);
-          side = cols.amount.side;
+          // 返金・キャンセル行は負数 → 絶対値 + 反対側
+          ({ amount, side } = applySign(stripComma(raw), cols.amount.side));
         } else if (isSigned(cols)) {
           const raw = (row[idxMap[cols.signedAmount.header]!] ?? '').trim();
           if (!raw) {

@@ -79,6 +79,13 @@ describe('validateLines', () => {
     )
     expect(err.code).toBe('negative-amount')
   })
+
+  test('rejects all-zero entry', () => {
+    const err = expectThrow(() =>
+      validateLines([line('debit', '0'), line('credit', '0')])
+    )
+    expect(err.code).toBe('zero-amount')
+  })
 })
 
 function expectThrow(fn: () => void): JournalValidationError {

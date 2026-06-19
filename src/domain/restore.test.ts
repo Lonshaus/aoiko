@@ -102,6 +102,23 @@ describe('restoreFromJson', () => {
     expect(vendors[0]?.name).toBe('東京電力')
   })
 
+  test('不正な payload では既存データを消さずに throw（検証は削除前）', async () => {
+    await db.vendors.add({ id: 'keep-1', name: '残る業者' })
+
+    await expect(
+      restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        // 不正：side が不正な明細
+        tables: { journalLines: [{ id: 'x', entryId: 'y', side: 'bogus', accountCode: '1', amount: '1', taxRate: 0 }] },
+      })
+    ).rejects.toThrow(/side/)
+
+    const vendors = await db.vendors.toArray()
+    expect(vendors).toHaveLength(1)
+    expect(vendors[0]?.name).toBe('残る業者')
+  })
+
   test('clears existing data before restore', async () => {
     await db.vendors.add({ id: newId(), name: '消える業者' })
 

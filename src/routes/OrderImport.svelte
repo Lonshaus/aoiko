@@ -30,7 +30,6 @@
   let pending = $state<{ extractor: OrderExtractor; text: string; host: string } | null>(null);
 
   const accountGroups = $derived(ledger.groupedAccounts());
-
   // 既定の経費科目 = 消耗品費（5200）。無ければ最初の expense を使う
   function defaultExpenseAccount(): string {
     for (const g of accountGroups) {
@@ -142,7 +141,6 @@
       error = m.order_no_items();
       return;
     }
-
     // 品目合計と総額の照合（差異があれば総額を信用しユーザに警告）
     const itemsSum = validItems.reduce((s, it) => s.plus(D(it.amount)), D(0));
     const total = D(data.totalAmount);
@@ -311,7 +309,12 @@
           <span class="text-xs text-muted-foreground">{m.order_label_total()}</span>
           <input
             type="number"
-            bind:value={extracted.totalAmount}
+            value={extracted.totalAmount}
+            oninput={(e) => {
+              if (extracted) {
+                extracted.totalAmount = (e.target as HTMLInputElement).value;
+              }
+            }}
             min="0"
             step="1"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
@@ -342,7 +345,10 @@
                 <td class="px-2 py-2">
                   <input
                     type="number"
-                    bind:value={item.amount}
+                    value={item.amount}
+                    oninput={(e) => {
+                      item.amount = (e.target as HTMLInputElement).value;
+                    }}
                     step="1"
                     class="w-full px-2 py-1 bg-background border rounded text-right text-foreground tabular-nums"
                   />

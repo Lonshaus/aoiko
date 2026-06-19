@@ -1,9 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Account,
-  CandidateEntry,
   FixedAsset,
-  HomeOfficeRule,
   ImportBatch,
   JournalEntry,
   JournalLine,
@@ -21,8 +19,6 @@ export class AoikoDB extends Dexie {
   subAccounts!: Table<SubAccount, string>;
   vendors!: Table<Vendor, string>;
   fixedAssets!: Table<FixedAsset, string>;
-  homeOfficeRules!: Table<HomeOfficeRule, string>;
-  candidateEntries!: Table<CandidateEntry, string>;
   parserRules!: Table<ParserRule, string>;
   importBatches!: Table<ImportBatch, string>;
   reportSnapshots!: Table<ReportSnapshot, string>;
@@ -47,6 +43,18 @@ export class AoikoDB extends Dexie {
       importBatches: 'id, parserName, fileHash, importedAt',
       reportSnapshots: 'id, year, type, status, [year+type+status]',
       settings: 'key, updatedAt',
+    });
+    // v2: sourceImportId 索引を追加（インポート履歴の全件走査・バッチ訂正の全件走査を解消）。
+    // 既存 index への追加のみで、Dexie が既存データから自動でインデックスを再構築する。
+    this.version(2).stores({
+      journalEntries:
+        'id, date, year, status, originalEntryId, sourceImportId, [year+date], [date+status]',
+    });
+    // v3: 未使用テーブルを削除。candidateEntries（候補ワークフローは未実装、確定仕訳を直接書く）と
+    // homeOfficeRules（家事按分は入力時にインライン計算）はどちらも読み書きされていなかった。
+    this.version(3).stores({
+      homeOfficeRules: null,
+      candidateEntries: null,
     });
   }
 }

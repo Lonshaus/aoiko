@@ -97,7 +97,6 @@ export function parseOrderResponse(raw: unknown): OrderExtracted {
   }
   return result;
 }
-
 // 金額文字列をサニタイズ。allowNegative=true なら負値を保持（値引行用）。
 function sanitizeAmount(s: string, allowNegative: boolean = false): string {
   const cleaned = s.replace(/[¥￥,\s]/g, '');
