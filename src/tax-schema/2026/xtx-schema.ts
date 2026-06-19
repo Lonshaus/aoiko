@@ -25,7 +25,6 @@ export interface XtxFormMeta {
   /** 仕様取得日 ISO（例：2026-05-16） */
   fetchedAt: string;
 }
-
 /** 参照側ツリーの 1 要素（様式 xsd を level でフラット化） */
 export interface XtxRefElement {
   /** 出現順（1 始まり、xsd:sequence 順） */
@@ -50,7 +49,6 @@ export interface XtxRefElement {
   /** 最大出現回数（数値 or 'unbounded'） */
   maxOccurs: number | 'unbounded';
 }
-
 /** 定義側（IT部）のデータ項目カタログ（ITdefinition.xsd / ITtype より） */
 export interface XtxDefinition {
   /** データ名（参照側 idref と対応。例：NENBUN, ZEIMUSHO） */

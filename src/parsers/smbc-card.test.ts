@@ -34,4 +34,16 @@ describe('smbcCardParser', () => {
   test('日付の無い行のみの入力は空配列', () => {
     expect(smbcCardParser.parse(',,,,,100,\n,,,,,200,')).toEqual([])
   })
+
+  test('先頭が日付の CSV（別形式・誤選択）は throw', () => {
+    // 他行・他カードの「表頭ありで 1 行目から日付」形式を誤って選択した場合
+    const wrong = '2026/04/01,スーパー,1000,1\n2026/04/02,カフェ,500,1'
+    expect(() => smbcCardParser.parse(wrong)).toThrow(/CSV 形式と一致しません/)
+  })
+
+  test('列数が不足するデータ行は throw', () => {
+    // カード会員行のあと、4 列しかないデータ行（位置解釈不能）
+    const tooFew = '山田太郎,****-1234,一般\n2026/04/01,店,1000,1'
+    expect(() => smbcCardParser.parse(tooFew)).toThrow(/列数が不足/)
+  })
 })

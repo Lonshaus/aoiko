@@ -1,14 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, type Component } from 'svelte';
   import { router, link } from './router.svelte';
   import Home from './routes/Home.svelte';
-  import JournalList from './routes/JournalList.svelte';
-  import Reports from './routes/Reports.svelte';
-  import Import from './routes/Import.svelte';
-  import ImportHistory from './routes/ImportHistory.svelte';
-  import OrderImport from './routes/OrderImport.svelte';
-  import Receipt from './routes/Receipt.svelte';
-  import Settings from './routes/Settings.svelte';
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
@@ -34,16 +27,25 @@
   function onConsentAccepted() {
     consentState = 'granted';
   }
-
-  // 使い方ページ（marked + 全マニュアル本文）は初回ロードを軽くするため遅延読み込みする。
-  // 同一 promise を返してマニュアル内のページ遷移で再 import されないようにする。
-  let manualModule: Promise<typeof import('./routes/Manual.svelte')> | null = null;
-  function loadManual() {
-    if (!manualModule) {
-      manualModule = import('./routes/Manual.svelte');
-    }
-    return manualModule;
+  // 初回ロードを軽くするため、ホーム以外の画面は遅延読み込みする。
+  // memo で同一 promise を返し、画面遷移のたびに再 import されないようにする。
+  function memo(
+    importer: () => Promise<{ default: Component }>
+  ): () => Promise<{ default: Component }> {
+    let p: Promise<{ default: Component }> | null = null;
+    return () => (p ??= importer());
   }
+  const loadManual = memo(() => import('./routes/Manual.svelte'));
+  const ROUTE_COMPONENT: Record<string, () => Promise<{ default: Component }>> = {
+    '/journal': memo(() => import('./routes/JournalList.svelte')),
+    '/reports': memo(() => import('./routes/Reports.svelte')),
+    '/import': memo(() => import('./routes/Import.svelte')),
+    '/order-import': memo(() => import('./routes/OrderImport.svelte')),
+    '/import-history': memo(() => import('./routes/ImportHistory.svelte')),
+    '/receipt': memo(() => import('./routes/Receipt.svelte')),
+    '/settings': memo(() => import('./routes/Settings.svelte')),
+  };
+  const routeLoader = $derived(ROUTE_COMPONENT[router.path] ?? null);
 </script>
 
 <div class="min-h-screen flex flex-col">
@@ -75,27 +77,24 @@
         </a>
       </div>
     {/if}
-    {#if router.path === '/journal'}
-      <JournalList />
-    {:else if router.path === '/reports'}
-      <Reports />
-    {:else if router.path === '/import'}
-      <Import />
-    {:else if router.path === '/order-import'}
-      <OrderImport />
-    {:else if router.path === '/import-history'}
-      <ImportHistory />
-    {:else if router.path === '/receipt'}
-      <Receipt />
-    {:else if router.path === '/settings'}
-      <Settings />
+    {#if router.path === '/' || router.path === ''}
+      <Home />
     {:else if router.path === '/manual' || router.path.startsWith('/manual/')}
       {#await loadManual() then mod}
         {@const Manual = mod.default}
         <Manual />
       {/await}
+    {:else if routeLoader}
+      {#await routeLoader() then mod}
+        {@const Route = mod.default}
+        <Route />
+      {/await}
     {:else}
-      <Home />
+      <div class="space-y-4 py-12 text-center">
+        <h2 class="text-lg font-semibold">{m.manual_not_found()}</h2>
+        <p class="text-muted-foreground">{m.not_found_body()}</p>
+        <a href="/" use:link class="text-primary hover:underline">{m.nav_home()}</a>
+      </div>
     {/if}
   </main>
 </div>

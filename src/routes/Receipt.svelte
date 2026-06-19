@@ -9,6 +9,7 @@
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
+  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import {
     createReceiptExtractor,
     type ReceiptExtractor,
@@ -42,6 +43,11 @@
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) {
+      return;
+    }
+    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+      error = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      input.value = '';
       return;
     }
     file = f;
@@ -276,7 +282,12 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_amount()}</span>
           <input
             type="number"
-            bind:value={extracted.totalAmount}
+            value={extracted.totalAmount}
+            oninput={(e) => {
+              if (extracted) {
+                extracted.totalAmount = (e.target as HTMLInputElement).value;
+              }
+            }}
             min="0"
             step="1"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"

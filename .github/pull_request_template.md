@@ -12,7 +12,7 @@
 
 ## チェック
 
-- [ ] `pnpm run verify`（typecheck + test + build）が緑
+- [ ] `npm run verify`（typecheck + test + build）が緑
 - [ ] 新規の純ロジックには co-located テストを追加した
 - [ ] 金額計算は `Decimal.js` のみ（`number` を使っていない）
 

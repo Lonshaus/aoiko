@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { extractReceipt, buildOcrPrompt } from './ocr'
+import { todayISO } from '../lib/date'
 import type { LlmAdapter } from './llm'
 
 function fakeAdapter(response: unknown): LlmAdapter {
@@ -61,7 +62,7 @@ describe('extractReceipt', () => {
       items: [],
     })
     const r = await extractReceipt(adapter, { base64: 'x', mimeType: 'image/jpeg' })
-    expect(r.date).toBe(new Date().toISOString().slice(0, 10))
+    expect(r.date).toBe(todayISO())
   })
 
   test('skips items with invalid amounts', async () => {
