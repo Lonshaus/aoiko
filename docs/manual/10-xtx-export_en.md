@@ -1,8 +1,15 @@
 # 10. `.xtx` export
 
-Generate an e-Tax-format `.xtx` file and verify it with the e-Tax Software (Web edition).
+Generate an e-Tax-format `.xtx` file and verify it with the e-Tax Software (download edition).
 
 **Language**: [日本語](10-xtx-export.md) | **English** | [繁體中文](10-xtx-export_zh-TW.md)
+
+> **⚠ Important correction (2026-06, hands-on testing)**
+> This chapter was originally written assuming import via the e-Tax Software (Web edition), but hands-on testing confirmed that **the Web edition does NOT support importing the income-tax return (procedure RKO0010)** (verified against the official "available procedures list").
+> - The only client that can import an income-tax `.xtx` is the **e-Tax Software download edition (Windows only)**.
+> - The **Tax Return Preparation Corner** does not accept `.xtx` (its own format only).
+> - **Mac** has no import client → in practice, manually re-enter aoiko's report figures into the Preparation Corner (the figures are verified correct).
+> Read every "Web edition" step below as "download edition (Windows)". `.xtx` is a provisional feature; for actual filing follow the disclaimer.
 
 > **By the end of this chapter you can**
 > - Export the final tax return form (KOA020) + Blue Return financial statements (KOA210) into one `.xtx`

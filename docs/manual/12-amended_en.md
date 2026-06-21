@@ -4,6 +4,8 @@ Filed-year snapshots, diff detection, correcting entries, submission flow.
 
 **Language**: [日本語](12-amended.md) | **English** | [繁體中文](12-amended_zh-TW.md)
 
+> **⚠ Correction (2026-06)**: the "e-Tax Software (web edition)" amendment steps in this chapter are wrong. **Income tax is not supported by the web edition**, so create and submit the amended return via the **Tax Return Preparation Corner** or the **e-Tax Software download edition (Windows)** (see also the correction note in [10. `.xtx` export](10-xtx-export_en.md)).
+
 > **By the end of this chapter you can**
 > - Lock a filed year and preserve a "snapshot as filed"
 > - When you notice a mistake later, add correcting entries and see the diff
