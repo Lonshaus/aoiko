@@ -48,7 +48,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     expect(x).toContain('<DATA id="DATA">');
-    expect(x).toContain('<RKO0010 VR="1.0" id="手続ID">');
+    expect(x).toContain('<RKO0010 VR="25.0.0" id="手続ID">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
     expect(x).toContain('<IT VR="1.0" id="IT">');
   });
