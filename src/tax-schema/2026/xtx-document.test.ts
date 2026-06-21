@@ -83,10 +83,16 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル)', () => {
     expect(xml).toContain('<DATA id="DATA">');
   });
 
-  test('手続ID タグは差し替え可能', () => {
+  test('手続ID タグ・手続バージョンは差し替え可能', () => {
     const xml = buildXtxDocument(k210, { NENBUN: '08' }, {
       procedureTag: 'RSH0001',
+      procedureVersion: '12.0.0',
     });
-    expect(xml).toContain('<RSH0001 VR="1.0" id="手続ID">');
+    expect(xml).toContain('<RSH0001 VR="12.0.0" id="手続ID">');
+  });
+
+  test('手続バージョンの既定は 25.0.0（RKO0010・令和8年分）', () => {
+    const xml = buildXtxDocument(k210, { NENBUN: '08' })
+    expect(xml).toContain('<RKO0010 VR="25.0.0" id="手続ID">')
   });
 });
