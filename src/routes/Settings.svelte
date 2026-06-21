@@ -533,7 +533,9 @@
     }
     confirmingRestore = false;
     try {
-      const result = await restoreFromJson(restorePayload);
+      // $state はオブジェクトを深く Proxy 化する。Proxy のまま IndexedDB に put すると
+      // structured clone 不可で DataCloneError になるため、生のオブジェクトに戻して渡す。
+      const result = await restoreFromJson($state.snapshot(restorePayload));
       restoreSuccess = m.settings_restore_success({ tables: result.tableCount, rows: result.rowCount });
       restorePayload = null;
     } catch (err) {
