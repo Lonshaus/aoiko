@@ -26,6 +26,12 @@ export interface XtxDocumentOptions {
    * 他の手続を流用する場合のみ上書きする。
    */
   procedureTag?: string;
+  /**
+   * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書 表1-1-1：2005 年度以降の
+   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.0」）が必須で、旧初期値
+   * 「1.0」は不可。RKO0010 の値は e-tax07「手続一覧」の手続バージョン列より取得する。
+   */
+  procedureVersion?: string;
   /** 作成ソフト名（gen:FormAttribute softNM、必須）。既定 'aoiko' */
   softwareName?: string;
   /** 作成者名（gen:FormAttribute sakuseiNM、必須）。通常は屋号/事業者名 */
@@ -33,9 +39,12 @@ export interface XtxDocumentOptions {
   /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
   creationDate?: string;
 }
-// e-tax07「01手続一覧」Ver231 より：所得税及び復興特別所得税申告。
+// e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
 const DEFAULT_PROCEDURE_TAG = 'RKO0010';
+// RKO0010 の手続バージョン。e-tax07「手続一覧」Ver250x で RKO0010＝25.0.0
+// （様式 KOA020＝23.0 と対）。データ形式等仕様書の 3 桁年度バージョン体系に従う。
+const DEFAULT_PROCEDURE_VERSION = '25.0.0';
 
 function escapeXml(s: string): string {
   return s
@@ -232,6 +241,7 @@ export function buildXtxBundle(
   options: XtxDocumentOptions = {}
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
+  const procedureVersion = options.procedureVersion ?? DEFAULT_PROCEDURE_VERSION;
   const attrs = resolveFormAttrs(options);
   // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
   // いずれかの schema で採番すれば全様式の IDREF が解決する。
@@ -251,7 +261,7 @@ export function buildXtxBundle(
   const lines: string[] = [];
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
   lines.push('<DATA id="DATA">');
-  lines.push(`  <${procedureTag} VR="1.0" id="手続ID">`);
+  lines.push(`  <${procedureTag} VR="${procedureVersion}" id="手続ID">`);
   lines.push('    <CATALOG id="CATALOG"></CATALOG>');
   lines.push('    <CONTENTS id="CONTENTS">');
   lines.push(renderItBlock(instances, '      '));
