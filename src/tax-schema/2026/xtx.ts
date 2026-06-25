@@ -16,7 +16,7 @@ import koa210 from './xtx-schema-koa210.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import { buildXtxBundle } from './xtx-document';
 import { todayISO } from '../../lib/date';
-import { mapKoa020Values } from './xtx-mapping-koa020';
+import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 
 export interface XtxContext {
@@ -36,7 +36,11 @@ export function buildXtx2026(ctx: XtxContext): string {
     ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   return buildXtxBundle(
     [
-      { schema: KOA020_SCHEMA, values: mapKoa020Values(ctx) },
+      {
+        schema: KOA020_SCHEMA,
+        values: mapKoa020Values(ctx),
+        leafValues: mapKoa020LeafValues(ctx),
+      },
       {
         schema: KOA210_SCHEMA,
         values: {},

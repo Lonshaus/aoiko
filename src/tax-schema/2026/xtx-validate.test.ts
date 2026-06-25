@@ -16,8 +16,8 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { buildXtx2026 } from './xtx';
-import { buildFormFragment } from './xtx-document';
-import { mapKoa020Values } from './xtx-mapping-koa020';
+import { buildFormFragment, type XtxLeafValues } from './xtx-document';
+import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
@@ -33,6 +33,25 @@ function xmllintAvailable(): boolean {
   return r.error === undefined && r.status === 0;
 }
 
+// 第一ページの最初の直接値 leaf に値を入れる（様式出力ゲート通過用）。
+function firstPageLeaf(s: XtxSchema): XtxLeafValues {
+  let pages = 0;
+  let inFirstPage = false;
+  for (const e of s.refTree) {
+    if (e.level === 1) {
+      pages += 1;
+      inFirstPage = pages === 1;
+      if (pages > 1) {
+        break;
+      }
+    }
+    if (inFirstPage && e.kind === 'leaf' && !e.idref) {
+      return { [e.tag]: '100' };
+    }
+  }
+  return {};
+}
+
 function validate(schema: XtxSchema, wrapper: string): {
   ok: boolean;
   out: string;
@@ -40,7 +59,8 @@ function validate(schema: XtxSchema, wrapper: string): {
   const frag = buildFormFragment(
     schema,
     { NENBUN: '08', ZEIMUSHO: '渋谷' },
-    { creatorName: '青井事務所', creationDate: '2026-05-16' }
+    { creatorName: '青井事務所', creationDate: '2026-05-16' },
+    firstPageLeaf(schema)
   );
   const doc =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
@@ -84,8 +104,8 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(ok, out).toBe(true);
   });
 
-  maybe('KOA020 実 mapping 経路（年分・屋号）が公式 xsd に適合する', () => {
-    const values = mapKoa020Values({
+  maybe('KOA020 実 mapping 経路（年分・屋号・営業等収入）が公式 xsd に適合する', () => {
+    const ctx = {
       year: 2026,
       businessName: '青井ウェブ事務所',
       invoiceNumber: '',
@@ -99,9 +119,9 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         year: 2026,
         revenue: [],
         expense: [],
-        totalRevenue: '0',
+        totalRevenue: '5000000',
         totalExpense: '0',
-        netIncome: '0',
+        netIncome: '5000000',
         entryCount: 0,
       },
       bs: {
@@ -110,16 +130,19 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         assets: [],
         liabilities: [],
         equity: [],
-        netIncome: '0',
+        netIncome: '5000000',
         totalAssets: '0',
         totalLiabilitiesAndEquity: '0',
         balanced: true,
       },
-    });
-    const frag = buildFormFragment(koa020 as XtxSchema, values, {
-      creatorName: '青井ウェブ事務所',
-      creationDate: '2026-05-16',
-    });
+    };
+    const values = mapKoa020Values(ctx);
+    const frag = buildFormFragment(
+      koa020 as XtxSchema,
+      values,
+      { creatorName: '青井ウェブ事務所', creationDate: '2026-05-16' },
+      mapKoa020LeafValues(ctx)
+    );
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
