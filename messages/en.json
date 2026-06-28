@@ -52,7 +52,7 @@
   "disclaimer_prototype_subtitle": "Use for actual tax filings is at the user's own risk.",
   "disclaimer_bullet_accuracy_html": "Output values and <code>.xtx</code> files are <strong>not guaranteed to be accurate</strong>. Verify final figures with your <strong>tax accountant / tax office</strong>.",
   "disclaimer_bullet_tax_law_html": "Tax law and bookkeeping requirements <strong>are revised annually</strong>. The bundled <code>tax-schema/</code> may not reflect the latest National Tax Agency announcements — it is the user's responsibility to verify.",
-  "disclaimer_bullet_xtx_html": "<code>.xtx</code> output is a tentative implementation. <strong>Use for actual filing via .xtx is prohibited</strong>. Please regenerate via the e-Tax software.",
+  "disclaimer_bullet_xtx_html": "<code>.xtx</code> output covers the business part (financial statements + business income/blue-return deduction on the return). <strong>Before any actual filing, always load it into e-Tax software (download edition) and review the content.</strong> Complete income deductions and tax in e-Tax. Accuracy is not guaranteed.",
   "disclaimer_bullet_llm_html": "When using LLM classification or OCR, CSV rows and receipt images are sent to <strong>Google Gemini</strong>. Please confirm before sending sensitive information.",
   "disclaimer_bullet_storage_html": "Data is stored in the <strong>browser's IndexedDB</strong>. It will be lost if the browser cache is cleared. Backup is the user's responsibility.",
   "disclaimer_bullet_liability_html": "The developer is not liable for <strong>any damages</strong> arising from final returns, amended returns, or tax audits.",
