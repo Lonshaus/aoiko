@@ -19,8 +19,8 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 ## 3. `.xtx` output and field verification
 
 - `.xtx` output is generated using the official National Tax Agency W3C XSD (derived from e-tax19 "XML schema") as a two-stage ID/IDREF document model, embedding the final tax return form (KOA020) and Blue Return financial statements – general (KOA210) into one submission (procedure `RKO0010`, Income Tax and Reconstruction Special Income Tax filing). Each form's reference side passes the official xsd validation (xmllint) in CI.
-- However, aoiko does **not** collect the personal information that would go on the final tax return body (name, address, individual number, deductions, tax-amount computations). So values on the return side include only **the fiscal year and the trade name**. The decision-statement side carries the P/L, balance sheet, and monthly sales (purchases).
-- **Before using in an actual filing, always perform a field-import verification with the e-Tax Software (Web edition).** Procedure codes, attachment requirements, and deductions depend on your situation. The developer assumes no liability for any outcome from submitting this tool's output as-is (see Section 1).
+- The return side carries the filer info (tax office, user ID, name, address) and the business **revenue, income, and blue-return special deduction**. **Income deductions and tax computation are out of aoiko's scope** — complete them yourself in e-Tax. The financial-statement side carries the P/L, balance sheet, and monthly sales (purchases).
+- **Before using in an actual filing, always load it into e-Tax Software (download edition) and review the content** (loading the income-tax procedure is not supported in the web edition). Procedure codes, attachment requirements, and deductions depend on your situation. The developer assumes no liability for any outcome from submitting this tool's output as-is (see Section 1).
 
 ## 3a. Consumption tax filing forms are out of scope
 

@@ -40,6 +40,13 @@
     VendorEntityType,
   } from '../db/types';
   import { simplifiedTaxCategoryLabel, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+  import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
+  import {
+    isValidZeimushoCode,
+    searchZeimusho,
+    zeimushoName,
+    type ZeimushoEntry,
+  } from '../tax-schema/2026/zeimusho';
 
   const INVOICE_NUMBER_PATTERN = '^T\\d{13}$';
 
@@ -123,6 +130,47 @@
   let taxFilingMethod = $state<TaxFilingMethod>('general');
   let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
   let consumptionTaxSaved = $state(false);
+  // 申告者情報（e-Tax 提出用）
+  let userRiyoshaId = $state('');
+  let userFilerName = $state('');
+  let userFilerZip = $state('');
+  let userFilerAddress = $state('');
+  let userZeimushoCode = $state('');
+  let userZeimushoName = $state('');
+  let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
+  let filerSaved = $state(false);
+  const zeimushoCodeInvalid = $derived(
+    userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode)
+  );
+  // 税務署サジェスト（署名・コードで検索 → コード+署名を確定）
+  let zeimushoQuery = $state('');
+  let zeimushoOpen = $state(false);
+  const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
+  function displayZeimusho(code: string, name: string): string {
+    if (!code) {
+      return '';
+    }
+    return name ? `${name}（${code}）` : code;
+  }
+  function selectZeimusho(e: ZeimushoEntry): void {
+    userZeimushoCode = e.code;
+    userZeimushoName = e.name;
+    zeimushoQuery = displayZeimusho(e.code, e.name);
+    zeimushoOpen = false;
+  }
+  function onZeimushoInput(value: string): void {
+    zeimushoQuery = value;
+    zeimushoOpen = true;
+    // 5桁コードを直接入力した場合は確定（署名は master から補完）
+    const code = value.trim();
+    if (/^\d{5}$/.test(code) && isValidZeimushoCode(code)) {
+      userZeimushoCode = code;
+      userZeimushoName = zeimushoName(code) ?? '';
+    } else {
+      userZeimushoCode = '';
+      userZeimushoName = '';
+    }
+  }
 
   const accountGroups = $derived(ledger.groupedAccounts());
 
@@ -181,6 +229,14 @@
     taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
     taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
     simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
+    userRiyoshaId = (await getSetting('userRiyoshaId')) ?? '';
+    userFilerName = (await getSetting('userFilerName')) ?? '';
+    userFilerZip = (await getSetting('userFilerZip')) ?? '';
+    userFilerAddress = (await getSetting('userFilerAddress')) ?? '';
+    userZeimushoCode = (await getSetting('userZeimushoCode')) ?? '';
+    userZeimushoName = (await getSetting('userZeimushoName')) ?? '';
+    zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
+    aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
   });
 
   async function saveConsumptionTax() {
@@ -190,6 +246,24 @@
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
+    }, 2000);
+  }
+
+  async function saveFiler(e: Event) {
+    e.preventDefault();
+    if (zeimushoCodeInvalid) {
+      return;
+    }
+    await setSetting('userRiyoshaId', userRiyoshaId.trim());
+    await setSetting('userFilerName', userFilerName.trim());
+    await setSetting('userFilerZip', userFilerZip.replace(/[^0-9]/g, ''));
+    await setSetting('userFilerAddress', userFilerAddress.trim());
+    await setSetting('userZeimushoCode', userZeimushoCode.trim());
+    await setSetting('userZeimushoName', userZeimushoName.trim());
+    await setSetting('aoiroDeductionKind', aoiroDeductionKind);
+    filerSaved = true;
+    setTimeout(() => {
+      filerSaved = false;
     }, 2000);
   }
 
@@ -708,6 +782,115 @@
       <p class="text-xs text-green-600">{m.settings_consumption_tax_saved()}</p>
     {/if}
   </section>
+
+  <form
+    onsubmit={saveFiler}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
+    <h3 class="text-lg font-semibold">{m.settings_filer_title()}</h3>
+    <p class="text-xs text-muted-foreground">
+      {@html m.settings_filer_intro_html()}
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_riyosha_id()}</span>
+        <input
+          type="text"
+          bind:value={userRiyoshaId}
+          inputmode="numeric"
+          maxlength="16"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_name()}</span>
+        <input
+          type="text"
+          bind:value={userFilerName}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_zip()}</span>
+        <input
+          type="text"
+          bind:value={userFilerZip}
+          inputmode="numeric"
+          maxlength="8"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_address()}</span>
+        <input
+          type="text"
+          bind:value={userFilerAddress}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block sm:col-span-2 relative">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_zeimusho()}</span>
+        <input
+          type="text"
+          value={zeimushoQuery}
+          oninput={(e) => onZeimushoInput((e.target as HTMLInputElement).value)}
+          onfocus={() => (zeimushoOpen = true)}
+          onblur={() => setTimeout(() => (zeimushoOpen = false), 150)}
+          placeholder={m.settings_filer_zeimusho_placeholder()}
+          autocomplete="off"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {#if zeimushoResults.length > 0}
+          <ul
+            class="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded border bg-background shadow-lg"
+          >
+            {#each zeimushoResults as e (e.code)}
+              <li>
+                <button
+                  type="button"
+                  onmousedown={(ev) => {
+                    ev.preventDefault();
+                    selectZeimusho(e);
+                  }}
+                  class="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
+                >
+                  <span class="text-foreground">{e.name || '（局・事務所）'}</span>
+                  <span class="ml-2 font-mono text-xs text-muted-foreground">{e.code}</span>
+                </button>
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        {#if zeimushoCodeInvalid}
+          <span class="text-xs text-red-600">{m.settings_filer_zeimusho_invalid()}</span>
+        {/if}
+      </label>
+      <label class="block sm:col-span-2">
+        <span class="text-xs text-muted-foreground">{m.settings_aoiro_label()}</span>
+        <select
+          bind:value={aoiroDeductionKind}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          <option value="electronic">{m.settings_aoiro_electronic()}</option>
+          <option value="doubleEntry">{m.settings_aoiro_double_entry()}</option>
+          <option value="simple">{m.settings_aoiro_simple()}</option>
+          <option value="none">{m.settings_aoiro_none()}</option>
+        </select>
+      </label>
+    </div>
+    <div class="flex items-center justify-end gap-3">
+      {#if filerSaved}
+        <span class="text-xs text-green-600">{m.settings_basic_saved()}</span>
+      {/if}
+      <button
+        type="submit"
+        disabled={zeimushoCodeInvalid}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+      >
+        {m.settings_basic_save()}
+      </button>
+    </div>
+  </form>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_carryover_title()}</h3>
