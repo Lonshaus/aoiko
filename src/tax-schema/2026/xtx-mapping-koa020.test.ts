@@ -66,23 +66,23 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     entryCount: 0,
   };
 
-  test('営業収入・事業所得(控除後)・青色控除額・所得金額を整数円で対映', () => {
+  test('営業収入・事業所得(控除後)・青色控除額を整数円で対映', () => {
     const out = mapKoa020LeafValues(
       ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
     );
     const values = Object.values(out);
-    // 営業等収入=5000000 / 青色控除=650000 / 事業所得=所得金額=4350000
+    // 営業等収入=5000000 / 青色控除=650000 / 事業所得=4350000
     expect(values).toContain('5000000');
     expect(values).toContain('650000');
-    expect(values.filter((v) => v === '4350000')).toHaveLength(2);
+    expect(values).toContain('4350000');
   });
 
-  test('事業の4項目のみ。所得控除・税額の欄は出力しない', () => {
+  test('事業の3項目のみ。合計所得・所得控除・税額の欄は出力しない', () => {
     const out = mapKoa020LeafValues(
       ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
     );
-    // 営業収入・事業所得・青色控除額・所得金額 の 4 件のみ
-    expect(Object.keys(out)).toHaveLength(4);
+    // 営業収入・事業所得・青色控除額 の 3 件のみ（合計⑫は e-Tax 自動計算）
+    expect(Object.keys(out)).toHaveLength(3);
   });
 
   test('簡易簿記(10万控除)なら事業所得=控除前−10万', () => {
@@ -91,6 +91,6 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     );
     const values = Object.values(out);
     expect(values).toContain('100000'); // 控除額10万
-    expect(values.filter((v) => v === '1900000')).toHaveLength(2); // 事業所得=所得金額
+    expect(values).toContain('1900000'); // 事業所得=控除前200万−10万
   });
 });
