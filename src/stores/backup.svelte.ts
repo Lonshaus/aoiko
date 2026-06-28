@@ -171,7 +171,8 @@ class BackupManager {
     this.status = 'writing';
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-      const payload = await buildPayload({ includeApiKeys });
+      const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+      const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
       await this.adapter.backup(payload);
       this.lastBackupAt = Date.now();
       await setSetting('lastBackupAt', this.lastBackupAt);
@@ -188,7 +189,8 @@ class BackupManager {
     this.lastError = '';
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-      const payload = await buildPayload({ includeApiKeys });
+      const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+      const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
       const json = JSON.stringify(payload, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
