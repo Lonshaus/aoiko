@@ -53,7 +53,8 @@ export type SettingsMap = {
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
-export const DISCLAIMER_VERSION = 1;
+// v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
+export const DISCLAIMER_VERSION = 2;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K
