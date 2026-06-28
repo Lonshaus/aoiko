@@ -5,14 +5,21 @@
   import { m } from '../paraglide/messages';
 
   let includeApiKeys = $state(false);
+  let includeFilerInfo = $state(false);
 
   onMount(async () => {
     includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+    includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
   });
 
   async function onToggleIncludeApiKeys(e: Event) {
     includeApiKeys = (e.target as HTMLInputElement).checked;
     await setSetting('backupIncludeApiKeys', includeApiKeys);
+  }
+
+  async function onToggleIncludeFilerInfo(e: Event) {
+    includeFilerInfo = (e.target as HTMLInputElement).checked;
+    await setSetting('backupIncludeFilerInfo', includeFilerInfo);
   }
 
   function formatTime(ts: number | null): string {
@@ -191,5 +198,15 @@
         {m.backup_panel_include_api_keys_warning()}
       </span>
     </span>
+  </label>
+
+  <label class="flex items-start gap-2 text-sm">
+    <input
+      type="checkbox"
+      checked={includeFilerInfo}
+      onchange={onToggleIncludeFilerInfo}
+      class="mt-0.5"
+    />
+    <span>{m.backup_include_filer_info()}</span>
   </label>
 </section>
