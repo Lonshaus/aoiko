@@ -19,6 +19,10 @@ beforeEach(async () => {
     { key: 'geminiApiKey', value: 'secret-gemini', updatedAt: now },
     { key: 'openaiApiKey', value: 'secret-openai', updatedAt: now },
     { key: 'userBusinessName', value: 'テスト商店', updatedAt: now },
+    { key: 'userRiyoshaId', value: '1234567890123456', updatedAt: now },
+    { key: 'userFilerName', value: '青井 太郎', updatedAt: now },
+    { key: 'userFilerAddress', value: '東京都〇〇1-2-3', updatedAt: now },
+    { key: 'userZeimushoCode', value: '01101', updatedAt: now },
     { key: 'backupFolderHandle', value: { not: 'serializable' }, updatedAt: now },
   ])
 })
@@ -61,5 +65,22 @@ describe('buildPayload', () => {
     const gemini = rows.find((r) => r.key === 'geminiApiKey')
     expect(gemini?.value).toBe('secret-gemini')
     expect(rows.find((r) => r.key === 'openaiApiKey')?.value).toBe('secret-openai')
+  })
+
+  test('既定では申告者情報（個人情報）を除外する', async () => {
+    const keys = settingKeys((await buildPayload()).tables)
+    expect(keys).not.toContain('userRiyoshaId')
+    expect(keys).not.toContain('userFilerName')
+    expect(keys).not.toContain('userFilerAddress')
+    expect(keys).not.toContain('userZeimushoCode')
+    // 屋号（事業情報）は除外対象ではない
+    expect(keys).toContain('userBusinessName')
+  })
+
+  test('includeFilerInfo=true のときだけ申告者情報を含める', async () => {
+    const rows = (await buildPayload({ includeFilerInfo: true })).tables
+      .settings as SettingRow[]
+    expect(rows.find((r) => r.key === 'userRiyoshaId')?.value).toBe('1234567890123456')
+    expect(rows.find((r) => r.key === 'userFilerName')?.value).toBe('青井 太郎')
   })
 })
