@@ -9,6 +9,7 @@ function makeCtx(): XtxContext {
       month: i + 1,
       sales: '0',
       expense: '0',
+      purchases: '0',
     })),
     totalSales: '0',
     totalExpense: '0',
