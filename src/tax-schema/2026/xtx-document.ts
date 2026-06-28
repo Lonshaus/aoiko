@@ -3,48 +3,88 @@
 // 入力：様式 schema（xtx-schema-*.generated.json）+ 値マップ（定義名→値）
 // 出力：エンベロープ付き .xtx XML 文字列
 //
-// 構造（e-tax01「データ形式仕様」図1-3 より）：
-//   <DATA id="DATA">                       手続部分（root）
-//     <{手続ID} VR="1.0" id="手続ID">        手続ID 要素
-//       <CATALOG id="CATALOG"></CATALOG>     管理用部分
-//       <CONTENTS id="CONTENTS">             内容部分
-//         <IT VR="1.0" id="IT"> … </IT>     ①IT部＝定義側（値＋ID属性）
-//         <{様式ID} VR="x.x" id=… page="1"> … </>  ②帳票個別部分＝参照側（IDREF配線）
-//       </CONTENTS>
-//     </{手続ID}>
-//   </DATA>
+// 構造は e-Tax 自身が「切り出し」た実ファイル（PJ_aoiko/etax-reference-koa210.xtx）に
+// 準拠する。判定 A（実機取込）が SC00X010 で fail した根因＝旧封包の構造誤りを修正：
+//   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
+//     <RKO0010 VR="25.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
+//       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）
+//         <rdf:RDF><rdf:description id="REPORT">
+//           SEND_DATA / IT_SEC(#IT) / FORM_SEC(各様式) / …各 SEC / SOFUSHO_SEC(#TEA060-1)
+//       <CONTENTS id="CONTENTS">                   内容部分
+//         <IT VR="1.5" id="IT"> … </IT>            ①IT部＝定義側（値＋ID属性）
+//         <{様式ID} VR id="{様式ID}-1" page="1" …>   ②帳票個別部分＝参照側（IDREF配線）
+//           <{様式ID}-N page="N"> … </{様式ID}-N>     各ページを子に持つ単一様式要素
+//         <SOFUSHO VR="15.0" fid="TEA060" … xmlns=…/kyotsu/>  送信票（必須）
+//
+// 様式要素は官公式 xsd（KOA210-011.xsd 等）の定義どおり「単一 <KOA210> がページ
+// 子要素 KOA210-1..4 を内包する」モデル。id は様式インスタンスID＝`{様式ID}-1`。
 
 import type { XtxSchema } from './xtx-schema';
 import { todayISO } from '../../lib/date';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
+// 申告者情報（IT部 定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
+// 含むため XtxValues とは別に構造化して渡す。第一表の氏名/住所/税務署は
+// この IT部 ID を参照側 IDREF で引くため、ここに値があれば自動的に帳票へ反映される。
+export interface XtxFilerInfo {
+  /** 提出先税務署コード（5桁、gen:zeimusho_CD、IT部 必須） */
+  zeimushoCode?: string;
+  /** 提出先税務署名（gen:zeimusho_NM、任意） */
+  zeimushoName?: string;
+  /** 利用者識別番号（16桁、NOZEISHA_ID、IT部 必須） */
+  riyoshaId?: string;
+  /** 氏名・名称（NOZEISHA_NM、IT部 必須） */
+  name?: string;
+  /** 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP、任意） */
+  zip?: string;
+  /** 住所（NOZEISHA_ADR、IT部 必須） */
+  address?: string;
+}
 
 export interface XtxDocumentOptions {
   /**
-   * 手続ID 要素のタグ名（手続コード）。既定は所得税確定申告（青色・決算書同梱）の
+   * 手続ID 要素のタグ名・id（手続コード）。既定は所得税確定申告（青色・決算書同梱）の
    * `RKO0010`（e-tax07「手続一覧」由来、#22 / #33 で確定）。
    * 他の手続を流用する場合のみ上書きする。
    */
   procedureTag?: string;
   /**
    * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書 表1-1-1：2005 年度以降の
-   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.0」）が必須で、旧初期値
-   * 「1.0」は不可。RKO0010 の値は e-tax07「手続一覧」の手続バージョン列より取得する。
+   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.0」）が必須。
    */
   procedureVersion?: string;
+  /** 手続名称（IT部 TETSUZUKI/procedure_NM）。既定は所得税確定申告の名称 */
+  procedureName?: string;
   /** 作成ソフト名（gen:FormAttribute softNM、必須）。既定 'aoiko' */
   softwareName?: string;
   /** 作成者名（gen:FormAttribute sakuseiNM、必須）。通常は屋号/事業者名 */
   creatorName?: string;
   /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
   creationDate?: string;
+  /** 申告者情報（IT部 定義側の必須項目）。未指定だと IT部 必須項目が欠落する */
+  filer?: XtxFilerInfo;
 }
 // e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
 const DEFAULT_PROCEDURE_TAG = 'RKO0010';
-// RKO0010 の手続バージョン。e-tax07「手続一覧」Ver250x で RKO0010＝25.0.0
-// （様式 KOA020＝23.0 と対）。データ形式等仕様書の 3 桁年度バージョン体系に従う。
+// RKO0010 の手続バージョン。e-tax07「手続一覧」Ver250x で RKO0010＝25.0.0。
 const DEFAULT_PROCEDURE_VERSION = '25.0.0';
+// IT部 TETSUZUKI/procedure_NM（参照ファイル準拠）。
+const DEFAULT_PROCEDURE_NAME = '所得税及び復興特別所得税申告';
+// e-Tax 共通名前空間（参照ファイル準拠）。既定 ns は様式 schema の meta.namespace。
+const NS_GENERAL = 'http://xml.e-tax.nta.go.jp/XSD/general';
+const NS_KYOTSU = 'http://xml.e-tax.nta.go.jp/XSD/kyotsu';
+const NS_XLINK = 'http://www.w3.org/1999/xlink';
+const NS_XSI = 'http://www.w3.org/2001/XMLSchema-instance';
+const NS_RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+// IT部 VR（参照ファイル＝1.5）。
+const IT_VERSION = '1.5';
+// 送信票（汎用送信票 TEA060）。所得税申告でも必須。kyotsu ns で自閉出力。
+const SOFUSHO_VR = '15.0';
+const SOFUSHO_FID = 'TEA060';
+const SOFUSHO_ID = 'TEA060-1';
+// NENBUN は IT部で複合型 <gen:era><gen:yy>。era=5＝令和（参照ファイル準拠）。
+const NENBUN_ERA_REIWA = '5';
 
 function escapeXml(s: string): string {
   return s
@@ -53,44 +93,6 @@ function escapeXml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
-}
-
-interface DefInstance {
-  id: string;
-  name: string;
-  value: string;
-}
-// 定義側：値が与えられた定義項目を出力。
-// xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を
-// fixed="<定義名>" で固定しているため、参照側 IDREF＝定義名＝定義側 ID）。
-function buildDefinitionInstances(
-  schema: XtxSchema,
-  values: XtxValues
-): { instances: DefInstance[]; idByName: Map<string, string> } {
-  const instances: DefInstance[] = [];
-  const idByName = new Map<string, string>();
-  for (const def of schema.definitions) {
-    const v = values[def.name];
-    if (v === undefined || v === '') {
-      continue;
-    }
-    const id = def.name;
-    instances.push({ id, name: def.name, value: v });
-    idByName.set(def.name, id);
-  }
-  return { instances, idByName };
-}
-
-function renderItBlock(instances: DefInstance[], indent: string): string {
-  const lines: string[] = [];
-  lines.push(`${indent}<IT VR="1.0" id="IT">`);
-  for (const it of instances) {
-    lines.push(
-      `${indent}  <${it.name} ID="${it.id}">${escapeXml(it.value)}</${it.name}>`
-    );
-  }
-  lines.push(`${indent}</IT>`);
-  return lines.join('\n');
 }
 
 interface RefNode {
@@ -138,53 +140,222 @@ interface FormAttrs {
 // 直接値 leaf（idref 無し）の値マップ：leaf tag → 値文字列。
 // KOA210 決算書の金額等はこちら（IT部を経由しない）。
 export type XtxLeafValues = Record<string, string>;
-// 参照側：
-//  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素を出力（2 段式）
-//  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG> を直接出力
-// branch は出力対象の子があるときのみ自身を出力。
-// ルート様式要素は gen:FormAttribute（softNM/sakuseiNM/sakuseiDay 必須）+ VR を付与。
-function renderRefSide(
-  formRoot: RefNode,
+
+interface ItPart {
+  /** <IT VR="1.5" id="IT"> … </IT> */
+  xml: string;
+  /** 参照側 IDREF 解決用：定義名 → ID（＝定義名） */
+  idByName: Map<string, string>;
+}
+// 定義側（IT部）を出力。
+//  - NENBUN は複合型 <gen:era>5</gen:era><gen:yy>{年}</gen:yy>（純文字ではない）
+//  - ZEIMUSHO / NOZEISHA_ZIP も複合型（gen:zeimusho_CD/_NM、gen:zip1/zip2）
+//  - NOZEISHA_ID / NOZEISHA_NM / NOZEISHA_ADR は申告者情報（filer）から（IT部 必須）
+//  - TETSUZUKI / SHINKOKU_KBN は所得税申告の構造項目として常に出力（個資ではない）
+//  - その他は値が与えられた定義のみ <名> ID="名">値</名> で出力
+// xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を fixed="<定義名>" で
+// 固定するため、参照側 IDREF＝定義名＝定義側 ID）。出力順は ITdefinition.xsd の
+// sequence 順（＝ schema.definitions の並び）に従う。
+function buildItPart(
+  schema: XtxSchema,
+  values: XtxValues,
+  procedureTag: string,
+  procedureName: string,
+  filer: XtxFilerInfo
+): ItPart {
+  const idByName = new Map<string, string>();
+  const parts: string[] = [];
+  const push = (name: string, xml: string): void => {
+    parts.push(xml);
+    idByName.set(name, name);
+  };
+  for (const def of schema.definitions) {
+    const name = def.name;
+    if (name === 'TETSUZUKI') {
+      push(
+        'TETSUZUKI',
+        `<TETSUZUKI ID="TETSUZUKI"><procedure_CD>${escapeXml(procedureTag)}</procedure_CD>` +
+          `<procedure_NM>${escapeXml(procedureName)}</procedure_NM></TETSUZUKI>`
+      );
+      continue;
+    }
+    if (name === 'SHINKOKU_KBN') {
+      push('SHINKOKU_KBN', '<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
+      continue;
+    }
+    if (name === 'ZEIMUSHO') {
+      if (filer.zeimushoCode) {
+        const nm = filer.zeimushoName
+          ? `<gen:zeimusho_NM>${escapeXml(filer.zeimushoName)}</gen:zeimusho_NM>`
+          : '';
+        push(
+          'ZEIMUSHO',
+          `<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>${escapeXml(filer.zeimushoCode)}</gen:zeimusho_CD>${nm}</ZEIMUSHO>`
+        );
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ID') {
+      if (filer.riyoshaId) {
+        push('NOZEISHA_ID', `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(filer.riyoshaId)}</NOZEISHA_ID>`);
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_NM') {
+      if (filer.name) {
+        push('NOZEISHA_NM', `<NOZEISHA_NM ID="NOZEISHA_NM">${escapeXml(filer.name)}</NOZEISHA_NM>`);
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ZIP') {
+      const zip = (filer.zip ?? '').replace(/[^0-9]/g, '');
+      if (zip.length === 7) {
+        push(
+          'NOZEISHA_ZIP',
+          `<NOZEISHA_ZIP ID="NOZEISHA_ZIP"><gen:zip1>${zip.slice(0, 3)}</gen:zip1>` +
+            `<gen:zip2>${zip.slice(3)}</gen:zip2></NOZEISHA_ZIP>`
+        );
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ADR') {
+      if (filer.address) {
+        push('NOZEISHA_ADR', `<NOZEISHA_ADR ID="NOZEISHA_ADR">${escapeXml(filer.address)}</NOZEISHA_ADR>`);
+      }
+      continue;
+    }
+    const v = values[name];
+    if (v === undefined || v === '') {
+      continue;
+    }
+    if (name === 'NENBUN') {
+      push(
+        'NENBUN',
+        `<NENBUN ID="NENBUN"><gen:era>${NENBUN_ERA_REIWA}</gen:era>` +
+          `<gen:yy>${escapeXml(v)}</gen:yy></NENBUN>`
+      );
+    } else {
+      push(name, `<${name} ID="${name}">${escapeXml(v)}</${name}>`);
+    }
+  }
+  return { xml: `<IT VR="${IT_VERSION}" id="IT">${parts.join('')}</IT>`, idByName };
+}
+// 参照側 leaf/branch（level >= 2）を描画。
+//  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素
+//  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG>
+//  - branch：出力対象の子があるときのみ自身を出力
+function renderNode(
+  node: RefNode,
+  idByName: Map<string, string>,
+  leafValues: XtxLeafValues
+): string | null {
+  if (node.kind === 'leaf') {
+    if (node.idref) {
+      const id = idByName.get(node.idref);
+      return id ? `<${node.tag} IDREF="${id}"/>` : null;
+    }
+    const v = leafValues[node.tag];
+    if (v === undefined || v === '') {
+      return null;
+    }
+    return `<${node.tag}>${escapeXml(v)}</${node.tag}>`;
+  }
+  const inner: string[] = [];
+  for (const c of node.children) {
+    const r = renderNode(c, idByName, leafValues);
+    if (r !== null) {
+      inner.push(r);
+    }
+  }
+  if (inner.length === 0) {
+    return null;
+  }
+  return `<${node.tag}>${inner.join('')}</${node.tag}>`;
+}
+// 様式インスタンスID（id 属性・CATALOG about 参照）。様式は 1 度しか現れないため -1 固定。
+function formInstanceId(formId: string): string {
+  return `${formId}-1`;
+}
+// ページ要素タグ（KOA210-2 等）から面番号を取り出す（末尾連番）。
+function pageNumberOf(tag: string): string {
+  const m = /-(\d+)$/.exec(tag);
+  return m ? m[1]! : '1';
+}
+
+// ページが「実質データ（直接値 leaf）」を持つか。年分・申告区分・屋号等のヘッダは
+// IT部 IDREF で全ページに現れるため、それだけのページは出力対象外とする
+// （例：KOA020 第三表＝分離課税・第四表＝損失申告は該当データが無ければ出力しない）。
+function pageHasDirectValue(node: RefNode, leafValues: XtxLeafValues): boolean {
+  if (node.kind === 'leaf') {
+    if (node.idref) {
+      return false;
+    }
+    const v = leafValues[node.tag];
+    return v !== undefined && v !== '';
+  }
+  return node.children.some((c) => pageHasDirectValue(c, leafValues));
+}
+
+interface RenderedForm {
+  formId: string;
+  xml: string;
+}
+// 様式（参照側）を単一様式要素として描画。公式 xsd モデルどおり、ルート様式要素
+// <KOA210 …> がページ子要素 <KOA210-N page="N"> を内包する。出力対象データを持つ
+// ページのみ出力。全ページ空なら null（その様式は CONTENTS/CATALOG に載せない）。
+function renderForm(
   schema: XtxSchema,
   idByName: Map<string, string>,
   leafValues: XtxLeafValues,
-  indent: string,
   attrs: FormAttrs
-): string {
-  function render(node: RefNode, ind: string): string | null {
-    if (node.kind === 'leaf') {
-      if (node.idref) {
-        const id = idByName.get(node.idref);
-        return id ? `${ind}<${node.tag} IDREF="${id}"/>` : null;
-      }
-      const v = leafValues[node.tag];
-      if (v === undefined || v === '') {
-        return null;
-      }
-      return `${ind}<${node.tag}>${escapeXml(v)}</${node.tag}>`;
+): RenderedForm | null {
+  const formRoot = buildRefTreeNodes(schema);
+  const formId = formRoot.tag;
+  const pages: string[] = [];
+  for (const pageNode of formRoot.children) {
+    if (!pageHasDirectValue(pageNode, leafValues)) {
+      continue;
     }
     const inner: string[] = [];
-    for (const c of node.children) {
-      const r = render(c, ind + '  ');
+    for (const c of pageNode.children) {
+      const r = renderNode(c, idByName, leafValues);
       if (r !== null) {
         inner.push(r);
       }
     }
     if (inner.length === 0) {
-      return null;
+      continue;
     }
-    if (node.level === 0) {
-      const open =
-        `${ind}<${node.tag} VR="${schema.meta.version}"` +
-        ` softNM="${escapeXml(attrs.softNM)}"` +
-        ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
-        ` sakuseiDay="${attrs.sakuseiDay}" id="${node.tag}" page="1">`;
-      return `${open}\n${inner.join('\n')}\n${ind}</${node.tag}>`;
-    }
-    return `${ind}<${node.tag}>\n${inner.join('\n')}\n${ind}</${node.tag}>`;
+    const p = pageNumberOf(pageNode.tag);
+    pages.push(`<${pageNode.tag} page="${p}">${inner.join('')}</${pageNode.tag}>`);
   }
-  const out = render(formRoot, indent);
-  return out ?? `${indent}<!-- 参照側：出力対象データなし -->`;
+  if (pages.length === 0) {
+    return null;
+  }
+  const id = formInstanceId(formId);
+  // 属性順は参照ファイル準拠：VR id page sakuseiDay sakuseiNM softNM
+  const open =
+    `<${formId} VR="${schema.meta.version}" id="${id}" page="1"` +
+    ` sakuseiDay="${attrs.sakuseiDay}"` +
+    ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
+    ` softNM="${escapeXml(attrs.softNM)}">`;
+  return { formId, xml: `${open}${pages.join('')}</${formId}>` };
+}
+// CATALOG（RDF マニフェスト）。出力された各様式を FORM_SEC に登録（about="#{様式ID}-1"）。
+function renderCatalog(formIds: string[]): string {
+  const formSeq = formIds
+    .map((id) => `<rdf:li><rdf:description about="#${formInstanceId(id)}"/></rdf:li>`)
+    .join('');
+  return (
+    `<CATALOG id="CATALOG"><rdf:RDF xmlns:rdf="${NS_RDF}"><rdf:description id="REPORT">` +
+    '<SEND_DATA/>' +
+    '<IT_SEC><rdf:description about="#IT"/></IT_SEC>' +
+    `<FORM_SEC><rdf:Seq>${formSeq}</rdf:Seq></FORM_SEC>` +
+    '<TENPU_SEC/><XBRL_SEC/><XBRL2_1_SEC/>' +
+    `<SOFUSHO_SEC><rdf:description about="#${SOFUSHO_ID}"/></SOFUSHO_SEC>` +
+    '<ATTACH_SEC/><CSV_SEC/>' +
+    '</rdf:description></rdf:RDF></CATALOG>'
+  );
 }
 
 function resolveFormAttrs(options: XtxDocumentOptions): FormAttrs {
@@ -195,23 +366,24 @@ function resolveFormAttrs(options: XtxDocumentOptions): FormAttrs {
   };
 }
 // 参照側（帳票個別部分）のみを返す。実 XSD validation 用に様式サブツリーを
-// 単体で取り出すために公開する。
+// 単体で取り出すために公開する（IT部・エンベロープは含めない）。
 export function buildFormFragment(
   schema: XtxSchema,
   values: XtxValues,
   options: XtxDocumentOptions = {},
   leafValues: XtxLeafValues = {}
 ): string {
-  const { idByName } = buildDefinitionInstances(schema, values);
-  const formRoot = buildRefTreeNodes(schema);
-  return renderRefSide(
-    formRoot,
+  const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
+  const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
+  const { idByName } = buildItPart(
     schema,
-    idByName,
-    leafValues,
-    '',
-    resolveFormAttrs(options)
+    values,
+    procedureTag,
+    procedureName,
+    options.filer ?? {}
   );
+  const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options));
+  return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
 }
 
 export function buildXtxDocument(
@@ -220,10 +392,7 @@ export function buildXtxDocument(
   options: XtxDocumentOptions = {},
   leafValues: XtxLeafValues = {}
 ): string {
-  return buildXtxBundle(
-    [{ schema, values, leafValues }],
-    options
-  );
+  return buildXtxBundle([{ schema, values, leafValues }], options);
 }
 /** 1 エンベロープに併載する 1 様式分の入力 */
 export interface XtxFormInput {
@@ -234,52 +403,55 @@ export interface XtxFormInput {
   leafValues?: XtxLeafValues;
 }
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
-// IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは
-// 全所得税様式で共通）。各様式の参照側（帳票個別部分）を順に出力する。
+// IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
+// 様式で共通）。各様式の参照側を順に出力し、CATALOG・送信票を付して封包する。
 export function buildXtxBundle(
   forms: XtxFormInput[],
   options: XtxDocumentOptions = {}
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureVersion = options.procedureVersion ?? DEFAULT_PROCEDURE_VERSION;
+  const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
   const attrs = resolveFormAttrs(options);
-  // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
-  // いずれかの schema で採番すれば全様式の IDREF が解決する。
-  const mergedValues: XtxValues = {};
-  for (const f of forms) {
-    Object.assign(mergedValues, f.values);
-  }
   const catalogSchema = forms[0]?.schema;
   if (!catalogSchema) {
     throw new Error('buildXtxBundle: forms が空です');
   }
-  const { instances, idByName } = buildDefinitionInstances(
-    catalogSchema,
-    mergedValues
-  );
-
-  const lines: string[] = [];
-  lines.push('<?xml version="1.0" encoding="UTF-8"?>');
-  lines.push('<DATA id="DATA">');
-  lines.push(`  <${procedureTag} VR="${procedureVersion}" id="手続ID">`);
-  lines.push('    <CATALOG id="CATALOG"></CATALOG>');
-  lines.push('    <CONTENTS id="CONTENTS">');
-  lines.push(renderItBlock(instances, '      '));
+  // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
+  // catalogSchema で採番すれば全様式の IDREF が解決する。
+  const mergedValues: XtxValues = {};
   for (const f of forms) {
-    const formRoot = buildRefTreeNodes(f.schema);
-    lines.push(
-      renderRefSide(
-        formRoot,
-        f.schema,
-        idByName,
-        f.leafValues ?? {},
-        '      ',
-        attrs
-      )
-    );
+    Object.assign(mergedValues, f.values);
   }
-  lines.push('    </CONTENTS>');
-  lines.push(`  </${procedureTag}>`);
-  lines.push('</DATA>');
-  return lines.join('\n');
+  const it = buildItPart(
+    catalogSchema,
+    mergedValues,
+    procedureTag,
+    procedureName,
+    options.filer ?? {}
+  );
+  const rendered: RenderedForm[] = [];
+  for (const f of forms) {
+    const r = renderForm(f.schema, it.idByName, f.leafValues ?? {}, attrs);
+    if (r) {
+      rendered.push(r);
+    }
+  }
+  const catalog = renderCatalog(rendered.map((r) => r.formId));
+  const sofusho =
+    `<SOFUSHO VR="${SOFUSHO_VR}" fid="${SOFUSHO_FID}" id="${SOFUSHO_ID}" page="1"` +
+    ` sakuseiDay="${attrs.sakuseiDay}"` +
+    ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
+    ` softNM="${escapeXml(attrs.softNM)}"` +
+    ` xmlns="${NS_KYOTSU}"/>`;
+  const defaultNs = catalogSchema.meta.namespace;
+  const data =
+    `<DATA id="DATA" xmlns="${defaultNs}" xmlns:gen="${NS_GENERAL}"` +
+    ` xmlns:kyo="${NS_KYOTSU}" xmlns:xlink="${NS_XLINK}" xmlns:xsi="${NS_XSI}">` +
+    `<${procedureTag} VR="${procedureVersion}" id="${procedureTag}">` +
+    catalog +
+    `<CONTENTS id="CONTENTS">${it.xml}${rendered.map((r) => r.xml).join('')}${sofusho}</CONTENTS>` +
+    `</${procedureTag}>` +
+    '</DATA>';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n${data}`;
 }

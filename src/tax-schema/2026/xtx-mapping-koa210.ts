@@ -6,9 +6,11 @@
 // 「ページ × 日本語名 → leaf tag」を解決し、aoiko の勘定科目名で対応付ける。
 // 対応する leaf が無い項目は出力しない（buildXtxDocument が整形式・整合を保証）。
 
-import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import koa210 from './xtx-schema-koa210.generated.json';
+import { D } from '../../lib/decimal';
+import { aoiroDeductionAmount } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
+import type { XtxContext } from './xtx';
 import type { XtxLeafValues } from './xtx-document';
 
 const SCHEMA = koa210 as XtxSchema;
@@ -77,28 +79,27 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
   }
 }
 
-export function mapKoa210Values(
-  pl: PLReport,
-  bs: BSReport,
-  monthly: MonthlyReport
-): XtxLeafValues {
+export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
+  const { pl, bs, monthly } = ctx;
   const out: XtxLeafValues = {};
   // 損益計算書（ページ1）
   put(out, PAGE1[0]?.tag, pl.totalRevenue); // 売上（収入）金額（先頭）
   for (const row of pl.expense) {
     put(out, tagByJa(PAGE1, row.accountName), row.amount);
   }
-  put(
-    out,
-    tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'),
-    pl.netIncome
-  );
-  // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）
+  // 青色申告特別控除：控除前所得・控除額・控除後所得
+  const preIncome = D(pl.netIncome);
+  const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
+  put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), pl.netIncome);
+  put(out, tagByJa(PAGE1, '青色申告特別控除額'), deduction.toString());
+  put(out, tagByJa(PAGE1, '所得金額'), preIncome.minus(deduction).toString());
+  // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）。
+  // 仕入欄には経費合計ではなく仕入(売上原価)のみ（mo.purchases）を入れる。
   const sales = PAGE2.filter((l) => l.ja === '売上（収入）金額').slice(0, 12);
   const shiire = PAGE2.filter((l) => l.ja === '仕入金額').slice(0, 12);
   monthly.months.slice(0, 12).forEach((mo, i) => {
     put(out, sales[i]?.tag, mo.sales);
-    put(out, shiire[i]?.tag, mo.expense);
+    put(out, shiire[i]?.tag, mo.purchases);
   });
   // 貸借対照表（ページ4、期末）
   const bsLine = (accountName: string, amount: string) => {
