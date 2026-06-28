@@ -303,7 +303,7 @@
   "reports_amendment_checklist_review_label": "Review the amended P/L and balance sheet",
   "reports_amendment_checklist_review_detail": "In Reports, verify that revenue, expenses, and net income after the corrections match expectations.",
   "reports_amendment_checklist_submit_label": "Submit the amended return via e-Tax",
-  "reports_amendment_checklist_submit_detail": "In e-Tax software (web edition), choose “Tax filing, applications, payments” → “Amend a past filing” and submit. The current .xtx output of this tool is intended for original filings only.",
+  "reports_amendment_checklist_submit_detail": "Create and submit the amended return in e-Tax software (download edition) or the online preparation corner (income-tax amended returns are not supported in the web edition). The current .xtx output of this tool is intended for original filings only.",
   "reports_amendment_checklist_relock_label": "Re-lock with the amended figures",
   "reports_amendment_checklist_relock_detail": "After submitting the amended return, run “Lock as filed” again in Reports to save the new snapshot.",
   "reports_consumption_tax_title": "Consumption tax",
