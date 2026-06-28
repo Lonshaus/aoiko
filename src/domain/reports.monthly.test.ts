@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
-import { buildBreakdown, buildMonthlyPL } from './reports';
+import { buildBreakdown, buildMonthly, buildMonthlyPL } from './reports';
 import type { Account, JournalLine, LineSide } from '../db/types';
 
 const TEST_ACCOUNTS: Account[] = [
   { code: '1130', year: 2026, name: '普通預金', category: 'asset', displayOrder: 130 },
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
+  { code: '5020', year: 2026, name: '仕入', category: 'expense', displayOrder: 20 },
   { code: '5130', year: 2026, name: '水道光熱費', category: 'expense', displayOrder: 130 },
   { code: '5150', year: 2026, name: '通信費', category: 'expense', displayOrder: 150 },
 ];
@@ -124,6 +125,42 @@ describe('buildMonthlyPL', () => {
     });
     const r = await buildMonthlyPL(2026);
     expect(r.expense[0]!.monthly[5]).toBe('3000');
+  });
+});
+
+describe('buildMonthly（月別の仕入分離）', () => {
+  test('仕入金額は仕入(5020)のみ。他の経費は仕入に混入しない', async () => {
+    await addEntry({
+      date: '2026-04-10',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '30000' },
+        { side: 'credit', accountCode: '1130', amount: '30000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-04-20',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    });
+    const r = await buildMonthly(2026);
+    const apr = r.months[3]!; // 4月
+    expect(apr.purchases).toBe('30000'); // 仕入のみ
+    expect(apr.expense).toBe('35000'); // 経費合計は仕入+水道光熱費
+  });
+
+  test('仕入が無い月の仕入金額は 0', async () => {
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '3000' },
+        { side: 'credit', accountCode: '1130', amount: '3000' },
+      ],
+    });
+    const r = await buildMonthly(2026);
+    expect(r.months[4]!.purchases).toBe('0'); // 5月は仕入なし
+    expect(r.months[4]!.expense).toBe('3000');
   });
 });
 

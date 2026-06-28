@@ -93,12 +93,13 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), pl.netIncome);
   put(out, tagByJa(PAGE1, '青色申告特別控除額'), deduction.toString());
   put(out, tagByJa(PAGE1, '所得金額'), preIncome.minus(deduction).toString());
-  // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）
+  // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）。
+  // 仕入欄には経費合計ではなく仕入(売上原価)のみ（mo.purchases）を入れる。
   const sales = PAGE2.filter((l) => l.ja === '売上（収入）金額').slice(0, 12);
   const shiire = PAGE2.filter((l) => l.ja === '仕入金額').slice(0, 12);
   monthly.months.slice(0, 12).forEach((mo, i) => {
     put(out, sales[i]?.tag, mo.sales);
-    put(out, shiire[i]?.tag, mo.expense);
+    put(out, shiire[i]?.tag, mo.purchases);
   });
   // 貸借対照表（ページ4、期末）
   const bsLine = (accountName: string, amount: string) => {
