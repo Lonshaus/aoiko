@@ -338,6 +338,8 @@
   "settings_filer_address": "Address",
   "settings_filer_zeimusho_code": "Tax office code (5 digits)",
   "settings_filer_zeimusho_name": "Tax office name (optional)",
+  "settings_filer_zeimusho": "Tax office",
+  "settings_filer_zeimusho_placeholder": "Search by name or code (e.g. Musashino / 01197)",
   "settings_filer_zeimusho_invalid": "Not a valid tax office code (5 digits)",
   "settings_aoiro_title": "Blue-return special deduction",
   "settings_aoiro_label": "Deduction type",

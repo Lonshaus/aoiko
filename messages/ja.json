@@ -337,6 +337,8 @@
   "settings_filer_address": "住所",
   "settings_filer_zeimusho_code": "提出先税務署コード（5桁）",
   "settings_filer_zeimusho_name": "提出先税務署名（任意）",
+  "settings_filer_zeimusho": "提出先税務署",
+  "settings_filer_zeimusho_placeholder": "署名またはコードで検索（例：武蔵野 / 01197）",
   "settings_filer_zeimusho_invalid": "有効な税務署コードではありません（5桁）",
   "settings_aoiro_title": "青色申告特別控除",
   "settings_aoiro_label": "控除区分",
