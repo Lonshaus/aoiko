@@ -52,7 +52,7 @@
   "disclaimer_prototype_subtitle": "用於實際申報所產生之結果，使用者自行負責。",
   "disclaimer_bullet_accuracy_html": "輸出之數值與 <code>.xtx</code> 檔案的 <strong>正確性不予保證</strong>。最終數字請與 <strong>稅理士・税務署</strong> 確認。",
   "disclaimer_bullet_tax_law_html": "税法與帳簿要件 <strong>每年度修訂</strong>。同捆的 <code>tax-schema/</code> 是否符合最新国税庁公告，由使用者自行確認。",
-  "disclaimer_bullet_xtx_html": "<code>.xtx</code> 輸出為暫時實作。<strong>禁止用於實際申報的 `.xtx`</strong>。請於 e-Tax 軟體另行製作。",
+  "disclaimer_bullet_xtx_html": "<code>.xtx</code> 輸出涵蓋事業部分（決算書＋確定申告書的事業所得・青色控除）。<strong>實際申報前請務必用 e-Tax 軟體(下載版) 組み込み並確認內容</strong>。各項所得控除與稅額請在 e-Tax 上補完。不保證正確性。",
   "disclaimer_bullet_llm_html": "使用 LLM 分類・OCR 時，CSV 行・收據圖像將傳送到 <strong>Google Gemini</strong>。請於傳送機敏資訊前確認。",
   "disclaimer_bullet_storage_html": "資料儲存於 <strong>瀏覽器 IndexedDB</strong>。清除瀏覽器快取會遺失，備份請使用者自行負責。",
   "disclaimer_bullet_liability_html": "因確定申告・修正申告・税務調査對應所生 <strong>任何損害</strong>，開發者一概不負責任。",
