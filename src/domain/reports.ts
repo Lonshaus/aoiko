@@ -2,11 +2,17 @@ import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from './journal';
 import type { Account, AccountCategory, JournalEntry, JournalLine } from '../db/types';
+// 売上原価・仕入（accounts.ts code 5020）。月別「仕入金額」欄に算入する科目。
+// 期首/期末商品棚卸高（5010/5030）は年末調整項目のため月別仕入には含めない。
+const PURCHASES_ACCOUNT_CODE = '5020';
 
 export interface MonthlyTotal {
   month: number;
   sales: string;
   expense: string;
+  // 月別の仕入金額（売上原価・仕入 5020 のみ）。決算書 月別ページの「仕入金額」欄用。
+  // expense（経費合計）とは別物（仕入以外の経費を仕入欄に混入させないため分離）。
+  purchases: string;
 }
 
 export interface MonthlyReport {
@@ -240,9 +246,11 @@ export async function buildMonthly(year: number, data?: YearData): Promise<Month
     month: i + 1,
     sales: '0',
     expense: '0',
+    purchases: '0',
   }));
   const sales: Decimal[] = Array.from({ length: 12 }, () => D(0));
   const expense: Decimal[] = Array.from({ length: 12 }, () => D(0));
+  const purchases: Decimal[] = Array.from({ length: 12 }, () => D(0));
 
   for (const line of lines) {
     const m = entryMonthMap.get(line.entryId);
@@ -262,6 +270,10 @@ export async function buildMonthly(year: number, data?: YearData): Promise<Month
       sales[idx] = (sales[idx] ?? D(0)).plus(contrib);
     } else {
       expense[idx] = (expense[idx] ?? D(0)).plus(contrib);
+      // 仕入（売上原価・仕入 5020）は月別「仕入金額」欄用に別途集計
+      if (acc.code === PURCHASES_ACCOUNT_CODE) {
+        purchases[idx] = (purchases[idx] ?? D(0)).plus(contrib);
+      }
     }
   }
 
@@ -273,6 +285,7 @@ export async function buildMonthly(year: number, data?: YearData): Promise<Month
     const month = months[i]!;
     month.sales = s.toString();
     month.expense = e.toString();
+    month.purchases = (purchases[i] ?? D(0)).toString();
     totalSales = totalSales.plus(s);
     totalExpense = totalExpense.plus(e);
   }
