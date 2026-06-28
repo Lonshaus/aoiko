@@ -9,6 +9,7 @@ function makeCtx(): XtxContext {
       month: i + 1,
       sales: '0',
       expense: '0',
+      purchases: '0',
     })),
     totalSales: '0',
     totalExpense: '0',
@@ -40,17 +41,52 @@ function makeCtx(): XtxContext {
     monthly,
     pl,
     bs,
+    filer: {
+      riyoshaId: '1234567890123456',
+      name: '青井 太郎',
+      zip: '1800001',
+      address: '東京都武蔵野市〇〇1-2-3',
+      zeimushoCode: '01101',
+      zeimushoName: '麹町',
+    },
+    aoiroDeductionKind: 'electronic',
   };
 }
 
 describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => {
   test('エンベロープ骨格を持つ（手続 RKO0010）', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
-    expect(x).toContain('<DATA id="DATA">');
-    expect(x).toContain('<RKO0010 VR="25.0.0" id="手続ID">');
+    expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
+    expect(x).toContain(
+      '<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"'
+    );
+    expect(x).toContain('<RKO0010 VR="25.0.0" id="RKO0010">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
-    expect(x).toContain('<IT VR="1.0" id="IT">');
+    expect(x).toContain('<IT VR="1.5" id="IT">');
+  });
+
+  test('封包に CATALOG(RDF)・送信票 SOFUSHO・名前空間が揃う（参照ファイル準拠）', () => {
+    const x = buildXtx2026(makeCtx());
+    // DATA の 5 名前空間
+    expect(x).toContain('xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general"');
+    expect(x).toContain('xmlns:kyo="http://xml.e-tax.nta.go.jp/XSD/kyotsu"');
+    expect(x).toContain('xmlns:xlink="http://www.w3.org/1999/xlink"');
+    expect(x).toContain('xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"');
+    // CATALOG は RDF マニフェスト（空ではない）
+    expect(x).toContain('<CATALOG id="CATALOG"><rdf:RDF');
+    expect(x).toContain('<IT_SEC><rdf:description about="#IT"/></IT_SEC>');
+    expect(x).toContain('<rdf:description about="#KOA020-1"/>');
+    expect(x).toContain('<rdf:description about="#KOA210-1"/>');
+    expect(x).toContain('<SOFUSHO_SEC><rdf:description about="#TEA060-1"/></SOFUSHO_SEC>');
+    // 送信票 SOFUSHO（kyotsu ns で自閉）
+    expect(x).toMatch(
+      /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/
+    );
+    // IT部 構造項目（手続・申告区分）
+    expect(x).toContain(
+      '<TETSUZUKI ID="TETSUZUKI"><procedure_CD>RKO0010</procedure_CD><procedure_NM>所得税及び復興特別所得税申告</procedure_NM></TETSUZUKI>'
+    );
+    expect(x).toContain('<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
   });
 
   test('1 エンベロープに申告書 KOA020 と決算書 KOA210 を併載', () => {
@@ -59,12 +95,14 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toMatch(/<KOA210 VR="11\.0"/);
     // CONTENTS / IT部 は 1 つだけ
     expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
-    expect(x.match(/<IT VR="1\.0" id="IT">/g)).toHaveLength(1);
+    expect(x.match(/<IT VR="1\.5" id="IT">/g)).toHaveLength(1);
   });
 
-  test('年分が令和（2026→8）で定義側 NENBUN に入る', () => {
+  test('年分が令和（2026→8）で定義側 NENBUN が複合型で入る', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toContain('<NENBUN ID="NENBUN">8</NENBUN>');
+    expect(x).toContain(
+      '<NENBUN ID="NENBUN"><gen:era>5</gen:era><gen:yy>8</gen:yy></NENBUN>'
+    );
   });
 
   test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
@@ -74,10 +112,14 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     );
   });
 
-  test('参照側ルートは KOA020＋FormAttribute', () => {
+  test('参照側ルートは様式インスタンスID＋page＋FormAttribute（参照ファイル順）', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toMatch(/<KOA020 VR="23\.0" softNM="aoiko"/);
-    expect(x).toContain('sakuseiNM="青井ウェブ事務所"');
+    expect(x).toMatch(
+      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="青井ウェブ事務所" softNM="aoiko">/
+    );
+    // ページ子要素は page 属性を持つ
+    expect(x).toContain('<KOA020-1 page="1">');
+    expect(x).toContain('<KOA210-1 page="1">');
   });
 
   test('参照側 IDREF が定義側 ID に解決する', () => {
@@ -92,6 +134,27 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     for (const r of idrefs) {
       expect(ids.has(r)).toBe(true);
     }
+  });
+
+  test('申告者情報が IT部の必須項目（税務署・利用者識別番号・氏名・住所）に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain(
+      '<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>01101</gen:zeimusho_CD><gen:zeimusho_NM>麹町</gen:zeimusho_NM></ZEIMUSHO>'
+    );
+    expect(x).toContain('<NOZEISHA_ID ID="NOZEISHA_ID">1234567890123456</NOZEISHA_ID>');
+    expect(x).toContain('<NOZEISHA_NM ID="NOZEISHA_NM">青井 太郎</NOZEISHA_NM>');
+    expect(x).toContain('<NOZEISHA_ADR ID="NOZEISHA_ADR">東京都武蔵野市〇〇1-2-3</NOZEISHA_ADR>');
+  });
+
+  test('青色控除区分から事業所得（控除後）と青色申告特別控除額が第一表に入る', () => {
+    const ctx = makeCtx();
+    ctx.pl = { ...ctx.pl, totalRevenue: '5000000', netIncome: '5000000' };
+    ctx.aoiroDeductionKind = 'electronic';
+    const x = buildXtx2026(ctx);
+    // 営業等収入=500万・青色控除=65万・事業所得=435万
+    expect(x).toContain('>5000000<');
+    expect(x).toContain('>650000<');
+    expect(x).toContain('>4350000<');
   });
 
   test('整形式 XML（パース可能）', () => {
