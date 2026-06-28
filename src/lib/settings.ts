@@ -1,5 +1,6 @@
 import { db } from '../db/db';
 import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 
 export type SettingsMap = {
@@ -37,6 +38,18 @@ export type SettingsMap = {
   taxRegistration: TaxRegistration;
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
+  // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
+  // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
+  userRiyoshaId: string;        // 利用者識別番号（16桁）
+  userFilerName: string;        // 氏名・名称（NOZEISHA_NM）
+  userFilerZip: string;         // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
+  userFilerAddress: string;     // 住所（NOZEISHA_ADR）
+  userZeimushoCode: string;     // 提出先税務署コード（5桁、gen:zeimusho_CD）
+  userZeimushoName: string;     // 提出先税務署名（任意、gen:zeimusho_NM）
+  // 青色申告特別控除の区分（事業所得・控除額の算定に使用）
+  aoiroDeductionKind: AoiroDeductionKind;
+  // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
+  backupIncludeFilerInfo: boolean;
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
