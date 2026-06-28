@@ -66,7 +66,8 @@ export function mapKoa020Values(ctx: XtxContext): XtxValues {
 //  - 営業等収入金額(ア)＝売上(収入)合計
 //  - 事業 営業等所得金額(①)＝控除前事業所得 − 青色申告特別控除額
 //  - 青色申告特別控除額
-//  - 所得金額（合計⑫）＝事業所得のみ（aoiko は他の所得を扱わないため事業所得に等しい）
+// 合計所得金額(⑫) は e-Tax が自動計算するため載せない（ja「所得金額」は
+// その他＞変動・臨時所得金額 の子要素 ABB00870 で別物のため誤対映を避ける）。
 // 各種所得控除・税額は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
 function put(out: XtxLeafValues, ja: string, amount: string): void {
   const tag = firstTableLeafTagByJa(ja);
@@ -87,6 +88,5 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   put(out, '営業等　金額', ctx.pl.totalRevenue);
   put(out, '営業等', businessIncome.toString());
   put(out, '青色申告特別控除額', deduction.toString());
-  put(out, '所得金額', businessIncome.toString());
   return out;
 }
