@@ -303,7 +303,7 @@
   "reports_amendment_checklist_review_label": "確認修正後的 PL / BS",
   "reports_amendment_checklist_review_detail": "於報表畫面驗算修正後的收益・費用・淨利是否符合預期。",
   "reports_amendment_checklist_submit_label": "於 e-Tax 提交修正申告",
-  "reports_amendment_checklist_submit_detail": "於 e-Tax 軟體(WEB 版) 的「申告・申請・納税」→「過去の申告を訂正」建立修正申告書並送出。本工具的 .xtx 輸出目前僅供原始申告。",
+  "reports_amendment_checklist_submit_detail": "於 e-Tax 軟體(下載版) 或 確定申告書等作成コーナー 建立修正申告書並送出（所得稅的修正申告 WEB 版不支援）。本工具的 .xtx 輸出目前僅供原始申告。",
   "reports_amendment_checklist_relock_label": "以修正後金額重新鎖定",
   "reports_amendment_checklist_relock_detail": "修正申告送出後，於報表畫面再次執行「標記為已申報並鎖定」，儲存新的快照。",
   "reports_consumption_tax_title": "消費税",
