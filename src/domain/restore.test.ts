@@ -132,4 +132,33 @@ describe('restoreFromJson', () => {
     expect(vendors).toHaveLength(1)
     expect(vendors[0]?.name).toBe('新業者')
   })
+
+  test('申告者情報がバックアップに無ければ本機の値を保持する', async () => {
+    const now = Date.now()
+    await db.settings.bulkPut([
+      { key: 'userRiyoshaId', value: '1234567890123456', updatedAt: now },
+      { key: 'userFilerName', value: '青井 太郎', updatedAt: now },
+    ])
+    // 申告者情報を含まないバックアップ（既定の除外状態）を復元
+    await restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-05-10',
+      tables: { vendors: [{ id: 'v1', name: '業者' }] },
+    })
+    expect((await db.settings.get('userRiyoshaId'))?.value).toBe('1234567890123456')
+    expect((await db.settings.get('userFilerName'))?.value).toBe('青井 太郎')
+  })
+
+  test('申告者情報がバックアップに含まれていればそれで上書きする', async () => {
+    const now = Date.now()
+    await db.settings.put({ key: 'userRiyoshaId', value: 'OLD', updatedAt: now })
+    await restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-05-10',
+      tables: {
+        settings: [{ key: 'userRiyoshaId', value: 'NEW', updatedAt: now }],
+      },
+    })
+    expect((await db.settings.get('userRiyoshaId'))?.value).toBe('NEW')
+  })
 })
