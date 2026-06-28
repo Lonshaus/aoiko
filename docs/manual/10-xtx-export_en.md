@@ -1,116 +1,120 @@
-# 10. `.xtx` export
+# 10. `.xtx` Export
 
-Generate an e-Tax-format `.xtx` file and verify it with the e-Tax Software (Web edition).
+Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition).
 
 **Language**: [日本語](10-xtx-export.md) | **English** | [繁體中文](10-xtx-export_zh-TW.md)
 
 > **By the end of this chapter you can**
-> - Export the final tax return form (KOA020) + Blue Return financial statements (KOA210) into one `.xtx`
-> - Verify the `.xtx` by importing it into e-Tax Software (Web edition)
-> - Understand the meaning of official XSD compliance and aoiko's scope of responsibility
+> - Export the tax return (KOA020) + blue-return financial statements (KOA210) into one `.xtx`
+> - Load the exported `.xtx` into e-Tax software (download edition)
+> - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax)
 >
-> **Prerequisites**: [01. Initial setup](01-setup_en.md) basic info, [09. Prior-period carryover](09-carryover_en.md), [08. Depreciation](08-depreciation_en.md) year-end depreciation are done, and the year's entries are finalized.
+> **Prerequisites**: Basic info and filer info from [01. Setup](01-setup.md), opening transfers from [09. Carryover](09-carryover.md), year-end depreciation from [08. Depreciation](08-depreciation.md), and confirmed journal entries for the year.
 
-## 1. What is `.xtx`
+## 1. What `.xtx` is
 
-`.xtx` is an XML file accepted by the **e-Tax Software (Web edition)** for filing data. aoiko generates one combining both forms below, in a single file, per the **official National Tax Agency W3C XSD** (derived from e-tax19 "XML schema"):
+`.xtx` is the XML filing-data file that **e-Tax software (download edition)** accepts via "組み込み" (load). Per the **NTA official W3C XSD** (from e-tax19 "XML schema"), aoiko bundles the following into one `.xtx`:
 
-- **KOA020-023**: Final tax return form, parts 1–4 (Reiwa 8 version)
-- **KOA210-011**: Blue Return financial statements (general)
-- **Procedure code**: `RKO0010` (Income Tax and Reconstruction Special Income Tax filing)
+- **KOA020-023**: tax return, first table
+- **KOA210-011**: blue-return financial statements (general)
+- **TEA060**: filing/transmission slip
+- **Procedure code**: `RKO0010` (income tax & special reconstruction income tax return)
 
-aoiko's `.xtx` structure is **xmllint-validated against the official XSD** in CI on every change, so structurally it is compliant.
+aoiko's `.xtx` passes **xmllint XSD validation in CI** and has been **verified by real import into the download edition**.
+
+> **e-Tax software (web edition) does NOT support loading the income-tax procedure (RKO0010).** Use the **download edition** (per-tax module install required). The online preparation corner ("作成コーナー") does not support loading `.xtx`.
 
 ## 2. What aoiko's `.xtx` includes / excludes
+
+aoiko handles **business profit and loss**. The `.xtx` carries the financial statements, the **business part** of the tax return, plus the **filer info** required to submit.
 
 ### Included
 
 | Form | Source |
 |---|---|
-| Tax return form, part 1 (year, trade name) | Settings basic info |
-| Blue Return financial statements, page 1 P/L | Reports' P/L |
-| Page 2 monthly sales/purchases | Reports' monthly sales |
-| Page 3 depreciation table | Fixed assets + current-year depreciation |
-| Page 4 balance sheet | Reports' BS |
+| Filer info (tax office, user ID, name, address) | Settings ＞ Filer Info |
+| Tax return p.1: business (営業等) revenue | PL (sales) |
+| Tax return p.1: business income (①) and blue-return special deduction | PL + deduction type |
+| Financial statements p.1 P&L (incl. pre/deduction/post amounts) | PL + deduction type |
+| Financial statements p.2 monthly sales & purchases | Monthly (purchases = COGS only) |
+| Financial statements p.4 balance sheet | BS |
 
-### Excluded (filled in via human input / e-Tax)
+### Excluded (completed in e-Tax)
 
-| Content | How to fill |
+| Item | How to complete |
 |---|---|
-| Tax return form **personal info** (name, address, birthdate, individual number) | Enter on the e-Tax side |
-| **Deductions** (basic, spouse, social insurance, medical etc.) | Enter on the e-Tax side |
-| **Tax computation** (income tax, reconstruction special income tax) | Auto-computed on the e-Tax side |
-| **Attachments** (medical-expense schedule, donation certificates etc.) | Attach on the e-Tax side |
-| **Consumption tax return** (table 2-3 etc.) | Created separately on the e-Tax side. aoiko provides only estimates ([07. Consumption tax](07-consumption-tax_en.md)) |
+| **Income deductions** (basic, spouse, social insurance, medical, etc.) | Enter in e-Tax |
+| **Total income, taxable income, tax calculation** | Auto-computed in e-Tax |
+| **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
+| **Consumption tax return** | Prepare separately in e-Tax (aoiko gives estimates only; [07. Consumption Tax](07-consumption-tax.md)) |
 
-> aoiko's `.xtx` is a **skeleton file with the financial-statements portion + year and trade name** filled in. The rest is completed on the e-Tax side.
+> This division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the personal deductions and tax are completed by the filer in e-Tax at filing time.
 
-## 3. Export procedure
+## 3. Export steps
 
-> Triggered from aoiko's Reports screen or the `.xtx` export menu (exact location depends on version).
+### 3-1. Pre-export checklist
 
-### 3-1. Pre-export checks
+1. **Settings ＞ Filer Info** has tax office, user ID, name, address (export is blocked if missing)
+2. **Settings ＞ Blue-return special deduction** type (650k/550k/100k) is correct
+3. All journal entries for the year are **confirmed**
+4. **Opening transfers** ([09. Carryover](09-carryover.md)) exist dated `2026-01-01`
+5. **Depreciation entries** generated at year end ([08. § 3](08-depreciation.md#3-年末に減価償却仕訳を生成))
+6. Reports ＞ BS shows **assets = liabilities + equity** (no imbalance warning)
 
-1. All year's **entries are finalized**
-2. **Opening carryover entry** dated `2026-01-01` exists for the current year ([09. Prior-period carryover](09-carryover_en.md); manual creation for first year)
-3. **Depreciation entries** are generated at year-end ([08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation))
-4. Reports → BS: **assets total matches liabilities + equity total** (no mismatch warning)
-5. Settings → basic info: **trade name, current fiscal year** are correct
+### 3-2. File name
 
-### 3-2. Filename
+aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
 
-aoiko generates filenames like `aoiko-{year}.xtx` (exact format may vary). Saved to your browser's "Downloads" folder.
+> aoiko's `.gitignore` includes `aoiko-*.xtx` so it is not accidentally committed.
 
-> aoiko's `.gitignore` excludes `aoiko-*.xtx`, so it won't be committed to the repo by mistake.
+> **About fiscal year 2026 (Reiwa 8)**: the Reiwa 8 income-tax e-Tax module is not released until the filing period (2027). You can verify against the current Reiwa 7 module using the dev build's "Test: export as Reiwa 7" button (the envelope structure is year-independent).
 
-## 4. Verifying via e-Tax Software (Web edition)
+## 4. Loading into e-Tax software (download edition)
 
-**Important**: aoiko passes the official XSD validation in CI, but **field verification is the user's responsibility**. Before filing:
+**Important**: aoiko's `.xtx` is verified in CI and on real devices, but **final review of the filing content is your responsibility**.
 
-1. Sign in to e-Tax Software (Web edition) at [the e-Tax site](https://www.e-tax.nta.go.jp/)
-2. **"Create" → "Import from file"** or equivalent
-3. Select aoiko's `.xtx`
-4. After import, in the e-Tax UI confirm:
-   - Blue Return financial statements (general) numbers match aoiko's Reports
-   - Monthly sales per month match
-   - Depreciation rows per asset match
-   - Balance sheet items match
-5. Fill in missing items (personal info, deductions, tax computation, etc.) on the e-Tax side
-6. **If e-Tax shows errors**: there may be a defect in our output. Please report it on GitHub Issues.
+1. Launch the download edition and **install the income-tax year module** (if not installed)
+2. **Select the user** → **"申告・申請等"**
+3. **"組み込み"** → choose aoiko's `.xtx`
+4. Confirm all 3 forms (return, statements, slip) reach "組み込み" status
+5. Use **"帳票編集"** to verify:
+   - P&L, monthly, and balance sheet match aoiko's reports
+   - Tax return p.1: business revenue, business income, blue-return deduction, name, address, tax office are correct
+6. Enter remaining items (income deductions, tax) in e-Tax
+7. **If loading errors out**: the export may have a problem — please report via GitHub Issue.
 
-> **Why field verification matters**: passing xmllint ≠ accepted by e-Tax (schema-pass doesn't guarantee passing e-Tax's business-rule checks). Verify early.
-
-## 5. Internals (reference)
+## 5. Internal spec (reference)
 
 ### XSD source
 
-- Distribution: National Tax Agency e-Tax "Specifications" page
+- Distributed by: NTA e-Tax "published specifications" list
 - Source CAB: `e-tax19.CAB` "XML schema"
-- aoiko bundles 7 files under `docs/xtx-spec/{shotoku,general}/`:
-  - `KOA020-023.xsd` (tax return form)
-  - `KOA210-011.xsd` (Blue Return financial statements, general)
+- Bundled in aoiko: under `docs/xtx-spec/{shotoku,general}/`
+  - `KOA020-023.xsd` (tax return), `KOA210-011.xsd` (blue-return statements, general)
   - `General.xsd`, `ITdefinition.xsd`, `ITreference.xsd`, `zeimusho.xsd`, `zeimoku.xsd`
 
 ### Document model
 
-Two-stage ID/IDREF:
+Two-tier ID/IDREF:
 
-- **Definition side** (IT part): value elements enumerated under `<IT VR="1.0" id="IT">` with ID attributes
-- **Reference side** (form-specific part): each leaf in a form is an empty element referencing the definition via IDREF
+- **Envelope**: `<DATA>` (5 namespaces) → procedure element `RKO0010` → `CATALOG` (RDF manifest) + `CONTENTS`
+- **Definition side** (IT part): `<IT VR="1.5" id="IT">` lists filer info, year, etc. with IDs
+- **Reference side** (per-form): each form is a single form element containing page children; leaves point to the definition side via IDREF
+- **Slip**: `SOFUSHO` (TEA060, kyotsu namespace)
 
-This is the standard e-tax model. aoiko's `.xtx` generator dynamically composes the file based on JSON schemas auto-generated from XSDs.
+aoiko builds the `.xtx` dynamically from JSON schemas auto-generated from the XSDs.
 
 ## 6. Common errors
 
-| Error (e-Tax side) | Likely cause |
+| Error (e-Tax) | Likely cause |
 |---|---|
-| File format wrong | Not `.xtx`, or wrong-year version |
-| Form mismatch | aoiko's bundled XSD diverges from the current year's (check [docs/xtx-spec/README.md](../../docs/xtx-spec/README.md) for latest version status) |
-| Required field missing | Trade name unset etc.; check Settings basic info |
-| Wrong digit / format | Negative or non-integer amounts in entries; review the journal |
+| `SC00X010 cannot load this file` | Filer info not entered, or loaded into the wrong year module |
+| Wrong file format | A non-`.xtx` file was loaded |
+| Form mismatch | aoiko's bundled XSD diverged from the current year ([docs/xtx-spec/README.md](../../docs/xtx-spec/README.md)) |
+| Wrong digit/format | Negative or non-integer amounts; review journal entries |
 
 ## 7. Next steps
 
-- Lock the year after filing → [06. Reports § 8](06-reports_en.md#8-year-lock-filed)
-- If you find an error after filing → [12. Amended filing](12-amended_en.md)
-- Take backups → [11. Backup and restore](11-backup_en.md)
+- Lock the year after filing → [06. Reports § 8](06-reports.md#8-年度ロック申告済み)
+- Found a mistake after filing → [12. Amended Return](12-amended.md)
+- Take a backup → [11. Backup & Restore](11-backup.md)
