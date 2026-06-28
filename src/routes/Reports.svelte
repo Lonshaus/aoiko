@@ -209,7 +209,24 @@
     }
   }
 
-  async function downloadXtx() {
+  // 申告者情報を設定から読む。IT部 必須項目（税務署・利用者識別番号・氏名・住所）が
+  // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
+  async function loadFiler() {
+    const filer = {
+      riyoshaId: (await getSetting('userRiyoshaId')) ?? '',
+      name: (await getSetting('userFilerName')) ?? '',
+      zip: (await getSetting('userFilerZip')) ?? '',
+      address: (await getSetting('userFilerAddress')) ?? '',
+      zeimushoCode: (await getSetting('userZeimushoCode')) ?? '',
+      zeimushoName: (await getSetting('userZeimushoName')) ?? '',
+    };
+    const missing =
+      !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
+    return { filer, missing };
+  }
+  // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
+  // 令和7年分（NENBUN=7）で行う。封包構造は年分非依存（同一コード生成）。
+  async function downloadXtx(testReiwa7 = false) {
     if (!monthly || !pl || !bs) {
       return;
     }
@@ -217,21 +234,31 @@
       lockError = m.reports_xtx_unsupported_year({ year });
       return;
     }
+    const { filer, missing } = await loadFiler();
+    if (missing) {
+      lockError = m.reports_xtx_filer_incomplete();
+      return;
+    }
+    lockError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
+    const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
+    const exportYear = testReiwa7 ? 2025 : year;
     const xml = buildXtx2026({
-      year,
+      year: exportYear,
       businessName,
       invoiceNumber,
       monthly,
       pl,
       bs,
+      filer,
+      aoiroDeductionKind,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `aoiko-${year}.xtx`;
+    a.download = `aoiko-${exportYear}.xtx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -777,13 +804,25 @@
       <p class="text-xs text-muted-foreground">
         {@html m.reports_xtx_intro_html()}
       </p>
-      <button
-        type="button"
-        onclick={downloadXtx}
-        class="px-4 py-2 border rounded hover:bg-accent"
-      >
-        {m.reports_xtx_download()}
-      </button>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onclick={() => downloadXtx(false)}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
+          {m.reports_xtx_download()}
+        </button>
+        {#if import.meta.env.DEV}
+          <button
+            type="button"
+            onclick={() => downloadXtx(true)}
+            class="px-4 py-2 border border-dashed rounded text-muted-foreground hover:bg-accent"
+            title={m.reports_xtx_download_reiwa7_hint()}
+          >
+            {m.reports_xtx_download_reiwa7()}
+          </button>
+        {/if}
+      </div>
     </section>
   {/if}
 </div>
