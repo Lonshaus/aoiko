@@ -302,7 +302,7 @@
   "reports_amendment_checklist_review_label": "修正後の PL / BS を確認",
   "reports_amendment_checklist_review_detail": "レポート画面で、修正後の収益・経費・純利益が想定通りか検算します。",
   "reports_amendment_checklist_submit_label": "e-Tax で修正申告",
-  "reports_amendment_checklist_submit_detail": "e-Taxソフト(WEB版) の「申告・申請・納税」→「過去の申告を訂正」から修正申告書を作成・送信します。本ツールの .xtx 出力は当面オリジナル申告用です。",
+  "reports_amendment_checklist_submit_detail": "e-Taxソフト(ダウンロード版) または 確定申告書等作成コーナー で修正申告書を作成・送信します（所得税の修正申告は WEB 版 非対応）。本ツールの .xtx 出力は当面オリジナル申告用です。",
   "reports_amendment_checklist_relock_label": "修正後の額で再ロック",
   "reports_amendment_checklist_relock_detail": "修正申告送信後、レポート画面で再度「申告済みとしてロック」を実行し、新しいスナップショットを保存します。",
   "reports_consumption_tax_title": "消費税",
