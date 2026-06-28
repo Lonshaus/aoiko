@@ -23,6 +23,23 @@ import type { XtxSchema } from './xtx-schema';
 import { todayISO } from '../../lib/date';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
+// 申告者情報（IT部 定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
+// 含むため XtxValues とは別に構造化して渡す。第一表の氏名/住所/税務署は
+// この IT部 ID を参照側 IDREF で引くため、ここに値があれば自動的に帳票へ反映される。
+export interface XtxFilerInfo {
+  /** 提出先税務署コード（5桁、gen:zeimusho_CD、IT部 必須） */
+  zeimushoCode?: string;
+  /** 提出先税務署名（gen:zeimusho_NM、任意） */
+  zeimushoName?: string;
+  /** 利用者識別番号（16桁、NOZEISHA_ID、IT部 必須） */
+  riyoshaId?: string;
+  /** 氏名・名称（NOZEISHA_NM、IT部 必須） */
+  name?: string;
+  /** 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP、任意） */
+  zip?: string;
+  /** 住所（NOZEISHA_ADR、IT部 必須） */
+  address?: string;
+}
 
 export interface XtxDocumentOptions {
   /**
@@ -44,6 +61,8 @@ export interface XtxDocumentOptions {
   creatorName?: string;
   /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
   creationDate?: string;
+  /** 申告者情報（IT部 定義側の必須項目）。未指定だと IT部 必須項目が欠落する */
+  filer?: XtxFilerInfo;
 }
 // e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
@@ -130,6 +149,8 @@ interface ItPart {
 }
 // 定義側（IT部）を出力。
 //  - NENBUN は複合型 <gen:era>5</gen:era><gen:yy>{年}</gen:yy>（純文字ではない）
+//  - ZEIMUSHO / NOZEISHA_ZIP も複合型（gen:zeimusho_CD/_NM、gen:zip1/zip2）
+//  - NOZEISHA_ID / NOZEISHA_NM / NOZEISHA_ADR は申告者情報（filer）から（IT部 必須）
 //  - TETSUZUKI / SHINKOKU_KBN は所得税申告の構造項目として常に出力（個資ではない）
 //  - その他は値が与えられた定義のみ <名> ID="名">値</名> で出力
 // xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を fixed="<定義名>" で
@@ -139,23 +160,68 @@ function buildItPart(
   schema: XtxSchema,
   values: XtxValues,
   procedureTag: string,
-  procedureName: string
+  procedureName: string,
+  filer: XtxFilerInfo
 ): ItPart {
   const idByName = new Map<string, string>();
   const parts: string[] = [];
+  const push = (name: string, xml: string): void => {
+    parts.push(xml);
+    idByName.set(name, name);
+  };
   for (const def of schema.definitions) {
     const name = def.name;
     if (name === 'TETSUZUKI') {
-      parts.push(
+      push(
+        'TETSUZUKI',
         `<TETSUZUKI ID="TETSUZUKI"><procedure_CD>${escapeXml(procedureTag)}</procedure_CD>` +
           `<procedure_NM>${escapeXml(procedureName)}</procedure_NM></TETSUZUKI>`
       );
-      idByName.set('TETSUZUKI', 'TETSUZUKI');
       continue;
     }
     if (name === 'SHINKOKU_KBN') {
-      parts.push('<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
-      idByName.set('SHINKOKU_KBN', 'SHINKOKU_KBN');
+      push('SHINKOKU_KBN', '<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
+      continue;
+    }
+    if (name === 'ZEIMUSHO') {
+      if (filer.zeimushoCode) {
+        const nm = filer.zeimushoName
+          ? `<gen:zeimusho_NM>${escapeXml(filer.zeimushoName)}</gen:zeimusho_NM>`
+          : '';
+        push(
+          'ZEIMUSHO',
+          `<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>${escapeXml(filer.zeimushoCode)}</gen:zeimusho_CD>${nm}</ZEIMUSHO>`
+        );
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ID') {
+      if (filer.riyoshaId) {
+        push('NOZEISHA_ID', `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(filer.riyoshaId)}</NOZEISHA_ID>`);
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_NM') {
+      if (filer.name) {
+        push('NOZEISHA_NM', `<NOZEISHA_NM ID="NOZEISHA_NM">${escapeXml(filer.name)}</NOZEISHA_NM>`);
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ZIP') {
+      const zip = (filer.zip ?? '').replace(/[^0-9]/g, '');
+      if (zip.length === 7) {
+        push(
+          'NOZEISHA_ZIP',
+          `<NOZEISHA_ZIP ID="NOZEISHA_ZIP"><gen:zip1>${zip.slice(0, 3)}</gen:zip1>` +
+            `<gen:zip2>${zip.slice(3)}</gen:zip2></NOZEISHA_ZIP>`
+        );
+      }
+      continue;
+    }
+    if (name === 'NOZEISHA_ADR') {
+      if (filer.address) {
+        push('NOZEISHA_ADR', `<NOZEISHA_ADR ID="NOZEISHA_ADR">${escapeXml(filer.address)}</NOZEISHA_ADR>`);
+      }
       continue;
     }
     const v = values[name];
@@ -163,14 +229,14 @@ function buildItPart(
       continue;
     }
     if (name === 'NENBUN') {
-      parts.push(
+      push(
+        'NENBUN',
         `<NENBUN ID="NENBUN"><gen:era>${NENBUN_ERA_REIWA}</gen:era>` +
           `<gen:yy>${escapeXml(v)}</gen:yy></NENBUN>`
       );
     } else {
-      parts.push(`<${name} ID="${name}">${escapeXml(v)}</${name}>`);
+      push(name, `<${name} ID="${name}">${escapeXml(v)}</${name}>`);
     }
-    idByName.set(name, name);
   }
   return { xml: `<IT VR="${IT_VERSION}" id="IT">${parts.join('')}</IT>`, idByName };
 }
@@ -309,7 +375,13 @@ export function buildFormFragment(
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
-  const { idByName } = buildItPart(schema, values, procedureTag, procedureName);
+  const { idByName } = buildItPart(
+    schema,
+    values,
+    procedureTag,
+    procedureName,
+    options.filer ?? {}
+  );
   const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options));
   return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
 }
@@ -351,7 +423,13 @@ export function buildXtxBundle(
   for (const f of forms) {
     Object.assign(mergedValues, f.values);
   }
-  const it = buildItPart(catalogSchema, mergedValues, procedureTag, procedureName);
+  const it = buildItPart(
+    catalogSchema,
+    mergedValues,
+    procedureTag,
+    procedureName,
+    options.filer ?? {}
+  );
   const rendered: RenderedForm[] = [];
   for (const f of forms) {
     const r = renderForm(f.schema, it.idByName, f.leafValues ?? {}, attrs);

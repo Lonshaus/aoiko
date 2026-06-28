@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { PAYLOAD_VERSION, type BackupPayload } from '../backup';
+import { FILER_INFO_SETTING_KEYS, PAYLOAD_VERSION, type BackupPayload } from '../backup';
 import { validateBackupPayload } from './restore-validate';
 
 export class IncompatibleBackupError extends Error {
@@ -20,6 +20,17 @@ export async function restoreFromJson(
   }
   // 全消去の前に検証する。不正なバックアップで既存データを失わないため。
   validateBackupPayload(payload);
+  // 申告者情報（個人情報）はバックアップに含まれないことがある（既定で除外）。
+  // バックアップに含まれていない場合は全消去で失わないよう、現在値を退避して復帰する。
+  const settingRows = payload.tables['settings'];
+  const restoredSettingKeys = new Set(
+    Array.isArray(settingRows)
+      ? settingRows.map((r) => (r as { key?: string }).key)
+      : []
+  );
+  const preservedFilerSettings = (await db.settings.toArray()).filter(
+    (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key)
+  );
 
   await db.delete();
   await db.open();
@@ -35,6 +46,9 @@ export async function restoreFromJson(
     await table.bulkPut(rows);
     tableCount++;
     rowCount += rows.length;
+  }
+  if (preservedFilerSettings.length > 0) {
+    await db.settings.bulkPut(preservedFilerSettings);
   }
 
   return { tableCount, rowCount };

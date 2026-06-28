@@ -135,6 +135,8 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         totalLiabilitiesAndEquity: '0',
         balanced: true,
       },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      aoiroDeductionKind: 'electronic' as const,
     };
     const values = mapKoa020Values(ctx);
     const frag = buildFormFragment(
@@ -240,7 +242,16 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       totalSales: '7800000',
       totalExpense: '780000',
     };
-    const leafValues = mapKoa210Values(pl, bs, monthly);
+    const leafValues = mapKoa210Values({
+      year: 2026,
+      businessName: '青井ウェブ事務所',
+      invoiceNumber: '',
+      monthly,
+      pl,
+      bs,
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      aoiroDeductionKind: 'electronic',
+    });
     expect(Object.keys(leafValues).length).toBeGreaterThan(10);
     const frag = buildFormFragment(
       koa210 as XtxSchema,
@@ -329,6 +340,15 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         totalLiabilitiesAndEquity: '7680000',
         balanced: true,
       },
+      filer: {
+        riyoshaId: '1234567890123456',
+        name: '青井 太郎',
+        zip: '1800001',
+        address: '東京都武蔵野市〇〇1-2-3',
+        zeimushoCode: '01101',
+        zeimushoName: '麹町',
+      },
+      aoiroDeductionKind: 'electronic' as const,
     };
     const xtx = buildXtx2026(ctx);
     // バンドルから各様式サブツリーを抜き出し、各々を公式 xsd で検証
