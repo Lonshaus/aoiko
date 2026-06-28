@@ -40,6 +40,15 @@ function makeCtx(): XtxContext {
     monthly,
     pl,
     bs,
+    filer: {
+      riyoshaId: '1234567890123456',
+      name: '青井 太郎',
+      zip: '1800001',
+      address: '東京都武蔵野市〇〇1-2-3',
+      zeimushoCode: '01101',
+      zeimushoName: '麹町',
+    },
+    aoiroDeductionKind: 'electronic',
   };
 }
 
@@ -124,6 +133,27 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     for (const r of idrefs) {
       expect(ids.has(r)).toBe(true);
     }
+  });
+
+  test('申告者情報が IT部の必須項目（税務署・利用者識別番号・氏名・住所）に入る', () => {
+    const x = buildXtx2026(makeCtx());
+    expect(x).toContain(
+      '<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>01101</gen:zeimusho_CD><gen:zeimusho_NM>麹町</gen:zeimusho_NM></ZEIMUSHO>'
+    );
+    expect(x).toContain('<NOZEISHA_ID ID="NOZEISHA_ID">1234567890123456</NOZEISHA_ID>');
+    expect(x).toContain('<NOZEISHA_NM ID="NOZEISHA_NM">青井 太郎</NOZEISHA_NM>');
+    expect(x).toContain('<NOZEISHA_ADR ID="NOZEISHA_ADR">東京都武蔵野市〇〇1-2-3</NOZEISHA_ADR>');
+  });
+
+  test('青色控除区分から事業所得（控除後）と青色申告特別控除額が第一表に入る', () => {
+    const ctx = makeCtx();
+    ctx.pl = { ...ctx.pl, totalRevenue: '5000000', netIncome: '5000000' };
+    ctx.aoiroDeductionKind = 'electronic';
+    const x = buildXtx2026(ctx);
+    // 営業等収入=500万・青色控除=65万・事業所得=435万
+    expect(x).toContain('>5000000<');
+    expect(x).toContain('>650000<');
+    expect(x).toContain('>4350000<');
   });
 
   test('整形式 XML（パース可能）', () => {
