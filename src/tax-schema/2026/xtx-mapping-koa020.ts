@@ -1,11 +1,13 @@
-// aoiko 業務データ → KOA020（確定申告書）定義側（IT部）値マップ。
+// aoiko 業務データ → KOA020（確定申告書）の値マップ。
 //
-// ⚠ aoiko は確定申告書本体に必要な個人情報（氏名・住所・個人番号・各種所得控除・
-// 税額計算）を収集しない設計。安全に対映できるのは年分と屋号のみ。
-// 未収集の定義項目は出力しない（IDREF 整合は buildXtxDocument が保証）。
-// 損益・貸借・月別は青色申告決算書（KOA210, Sub D）の領域で本様式には含まれない。
+// ⚠ 申告者情報（氏名・住所・税務署）は IT部（定義側）から第一表へ IDREF で反映される
+// （buildItPart が出力）。本モジュールは第一表の「事業」部分の直接値 leaf を扱う：
+// 営業等収入金額・事業所得（青色控除後）・青色申告特別控除額・所得金額（合計）。
+// 各種所得控除・税額計算は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
 
 import koa020 from './xtx-schema-koa020.generated.json';
+import { D } from '../../lib/decimal';
+import { aoiroDeductionAmount } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues } from './xtx-document';
@@ -60,18 +62,31 @@ export function mapKoa020Values(ctx: XtxContext): XtxValues {
   }
   return values;
 }
-// KOA020 第一表（KOA020-1）の直接値 leaf。aoiko が決算書から正確に導けるのは
-// 「収入金額等＞事業＞営業等(ア)」＝事業の総収入のみ。事業の所得金額(①)は
-// 青色申告特別控除後の額（aoiko 未計算）・各種所得控除・税額計算は本人情報が必要なため
-// 本様式には載せず、利用者が e-Tax 上で補完する（申告書本体の性質上不可避）。
+// KOA020 第一表（KOA020-1）の「事業」部分の直接値 leaf。
+//  - 営業等収入金額(ア)＝売上(収入)合計
+//  - 事業 営業等所得金額(①)＝控除前事業所得 − 青色申告特別控除額
+//  - 青色申告特別控除額
+//  - 所得金額（合計⑫）＝事業所得のみ（aoiko は他の所得を扱わないため事業所得に等しい）
+// 各種所得控除・税額は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
+function put(out: XtxLeafValues, ja: string, amount: string): void {
+  const tag = firstTableLeafTagByJa(ja);
+  if (!tag) {
+    return;
+  }
+  const v = toKingaku(amount);
+  if (v !== '') {
+    out[tag] = v;
+  }
+}
+
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
-  const eigyoIncome = firstTableLeafTagByJa('営業等　金額');
-  if (eigyoIncome) {
-    const v = toKingaku(ctx.pl.totalRevenue);
-    if (v !== '') {
-      out[eigyoIncome] = v;
-    }
-  }
+  const preIncome = D(ctx.pl.netIncome);
+  const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
+  const businessIncome = preIncome.minus(deduction);
+  put(out, '営業等　金額', ctx.pl.totalRevenue);
+  put(out, '営業等', businessIncome.toString());
+  put(out, '青色申告特別控除額', deduction.toString());
+  put(out, '所得金額', businessIncome.toString());
   return out;
 }

@@ -28,6 +28,15 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
       totalLiabilitiesAndEquity: '0',
       balanced: true,
     },
+    filer: {
+      riyoshaId: '1234567890123456',
+      name: '青井 太郎',
+      zip: '1800001',
+      address: '東京都武蔵野市〇〇1-2-3',
+      zeimushoCode: '01101',
+      zeimushoName: '麹町',
+    },
+    aoiroDeductionKind: 'electronic',
     ...overrides,
   };
 }
@@ -46,39 +55,42 @@ describe('mapKoa020Values（IT部 定義側）', () => {
 });
 
 describe('mapKoa020LeafValues（第一表 直接値）', () => {
-  test('営業等収入金額に売上(収入)合計が整数円で入る', () => {
+  // 収入500万・控除前所得500万・電子(65万控除) → 事業所得435万・所得金額435万
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '5,000,000.40',
+    totalExpense: '0',
+    netIncome: '5000000',
+    entryCount: 0,
+  };
+
+  test('営業収入・事業所得(控除後)・青色控除額・所得金額を整数円で対映', () => {
     const out = mapKoa020LeafValues(
-      ctx({
-        pl: {
-          year: 2026,
-          revenue: [],
-          expense: [],
-          totalRevenue: '5,000,000.40',
-          totalExpense: '0',
-          netIncome: '0',
-          entryCount: 0,
-        },
-      })
+      ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
     );
     const values = Object.values(out);
-    expect(values).toEqual(['5000000']);
+    // 営業等収入=5000000 / 青色控除=650000 / 事業所得=所得金額=4350000
+    expect(values).toContain('5000000');
+    expect(values).toContain('650000');
+    expect(values.filter((v) => v === '4350000')).toHaveLength(2);
   });
 
-  test('事業所得・所得控除・税額は載せない（青色控除/本人情報を収集しないため）', () => {
+  test('事業の4項目のみ。所得控除・税額の欄は出力しない', () => {
     const out = mapKoa020LeafValues(
-      ctx({
-        pl: {
-          year: 2026,
-          revenue: [],
-          expense: [],
-          totalRevenue: '3000000',
-          totalExpense: '1000000',
-          netIncome: '2000000',
-          entryCount: 1,
-        },
-      })
+      ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
     );
-    // 営業等収入の 1 件のみ。所得金額(控除後)・控除・税額は出力しない
-    expect(Object.keys(out)).toHaveLength(1);
+    // 営業収入・事業所得・青色控除額・所得金額 の 4 件のみ
+    expect(Object.keys(out)).toHaveLength(4);
+  });
+
+  test('簡易簿記(10万控除)なら事業所得=控除前−10万', () => {
+    const out = mapKoa020LeafValues(
+      ctx({ pl: { ...plBase, netIncome: '2000000' }, aoiroDeductionKind: 'simple' })
+    );
+    const values = Object.values(out);
+    expect(values).toContain('100000'); // 控除額10万
+    expect(values.filter((v) => v === '1900000')).toHaveLength(2); // 事業所得=所得金額
   });
 });
