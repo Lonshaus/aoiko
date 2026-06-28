@@ -338,6 +338,8 @@
   "settings_filer_address": "地址",
   "settings_filer_zeimusho_code": "提出地稅務署代碼（5 碼）",
   "settings_filer_zeimusho_name": "提出地稅務署名稱（選填）",
+  "settings_filer_zeimusho": "提出地稅務署",
+  "settings_filer_zeimusho_placeholder": "以署名或代碼搜尋（例：武蔵野 / 01197）",
   "settings_filer_zeimusho_invalid": "不是有效的稅務署代碼（5 碼）",
   "settings_aoiro_title": "青色申告特別控除",
   "settings_aoiro_label": "控除區分",
