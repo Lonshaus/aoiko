@@ -12,7 +12,7 @@ Choosing among the 4 methods, transitional credit, input tax credit, deemed inpu
 >
 > **Prerequisites**: consumption tax method set per [01. § 4](01-setup_en.md#4-choose-a-consumption-tax-method).
 >
-> **Important**: aoiko is an **estimation/comparison tool**. It does NOT produce the consumption tax return form (supporting tables 2-3 etc.). Use the e-Tax Software (Web edition) or a tax accountant for actual filing.
+> **Important**: aoiko is an **estimation/comparison tool**. It does NOT produce the consumption tax return form (supporting tables 2-3 etc.). Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing.
 >
 > The Reports' "Consumption-tax 4-method comparison" also shows a **"Filing-form equivalent (est.)"** column alongside the whole-yen estimate used for method comparison. It mimics the actual return's rounding (taxable base rounded down to the nearest 1,000 yen, tax amounts rounded down to 100 yen), so it's closer to what you'd actually pay — but it is still not a formal return produced with the supporting tables.
 

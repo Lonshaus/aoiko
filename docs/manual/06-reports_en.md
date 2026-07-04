@@ -117,7 +117,7 @@ For taxable businesses, **"Consumption-tax 4-method comparison"** runs the year'
 
 Lined up like this, the **lowest-payable method** is easy to spot.
 
-> **Important**: aoiko provides **estimates and comparison only**. The actual consumption-tax return form (and supporting tables 2-3 etc.) is out of scope. Use e-Tax software or a tax accountant for actual filing. Details in [07. Consumption tax](07-consumption-tax_en.md).
+> **Important**: aoiko provides **estimates and comparison only**. The actual consumption-tax return form (and supporting tables 2-3 etc.) is out of scope. Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing. Details in [07. Consumption tax](07-consumption-tax_en.md).
 
 ## 8. Year lock (Filed)
 
