@@ -2,9 +2,9 @@
   "name": "aoiko",
   "image": "mcr.microsoft.com/devcontainers/typescript-node:22",
   "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libxml2-utils && npm ci",
-  "forwardPorts": [5173],
+  "forwardPorts": [10708],
   "portsAttributes": {
-    "5173": {
+    "10708": {
       "label": "aoiko (Vite)",
       "onAutoForward": "openPreview"
     }

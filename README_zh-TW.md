@@ -25,6 +25,7 @@
 - **減價償卻**：定額法、200% 定率法（耐用年數 2〜20 年）、月分攤、留 1 円殘存
 - **少額減價償卻資產特例**：措法 28 之 2（30→40 萬日圓、2026-04-01 起），年合計 300 萬日圓上限管理
 - **前期繰越**：去年年末殘高 → 期首振替仕訳自動產生（純利益、事業主貸借吸收至元入金）
+- **開業時設定（開業精靈）**：開業費、轉用資產（私用轉事業用的未償卻殘額依國稅庁方式自動算）、自由項目，一次生成傳票與固定資產登記
 - **消費稅概算**：本則／簡易（第 1〜6 種）／2 割特例／3 割特例 4 種方式比較、80/70/50/30% 經過措置自動套用
 - **報表**：月別売上、損益計算書、貸借対照表、月別 PL（科目 × 月）、取引先別／補助科目別集計、消費稅 4 方式比較
 - **複合検索（優良な電子帳簿要件）**：仕訳一覧可組合 年/月/摘要/金額範圍/取引先 搜尋（符合電子帳簿保存法「2 個以上任意組合」要件）
@@ -56,6 +57,7 @@ src/
 │   ├── reports.ts             # PL / BS / 月別 / 取引先別
 │   ├── depreciation.ts        # 定額法、定率法 減價償卻
 │   ├── carryover.ts           # 前期繰越（期首振替）
+│   ├── business-opening.ts    # 開業精靈（轉用資產未償卻殘額計算、開業傳票生成）
 │   ├── home-office.ts         # 家事按分
 │   ├── consumption-tax.ts     # 消費稅 4 方式 ＋ 經過措置
 │   ├── snapshots.ts           # 年度鎖定（申告済）
@@ -118,7 +120,7 @@ npm run build
 npm run preview
 ```
 
-瀏覽器打開 <http://localhost:4173>。首次啟動會請你同意免責事項，接著在「設定」畫面輸入事業名稱、年度。要用 OCR/LLM 的話在「設定」選引擎（Gemini API 金鑰／Ollama 等 OpenAI 相容 endpoint／Tesseract〔僅 OCR、精度有限〕）。
+瀏覽器打開 <http://localhost:31527>。首次啟動會請你同意免責事項，接著在「設定」畫面輸入事業名稱、年度。要用 OCR/LLM 的話在「設定」選引擎（Gemini API 金鑰／Ollama 等 OpenAI 相容 endpoint／Tesseract〔僅 OCR、精度有限〕）。
 
 ### 以 PWA 安裝（推薦）
 
@@ -150,7 +152,7 @@ npm run preview
 
 ```bash
 npm install
-npm run dev        # 開發伺服器
+npm run dev        # 開發伺服器（http://localhost:10708）
 npm run test       # Vitest
 npm run check      # svelte-check 型別檢查
 npm run build      # 正式建置

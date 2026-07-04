@@ -25,6 +25,7 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **Depreciation**: straight-line and 200% declining-balance (useful lives 2–20 years), monthly proration, ¥1 residual
 - **Small-asset depreciation special rule**: Sochiho Article 28-2 (¥300k → ¥400k threshold from 2026-04-01), with ¥3M annual cap tracking
 - **Prior-period carryover**: auto-generate opening journal entries from prior year-end balances (net profit and owner's draws/contributions are absorbed into owner's capital)
+- **Business opening setup (Opening Wizard)**: pre-opening expenses, converted assets (auto-computes the opening book value for personal-to-business conversions per NTA rules), and custom items — generates the journal entries and fixed-asset registrations in one go
 - **Consumption tax estimation**: 4-method comparison (general / simplified / 2% special / 3% special), with the 80/70/50/30% transitional input-tax credit automatically applied
 - **Reports**: monthly sales, P/L, balance sheet, monthly P/L (account × month), vendor / sub-account breakdowns, consumption-tax 4-way comparison
 - **Composite search (qualified electronic ledger compliance)**: in the journal list, combine year / month / description / amount range / vendor (satisfies the Electronic Books Storage Act's "two or more arbitrary combination" requirement)
@@ -56,6 +57,7 @@ src/
 │   ├── reports.ts             # P/L / BS / monthly / vendor breakdowns
 │   ├── depreciation.ts        # Straight-line / declining-balance depreciation
 │   ├── carryover.ts           # Prior-period carryover (opening journal)
+│   ├── business-opening.ts    # Opening Wizard (converted-asset book value calc, opening entries)
 │   ├── home-office.ts         # Home office allocation
 │   ├── consumption-tax.ts     # Consumption tax 4 methods + transitional rule
 │   ├── snapshots.ts           # Year-end lock (filed)
@@ -118,7 +120,7 @@ npm run build
 npm run preview
 ```
 
-Open <http://localhost:4173> in your browser. On first launch, accept the disclaimer, then enter your business name and fiscal year in Settings. To use OCR/LLM, pick an engine in Settings (Gemini API key / Ollama or other OpenAI-compatible endpoint / Tesseract [OCR-only, limited accuracy]).
+Open <http://localhost:31527> in your browser. On first launch, accept the disclaimer, then enter your business name and fiscal year in Settings. To use OCR/LLM, pick an engine in Settings (Gemini API key / Ollama or other OpenAI-compatible endpoint / Tesseract [OCR-only, limited accuracy]).
 
 ### Install as a PWA (recommended)
 
@@ -150,7 +152,7 @@ See [docs/manual/](docs/manual/README_en.md) for step-by-step operating instruct
 
 ```bash
 npm install
-npm run dev        # Dev server
+npm run dev        # Dev server (http://localhost:10708)
 npm run test       # Vitest
 npm run check      # svelte-check type checking
 npm run build      # Production build
