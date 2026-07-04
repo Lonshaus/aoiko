@@ -357,6 +357,81 @@ describe('computeThreeWari - 3 割特例', () => {
   });
 });
 
+describe('filingRounded / taxableBase - 申告書相当額（千円/百円未満切捨て）', () => {
+  test('課税標準額は千円未満切捨て、税額は百円未満切捨て（本則）', async () => {
+    // 税抜 1,234,567 円（10%）→ 課税標準額 1,234,000（千円未満切捨て）
+    // 消費税額 = 1,234,000 × 7.8% = 96,252（既に1円単位）
+    // 差引税額 = 96,252 → 百円未満切捨て 96,200、地方 = floor(96,200×22/78,100) = 27,100
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1358024' },
+        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.taxableBase).toBe('1234000');
+    expect(r.filingRounded.national).toBe('96200');
+    expect(r.filingRounded.local).toBe('27100');
+    expect(r.filingRounded.total).toBe('123300');
+  });
+
+  test('10%/8%混在：税率ごとに千円未満切捨てしてから合算する（合算後一括切捨てではない）', async () => {
+    // 10%分 税抜 500,700 → 500,000（700円切捨て）
+    // 8%分  税抜 300,900 → 300,000（900円切捨て）
+    // 正しい課税標準額 = 800,000。もし合算(801,600)後に一括切捨てすると 801,000 になり誤り
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '801600' },
+        { side: 'credit', accountCode: '4110', amount: '500700', taxRate: 0.1, taxIncluded: false },
+        { side: 'credit', accountCode: '4110', amount: '300900', taxRate: 0.08, taxIncluded: false },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.taxableBase).toBe('800000');
+    // 消費税額 = 500,000×7.8% + 300,000×6.24% = 39,000 + 18,720 = 57,720
+    expect(r.filingRounded.national).toBe('57700');
+    expect(r.filingRounded.local).toBe('16200');
+    expect(r.filingRounded.total).toBe('73900');
+  });
+
+  test('簡易課税：みなし仕入控除も申告書側の税額から算出し1円未満切捨て', async () => {
+    // 課税標準額に対する消費税額(官庁側) = 96,252（上記と同じ売上）
+    // 第4種(60%)：みなし仕入 = 96,252×0.6 = 57,751.2 → 1円未満切捨て 57,751
+    // 差引 = 96,252 − 57,751 = 38,501 → 百円未満切捨て 38,500
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1358024' },
+        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    const r = await computeSimplified(2026, 4);
+    expect(r.taxableBase).toBe('1234000');
+    expect(r.filingRounded.national).toBe('38500');
+  });
+
+  test('2割特例・3割特例も官庁側の売上税額（課税標準額基準）から算出する', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1358024' },
+        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    const two = await computeTwoWari(2026);
+    // 96,252 × 0.2 = 19,250.4 → 百円未満切捨て 19,200
+    expect(two.filingRounded.national).toBe('19200');
+
+    await seedAccounts(2027);
+    const three = await computeThreeWari(2027);
+    // 2027 年は仕訳が無いため課税標準額 0、申告書相当額も 0
+    expect(three.taxableBase).toBe('0');
+    expect(three.filingRounded.total).toBe('0');
+  });
+});
+
 describe('compareAll - 方式比較', () => {
   test('2026 年は本則・簡易・2割特例（3割特例は適用外）', async () => {
     await seedEntry({
