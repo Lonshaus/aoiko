@@ -25,7 +25,7 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 ## 3a. Consumption tax filing forms are out of scope
 
 - The consumption tax computation provided by this tool is **limited to estimates and method comparison (general / simplified / 2% special / 3% special)**.
-- **Generating the consumption tax filing form body (the consumption tax return + supporting tables 2-3 etc.) is out of scope**. Use e-Tax Software (Web edition) or a tax accountant for actual filing.
+- **Generating the consumption tax filing form body (the consumption tax return + supporting tables 2-3 etc.) is out of scope**. Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing.
 - The transitional input tax credit rates (80/70/50/30%) and the deemed input rates of simplified taxation are applied via tables embedded in the tool, but special cases (mixed business, non-creditable inputs, adjustment amounts, etc.) are not supported.
 
 ## 4. Compliance with the Electronic Books Preservation Act and the Qualified Invoice System is the user's responsibility
