@@ -88,9 +88,10 @@ If something is wrong:
 
 ## 4. First year (no prior data)
 
-When you first start using aoiko, there's no prior year so **"No prior-year entries to carry over"** appears. **Create the opening entry manually**:
+When you first start using aoiko, there's no prior year so **"No prior-year entries to carry over"** appears. Use the dedicated business-opening screen instead of carryover:
 
-Example: business start year, ¥500,000 personal funds + existing business PC (book value ¥200,000)
+- If you have assets bought before opening and put into business use afterward (converted assets), or pre-opening expenses to book → use **[13. Business opening setup (Opening Wizard)](13-opening-setup_en.md)**, which computes the opening book value and generates the offsetting entry against owner's capital automatically
+- If you're simply contributing cash or assets whose book value you already know, you can also create the entry by hand:
 
 ```
 2026-01-01  Opening balances

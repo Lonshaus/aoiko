@@ -1,4 +1,4 @@
-export type EntrySource = 'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste';
+export type EntrySource = 'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste' | 'opening';
 export type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
