@@ -1,5 +1,9 @@
 # aoiko 使い方ガイド
 
+<p align="center">
+  <img src="/logo-wordmark.png" alt="aoiko" width="360" />
+</p>
+
 **Language**: **日本語** | [English](README_en.md) | [繁體中文](README_zh-TW.md)
 
 aoiko を初めて使う方向けの操作手順書です。各章は 1 つの機能・1 つの作業フローに対応していて、上から順に読めば日常運用に必要な操作がひととおり身につきます。

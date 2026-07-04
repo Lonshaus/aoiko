@@ -1,5 +1,9 @@
 # aoiko 使用指南
 
+<p align="center">
+  <img src="/logo-wordmark.png" alt="aoiko" width="360" />
+</p>
+
 **Language**: [日本語](README.md) | [English](README_en.md) | **繁體中文**
 
 給第一次用 aoiko 的人的逐步操作說明。每章對應一個功能或一種工作流，從上往下讀完就能完成日常記帳。
