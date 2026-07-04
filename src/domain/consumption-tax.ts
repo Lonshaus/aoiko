@@ -8,7 +8,11 @@
 //   仕入税額 = expense category（debit プラス / credit＝返金はマイナス）
 //            + asset category の debit 側（事業主貸 1610 を除外）、taxRate > 0
 //
-// 注意：実申告書（消費税申告書 + 付表 2-3 等）出力は対象外。本計算は概算 + 比較用途。
+// 各 ConsumptionTaxResult は 2 系統の数値を持つ：
+//   円単位（outputTax/inputTax/netTax 等）：方式比較用の概算。円未満切捨てのみ
+//   filingRounded/taxableBase：実際の申告書の端数処理（課税標準額は税率ごとに
+//     千円未満切捨て・税額は1円未満切捨て・差引/地方税額は百円未満切捨て）を模した
+//     「申告書相当額」。ただし付表 2-3 等の正式な申告書そのものは生成しない。
 import { db } from '../db/db';
 import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
@@ -44,6 +48,22 @@ export interface ConsumptionTaxResult {
   inputTaxRaw: ConsumptionTaxBreakdown;
   /** 納付税額（負なら還付、本則のみありうる） */
   netTax: ConsumptionTaxBreakdown;
+  /** 課税標準額（税率ごとに千円未満切り捨て後の合計。申告書相当額の算定基礎） */
+  taxableBase: string;
+  /** 申告書相当額（課税標準額の千円未満切捨て・税額の1円未満切捨て・差引/地方税額の百円未満切捨てを模した概算） */
+  filingRounded: ConsumptionTaxBreakdown;
+}
+// 取引金額（税込 or 税抜）から税抜金額（課税標準額の基礎）を計算。
+function taxExcludedPortion(
+  amount: Decimal,
+  taxRate: number,
+  taxIncluded: boolean
+): Decimal {
+  if (taxRate === 0) {
+    return D(0);
+  }
+  const priceInclusive = taxIncluded ? amount : amount.times(1 + taxRate);
+  return priceInclusive.dividedBy(1 + taxRate);
 }
 // 取引金額から国税相当の消費税額を計算。
 // taxIncluded=true: amount は税込価格、国税 = amount × 7.8/110（標準）
@@ -53,15 +73,12 @@ function nationalPortion(
   taxRate: number,
   taxIncluded: boolean
 ): Decimal {
-  if (taxRate === 0) {
-    return D(0);
-  }
-  const priceInclusive = taxIncluded ? amount : amount.times(1 + taxRate);
+  const base = taxExcludedPortion(amount, taxRate, taxIncluded);
   if (taxRate === 0.1) {
-    return priceInclusive.times('7.8').dividedBy(110);
+    return base.times('0.078');
   }
   if (taxRate === 0.08) {
-    return priceInclusive.times('6.24').dividedBy(108);
+    return base.times('0.0624');
   }
   // 想定外税率はゼロ扱い
   return D(0);
@@ -71,8 +88,8 @@ function toLocal(national: Decimal): Decimal {
   return national.times(22).dividedBy(78);
 }
 // 消費税は端数切捨て（納税者に不利な切上げはしない）。
-// 注意：実申告書は課税標準額の千円未満切捨て・税額の百円未満切捨てを行うため、
-// 本計算（円未満切捨て）とは数百〜千円程度ずれうる。あくまで概算・方式比較用途。
+// 注意：本関数は円未満切捨てのみ（方式比較用の概算）。実申告書相当の
+// 千円/百円未満切捨ては filingRounded（別途 filingBreakdown で算出）を参照。
 function asBreakdown(national: Decimal): ConsumptionTaxBreakdown {
   const localD = toLocal(national);
   const n = national.toDecimalPlaces(0, Decimal.ROUND_DOWN);
@@ -83,6 +100,48 @@ function asBreakdown(national: Decimal): ConsumptionTaxBreakdown {
     total: n.plus(l).toString(),
   };
 }
+// value を unit（1000 や 100）未満切り捨て。マイナスは 0 方向へ切り捨て
+// （既存 asBreakdown と同じ ROUND_DOWN 規約に合わせる）。
+function floorToUnit(value: Decimal, unit: number): Decimal {
+  return value.dividedBy(unit).toDecimalPlaces(0, Decimal.ROUND_DOWN).times(unit);
+}
+// 申告書ベースの端数処理手順（国税庁タックスアンサー No.6371・No.6383）：
+//  ① 課税標準額 = 税率ごとの税抜課税売上高（純額）を税率ごとに千円未満切り捨てし合算
+//     （合算してから一括切り捨てではない。10%分・8%分をそれぞれ切り捨てる）
+//  ② 課税標準額に対する消費税額 = ①の税率ごとの額 × 7.8%/6.24% を税率ごとに1円未満切り捨てし合算
+// 全方式（本則・簡易・2割・3割）で共通の基礎（課税標準額・売上に係る消費税額は方式に依らない）。
+interface OfficialOutputTax {
+  /** 課税標準額（税率ごとに千円未満切り捨て後の合計） */
+  taxableBase: Decimal;
+  /** 課税標準額に対する消費税額（国税分、税率ごとに1円未満切り捨て後の合計） */
+  outputTax: Decimal;
+}
+
+function computeOfficialOutputTax(
+  taxableBase10Raw: Decimal,
+  taxableBase8Raw: Decimal
+): OfficialOutputTax {
+  const base10 = floorToUnit(taxableBase10Raw, 1000);
+  const base8 = floorToUnit(taxableBase8Raw, 1000);
+  const tax10 = base10.times('0.078').toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const tax8 = base8.times('0.0624').toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  return {
+    taxableBase: base10.plus(base8),
+    outputTax: tax10.plus(tax8),
+  };
+}
+//  ③ 差引（納付）税額 = ②－控除対象仕入税額、百円未満切り捨て
+//  ④ 地方消費税額 = ③（の消費税相当額）× 22/78、百円未満切り捨て
+function filingBreakdown(nationalNetRaw: Decimal): ConsumptionTaxBreakdown {
+  const nationalRounded = floorToUnit(nationalNetRaw, 100);
+  const localRaw = nationalRounded.times(22).dividedBy(78);
+  const localRounded = floorToUnit(localRaw, 100);
+  return {
+    national: nationalRounded.toString(),
+    local: localRounded.toString(),
+    total: nationalRounded.plus(localRounded).toString(),
+  };
+}
 
 interface ProcessedYearLines {
   /** 売上税額（国税分） */
@@ -91,6 +150,10 @@ interface ProcessedYearLines {
   inputRaw: Decimal;
   /** 仕入税額（国税分、経過措置適用後 = 控除対象） */
   input: Decimal;
+  /** 課税標準額の基礎（税抜課税売上高の純額、標準税率10%分） */
+  taxableBase10: Decimal;
+  /** 課税標準額の基礎（税抜課税売上高の純額、軽減税率8%分） */
+  taxableBase8: Decimal;
 }
 
 async function processYear(year: number): Promise<ProcessedYearLines> {
@@ -100,7 +163,13 @@ async function processYear(year: number): Promise<ProcessedYearLines> {
     .filter(countsTowardTotals)
     .toArray();
   if (entries.length === 0) {
-    return { output: D(0), inputRaw: D(0), input: D(0) };
+    return {
+      output: D(0),
+      inputRaw: D(0),
+      input: D(0),
+      taxableBase10: D(0),
+      taxableBase8: D(0),
+    };
   }
   const lines = await db.journalLines
     .where('entryId')
@@ -113,6 +182,8 @@ async function processYear(year: number): Promise<ProcessedYearLines> {
   let output = D(0);
   let inputRaw = D(0);
   let input = D(0);
+  let taxableBase10 = D(0);
+  let taxableBase8 = D(0);
 
   for (const line of lines) {
     if (line.taxRate === 0) {
@@ -129,7 +200,15 @@ async function processYear(year: number): Promise<ProcessedYearLines> {
     );
     // 売上：revenue は両建てネット（debit ＝ 売上値引・返品は課税標準から控除）
     if (acc.category === 'revenue') {
-      output = line.side === 'credit' ? output.plus(national) : output.minus(national);
+      const signed = line.side === 'credit' ? national : national.negated();
+      output = output.plus(signed);
+      const base = taxExcludedPortion(D(line.amount), line.taxRate, line.taxIncluded);
+      const signedBase = line.side === 'credit' ? base : base.negated();
+      if (line.taxRate === 0.1) {
+        taxableBase10 = taxableBase10.plus(signedBase);
+      } else if (line.taxRate === 0.08) {
+        taxableBase8 = taxableBase8.plus(signedBase);
+      }
       continue;
     }
     // 仕入：expense は両建てネット（credit ＝ 返金は仕入対価の返還）、
@@ -149,15 +228,19 @@ async function processYear(year: number): Promise<ProcessedYearLines> {
       }
     }
   }
-  return { output, inputRaw, input };
+  return { output, inputRaw, input, taxableBase10, taxableBase8 };
 }
 // 本則課税：売上税額 − 控除対象仕入税額。
 // 負の場合は還付（aoiko は概算表示のみ、申告書出力はしない）。
 export async function computeGeneral(
   year: number
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw, input } = await processYear(year);
+  const { output, inputRaw, input, taxableBase10, taxableBase8 } =
+    await processYear(year);
   const net = output.minus(input);
+  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
+  // input は既に１円未満切り捨て済（既存の控除対象仕入税額）を官庁側の売上税額から控除
+  const filingNet = official.outputTax.minus(input);
   return {
     year,
     method: 'general',
@@ -165,6 +248,8 @@ export async function computeGeneral(
     inputTaxRaw: asBreakdown(inputRaw),
     inputTax: asBreakdown(input),
     netTax: asBreakdown(net),
+    taxableBase: official.taxableBase.toString(),
+    filingRounded: filingBreakdown(filingNet),
   };
 }
 // 簡易課税：売上税額 × (1 − みなし仕入率)。
@@ -173,10 +258,16 @@ export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw } = await processYear(year);
+  const { output, inputRaw, taxableBase10, taxableBase8 } =
+    await processYear(year);
   const rate = deemedInputRate(category);
   const deemedInput = output.times(rate);
   const net = output.minus(deemedInput);
+  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
+  const deemedInputOfficial = official.outputTax
+    .times(rate)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const filingNet = official.outputTax.minus(deemedInputOfficial);
   return {
     year,
     method: 'simplified',
@@ -184,6 +275,8 @@ export async function computeSimplified(
     inputTaxRaw: asBreakdown(inputRaw),
     inputTax: asBreakdown(deemedInput),
     netTax: asBreakdown(net),
+    taxableBase: official.taxableBase.toString(),
+    filingRounded: filingBreakdown(filingNet),
   };
 }
 // 2 割特例：売上税額 × 80% を控除、納付は売上税額の 20%。
@@ -191,9 +284,12 @@ export async function computeSimplified(
 export async function computeTwoWari(
   year: number
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw } = await processYear(year);
+  const { output, inputRaw, taxableBase10, taxableBase8 } =
+    await processYear(year);
   const inputDeducted = output.times('0.8');
   const net = output.times('0.2');
+  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
+  const filingNet = official.outputTax.times('0.2');
   return {
     year,
     method: 'two-wari',
@@ -201,6 +297,8 @@ export async function computeTwoWari(
     inputTaxRaw: asBreakdown(inputRaw),
     inputTax: asBreakdown(inputDeducted),
     netTax: asBreakdown(net),
+    taxableBase: official.taxableBase.toString(),
+    filingRounded: filingBreakdown(filingNet),
   };
 }
 // 3 割特例：売上税額 × 70% を控除、納付は売上税額の 30%。
@@ -208,9 +306,12 @@ export async function computeTwoWari(
 export async function computeThreeWari(
   year: number
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw } = await processYear(year);
+  const { output, inputRaw, taxableBase10, taxableBase8 } =
+    await processYear(year);
   const inputDeducted = output.times('0.7');
   const net = output.times('0.3');
+  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
+  const filingNet = official.outputTax.times('0.3');
   return {
     year,
     method: 'three-wari',
@@ -218,6 +319,8 @@ export async function computeThreeWari(
     inputTaxRaw: asBreakdown(inputRaw),
     inputTax: asBreakdown(inputDeducted),
     netTax: asBreakdown(net),
+    taxableBase: official.taxableBase.toString(),
+    filingRounded: filingBreakdown(filingNet),
   };
 }
 // 2 割特例の適用年度：課税期間 2023/10〜2026/9。個人（暦年）は令和5〜8年分（〜2026）。
