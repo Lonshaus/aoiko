@@ -1,5 +1,9 @@
 # aoiko（あおいこ / 青い子）
 
+<p align="center">
+  <img src="src/assets/logo-wordmark.png" alt="aoiko" width="360" />
+</p>
+
 **Language**: [日本語](README.md) | [English](README_en.md) | **繁體中文**
 
 [![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)

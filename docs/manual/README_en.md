@@ -1,5 +1,9 @@
 # aoiko User Guide
 
+<p align="center">
+  <img src="/logo-wordmark.png" alt="aoiko" width="360" />
+</p>
+
 **Language**: [日本語](README.md) | **English** | [繁體中文](README_zh-TW.md)
 
 Step-by-step instructions for first-time aoiko users. Each chapter covers one feature or workflow; reading them in order gives you everything you need for day-to-day operation.
