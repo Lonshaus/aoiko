@@ -94,6 +94,11 @@ export function rewriteLinks(markdown: string): string {
     },
   )
 }
+// GitHub 上でそのまま表示できるよう、markdown ソースは repo ルート相対パス（例 `../../src/assets/logo-wordmark.png`）
+// を使う。アプリ内はルーティング階層に関わらず常に `/` 相対で配信されるため、レンダリング前に絶対パスへ書き換える。
+export function rewriteImagePaths(markdown: string): string {
+  return markdown.replace(/\.\.\/\.\.\/src\/assets\/logo-wordmark\.png/g, '/logo-wordmark.png')
+}
 // アプリ内では言語は UI 設定に追従するため、各 .md 冒頭の言語切替行（GitHub 閲覧用）は不要。
 // 行内のリンクが同一ルートへ収束して機能しないため、レンダリング前に取り除く。
 export function stripLanguageNav(markdown: string): string {
