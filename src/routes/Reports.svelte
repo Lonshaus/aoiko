@@ -737,6 +737,9 @@
       {#if taxRegistration === 'tax-free'}
         <p class="text-sm text-muted-foreground">{m.reports_consumption_tax_tax_free()}</p>
       {/if}
+      <p class="text-xs text-muted-foreground">
+        {m.reports_consumption_tax_taxable_base({ amount: formatJPY(ct[0]?.taxableBase ?? '0') })}
+      </p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm tabular-nums">
           <thead>
@@ -746,6 +749,7 @@
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input_raw()}</th>
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input()}</th>
               <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_net()}</th>
+              <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_filing()}</th>
             </tr>
           </thead>
           <tbody>
@@ -763,6 +767,7 @@
                 </td>
                 <td class="text-right px-2">{formatJPY(r.inputTax.total)}</td>
                 <td class="text-right px-2 font-medium">{formatJPY(r.netTax.total)}</td>
+                <td class="text-right px-2 font-medium">{formatJPY(r.filingRounded.total)}</td>
               </tr>
             {/each}
           </tbody>
@@ -776,6 +781,8 @@
               <th class="text-left font-normal py-1 pr-2">{m.reports_consumption_tax_th_method()}</th>
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th>
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th>
             </tr>
           </thead>
           <tbody>
@@ -784,6 +791,8 @@
                 <td class="py-1 pr-2">{consumptionTaxMethodLabel(r, cat)}</td>
                 <td class="text-right px-2">{formatJPY(r.netTax.national)}</td>
                 <td class="text-right px-2">{formatJPY(r.netTax.local)}</td>
+                <td class="text-right px-2">{formatJPY(r.filingRounded.national)}</td>
+                <td class="text-right px-2">{formatJPY(r.filingRounded.local)}</td>
               </tr>
             {/each}
           </tbody>
@@ -791,6 +800,9 @@
       </details>
       <p class="text-xs text-muted-foreground border-t pt-2">
         {m.reports_consumption_tax_caveat()}
+      </p>
+      <p class="text-xs text-muted-foreground">
+        {m.reports_consumption_tax_filing_caveat()}
       </p>
       <p class="text-xs text-muted-foreground">
         {m.reports_consumption_tax_settings_link()}
