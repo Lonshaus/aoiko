@@ -32,6 +32,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 10. [`.xtx` export](10-xtx-export_en.md) — e-Tax format generation and import verification
 11. [Backup and restore](11-backup_en.md) — File System Access API, OPFS, JSON export
 12. [Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
+13. [Business opening setup (Opening Wizard)](13-opening-setup_en.md) — pre-opening expenses, converted-asset book value calculation, custom items
 
 ## Feedback
 

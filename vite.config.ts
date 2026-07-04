@@ -74,4 +74,11 @@ export default defineConfig({
       $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
     },
   },
+  // Vite の既定値 5173 は他の Vite プロジェクトと衝突しやすいため、動的/private port 帯に変更。
+  server: {
+    port: 10708,
+  },
+  preview: {
+    port: 31527,
+  },
 })
