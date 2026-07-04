@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, type Component } from 'svelte';
   import { router, link } from './router.svelte';
+  import logoWordmark from './assets/logo-wordmark.png';
   import Home from './routes/Home.svelte';
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
@@ -49,9 +50,11 @@
 </script>
 
 <div class="min-h-screen flex flex-col">
-  <header class="border-b bg-card text-card-foreground">
+  <header class="sticky top-0 z-10 border-b bg-card text-card-foreground">
     <div class="container mx-auto max-w-3xl px-8 py-4 flex items-center justify-between">
-      <a href="/" use:link class="text-xl font-bold hover:opacity-80">{m.app_name()}</a>
+      <a href="/" use:link class="hover:opacity-80">
+        <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
+      </a>
       <nav class="flex gap-6 text-sm">
         <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_home()}</a>
         <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a>
