@@ -88,7 +88,7 @@ src/
 ├── db/                        # Dexie schema
 ├── backup/                    # Backup adapter (FSA / OPFS)
 └── tax-schema/                # Year-versioned tax schemas
-    └── 2026/                  # Account table + .xtx output (official XSD compliant; field testing needed)
+    └── 2026/                  # Account table + .xtx output (official XSD compliant; verified on real e-Tax software)
 ```
 
 ## Running locally

@@ -6,6 +6,7 @@ What to do from launching aoiko to being ready to book transactions.
 
 > **By the end of this chapter you can**
 > - Accept the disclaimer and register your trade name, fiscal year, and consumption-tax method
+> - Register the filer info and blue-return deduction type required for `.xtx` submission
 > - Register sub-accounts (e.g. per bank account) and vendors
 > - Configure an API key / endpoint for OCR/LLM, if you want to use those
 >
@@ -36,6 +37,29 @@ Open the **"Basic info"** section of Settings. These appear on financial stateme
 | Current fiscal year | The year being booked | `2026` |
 
 Press **"Save"** when done. Leave the invoice number blank if you haven't registered.
+
+## 3a. Register filer info and the blue-return deduction (required for `.xtx` submission)
+
+Required to load the `.xtx` into e-Tax software (download edition). Register these in the **"Filer info"** section of Settings.
+
+| Field | What to enter |
+|---|---|
+| Tax office | Search by name or code and select (5 digits) |
+| User identification number | Your 16-digit e-Tax number |
+| Name | The name shown on your tax return |
+| Postal code (optional) | 7 digits, no hyphen |
+| Address | The address shown on your tax return |
+
+> **Stored only on this device and excluded from backups by default** (see [11. Backup and restore](11-backup_en.md)).
+
+Then, in the **"Blue-return special deduction"** section, choose a **deduction type**:
+
+- **Double-entry + e-Tax/qualified e-books (¥650,000)**: double-entry bookkeeping, e-Tax submission, and qualified electronic ledger requirements all met
+- **Double-entry only (¥550,000)**: double-entry bookkeeping without e-Tax submission or qualified electronic ledger
+- **Simple bookkeeping (¥100,000)**
+- **No deduction**
+
+> The ¥750,000 deduction additionally requires an on-time e-Tax submission, starting with returns for the 2027 tax year (Reiwa 9). See [07. Consumption tax](07-consumption-tax_en.md) and the deduction amount shown on the financial statements for details.
 
 ## 4. Choose a consumption tax method
 
