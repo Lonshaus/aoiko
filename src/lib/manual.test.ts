@@ -8,6 +8,7 @@ import {
   extractTitle,
   adjacentChapters,
   rewriteLinks,
+  rewriteImagePaths,
   stripLanguageNav,
   stripInline,
   slugifyHeading,
@@ -207,5 +208,17 @@ describe('rewriteLinks', () => {
   it('外部 URL は書き換えない', () => {
     const src = '[issues](https://github.com/Lonshaus/aoiko/issues)'
     expect(rewriteLinks(src)).toBe(src)
+  })
+})
+
+describe('rewriteImagePaths', () => {
+  it('ロゴ画像の GitHub 相対パスをアプリ内絶対パスへ書き換える', () => {
+    const src = '<img src="../../src/assets/logo-wordmark.png" alt="aoiko" width="360" />'
+    expect(rewriteImagePaths(src)).toBe('<img src="/logo-wordmark.png" alt="aoiko" width="360" />')
+  })
+
+  it('無関係なパスは書き換えない', () => {
+    const src = '<img src="./other-image.png" alt="x" />'
+    expect(rewriteImagePaths(src)).toBe(src)
   })
 })
