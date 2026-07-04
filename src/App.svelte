@@ -45,6 +45,7 @@
     '/import-history': memo(() => import('./routes/ImportHistory.svelte')),
     '/receipt': memo(() => import('./routes/Receipt.svelte')),
     '/settings': memo(() => import('./routes/Settings.svelte')),
+    '/opening-setup': memo(() => import('./routes/OpeningSetup.svelte')),
   };
   const routeLoader = $derived(ROUTE_COMPONENT[router.path] ?? null);
 </script>

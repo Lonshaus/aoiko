@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { link } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { toISODateLocal, todayISO } from '../lib/date';
@@ -730,6 +731,20 @@
       </button>
     </div>
   </form>
+
+  <div class="border rounded-lg p-6 bg-card text-card-foreground flex items-center justify-between">
+    <div>
+      <h3 class="text-lg font-semibold">{m.opening_entry_title()}</h3>
+      <p class="text-xs text-muted-foreground">{m.opening_entry_intro()}</p>
+    </div>
+    <a
+      href="/opening-setup"
+      use:link
+      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 whitespace-nowrap"
+    >
+      {m.opening_entry_action()}
+    </a>
+  </div>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_consumption_tax_title()}</h3>
