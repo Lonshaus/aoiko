@@ -26,6 +26,7 @@
     extractHeadings,
     adjacentChapters,
     rewriteLinks,
+    rewriteImagePaths,
     stripLanguageNav,
     searchManual,
   } from '../lib/manual'
@@ -40,7 +41,9 @@
   const isIndex = $derived(slug === INDEX_SLUG)
   const content = $derived(getManualContent(slug, locale))
   const html = $derived(
-    content === null ? null : (marked.parse(rewriteLinks(stripLanguageNav(content)), { async: false }) as string),
+    content === null
+      ? null
+      : (marked.parse(rewriteImagePaths(rewriteLinks(stripLanguageNav(content))), { async: false }) as string),
   )
   const headings = $derived(content === null ? [] : extractHeadings(stripLanguageNav(content)))
   const adjacent = $derived(adjacentChapters(slug))

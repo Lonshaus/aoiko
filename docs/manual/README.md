@@ -1,7 +1,7 @@
 # aoiko 使い方ガイド
 
 <p align="center">
-  <img src="/logo-wordmark.png" alt="aoiko" width="360" />
+  <img src="../../src/assets/logo-wordmark.png" alt="aoiko" width="360" />
 </p>
 
 **Language**: **日本語** | [English](README_en.md) | [繁體中文](README_zh-TW.md)
