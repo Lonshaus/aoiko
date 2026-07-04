@@ -88,7 +88,7 @@ src/
 ├── db/                        # Dexie schema
 ├── backup/                    # 備份 adapter（FSA / OPFS）
 └── tax-schema/                # 年度版稅務 schema
-    └── 2026/                  # 勘定科目表、`.xtx` 輸出（依官方 XSD、需實機驗證）
+    └── 2026/                  # 勘定科目表、`.xtx` 輸出（依官方 XSD、已通過實機組み込み驗證）
 ```
 
 ## 使用者向：本機啟動

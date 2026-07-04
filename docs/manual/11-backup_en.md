@@ -74,6 +74,8 @@ Settings → **"Data management"** or equivalent → **"Export JSON"**:
 - Saved to your browser's "Downloads" folder
 - Filename like `aoiko-ledger-{timestamp}.json`
 
+> **API keys and filer info are excluded by default**. Unless you turn on "Include API keys in backups" and "Include filer info", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
+
 Then:
 
 - Copy to a separate physical storage (external SSD, USB)
