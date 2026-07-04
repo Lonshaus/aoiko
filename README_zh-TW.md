@@ -142,7 +142,7 @@ npm run build
 npm run preview
 ```
 
-裝成 PWA 的話、啟動時會跳「新版本」提示。
+瀏覽器打開 <http://localhost:31527>。裝成 PWA 的話、啟動時會跳「新版本」提示。
 
 ## 使用方式
 
@@ -156,6 +156,7 @@ npm run dev        # 開發伺服器（http://localhost:10708）
 npm run test       # Vitest
 npm run check      # svelte-check 型別檢查
 npm run build      # 正式建置
+npm run preview    # 建置後預覽（http://localhost:31527）
 npm run verify     # check ＋ test ＋ build
 ```
 

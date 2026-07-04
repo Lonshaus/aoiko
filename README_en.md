@@ -142,7 +142,7 @@ npm run build
 npm run preview
 ```
 
-If you've installed it as a PWA, a "new version" prompt appears on launch.
+Open <http://localhost:31527> in your browser. If you've installed it as a PWA, a "new version" prompt appears on launch.
 
 ## Usage
 
@@ -156,6 +156,7 @@ npm run dev        # Dev server (http://localhost:10708)
 npm run test       # Vitest
 npm run check      # svelte-check type checking
 npm run build      # Production build
+npm run preview    # Preview the build (http://localhost:31527)
 npm run verify     # check + test + build
 ```
 

@@ -142,7 +142,7 @@ npm run build
 npm run preview
 ```
 
-PWA としてインストール済みの場合、起動時に新バージョン検出ダイアログが出る。
+ブラウザで <http://localhost:31527> を開く。PWA としてインストール済みの場合、起動時に新バージョン検出ダイアログが出る。
 
 ## 使い方
 
@@ -156,6 +156,7 @@ npm run dev        # 開発サーバ（http://localhost:10708）
 npm run test       # Vitest 実行
 npm run check      # svelte-check 型チェック
 npm run build      # 本番ビルド
+npm run preview    # ビルド後のプレビュー（http://localhost:31527）
 npm run verify     # check + test + build
 ```
 
