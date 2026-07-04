@@ -32,6 +32,7 @@
 10. [`.xtx` 輸出](10-xtx-export_zh-TW.md) — e-Tax 格式產生與匯入驗證
 11. [備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
 12. [修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
+13. [開業時設定(開業精靈)](13-opening-setup_zh-TW.md) — 開業費、轉用資產未償卻殘額計算、自由項目
 
 ## 意見回饋
 

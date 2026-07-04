@@ -100,7 +100,7 @@ describe('slugFromPath', () => {
 })
 
 describe('chapterSlugs', () => {
-  it('12 章を番号順で返し README を含まない', () => {
+  it('13 章を番号順で返し README を含まない', () => {
     expect(chapterSlugs()).toEqual([
       '01-setup',
       '02-journal',
@@ -114,6 +114,7 @@ describe('chapterSlugs', () => {
       '10-xtx-export',
       '11-backup',
       '12-amended',
+      '13-opening-setup',
     ])
     expect(chapterSlugs()).not.toContain(INDEX_SLUG)
   })
@@ -170,7 +171,7 @@ describe('adjacentChapters', () => {
   })
 
   it('最後の章は next が null', () => {
-    expect(adjacentChapters('12-amended').next).toBeNull()
+    expect(adjacentChapters('13-opening-setup').next).toBeNull()
   })
 
   it('章でない slug は両方 null', () => {

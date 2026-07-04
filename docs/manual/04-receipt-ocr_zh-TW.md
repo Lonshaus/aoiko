@@ -115,7 +115,7 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 
 - **必須選 vision 模型**（純文字模型遇到圖片輸入會掛）
 - 推薦：`llama3.2-vision`、`qwen2-vl-7b`、`minicpm-v` 系
-- Ollama 那邊：`OLLAMA_ORIGINS` 一定要把 aoiko 的 URL（例 `http://localhost:4173`）加進來
+- Ollama 那邊：`OLLAMA_ORIGINS` 一定要把 aoiko 的 URL（例 `http://localhost:31527`）加進來
 - aoiko 自己也要本機起（`npm run preview`）。HTTPS 配信版連不到 localhost
 
 ### Tesseract

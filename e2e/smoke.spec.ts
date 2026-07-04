@@ -30,7 +30,7 @@ test('インポートルート', async ({ page }) => {
 
 test('設定ルート', async ({ page }) => {
   await page.goto('/settings');
-  await expect(page.getByRole('heading', { name: '設定' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '設定', exact: true })).toBeVisible();
 });
 
 test('ナビゲーション：home → reports → settings', async ({ page }) => {
