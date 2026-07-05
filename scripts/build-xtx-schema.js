@@ -27,6 +27,20 @@ const EXPECTED_SHA256 = {
     '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
   'shotoku/KOA110-012.xsd':
     'cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f',
+  'shohi/SHA020-009.xsd':
+    '977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53',
+  'shohi/SHB070-001.xsd':
+    '25a603aa463d35803264ed2c55ad39a76146723fd6fa727b1a31a93bb6448fbc',
+  'shohi/SHB047-001.xsd':
+    'db0fb768bd9868a26d2b3ad8639c82c8c68b8a44b964fb845795f78f19719dbe',
+  'shohi/SHB067-001.xsd':
+    '43ccd8e2d01e22ca8c705b530aef4787a43752ab2ddcf14cac1075feb9bfe452',
+  'shohi/SHA010-010.xsd':
+    '1da04ae0ceaa9608967b0f3dbf6e882bcbfbd1975c48d3e65bc376ac83ca6465',
+  'shohi/SHB017-002.xsd':
+    '177ee78a92e30c2434cc862e39a8b7d6c0c456920c1cfca57347a974ff7509c5',
+  'shohi/SHB033-002.xsd':
+    '2205915de109a05b86525c27a2e43a131d4730fdf3961b672f8733c022b51713',
   'general/ITdefinition.xsd':
     'b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643',
   'general/ITreference.xsd':
@@ -143,6 +157,14 @@ function sequenceElements(ctype) {
   return kids(seq, 'xsd:element');
 }
 
+// xsd:simpleContent（例：AutoCalc 属性付き decimal/string 等）を持つ complexType か。
+// これは要素の子を持たず、テキスト値＋属性のみ（gen:kingaku 等の単純 leaf と同じ扱いで良い）。
+// 判定を誤ると renderNode() が「子の無い branch」として値を握り潰す（例：KOA110 の
+// AIM00090 耐用年数、SHB033 の DTD00000 課税売上割合、いずれも実際に発生した不具合）。
+function isSimpleContentType(ctype) {
+  return Boolean(kid(ctype, 'xsd:simpleContent'));
+}
+
 function parseOccurs(attrs) {
   const min = attrs['@_minOccurs'];
   const max = attrs['@_maxOccurs'];
@@ -174,11 +196,14 @@ function buildRefTree(schema, types, idrefMap) {
     let childCtype = null;
 
     if (typeRef && !typeRef.includes(':') && types.complex.has(typeRef)) {
-      kind = 'branch';
-      childCtype = types.complex.get(typeRef);
+      const ctype = types.complex.get(typeRef);
+      if (!isSimpleContentType(ctype)) {
+        kind = 'branch';
+        childCtype = ctype;
+      }
     } else if (!typeRef) {
       const inline = kid(elNode, 'xsd:complexType');
-      if (inline) {
+      if (inline && !isSimpleContentType(inline)) {
         kind = 'branch';
         childCtype = inline;
       }
@@ -355,6 +380,55 @@ function main() {
     'shotoku/KOA110-012.xsd',
     'KOA110',
     'xtx-schema-koa110.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHA020-009.xsd',
+    'SHA020',
+    'xtx-schema-sha020.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHB070-001.xsd',
+    'SHB070',
+    'xtx-schema-shb070.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHB047-001.xsd',
+    'SHB047',
+    'xtx-schema-shb047.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHB067-001.xsd',
+    'SHB067',
+    'xtx-schema-shb067.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHA010-010.xsd',
+    'SHA010',
+    'xtx-schema-sha010.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHB017-002.xsd',
+    'SHB017',
+    'xtx-schema-shb017.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shohi/SHB033-002.xsd',
+    'SHB033',
+    'xtx-schema-shb033.generated.json',
     idrefMap,
     definitions
   );

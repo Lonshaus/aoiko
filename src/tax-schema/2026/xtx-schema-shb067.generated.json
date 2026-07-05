@@ -1,0 +1,2542 @@
+{
+  "meta": {
+    "formId": "SHB067",
+    "formName": "付表5-3　控除対象仕入税額等の計算表",
+    "namespace": "http://xml.e-tax.nta.go.jp/XSD/shohi",
+    "version": "1.0",
+    "source": "e-tax19.CAB shohi/SHB067-001.xsd",
+    "fetchedAt": "2026-05-16"
+  },
+  "refTree": [
+    {
+      "no": 1,
+      "level": 0,
+      "tag": "SHB067",
+      "ja": "",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "no": 2,
+      "level": 1,
+      "tag": "SHB067-1",
+      "ja": "一面",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 3,
+      "level": 2,
+      "tag": "DVA00000",
+      "ja": "納税者等部",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 4,
+      "level": 3,
+      "tag": "DVA00010",
+      "ja": "課税期間",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 5,
+      "level": 4,
+      "tag": "DVA00020",
+      "ja": "自",
+      "kind": "leaf",
+      "idref": "KAZEI_KIKAN_FROM",
+      "refType": "gen:KAZEI_KIKAN_FROMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 6,
+      "level": 4,
+      "tag": "DVA00030",
+      "ja": "至",
+      "kind": "leaf",
+      "idref": "KAZEI_KIKAN_TO",
+      "refType": "gen:KAZEI_KIKAN_TOref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 7,
+      "level": 3,
+      "tag": "DVA00040",
+      "ja": "氏名又は名称",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM",
+      "refType": "gen:NOZEISHA_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 8,
+      "level": 2,
+      "tag": "DVB00000",
+      "ja": "１　控除対象仕入税額の計算の基礎となる消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 9,
+      "level": 3,
+      "tag": "DVB00010",
+      "ja": "課税標準額に対する消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 10,
+      "level": 4,
+      "tag": "DVB00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 11,
+      "level": 4,
+      "tag": "DVB00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 12,
+      "level": 4,
+      "tag": "DVB00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 13,
+      "level": 3,
+      "tag": "DVB00050",
+      "ja": "貸倒回収に係る消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 14,
+      "level": 4,
+      "tag": "DVB00060",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 15,
+      "level": 4,
+      "tag": "DVB00070",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 16,
+      "level": 4,
+      "tag": "DVB00080",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 17,
+      "level": 3,
+      "tag": "DVB00090",
+      "ja": "売上対価の返還等に係る消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 18,
+      "level": 4,
+      "tag": "DVB00100",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 19,
+      "level": 4,
+      "tag": "DVB00110",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 20,
+      "level": 4,
+      "tag": "DVB00120",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 21,
+      "level": 3,
+      "tag": "DVB00130",
+      "ja": "控除対象仕入税額の計算の基礎となる消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 22,
+      "level": 4,
+      "tag": "DVB00140",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 23,
+      "level": 4,
+      "tag": "DVB00150",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 24,
+      "level": 4,
+      "tag": "DVB00160",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 25,
+      "level": 2,
+      "tag": "DVC00000",
+      "ja": "２　１種類の事業の専業者の場合の控除対象仕入税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 26,
+      "level": 3,
+      "tag": "DVC00010",
+      "ja": "区分",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 27,
+      "level": 3,
+      "tag": "DVC00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 28,
+      "level": 3,
+      "tag": "DVC00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 29,
+      "level": 3,
+      "tag": "DVC00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 30,
+      "level": 2,
+      "tag": "DVD00000",
+      "ja": "３　２種類以上の事業を営む事業者の場合の控除対象仕入税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 31,
+      "level": 3,
+      "tag": "DVD00010",
+      "ja": "（１）　事業区分別の課税売上高（税抜き）の明細",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 32,
+      "level": 4,
+      "tag": "DVD00020",
+      "ja": "事業区分別の合計額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 33,
+      "level": 5,
+      "tag": "DVD00030",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 34,
+      "level": 5,
+      "tag": "DVD00040",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 35,
+      "level": 5,
+      "tag": "DVD00050",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 36,
+      "level": 4,
+      "tag": "DVD00060",
+      "ja": "第一種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 37,
+      "level": 5,
+      "tag": "DVD00070",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 38,
+      "level": 5,
+      "tag": "DVD00080",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 39,
+      "level": 5,
+      "tag": "DVD00090",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 40,
+      "level": 6,
+      "tag": "DVD00100",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 41,
+      "level": 6,
+      "tag": "DVD00110",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00110-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 42,
+      "level": 4,
+      "tag": "DVD00120",
+      "ja": "第二種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 43,
+      "level": 5,
+      "tag": "DVD00130",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 44,
+      "level": 5,
+      "tag": "DVD00140",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 45,
+      "level": 5,
+      "tag": "DVD00150",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 46,
+      "level": 6,
+      "tag": "DVD00160",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 47,
+      "level": 6,
+      "tag": "DVD00170",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00170-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 48,
+      "level": 4,
+      "tag": "DVD00180",
+      "ja": "第三種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 49,
+      "level": 5,
+      "tag": "DVD00190",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 50,
+      "level": 5,
+      "tag": "DVD00200",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 51,
+      "level": 5,
+      "tag": "DVD00210",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 52,
+      "level": 6,
+      "tag": "DVD00220",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 53,
+      "level": 6,
+      "tag": "DVD00230",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00230-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 54,
+      "level": 4,
+      "tag": "DVD00240",
+      "ja": "第四種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 55,
+      "level": 5,
+      "tag": "DVD00250",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 56,
+      "level": 5,
+      "tag": "DVD00260",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 57,
+      "level": 5,
+      "tag": "DVD00270",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 58,
+      "level": 6,
+      "tag": "DVD00280",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 59,
+      "level": 6,
+      "tag": "DVD00290",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00290-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 60,
+      "level": 4,
+      "tag": "DVD00300",
+      "ja": "第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 61,
+      "level": 5,
+      "tag": "DVD00310",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 62,
+      "level": 5,
+      "tag": "DVD00320",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 63,
+      "level": 5,
+      "tag": "DVD00330",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 64,
+      "level": 6,
+      "tag": "DVD00340",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 65,
+      "level": 6,
+      "tag": "DVD00350",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00350-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 66,
+      "level": 4,
+      "tag": "DVD00360",
+      "ja": "第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 67,
+      "level": 5,
+      "tag": "DVD00370",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 68,
+      "level": 5,
+      "tag": "DVD00380",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 69,
+      "level": 5,
+      "tag": "DVD00390",
+      "ja": "合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 70,
+      "level": 6,
+      "tag": "DVD00400",
+      "ja": "金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 71,
+      "level": 6,
+      "tag": "DVD00410",
+      "ja": "売上割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "DVD00410-1-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 72,
+      "level": 3,
+      "tag": "DVD00420",
+      "ja": "（２）　（１）の事業区分別の課税売上高に係る消費税額の明細",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 73,
+      "level": 4,
+      "tag": "DVD00430",
+      "ja": "事業区分別の合計額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 74,
+      "level": 5,
+      "tag": "DVD00440",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 75,
+      "level": 5,
+      "tag": "DVD00450",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 76,
+      "level": 5,
+      "tag": "DVD00460",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 77,
+      "level": 4,
+      "tag": "DVD00470",
+      "ja": "第一種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 78,
+      "level": 5,
+      "tag": "DVD00480",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 79,
+      "level": 5,
+      "tag": "DVD00490",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 80,
+      "level": 5,
+      "tag": "DVD00500",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 81,
+      "level": 4,
+      "tag": "DVD00510",
+      "ja": "第二種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 82,
+      "level": 5,
+      "tag": "DVD00520",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 83,
+      "level": 5,
+      "tag": "DVD00530",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 84,
+      "level": 5,
+      "tag": "DVD00540",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 85,
+      "level": 4,
+      "tag": "DVD00550",
+      "ja": "第三種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 86,
+      "level": 5,
+      "tag": "DVD00560",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 87,
+      "level": 5,
+      "tag": "DVD00570",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 88,
+      "level": 5,
+      "tag": "DVD00580",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 89,
+      "level": 4,
+      "tag": "DVD00590",
+      "ja": "第四種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 90,
+      "level": 5,
+      "tag": "DVD00600",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 91,
+      "level": 5,
+      "tag": "DVD00610",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 92,
+      "level": 5,
+      "tag": "DVD00620",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 93,
+      "level": 4,
+      "tag": "DVD00630",
+      "ja": "第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 94,
+      "level": 5,
+      "tag": "DVD00640",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 95,
+      "level": 5,
+      "tag": "DVD00650",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 96,
+      "level": 5,
+      "tag": "DVD00660",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 97,
+      "level": 4,
+      "tag": "DVD00670",
+      "ja": "第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 98,
+      "level": 5,
+      "tag": "DVD00680",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 99,
+      "level": 5,
+      "tag": "DVD00690",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 100,
+      "level": 5,
+      "tag": "DVD00700",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 101,
+      "level": 1,
+      "tag": "SHB067-2",
+      "ja": "二面",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 102,
+      "level": 2,
+      "tag": "DVE00000",
+      "ja": "（３）　控除対象仕入税額の計算式区分の明細",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 103,
+      "level": 3,
+      "tag": "DVE00010",
+      "ja": "イ　原則計算を適用する場合",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 104,
+      "level": 4,
+      "tag": "DVE00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 105,
+      "level": 4,
+      "tag": "DVE00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 106,
+      "level": 4,
+      "tag": "DVE00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 107,
+      "level": 3,
+      "tag": "DVE00050",
+      "ja": "ロ　特例計算を適用する場合",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 108,
+      "level": 4,
+      "tag": "DVE00060",
+      "ja": "（イ）　１種類の事業で75％以上",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 109,
+      "level": 5,
+      "tag": "DVE00070",
+      "ja": "区分",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 110,
+      "level": 5,
+      "tag": "DVE00080",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 111,
+      "level": 5,
+      "tag": "DVE00090",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 112,
+      "level": 5,
+      "tag": "DVE00100",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 113,
+      "level": 4,
+      "tag": "DVE00110",
+      "ja": "（ロ）　２種類の事業で75％以上",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 114,
+      "level": 5,
+      "tag": "DVE00120",
+      "ja": "第一種事業及び第二種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 115,
+      "level": 6,
+      "tag": "DVE00130",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 116,
+      "level": 6,
+      "tag": "DVE00140",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 117,
+      "level": 6,
+      "tag": "DVE00150",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 118,
+      "level": 5,
+      "tag": "DVE00160",
+      "ja": "第一種事業及び第三種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 119,
+      "level": 6,
+      "tag": "DVE00170",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 120,
+      "level": 6,
+      "tag": "DVE00180",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 121,
+      "level": 6,
+      "tag": "DVE00190",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 122,
+      "level": 5,
+      "tag": "DVE00200",
+      "ja": "第一種事業及び第四種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 123,
+      "level": 6,
+      "tag": "DVE00210",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 124,
+      "level": 6,
+      "tag": "DVE00220",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 125,
+      "level": 6,
+      "tag": "DVE00230",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 126,
+      "level": 5,
+      "tag": "DVE00240",
+      "ja": "第一種事業及び第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 127,
+      "level": 6,
+      "tag": "DVE00250",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 128,
+      "level": 6,
+      "tag": "DVE00260",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 129,
+      "level": 6,
+      "tag": "DVE00270",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 130,
+      "level": 5,
+      "tag": "DVE00280",
+      "ja": "第一種事業及び第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 131,
+      "level": 6,
+      "tag": "DVE00290",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 132,
+      "level": 6,
+      "tag": "DVE00300",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 133,
+      "level": 6,
+      "tag": "DVE00310",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 134,
+      "level": 5,
+      "tag": "DVE00320",
+      "ja": "第二種事業及び第三種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 135,
+      "level": 6,
+      "tag": "DVE00330",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 136,
+      "level": 6,
+      "tag": "DVE00340",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 137,
+      "level": 6,
+      "tag": "DVE00350",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 138,
+      "level": 5,
+      "tag": "DVE00360",
+      "ja": "第二種事業及び第四種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 139,
+      "level": 6,
+      "tag": "DVE00370",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 140,
+      "level": 6,
+      "tag": "DVE00380",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 141,
+      "level": 6,
+      "tag": "DVE00390",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 142,
+      "level": 5,
+      "tag": "DVE00400",
+      "ja": "第二種事業及び第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 143,
+      "level": 6,
+      "tag": "DVE00410",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 144,
+      "level": 6,
+      "tag": "DVE00420",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 145,
+      "level": 6,
+      "tag": "DVE00430",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 146,
+      "level": 5,
+      "tag": "DVE00440",
+      "ja": "第二種事業及び第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 147,
+      "level": 6,
+      "tag": "DVE00450",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 148,
+      "level": 6,
+      "tag": "DVE00460",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 149,
+      "level": 6,
+      "tag": "DVE00470",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 150,
+      "level": 5,
+      "tag": "DVE00480",
+      "ja": "第三種事業及び第四種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 151,
+      "level": 6,
+      "tag": "DVE00490",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 152,
+      "level": 6,
+      "tag": "DVE00500",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 153,
+      "level": 6,
+      "tag": "DVE00510",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 154,
+      "level": 5,
+      "tag": "DVE00520",
+      "ja": "第三種事業及び第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 155,
+      "level": 6,
+      "tag": "DVE00530",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 156,
+      "level": 6,
+      "tag": "DVE00540",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 157,
+      "level": 6,
+      "tag": "DVE00550",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 158,
+      "level": 5,
+      "tag": "DVE00560",
+      "ja": "第三種事業及び第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 159,
+      "level": 6,
+      "tag": "DVE00570",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 160,
+      "level": 6,
+      "tag": "DVE00580",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 161,
+      "level": 6,
+      "tag": "DVE00590",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 162,
+      "level": 5,
+      "tag": "DVE00600",
+      "ja": "第四種事業及び第五種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 163,
+      "level": 6,
+      "tag": "DVE00610",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 164,
+      "level": 6,
+      "tag": "DVE00620",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 165,
+      "level": 6,
+      "tag": "DVE00630",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 166,
+      "level": 5,
+      "tag": "DVE00640",
+      "ja": "第四種事業及び第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 167,
+      "level": 6,
+      "tag": "DVE00650",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 168,
+      "level": 6,
+      "tag": "DVE00660",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 169,
+      "level": 6,
+      "tag": "DVE00670",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 170,
+      "level": 5,
+      "tag": "DVE00680",
+      "ja": "第五種事業及び第六種事業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 171,
+      "level": 6,
+      "tag": "DVE00690",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 172,
+      "level": 6,
+      "tag": "DVE00700",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 173,
+      "level": 6,
+      "tag": "DVE00710",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 174,
+      "level": 3,
+      "tag": "DVE00720",
+      "ja": "ハ　上記の計算式区分から選択した控除対象仕入税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 175,
+      "level": 4,
+      "tag": "DVE00730",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 176,
+      "level": 4,
+      "tag": "DVE00740",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 177,
+      "level": 4,
+      "tag": "DVE00750",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    }
+  ],
+  "definitions": [
+    {
+      "name": "ZEIMUSHO",
+      "ja": "税務署名",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "TEISYUTSU_DAY",
+      "ja": "提出年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ID",
+      "ja": "利用者識別番号",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_BANGO",
+      "ja": "個人番号又は法人番号",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIRIBANGO",
+      "ja": "整理番号",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM_KN",
+      "ja": "氏名・名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM",
+      "ja": "氏名・名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ZIP",
+      "ja": "納税者所在地郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR_KN",
+      "ja": "納税者所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR",
+      "ja": "納税者所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ADR_CODE",
+      "ja": "納税地の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR",
+      "ja": "１月１日住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR_CODE",
+      "ja": "１月１日住所の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO_KN",
+      "ja": "納税者所在地屋号読み",
+      "baseType": "y-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO",
+      "ja": "納税者所在地屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_TEL",
+      "ja": "納税者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIBETSU",
+      "ja": "性別",
+      "baseType": "SEIBETSUkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "BIRTHDAY",
+      "ja": "生年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETSURITSU_DAY",
+      "ja": "設立年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_DAY",
+      "ja": "決算日",
+      "baseType": "gen:mmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_TIMES",
+      "ja": "決算回数",
+      "baseType": "ITkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHIHON_KIN",
+      "ja": "資本金又は出資金額",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_NM",
+      "ja": "世帯主氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_ZOKU",
+      "ja": "世帯主との続柄",
+      "baseType": "zokugaratype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NAIYO",
+      "ja": "事業内容",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHOKUGYO",
+      "ja": "職業",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KANPU_KINYUKIKAN",
+      "ja": "還付先金融機関",
+      "baseType": "gen:account",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM_KN",
+      "ja": "事業所読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM",
+      "ja": "事業所名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ZIP",
+      "ja": "事業所郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ADR",
+      "ja": "事業所住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_YAGO",
+      "ja": "事業所屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_TEL",
+      "ja": "事業所電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM_KN",
+      "ja": "代表者氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM",
+      "ja": "代表者氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ZIP",
+      "ja": "代表者郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ADR",
+      "ja": "代表者住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_TEL",
+      "ja": "代表者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM_KN",
+      "ja": "製造場等名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM",
+      "ja": "製造場等名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ZIP",
+      "ja": "製造場等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ADR",
+      "ja": "製造場等所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_TEL",
+      "ja": "製造場等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ID",
+      "ja": "利用者識別番号（代理人等）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM_KN",
+      "ja": "代理人等氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM",
+      "ja": "代理人等氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ZIP",
+      "ja": "代理人等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ADR",
+      "ja": "代理人等住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_TEL",
+      "ja": "代理人等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "GROUP_OYA_HOJIN_ID",
+      "ja": "利用者識別番号(通算親法人)",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "TETSUZUKI",
+      "ja": "手続き",
+      "baseType": "TETSUZUKItype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NENBUN",
+      "ja": "年分",
+      "baseType": "gen:yy",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NENGETSUBUN",
+      "ja": "年分",
+      "baseType": "gen:yymm",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_FROM",
+      "ja": "事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_TO",
+      "ja": "事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_FROM",
+      "ja": "課税期間（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_TO",
+      "ja": "課税期間（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEIRI_SEKININSHA",
+      "ja": "経理責任者名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHINKOKU_KBN",
+      "ja": "申告の種類",
+      "baseType": "SHINKOKU_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEISANSHO_KBN",
+      "ja": "計算書の種類",
+      "baseType": "KEISANSHO_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_NM",
+      "ja": "親法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_ADR",
+      "ja": "親法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_ITIREN_NO",
+      "ja": "連結法人一連番号",
+      "baseType": "RENKETSU_ITIREN_NOtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_FROM",
+      "ja": "連結事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_TO",
+      "ja": "連結事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM_KN",
+      "ja": "連結法人名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM",
+      "ja": "連結法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR_KN",
+      "ja": "連結法人所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR",
+      "ja": "連結法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_TEL",
+      "ja": "連結法人電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_SHIHON_KIN",
+      "ja": "資本金又は出資金額（連結法人）",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM_KN",
+      "ja": "代表者氏名読み（連結法人）",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM",
+      "ja": "代表者氏名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_ADR",
+      "ja": "代表者住所（連結法人）",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_KEIRI_SEKININSHA",
+      "ja": "経理責任者名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NAIYO",
+      "ja": "事業内容（連結法人）",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_ID",
+      "ja": "利用者識別番号（連結子法人）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ZEIMUSHO",
+      "ja": "税務署名（連結子法人）",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_BANGO",
+      "ja": "法人番号（連結子法人）",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_SEIRIBANGO",
+      "ja": "整理番号（連結子法人）",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SONOTA_ID",
+      "ja": "利用者識別番号（その他）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ELTAX_ID",
+      "ja": "eLTAXの利用者ID",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ELTAX_ID",
+      "ja": "eLTAXの利用者ID（連結子法人）",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    }
+  ]
+}

@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import {
+  LUMP_SUM_MAX,
+  LUMP_SUM_MIN,
   SMALL_ASSET_ANNUAL_CAP,
   SMALL_ASSET_EXPIRY,
+  isLumpSumEligible,
   isSmallAssetEligible,
   smallAssetThreshold,
 } from './limits';
@@ -46,5 +49,23 @@ describe('isSmallAssetEligible', () => {
 describe('SMALL_ASSET_ANNUAL_CAP', () => {
   test('300 万円据置', () => {
     expect(SMALL_ASSET_ANNUAL_CAP).toBe(3_000_000);
+  });
+});
+
+describe('isLumpSumEligible', () => {
+  test('10万円以上20万円未満なら true', () => {
+    expect(LUMP_SUM_MIN).toBe(100_000);
+    expect(LUMP_SUM_MAX).toBe(200_000);
+    expect(isLumpSumEligible('100000')).toBe(true);
+    expect(isLumpSumEligible('199999')).toBe(true);
+  });
+
+  test('範囲外は false', () => {
+    expect(isLumpSumEligible('99999')).toBe(false);
+    expect(isLumpSumEligible('200000')).toBe(false);
+  });
+
+  test('無効な価額は false', () => {
+    expect(isLumpSumEligible('abc')).toBe(false);
   });
 });
