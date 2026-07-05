@@ -9,6 +9,7 @@ import {
   computeSimplified,
   computeThreeWari,
   computeTwoWari,
+  processYear,
 } from './consumption-tax';
 import type { Account, LineSide } from '../db/types';
 
@@ -292,6 +293,60 @@ describe('computeGeneral - 本則課税', () => {
     const r = await computeGeneral(2026);
     expect(r.inputTaxRaw.national).toBe('312');
     expect(r.inputTax.national).toBe('312');
+  });
+});
+
+describe('processYear - 仕入税額の税率別内訳（付表1-3/4-3 用）', () => {
+  test('標準税率・軽減税率の仕入が混在する場合、input10/input8 に分かれる', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        // 仕入 10%：税込1100円 → 国税 78円
+        {
+          side: 'debit',
+          accountCode: '5200',
+          amount: '1100',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        // 仕入 8%：税込1080円（税抜1000円）→ 国税 1000×6.24%=62.4円
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '1080',
+          taxRate: 0.08,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '2180' },
+      ],
+    });
+    const r = await processYear(2026);
+    expect(r.input10.toString()).toBe('78');
+    expect(r.input8.toString()).toBe('62.4');
+    expect(r.input.toString()).toBe('140.4');
+  });
+
+  test('適格請求書なしの仕入は経過措置控除率が税率ごとに適用される', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        // 適格請求書なし、10%：国税78円 × 80%（経過措置）= 62.4円
+        {
+          side: 'debit',
+          accountCode: '5200',
+          amount: '1100',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: false,
+        },
+        { side: 'credit', accountCode: '1130', amount: '1100' },
+      ],
+    });
+    const r = await processYear(2026);
+    expect(r.input10.toString()).toBe('62.4');
+    expect(r.input8.toString()).toBe('0');
   });
 });
 
