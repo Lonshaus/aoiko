@@ -562,5 +562,13 @@
   "opening_done_message": "開業時的仕訳與固定資產已經建立。",
   "opening_entry_title": "開業時設定",
   "opening_entry_intro": "可以一次登記開業費、轉用資產等項目。",
-  "opening_entry_action": "開啟開業精靈"
+  "opening_entry_action": "開啟開業精靈",
+  "settings_filing_type_label": "確定申告方式",
+  "settings_filing_type_blue": "青色申告",
+  "settings_filing_type_white": "白色申告",
+  "reports_xtx_intro_white_html": "將本年度資料輸出為 <code class=\"text-foreground\">.xtx</code>，可載入 e-Tax 軟體(下載版)。確定申告書與収支内訳書（一般用、白色申告用）依國稅廳官方 XSD 併載於同一檔。 <strong class=\"text-foreground\">⚠ 需先在「設定 ＞ 申報者資訊」填入 稅務署・利用者識別號碼・姓名・地址。申告書會帶入事業的 收入・所得（専従者控除・各項所得控除與稅額請在 e-Tax 上補完）。</strong>",
+  "settings_filing_type_confirm_title": "要變更確定申告方式嗎？",
+  "settings_filing_type_confirm_to_white": "將切換為白色申告。青色申告特別控除將不再適用,.xtx 輸出會改為收支內訳書(一般用)。",
+  "settings_filing_type_confirm_to_blue": "將切換為青色申告。.xtx 輸出會改為青色申告決算書(一般用)。",
+  "settings_filing_type_confirm_action": "切換"
 }

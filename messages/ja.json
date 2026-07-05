@@ -561,5 +561,13 @@
   "opening_done_message": "開業時の仕訳・固定資産を作成しました。",
   "opening_entry_title": "開業時の設定",
   "opening_entry_intro": "開業費・転用資産などをまとめて登録できます。",
-  "opening_entry_action": "開業精霊を開く"
+  "opening_entry_action": "開業精霊を開く",
+  "settings_filing_type_label": "確定申告方式",
+  "settings_filing_type_blue": "青色申告",
+  "settings_filing_type_white": "白色申告",
+  "reports_xtx_intro_white_html": "当年度のデータを <code class=\"text-foreground\">.xtx</code> として書き出し、e-Taxソフト(ダウンロード版) に組み込めます。確定申告書と収支内訳書（一般用）を国税庁公式 XSD 準拠で 1 ファイルに併載します。 <strong class=\"text-foreground\">⚠ 事前に「設定 ＞ 申告者情報」で 税務署・利用者識別番号・氏名・住所 の入力が必要です。申告書には事業の 収入・所得 が入ります（専従者控除・各種所得控除・税額は e-Tax 上で補完）。</strong>",
+  "settings_filing_type_confirm_title": "確定申告方式を変更しますか？",
+  "settings_filing_type_confirm_to_white": "白色申告に切り替えます。青色申告特別控除は適用されなくなり、.xtx 出力は収支内訳書（一般用）になります。",
+  "settings_filing_type_confirm_to_blue": "青色申告に切り替えます。.xtx 出力は青色申告決算書（一般用）になります。",
+  "settings_filing_type_confirm_action": "切り替える"
 }

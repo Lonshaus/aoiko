@@ -49,6 +49,7 @@ function makeCtx(): XtxContext {
       zeimushoCode: '01101',
       zeimushoName: '麹町',
     },
+    filingType: 'blue',
     aoiroDeductionKind: 'electronic',
   };
 }
@@ -177,5 +178,26 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     ctx.businessName = '';
     const x = buildXtx2026(ctx);
     expect(x).not.toContain('NOZEISHA_YAGO');
+  });
+});
+
+describe('buildXtx2026（filingType: white → KOA020+KOA110 併載）', () => {
+  test('1 エンベロープに申告書 KOA020 と収支内訳書 KOA110 を併載（KOA210 は含まない）', () => {
+    const ctx = makeCtx();
+    ctx.filingType = 'white';
+    const x = buildXtx2026(ctx);
+    expect(x).toMatch(/<KOA020 VR="23\.0"/);
+    expect(x).toMatch(/<KOA110 VR="12\.0"/);
+    expect(x).not.toContain('<KOA210 ');
+  });
+
+  test('白色申告は青色申告特別控除額を出力せず、事業所得＝収入−経費計そのまま', () => {
+    const ctx = makeCtx();
+    ctx.filingType = 'white';
+    ctx.pl = { ...ctx.pl, totalRevenue: '5000000', totalExpense: '1000000', netIncome: '4000000' };
+    const x = buildXtx2026(ctx);
+    // 事業所得（控除無し）＝400万。青色申告特別控除額（65万）は出ない
+    expect(x).toContain('>4000000<');
+    expect(x).not.toContain('>650000<');
   });
 });
