@@ -60,7 +60,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | **Income deductions** (basic, spouse, social insurance, medical, etc.) | Enter in e-Tax |
 | **Total income, taxable income, tax calculation** | Auto-computed in e-Tax |
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
-| **Consumption tax return** | Prepare separately in e-Tax (aoiko gives estimates only; [07. Consumption Tax](07-consumption-tax.md)) |
+| **Consumption tax return** (multi-category simplified taxation, 30% special) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and single-category simplified taxation have `.xtx` export: [§ 6](#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption Tax](07-consumption-tax_en.md)) |
 | **White-return family-employee deduction** (flat ¥860,000 for a spouse, ¥500,000 per other relative) and the post-deduction income | Enter in e-Tax (aoiko does not compute it — it depends on relationship data aoiko doesn't track) |
 
 > This division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the personal deductions and tax are completed by the filer in e-Tax at filing time.
@@ -121,7 +121,31 @@ Two-tier ID/IDREF:
 
 aoiko builds the `.xtx` dynamically from JSON schemas auto-generated from the XSDs.
 
-## 6. Common errors
+## 6. Consumption tax (general / 20% special provision / simplified taxation) `.xtx` export
+
+This is a **separate file and separate procedure** from the income-tax `.xtx` above (procedure `RKO0010`). Load it into e-Tax separately, once the consumption-tax period (calendar year) is finalized.
+
+### Coverage
+
+- **Procedure `RSH0010`** (consumption tax and local consumption tax filing) outputs one of:
+  - **General taxation**: the consumption tax return (general form) + attachments 1-3 and 2-3. **Assumes a 100% taxable-sales ratio** (no non-taxable sales or export exemptions) — attachment 2-3 only uses the full-deduction category ("taxable sales ≤ ¥500M and taxable-sales ratio ≥ 95%"); the individual-attribution and proportional-allocation methods are not supported
+  - **20% special provision**: the consumption tax return (simplified-taxation form) + attachment 6 (transitional measure for tax credits). This provision uses this form structure even if you have not formally elected simplified taxation (per the NTA's dedicated guide)
+  - **Simplified taxation (single business category only)**: the consumption tax return (simplified-taxation form) + attachments 4-3 and 5-3
+- **Only general taxation, the 20% special provision, and single-category simplified taxation are supported.** Simplified taxation across multiple business categories (the 75% rule etc.) and the 30% special provision are not yet supported for form output (see [07. Consumption Tax](07-consumption-tax_en.md))
+- **Known simplification**: sales returns/discounts are already netted into the taxable base in aoiko's aggregation, so the corresponding attachment field won't show them as a separate line. **The final tax amount itself is still calculated correctly.**
+
+### Export steps
+
+1. Set **Settings → Consumption tax** to "taxable business" (for simplified taxation, also set "simplified" + the business category)
+2. Fill in **Settings → Filer info** (tax office, user ID number, name, address)
+3. On the Reports page → **"Consumption tax"** section, confirm the desired method appears in the method list
+4. Click **"Download general-taxation .xtx"**, **"Download 2%-special .xtx"**, or **"Download simplified-taxation .xtx"** (filename `aoiko-shohi-{year}.xtx`)
+
+### Loading into e-Tax software (download edition)
+
+Separately from income tax, install the **consumption tax year module** first, then load it. The steps mirror [§ 4](#4-loading-into-e-tax-software-download-edition) ("load" → select file → review the numbers in form editing).
+
+## 7. Common errors
 
 | Error (e-Tax) | Likely cause |
 |---|---|
@@ -130,7 +154,7 @@ aoiko builds the `.xtx` dynamically from JSON schemas auto-generated from the XS
 | Form mismatch | aoiko's bundled XSD diverged from the current year ([docs/xtx-spec/README.md](../../docs/xtx-spec/README.md)) |
 | Wrong digit/format | Negative or non-integer amounts; review journal entries |
 
-## 7. Next steps
+## 8. Next steps
 
 - Lock the year after filing → [06. Reports § 8](06-reports.md#8-年度ロック申告済み)
 - Found a mistake after filing → [12. Amended Return](12-amended.md)

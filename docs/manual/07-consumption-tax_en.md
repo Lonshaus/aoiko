@@ -12,7 +12,7 @@ Choosing among the 4 methods, transitional credit, input tax credit, deemed inpu
 >
 > **Prerequisites**: consumption tax method set per [01. § 4](01-setup_en.md#4-choose-a-consumption-tax-method).
 >
-> **Important**: aoiko is an **estimation/comparison tool**. It does NOT produce the consumption tax return form (supporting tables 2-3 etc.). Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing.
+> **Important**: aoiko's consumption tax calculation is an **estimation/comparison tool**. `.xtx` export is supported for **general taxation, the 20% special provision, and simplified taxation (single business category only)** ([10. `.xtx` export § 6](10-xtx-export_en.md#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). Simplified taxation across multiple business categories and the 30% special provision are out of scope for form generation — use the online preparation corner ("作成コーナー") or a tax accountant for those.
 >
 > The Reports' "Consumption-tax 4-method comparison" also shows a **"Filing-form equivalent (est.)"** column alongside the whole-yen estimate used for method comparison. It mimics the actual return's rounding (taxable base rounded down to the nearest 1,000 yen, tax amounts rounded down to 100 yen), so it's closer to what you'd actually pay — but it is still not a formal return produced with the supporting tables.
 
@@ -121,4 +121,4 @@ Navigation **"Reports"** → **"Consumption tax"** section. The year's actuals a
 
 - Acquiring fixed assets → [08. Depreciation](08-depreciation_en.md)
 - Year transition → [09. Prior-period carryover](09-carryover_en.md)
-- `.xtx` filing output (excluding consumption-tax return) → [10. `.xtx` export](10-xtx-export_en.md)
+- `.xtx` filing output (income tax; consumption tax for general taxation / 20% special provision / simplified taxation single-category) → [10. `.xtx` export](10-xtx-export_en.md)

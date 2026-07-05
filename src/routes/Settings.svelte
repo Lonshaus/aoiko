@@ -22,6 +22,7 @@
   } from '../domain/carryover';
   import {
     SMALL_ASSET_EXPIRY,
+    isLumpSumEligible,
     isSmallAssetEligible,
     smallAssetThreshold,
   } from '../tax-schema/2026/limits';
@@ -465,6 +466,7 @@
     }
     return { state: 'cost', threshold };
   });
+  const newAssetLumpSumEligible = $derived(isLumpSumEligible(newAssetCost.trim()));
 
   async function addAsset(e: Event) {
     e.preventDefault();
@@ -479,9 +481,13 @@
     }
     if (
       newAssetMethod === 'small-asset-special' &&
-      newAssetSmallCheck.state !== 'eligible'
+      (filingType !== 'blue' || newAssetSmallCheck.state !== 'eligible')
     ) {
       assetError = m.settings_asset_error_small_ineligible();
+      return;
+    }
+    if (newAssetMethod === 'lump-sum' && !newAssetLumpSumEligible) {
+      assetError = m.settings_asset_error_lump_sum_ineligible();
       return;
     }
     const a: FixedAsset = {
@@ -1257,7 +1263,10 @@
         >
           <option value="straight-line">{m.settings_asset_method_straight()}</option>
           <option value="declining-balance">{m.settings_asset_method_declining()}</option>
-          <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
+          {#if filingType === 'blue'}
+            <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
+          {/if}
+          <option value="lump-sum">{m.settings_asset_method_lump_sum()}</option>
         </select>
         <button
           type="submit"
@@ -1280,6 +1289,12 @@
         <p class="text-xs text-destructive">
           {m.settings_asset_small_ineligible_expired()}
         </p>
+      {/if}
+    {:else if newAssetMethod === 'lump-sum'}
+      {#if newAssetLumpSumEligible}
+        <p class="text-xs text-green-600">{m.settings_asset_lump_sum_eligible()}</p>
+      {:else}
+        <p class="text-xs text-destructive">{m.settings_asset_lump_sum_ineligible()}</p>
       {/if}
     {/if}
     {#if assetError}

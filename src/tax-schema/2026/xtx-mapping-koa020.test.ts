@@ -5,7 +5,7 @@ import type { XtxContext } from './xtx';
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   return {
     year: 2026,
-    businessName: '青井ウェブ事務所',
+    businessName: 'aoikoウェブ事務所',
     invoiceNumber: '',
     monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
     pl: {
@@ -38,6 +38,7 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
     },
     filingType: 'blue',
     aoiroDeductionKind: 'electronic',
+    fixedAssets: [],
     ...overrides,
   };
 }

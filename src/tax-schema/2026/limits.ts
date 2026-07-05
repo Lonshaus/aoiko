@@ -13,7 +13,7 @@ export const SMALL_ASSET_ANNUAL_CAP = 3_000_000;
 // 適用期限。これ以降の取得は通常の減価償却に戻る。
 export const SMALL_ASSET_EXPIRY = '2029-03-31';
 // 取得日が適用期間内かつ取得価額が閾値未満なら true。
-// 青色申告者・事業用資産であることは別途確認の前提（aoiko は現状青色前提）。
+// 青色申告者限定（措法 28 の 2）。呼出元（UI）で filingType==='blue' も確認すること。
 export function isSmallAssetEligible(
   acquisitionDate: string,
   acquisitionCost: string
@@ -26,4 +26,15 @@ export function isSmallAssetEligible(
     return false;
   }
   return cost < smallAssetThreshold(acquisitionDate);
+}
+// 一括償却資産（法令138条・所得税法施行令139条）：取得価額10万円以上20万円未満の
+// 下限・上限。申告方式（青色/白色）を問わず利用可能。
+export const LUMP_SUM_MIN = 100_000;
+export const LUMP_SUM_MAX = 200_000;
+export function isLumpSumEligible(acquisitionCost: string): boolean {
+  const cost = Number(acquisitionCost);
+  if (!Number.isFinite(cost)) {
+    return false;
+  }
+  return cost >= LUMP_SUM_MIN && cost < LUMP_SUM_MAX;
 }

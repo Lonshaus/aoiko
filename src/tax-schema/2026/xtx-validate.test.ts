@@ -19,12 +19,13 @@ import { buildXtx2026 } from './xtx';
 import { buildFormFragment, type XtxLeafValues } from './xtx-document';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
-import { mapKoa110Values } from './xtx-mapping-koa110';
+import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
+import type { FixedAsset } from '../../db/types';
 
 const NS = 'http://xml.e-tax.nta.go.jp/XSD/shotoku';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -61,7 +62,7 @@ function validate(schema: XtxSchema, wrapper: string): {
   const frag = buildFormFragment(
     schema,
     { NENBUN: '08', ZEIMUSHO: '渋谷' },
-    { creatorName: '青井事務所', creationDate: '2026-05-16' },
+    { creatorName: '青井事務所', creationDate: '2026-05-13' },
     firstPageLeaf(schema)
   );
   const doc =
@@ -118,7 +119,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
   maybe('KOA020 実 mapping 経路（年分・屋号・営業等収入）が公式 xsd に適合する', () => {
     const ctx = {
       year: 2026,
-      businessName: '青井ウェブ事務所',
+      businessName: 'aoikoウェブ事務所',
       invoiceNumber: '',
       monthly: {
         year: 2026,
@@ -149,12 +150,13 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
       filingType: 'blue' as const,
       aoiroDeductionKind: 'electronic' as const,
+      fixedAssets: [],
     };
     const values = mapKoa020Values(ctx);
     const frag = buildFormFragment(
       koa020 as XtxSchema,
       values,
-      { creatorName: '青井ウェブ事務所', creationDate: '2026-05-16' },
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
       mapKoa020LeafValues(ctx)
     );
     const doc =
@@ -257,7 +259,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     };
     const leafValues = mapKoa210Values({
       year: 2026,
-      businessName: '青井ウェブ事務所',
+      businessName: 'aoikoウェブ事務所',
       invoiceNumber: '',
       monthly,
       pl,
@@ -265,12 +267,13 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
       filingType: 'blue',
       aoiroDeductionKind: 'electronic',
+      fixedAssets: [],
     });
     expect(Object.keys(leafValues).length).toBeGreaterThan(10);
     const frag = buildFormFragment(
       koa210 as XtxSchema,
       {},
-      { creatorName: '青井ウェブ事務所', creationDate: '2026-05-16' },
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
       leafValues
     );
     const doc =
@@ -331,7 +334,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     };
     const leafValues = mapKoa110Values({
       year: 2026,
-      businessName: '青井ウェブ事務所',
+      businessName: 'aoikoウェブ事務所',
       invoiceNumber: '',
       monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
       pl,
@@ -349,14 +352,95 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
       filingType: 'white',
       aoiroDeductionKind: 'none',
+      fixedAssets: [],
     });
     expect(Object.keys(leafValues).length).toBeGreaterThan(3);
     const frag = buildFormFragment(
       koa110 as XtxSchema,
       {},
-      { creatorName: '青井ウェブ事務所', creationDate: '2026-05-16' },
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
       leafValues
     );
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA110.xsd'), xmlPath],
+      { encoding: 'utf8' }
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
+  maybe('KOA110 第2頁 減価償却資産の明細（繰り返しブロック）が公式 xsd に適合する', () => {
+    const fixedAssets: FixedAsset[] = [
+      {
+        id: 'a1',
+        name: 'ノートPC',
+        acquisitionDate: '2024-06-01',
+        acquisitionCost: '300000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'straight-line',
+        accountCode: '1510',
+      },
+      {
+        id: 'a2',
+        name: 'プリンター',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '150000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+      },
+    ];
+    const repeats = mapKoa110RepeatedValues({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'white',
+      aoiroDeductionKind: 'none',
+      fixedAssets,
+    });
+    expect(repeats.AIM00010).toHaveLength(2);
+    const frag = buildFormFragment(
+      koa110 as XtxSchema,
+      {},
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      {},
+      repeats
+    );
+    expect(frag.match(/<AIM00010>/g)).toHaveLength(2);
+    // AIM00090（耐用年数）は simpleContent+AutoCalc 型。schema 生成側でこれを
+    // 「子の無い branch」と誤判定すると renderNode() が値を握り潰して出力から
+    // 消える（実際に発生した回帰）。実際に描画されることを直接確認する。
+    expect(frag.match(/<AIM00090>4<\/AIM00090>/g)).toHaveLength(2);
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
@@ -376,7 +460,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
   maybe('組立済バンドル（buildXtx2026）の各様式が公式 xsd に適合する', () => {
     const ctx = {
       year: 2026,
-      businessName: '青井ウェブ事務所',
+      businessName: 'aoikoウェブ事務所',
       invoiceNumber: '',
       monthly: {
         year: 2026,
@@ -449,6 +533,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       },
       filingType: 'blue' as const,
       aoiroDeductionKind: 'electronic' as const,
+      fixedAssets: [],
     };
     const xtx = buildXtx2026(ctx);
     // バンドルから各様式サブツリーを抜き出し、各々を公式 xsd で検証
@@ -479,7 +564,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
   maybe('組立済バンドル（buildXtx2026、白色申告）の各様式が公式 xsd に適合する', () => {
     const ctx = {
       year: 2026,
-      businessName: '青井ウェブ事務所',
+      businessName: 'aoikoウェブ事務所',
       invoiceNumber: '',
       monthly: {
         year: 2026,
@@ -552,6 +637,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       },
       filingType: 'white' as const,
       aoiroDeductionKind: 'none' as const,
+      fixedAssets: [],
     };
     const xtx = buildXtx2026(ctx);
     const forms: Array<[string, string]> = [
