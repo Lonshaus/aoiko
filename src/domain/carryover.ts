@@ -163,64 +163,40 @@ export async function applyCarryover(year: number): Promise<{ entryId: string } 
     confirmedAt: now,
   };
 
+  // amount の符号に応じて positiveSide／その逆側へ振り分けた JournalLine を積む。
+  const pushSignedLine = (
+    lines: JournalLine[],
+    accountCode: string,
+    amount: Decimal,
+    positiveSide: 'debit' | 'credit',
+    memo: string
+  ): void => {
+    if (amount.isZero()) {
+      return;
+    }
+    const negativeSide = positiveSide === 'debit' ? 'credit' : 'debit';
+    lines.push({
+      id: newId(),
+      entryId: entry.id,
+      side: amount.isPositive() ? positiveSide : negativeSide,
+      accountCode,
+      amount: amount.abs().toString(),
+      amountIndexed: toIndexable(amount.abs()),
+      taxRate: 0,
+      taxIncluded: false,
+      invoiceCompliant: false,
+      memo,
+    });
+  };
+
   const lines: JournalLine[] = [];
   for (const a of preview.assets) {
-    const amount = D(a.amount);
-    if (amount.isZero()) {
-      continue;
-    }
-    const isDebit = amount.isPositive();
-    const abs = amount.abs();
-    lines.push({
-      id: newId(),
-      entryId: entry.id,
-      side: isDebit ? 'debit' : 'credit',
-      accountCode: a.accountCode,
-      amount: abs.toString(),
-      amountIndexed: toIndexable(abs),
-      taxRate: 0,
-      taxIncluded: false,
-      invoiceCompliant: false,
-      memo: '前期繰越',
-    });
+    pushSignedLine(lines, a.accountCode, D(a.amount), 'debit', '前期繰越');
   }
   for (const l of preview.liabilities) {
-    const amount = D(l.amount);
-    if (amount.isZero()) {
-      continue;
-    }
-    const isCredit = amount.isPositive();
-    const abs = amount.abs();
-    lines.push({
-      id: newId(),
-      entryId: entry.id,
-      side: isCredit ? 'credit' : 'debit',
-      accountCode: l.accountCode,
-      amount: abs.toString(),
-      amountIndexed: toIndexable(abs),
-      taxRate: 0,
-      taxIncluded: false,
-      invoiceCompliant: false,
-      memo: '前期繰越',
-    });
+    pushSignedLine(lines, l.accountCode, D(l.amount), 'credit', '前期繰越');
   }
-  const capital = D(preview.capitalAmount);
-  if (!capital.isZero()) {
-    const isCredit = capital.isPositive();
-    const abs = capital.abs();
-    lines.push({
-      id: newId(),
-      entryId: entry.id,
-      side: isCredit ? 'credit' : 'debit',
-      accountCode: preview.capitalCode,
-      amount: abs.toString(),
-      amountIndexed: toIndexable(abs),
-      taxRate: 0,
-      taxIncluded: false,
-      invoiceCompliant: false,
-      memo: '前期繰越（元入金）',
-    });
-  }
+  pushSignedLine(lines, preview.capitalCode, D(preview.capitalAmount), 'credit', '前期繰越（元入金）');
 
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
     await db.journalEntries.add(entry);
