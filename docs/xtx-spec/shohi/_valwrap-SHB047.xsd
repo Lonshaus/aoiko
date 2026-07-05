@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  aoiko テスト用 XSD validation ラッパ（非公式）。理由は _valwrap-SHB070.xsd と同じ。
+  公式 xsd には一切手を加えない。
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xml.e-tax.nta.go.jp/XSD/shohi"
+  targetNamespace="http://xml.e-tax.nta.go.jp/XSD/shohi"
+  elementFormDefault="qualified">
+  <xsd:include schemaLocation="SHB047-001.xsd"/>
+  <xsd:element name="ValidationRoot">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:group ref="SHB047-1-0group"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>
