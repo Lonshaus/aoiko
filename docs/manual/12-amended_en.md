@@ -71,7 +71,7 @@ Once the numbers are stable in aoiko:
 
 1. Open e-Tax software (download edition) or the online preparation corner (income-tax amended returns are not supported in the web edition)
 2. **"Create an amended return"** menu (exact name varies by year)
-3. Bring in the **original return** values (Blue Return financial statements → tax return) by loading a re-exported `.xtx` into the download edition, or by hand in the preparation corner
+3. Bring in the **original return** values (financial statements — Blue Return statements or the White Return breakdown statement — → tax return) by loading a re-exported `.xtx` into the download edition, or by hand in the preparation corner
 4. Enter **the corrected amounts**
 5. The diff is computed on the e-Tax side. It also shows estimated delinquency and additional penalty taxes
 6. Submit (electronically)
