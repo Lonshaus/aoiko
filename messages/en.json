@@ -562,5 +562,13 @@
   "opening_done_message": "Opening entries and fixed assets have been created.",
   "opening_entry_title": "Business opening setup",
   "opening_entry_intro": "Register pre-opening expenses, converted assets, and more, all in one place.",
-  "opening_entry_action": "Open the wizard"
+  "opening_entry_action": "Open the wizard",
+  "settings_filing_type_label": "Filing type",
+  "settings_filing_type_blue": "Blue return (aoiro)",
+  "settings_filing_type_white": "White return (shiro)",
+  "reports_xtx_intro_white_html": "Export this year's data as <code class=\"text-foreground\">.xtx</code> and import it into the e-Tax software (download edition). The final tax return and the income/expense breakdown statement (general, white return) are bundled into one file per the National Tax Agency's official XSD. <strong class=\"text-foreground\">⚠ You must first fill in Tax office / Taxpayer ID / Name / Address under Settings &gt; Filer info. The return includes business revenue and income (the family-employee deduction, other deductions, and tax due must be completed in e-Tax).</strong>",
+  "settings_filing_type_confirm_title": "Change filing type?",
+  "settings_filing_type_confirm_to_white": "Switching to white return. The blue-return special deduction will no longer apply, and .xtx export will bundle the income/expense breakdown statement (general).",
+  "settings_filing_type_confirm_to_blue": "Switching to blue return. .xtx export will bundle the blue-return financial statement (general).",
+  "settings_filing_type_confirm_action": "Switch"
 }

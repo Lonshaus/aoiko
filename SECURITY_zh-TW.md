@@ -4,6 +4,15 @@
 
 aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有後端伺服器、利用者的機微資料都閉合在瀏覽器內。本文件整理已知風險・支援方針・漏洞回報手順。
 
+## 正規發布來源
+
+aoiko 只透過以下管道正式發布：
+
+- 原始碼：<https://github.com/Lonshaus/aoiko>
+- 線上試用版：<https://aoiko.pages.dev>
+
+如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的,**在輸入 API 金鑰或任何機微資訊之前,請務必回來上述其中一個管道核對內容**。aoiko 是用 AGPL-3.0 發布,任何人都可以合法 fork、自己架設,但這不代表可以排除有人拿這個名字去偽裝散布釣魚或惡意程式。有疑慮時,可以去 GitHub repo 的 commit 歷史、issue 核對真偽。
+
 ## 支援版本
 
 只支援 `master` branch 最新 commit。release tag 還沒運用（Phase 4 完成後預定開始）。

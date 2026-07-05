@@ -4,10 +4,13 @@
 // （buildItPart が出力）。本モジュールは第一表の「事業」部分の直接値 leaf を扱う：
 // 営業等収入金額・事業所得（青色控除後）・青色申告特別控除額・所得金額（合計）。
 // 各種所得控除・税額計算は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
+// 白色申告時は青色申告特別控除を出力せず、事業所得は white-return-income.ts で
+// 専従者給与・貸倒引当金繰入額を補正した値を使う（詳細は同ファイル参照）。
 
 import koa020 from './xtx-schema-koa020.generated.json';
 import { D } from '../../lib/decimal';
 import { aoiroDeductionAmount } from './aoiro-deduction';
+import { whiteReturnAdjustedNetIncome } from './white-return-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues } from './xtx-document';
@@ -82,10 +85,17 @@ function put(out: XtxLeafValues, ja: string, amount: string): void {
 
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
+  const isWhite = ctx.filingType === 'white';
+  put(out, '営業等　金額', ctx.pl.totalRevenue);
+  if (isWhite) {
+    // 専従者給与・貸倒引当金繰入額は白色申告では通常の経費として扱えないため、
+    // pl.netIncome をそのまま使うと過小になる（詳細は white-return-income.ts）。
+    put(out, '営業等', whiteReturnAdjustedNetIncome(ctx.pl).toString());
+    return out;
+  }
   const preIncome = D(ctx.pl.netIncome);
   const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
   const businessIncome = preIncome.minus(deduction);
-  put(out, '営業等　金額', ctx.pl.totalRevenue);
   put(out, '営業等', businessIncome.toString());
   put(out, '青色申告特別控除額', deduction.toString());
   return out;
