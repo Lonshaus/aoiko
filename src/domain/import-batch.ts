@@ -22,10 +22,3 @@ export async function reverseImportBatch(
   }
   return { reversedCount, alreadyReversedCount };
 }
-
-export async function getBatchEntries(batchId: string) {
-  return db.journalEntries
-    .where('sourceImportId')
-    .equals(batchId)
-    .toArray();
-}
