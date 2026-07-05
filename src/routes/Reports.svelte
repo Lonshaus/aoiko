@@ -17,7 +17,7 @@
     getAmendmentDiff,
     type AmendmentDiff,
   } from '../domain/amended';
-  import { buildXtx2026 } from '../tax-schema/2026/xtx';
+  import { buildXtx2026, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import { compareAll, type ConsumptionTaxResult } from '../domain/consumption-tax';
   import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
@@ -67,6 +67,7 @@
   let amendment = $state<AmendmentDiff | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
   let taxRegistration = $state<TaxRegistration>('tax-free');
+  let filingType = $state<FilingType>('blue');
   let simplifiedCategory = $state<SimplifiedTaxCategory>(4);
   let locked = $state(false);
   let confirmingLock = $state(false);
@@ -79,6 +80,7 @@
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
+      const filing = (await getSetting('filingType')) ?? 'blue';
       const reports = await buildAll(yr, ax);
       return {
         ...reports,
@@ -86,6 +88,7 @@
         consumptionTax: await compareAll(yr, cat),
         taxRegistration: reg,
         simplifiedCategory: cat,
+        filingType: filing,
         locked: await isYearLocked(yr),
       };
     }).subscribe((v) => {
@@ -98,6 +101,7 @@
       consumptionTax = v.consumptionTax;
       taxRegistration = v.taxRegistration;
       simplifiedCategory = v.simplifiedCategory;
+      filingType = v.filingType;
       locked = v.locked;
     });
     return () => sub.unsubscribe();
@@ -242,6 +246,7 @@
     lockError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
+    const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const exportYear = testReiwa7 ? 2025 : year;
     const xml = buildXtx2026({
@@ -252,6 +257,7 @@
       pl,
       bs,
       filer,
+      filingType,
       aoiroDeductionKind,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
@@ -814,7 +820,7 @@
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-3 shadow-sm">
       <h3 class="text-lg font-semibold">{m.reports_xtx_title()}</h3>
       <p class="text-xs text-muted-foreground">
-        {@html m.reports_xtx_intro_html()}
+        {@html filingType === 'white' ? m.reports_xtx_intro_white_html() : m.reports_xtx_intro_html()}
       </p>
       <div class="flex flex-wrap gap-2">
         <button

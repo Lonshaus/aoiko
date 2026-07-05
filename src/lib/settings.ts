@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
+import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 
 export type SettingsMap = {
@@ -46,7 +47,9 @@ export type SettingsMap = {
   userFilerAddress: string;     // 住所（NOZEISHA_ADR）
   userZeimushoCode: string;     // 提出先税務署コード（5桁、gen:zeimusho_CD）
   userZeimushoName: string;     // 提出先税務署名（任意、gen:zeimusho_NM）
-  // 青色申告特別控除の区分（事業所得・控除額の算定に使用）
+  // 確定申告方式（.xtx 出力の様式・青色申告特別控除の適用可否に影響）
+  filingType: FilingType;
+  // 青色申告特別控除の区分（事業所得・控除額の算定に使用。青色申告のみ）
   aoiroDeductionKind: AoiroDeductionKind;
   // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
   backupIncludeFilerInfo: boolean;
@@ -54,7 +57,8 @@ export type SettingsMap = {
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
 // v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
-export const DISCLAIMER_VERSION = 2;
+// v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
+export const DISCLAIMER_VERSION = 3;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K

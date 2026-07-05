@@ -10,7 +10,7 @@
 
 🌐 **Try it online**: <https://aoiko.pages.dev> (trial only — see [Running locally](#running-locally) for caveats)
 
-A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥750,000 Blue Return (青色申告) deduction** for Reiwa 9 (2027) and later filings (requires on-time e-Tax submission + qualified electronic ledger storage; the older ¥650,000 deduction is still supported). Covers CSV/OCR/EC order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export — all in a single web app. No backend, BYOK (you bring your own API key).
+A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥750,000 Blue Return (青色申告) deduction** for Reiwa 9 (2027) and later filings (requires on-time e-Tax submission + qualified electronic ledger storage; the older ¥650,000 deduction is still supported). Covers CSV/OCR/EC order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export — all in a single web app. White Return (income/expense breakdown statement) is also supported. No backend, BYOK (you bring your own API key).
 
 ## Features
 
@@ -27,6 +27,7 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **Prior-period carryover**: auto-generate opening journal entries from prior year-end balances (net profit and owner's draws/contributions are absorbed into owner's capital)
 - **Business opening setup (Opening Wizard)**: pre-opening expenses, converted assets (auto-computes the opening book value for personal-to-business conversions per NTA rules), and custom items — generates the journal entries and fixed-asset registrations in one go
 - **Consumption tax estimation**: 4-method comparison (general / simplified / 2% special / 3% special), with the 80/70/50/30% transitional input-tax credit automatically applied
+- **e-Tax `.xtx` export**: bundles the tax return (KOA020) with the matching financial statement (blue-return statements KOA210, or the income/expense breakdown statement KOA110 — switchable via filing type) into one file per the NTA's official XSD, verified against a real e-Tax software import
 - **Reports**: monthly sales, P/L, balance sheet, monthly P/L (account × month), vendor / sub-account breakdowns, consumption-tax 4-way comparison
 - **Composite search (qualified electronic ledger compliance)**: in the journal list, combine year / month / description / amount range / vendor (satisfies the Electronic Books Storage Act's "two or more arbitrary combination" requirement)
 - **Amended filing guide**: diff between filed snapshot and current values + submission steps

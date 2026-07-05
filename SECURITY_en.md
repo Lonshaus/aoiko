@@ -4,6 +4,15 @@
 
 aoiko is a pure-frontend BYOK (Bring Your Own Key) app. It has no servers; all sensitive user data stays inside the browser. This document outlines known risks, the support stance, and vulnerability reporting.
 
+## Official distribution sources
+
+aoiko is officially distributed only from:
+
+- Source code: <https://github.com/Lonshaus/aoiko>
+- Online demo: <https://aoiko.pages.dev>
+
+If you obtained aoiko from anywhere else (an unfamiliar site, a packaged executable, etc.), **verify it against one of the above before entering an API key or any sensitive information**. aoiko is published under AGPL-3.0, so anyone can legally fork and self-host it — but that doesn't rule out someone using the name to distribute phishing or malware under a confusingly similar guise. If in doubt, check authenticity against the GitHub repository's commit history and issues.
+
 ## Supported versions
 
 Only the latest commit on the `master` branch is supported. Release tags are not yet in use (planned after Phase 4 is complete).
