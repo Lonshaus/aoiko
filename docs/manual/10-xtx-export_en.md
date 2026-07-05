@@ -5,9 +5,9 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 **Language**: [日本語](10-xtx-export.md) | **English** | [繁體中文](10-xtx-export_zh-TW.md)
 
 > **By the end of this chapter you can**
-> - Export the tax return (KOA020) + blue-return financial statements (KOA210) into one `.xtx`
+> - Export the tax return (KOA020) + the matching statement — blue-return financial statements (KOA210) or, for white return, the income/expense breakdown statement (KOA110) — into one `.xtx`
 > - Load the exported `.xtx` into e-Tax software (download edition)
-> - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax)
+> - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax, the white-return family-employee deduction)
 >
 > **Prerequisites**: Basic info and filer info from [01. Setup](01-setup.md), opening transfers from [09. Carryover](09-carryover.md), year-end depreciation from [08. Depreciation](08-depreciation.md), and confirmed journal entries for the year.
 
@@ -16,7 +16,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 `.xtx` is the XML filing-data file that **e-Tax software (download edition)** accepts via "組み込み" (load). Per the **NTA official W3C XSD** (from e-tax19 "XML schema"), aoiko bundles the following into one `.xtx`:
 
 - **KOA020-023**: tax return, first table
-- **KOA210-011**: blue-return financial statements (general)
+- **KOA210-011**: blue-return financial statements (general), or **KOA110-012**: income/expense breakdown statement (general) for white return — decided by **Settings ＞ Filer Info ＞ Filing Type**
 - **TEA060**: filing/transmission slip
 - **Procedure code**: `RKO0010` (income tax & special reconstruction income tax return)
 
@@ -34,10 +34,24 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 |---|---|
 | Filer info (tax office, user ID, name, address) | Settings ＞ Filer Info |
 | Tax return p.1: business (営業等) revenue | PL (sales) |
-| Tax return p.1: business income (①) and blue-return special deduction | PL + deduction type |
-| Financial statements p.1 P&L (incl. pre/deduction/post amounts) | PL + deduction type |
-| Financial statements p.2 monthly sales & purchases | Monthly (purchases = COGS only) |
-| Financial statements p.4 balance sheet | BS |
+| Tax return p.1: business income (①) | PL (after expenses; blue return further subtracts the blue-return special deduction) |
+
+**Blue return** (statement: blue-return financial statements, KOA210)
+
+| Form | Source |
+|---|---|
+| Tax return p.1: blue-return special deduction amount | PL + deduction type |
+| Statements p.1 P&L (incl. pre/deduction/post amounts) | PL + deduction type |
+| Statements p.2 monthly sales & purchases | Monthly (purchases = COGS only) |
+| Statements p.4 balance sheet | BS |
+
+**White return** (statement: income/expense breakdown statement, KOA110)
+
+| Form | Source |
+|---|---|
+| Breakdown statement p.1: revenue, expense by category, pre-family-deduction income | PL |
+
+> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and bad-debt-reserve entries have no matching field on the breakdown statement and are excluded from the income calculation too (see "Excluded" below).
 
 ### Excluded (completed in e-Tax)
 
@@ -47,6 +61,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | **Total income, taxable income, tax calculation** | Auto-computed in e-Tax |
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
 | **Consumption tax return** | Prepare separately in e-Tax (aoiko gives estimates only; [07. Consumption Tax](07-consumption-tax.md)) |
+| **White-return family-employee deduction** (flat ¥860,000 for a spouse, ¥500,000 per other relative) and the post-deduction income | Enter in e-Tax (aoiko does not compute it — it depends on relationship data aoiko doesn't track) |
 
 > This division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the personal deductions and tax are completed by the filer in e-Tax at filing time.
 
@@ -55,11 +70,12 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 ### 3-1. Pre-export checklist
 
 1. **Settings ＞ Filer Info** has tax office, user ID, name, address (export is blocked if missing)
-2. **Settings ＞ Blue-return special deduction** type (650k/550k/100k) is correct
-3. All journal entries for the year are **confirmed**
-4. **Opening transfers** ([09. Carryover](09-carryover.md)) exist dated `2026-01-01`
-5. **Depreciation entries** generated at year end ([08. § 3](08-depreciation.md#3-年末に減価償却仕訳を生成))
-6. Reports ＞ BS shows **assets = liabilities + equity** (no imbalance warning)
+2. **Settings ＞ Filing Type** matches your actual filing (blue or white return)
+3. For blue return, **Settings ＞ Blue-return special deduction** type (650k/550k/100k) is correct
+4. All journal entries for the year are **confirmed**
+5. **Opening transfers** ([09. Carryover](09-carryover.md)) exist dated `2026-01-01`
+6. **Depreciation entries** generated at year end ([08. § 3](08-depreciation.md#3-年末に減価償却仕訳を生成))
+7. For blue return, Reports ＞ BS shows **assets = liabilities + equity** (no imbalance warning). White return's breakdown statement has no balance sheet, so this check doesn't apply
 
 ### 3-2. File name
 
@@ -76,11 +92,12 @@ aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
 1. Launch the download edition and **install the income-tax year module** (if not installed)
 2. **Select the user** → **"申告・申請等"**
 3. **"組み込み"** → choose aoiko's `.xtx`
-4. Confirm all 3 forms (return, statements, slip) reach "組み込み" status
+4. Confirm all 3 forms (return, statement, slip) reach "組み込み" status
 5. Use **"帳票編集"** to verify:
-   - P&L, monthly, and balance sheet match aoiko's reports
-   - Tax return p.1: business revenue, business income, blue-return deduction, name, address, tax office are correct
-6. Enter remaining items (income deductions, tax) in e-Tax
+   - Blue return: P&L, monthly, and balance sheet match aoiko's reports
+   - White return: the breakdown statement's revenue, expense categories, and pre-family-deduction income match aoiko's reports
+   - Tax return p.1: business revenue, business income (blue return only: the blue-return deduction), name, address, tax office are correct
+6. Enter remaining items (income deductions, tax, and for white return the family-employee deduction) in e-Tax
 7. **If loading errors out**: the export may have a problem — please report via GitHub Issue.
 
 ## 5. Internal spec (reference)
@@ -90,7 +107,7 @@ aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
 - Distributed by: NTA e-Tax "published specifications" list
 - Source CAB: `e-tax19.CAB` "XML schema"
 - Bundled in aoiko: under `docs/xtx-spec/{shotoku,general}/`
-  - `KOA020-023.xsd` (tax return), `KOA210-011.xsd` (blue-return statements, general)
+  - `KOA020-023.xsd` (tax return), `KOA210-011.xsd` (blue-return statements, general), `KOA110-012.xsd` (income/expense breakdown statement, general)
   - `General.xsd`, `ITdefinition.xsd`, `ITreference.xsd`, `zeimusho.xsd`, `zeimoku.xsd`
 
 ### Document model

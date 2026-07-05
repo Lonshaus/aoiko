@@ -6,7 +6,7 @@ What to do from launching aoiko to being ready to book transactions.
 
 > **By the end of this chapter you can**
 > - Accept the disclaimer and register your trade name, fiscal year, and consumption-tax method
-> - Register the filer info and blue-return deduction type required for `.xtx` submission
+> - Register the filer info, filing type (blue or white return), and blue-return deduction type required for `.xtx` submission
 > - Register sub-accounts (e.g. per bank account) and vendors
 > - Configure an API key / endpoint for OCR/LLM, if you want to use those
 >
@@ -52,7 +52,9 @@ Required to load the `.xtx` into e-Tax software (download edition). Register the
 
 > **Stored only on this device and excluded from backups by default** (see [11. Backup and restore](11-backup_en.md)).
 
-Then, in the **"Blue-return special deduction"** section, choose a **deduction type**:
+Then choose **Filing Type** — **blue return or white return** — via the radio buttons. Switching shows a confirmation dialog (it changes which financial-statement form gets bundled into `.xtx`, and whether the blue-return deduction applies).
+
+**If you chose blue return**, next choose a **deduction type** in the **"Blue-return special deduction"** section:
 
 - **Double-entry + e-Tax/qualified e-books (¥650,000)**: double-entry bookkeeping, e-Tax submission, and qualified electronic ledger requirements all met
 - **Double-entry only (¥550,000)**: double-entry bookkeeping without e-Tax submission or qualified electronic ledger
@@ -60,6 +62,8 @@ Then, in the **"Blue-return special deduction"** section, choose a **deduction t
 - **No deduction**
 
 > The ¥750,000 deduction additionally requires an on-time e-Tax submission, starting with returns for the 2027 tax year (Reiwa 9). See [07. Consumption tax](07-consumption-tax_en.md) and the deduction amount shown on the financial statements for details.
+
+**If you chose white return**, the deduction type selector is hidden (white return has no blue-return special deduction). `.xtx` export bundles the income/expense breakdown statement (general) instead. See [10. `.xtx` export](10-xtx-export_en.md) for details.
 
 ## 4. Choose a consumption tax method
 
