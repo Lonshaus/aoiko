@@ -279,20 +279,24 @@ export async function computeSimplified(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-// 2 割特例：売上税額 × 80% を控除、納付は売上税額の 20%。
-// 2023/10/01〜2026/09/30 の課税期間限定（インボイス制度の経過措置）。
-export async function computeTwoWari(
-  year: number
+// 2 割・3 割特例共通：売上税額 × (1 − 控除率) を納付する方式。
+// 2割特例＝控除率80%（2023/10/01〜2026/09/30 の課税期間限定、インボイス制度の経過措置）。
+// 3割特例＝控除率70%（令和9・10〔2027・2028〕の課税期間限定、令和8年度税制改正で新設）。
+async function computeWariException(
+  year: number,
+  method: 'two-wari' | 'three-wari',
+  inputDeductionRate: string
 ): Promise<ConsumptionTaxResult> {
+  const netRate = D(1).minus(inputDeductionRate);
   const { output, inputRaw, taxableBase10, taxableBase8 } =
     await processYear(year);
-  const inputDeducted = output.times('0.8');
-  const net = output.times('0.2');
+  const inputDeducted = output.times(inputDeductionRate);
+  const net = output.times(netRate);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const filingNet = official.outputTax.times('0.2');
+  const filingNet = official.outputTax.times(netRate);
   return {
     year,
-    method: 'two-wari',
+    method,
     outputTax: asBreakdown(output),
     inputTaxRaw: asBreakdown(inputRaw),
     inputTax: asBreakdown(inputDeducted),
@@ -301,27 +305,11 @@ export async function computeTwoWari(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-// 3 割特例：売上税額 × 70% を控除、納付は売上税額の 30%。
-// 令和 9・10（2027・2028）の課税期間限定、令和 8 年度税制改正で新設。
-export async function computeThreeWari(
-  year: number
-): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw, taxableBase10, taxableBase8 } =
-    await processYear(year);
-  const inputDeducted = output.times('0.7');
-  const net = output.times('0.3');
-  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const filingNet = official.outputTax.times('0.3');
-  return {
-    year,
-    method: 'three-wari',
-    outputTax: asBreakdown(output),
-    inputTaxRaw: asBreakdown(inputRaw),
-    inputTax: asBreakdown(inputDeducted),
-    netTax: asBreakdown(net),
-    taxableBase: official.taxableBase.toString(),
-    filingRounded: filingBreakdown(filingNet),
-  };
+export function computeTwoWari(year: number): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'two-wari', '0.8');
+}
+export function computeThreeWari(year: number): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'three-wari', '0.7');
 }
 // 2 割特例の適用年度：課税期間 2023/10〜2026/9。個人（暦年）は令和5〜8年分（〜2026）。
 export function isTwoWariEligibleYear(year: number): boolean {

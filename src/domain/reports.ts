@@ -348,29 +348,8 @@ export async function buildBS(year: number, data?: YearData): Promise<BSReport> 
   const assets = buildRows('asset');
   const liabilities = buildRows('liability');
   const equity = buildRows('equity');
-  // 当期純利益 = 収益合計 − 経費合計（純資産に加算）
-  let revenue = D(0);
-  let expense = D(0);
-  for (const line of lines) {
-    const entry = entryMap.get(line.entryId);
-    if (!entry || entry.date > asOf) {
-      continue;
-    }
-    const acc = accountMap.get(line.accountCode);
-    if (!acc) {
-      continue;
-    }
-    const contrib = plContribution(acc.category, line);
-    if (contrib === null) {
-      continue;
-    }
-    if (acc.category === 'revenue') {
-      revenue = revenue.plus(contrib);
-    } else {
-      expense = expense.plus(contrib);
-    }
-  }
-  const netIncome = revenue.minus(expense);
+  // 当期純利益（純資産に加算）は PL と同じ計算のため使い回す
+  const netIncome = D((await buildPL(year, { entries, lines, accounts })).netIncome);
 
   const totalAssets = assets.reduce((s, r) => s.plus(r.balance), D(0));
   const totalLiab = liabilities.reduce((s, r) => s.plus(r.balance), D(0));

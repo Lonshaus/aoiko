@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { D, formatJPY, fromIndexable, toIndexable } from './decimal'
+import { D, formatJPY, toIndexable } from './decimal'
 
 describe('toIndexable', () => {
   test('zero', () => {
@@ -29,11 +29,11 @@ describe('toIndexable', () => {
     expect(() => toIndexable('-0.01')).toThrow(/negative/)
   })
 
-  test('round-trip via fromIndexable', () => {
+  test('round-trip via D', () => {
     const values = ['0', '1', '12345', '12345.67', '0.01']
     for (const v of values) {
       const idx = toIndexable(v)
-      expect(fromIndexable(idx).toString()).toBe(D(v).toString())
+      expect(D(idx).toString()).toBe(D(v).toString())
     }
   })
 })
