@@ -36,6 +36,7 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
       zeimushoCode: '01101',
       zeimushoName: '麹町',
     },
+    filingType: 'blue',
     aoiroDeductionKind: 'electronic',
     ...overrides,
   };

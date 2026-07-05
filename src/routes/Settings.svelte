@@ -42,6 +42,7 @@
   } from '../db/types';
   import { simplifiedTaxCategoryLabel, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
+  import type { FilingType } from '../tax-schema/2026/xtx';
   import {
     isValidZeimushoCode,
     searchZeimusho,
@@ -138,6 +139,9 @@
   let userFilerAddress = $state('');
   let userZeimushoCode = $state('');
   let userZeimushoName = $state('');
+  let filingType = $state<FilingType>('blue');
+  let pendingFilingType = $state<FilingType | null>(null);
+  let confirmingFilingType = $state(false);
   let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
   let filerSaved = $state(false);
   const zeimushoCodeInvalid = $derived(
@@ -237,6 +241,7 @@
     userZeimushoCode = (await getSetting('userZeimushoCode')) ?? '';
     userZeimushoName = (await getSetting('userZeimushoName')) ?? '';
     zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
+    filingType = (await getSetting('filingType')) ?? 'blue';
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
   });
 
@@ -250,6 +255,27 @@
     }, 2000);
   }
 
+  function requestFilingTypeChange(next: FilingType) {
+    if (next === filingType) {
+      return;
+    }
+    pendingFilingType = next;
+    confirmingFilingType = true;
+  }
+
+  function applyFilingTypeChange() {
+    if (pendingFilingType) {
+      filingType = pendingFilingType;
+    }
+    pendingFilingType = null;
+    confirmingFilingType = false;
+  }
+
+  function cancelFilingTypeChange() {
+    pendingFilingType = null;
+    confirmingFilingType = false;
+  }
+
   async function saveFiler(e: Event) {
     e.preventDefault();
     if (zeimushoCodeInvalid) {
@@ -261,6 +287,7 @@
     await setSetting('userFilerAddress', userFilerAddress.trim());
     await setSetting('userZeimushoCode', userZeimushoCode.trim());
     await setSetting('userZeimushoName', userZeimushoName.trim());
+    await setSetting('filingType', filingType);
     await setSetting('aoiroDeductionKind', aoiroDeductionKind);
     filerSaved = true;
     setTimeout(() => {
@@ -880,18 +907,43 @@
           <span class="text-xs text-red-600">{m.settings_filer_zeimusho_invalid()}</span>
         {/if}
       </label>
-      <label class="block sm:col-span-2">
-        <span class="text-xs text-muted-foreground">{m.settings_aoiro_label()}</span>
-        <select
-          bind:value={aoiroDeductionKind}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
-        >
-          <option value="electronic">{m.settings_aoiro_electronic()}</option>
-          <option value="doubleEntry">{m.settings_aoiro_double_entry()}</option>
-          <option value="simple">{m.settings_aoiro_simple()}</option>
-          <option value="none">{m.settings_aoiro_none()}</option>
-        </select>
-      </label>
+      <div class="block sm:col-span-2">
+        <span class="text-xs text-muted-foreground">{m.settings_filing_type_label()}</span>
+        <div class="mt-1 flex gap-4 text-sm">
+          <label class="flex items-center gap-1">
+            <input
+              type="radio"
+              name="filingType"
+              checked={filingType === 'blue'}
+              onchange={() => requestFilingTypeChange('blue')}
+            />
+            {m.settings_filing_type_blue()}
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="radio"
+              name="filingType"
+              checked={filingType === 'white'}
+              onchange={() => requestFilingTypeChange('white')}
+            />
+            {m.settings_filing_type_white()}
+          </label>
+        </div>
+      </div>
+      {#if filingType === 'blue'}
+        <label class="block sm:col-span-2">
+          <span class="text-xs text-muted-foreground">{m.settings_aoiro_label()}</span>
+          <select
+            bind:value={aoiroDeductionKind}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            <option value="electronic">{m.settings_aoiro_electronic()}</option>
+            <option value="doubleEntry">{m.settings_aoiro_double_entry()}</option>
+            <option value="simple">{m.settings_aoiro_simple()}</option>
+            <option value="none">{m.settings_aoiro_none()}</option>
+          </select>
+        </label>
+      {/if}
     </div>
     <div class="flex items-center justify-end gap-3">
       {#if filerSaved}
@@ -1702,6 +1754,25 @@
     </div>
   </section>
 </div>
+
+<AlertDialog.Root bind:open={confirmingFilingType}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>{m.settings_filing_type_confirm_title()}</AlertDialog.Title>
+      <AlertDialog.Description>
+        {pendingFilingType === 'white'
+          ? m.settings_filing_type_confirm_to_white()
+          : m.settings_filing_type_confirm_to_blue()}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel onclick={cancelFilingTypeChange}>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={applyFilingTypeChange}>
+        {m.settings_filing_type_confirm_action()}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
 
 <AlertDialog.Root bind:open={confirmingClear}>
   <AlertDialog.Content>
