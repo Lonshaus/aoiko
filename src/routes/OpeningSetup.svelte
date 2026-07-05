@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { router, link } from '../router.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
@@ -11,9 +12,16 @@
     type ExpenseAmortization,
     type OpeningCustomItem,
   } from '../domain/business-opening';
+  import { getSetting } from '../lib/settings';
   import type { DepreciationMethod } from '../db/types';
+  import type { FilingType } from '../tax-schema/2026/xtx';
 
   let businessStartDate = $state(todayISO());
+  // 少額特例は青色申告限定（措法28の2）。
+  let filingType = $state<FilingType>('blue');
+  onMount(async () => {
+    filingType = (await getSetting('filingType')) ?? 'blue';
+  });
 
   interface ExpenseRow {
     name: string;
@@ -321,22 +329,24 @@
                     basis: formatJPY(basis.businessStartBasis.toString()),
                   })}
                 </p>
-                <label class="flex items-start gap-2 text-xs">
-                  <input
-                    type="checkbox"
-                    checked={row.applySmallAssetSpecial}
-                    onchange={() => toggleSmallAssetSpecial(row)}
-                  />
-                  <span>
-                    {m.opening_small_asset_apply_label()}
-                    {#if isSmallAssetEligible(businessStartDate, basis.businessStartBasis.toString())}
-                      <span class="text-muted-foreground">
-                        {m.opening_small_asset_threshold_note({ threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))) })}
-                      </span>
-                    {/if}
-                  </span>
-                </label>
-                <p class="text-xs text-amber-600">{m.opening_gray_area_warning()}</p>
+                {#if filingType === 'blue'}
+                  <label class="flex items-start gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={row.applySmallAssetSpecial}
+                      onchange={() => toggleSmallAssetSpecial(row)}
+                    />
+                    <span>
+                      {m.opening_small_asset_apply_label()}
+                      {#if isSmallAssetEligible(businessStartDate, basis.businessStartBasis.toString())}
+                        <span class="text-muted-foreground">
+                          {m.opening_small_asset_threshold_note({ threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))) })}
+                        </span>
+                      {/if}
+                    </span>
+                  </label>
+                  <p class="text-xs text-amber-600">{m.opening_gray_area_warning()}</p>
+                {/if}
               {/if}
             </li>
           {/each}

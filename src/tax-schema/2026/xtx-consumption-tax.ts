@@ -1,0 +1,178 @@
+// 消費税及び地方消費税の確定申告 .xtx 出力。
+//
+// 国税庁公式 W3C XSD（e-tax19）由来の schema を、所得税と同じ 2 段式 ID/IDREF
+// 文書モデルで駆動する。所得税（RKO0010・KOA020等）とは別の送信データとして
+// 生成する（同一の CONTENTS には併載しない。手続そのものが異なるため）。
+//
+// ⚠ 手続コードは様式によって異なる（RSH0010-232.xsd の CONTENTS 定義を実際に
+// 読んで確認済み。2026-07-05、実機組み込みで「不明な要素 'SHA020'」エラーが出て
+// 発覚——手続の CONTENTS 型が xsd:group ref で許可する様式を限定しており、
+// RSH0010 は SHA010（一般用）系統のみ許可、SHA020（簡易課税用）系統は許可しない）：
+//   - 一般課税（SHA010＋付表1-3＋付表2-3）　　　　　　→ 手続 RSH0010（一般・個人）
+//   - 2割特例／簡易課税（SHA020＋付表6／付表4-3＋付表5-3）→ 手続 RSH0030（簡易課税・個人）
+// 対応済み：2割特例（措法57の2）／簡易課税（単一事業区分のみ）／一般課税（本則）。
+// 複数事業区分の簡易課税・3割特例は未対応（詳細は
+// src/tax-schema/2026/xtx-mapping-sha020.ts・xtx-mapping-sha010.ts 冒頭コメント・
+// docs/xtx-spec/README.md 参照）。
+
+import sha020 from './xtx-schema-sha020.generated.json';
+import shb070 from './xtx-schema-shb070.generated.json';
+import shb047 from './xtx-schema-shb047.generated.json';
+import shb067 from './xtx-schema-shb067.generated.json';
+import sha010 from './xtx-schema-sha010.generated.json';
+import shb017 from './xtx-schema-shb017.generated.json';
+import shb033 from './xtx-schema-shb033.generated.json';
+import type { XtxSchema } from './xtx-schema';
+import { buildXtxBundle, type XtxFormInput } from './xtx-document';
+import { todayISO } from '../../lib/date';
+import { mapSimplified, mapTwoWari } from './xtx-mapping-sha020';
+import { mapGeneral } from './xtx-mapping-sha010';
+import type { SimplifiedTaxCategory } from './simplified-tax';
+import { toFilerInfo, type XtxFiler } from './xtx';
+import type { Decimal } from '../../lib/decimal';
+
+const SHA020_SCHEMA = sha020 as XtxSchema;
+const SHB070_SCHEMA = shb070 as XtxSchema;
+const SHB047_SCHEMA = shb047 as XtxSchema;
+const SHB067_SCHEMA = shb067 as XtxSchema;
+const SHA010_SCHEMA = sha010 as XtxSchema;
+const SHB017_SCHEMA = shb017 as XtxSchema;
+const SHB033_SCHEMA = shb033 as XtxSchema;
+// e-tax19 shohi/RSH0010-232.xsd・RSH0030-232.xsd の documentation より。
+const PROCEDURE_VERSION = '23.2.0';
+// 消費税及び地方消費税申告(一般・個人)。CONTENTS が SHA010 系統のみ許可。
+const PROCEDURE_TAG_GENERAL = 'RSH0010';
+const PROCEDURE_NAME_GENERAL = '消費税及び地方消費税申告';
+// 消費税及び地方消費税申告(簡易課税・個人)。CONTENTS が SHA020 系統のみ許可。
+const PROCEDURE_TAG_SIMPLIFIED = 'RSH0030';
+const PROCEDURE_NAME_SIMPLIFIED = '消費税及び地方消費税申告';
+
+function buildBundle(
+  forms: XtxFormInput[],
+  businessName: string,
+  filer: XtxFiler,
+  procedureTag: string,
+  procedureName: string
+): string {
+  const creatorName = businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
+  return buildXtxBundle(forms, {
+    procedureTag,
+    procedureVersion: PROCEDURE_VERSION,
+    procedureName,
+    creatorName,
+    creationDate: todayISO(),
+    filer: toFilerInfo(filer),
+    // RSH0010/RSH0030 の CONTENTS 型は SOFUSHO を許可しない（xtx-document.ts の
+    // XtxDocumentOptions.includeSofusho コメント参照）。
+    includeSofusho: false,
+  });
+}
+
+export interface TwoWariXtxContext {
+  year: number;
+  businessName: string;
+  filer: XtxFiler;
+  /** 課税資産の譲渡等の対価の額（税抜、標準税率10%＝国税7.8%分）。返品・値引ネット後 */
+  taxableBase10: Decimal;
+  /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
+  taxableBase8: Decimal;
+}
+// 2割特例の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
+  const mapping = mapTwoWari({
+    taxableBase10: ctx.taxableBase10,
+    taxableBase8: ctx.taxableBase8,
+  });
+  const forms: XtxFormInput[] = [
+    {
+      schema: SHA020_SCHEMA,
+      values: {},
+      leafValues: mapping.sha020,
+      raw: mapping.sha020Raw,
+    },
+    {
+      schema: SHB070_SCHEMA,
+      values: {},
+      leafValues: mapping.shb070,
+    },
+  ];
+  return buildBundle(
+    forms,
+    ctx.businessName,
+    ctx.filer,
+    PROCEDURE_TAG_SIMPLIFIED,
+    PROCEDURE_NAME_SIMPLIFIED
+  );
+}
+
+export interface SimplifiedXtxContext {
+  year: number;
+  businessName: string;
+  filer: XtxFiler;
+  taxableBase10: Decimal;
+  taxableBase8: Decimal;
+  /** 事業区分（第1種〜第6種）。aoiko は単一事業区分のみ対応 */
+  category: SimplifiedTaxCategory;
+  /** みなし仕入率。simplified-tax.ts の deemedInputRate(category) を渡す */
+  deemedInputRate: number;
+}
+// 簡易課税（単一事業区分）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
+  const mapping = mapSimplified({
+    taxableBase10: ctx.taxableBase10,
+    taxableBase8: ctx.taxableBase8,
+    category: ctx.category,
+    deemedInputRate: ctx.deemedInputRate,
+  });
+  const forms: XtxFormInput[] = [
+    { schema: SHA020_SCHEMA, values: {}, leafValues: mapping.sha020 },
+    { schema: SHB047_SCHEMA, values: {}, leafValues: mapping.shb047 },
+    {
+      schema: SHB067_SCHEMA,
+      values: {},
+      leafValues: mapping.shb067,
+      raw: mapping.shb067Raw,
+    },
+  ];
+  return buildBundle(
+    forms,
+    ctx.businessName,
+    ctx.filer,
+    PROCEDURE_TAG_SIMPLIFIED,
+    PROCEDURE_NAME_SIMPLIFIED
+  );
+}
+
+export interface GeneralXtxContext {
+  year: number;
+  businessName: string;
+  filer: XtxFiler;
+  taxableBase10: Decimal;
+  taxableBase8: Decimal;
+  /** 控除対象仕入税額（国税分、標準税率10%＝7.8%分、経過措置適用後） */
+  input10: Decimal;
+  /** 控除対象仕入税額（国税分、軽減税率8%＝6.24%分、経過措置適用後） */
+  input8: Decimal;
+}
+// 一般課税（本則）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+// aoiko は課税売上割合100%を前提とする（詳細は xtx-mapping-sha010.ts 冒頭コメント）。
+export function buildGeneralXtx(ctx: GeneralXtxContext): string {
+  const mapping = mapGeneral({
+    taxableBase10: ctx.taxableBase10,
+    taxableBase8: ctx.taxableBase8,
+    input10: ctx.input10,
+    input8: ctx.input8,
+  });
+  const forms: XtxFormInput[] = [
+    { schema: SHA010_SCHEMA, values: {}, leafValues: mapping.sha010 },
+    { schema: SHB017_SCHEMA, values: {}, leafValues: mapping.shb017 },
+    { schema: SHB033_SCHEMA, values: {}, leafValues: mapping.shb033 },
+  ];
+  return buildBundle(
+    forms,
+    ctx.businessName,
+    ctx.filer,
+    PROCEDURE_TAG_GENERAL,
+    PROCEDURE_NAME_GENERAL
+  );
+}
