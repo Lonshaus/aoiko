@@ -14,11 +14,18 @@
 // 専従者給与・貸倒引当金繰入額を含む全経費控除後の値のため、そのまま出すと
 // 収支内訳書に転記していない科目の分だけ所得が過小になる。補正は KOA020 側
 // （事業所得）とも共通のため white-return-income.ts に切り出している。
+//
+// mapKoa110RepeatedValues() は第2頁「減価償却費の計算」の明細行（AIM00010、
+// 公式 xsd で maxOccurs=6）を FixedAsset + computeDepreciation() から生成する。
+// xtx-document.ts の繰り返しブロック機構（XtxRepeatedValues）を利用。
 
 import koa110 from './xtx-schema-koa110.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
-import type { XtxLeafValues } from './xtx-document';
+import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
+import { computeDepreciation } from '../../domain/depreciation';
+import { D } from '../../lib/decimal';
+import type { DepreciationMethod } from '../../db/types';
 import {
   WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS,
   whiteReturnAdjustedNetIncome,
@@ -98,4 +105,53 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
   // 利用者が e-Tax 上で補完する。
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), whiteReturnAdjustedNetIncome(pl).toString());
   return out;
+}
+// 第2頁「減価償却費の計算」の明細行（AIM00010）は公式 xsd で maxOccurs=6。
+// 7件目以降は取得日が新しい順に切り捨てる（対応不可分は摘要欄・別紙等での
+// 補完を利用者に委ねる）。
+const MAX_DEPRECIATION_ROWS = 6;
+const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
+  'straight-line': '定額法',
+  'declining-balance': '定率法',
+  'small-asset-special': '少額特例',
+  'lump-sum': '一括償却',
+};
+// AIM00020（名称等）は xsd で最大 16 文字。
+const ASSET_NAME_MAX_LENGTH = 16;
+// AIM00090（耐用年数）は xsd で 2〜100 年の範囲制限。範囲外は出力しない。
+const USEFUL_LIFE_MIN = 2;
+const USEFUL_LIFE_MAX = 100;
+
+function putRow(row: XtxLeafValues, tag: string, amount: string): void {
+  const v = toKingaku(amount);
+  if (v !== '') {
+    row[tag] = v;
+  }
+}
+
+export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const rows = ctx.fixedAssets
+    .map((asset) => ({ asset, result: computeDepreciation(asset, ctx.year) }))
+    .filter(({ result }) => !D(result.amount).isZero())
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
+    .slice(0, MAX_DEPRECIATION_ROWS)
+    .map(({ asset, result }) => {
+      const row: XtxLeafValues = {};
+      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+      if (name) {
+        row.AIM00020 = name;
+      }
+      putRow(row, 'AIM00060', asset.acquisitionCost);
+      putRow(row, 'AIM00070', asset.acquisitionCost);
+      row.AIM00080 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+        row.AIM00090 = String(asset.usefulLifeYears);
+      }
+      putRow(row, 'AIM00150', result.amount);
+      putRow(row, 'AIM00170', result.amount);
+      putRow(row, 'AIM00190', result.amount);
+      putRow(row, 'AIM00200', result.bookValueEnd);
+      return row;
+    });
+  return rows.length > 0 ? { AIM00010: rows } : {};
 }

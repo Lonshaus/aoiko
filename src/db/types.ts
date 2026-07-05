@@ -3,8 +3,13 @@ export type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
 export type TaxCategory = 'taxable10' | 'taxable8' | 'exempt' | 'nontaxable';
-// 'small-asset-special' は少額減価償却資産の特例（措法28の2）。取得年度に全額損金算入し、以降の償却なし。
-export type DepreciationMethod = 'straight-line' | 'declining-balance' | 'small-asset-special';
+// 'small-asset-special' は少額減価償却資産の特例（措法28の2、青色申告限定）。取得年度に全額損金算入し、以降の償却なし。
+// 'lump-sum' は一括償却資産（施行令139条、青色/白色問わず）。取得価額を3年均等償却、除却後も償却継続。
+export type DepreciationMethod =
+  | 'straight-line'
+  | 'declining-balance'
+  | 'small-asset-special'
+  | 'lump-sum';
 export type ReportType = 'monthly-sales' | 'pl' | 'bs';
 // 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
