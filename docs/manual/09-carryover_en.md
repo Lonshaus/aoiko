@@ -13,7 +13,7 @@ Carry prior year-end balances into the new fiscal year as an opening journal ent
 
 ## 1. What is the carryover
 
-For Blue Return filing as a sole proprietor, each year produces a **P/L** and a **balance sheet** (BS). BS shows year-end balances; **the new year continues from those balances**, so at the start of each new year:
+aoiko keeps double-entry books regardless of filing type (Blue or White Return), so each year produces a **P/L** and a **balance sheet** (BS). BS shows year-end balances; **the new year continues from those balances**, so at the start of each new year:
 
 - Prior year-end **asset balances** become the new year's debits
 - Prior year-end **liability balances** become the new year's credits
