@@ -24,10 +24,6 @@ export function toIndexable(value: DecimalLike): string {
   return `${intPart.padStart(INT_DIGITS, '0')}.${fracPart.padEnd(FRAC_DIGITS, '0')}`;
 }
 
-export function fromIndexable(s: string): Decimal {
-  return new Decimal(s);
-}
-
 const JPY_FORMATTER = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
 
 export function formatJPY(value: DecimalLike): string {
