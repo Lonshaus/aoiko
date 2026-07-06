@@ -6,6 +6,7 @@ import type {
   JournalEntry,
   JournalLine,
   ParserRule,
+  PersonalDeductionInput,
   ReportSnapshot,
   Setting,
   SubAccount,
@@ -23,6 +24,7 @@ export class AoikoDB extends Dexie {
   importBatches!: Table<ImportBatch, string>;
   reportSnapshots!: Table<ReportSnapshot, string>;
   settings!: Table<Setting, string>;
+  personalDeductions!: Table<PersonalDeductionInput, number>;
 
   constructor() {
     super('aoiko');
@@ -55,6 +57,10 @@ export class AoikoDB extends Dexie {
     this.version(3).stores({
       homeOfficeRules: null,
       candidateEntries: null,
+    });
+    // v4: 所得控除・税額控除の入力（年度ごと、B5拡張）を追加。
+    this.version(4).stores({
+      personalDeductions: 'year',
     });
   }
 }
