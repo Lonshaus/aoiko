@@ -36,6 +36,17 @@ function zeroExtras() {
     reverseChargeBase: D('0'),
     reverseChargeTax: D('0'),
     attributionMethod: 'proportional' as const,
+    ...badDebtZeroExtras(),
+  };
+}
+
+// 貸倒れ・貸倒回収なしを前提とするテスト用の既定値（mapTwoWari/mapSimplified 共通）
+function badDebtZeroExtras() {
+  return {
+    badDebtTax10: D('0'),
+    badDebtTax8: D('0'),
+    badDebtRecoveryTax10: D('0'),
+    badDebtRecoveryTax8: D('0'),
   };
 }
 
@@ -109,6 +120,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     const mapping = mapTwoWari({
       taxableBase10: D('6008481'),
       taxableBase8: D('0'),
+      ...badDebtZeroExtras(),
     });
     const frag = buildFormFragment(
       sha020 as XtxSchema,
@@ -127,6 +139,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     const mapping = mapTwoWari({
       taxableBase10: D('1000000'),
       taxableBase8: D('500000'),
+      ...badDebtZeroExtras(),
     });
     const frag = buildFormFragment(
       shb070 as XtxSchema,
@@ -153,6 +166,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       },
       taxableBase10: D('6008481'),
       taxableBase8: D('0'),
+      ...badDebtZeroExtras(),
     });
     // 手続 RSH0030（簡易課税・個人）。RSH0010（一般・個人）は CONTENTS が SHA010
     // 系統のみ許可し SHA020 系統を受け付けない（実機組み込みで発覚、2026-07-05）。
@@ -200,6 +214,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       taxableBase8: D('0'),
       category: 5,
       deemedInputRate: 0.5,
+      ...badDebtZeroExtras(),
     });
     const cases: Array<[string, string, XtxSchema, XtxLeafValues, XtxRawValues?]> = [
       ['SHA020', '_valwrap-SHA020.xsd', sha020 as XtxSchema, mapping.sha020],
@@ -239,6 +254,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         taxableBase8: D('0'),
         category: 5,
         deemedInputRate: 0.5,
+        ...badDebtZeroExtras(),
       });
       const forms: Array<[string, string]> = [
         ['SHA020', '_valwrap-SHA020.xsd'],

@@ -2,6 +2,15 @@ import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import { mapSimplified } from './xtx-mapping-sha020';
 
+function zeroExtras() {
+  return {
+    badDebtTax10: D('0'),
+    badDebtTax8: D('0'),
+    badDebtRecoveryTax10: D('0'),
+    badDebtRecoveryTax8: D('0'),
+  };
+}
+
 describe('mapSimplified（簡易課税・単一事業区分）', () => {
   test('第5種（みなし仕入率50%）：手計算どおりの値を返す', () => {
     const result = mapSimplified({
@@ -9,6 +18,7 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
       taxableBase8: D('0'),
       category: 5,
       deemedInputRate: 0.5,
+      ...zeroExtras(),
     });
     // 課税標準額に対する消費税額 = 2000000 × 7.8% = 156000
     expect(result.shb047.DUD00020).toBe('156000');
@@ -33,6 +43,7 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
       taxableBase8: D('0'),
       category: 5,
       deemedInputRate: 0.5,
+      ...zeroExtras(),
     });
     expect(result.shb067Raw.DVC00010).toBe('<kubun_CD>5</kubun_CD>');
     expect(result.sha020.ABL00160).toBe('2000000');
@@ -45,6 +56,7 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
       taxableBase8: D('0'),
       category: 1,
       deemedInputRate: 0.9,
+      ...zeroExtras(),
     });
     expect(result.shb067Raw.DVC00010).toBe('<kubun_CD>1</kubun_CD>');
     expect(result.sha020.ABL00040).toBe('1000000');
@@ -56,10 +68,30 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
       taxableBase8: D('500000'),
       category: 2,
       deemedInputRate: 0.8,
+      ...zeroExtras(),
     });
     // 10%分：1000000×7.8%=78000、8%分：500000×6.24%=31200
     expect(result.shb047.DUD00010).toBe('31200');
     expect(result.shb047.DUD00020).toBe('78000');
     expect(result.shb047.DUD00030).toBe('109200');
+  });
+
+  test('貸倒回収はみなし仕入率の計算の基礎にも算入され、貸倒れは別枠で減算される', () => {
+    const result = mapSimplified({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      category: 5,
+      deemedInputRate: 0.5,
+      ...zeroExtras(),
+      badDebtTax10: D('780'),
+      badDebtRecoveryTax10: D('1000'),
+    });
+    // 課税標準額に対する消費税額 = 78,000。基準消費税額 = 78,000 + 1,000 = 79,000 → ×50% = 39,500
+    expect(result.shb047.DUF00030).toBe('39500');
+    expect(result.sha020.ABI00050).toBe('39500');
+    expect(result.sha020.ABI00030).toBe('1000');
+    expect(result.sha020.ABI00070).toBe('780');
+    // 控除税額小計 = 39,500 + 780 = 40,280
+    expect(result.sha020.ABI00080).toBe('40280');
   });
 });
