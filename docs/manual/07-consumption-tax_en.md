@@ -112,9 +112,10 @@ Navigation **"Reports"** → **"Consumption tax"** section. The year's actuals a
 
 ## 6. Caveats
 
-- aoiko's consumption tax does **not** handle special cases (mixed-business categorization, non-creditable purchases, adjustment amounts, etc.)
-- Overseas transactions (reverse charge, export-tax-exempt) are not supported
-- Non-taxable purchases like residential rent: register with rate 0% — they will be automatically excluded from aggregates
+- aoiko's consumption tax does **not** handle special cases (bad-debt tax adjustments, interim filings, etc.)
+- **Cross-border transactions** (export exemption, import consumption tax, reverse charge) can be classified in the "tax category" field that appears when a line's rate is 0% (see [02. Creating journal entries](02-journal_en.md))
+- **Non-taxable sales** (e.g. residential rent) use the same "tax category" field — select "tax-exempt" so the amount is counted in the taxable-sales-ratio denominator (registering at rate 0% alone does not include it in that ratio)
+- When the **taxable-sales ratio is under 95%, or taxable sales exceed ¥500M**, the general method splits the deduction using either the individual attribution method or the proportional allocation method. Choose the method under **Settings ＞ Consumption tax**; with the individual attribution method, also set each purchase line's "usage category" (taxable-sales only / common use / non-taxable-sales only — unset defaults to taxable-sales only)
 - Misc. and home-office allocation expense handling: see [02. Creating journal entries § 1-2](02-journal_en.md#1-2-use-the-home-office-mixed-use-allocation)
 
 ## 7. Next steps

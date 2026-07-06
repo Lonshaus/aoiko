@@ -2,7 +2,22 @@ export type EntrySource = 'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' |
 export type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
-export type TaxCategory = 'taxable10' | 'taxable8' | 'exempt' | 'nontaxable';
+// 'exempt'＝非課税（住宅家賃・利子収入等、課税売上割合の分母のみに算入）
+// 'nontaxable'＝課税対象外（給料賃金等、課税売上割合に算入しない）
+// 'exportExempt'＝免税（輸出売上等、課税売上割合の分子・分母両方に算入）
+// 'importTax10'/'importTax8'＝輸入消費税（税率別。金額はそのまま税額として扱う）
+// 'reverseCharge'＝特定課税仕入れ（国外事業者からの電気通信利用役務の提供等）
+export type TaxCategory =
+  | 'taxable10'
+  | 'taxable8'
+  | 'exempt'
+  | 'nontaxable'
+  | 'exportExempt'
+  | 'importTax10'
+  | 'importTax8'
+  | 'reverseCharge';
+// 個別対応方式の用途区分。未指定は 'taxableOnly' 扱い（課税売上のみ対応、既存データの既定挙動を維持）。
+export type InputUsageCategory = 'taxableOnly' | 'common' | 'nonTaxableOnly';
 // 'small-asset-special' は少額減価償却資産の特例（措法28の2、青色申告限定）。取得年度に全額損金算入し、以降の償却なし。
 // 'lump-sum' は一括償却資産（施行令139条、青色/白色問わず）。取得価額を3年均等償却、除却後も償却継続。
 export type DepreciationMethod =
@@ -52,6 +67,10 @@ export interface JournalLine {
   invoiceCompliant: boolean;
   homeOfficeRatio?: string;
   memo?: string;
+  // 科目の taxCategory 既定値を、この分錄だけ上書きしたい場合に指定（輸出免税・輸入消費税・特定課税仕入れ等）
+  taxCategory?: TaxCategory;
+  // 個別対応方式の用途区分の上書き。未指定なら 'taxableOnly'
+  inputUsageCategory?: InputUsageCategory;
 }
 
 export interface Account {

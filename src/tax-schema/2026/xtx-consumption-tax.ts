@@ -28,6 +28,7 @@ import { todayISO } from '../../lib/date';
 import { mapSimplified, mapTwoWari } from './xtx-mapping-sha020';
 import { mapGeneral } from './xtx-mapping-sha010';
 import type { SimplifiedTaxCategory } from './simplified-tax';
+import type { ConsumptionTaxAttributionMethod } from '../../domain/consumption-tax';
 import { toFilerInfo, type XtxFiler } from './xtx';
 import type { Decimal } from '../../lib/decimal';
 
@@ -153,15 +154,43 @@ export interface GeneralXtxContext {
   input10: Decimal;
   /** 控除対象仕入税額（国税分、軽減税率8%＝6.24%分、経過措置適用後） */
   input8: Decimal;
+  /** 免税売上高（輸出等） */
+  exportExemptSalesBase: Decimal;
+  /** 非課税売上高 */
+  nonTaxableSalesBase: Decimal;
+  /** 個別対応方式：課税売上げと非課税売上げに共通して要する仕入税額（税率別） */
+  inputCommon10: Decimal;
+  inputCommon8: Decimal;
+  /** 個別対応方式：非課税売上げにのみ要する仕入税額（税率別） */
+  inputNonTaxableOnly10: Decimal;
+  inputNonTaxableOnly8: Decimal;
+  /** 課税貨物に係る消費税額（輸入消費税、税率別） */
+  importTax10: Decimal;
+  importTax8: Decimal;
+  /** 特定課税仕入れ（リバースチャージ）に係る支払対価の額・消費税額 */
+  reverseChargeBase: Decimal;
+  reverseChargeTax: Decimal;
+  /** 課税売上高5億円超または課税売上割合95%未満のときの控除計算方式 */
+  attributionMethod: ConsumptionTaxAttributionMethod;
 }
 // 一般課税（本則）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
-// aoiko は課税売上割合100%を前提とする（詳細は xtx-mapping-sha010.ts 冒頭コメント）。
 export function buildGeneralXtx(ctx: GeneralXtxContext): string {
   const mapping = mapGeneral({
     taxableBase10: ctx.taxableBase10,
     taxableBase8: ctx.taxableBase8,
     input10: ctx.input10,
     input8: ctx.input8,
+    exportExemptSalesBase: ctx.exportExemptSalesBase,
+    nonTaxableSalesBase: ctx.nonTaxableSalesBase,
+    inputCommon10: ctx.inputCommon10,
+    inputCommon8: ctx.inputCommon8,
+    inputNonTaxableOnly10: ctx.inputNonTaxableOnly10,
+    inputNonTaxableOnly8: ctx.inputNonTaxableOnly8,
+    importTax10: ctx.importTax10,
+    importTax8: ctx.importTax8,
+    reverseChargeBase: ctx.reverseChargeBase,
+    reverseChargeTax: ctx.reverseChargeTax,
+    attributionMethod: ctx.attributionMethod,
   });
   const forms: XtxFormInput[] = [
     { schema: SHA010_SCHEMA, values: {}, leafValues: mapping.sha010 },
