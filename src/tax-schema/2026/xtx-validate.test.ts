@@ -463,6 +463,8 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         usefulLifeYears: 4,
         depreciationMethod: 'straight-line',
         accountCode: '1510',
+        disposedDate: '2026-06-30',
+        disposalType: 'scrap',
       },
       {
         id: 'a2',
@@ -517,6 +519,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     // 「子の無い branch」と誤判定すると renderNode() が値を握り潰して出力から
     // 消える（実際に発生した回帰）。実際に描画されることを直接確認する。
     expect(frag.match(/<AIM00090>4<\/AIM00090>/g)).toHaveLength(2);
+    expect(frag).toContain('<AIM00210>除却</AIM00210>');
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
