@@ -39,6 +39,8 @@ export type SettingsMap = {
   taxRegistration: TaxRegistration;
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
+  // 本則課税で課税売上高5億円超または課税売上割合95%未満の場合の控除計算方式
+  consumptionTaxAttributionMethod: 'individual' | 'proportional';
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
   // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
   userRiyoshaId: string;        // 利用者識別番号（16桁）
