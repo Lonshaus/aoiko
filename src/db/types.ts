@@ -182,6 +182,60 @@ export interface ReportSnapshot {
   generatedFromEntriesUpTo: string;
 }
 
+export interface PersonalDeductionSpouse {
+  totalIncome: string;
+  age: number;
+}
+
+export interface PersonalDeductionDependent {
+  id: string;
+  name: string;
+  /** 年末時点の満年齢 */
+  age: number;
+  totalIncome: string;
+  /** 老人扶養親族のうち、納税者又は配偶者と同居している直系尊属か */
+  livesWithLinealAscendant?: boolean;
+}
+
+export interface PersonalDeductionLifeInsurance {
+  newGeneral?: string;
+  oldGeneral?: string;
+  newMedical?: string;
+  newPension?: string;
+  oldPension?: string;
+}
+// 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
+// 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
+// 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する
+// （詳細は income-deductions.ts 冒頭コメント参照）。
+export interface PersonalDeductionInput {
+  year: number;
+  socialInsurancePaid: string;
+  smallBusinessMutualAidPaid: string;
+  lifeInsurance: PersonalDeductionLifeInsurance;
+  earthquakeInsurancePaid: string;
+  oldLongTermInsurancePaid: string;
+  medicalExpensePaid: string;
+  medicalInsuranceReimbursement: string;
+  donationAmount: string;
+  casualtyLossDeduction: string;
+  isDisabled: boolean;
+  isSpecialDisabled: boolean;
+  isSingleParent: boolean;
+  isWidow: boolean;
+  isWorkingStudent: boolean;
+  spouse?: PersonalDeductionSpouse;
+  dependents: PersonalDeductionDependent[];
+  dividendDeductionAmount?: string;
+  mortgageDeductionAmount?: string;
+  politicalDonationCreditAmount?: string;
+  housingRenovationCreditAmount?: string;
+  foreignTaxCreditAmount?: string;
+  otherTaxCreditAmount?: string;
+  disasterExemptionAmount?: string;
+  updatedAt: number;
+}
+
 export interface Setting<T = unknown> {
   key: string;
   value: T;
