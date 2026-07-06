@@ -22,6 +22,23 @@ import shb033 from './xtx-schema-shb033.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import { D } from '../../lib/decimal';
 
+// 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
+function zeroExtras() {
+  return {
+    exportExemptSalesBase: D('0'),
+    nonTaxableSalesBase: D('0'),
+    inputCommon10: D('0'),
+    inputCommon8: D('0'),
+    inputNonTaxableOnly10: D('0'),
+    inputNonTaxableOnly8: D('0'),
+    importTax10: D('0'),
+    importTax8: D('0'),
+    reverseChargeBase: D('0'),
+    reverseChargeTax: D('0'),
+    attributionMethod: 'proportional' as const,
+  };
+}
+
 const NS = 'http://xml.e-tax.nta.go.jp/XSD/shohi';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SPEC_DIR = resolve(HERE, '../../../docs/xtx-spec/shohi');
@@ -280,6 +297,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       taxableBase8: D('0'),
       input10: D('100000'),
       input8: D('0'),
+      ...zeroExtras(),
     });
     const cases: Array<[string, string, XtxSchema, XtxLeafValues]> = [
       ['SHA010', '_valwrap-SHA010.xsd', sha010 as XtxSchema, mapping.sha010],
@@ -317,6 +335,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         taxableBase8: D('0'),
         input10: D('100000'),
         input8: D('0'),
+        ...zeroExtras(),
       });
       const forms: Array<[string, string]> = [
         ['SHA010', '_valwrap-SHA010.xsd'],
