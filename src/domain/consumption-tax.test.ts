@@ -810,3 +810,29 @@ describe('貸倒れ・貸倒回収に係る消費税額調整', () => {
     expect(r.netTax.national).toBe('14851');
   });
 });
+
+describe('period 指定（仮決算・中間申告用の期間限定集計）', () => {
+  test('period を指定すると、その期間内の仕訳のみを集計する', async () => {
+    await seedAccounts(2026);
+    await seedEntry({
+      date: '2026-02-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-08-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '2200000' },
+        { side: 'credit', accountCode: '4110', amount: '2200000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    const full = await processYear(2026);
+    expect(full.output.toString()).toBe('234000');
+    const h1 = await processYear(2026, { start: '2026-01-01', end: '2026-06-30' });
+    expect(h1.output.toString()).toBe('78000');
+    const r = await computeGeneral(2026, 'proportional', { start: '2026-01-01', end: '2026-06-30' });
+    expect(r.netTax.national).toBe('78000');
+  });
+});

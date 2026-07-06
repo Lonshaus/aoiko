@@ -29,7 +29,7 @@ export type DepreciationMethod =
   | 'declining-balance'
   | 'small-asset-special'
   | 'lump-sum';
-export type ReportType = 'monthly-sales' | 'pl' | 'bs';
+export type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 // 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
 export type ReportStatus = 'draft' | 'filed' | 'superseded';
@@ -156,11 +156,20 @@ export interface BSData {
   liabilities: Array<{ accountCode: string; amount: string }>;
   equity: Array<{ accountCode: string; amount: string }>;
 }
+// 確定申告した消費税額のスナップショット。翌年の中間申告義務判定・予定納付額算出の
+// 基準として使う（前年度確定消費税額、国税のみ）。taxFilingMethod はグローバル設定
+// のため、ロック時点で実際に使った方式をここに固定して残す。
+export interface ConsumptionTaxSnapshotData {
+  method: TaxFilingMethod;
+  /** 差引税額（国税分、確定申告書相当額） */
+  netTaxNational: string;
+}
 
 export type ReportSnapshotData =
   | { type: 'monthly-sales'; data: MonthlySalesData }
   | { type: 'pl'; data: PLData }
-  | { type: 'bs'; data: BSData };
+  | { type: 'bs'; data: BSData }
+  | { type: 'consumption-tax'; data: ConsumptionTaxSnapshotData };
 
 export interface ReportSnapshot {
   id: string;

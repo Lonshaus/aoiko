@@ -14,7 +14,8 @@
 //  - 基準期間の課税売上高等、2割特例では「記載不要」とされる事業区分欄は出力しない
 //  - 簡易課税で複数事業区分を営む場合の按分計算（75%ルール等、付表5-3 二面）は未対応。
 //    aoiko の設定は単一の事業区分のみを持つ前提（[07. 消費税] マニュアル参照）
-//  - 中間納付税額：年の途中の中間申告は対象外（確定申告のみ）
+//  - 中間納付税額の確定申告への充当（ABI00110-130・ABJ00070-090）：本年中の中間納付額が
+//    当年の差引税額を超えて還付になるケース（ABJ00130 合計が負値）は未検証
 
 import { D, Decimal } from '../../lib/decimal';
 import {
@@ -23,7 +24,7 @@ import {
   type OfficialOutputTax,
 } from '../../domain/consumption-tax';
 import type { SimplifiedTaxCategory } from './simplified-tax';
-import type { XtxLeafValues, XtxRawValues } from './xtx-document';
+import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
 
 // gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
 function toKingaku(value: Decimal): string {
@@ -41,6 +42,13 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
   }
 }
 
+// 差引税額（base）から本年中の中間納付額（paid）を充当した結果を返す。
+// paid が base を超える場合は還付（ABI00130/ABJ00090 系）扱いとする。
+function applyInterimCredit(base: Decimal, paid: Decimal): { due: Decimal; refund: Decimal } {
+  const diff = base.minus(paid);
+  return diff.isNegative() ? { due: D(0), refund: diff.negated() } : { due: diff, refund: D(0) };
+}
+
 // SHA020 第一表・第二表は 2 割特例・簡易課税で同じ構造（控除対象仕入税額の
 // 算定方法だけが異なる）。控除額が決まった後の転記部分を共通化する。
 // 貸倒れ税額・貸倒回収は消費税法39条によりどちらの方式でも同じ扱い：
@@ -49,14 +57,15 @@ function buildSha020Common(
   official: OfficialOutputTax,
   creditTotal: Decimal,
   badDebtTax: Decimal,
-  badDebtRecoveryTax: Decimal
+  badDebtRecoveryTax: Decimal,
+  interimPaidNational: Decimal,
+  interimPaidLocal: Decimal
 ): XtxLeafValues {
   const creditSubtotal = creditTotal.plus(badDebtTax);
   const nationalNetRaw = official.outputTax.plus(badDebtRecoveryTax).minus(creditSubtotal);
   const filing = filingBreakdown(nationalNetRaw);
   const filingNational = D(filing.national);
   const filingLocal = D(filing.local);
-  const filingTotal = D(filing.total);
 
   const sha020: XtxLeafValues = {};
   put(sha020, 'ABI00010', official.taxableBase);
@@ -66,11 +75,36 @@ function buildSha020Common(
   put(sha020, 'ABI00070', badDebtTax);
   put(sha020, 'ABI00080', creditSubtotal);
   put(sha020, 'ABI00100', filingNational);
-  put(sha020, 'ABI00120', filingNational);
   put(sha020, 'ABJ00030', filingNational);
   put(sha020, 'ABJ00060', filingLocal);
-  put(sha020, 'ABJ00080', filingLocal);
-  put(sha020, 'ABJ00130', filingTotal);
+
+  const national = applyInterimCredit(filingNational, interimPaidNational);
+  const local = applyInterimCredit(filingLocal, interimPaidLocal);
+  if (interimPaidNational.greaterThan(0)) {
+    put(sha020, 'ABI00110', interimPaidNational);
+    if (national.refund.greaterThan(0)) {
+      put(sha020, 'ABI00130', national.refund);
+    } else {
+      put(sha020, 'ABI00120', national.due);
+    }
+  } else {
+    put(sha020, 'ABI00120', filingNational);
+  }
+  if (interimPaidLocal.greaterThan(0)) {
+    put(sha020, 'ABJ00070', interimPaidLocal);
+    if (local.refund.greaterThan(0)) {
+      put(sha020, 'ABJ00090', local.refund);
+    } else {
+      put(sha020, 'ABJ00080', local.due);
+    }
+  } else {
+    put(sha020, 'ABJ00080', filingLocal);
+  }
+  put(
+    sha020,
+    'ABJ00130',
+    national.due.minus(national.refund).plus(local.due).minus(local.refund)
+  );
   // 第二表（内訳）：軽減税率のみの利用者が多い想定だが、両税率とも同じ値を転記
   put(sha020, 'ABO00000', official.taxableBase);
   put(sha020, 'ABP00040', official.base8);
@@ -84,6 +118,17 @@ function buildSha020Common(
   return sha020;
 }
 
+// 中間申告（仮決算方式）の対象期間を ABH00160 の raw XML に変換する（未指定なら undefined）。
+function buildInterimPeriodRaw(period?: { start: string; end: string }): string | undefined {
+  if (!period) {
+    return undefined;
+  }
+  return (
+    `<ABH00170>${toYymmdd(period.start)}</ABH00170>` +
+    `<ABH00180>${toYymmdd(period.end)}</ABH00180>`
+  );
+}
+
 export interface TwoWariMappingInput {
   /** 課税資産の譲渡等の対価の額（税抜、標準税率10%＝国税7.8%分）。返品・値引ネット後 */
   taxableBase10: Decimal;
@@ -95,6 +140,12 @@ export interface TwoWariMappingInput {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は ABH00160 に転記する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告の差引税額から充当する */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告の差引税額から充当する */
+  interimPaidLocal?: Decimal;
 }
 
 export interface TwoWariMapping {
@@ -152,12 +203,19 @@ export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
     official,
     specialDeductionTotal,
     badDebtTaxTotal,
-    badDebtRecoveryTaxTotal
+    badDebtRecoveryTaxTotal,
+    input.interimPaidNational ?? D(0),
+    input.interimPaidLocal ?? D(0)
   );
+  const sha020Raw: XtxRawValues = { ABY00000: '<kubun_CD>1</kubun_CD>' };
+  const interimPeriodRaw = buildInterimPeriodRaw(input.interimPeriod);
+  if (interimPeriodRaw) {
+    sha020Raw.ABH00160 = interimPeriodRaw;
+  }
 
   return {
     sha020,
-    sha020Raw: { ABY00000: '<kubun_CD>1</kubun_CD>' },
+    sha020Raw,
     shb070,
   };
 }
@@ -177,11 +235,19 @@ export interface SimplifiedMappingInput {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は ABH00160 に転記する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告の差引税額から充当する */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告の差引税額から充当する */
+  interimPaidLocal?: Decimal;
 }
 
 export interface SimplifiedMapping {
   /** SHA020（申告書）第一表・第二表の直接値 leaf */
   sha020: XtxLeafValues;
+  /** SHA020 の区分（kubun）ブランチ上書き：中間申告の対象期間 */
+  sha020Raw: XtxRawValues;
   /** 付表4-3（税率別消費税額計算表兼地方消費税の課税標準となる消費税額計算表） */
   shb047: XtxLeafValues;
   /** 付表5-3（控除対象仕入税額等の計算表）の直接値 leaf */
@@ -267,16 +333,24 @@ export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping 
     official,
     deemedInputTotal,
     badDebtTaxTotal,
-    badDebtRecoveryTaxTotal
+    badDebtRecoveryTaxTotal,
+    input.interimPaidNational ?? D(0),
+    input.interimPaidLocal ?? D(0)
   );
   put(
     sha020,
     CATEGORY_TAXABLE_SALES_TAG[input.category],
     input.taxableBase8.plus(input.taxableBase10)
   );
+  const sha020Raw: XtxRawValues = {};
+  const interimPeriodRaw = buildInterimPeriodRaw(input.interimPeriod);
+  if (interimPeriodRaw) {
+    sha020Raw.ABH00160 = interimPeriodRaw;
+  }
 
   return {
     sha020,
+    sha020Raw,
     shb047,
     shb067,
     shb067Raw: { DVC00010: `<kubun_CD>${input.category}</kubun_CD>` },
