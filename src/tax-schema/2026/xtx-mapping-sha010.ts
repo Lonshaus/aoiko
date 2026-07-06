@@ -10,7 +10,6 @@
 //    （控除額自体は経過措置適用後の input10/input8 に反映済みのため税額計算には影響しない）
 //  - 売上対価の返還等に係る税額：aoiko の集計は返品・値引を課税標準額へネットで
 //    反映済みのため、内訳を分離して転記しない（最終税額は正しいが内訳表示にはならない）
-//  - 貸倒回収に係る消費税額（DTJ）：貸倒れ自体（B3）が未対応のため回収も未対応
 //  - 中間納付税額：確定申告のみ対象
 
 import { D, Decimal } from '../../lib/decimal';
@@ -68,6 +67,12 @@ export interface GeneralMappingInput {
   reverseChargeTax: Decimal;
   /** 課税売上高5億円超または課税売上割合95%未満のときの控除計算方式 */
   attributionMethod: ConsumptionTaxAttributionMethod;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 
 export interface GeneralMapping {
@@ -97,10 +102,27 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
   const deductibleInput = fullDeduction
     ? inputTotal
     : computeAttributedDeduction(input, salesRatio);
+  const badDebtTaxTotal = input.badDebtTax10.plus(input.badDebtTax8);
+  const badDebtRecoveryTaxTotal = input.badDebtRecoveryTax10.plus(input.badDebtRecoveryTax8);
 
-  const shb017 = buildShb017(official, input10Rounded, input8Rounded, deductibleInput);
+  const shb017 = buildShb017(
+    official,
+    input10Rounded,
+    input8Rounded,
+    deductibleInput,
+    input.badDebtTax10,
+    input.badDebtTax8,
+    input.badDebtRecoveryTax10,
+    input.badDebtRecoveryTax8
+  );
   const shb033 = buildShb033(input, official, input10Rounded, input8Rounded, inputTotal, salesRatio, fullDeduction, deductibleInput);
-  const sha010 = buildSha010(official, deductibleInput, salesRatio.taxableSalesTotal);
+  const sha010 = buildSha010(
+    official,
+    deductibleInput,
+    salesRatio.taxableSalesTotal,
+    badDebtTaxTotal,
+    badDebtRecoveryTaxTotal
+  );
 
   return { sha010, shb017, shb033 };
 }
@@ -125,7 +147,11 @@ function buildShb017(
   official: OfficialOutputTax,
   input10: Decimal,
   input8: Decimal,
-  deductibleInput: Decimal
+  deductibleInput: Decimal,
+  badDebtTax10: Decimal,
+  badDebtTax8: Decimal,
+  badDebtRecoveryTax10: Decimal,
+  badDebtRecoveryTax8: Decimal
 ): XtxLeafValues {
   const shb017: XtxLeafValues = {};
   put(shb017, 'DSB00010', official.base8);
@@ -134,14 +160,27 @@ function buildShb017(
   put(shb017, 'DSD00010', official.tax8);
   put(shb017, 'DSD00020', official.tax10);
   put(shb017, 'DSD00030', official.outputTax);
+  // 控除過大調整税額（貸倒回収に係る消費税額）
+  put(shb017, 'DSE00010', badDebtRecoveryTax8);
+  put(shb017, 'DSE00020', badDebtRecoveryTax10);
+  put(shb017, 'DSE00030', badDebtRecoveryTax8.plus(badDebtRecoveryTax10));
   put(shb017, 'DSF00020', input8);
   put(shb017, 'DSF00030', input10);
   put(shb017, 'DSF00040', input8.plus(input10));
-  put(shb017, 'DSF00220', input8);
-  put(shb017, 'DSF00230', input10);
-  put(shb017, 'DSF00240', deductibleInput);
+  // 貸倒れに係る税額
+  put(shb017, 'DSF00180', badDebtTax8);
+  put(shb017, 'DSF00190', badDebtTax10);
+  put(shb017, 'DSF00200', badDebtTax8.plus(badDebtTax10));
+  put(shb017, 'DSF00220', input8.plus(badDebtTax8));
+  put(shb017, 'DSF00230', input10.plus(badDebtTax10));
+  put(shb017, 'DSF00240', deductibleInput.plus(badDebtTax8).plus(badDebtTax10));
 
-  const nationalNetRaw = official.outputTax.minus(deductibleInput);
+  const badDebtRecoveryTotal = badDebtRecoveryTax8.plus(badDebtRecoveryTax10);
+  const badDebtTaxTotal = badDebtTax8.plus(badDebtTax10);
+  const nationalNetRaw = official.outputTax
+    .plus(badDebtRecoveryTotal)
+    .minus(deductibleInput)
+    .minus(badDebtTaxTotal);
   const filing = filingBreakdown(nationalNetRaw);
   put(shb017, 'DSH00000', D(filing.national));
   put(shb017, 'DSI00020', D(filing.national));
@@ -179,6 +218,10 @@ function buildShb033(
   put(shb033, 'DTE00160', input.importTax8);
   put(shb033, 'DTE00170', input.importTax10);
   put(shb033, 'DTE00180', input.importTax8.plus(input.importTax10));
+  // 貸倒回収に係る消費税額
+  put(shb033, 'DTJ00010', input.badDebtRecoveryTax8);
+  put(shb033, 'DTJ00020', input.badDebtRecoveryTax10);
+  put(shb033, 'DTJ00030', input.badDebtRecoveryTax8.plus(input.badDebtRecoveryTax10));
 
   put(shb033, 'DTE00060', input8);
   put(shb033, 'DTE00070', input10);
@@ -212,17 +255,22 @@ function buildShb033(
 function buildSha010(
   official: OfficialOutputTax,
   deductibleInput: Decimal,
-  taxableSalesTotal: Decimal
+  taxableSalesTotal: Decimal,
+  badDebtTaxTotal: Decimal,
+  badDebtRecoveryTaxTotal: Decimal
 ): XtxLeafValues {
   const sha010: XtxLeafValues = {};
   put(sha010, 'AAJ00010', official.taxableBase);
   put(sha010, 'AAJ00020', official.outputTax);
+  put(sha010, 'AAJ00030', badDebtRecoveryTaxTotal);
   put(sha010, 'AAJ00050', deductibleInput);
-  put(sha010, 'AAJ00080', deductibleInput);
+  put(sha010, 'AAJ00070', badDebtTaxTotal);
+  const creditTotal = deductibleInput.plus(badDebtTaxTotal);
+  put(sha010, 'AAJ00080', creditTotal);
   put(sha010, 'AAJ00180', taxableSalesTotal);
   put(sha010, 'AAJ00190', taxableSalesTotal);
 
-  const nationalNetRaw = official.outputTax.minus(deductibleInput);
+  const nationalNetRaw = official.outputTax.plus(badDebtRecoveryTaxTotal).minus(creditTotal);
   const filing = filingBreakdown(nationalNetRaw);
   const filingNational = D(filing.national);
   const filingLocal = D(filing.local);

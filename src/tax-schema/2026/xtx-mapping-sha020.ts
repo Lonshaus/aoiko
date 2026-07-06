@@ -11,7 +11,6 @@
 //  - 売上対価の返還等に係る税額（付表6 AYB00180、付表4-3 DUF00060等）：aoiko の集計は
 //    返品・値引を課税標準額へネットで反映済みのため、内訳を分離して転記しない
 //    （最終税額は正しいが、明細としての内訳表示にはならない）
-//  - 貸倒れに係る税額：aoiko は消費税の貸倒返還処理を追跡していないため未対応
 //  - 基準期間の課税売上高等、2割特例では「記載不要」とされる事業区分欄は出力しない
 //  - 簡易課税で複数事業区分を営む場合の按分計算（75%ルール等、付表5-3 二面）は未対応。
 //    aoiko の設定は単一の事業区分のみを持つ前提（[07. 消費税] マニュアル参照）
@@ -44,11 +43,16 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
 
 // SHA020 第一表・第二表は 2 割特例・簡易課税で同じ構造（控除対象仕入税額の
 // 算定方法だけが異なる）。控除額が決まった後の転記部分を共通化する。
+// 貸倒れ税額・貸倒回収は消費税法39条によりどちらの方式でも同じ扱い：
+// 貸倒回収は消費税額に加算、貸倒れは控除税額小計に含めて減算する。
 function buildSha020Common(
   official: OfficialOutputTax,
-  creditTotal: Decimal
+  creditTotal: Decimal,
+  badDebtTax: Decimal,
+  badDebtRecoveryTax: Decimal
 ): XtxLeafValues {
-  const nationalNetRaw = official.outputTax.minus(creditTotal);
+  const creditSubtotal = creditTotal.plus(badDebtTax);
+  const nationalNetRaw = official.outputTax.plus(badDebtRecoveryTax).minus(creditSubtotal);
   const filing = filingBreakdown(nationalNetRaw);
   const filingNational = D(filing.national);
   const filingLocal = D(filing.local);
@@ -57,8 +61,10 @@ function buildSha020Common(
   const sha020: XtxLeafValues = {};
   put(sha020, 'ABI00010', official.taxableBase);
   put(sha020, 'ABI00020', official.outputTax);
+  put(sha020, 'ABI00030', badDebtRecoveryTax);
   put(sha020, 'ABI00050', creditTotal);
-  put(sha020, 'ABI00080', creditTotal);
+  put(sha020, 'ABI00070', badDebtTax);
+  put(sha020, 'ABI00080', creditSubtotal);
   put(sha020, 'ABI00100', filingNational);
   put(sha020, 'ABI00120', filingNational);
   put(sha020, 'ABJ00030', filingNational);
@@ -83,6 +89,12 @@ export interface TwoWariMappingInput {
   taxableBase10: Decimal;
   /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
   taxableBase8: Decimal;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 
 export interface TwoWariMapping {
@@ -99,13 +111,19 @@ export interface TwoWariMapping {
 //  Step2 課税標準額 = 税率ごとに千円未満切り捨て
 //  Step3 消費税額 = 課税標準額 × 7.8%/6.24%（税率ごとに1円未満切り捨て）
 //  Step4 返還等対価に係る税額（本対応では 0 固定。上記コメント参照）
-//  Step5 控除対象仕入税額の計算の基礎となる消費税額 = Step3 − Step4
+//  Step4.5 貸倒回収に係る消費税額を加算（消費税法39条は2割特例にも適用）
+//  Step5 控除対象仕入税額の計算の基礎となる消費税額 = Step3 − Step4 ＋ 貸倒回収
 //  Step6 特別控除税額 = Step5 × 80%（1円未満切り捨て）
+//  貸倒れに係る税額は特別控除税額とは別枠で、最終税額の計算時に減算する（AYD）
 export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
   const official = computeOfficialOutputTax(input.taxableBase10, input.taxableBase8);
-  const specialDeduction8 = official.tax8.times('0.8').toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  const specialDeduction10 = official.tax10.times('0.8').toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const basicBase8 = official.tax8.plus(input.badDebtRecoveryTax8);
+  const basicBase10 = official.tax10.plus(input.badDebtRecoveryTax10);
+  const specialDeduction8 = basicBase8.times('0.8').toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const specialDeduction10 = basicBase10.times('0.8').toDecimalPlaces(0, Decimal.ROUND_DOWN);
   const specialDeductionTotal = specialDeduction8.plus(specialDeduction10);
+  const badDebtTaxTotal = input.badDebtTax8.plus(input.badDebtTax10);
+  const badDebtRecoveryTaxTotal = input.badDebtRecoveryTax8.plus(input.badDebtRecoveryTax10);
 
   const shb070: XtxLeafValues = {};
   put(shb070, 'AYB00020', input.taxableBase8);
@@ -117,14 +135,25 @@ export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
   put(shb070, 'AYB00100', official.tax8);
   put(shb070, 'AYB00110', official.tax10);
   put(shb070, 'AYB00120', official.outputTax);
-  put(shb070, 'AYB00220', official.tax8);
-  put(shb070, 'AYB00230', official.tax10);
-  put(shb070, 'AYB00240', official.outputTax);
+  put(shb070, 'AYB00140', input.badDebtRecoveryTax8);
+  put(shb070, 'AYB00150', input.badDebtRecoveryTax10);
+  put(shb070, 'AYB00160', badDebtRecoveryTaxTotal);
+  put(shb070, 'AYB00220', basicBase8);
+  put(shb070, 'AYB00230', basicBase10);
+  put(shb070, 'AYB00240', basicBase8.plus(basicBase10));
   put(shb070, 'AYC00020', specialDeduction8);
   put(shb070, 'AYC00030', specialDeduction10);
   put(shb070, 'AYC00040', specialDeductionTotal);
+  put(shb070, 'AYD00020', input.badDebtTax8);
+  put(shb070, 'AYD00030', input.badDebtTax10);
+  put(shb070, 'AYD00040', badDebtTaxTotal);
 
-  const sha020 = buildSha020Common(official, specialDeductionTotal);
+  const sha020 = buildSha020Common(
+    official,
+    specialDeductionTotal,
+    badDebtTaxTotal,
+    badDebtRecoveryTaxTotal
+  );
 
   return {
     sha020,
@@ -142,6 +171,12 @@ export interface SimplifiedMappingInput {
   category: SimplifiedTaxCategory;
   /** みなし仕入率（第1種90%〜第6種40%）。simplified-tax.ts の deemedInputRate() の結果を渡す */
   deemedInputRate: number;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 
 export interface SimplifiedMapping {
@@ -163,18 +198,24 @@ const CATEGORY_TAXABLE_SALES_TAG: Record<SimplifiedTaxCategory, string> = {
   5: 'ABL00160',
   6: 'ABL00190',
 };
-// 簡易課税（単一事業区分）：控除対象仕入税額 = 課税標準額に対する消費税額 × みなし仕入率。
+// 簡易課税（単一事業区分）：控除対象仕入税額 = (課税標準額に対する消費税額＋貸倒回収) ×
+// みなし仕入率（基準消費税額に貸倒回収を算入するのは国税庁「簡易課税用申告の手引き」どおり）。
+// 貸倒れに係る税額はみなし仕入率の計算とは別枠で、最終税額の計算時に減算する。
 // aoiko は複数事業区分の按分計算（75%ルール等）には対応しない
 // （既存の [07. 消費税] マニュアルの注意点どおり、混合事業のケースは対象外）。
 export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping {
   const official = computeOfficialOutputTax(input.taxableBase10, input.taxableBase8);
-  const deemedInput8 = official.tax8
+  const basicBase8 = official.tax8.plus(input.badDebtRecoveryTax8);
+  const basicBase10 = official.tax10.plus(input.badDebtRecoveryTax10);
+  const deemedInput8 = basicBase8
     .times(input.deemedInputRate)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  const deemedInput10 = official.tax10
+  const deemedInput10 = basicBase10
     .times(input.deemedInputRate)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN);
   const deemedInputTotal = deemedInput8.plus(deemedInput10);
+  const badDebtTaxTotal = input.badDebtTax8.plus(input.badDebtTax10);
+  const badDebtRecoveryTaxTotal = input.badDebtRecoveryTax8.plus(input.badDebtRecoveryTax10);
 
   const shb047: XtxLeafValues = {};
   put(shb047, 'DUB00010', official.base8);
@@ -186,14 +227,23 @@ export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping 
   put(shb047, 'DUD00010', official.tax8);
   put(shb047, 'DUD00020', official.tax10);
   put(shb047, 'DUD00030', official.outputTax);
+  put(shb047, 'DUE00010', input.badDebtRecoveryTax8);
+  put(shb047, 'DUE00020', input.badDebtRecoveryTax10);
+  put(shb047, 'DUE00030', badDebtRecoveryTaxTotal);
   put(shb047, 'DUF00020', deemedInput8);
   put(shb047, 'DUF00030', deemedInput10);
   put(shb047, 'DUF00040', deemedInputTotal);
-  put(shb047, 'DUF00140', deemedInput8);
-  put(shb047, 'DUF00150', deemedInput10);
-  put(shb047, 'DUF00160', deemedInputTotal);
+  put(shb047, 'DUF00100', input.badDebtTax8);
+  put(shb047, 'DUF00110', input.badDebtTax10);
+  put(shb047, 'DUF00120', badDebtTaxTotal);
+  put(shb047, 'DUF00140', deemedInput8.plus(input.badDebtTax8));
+  put(shb047, 'DUF00150', deemedInput10.plus(input.badDebtTax10));
+  put(shb047, 'DUF00160', deemedInputTotal.plus(badDebtTaxTotal));
 
-  const nationalNetRaw = official.outputTax.minus(deemedInputTotal);
+  const nationalNetRaw = official.outputTax
+    .plus(badDebtRecoveryTaxTotal)
+    .minus(deemedInputTotal)
+    .minus(badDebtTaxTotal);
   const filing = filingBreakdown(nationalNetRaw);
   put(shb047, 'DUH00000', D(filing.national));
   put(shb047, 'DUI00020', D(filing.national));
@@ -203,14 +253,22 @@ export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping 
   put(shb067, 'DVB00020', official.tax8);
   put(shb067, 'DVB00030', official.tax10);
   put(shb067, 'DVB00040', official.outputTax);
-  put(shb067, 'DVB00140', official.tax8);
-  put(shb067, 'DVB00150', official.tax10);
-  put(shb067, 'DVB00160', official.outputTax);
+  put(shb067, 'DVB00060', input.badDebtRecoveryTax8);
+  put(shb067, 'DVB00070', input.badDebtRecoveryTax10);
+  put(shb067, 'DVB00080', badDebtRecoveryTaxTotal);
+  put(shb067, 'DVB00140', basicBase8);
+  put(shb067, 'DVB00150', basicBase10);
+  put(shb067, 'DVB00160', basicBase8.plus(basicBase10));
   put(shb067, 'DVC00020', deemedInput8);
   put(shb067, 'DVC00030', deemedInput10);
   put(shb067, 'DVC00040', deemedInputTotal);
 
-  const sha020 = buildSha020Common(official, deemedInputTotal);
+  const sha020 = buildSha020Common(
+    official,
+    deemedInputTotal,
+    badDebtTaxTotal,
+    badDebtRecoveryTaxTotal
+  );
   put(
     sha020,
     CATEGORY_TAXABLE_SALES_TAG[input.category],
