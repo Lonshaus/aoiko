@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { db } from '../db/db'
-import { isYearLocked, markYearFiled, unlockYear } from './snapshots'
+import { getConsumptionTaxSnapshot, isYearLocked, markYearFiled, unlockYear } from './snapshots'
 import type { ReportSnapshotData } from '../db/types'
 
 const monthlySales: ReportSnapshotData & { type: 'monthly-sales' } = {
@@ -38,6 +38,24 @@ describe('markYearFiled', () => {
     await markYearFiled(2026, { monthlySales, pl, bs }, '2026-12-31')
     const all = await db.reportSnapshots.toArray()
     expect(all).toHaveLength(3)
+  })
+})
+
+describe('consumption-tax snapshot（中間申告義務判定の基準）', () => {
+  test('markYearFiled に consumptionTax を渡すと記録され、getConsumptionTaxSnapshot で取得できる', async () => {
+    const consumptionTax: ReportSnapshotData & { type: 'consumption-tax' } = {
+      type: 'consumption-tax',
+      data: { method: 'general', netTaxNational: '1234500' },
+    }
+    await markYearFiled(2026, { monthlySales, pl, consumptionTax }, '2026-12-31')
+    const all = await db.reportSnapshots.toArray()
+    expect(all).toHaveLength(3)
+    const snap = await getConsumptionTaxSnapshot(2026)
+    expect(snap).toEqual({ method: 'general', netTaxNational: '1234500' })
+  })
+
+  test('未ロック年度は undefined を返す', async () => {
+    expect(await getConsumptionTaxSnapshot(2026)).toBeUndefined()
   })
 })
 

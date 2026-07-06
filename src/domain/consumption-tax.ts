@@ -221,11 +221,23 @@ function emptyProcessedYearLines(): ProcessedYearLines {
   };
 }
 
-export async function processYear(year: number): Promise<ProcessedYearLines> {
+// period 指定時は仮決算（中間申告）用：年内の一部期間（start〜end、両端含む ISO 日付）
+// のみを集計する。未指定（既定）は年間全体（確定申告）。
+export interface ConsumptionTaxPeriod {
+  start: string;
+  end: string;
+}
+
+export async function processYear(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ProcessedYearLines> {
   const entries = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter(countsTowardTotals)
+    .filter(
+      (e) => countsTowardTotals(e) && (!period || (e.date >= period.start && e.date <= period.end))
+    )
     .toArray();
   if (entries.length === 0) {
     return emptyProcessedYearLines();
@@ -490,9 +502,10 @@ function badDebtTotals(processed: ProcessedYearLines): { tax: Decimal; recovery:
 // attributionMethod は課税売上割合95%未満・課税売上高5億円超のときのみ参照する（既定 proportional）。
 export async function computeGeneral(
   year: number,
-  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional'
+  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
-  const processed = await processYear(year);
+  const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const salesRatio = computeTaxableSalesRatio(
@@ -522,9 +535,10 @@ export async function computeGeneral(
 // 貸倒れ税額は控除計算とは別枠で最後に差し引く。
 export async function computeSimplified(
   year: number,
-  category: SimplifiedTaxCategory
+  category: SimplifiedTaxCategory,
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
-  const processed = await processYear(year);
+  const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const rate = deemedInputRate(category);
@@ -554,10 +568,11 @@ export async function computeSimplified(
 async function computeWariException(
   year: number,
   method: 'two-wari' | 'three-wari',
-  inputDeductionRate: string
+  inputDeductionRate: string,
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
-  const processed = await processYear(year);
+  const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const basicBase = output.plus(badDebtRecovery);
@@ -577,11 +592,17 @@ async function computeWariException(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-export function computeTwoWari(year: number): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'two-wari', '0.8');
+export function computeTwoWari(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'two-wari', '0.8', period);
 }
-export function computeThreeWari(year: number): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'three-wari', '0.7');
+export function computeThreeWari(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'three-wari', '0.7', period);
 }
 // 2 割特例の適用年度：課税期間 2023/10〜2026/9。個人（暦年）は令和5〜8年分（〜2026）。
 export function isTwoWariEligibleYear(year: number): boolean {
