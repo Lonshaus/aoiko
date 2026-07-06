@@ -21,6 +21,8 @@
   import { getSetting } from '../lib/settings';
   import {
     compareAll,
+    computeTaxableSalesRatio,
+    isFullDeductionEligible,
     isTwoWariEligibleYear,
     processYear,
     type ConsumptionTaxResult,
@@ -77,6 +79,8 @@
   let breakdownAxis = $state<BreakdownAxis>('vendor');
   let amendment = $state<AmendmentDiff | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
+  let taxableSalesRatioPercent = $state('100.00');
+  let taxableSalesRatioFullDeduction = $state(true);
   let taxRegistration = $state<TaxRegistration>('tax-free');
   let filingType = $state<FilingType>('blue');
   let simplifiedCategory = $state<SimplifiedTaxCategory>(4);
@@ -93,15 +97,25 @@
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
       const filing = (await getSetting('filingType')) ?? 'blue';
+      const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
       const reports = await buildAll(yr, ax);
+      const processed = await processYear(yr);
+      const salesRatio = computeTaxableSalesRatio(
+        processed.taxableBase10,
+        processed.taxableBase8,
+        processed.exportExemptSalesBase,
+        processed.nonTaxableSalesBase
+      );
       return {
         ...reports,
         amendment: await getAmendmentDiff(yr),
-        consumptionTax: await compareAll(yr, cat),
+        consumptionTax: await compareAll(yr, cat, attributionMethod),
         taxRegistration: reg,
         simplifiedCategory: cat,
         filingType: filing,
         locked: await isYearLocked(yr),
+        taxableSalesRatioPercent: salesRatio.ratioPercent,
+        taxableSalesRatioFullDeduction: isFullDeductionEligible(salesRatio),
       };
     }).subscribe((v) => {
       monthly = v.monthly;
@@ -113,6 +127,8 @@
       consumptionTax = v.consumptionTax;
       taxRegistration = v.taxRegistration;
       simplifiedCategory = v.simplifiedCategory;
+      taxableSalesRatioPercent = v.taxableSalesRatioPercent;
+      taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
       filingType = v.filingType;
       locked = v.locked;
     });
@@ -354,6 +370,7 @@
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year);
+    const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     const xml = buildGeneralXtx({
       year,
       businessName,
@@ -362,6 +379,17 @@
       taxableBase8: processed.taxableBase8,
       input10: processed.input10,
       input8: processed.input8,
+      exportExemptSalesBase: processed.exportExemptSalesBase,
+      nonTaxableSalesBase: processed.nonTaxableSalesBase,
+      inputCommon10: processed.inputCommon10,
+      inputCommon8: processed.inputCommon8,
+      inputNonTaxableOnly10: processed.inputNonTaxableOnly10,
+      inputNonTaxableOnly8: processed.inputNonTaxableOnly8,
+      importTax10: processed.importTax10,
+      importTax8: processed.importTax8,
+      reverseChargeBase: processed.reverseChargeBase,
+      reverseChargeTax: processed.reverseChargeTax,
+      attributionMethod,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -848,6 +876,12 @@
       {/if}
       <p class="text-xs text-muted-foreground">
         {m.reports_consumption_tax_taxable_base({ amount: formatJPY(ct[0]?.taxableBase ?? '0') })}
+      </p>
+      <p class="text-xs text-muted-foreground">
+        {m.reports_consumption_tax_sales_ratio({ percent: taxableSalesRatioPercent })}
+        {#if !taxableSalesRatioFullDeduction}
+          <span class="ml-1">{m.reports_consumption_tax_sales_ratio_partial()}</span>
+        {/if}
       </p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm tabular-nums">
