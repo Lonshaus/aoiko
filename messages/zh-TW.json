@@ -128,6 +128,8 @@
   "journal_tax_category_import10": "進口消費稅 10%",
   "journal_tax_category_import8": "進口消費稅 8%",
   "journal_tax_category_reverse_charge": "特定課稅仕入(リバースチャージ)",
+  "journal_tax_category_bad_debt": "貸倒(呆帳)",
+  "journal_tax_category_bad_debt_recovery": "貸倒回收",
   "journal_usage_category_taxable_only": "課稅銷售對應",
   "journal_usage_category_common": "共通對應",
   "journal_usage_category_non_taxable_only": "非課稅銷售對應",
