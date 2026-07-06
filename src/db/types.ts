@@ -7,6 +7,8 @@ export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'ex
 // 'exportExempt'＝免税（輸出売上等、課税売上割合の分子・分母両方に算入）
 // 'importTax10'/'importTax8'＝輸入消費税（税率別。金額はそのまま税額として扱う）
 // 'reverseCharge'＝特定課税仕入れ（国外事業者からの電気通信利用役務の提供等）
+// 'badDebt'＝貸倒れ（税込の貸倒金額から、その行の taxRate で税額を逆算し控除。仕入税額とは別枠）
+// 'badDebtRecovery'＝貸倒回収（過去に貸倒控除した売掛金等の回収。税額を売上税額に加算し直す）
 export type TaxCategory =
   | 'taxable10'
   | 'taxable8'
@@ -15,7 +17,9 @@ export type TaxCategory =
   | 'exportExempt'
   | 'importTax10'
   | 'importTax8'
-  | 'reverseCharge';
+  | 'reverseCharge'
+  | 'badDebt'
+  | 'badDebtRecovery';
 // 個別対応方式の用途区分。未指定は 'taxableOnly' 扱い（課税売上のみ対応、既存データの既定挙動を維持）。
 export type InputUsageCategory = 'taxableOnly' | 'common' | 'nonTaxableOnly';
 // 'small-asset-special' は少額減価償却資産の特例（措法28の2、青色申告限定）。取得年度に全額損金算入し、以降の償却なし。

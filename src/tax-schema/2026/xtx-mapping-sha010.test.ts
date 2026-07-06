@@ -16,6 +16,10 @@ function zeroExtras() {
     reverseChargeBase: D('0'),
     reverseChargeTax: D('0'),
     attributionMethod: 'proportional' as const,
+    badDebtTax10: D('0'),
+    badDebtTax8: D('0'),
+    badDebtRecoveryTax10: D('0'),
+    badDebtRecoveryTax8: D('0'),
   };
 }
 
@@ -124,5 +128,24 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.shb033.DTG00080).toBe('10000');
     expect(result.shb033.DTG00040).toBe('40000');
     expect(result.shb033.DTG00130).toBeDefined();
+  });
+
+  test('貸倒れ税額は AAJ00070 に、貸倒回収は AAJ00030 に転記され、控除税額小計に反映される', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('50000'),
+      input8: D('0'),
+      ...zeroExtras(),
+      badDebtTax10: D('780'),
+      badDebtRecoveryTax8: D('624'),
+    });
+    expect(result.sha010.AAJ00070).toBe('780');
+    expect(result.sha010.AAJ00030).toBe('624');
+    // 控除税額小計 = 50,000（仕入税額控除）＋ 780（貸倒れ）= 50,780
+    expect(result.sha010.AAJ00080).toBe('50780');
+    expect(result.shb017.DSF00190).toBe('780');
+    expect(result.shb017.DSE00010).toBe('624');
+    expect(result.shb033.DTJ00010).toBe('624');
   });
 });

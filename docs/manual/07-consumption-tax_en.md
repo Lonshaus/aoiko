@@ -112,10 +112,11 @@ Navigation **"Reports"** → **"Consumption tax"** section. The year's actuals a
 
 ## 6. Caveats
 
-- aoiko's consumption tax does **not** handle special cases (bad-debt tax adjustments, interim filings, etc.)
+- aoiko's consumption tax does **not** handle interim filings (final return only)
 - **Cross-border transactions** (export exemption, import consumption tax, reverse charge) can be classified in the "tax category" field that appears when a line's rate is 0% (see [02. Creating journal entries](02-journal_en.md))
 - **Non-taxable sales** (e.g. residential rent) use the same "tax category" field — select "tax-exempt" so the amount is counted in the taxable-sales-ratio denominator (registering at rate 0% alone does not include it in that ratio)
 - When the **taxable-sales ratio is under 95%, or taxable sales exceed ¥500M**, the general method splits the deduction using either the individual attribution method or the proportional allocation method. Choose the method under **Settings ＞ Consumption tax**; with the individual attribution method, also set each purchase line's "usage category" (taxable-sales only / common use / non-taxable-sales only — unset defaults to taxable-sales only)
+- **Bad-debt tax adjustment** (Consumption Tax Act Art. 39): when a receivable becomes uncollectible, select "bad debt write-off" in the "tax category" field on that entry's debit line (e.g. the bad-debt-loss account), and set `taxRate` to the original sale's rate (10% / 8%) — aoiko back-calculates the tax portion from the tax-included write-off amount and deducts it from the period's payable tax. If the receivable is later recovered, select "bad debt recovery" on the income-side line to add the previously-deducted tax back. Applies under general, simplified, 2%-special, and 3%-special taxation alike
 - Misc. and home-office allocation expense handling: see [02. Creating journal entries § 1-2](02-journal_en.md#1-2-use-the-home-office-mixed-use-allocation)
 
 ## 7. Next steps
