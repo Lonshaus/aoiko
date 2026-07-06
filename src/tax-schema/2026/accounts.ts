@@ -76,6 +76,10 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '5250', year: 2026, name: '利子割引料',     category: 'expense', taxCategory: 'nontaxable', displayOrder: 250 },
   { code: '5260', year: 2026, name: '地代家賃',       category: 'expense', taxCategory: 'taxable10', displayOrder: 260 },
   { code: '5270', year: 2026, name: '貸倒金',         category: 'expense', taxCategory: 'nontaxable', displayOrder: 270 },
+  // 固定資産の除却損（B6）。青色申告決算書一般用の18経費科目には対応欄が無いため
+  // KOA210/KOA110 の個別明細行には出力されない（tagByJa 不一致で silently 出力スキップ）が、
+  // pl.netIncome は通常の経費として正しく反映される（専従者控除前の所得金額 等の合計値は正しい）。
+  { code: '5280', year: 2026, name: '固定資産除却損', category: 'expense', taxCategory: 'nontaxable', displayOrder: 280 },
   { code: '5910', year: 2026, name: '雑費',           category: 'expense', taxCategory: 'taxable10', displayOrder: 910 },
   // 費用（5xxx）— 引当金繰入額・専従者給与（form 順では雑費の後）
   { code: '5810', year: 2026, name: '貸倒引当金繰入額', category: 'expense', taxCategory: 'nontaxable', displayOrder: 810 },
