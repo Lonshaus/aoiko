@@ -5,9 +5,10 @@
 // （手続 RKO0010 = 所得税及び復興特別所得税申告）に併載する。青色申告は
 // 青色申告決算書一般用（KOA210）、白色申告は収支内訳書一般用（KOA110）を同梱する。
 //
-// ⚠ aoiko は事業の損益のみを扱う。確定申告書 KOA020 に載るのは「事業」部分
-// （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部 必須）まで。
-// 各種所得控除・税額計算は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
+// ⚠ aoiko は事業の損益のみを扱う。確定申告書 KOA020 の「事業」部分
+// （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部 必須）は
+// 必ず載る。所得控除・税額計算は、利用者が personalDeductions を入力した場合のみ載せ、
+// 未入力の場合は従来どおり利用者が e-Tax 上で補完する。
 // 決算書・収支内訳書側は PL/BS/月別を対映する。実申告可否は e-Taxソフト(DL版) での
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
@@ -20,6 +21,7 @@ import type { XtxSchema } from './xtx-schema';
 import { buildXtxBundle, type XtxFilerInfo, type XtxFormInput } from './xtx-document';
 import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
+import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
@@ -47,6 +49,8 @@ export interface XtxContext {
   aoiroDeductionKind: AoiroDeductionKind;
   /** 白色申告の収支内訳書 第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
+  /** 所得控除・税額控除の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
+  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> & TaxCreditInput;
 }
 
 const KOA020_SCHEMA = koa020 as XtxSchema;

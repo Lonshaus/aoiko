@@ -8,6 +8,7 @@ const ROUTE_CHAPTER: Record<string, string> = {
   '/order-import': '05-order-import',
   '/receipt': '04-receipt-ocr',
   '/settings': '01-setup',
+  '/income-deductions': '14-income-deductions',
 }
 
 export function pathToChapter(path: string): string | null {
