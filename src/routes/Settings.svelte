@@ -132,6 +132,7 @@
   let taxRegistration = $state<TaxRegistration>('tax-free');
   let taxFilingMethod = $state<TaxFilingMethod>('general');
   let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
+  let consumptionTaxAttributionMethod = $state<'individual' | 'proportional'>('proportional');
   let consumptionTaxSaved = $state(false);
   // 申告者情報（e-Tax 提出用）
   let userRiyoshaId = $state('');
@@ -235,6 +236,8 @@
     taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
     taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
     simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
+    consumptionTaxAttributionMethod =
+      (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     userRiyoshaId = (await getSetting('userRiyoshaId')) ?? '';
     userFilerName = (await getSetting('userFilerName')) ?? '';
     userFilerZip = (await getSetting('userFilerZip')) ?? '';
@@ -250,6 +253,7 @@
     await setSetting('taxRegistration', taxRegistration);
     await setSetting('taxFilingMethod', taxFilingMethod);
     await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
+    await setSetting('consumptionTaxAttributionMethod', consumptionTaxAttributionMethod);
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
@@ -822,6 +826,20 @@
                 <option value={cat}>{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option>
               {/each}
             </select>
+          </label>
+        {/if}
+        {#if taxFilingMethod === 'general'}
+          <label class="block sm:col-span-2">
+            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_method()}</span>
+            <select
+              bind:value={consumptionTaxAttributionMethod}
+              onchange={saveConsumptionTax}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            >
+              <option value="proportional">{m.settings_consumption_tax_attribution_proportional()}</option>
+              <option value="individual">{m.settings_consumption_tax_attribution_individual()}</option>
+            </select>
+            <span class="block mt-1 text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_hint()}</span>
           </label>
         {/if}
       {/if}

@@ -7,7 +7,7 @@
   import { newId } from '../lib/id';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
-  import type { JournalLine } from '../db/types';
+  import type { InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
 
   type DraftLine = {
     id: string;
@@ -17,12 +17,28 @@
     taxRate: number;
     taxIncluded: boolean;
     homeOfficeRatio: string;  // '' = 未設定 (=100%), '0.30' 等
+    taxCategory: '' | TaxCategory;  // '' = 科目の既定値を使用
+    inputUsageCategory: '' | InputUsageCategory;  // '' = taxableOnly 扱い
   };
 
   const TAX_OPTIONS: Array<{ value: number; label: () => string }> = [
     { value: 0, label: () => m.journal_tax_exempt() },
     { value: 0.08, label: () => m.journal_tax_reduced() },
     { value: 0.1, label: () => m.journal_tax_standard() },
+  ];
+  // taxRate=0 のときだけ意味を持つ、科目の taxCategory 既定値の上書き（海外取引・非課税売上）
+  const SPECIAL_TAX_CATEGORY_OPTIONS: Array<{ value: '' | TaxCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_tax_category_default() },
+    { value: 'exportExempt', label: () => m.journal_tax_category_export_exempt() },
+    { value: 'exempt', label: () => m.journal_tax_category_exempt() },
+    { value: 'importTax10', label: () => m.journal_tax_category_import10() },
+    { value: 'importTax8', label: () => m.journal_tax_category_import8() },
+    { value: 'reverseCharge', label: () => m.journal_tax_category_reverse_charge() },
+  ];
+  const USAGE_CATEGORY_OPTIONS: Array<{ value: '' | InputUsageCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_usage_category_taxable_only() },
+    { value: 'common', label: () => m.journal_usage_category_common() },
+    { value: 'nonTaxableOnly', label: () => m.journal_usage_category_non_taxable_only() },
   ];
 
   const today = () => todayISO();
@@ -34,6 +50,8 @@
     taxRate: 0,
     taxIncluded: true,
     homeOfficeRatio: '',
+    taxCategory: '',
+    inputUsageCategory: '',
   });
 
   let date = $state(today());
@@ -114,6 +132,8 @@
         taxRate: number;
         taxIncluded: boolean;
         homeOfficeRatio: string;
+        taxCategory?: '' | JournalLine['taxCategory'];
+        inputUsageCategory?: '' | JournalLine['inputUsageCategory'];
       };
       const buildLines = (drafts: LineLike[], side: 'debit' | 'credit'): JournalLine[] =>
         drafts.map((d) => ({
@@ -128,6 +148,8 @@
           taxIncluded: d.taxIncluded,
           invoiceCompliant: false,
           ...(d.homeOfficeRatio ? { homeOfficeRatio: d.homeOfficeRatio } : {}),
+          ...(d.taxCategory ? { taxCategory: d.taxCategory } : {}),
+          ...(d.inputUsageCategory ? { inputUsageCategory: d.inputUsageCategory } : {}),
         }));
       // 家事按分のある借方明細を「事業使用分」+「事業主貸」に分解
       const debitsForExpansion: SplittableLine[] = debits.map((d) => ({
@@ -139,6 +161,8 @@
         taxRate: d.taxRate,
         taxIncluded: d.taxIncluded,
         homeOfficeRatio: d.homeOfficeRatio,
+        taxCategory: d.taxCategory,
+        inputUsageCategory: d.inputUsageCategory,
       }));
       const expandedDebits = expandHomeOffice(debitsForExpansion);
 
@@ -284,6 +308,24 @@
               class="w-16 px-2 py-0.5 bg-background border rounded text-foreground tabular-nums"
             />
           </label>
+          {#if line.taxRate === 0}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each SPECIAL_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {/if}
+          <select
+            bind:value={line.inputUsageCategory}
+            class="px-2 py-0.5 bg-background border rounded text-foreground"
+          >
+            {#each USAGE_CATEGORY_OPTIONS as opt (opt.value)}
+              <option value={opt.value}>{opt.label()}</option>
+            {/each}
+          </select>
         </div>
       {/if}
     {/each}
@@ -382,6 +424,24 @@
               class="w-16 px-2 py-0.5 bg-background border rounded text-foreground tabular-nums"
             />
           </label>
+          {#if line.taxRate === 0}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each SPECIAL_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {/if}
+          <select
+            bind:value={line.inputUsageCategory}
+            class="px-2 py-0.5 bg-background border rounded text-foreground"
+          >
+            {#each USAGE_CATEGORY_OPTIONS as opt (opt.value)}
+              <option value={opt.value}>{opt.label()}</option>
+            {/each}
+          </select>
         </div>
       {/if}
     {/each}
