@@ -15,6 +15,10 @@
     generateYearEndDepreciation,
   } from '../domain/depreciation';
   import {
+    estimateTransferIncome,
+    generateDisposalEntry,
+  } from '../domain/asset-disposal';
+  import {
     applyCarryover,
     computeCarryover,
     removeCarryover,
@@ -32,6 +36,7 @@
   import type {
     Account,
     DepreciationMethod,
+    DisposalType,
     FixedAsset,
     ParserRule,
     ParserRuleMatchType,
@@ -108,6 +113,14 @@
   let assetError = $state('');
   let depreciationYear = $state(new Date().getFullYear());
   let depreciationStatus = $state('');
+  let disposeEditId = $state<string | null>(null);
+  let disposeDate = $state(todayISO());
+  let disposeType = $state<DisposalType>('scrap');
+  let disposeSalePrice = $state('');
+  let disposeSaleExpenses = $state('');
+  let disposeCashAccount = $state('1110');
+  let disposeError = $state('');
+  let disposeStatus = $state<Record<string, string>>({});
 
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
@@ -511,6 +524,77 @@
 
   async function deleteAsset(id: string) {
     await db.fixedAssets.delete(id);
+  }
+
+  function startEditDisposal(a: FixedAsset) {
+    disposeEditId = a.id;
+    disposeDate = a.disposedDate ?? todayISO();
+    disposeType = a.disposalType ?? 'scrap';
+    disposeSalePrice = a.salePrice ?? '';
+    disposeSaleExpenses = a.saleExpenses ?? '';
+    disposeCashAccount = '1110';
+    disposeError = '';
+  }
+
+  function cancelEditDisposal() {
+    disposeEditId = null;
+    disposeError = '';
+  }
+
+  async function saveDisposal() {
+    if (!disposeEditId) {
+      return;
+    }
+    disposeError = '';
+    const trimmedSalePrice = disposeSalePrice.trim();
+    if (disposeType === 'sale' && !trimmedSalePrice) {
+      disposeError = m.settings_asset_disposal_error_sale_price();
+      return;
+    }
+    const a = await db.fixedAssets.get(disposeEditId);
+    if (!a) {
+      return;
+    }
+    const trimmedSaleExpenses = disposeSaleExpenses.trim();
+    const { salePrice: _sp, saleExpenses: _se, ...base } = a;
+    const updated: FixedAsset = {
+      ...base,
+      disposedDate: disposeDate,
+      disposalType: disposeType,
+      ...(disposeType === 'sale'
+        ? {
+            salePrice: trimmedSalePrice,
+            ...(trimmedSaleExpenses ? { saleExpenses: trimmedSaleExpenses } : {}),
+          }
+        : {}),
+    };
+    await db.fixedAssets.put(updated);
+    disposeEditId = null;
+  }
+
+  async function clearDisposal(id: string) {
+    const a = await db.fixedAssets.get(id);
+    if (!a) {
+      return;
+    }
+    const { disposedDate: _dd, disposalType: _dt, salePrice: _sp, saleExpenses: _se, ...rest } = a;
+    await db.fixedAssets.put(rest);
+    delete disposeStatus[id];
+  }
+
+  async function runDisposalEntry(id: string) {
+    const result = await generateDisposalEntry(id, disposeCashAccount);
+    if (result.created) {
+      disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
+      return;
+    }
+    const messages: Record<NonNullable<typeof result.reason>, string> = {
+      'no-disposal': m.settings_asset_disposal_run_error_no_disposal(),
+      'already-exists': m.settings_asset_disposal_run_error_exists(),
+      'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
+      'lump-sum-unsupported': m.settings_asset_disposal_run_error_lump_sum(),
+    };
+    disposeStatus = { ...disposeStatus, [id]: messages[result.reason!] };
   }
 
   async function runDepreciation() {
@@ -1335,23 +1419,144 @@
         <tbody>
           {#each ledger.fixedAssets as a (a.id)}
             {@const d = assetCurrentDepreciation(a)}
+            {@const estimate = estimateTransferIncome(a)}
             <tr class="border-t border-border/50">
-              <td class="py-2">{a.name}</td>
+              <td class="py-2">
+                {a.name}
+                {#if a.disposedDate}
+                  <span class="ml-1 text-xs text-muted-foreground">
+                    ({a.disposalType === 'sale' ? m.settings_asset_disposal_type_sale() : m.settings_asset_disposal_type_scrap()}
+                    {a.disposedDate})
+                  </span>
+                {/if}
+              </td>
               <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
               <td class="py-2 text-right tabular-nums">{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
               <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td>
-              <td class="py-2 text-right">
+              <td class="py-2 text-right whitespace-nowrap">
+                <button
+                  type="button"
+                  onclick={() => startEditDisposal(a)}
+                  class="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {a.disposedDate ? m.settings_action_edit() : m.settings_asset_disposal_button()}
+                </button>
                 <button
                   type="button"
                   onclick={() => deleteAsset(a.id)}
-                  class="text-xs text-muted-foreground hover:text-destructive"
+                  class="ml-2 text-xs text-muted-foreground hover:text-destructive"
                 >
                   {m.settings_action_delete()}
                 </button>
               </td>
             </tr>
+            {#if disposeEditId === a.id}
+              <tr class="border-t border-border/50 bg-muted/30">
+                <td colspan="7" class="py-3">
+                  <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <input
+                        type="date"
+                        bind:value={disposeDate}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                      />
+                      <label class="flex items-center gap-1 text-sm">
+                        <input type="radio" bind:group={disposeType} value="scrap" />
+                        {m.settings_asset_disposal_type_scrap()}
+                      </label>
+                      <label class="flex items-center gap-1 text-sm">
+                        <input type="radio" bind:group={disposeType} value="sale" />
+                        {m.settings_asset_disposal_type_sale()}
+                      </label>
+                      {#if disposeType === 'sale'}
+                        <input
+                          type="number"
+                          bind:value={disposeSalePrice}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_disposal_sale_price_placeholder()}
+                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={disposeSaleExpenses}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
+                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <select
+                          bind:value={disposeCashAccount}
+                          title={m.settings_asset_disposal_cash_account_title()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        >
+                          <option value="1110">1110 現金</option>
+                          <option value="1130">1130 普通預金</option>
+                        </select>
+                      {/if}
+                    </div>
+                    {#if disposeError}
+                      <div class="text-xs text-destructive">{disposeError}</div>
+                    {/if}
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        onclick={saveDisposal}
+                        class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+                      >
+                        {m.settings_action_save()}
+                      </button>
+                      <button
+                        type="button"
+                        onclick={cancelEditDisposal}
+                        class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
+                      >
+                        {m.settings_action_cancel()}
+                      </button>
+                      {#if a.disposedDate}
+                        <button
+                          type="button"
+                          onclick={() => clearDisposal(a.id)}
+                          class="px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive"
+                        >
+                          {m.settings_asset_disposal_clear()}
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {/if}
+            {#if a.disposedDate && disposeEditId !== a.id}
+              <tr class="border-t border-border/50 bg-muted/10">
+                <td colspan="7" class="py-2 text-xs text-muted-foreground space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onclick={() => runDisposalEntry(a.id)}
+                      class="px-3 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
+                    >
+                      {m.settings_asset_disposal_run_button()}
+                    </button>
+                    {#if disposeStatus[a.id]}
+                      <span>{disposeStatus[a.id]}</span>
+                    {/if}
+                  </div>
+                  {#if estimate}
+                    <p>
+                      {m.settings_asset_disposal_transfer_estimate({
+                        proceeds: formatJPY(estimate.proceeds),
+                        acquisitionExpense: formatJPY(estimate.acquisitionExpense),
+                        estimate: formatJPY(estimate.estimate),
+                        years: estimate.holdingYears,
+                      })}
+                    </p>
+                  {/if}
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>
