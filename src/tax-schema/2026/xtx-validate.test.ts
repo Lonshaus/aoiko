@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
+import { D } from '../../lib/decimal';
 import { buildXtx2026 } from './xtx';
 import { buildFormFragment, type XtxLeafValues } from './xtx-document';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
@@ -151,6 +152,81 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       filingType: 'blue' as const,
       aoiroDeductionKind: 'electronic' as const,
       fixedAssets: [],
+    };
+    const values = mapKoa020Values(ctx);
+    const frag = buildFormFragment(
+      koa020 as XtxSchema,
+      values,
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      mapKoa020LeafValues(ctx)
+    );
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA020.xsd'), xmlPath],
+      { encoding: 'utf8' }
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
+  maybe('KOA020 実 mapping 経路（所得控除・税額控除入力あり）が公式 xsd に適合する', () => {
+    const ctx = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '5000000',
+        totalExpense: '0',
+        netIncome: '5000000',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '5000000',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'blue' as const,
+      aoiroDeductionKind: 'electronic' as const,
+      fixedAssets: [],
+      personalDeductions: {
+        socialInsurancePaid: D(400_000),
+        smallBusinessMutualAidPaid: D(100_000),
+        lifeInsurance: { newGeneral: D(50_000) },
+        earthquakeInsurancePaid: D(30_000),
+        oldLongTermInsurancePaid: D(0),
+        medicalExpensePaid: D(200_000),
+        medicalInsuranceReimbursement: D(0),
+        donationAmount: D(20_000),
+        casualtyLossDeduction: D(0),
+        isDisabled: false,
+        isSpecialDisabled: false,
+        isSingleParent: false,
+        isWidow: false,
+        isWorkingStudent: false,
+        spouse: { totalIncome: D(0), age: 40 },
+        dependents: [{ id: 'd1', age: 17, totalIncome: D(0) }],
+        dividendDeductionAmount: D(0),
+        foreignTaxCreditAmount: D(1000),
+        disasterExemptionAmount: D(500),
+      },
     };
     const values = mapKoa020Values(ctx);
     const frag = buildFormFragment(
