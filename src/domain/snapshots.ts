@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { newId } from '../lib/id';
-import type { ReportSnapshot, ReportSnapshotData } from '../db/types';
+import type { ConsumptionTaxSnapshotData, ReportSnapshot, ReportSnapshotData } from '../db/types';
 // 年度を「申告済み」としてロックする。
 // PL / BS / 月別売上 の 3 種類のスナップショットを `status='filed'` で記録し、
 // 以降その年度の仕訳を訂正できなくする。
@@ -10,6 +10,7 @@ export async function markYearFiled(
     monthlySales: ReportSnapshotData & { type: 'monthly-sales' };
     pl: ReportSnapshotData & { type: 'pl' };
     bs?: ReportSnapshotData & { type: 'bs' };
+    consumptionTax?: ReportSnapshotData & { type: 'consumption-tax' };
   },
   generatedFromEntriesUpTo: string
 ): Promise<void> {
@@ -48,7 +49,31 @@ export async function markYearFiled(
       generatedFromEntriesUpTo,
     });
   }
+  if (payloads.consumptionTax) {
+    records.push({
+      id: newId(),
+      year,
+      type: 'consumption-tax',
+      status: 'filed',
+      filedAt: now,
+      payload: payloads.consumptionTax,
+      generatedAt: now,
+      generatedFromEntriesUpTo,
+    });
+  }
   await db.reportSnapshots.bulkAdd(records);
+}
+// 指定年度の確定消費税額スナップショットを取得する（中間申告義務判定の基準用）。
+// superseded（修正申告でロック解除済み）は対象外——当初申告ではなく「今も有効な
+// 確定額」を返す必要があるため。
+export async function getConsumptionTaxSnapshot(
+  year: number
+): Promise<ConsumptionTaxSnapshotData | undefined> {
+  const filed = await db.reportSnapshots
+    .where('[year+type+status]')
+    .equals([year, 'consumption-tax', 'filed'])
+    .first();
+  return filed?.payload.type === 'consumption-tax' ? filed.payload.data : undefined;
 }
 
 export async function isYearLocked(year: number): Promise<boolean> {
