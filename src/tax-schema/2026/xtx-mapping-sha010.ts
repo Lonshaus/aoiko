@@ -10,7 +10,9 @@
 //    （控除額自体は経過措置適用後の input10/input8 に反映済みのため税額計算には影響しない）
 //  - 売上対価の返還等に係る税額：aoiko の集計は返品・値引を課税標準額へネットで
 //    反映済みのため、内訳を分離して転記しない（最終税額は正しいが内訳表示にはならない）
-//  - 中間納付税額：確定申告のみ対象
+//  - 中間納付税額の確定申告への充当（AAJ00110-130・AAK00070-090）：本年中に中間納付した
+//    税額が「当年の差引税額（本則計算後）」を超えて還付になるケース（AAK00130 が負値になる）
+//    は未検証。通常は中間納付額が年間確定額を上回ることは稀なため、その前提で実装する
 
 import { D, Decimal } from '../../lib/decimal';
 import {
@@ -22,7 +24,7 @@ import {
   type OfficialOutputTax,
   type TaxableSalesRatio,
 } from '../../domain/consumption-tax';
-import type { XtxLeafValues } from './xtx-document';
+import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
 
 // gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
 function toKingaku(value: Decimal): string {
@@ -73,11 +75,20 @@ export interface GeneralMappingInput {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は AAI00160 に転記し、
+   * SHINKOKU_KBN=2（中間）と組み合わせて中間申告用の .xtx を生成する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告の差引税額から充当する */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告の差引税額から充当する */
+  interimPaidLocal?: Decimal;
 }
 
 export interface GeneralMapping {
   /** SHA010（申告書）第一表・第二表の直接値 leaf */
   sha010: XtxLeafValues;
+  /** SHA010 の区分（kubun）ブランチ上書き：中間申告の対象期間 */
+  sha010Raw: XtxRawValues;
   /** SHB017（付表1-3） */
   shb017: XtxLeafValues;
   /** SHB033（付表2-3） */
@@ -121,10 +132,18 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
     deductibleInput,
     salesRatio.taxableSalesTotal,
     badDebtTaxTotal,
-    badDebtRecoveryTaxTotal
+    badDebtRecoveryTaxTotal,
+    input.interimPaidNational ?? D(0),
+    input.interimPaidLocal ?? D(0)
   );
+  const sha010Raw: XtxRawValues = {};
+  if (input.interimPeriod) {
+    sha010Raw.AAI00160 =
+      `<AAI00170>${toYymmdd(input.interimPeriod.start)}</AAI00170>` +
+      `<AAI00180>${toYymmdd(input.interimPeriod.end)}</AAI00180>`;
+  }
 
-  return { sha010, shb017, shb033 };
+  return { sha010, sha010Raw, shb017, shb033 };
 }
 
 function computeAttributedDeduction(
@@ -252,12 +271,21 @@ function buildShb033(
   return shb033;
 }
 
+// 差引税額（base）から本年中の中間納付額（paid）を充当した結果を返す。
+// paid が base を超える場合は還付（AAJ00130/AAK00090 系）扱いとする。
+function applyInterimCredit(base: Decimal, paid: Decimal): { due: Decimal; refund: Decimal } {
+  const diff = base.minus(paid);
+  return diff.isNegative() ? { due: D(0), refund: diff.negated() } : { due: diff, refund: D(0) };
+}
+
 function buildSha010(
   official: OfficialOutputTax,
   deductibleInput: Decimal,
   taxableSalesTotal: Decimal,
   badDebtTaxTotal: Decimal,
-  badDebtRecoveryTaxTotal: Decimal
+  badDebtRecoveryTaxTotal: Decimal,
+  interimPaidNational: Decimal,
+  interimPaidLocal: Decimal
 ): XtxLeafValues {
   const sha010: XtxLeafValues = {};
   put(sha010, 'AAJ00010', official.taxableBase);
@@ -274,13 +302,37 @@ function buildSha010(
   const filing = filingBreakdown(nationalNetRaw);
   const filingNational = D(filing.national);
   const filingLocal = D(filing.local);
-  const filingTotal = D(filing.total);
   put(sha010, 'AAJ00100', filingNational);
-  put(sha010, 'AAJ00120', filingNational);
   put(sha010, 'AAK00030', filingNational);
   put(sha010, 'AAK00060', filingLocal);
-  put(sha010, 'AAK00080', filingLocal);
-  put(sha010, 'AAK00130', filingTotal);
+
+  const national = applyInterimCredit(filingNational, interimPaidNational);
+  const local = applyInterimCredit(filingLocal, interimPaidLocal);
+  if (interimPaidNational.greaterThan(0)) {
+    put(sha010, 'AAJ00110', interimPaidNational);
+    if (national.refund.greaterThan(0)) {
+      put(sha010, 'AAJ00130', national.refund);
+    } else {
+      put(sha010, 'AAJ00120', national.due);
+    }
+  } else {
+    put(sha010, 'AAJ00120', filingNational);
+  }
+  if (interimPaidLocal.greaterThan(0)) {
+    put(sha010, 'AAK00070', interimPaidLocal);
+    if (local.refund.greaterThan(0)) {
+      put(sha010, 'AAK00090', local.refund);
+    } else {
+      put(sha010, 'AAK00080', local.due);
+    }
+  } else {
+    put(sha010, 'AAK00080', filingLocal);
+  }
+  const combinedTotal = national.due
+    .minus(national.refund)
+    .plus(local.due)
+    .minus(local.refund);
+  put(sha010, 'AAK00130', combinedTotal);
   // 第二表（内訳）
   put(sha010, 'AAP00000', official.taxableBase);
   put(sha010, 'AAQ00040', official.base8);

@@ -53,7 +53,8 @@ function buildBundle(
   businessName: string,
   filer: XtxFiler,
   procedureTag: string,
-  procedureName: string
+  procedureName: string,
+  shinkokuKbn: string
 ): string {
   const creatorName = businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   return buildXtxBundle(forms, {
@@ -66,7 +67,13 @@ function buildBundle(
     // RSH0010/RSH0030 の CONTENTS 型は SOFUSHO を許可しない（xtx-document.ts の
     // XtxDocumentOptions.includeSofusho コメント参照）。
     includeSofusho: false,
+    shinkokuKbn,
   });
+}
+// 中間申告（仮決算方式）の対象期間を渡した場合は SHINKOKU_KBN=2（中間）、
+// 未指定（確定申告）なら既定の1（確定）を使う。
+function shinkokuKbnFor(interimPeriod?: { start: string; end: string }): string {
+  return interimPeriod ? '2' : '1';
 }
 
 export interface TwoWariXtxContext {
@@ -83,8 +90,15 @@ export interface TwoWariXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は SHINKOKU_KBN=2（中間）で出力する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
+  interimPaidLocal?: Decimal;
 }
-// 2割特例の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+// 2割特例の .xtx を生成する。interimPeriod 指定時は中間申告（仮決算方式）用に
+// SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
 export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
   const mapping = mapTwoWari({
     taxableBase10: ctx.taxableBase10,
@@ -93,6 +107,9 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
+    ...(ctx.interimPeriod ? { interimPeriod: ctx.interimPeriod } : {}),
+    ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
+    ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),
   });
   const forms: XtxFormInput[] = [
     {
@@ -112,7 +129,8 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     ctx.businessName,
     ctx.filer,
     PROCEDURE_TAG_SIMPLIFIED,
-    PROCEDURE_NAME_SIMPLIFIED
+    PROCEDURE_NAME_SIMPLIFIED,
+    shinkokuKbnFor(ctx.interimPeriod)
   );
 }
 
@@ -132,8 +150,15 @@ export interface SimplifiedXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は SHINKOKU_KBN=2（中間）で出力する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
+  interimPaidLocal?: Decimal;
 }
-// 簡易課税（単一事業区分）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+// 簡易課税（単一事業区分）の .xtx を生成する。interimPeriod 指定時は中間申告
+// （仮決算方式）用に SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
 export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
   const mapping = mapSimplified({
     taxableBase10: ctx.taxableBase10,
@@ -144,9 +169,12 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
+    ...(ctx.interimPeriod ? { interimPeriod: ctx.interimPeriod } : {}),
+    ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
+    ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),
   });
   const forms: XtxFormInput[] = [
-    { schema: SHA020_SCHEMA, values: {}, leafValues: mapping.sha020 },
+    { schema: SHA020_SCHEMA, values: {}, leafValues: mapping.sha020, raw: mapping.sha020Raw },
     { schema: SHB047_SCHEMA, values: {}, leafValues: mapping.shb047 },
     {
       schema: SHB067_SCHEMA,
@@ -160,7 +188,8 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
     ctx.businessName,
     ctx.filer,
     PROCEDURE_TAG_SIMPLIFIED,
-    PROCEDURE_NAME_SIMPLIFIED
+    PROCEDURE_NAME_SIMPLIFIED,
+    shinkokuKbnFor(ctx.interimPeriod)
   );
 }
 
@@ -198,8 +227,15 @@ export interface GeneralXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 中間申告（仮決算方式）の対象期間。指定時は SHINKOKU_KBN=2（中間）で出力する */
+  interimPeriod?: { start: string; end: string };
+  /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
+  interimPaidNational?: Decimal;
+  /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
+  interimPaidLocal?: Decimal;
 }
-// 一般課税（本則）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
+// 一般課税（本則）の .xtx を生成する。interimPeriod 指定時は中間申告（仮決算方式）
+// 用に SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
 export function buildGeneralXtx(ctx: GeneralXtxContext): string {
   const mapping = mapGeneral({
     taxableBase10: ctx.taxableBase10,
@@ -221,9 +257,12 @@ export function buildGeneralXtx(ctx: GeneralXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
+    ...(ctx.interimPeriod ? { interimPeriod: ctx.interimPeriod } : {}),
+    ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
+    ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),
   });
   const forms: XtxFormInput[] = [
-    { schema: SHA010_SCHEMA, values: {}, leafValues: mapping.sha010 },
+    { schema: SHA010_SCHEMA, values: {}, leafValues: mapping.sha010, raw: mapping.sha010Raw },
     { schema: SHB017_SCHEMA, values: {}, leafValues: mapping.shb017 },
     { schema: SHB033_SCHEMA, values: {}, leafValues: mapping.shb033 },
   ];
@@ -232,6 +271,7 @@ export function buildGeneralXtx(ctx: GeneralXtxContext): string {
     ctx.businessName,
     ctx.filer,
     PROCEDURE_TAG_GENERAL,
-    PROCEDURE_NAME_GENERAL
+    PROCEDURE_NAME_GENERAL,
+    shinkokuKbnFor(ctx.interimPeriod)
   );
 }

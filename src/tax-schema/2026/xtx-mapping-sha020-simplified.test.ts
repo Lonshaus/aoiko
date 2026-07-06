@@ -94,4 +94,40 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
     // 控除税額小計 = 39,500 + 780 = 40,280
     expect(result.sha020.ABI00080).toBe('40280');
   });
+
+  test('interimPeriod を指定すると ABH00160 に中間申告の対象期間が raw で立つ', () => {
+    const result = mapSimplified({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      category: 5,
+      deemedInputRate: 0.5,
+      ...zeroExtras(),
+      interimPeriod: { start: '2026-07-01', end: '2026-09-30' },
+    });
+    expect(result.sha020Raw.ABH00160).toBe(
+      '<ABH00170><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>7</gen:mm><gen:dd>1</gen:dd></ABH00170>' +
+        '<ABH00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>9</gen:mm><gen:dd>30</gen:dd></ABH00180>'
+    );
+  });
+
+  test('本年中の中間納付税額を確定申告の差引税額に充当する', () => {
+    const result = mapSimplified({
+      taxableBase10: D('2000000'),
+      taxableBase8: D('0'),
+      category: 5,
+      deemedInputRate: 0.5,
+      ...zeroExtras(),
+      interimPaidNational: D('30000'),
+      interimPaidLocal: D('5000'),
+    });
+    // 差引税額（国税）= 78000、中間納付済30000 → 納付税額 48000
+    expect(result.sha020.ABI00100).toBe('78000');
+    expect(result.sha020.ABI00110).toBe('30000');
+    expect(result.sha020.ABI00120).toBe('48000');
+    // 地方消費税額 22000、中間納付済5000 → 納付譲渡割額 17000
+    expect(result.sha020.ABJ00060).toBe('22000');
+    expect(result.sha020.ABJ00070).toBe('5000');
+    expect(result.sha020.ABJ00080).toBe('17000');
+    expect(result.sha020.ABJ00130).toBe('65000');
+  });
 });
