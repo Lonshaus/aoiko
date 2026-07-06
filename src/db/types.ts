@@ -120,6 +120,12 @@ export interface ParserRule {
   lastHitAt?: number;
 }
 
+// 'scrap'＝除却（廃棄、対価なし）。帳簿価額全額を必要経費（固定資産除却損）に計上。
+// 'sale'＝売却（対価あり）。個人事業主の事業用資産売却は譲渡所得（分離課税）に該当し
+// 事業所得に含められないため、売却対価と帳簿価額の差額は事業主貸/事業主借で結転し
+// 損益計算書には影響させない（freee 方式、詳細は asset-disposal.ts 冒頭コメント参照）。
+export type DisposalType = 'scrap' | 'sale';
+
 export interface FixedAsset {
   id: string;
   name: string;
@@ -129,6 +135,11 @@ export interface FixedAsset {
   depreciationMethod: DepreciationMethod;
   accountCode: string;
   disposedDate?: string;
+  disposalType?: DisposalType;
+  /** 売却対価（disposalType === 'sale' のときのみ使用） */
+  salePrice?: string;
+  /** 譲渡費用（仲介手数料等）。譲渡所得の参考試算にのみ使用、仕訳には影響しない */
+  saleExpenses?: string;
 }
 
 export interface ImportBatch {
