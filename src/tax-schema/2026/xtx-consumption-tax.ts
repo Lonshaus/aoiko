@@ -77,12 +77,22 @@ export interface TwoWariXtxContext {
   taxableBase10: Decimal;
   /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
   taxableBase8: Decimal;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 // 2割特例の .xtx を生成する（確定申告のみ、中間申告は対象外）。
 export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
   const mapping = mapTwoWari({
     taxableBase10: ctx.taxableBase10,
     taxableBase8: ctx.taxableBase8,
+    badDebtTax10: ctx.badDebtTax10,
+    badDebtTax8: ctx.badDebtTax8,
+    badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
+    badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
   });
   const forms: XtxFormInput[] = [
     {
@@ -116,6 +126,12 @@ export interface SimplifiedXtxContext {
   category: SimplifiedTaxCategory;
   /** みなし仕入率。simplified-tax.ts の deemedInputRate(category) を渡す */
   deemedInputRate: number;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 // 簡易課税（単一事業区分）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
 export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
@@ -124,6 +140,10 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
     taxableBase8: ctx.taxableBase8,
     category: ctx.category,
     deemedInputRate: ctx.deemedInputRate,
+    badDebtTax10: ctx.badDebtTax10,
+    badDebtTax8: ctx.badDebtTax8,
+    badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
+    badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
   });
   const forms: XtxFormInput[] = [
     { schema: SHA020_SCHEMA, values: {}, leafValues: mapping.sha020 },
@@ -172,6 +192,12 @@ export interface GeneralXtxContext {
   reverseChargeTax: Decimal;
   /** 課税売上高5億円超または課税売上割合95%未満のときの控除計算方式 */
   attributionMethod: ConsumptionTaxAttributionMethod;
+  /** 貸倒れに係る税額（税率別） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 // 一般課税（本則）の .xtx を生成する（確定申告のみ、中間申告は対象外）。
 export function buildGeneralXtx(ctx: GeneralXtxContext): string {
@@ -191,6 +217,10 @@ export function buildGeneralXtx(ctx: GeneralXtxContext): string {
     reverseChargeBase: ctx.reverseChargeBase,
     reverseChargeTax: ctx.reverseChargeTax,
     attributionMethod: ctx.attributionMethod,
+    badDebtTax10: ctx.badDebtTax10,
+    badDebtTax8: ctx.badDebtTax8,
+    badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
+    badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
   });
   const forms: XtxFormInput[] = [
     { schema: SHA010_SCHEMA, values: {}, leafValues: mapping.sha010 },

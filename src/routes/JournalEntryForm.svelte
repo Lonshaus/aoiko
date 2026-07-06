@@ -35,6 +35,12 @@
     { value: 'importTax8', label: () => m.journal_tax_category_import8() },
     { value: 'reverseCharge', label: () => m.journal_tax_category_reverse_charge() },
   ];
+  // taxRate>0 のときだけ意味を持つ、貸倒れ・貸倒回収の税区分（元の売上・仕入の税率をそのまま使う）
+  const BAD_DEBT_TAX_CATEGORY_OPTIONS: Array<{ value: '' | TaxCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_tax_category_default() },
+    { value: 'badDebt', label: () => m.journal_tax_category_bad_debt() },
+    { value: 'badDebtRecovery', label: () => m.journal_tax_category_bad_debt_recovery() },
+  ];
   const USAGE_CATEGORY_OPTIONS: Array<{ value: '' | InputUsageCategory; label: () => string }> = [
     { value: '', label: () => m.journal_usage_category_taxable_only() },
     { value: 'common', label: () => m.journal_usage_category_common() },
@@ -317,6 +323,15 @@
                 <option value={opt.value}>{opt.label()}</option>
               {/each}
             </select>
+          {:else}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each BAD_DEBT_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
           {/if}
           <select
             bind:value={line.inputUsageCategory}
@@ -430,6 +445,15 @@
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
               {#each SPECIAL_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {:else}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each BAD_DEBT_TAX_CATEGORY_OPTIONS as opt (opt.value)}
                 <option value={opt.value}>{opt.label()}</option>
               {/each}
             </select>
