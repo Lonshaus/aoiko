@@ -128,6 +128,8 @@
   "journal_tax_category_import10": "Import tax 10%",
   "journal_tax_category_import8": "Import tax 8%",
   "journal_tax_category_reverse_charge": "Reverse charge",
+  "journal_tax_category_bad_debt": "Bad debt write-off",
+  "journal_tax_category_bad_debt_recovery": "Bad debt recovery",
   "journal_usage_category_taxable_only": "Taxable-sales only",
   "journal_usage_category_common": "Common use",
   "journal_usage_category_non_taxable_only": "Non-taxable-sales only",
