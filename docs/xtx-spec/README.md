@@ -95,6 +95,7 @@ b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643  general/ITdefi
 
 - **2割特例**（`SHA020` ＋ 付表6）・**簡易課税（単一事業区分のみ）**（`SHA020` ＋ 付表4-3 ＋ 付表5-3）・**一般課税（本則）**（`SHA010` ＋ 付表1-3 ＋ 付表2-3）：対応済み。`src/tax-schema/2026/xtx-mapping-sha020.ts` の `mapTwoWari()`/`mapSimplified()`、`xtx-mapping-sha010.ts` の `mapGeneral()`
 - **一般課税・課税売上割合95%未満／課税売上高5億円超の場合の按分控除**（個別対応方式・一括比例配分方式）：対応済み（設定 → 消費税で選択）。免税売上（輸出）・非課税売上・課税貨物に係る消費税額（輸入消費税）・特定課税仕入れ（リバースチャージ）も `TaxCategory`/`InputUsageCategory` として記帳側で分類可能。`src/domain/consumption-tax.ts` の `computeTaxableSalesRatio()`/`isFullDeductionEligible()`、付表2-3 の DTB/DTC/DTD/DTE/DTG 各欄に反映
+- **貸倒れに係る消費税額の調整・貸倒回収**（消費税法39条）：対応済み。本則・簡易課税・2割特例・3割特例のすべてに適用。記帳側は分錄の `TaxCategory` に `badDebt`/`badDebtRecovery` を指定（その行の既存 `taxRate`/`taxIncluded` から税額を逆算）。`src/domain/consumption-tax.ts` の `badDebtTotals()`、一般課税は SHA010 の AAJ00030/AAJ00070 ＋ 付表1-3 の DSE/DSF ＋ 付表2-3 の DTJ、簡易課税は付表4-3 の DUE/DUF ＋ 付表5-3 の DVB（基準消費税額に貸倒回収を算入）、2割特例は付表6 の AYB/AYD に反映
 - **簡易課税で複数事業区分を営む場合の按分計算**（75%ルール等、付表5-3 二面）：未対応。aoiko の設定は単一の事業区分のみを持つ前提
 - **3割特例**：令和8年度税制改正の新設制度。**現行 CAB（2026-05-18版）の消費税フォルダには対応欄が一切無い**（`SHA010`・`SHA020` とも）。SHA010 自体が次版（v11、令和8年10月公開予定）で改定される見込みのため、それを待って再調査すること
 - 2割特例・簡易課税・一般課税とも「売上対価の返還等に係る税額」欄を意図的に省略している（課税標準額へネット計上済みのため、最終税額は正しいが内訳非表示）。詳細は各 `xtx-mapping-*.ts` 冒頭コメント参照

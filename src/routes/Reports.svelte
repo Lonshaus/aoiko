@@ -320,6 +320,10 @@
       filer,
       taxableBase10: processed.taxableBase10,
       taxableBase8: processed.taxableBase8,
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -349,6 +353,10 @@
       taxableBase8: processed.taxableBase8,
       category: simplifiedCategory,
       deemedInputRate: deemedInputRate(simplifiedCategory),
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -390,6 +398,10 @@
       reverseChargeBase: processed.reverseChargeBase,
       reverseChargeTax: processed.reverseChargeTax,
       attributionMethod,
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
