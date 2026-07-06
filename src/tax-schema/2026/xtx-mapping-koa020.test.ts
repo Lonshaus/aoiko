@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
+import { D } from '../../lib/decimal';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import type { XtxContext } from './xtx';
+import type { IncomeDeductionInput } from './income-deductions';
 
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   return {
@@ -94,5 +96,66 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     const values = Object.values(out);
     expect(values).toContain('100000'); // 控除額10万
     expect(values).toContain('1900000'); // 事業所得=控除前200万−10万
+  });
+
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(400_000),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+
+  test('personalDeductions 入力時、所得控除・税額の各欄も出力する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: emptyPersonalDeductions,
+      })
+    );
+    // 336万円以下 → 基礎控除88万円
+    expect(out.ABB00550).toBe('880000');
+    expect(out.ABB00450).toBe('400000');
+    // 事業所得=控除前300万−青色控除65万=235万、所得控除計=88万(基礎)+40万(社保)=128万
+    expect(out.ABB00560).toBe('1280000');
+    expect(out.ABB00580).toBe('1070000'); // 235万-128万
+    expect(out.ABB00590).toBeDefined();
+    expect(out.ABB01030).toBeDefined();
+  });
+
+  test('personalDeductions 未入力なら所得控除・税額の欄は出力しない', () => {
+    const out = mapKoa020LeafValues(
+      ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' })
+    );
+    expect(out.ABB00550).toBeUndefined();
+    expect(out.ABB00590).toBeUndefined();
+  });
+
+  test('税額控除は差引所得税額算出後、外国税額控除等・災害減免額は再差引で別枠控除', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '10000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          foreignTaxCreditAmount: D(1000),
+          disasterExemptionAmount: D(2000),
+        },
+      })
+    );
+    const diffTax = Number(out.ABB00670);
+    const saiSashihiki = Number(out.ABB01010);
+    expect(diffTax - saiSashihiki).toBe(3000);
   });
 });
