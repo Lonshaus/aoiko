@@ -158,4 +158,90 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     const saiSashihiki = Number(out.ABB01010);
     expect(diffTax - saiSashihiki).toBe(3000);
   });
+
+  test('給与所得：収入金額等(ABB00080)は税引前、所得金額等(ABB00370)は給与所得控除後', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '0' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
+        },
+      })
+    );
+    expect(out.ABB00080).toBe('1000000');
+    // 1,000,000 - 740,000(令和8・9年分の給与所得控除) = 260,000
+    expect(out.ABB00370).toBe('260000');
+  });
+
+  test('雑所得：公的年金等は所得金額等側のみ、その他雑所得は収入・所得金額等の両方に出力', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '0' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          miscIncome: {
+            publicPensionAmount: D(300_000),
+            otherIncome: D(200_000),
+            otherExpenses: D(50_000),
+          },
+        },
+      })
+    );
+    expect(out.ABB00100).toBeUndefined();
+    expect(out.ABB01060).toBe('300000');
+    expect(out.ABB00110).toBe('200000');
+    expect(out.ABB01120).toBe('150000');
+  });
+
+  test('源泉徴収税額(ABB00710)・申告納税額(ABB00720)を算出する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
+          otherWithholdingTax: D(5_000),
+        },
+      })
+    );
+    expect(out.ABB00710).toBe('35000');
+    expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - 35000);
+  });
+
+  test('給与所得・雑所得は合計所得金額（基礎控除の級距判定）にも加算される', () => {
+    // 事業所得: 収入500万-青色控除65万=435万。給与所得(収入100万)=26万を加えると461万→
+    // 336万円超489万円以下の基礎控除68万円区分に該当する（335万円台なら88万円のはず）
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(0) },
+        },
+      })
+    );
+    expect(out.ABB00550).toBe('680000');
+  });
+
+  test('配偶者の合計所得金額(ABB00780)・公的年金等以外の合計所得金額(ABB00775)を出力する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          spouse: { totalIncome: D(400_000), age: 40 },
+          miscIncome: { publicPensionAmount: D(300_000) },
+        },
+      })
+    );
+    expect(out.ABB00780).toBe('400000');
+    // 事業所得235万+雑所得(年金)30万=265万。公的年金等以外=265万-30万=235万
+    expect(out.ABB00775).toBe('2350000');
+  });
 });
