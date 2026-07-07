@@ -19,7 +19,7 @@ Business assets acquired for **¥100k or more** are registered as fixed assets a
 | Acquisition cost | Treatment |
 |---|---|
 | < ¥100k | Fully expensed in the year (`5200 Consumables` etc.) |
-| ¥100k – ¥200k | "Lump-sum depreciation" OR normal depreciation. aoiko doesn't directly support lump-sum (use normal depreciation) |
+| ¥100k – ¥200k | Lump-sum depreciation (equal over 3 years) OR normal depreciation. Both supported |
 | ¥100k – ¥300k (acquired before 2026/3/31) | Small-asset special rule eligible |
 | ¥100k – ¥400k (**acquired on/after 2026/4/1**) | Small-asset special rule eligible (**Reiwa 8 reform raised threshold from ¥300k to ¥400k**) |
 | ¥400k+ | Normal depreciation (straight-line or declining-balance) |
@@ -78,12 +78,27 @@ When you select "Small-asset depreciation special rule (Sochiho Art. 28-2, immed
 | ⚠ Cost exceeds the threshold (< ¥400,000); cannot apply | Acquisition too high |
 | ⚠ Past the rule's expiry (2029-03-31); cannot apply | Past expiry |
 
+#### Lump-sum depreciation (Enforcement Order Art. 139)
+
+Amortizes the acquisition cost **equally over 3 years** (no monthly proration, always cost × 1/3). Available to both Blue and White Return filers.
+
+- For assets with acquisition cost **under ¥200k**
+- Even if disposed of or sold, **the undepreciated balance cannot be written off early — the 3-year equal amortization continues as scheduled** (statutory constraint; see § 5 "Disposal / sale" below)
+
+Selecting "Lump-sum depreciation" in the form auto-checks whether the acquisition cost is under ¥200k.
+
 ### 2-3. Monthly proration and ¥1 residual
 
 Automatic behavior:
 
 - **Monthly proration**: count the acquisition month as month 1, prorate by months in business use that year. Example: acquired in June, life 4 years, straight-line → 7/12 booked in current year
 - **¥1 residual**: once accumulated depreciation reaches 95% of cost, the residual is amortized to ¥1 book value over 5 years (or remaining years). Per Corporate Tax Act and Income Tax Act.
+
+### 2-4. Fixed assets for real estate income (only if enabled in Settings)
+
+Once **Settings → Use real estate income** is turned on, the registration form gains a **"Business" / "Real estate"** category selector. For assets (e.g. buildings) registered as "Real estate", the **"Property detail"** button in the asset list lets you fill in the rental property's details (address, property type, tenant, rental period, floor area, annual rent, key money etc., deposit balance). The depreciation calculation and entry generation itself use the same logic as business assets.
+
+> While this setting is off, neither the category selector nor the property detail button appears.
 
 ## 3. Year-end depreciation entry generation
 
@@ -119,7 +134,31 @@ Settings → Fixed assets table:
 
 Small-asset immediate-depreciation assets show **current-year = cost / end book value = 0** (no ¥1 residual, since the rule is immediate write-off).
 
-## 5. FAQs
+## 5. Disposal / sale
+
+From the fixed assets table, use **"Dispose / Sell"** next to the asset name to record scrapping or a sale.
+
+### 5-1. Scrap (disposal, no proceeds)
+
+Enter the disposal date and click **"Create journal entry"** to automatically book the book value (undepreciated balance) at that point as the necessary expense `5280 Loss on disposal of fixed assets` (debit `Loss on disposal` + `Accumulated depreciation` / credit the asset account). No further depreciation is booked afterward.
+
+### 5-2. Sale (with proceeds)
+
+Enter the disposal date, select "Sale", and enter the sale price, then create the entry — **the difference between the sale proceeds and the book value is transferred through `Owner's drawing` / `Owner's contribution`**, with no effect on the profit & loss statement.
+
+> When a sole proprietor sells a business fixed asset, the resulting gain/loss is capital gain (separate taxation), not business income, and must not be included in business income. aoiko therefore deliberately excludes the sale gain/loss from the P/L, treating it as a transaction crossing the business/personal boundary — using the same `Owner's drawing`/`Owner's contribution` accounts already used for home-office private-use allocation and year-end equity rollup.
+
+The bottom of the screen shows a **reference capital-gain estimate** (sale proceeds − acquisition expense [book value] − transfer costs, plus the holding period). This is a reference value only and isn't reflected in the `.xtx` export. It doesn't determine the special deduction (up to ¥500k) eligibility or the separate-taxation tax amount — file that separately on Return Form 3 (separate taxation).
+
+### 5-3. Lump-sum depreciation assets aren't supported
+
+Lump-sum depreciation assets (Enforcement Order Art. 139) must **legally continue their 3-year equal amortization** even after disposal or sale — the undepreciated balance can't be written off early. Automatic entry generation isn't supported for these; the depreciation schedule continues as-is regardless of disposal (book the proceeds manually if needed).
+
+### 5-4. Reflecting this in the `.xtx` export
+
+For the year of disposal/sale, the remarks field on KOA110 (statement of income and expenses) page 2's depreciation schedule automatically notes "Scrap" or "Sale".
+
+## 6. FAQs
 
 ### Q. How is software depreciated?
 
@@ -132,15 +171,7 @@ Used asset useful life formula:
 
 aoiko doesn't auto-compute; enter the resulting years.
 
-### Q. How to handle disposal / sale?
-
-aoiko currently has **no auto-generated disposal/sale entry**. Manually create "Loss on disposal / Asset" or "Cash / Asset" entries ([02. Creating journal entries](02-journal_en.md)).
-
-### Q. Can I use "lump-sum depreciation" (¥200k <, equal over 3 years)?
-
-aoiko **does not** support this directly. Use the small-asset special rule (¥300k/¥400k threshold) or normal depreciation. If lump-sum is needed, manually book three annual entries.
-
-## 6. Next steps
+## 7. Next steps
 
 - Carry over fixed-asset book values to the next year → [09. Prior-period carryover](09-carryover_en.md)
 - Confirm depreciation amounts → [06. Reports § 3](06-reports_en.md#3-profit--loss-pl)
