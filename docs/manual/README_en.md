@@ -33,6 +33,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 11. [Backup and restore](11-backup_en.md) — File System Access API, OPFS, JSON export
 12. [Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
 13. [Business opening setup (Opening Wizard)](13-opening-setup_en.md) — pre-opening expenses, converted-asset book value calculation, custom items
+14. [Income & tax deductions](14-income-deductions_en.md) — entering family, insurance, medical expense, and donation data; estimating from the basic deduction through the special reconstruction income tax; reflecting the result in the `.xtx` export
 
 ## Feedback
 
