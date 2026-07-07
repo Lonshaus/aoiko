@@ -54,6 +54,12 @@ export const ACCOUNTS_2026: Account[] = [
   // 収益（4xxx）
   { code: '4110', year: 2026, name: '売上高',         category: 'revenue', taxCategory: 'taxable10', displayOrder: 110 },
   { code: '4910', year: 2026, name: '雑収入',         category: 'revenue', taxCategory: 'taxable10', displayOrder: 910 },
+  // 収益（4xxx）— 不動産所得用（B7 part2、freee/MF と同じく科目を複製）。
+  // 賃貸料・礼金等は住宅家賃なら非課税が多いため既定は 'exempt'、店舗等の課税賃貸は
+  // 仕訳行の taxCategory 上書きで対応（既存の taxCategory override と同じ運用）。
+  { code: '4210', year: 2026, name: '賃貸料（不動産）',     category: 'revenue', taxCategory: 'exempt', incomeType: 'realEstate', displayOrder: 210 },
+  { code: '4220', year: 2026, name: '礼金・権利金等（不動産）', category: 'revenue', taxCategory: 'exempt', incomeType: 'realEstate', displayOrder: 220 },
+  { code: '4920', year: 2026, name: '雑収入（不動産）',     category: 'revenue', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 920 },
   // 費用（5xxx）— 売上原価
   { code: '5010', year: 2026, name: '期首商品棚卸高', category: 'expense', taxCategory: 'nontaxable', displayOrder: 10 },
   { code: '5020', year: 2026, name: '仕入',           category: 'expense', taxCategory: 'taxable10', displayOrder: 20 },
@@ -84,4 +90,16 @@ export const ACCOUNTS_2026: Account[] = [
   // 費用（5xxx）— 引当金繰入額・専従者給与（form 順では雑費の後）
   { code: '5810', year: 2026, name: '貸倒引当金繰入額', category: 'expense', taxCategory: 'nontaxable', displayOrder: 810 },
   { code: '5820', year: 2026, name: '専従者給与',       category: 'expense', taxCategory: 'nontaxable', displayOrder: 820 },
+  // 費用（5xxx）— 不動産所得用（B7 part2、KOA220 第1頁の必要経費区分に対映）。
+  // 貸倒引当金繰入額（不動産）は事業的規模の遡及見直しルールが複雑なため対象外
+  // （real-estate-income.ts 冒頭コメント参照、科目自体を追加していない）。
+  { code: '5310', year: 2026, name: '租税公課（不動産）',   category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1310 },
+  { code: '5320', year: 2026, name: '損害保険料（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1320 },
+  { code: '5330', year: 2026, name: '修繕費（不動産）',     category: 'expense', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 1330 },
+  { code: '5340', year: 2026, name: '減価償却費（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1340 },
+  { code: '5350', year: 2026, name: '借入金利子（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1350 },
+  { code: '5360', year: 2026, name: '地代家賃（不動産）',   category: 'expense', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 1360 },
+  { code: '5370', year: 2026, name: '給料賃金（不動産）',   category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1370 },
+  { code: '5380', year: 2026, name: '専従者給与（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1380 },
+  { code: '5390', year: 2026, name: '雑費（不動産）',       category: 'expense', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 1390 },
 ];

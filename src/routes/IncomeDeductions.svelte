@@ -10,11 +10,18 @@
     reconstructionSurtax,
     totalTaxCredits,
   } from '../tax-schema/2026/income-deductions';
-  import { otherIncomeAmount, totalWithholdingTax } from '../tax-schema/2026/other-income';
-  import { totalIncomeAmount } from '../tax-schema/2026/xtx-mapping-koa020';
-  import type { PersonalDeductionDependent, PersonalDeductionInput } from '../db/types';
+  import { totalWithholdingTax } from '../tax-schema/2026/other-income';
+  import { combinedTotalIncomeAmount, totalIncomeAmount } from '../tax-schema/2026/xtx-mapping-koa020';
+  import type {
+    PersonalDeductionDependent,
+    PersonalDeductionInput,
+    RealEstateLoanInterestPaidDetail,
+    RealEstateProfessionalFeeDetail,
+    RealEstateRentPaidDetail,
+  } from '../db/types';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import { personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
+  import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
 
   const now = new Date();
@@ -71,8 +78,37 @@
   let otherMiscExpenses = $state('0');
   let otherWithholdingTaxPaid = $state('0');
 
+  let realEstateBusinessScale = $state(false);
+  let realEstateLandLoanInterest = $state('0');
+  let realEstateRentPaid = $state<Array<RealEstateRentPaidDetail & { id: string }>>([]);
+  let realEstateLoanInterestPaid = $state<Array<RealEstateLoanInterestPaidDetail & { id: string }>>([]);
+  let realEstateProfessionalFeesPaid = $state<Array<RealEstateProfessionalFeeDetail & { id: string }>>([]);
+
+  function addRealEstateRentPaid() {
+    realEstateRentPaid = [...realEstateRentPaid, { id: newId(), amount: '0' }];
+  }
+  function removeRealEstateRentPaid(id: string) {
+    realEstateRentPaid = realEstateRentPaid.filter((r) => r.id !== id);
+  }
+  function addRealEstateLoanInterestPaid() {
+    realEstateLoanInterestPaid = [...realEstateLoanInterestPaid, { id: newId(), amount: '0' }];
+  }
+  function removeRealEstateLoanInterestPaid(id: string) {
+    realEstateLoanInterestPaid = realEstateLoanInterestPaid.filter((r) => r.id !== id);
+  }
+  function addRealEstateProfessionalFeesPaid() {
+    realEstateProfessionalFeesPaid = [...realEstateProfessionalFeesPaid, { id: newId(), amount: '0' }];
+  }
+  function removeRealEstateProfessionalFeesPaid(id: string) {
+    realEstateProfessionalFeesPaid = realEstateProfessionalFeesPaid.filter((r) => r.id !== id);
+  }
+
   let saved = $state(false);
-  let businessTotalIncome = $state(D(0));
+  // 年度ごとに DB/設定から読み込む値（ユーザーの入力欄とは独立、年度切替時のみ再取得）。
+  let plCache = $state<Awaited<ReturnType<typeof buildPL>> | null>(null);
+  let realEstatePlCache = $state<Awaited<ReturnType<typeof buildPL>> | undefined>(undefined);
+  let filingTypeCache = $state<FilingType>('blue');
+  let aoiroDeductionKindCache = $state<AoiroDeductionKind>('electronic');
 
   function resetForm() {
     socialInsurancePaid = '0';
@@ -111,6 +147,11 @@
     otherMiscIncomeAmount = '0';
     otherMiscExpenses = '0';
     otherWithholdingTaxPaid = '0';
+    realEstateBusinessScale = false;
+    realEstateLandLoanInterest = '0';
+    realEstateRentPaid = [];
+    realEstateLoanInterestPaid = [];
+    realEstateProfessionalFeesPaid = [];
   }
 
   function loadFromStored(stored: PersonalDeductionInput) {
@@ -156,6 +197,17 @@
     otherMiscIncomeAmount = stored.miscIncome?.otherIncome ?? '0';
     otherMiscExpenses = stored.miscIncome?.otherExpenses ?? '0';
     otherWithholdingTaxPaid = stored.otherWithholdingTax ?? '0';
+    realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
+    realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
+    realEstateRentPaid = (stored.realEstateIncome?.rentPaid ?? []).map((r) => ({ ...r, id: newId() }));
+    realEstateLoanInterestPaid = (stored.realEstateIncome?.loanInterestPaid ?? []).map((r) => ({
+      ...r,
+      id: newId(),
+    }));
+    realEstateProfessionalFeesPaid = (stored.realEstateIncome?.professionalFeesPaid ?? []).map((r) => ({
+      ...r,
+      id: newId(),
+    }));
   }
 
   $effect(() => {
@@ -168,10 +220,12 @@
       } else {
         resetForm();
       }
-      const pl = await buildPL(yr);
-      const filingType = ((await getSetting('filingType')) ?? 'blue') as FilingType;
-      const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ?? 'electronic') as AoiroDeductionKind;
-      businessTotalIncome = totalIncomeAmount({ year: yr, pl, filingType, aoiroDeductionKind });
+      plCache = await buildPL(yr);
+      filingTypeCache = ((await getSetting('filingType')) ?? 'blue') as FilingType;
+      aoiroDeductionKindCache = ((await getSetting('aoiroDeductionKind')) ?? 'electronic') as AoiroDeductionKind;
+      realEstatePlCache = ledger.realEstateIncomeEnabled
+        ? await buildPL(yr, undefined, 'realEstate')
+        : undefined;
     })();
   });
 
@@ -236,11 +290,49 @@
       otherExpenses: otherMiscExpenses,
     },
     otherWithholdingTax: otherWithholdingTaxPaid,
+    ...(ledger.realEstateIncomeEnabled
+      ? {
+          realEstateIncome: {
+            businessScale: realEstateBusinessScale,
+            landLoanInterestAmount: realEstateLandLoanInterest,
+            rentPaid: realEstateRentPaid.map(({ id: _id, ...r }) => r),
+            loanInterestPaid: realEstateLoanInterestPaid.map(({ id: _id, ...r }) => r),
+            professionalFeesPaid: realEstateProfessionalFeesPaid.map(({ id: _id, ...r }) => r),
+          },
+        }
+      : {}),
   });
 
   const ctx = $derived(personalDeductionsToCtx(recordDraft));
-  // 事業所得＋給与所得＋雑所得（B7）。基礎控除の級距・配偶者控除の判定等はこちらを使う。
-  const combinedTotalIncome = $derived(businessTotalIncome.plus(otherIncomeAmount(ctx)));
+  // 事業所得（青色控除は不動産所得との共有枠配分後）。ledger 由来の pl はキャッシュから、
+  // businessScale・土地利子額は現在編集中の ctx から読むため、両方の変更に反応する。
+  const businessTotalIncome = $derived(
+    plCache
+      ? totalIncomeAmount({
+          year,
+          pl: plCache,
+          filingType: filingTypeCache,
+          aoiroDeductionKind: aoiroDeductionKindCache,
+          realEstatePl: realEstatePlCache,
+          personalDeductions: ctx,
+        })
+      : D(0)
+  );
+  // 不動産所得のPL（青色控除前）。試算欄の内訳表示にのみ使う。
+  const realEstateTotalIncome = $derived(realEstatePlCache ? D(realEstatePlCache.netIncome) : D(0));
+  // 事業所得＋不動産所得（損益通算可能分）＋給与所得＋雑所得（B7）。
+  const combinedTotalIncome = $derived(
+    plCache
+      ? combinedTotalIncomeAmount({
+          year,
+          pl: plCache,
+          filingType: filingTypeCache,
+          aoiroDeductionKind: aoiroDeductionKindCache,
+          realEstatePl: realEstatePlCache,
+          personalDeductions: ctx,
+        })
+      : D(0)
+  );
   const result = $derived(
     computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome })
   );
@@ -328,6 +420,88 @@
       </label>
     </div>
   </section>
+
+  {#if ledger.realEstateIncomeEnabled}
+    <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+      <h3 class="text-lg font-semibold">{m.income_deductions_real_estate_title()}</h3>
+      <p class="text-xs text-muted-foreground">{m.income_deductions_real_estate_intro()}</p>
+      <p class="text-sm">
+        {m.income_deductions_real_estate_pl_label()}：<span class="font-mono">{formatJPY(realEstateTotalIncome)}</span>
+      </p>
+      <label class="flex items-center gap-2">
+        <input type="checkbox" bind:checked={realEstateBusinessScale} />
+        <span class="text-sm">{m.income_deductions_real_estate_business_scale()}</span>
+      </label>
+      <label class="block sm:max-w-xs">
+        <span class="text-xs text-muted-foreground">{m.income_deductions_real_estate_land_loan_interest()}</span>
+        <input type="text" inputmode="numeric" bind:value={realEstateLandLoanInterest} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="block mt-1 text-xs text-muted-foreground">{m.income_deductions_real_estate_land_loan_interest_hint()}</span>
+      </label>
+
+      <div class="flex items-center justify-between pt-2 border-t">
+        <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_rent_paid_title()}</h4>
+        <button type="button" onclick={addRealEstateRentPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+          {m.income_deductions_dependent_add()}
+        </button>
+      </div>
+      {#each realEstateRentPaid as r (r.id)}
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" bind:value={r.property} placeholder={m.income_deductions_real_estate_rent_property()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <div class="flex gap-2 items-center">
+            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+            <button type="button" onclick={() => removeRealEstateRentPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+              {m.income_deductions_dependent_remove()}
+            </button>
+          </div>
+        </div>
+      {/each}
+
+      <div class="flex items-center justify-between pt-2 border-t">
+        <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_loan_interest_paid_title()}</h4>
+        <button type="button" onclick={addRealEstateLoanInterestPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+          {m.income_deductions_dependent_add()}
+        </button>
+      </div>
+      {#each realEstateLoanInterestPaid as r (r.id)}
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" inputmode="numeric" bind:value={r.yearEndBalance} placeholder={m.income_deductions_real_estate_year_end_balance()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <div class="flex gap-2 items-center">
+            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+            <button type="button" onclick={() => removeRealEstateLoanInterestPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+              {m.income_deductions_dependent_remove()}
+            </button>
+          </div>
+        </div>
+      {/each}
+
+      <div class="flex items-center justify-between pt-2 border-t">
+        <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_professional_fees_title()}</h4>
+        <button type="button" onclick={addRealEstateProfessionalFeesPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+          {m.income_deductions_dependent_add()}
+        </button>
+      </div>
+      {#each realEstateProfessionalFeesPaid as r (r.id)}
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
+          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <input type="text" inputmode="numeric" bind:value={r.withholdingTax} placeholder={m.income_deductions_real_estate_withholding_tax()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <div class="flex gap-2 items-center">
+            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+            <button type="button" onclick={() => removeRealEstateProfessionalFeesPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+              {m.income_deductions_dependent_remove()}
+            </button>
+          </div>
+        </div>
+      {/each}
+    </section>
+  {/if}
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_family_title()}</h3>

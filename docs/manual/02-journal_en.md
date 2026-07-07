@@ -30,7 +30,13 @@ The bottom half of the **"Home"** navigation contains the **New journal entry** 
 6. When debit and credit totals match, a green **"✓ Balanced"** badge appears. Otherwise a **"Difference ¥xxx"** warning
 7. Click **"Add entry"** → it appears immediately in the "Recent entries" list on the Home screen
 
-### 1-2. Use the home-office (mixed-use) allocation
+### 1-2. Recording real estate income entries (only if enabled in Settings)
+
+Once **Settings → Use real estate income** is turned on, a **"Business" / "Real estate"** toggle appears at the top of the form. Choosing "Real estate" narrows the account dropdown to real-estate-only accounts (named with a "（不動産）" suffix). The toggle remembers its state for the rest of the session, so you don't need to reselect it for every entry when recording a batch of similar transactions.
+
+> While this setting is off, the toggle doesn't appear at all and the screen is unchanged from before.
+
+### 1-3. Use the home-office (mixed-use) allocation
 
 For expenses that split between business and personal at your home office:
 
@@ -40,7 +46,7 @@ For expenses that split between business and personal at your home office:
 
 > A default ratio can be registered in **Settings → Home-office default ratio** (overridable per line).
 
-### 1-3. Clearing the form
+### 1-4. Clearing the form
 
 Use **"Clear"** to reset everything mid-entry.
 
