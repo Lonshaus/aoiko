@@ -308,7 +308,7 @@
   "reports_amendment_checklist_relock_detail": "修正申告送出後，於報表畫面再次執行「標記為已申報並鎖定」，儲存新的快照。",
   "reports_consumption_tax_title": "消費税",
   "reports_consumption_tax_tax_free": "目前設為免税事業者（不需消費税申告）。以下為銷貨税額的概算參考。",
-  "reports_consumption_tax_caveat": "提供概算與方式比較。實際的消費税申告書（付表 2-3 等）輸出非本工具範圍，最終請與稅理士・税務署確認。",
+  "reports_consumption_tax_caveat": "提供概算與方式比較。實際的消費税申告書 .xtx 輸出支援本則課税・2割特例・簡易課税(僅限單一事業區分,見下方),3割特例尚未支援。最終請與稅理士・税務署確認。",
   "reports_consumption_tax_th_method": "課税方式",
   "reports_consumption_tax_th_output": "銷貨税額",
   "reports_consumption_tax_th_input_raw": "進貨税額（經過措置前）",
@@ -570,5 +570,16 @@
   "settings_filing_type_confirm_title": "要變更確定申告方式嗎？",
   "settings_filing_type_confirm_to_white": "將切換為白色申告。青色申告特別控除將不再適用,.xtx 輸出會改為收支內訳書(一般用)。",
   "settings_filing_type_confirm_to_blue": "將切換為青色申告。.xtx 輸出會改為青色申告決算書(一般用)。",
-  "settings_filing_type_confirm_action": "切換"
+  "settings_filing_type_confirm_action": "切換",
+  "settings_asset_method_lump_sum": "一括償卻資產（3年均等攤提）",
+  "settings_asset_lump_sum_eligible": "✓ 取得價額在10萬圓以上20萬圓未滿範圍內（3年均等攤提）",
+  "settings_asset_lump_sum_ineligible": "⚠ 一括償卻資產僅限取得價額10萬圓以上20萬圓未滿",
+  "settings_asset_error_lump_sum_ineligible": "不符合一括償卻資產要件（10萬圓以上20萬圓未滿），無法登錄",
+  "reports_consumption_tax_xtx_unsupported_year": "{year} 年度不在2割特例適用期間內(令和5年10月〜令和8年9月),無法輸出 .xtx",
+  "reports_consumption_tax_xtx_two_wari_intro": "可依國稅廳官方 XSD 把2割特例的消費税及び地方消費税の申告書(簡易課税用)+付表6 輸出成 .xtx(請自行確認實機組み込み)。売上退貨・折讓已經淨額計入課稅標準額,付表6不會單獨列出這筆明細,但最終稅額計算正確。",
+  "reports_consumption_tax_xtx_two_wari_download": "下載2割特例的.xtx",
+  "reports_consumption_tax_xtx_simplified_intro": "可依國稅廳官方 XSD 把簡易課税(單一事業區分)的消費税及び地方消費税の申告書＋付表4-3＋付表5-3輸出成 .xtx(請自行確認實機組み込み)。跨多個事業區分的按分計算(75%規則等)尚未支援。",
+  "reports_consumption_tax_xtx_simplified_download": "下載簡易課税的.xtx",
+  "reports_consumption_tax_xtx_general_intro": "可依國稅廳官方 XSD 把本則課税的消費税及び地方消費税の申告書(一般用)＋付表1-3＋付表2-3輸出成 .xtx(請自行確認實機組み込み)。aoiko 假設課税売上割合100%(全部銷售都是課税資產讓渡),若有非課税銷售・輸出免税等狀況則不支援。",
+  "reports_consumption_tax_xtx_general_download": "下載本則課税的.xtx"
 }

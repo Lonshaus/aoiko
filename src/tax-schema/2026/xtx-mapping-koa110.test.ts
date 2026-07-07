@@ -1,11 +1,15 @@
 import { describe, expect, test } from 'vitest';
-import { mapKoa110Values } from './xtx-mapping-koa110';
+import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
 import type { XtxContext } from './xtx';
+import type { FixedAsset } from '../../db/types';
 
-function ctx(overrides: Partial<XtxContext['pl']> = {}): XtxContext {
+function ctx(
+  overrides: Partial<XtxContext['pl']> = {},
+  fixedAssets: FixedAsset[] = []
+): XtxContext {
   return {
     year: 2026,
-    businessName: '青井ウェブ事務所',
+    businessName: 'aoikoウェブ事務所',
     invoiceNumber: '',
     monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
     pl: {
@@ -39,6 +43,7 @@ function ctx(overrides: Partial<XtxContext['pl']> = {}): XtxContext {
     },
     filingType: 'white',
     aoiroDeductionKind: 'none',
+    fixedAssets,
   };
 }
 
@@ -176,5 +181,78 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     );
     // 専従者給与・貸倒引当金繰入額の分を所得へ加算し直す：3990000+860000+30000=4880000
     expect(out.AIG00370).toBe('4880000');
+  });
+});
+
+function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
+  return {
+    id: 'a1',
+    name: 'テストPC',
+    acquisitionDate: '2026-01-01',
+    acquisitionCost: '300000',
+    usefulLifeYears: 4,
+    depreciationMethod: 'straight-line',
+    accountCode: '1510',
+    ...overrides,
+  };
+}
+
+describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () => {
+  test('資産1件分の明細行を出力する', () => {
+    const out = mapKoa110RepeatedValues(ctx({}, [asset()]));
+    expect(out.AIM00010).toHaveLength(1);
+    const row = out.AIM00010![0]!;
+    expect(row.AIM00020).toBe('テストPC');
+    expect(row.AIM00060).toBe('300000');
+    expect(row.AIM00070).toBe('300000');
+    expect(row.AIM00080).toBe('定額法');
+    expect(row.AIM00090).toBe('4');
+    // 2026年分定額法：300000 × 0.250 = 75000
+    expect(row.AIM00150).toBe('75000');
+    expect(row.AIM00170).toBe('75000');
+    expect(row.AIM00190).toBe('75000');
+    expect(row.AIM00200).toBe('225000');
+  });
+
+  test('資産名は16文字を超えたら切り詰める', () => {
+    const longName = 'あ'.repeat(20);
+    const out = mapKoa110RepeatedValues(ctx({}, [asset({ name: longName })]));
+    expect(out.AIM00010![0]!.AIM00020).toBe('あ'.repeat(16));
+  });
+
+  test('当年の償却額が0の資産（まだ取得前）は行を作らない', () => {
+    // ctx() の year は 2026 固定。取得日を翌年にして「まだ取得前」を再現
+    const out = mapKoa110RepeatedValues(ctx({}, [asset({ acquisitionDate: '2027-01-01' })]));
+    expect(out.AIM00010 ?? []).toHaveLength(0);
+  });
+
+  test('耐用年数が範囲外（1年）なら AIM00090 を出力しない', () => {
+    const out = mapKoa110RepeatedValues(ctx({}, [asset({ usefulLifeYears: 1 })]));
+    expect(out.AIM00010![0]!.AIM00090).toBeUndefined();
+  });
+
+  test('7件以上あれば取得日昇順で先頭6件のみ出力する', () => {
+    const assets = Array.from({ length: 8 }, (_, i) =>
+      asset({ id: `a${i}`, name: `資産${i}`, acquisitionDate: `2026-01-0${i + 1}` })
+    );
+    const out = mapKoa110RepeatedValues(ctx({}, assets));
+    expect(out.AIM00010).toHaveLength(6);
+    expect(out.AIM00010!.map((r) => r.AIM00020)).toEqual([
+      '資産0', '資産1', '資産2', '資産3', '資産4', '資産5',
+    ]);
+  });
+
+  test('償却方法ごとに正しいラベルを出力する', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [
+        asset({ id: 'a', acquisitionCost: '150000', usefulLifeYears: 4, depreciationMethod: 'lump-sum' }),
+      ])
+    );
+    expect(out.AIM00010![0]!.AIM00080).toBe('一括償却');
+  });
+
+  test('資産が無ければ AIM00010 自体を出力しない', () => {
+    const out = mapKoa110RepeatedValues(ctx({}, []));
+    expect(out.AIM00010).toBeUndefined();
   });
 });
