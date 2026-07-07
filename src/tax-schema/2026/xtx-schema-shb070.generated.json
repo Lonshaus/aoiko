@@ -1,0 +1,1046 @@
+{
+  "meta": {
+    "formId": "SHB070",
+    "formName": "付表6　税率別消費税額計算表【小規模事業者に係る税額控除に関する経過措置を適用する課税期間用】",
+    "namespace": "http://xml.e-tax.nta.go.jp/XSD/shohi",
+    "version": "1.0",
+    "source": "e-tax19.CAB shohi/SHB070-001.xsd",
+    "fetchedAt": "2026-05-16"
+  },
+  "refTree": [
+    {
+      "no": 1,
+      "level": 0,
+      "tag": "SHB070",
+      "ja": "",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "no": 2,
+      "level": 1,
+      "tag": "AYA00000",
+      "ja": "納税者等部",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 3,
+      "level": 2,
+      "tag": "AYA00010",
+      "ja": "課税期間",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 4,
+      "level": 3,
+      "tag": "AYA00020",
+      "ja": "自",
+      "kind": "leaf",
+      "idref": "KAZEI_KIKAN_FROM",
+      "refType": "gen:KAZEI_KIKAN_FROMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 5,
+      "level": 3,
+      "tag": "AYA00030",
+      "ja": "至",
+      "kind": "leaf",
+      "idref": "KAZEI_KIKAN_TO",
+      "refType": "gen:KAZEI_KIKAN_TOref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 6,
+      "level": 2,
+      "tag": "AYA00040",
+      "ja": "氏名又は名称",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM",
+      "refType": "gen:NOZEISHA_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 7,
+      "level": 1,
+      "tag": "AYB00000",
+      "ja": "１　課税標準額に対する消費税額及び控除対象仕入税額の計算の基礎となる消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 8,
+      "level": 2,
+      "tag": "AYB00010",
+      "ja": "課税資産の譲渡等の対価の額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 9,
+      "level": 3,
+      "tag": "AYB00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 10,
+      "level": 3,
+      "tag": "AYB00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 11,
+      "level": 3,
+      "tag": "AYB00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 12,
+      "level": 2,
+      "tag": "AYB00050",
+      "ja": "課税標準額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 13,
+      "level": 3,
+      "tag": "AYB00060",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 14,
+      "level": 3,
+      "tag": "AYB00070",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 15,
+      "level": 3,
+      "tag": "AYB00080",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 16,
+      "level": 2,
+      "tag": "AYB00090",
+      "ja": "課税標準額に対する消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 17,
+      "level": 3,
+      "tag": "AYB00100",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 18,
+      "level": 3,
+      "tag": "AYB00110",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 19,
+      "level": 3,
+      "tag": "AYB00120",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 20,
+      "level": 2,
+      "tag": "AYB00130",
+      "ja": "貸倒回収に係る消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 21,
+      "level": 3,
+      "tag": "AYB00140",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 22,
+      "level": 3,
+      "tag": "AYB00150",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 23,
+      "level": 3,
+      "tag": "AYB00160",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 24,
+      "level": 2,
+      "tag": "AYB00170",
+      "ja": "売上対価の返還等に係る消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 25,
+      "level": 3,
+      "tag": "AYB00180",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 26,
+      "level": 3,
+      "tag": "AYB00190",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 27,
+      "level": 3,
+      "tag": "AYB00200",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 28,
+      "level": 2,
+      "tag": "AYB00210",
+      "ja": "控除対象仕入税額の計算の基礎となる消費税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 29,
+      "level": 3,
+      "tag": "AYB00220",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 30,
+      "level": 3,
+      "tag": "AYB00230",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 31,
+      "level": 3,
+      "tag": "AYB00240",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 32,
+      "level": 1,
+      "tag": "AYC00000",
+      "ja": "２　控除対象仕入税額とみなされる特別控除税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 33,
+      "level": 2,
+      "tag": "AYC00010",
+      "ja": "特別控除税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 34,
+      "level": 3,
+      "tag": "AYC00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 35,
+      "level": 3,
+      "tag": "AYC00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 36,
+      "level": 3,
+      "tag": "AYC00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 37,
+      "level": 1,
+      "tag": "AYD00000",
+      "ja": "３　貸倒れに係る税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 38,
+      "level": 2,
+      "tag": "AYD00010",
+      "ja": "貸倒れに係る税額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 39,
+      "level": 3,
+      "tag": "AYD00020",
+      "ja": "税率6.24％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 40,
+      "level": 3,
+      "tag": "AYD00030",
+      "ja": "税率7.8％適用分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 41,
+      "level": 3,
+      "tag": "AYD00040",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    }
+  ],
+  "definitions": [
+    {
+      "name": "ZEIMUSHO",
+      "ja": "税務署名",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "TEISYUTSU_DAY",
+      "ja": "提出年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ID",
+      "ja": "利用者識別番号",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_BANGO",
+      "ja": "個人番号又は法人番号",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIRIBANGO",
+      "ja": "整理番号",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM_KN",
+      "ja": "氏名・名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM",
+      "ja": "氏名・名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ZIP",
+      "ja": "納税者所在地郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR_KN",
+      "ja": "納税者所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR",
+      "ja": "納税者所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ADR_CODE",
+      "ja": "納税地の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR",
+      "ja": "１月１日住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR_CODE",
+      "ja": "１月１日住所の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO_KN",
+      "ja": "納税者所在地屋号読み",
+      "baseType": "y-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO",
+      "ja": "納税者所在地屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_TEL",
+      "ja": "納税者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIBETSU",
+      "ja": "性別",
+      "baseType": "SEIBETSUkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "BIRTHDAY",
+      "ja": "生年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETSURITSU_DAY",
+      "ja": "設立年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_DAY",
+      "ja": "決算日",
+      "baseType": "gen:mmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_TIMES",
+      "ja": "決算回数",
+      "baseType": "ITkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHIHON_KIN",
+      "ja": "資本金又は出資金額",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_NM",
+      "ja": "世帯主氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_ZOKU",
+      "ja": "世帯主との続柄",
+      "baseType": "zokugaratype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NAIYO",
+      "ja": "事業内容",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHOKUGYO",
+      "ja": "職業",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KANPU_KINYUKIKAN",
+      "ja": "還付先金融機関",
+      "baseType": "gen:account",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM_KN",
+      "ja": "事業所読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM",
+      "ja": "事業所名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ZIP",
+      "ja": "事業所郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ADR",
+      "ja": "事業所住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_YAGO",
+      "ja": "事業所屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_TEL",
+      "ja": "事業所電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM_KN",
+      "ja": "代表者氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM",
+      "ja": "代表者氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ZIP",
+      "ja": "代表者郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ADR",
+      "ja": "代表者住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_TEL",
+      "ja": "代表者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM_KN",
+      "ja": "製造場等名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM",
+      "ja": "製造場等名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ZIP",
+      "ja": "製造場等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ADR",
+      "ja": "製造場等所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_TEL",
+      "ja": "製造場等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ID",
+      "ja": "利用者識別番号（代理人等）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM_KN",
+      "ja": "代理人等氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM",
+      "ja": "代理人等氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ZIP",
+      "ja": "代理人等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ADR",
+      "ja": "代理人等住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_TEL",
+      "ja": "代理人等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "GROUP_OYA_HOJIN_ID",
+      "ja": "利用者識別番号(通算親法人)",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "TETSUZUKI",
+      "ja": "手続き",
+      "baseType": "TETSUZUKItype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NENBUN",
+      "ja": "年分",
+      "baseType": "gen:yy",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NENGETSUBUN",
+      "ja": "年分",
+      "baseType": "gen:yymm",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_FROM",
+      "ja": "事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_TO",
+      "ja": "事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_FROM",
+      "ja": "課税期間（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_TO",
+      "ja": "課税期間（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEIRI_SEKININSHA",
+      "ja": "経理責任者名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHINKOKU_KBN",
+      "ja": "申告の種類",
+      "baseType": "SHINKOKU_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEISANSHO_KBN",
+      "ja": "計算書の種類",
+      "baseType": "KEISANSHO_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_NM",
+      "ja": "親法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_ADR",
+      "ja": "親法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_ITIREN_NO",
+      "ja": "連結法人一連番号",
+      "baseType": "RENKETSU_ITIREN_NOtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_FROM",
+      "ja": "連結事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_TO",
+      "ja": "連結事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM_KN",
+      "ja": "連結法人名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM",
+      "ja": "連結法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR_KN",
+      "ja": "連結法人所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR",
+      "ja": "連結法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_TEL",
+      "ja": "連結法人電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_SHIHON_KIN",
+      "ja": "資本金又は出資金額（連結法人）",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM_KN",
+      "ja": "代表者氏名読み（連結法人）",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM",
+      "ja": "代表者氏名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_ADR",
+      "ja": "代表者住所（連結法人）",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_KEIRI_SEKININSHA",
+      "ja": "経理責任者名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NAIYO",
+      "ja": "事業内容（連結法人）",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_ID",
+      "ja": "利用者識別番号（連結子法人）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ZEIMUSHO",
+      "ja": "税務署名（連結子法人）",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_BANGO",
+      "ja": "法人番号（連結子法人）",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_SEIRIBANGO",
+      "ja": "整理番号（連結子法人）",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SONOTA_ID",
+      "ja": "利用者識別番号（その他）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ELTAX_ID",
+      "ja": "eLTAXの利用者ID",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ELTAX_ID",
+      "ja": "eLTAXの利用者ID（連結子法人）",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    }
+  ]
+}
