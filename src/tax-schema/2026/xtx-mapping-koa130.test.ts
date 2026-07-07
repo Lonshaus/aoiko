@@ -2,7 +2,33 @@ import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
 import type { XtxContext } from './xtx';
-import type { FixedAsset, PLReport } from '../../db/types';
+import type { RealEstateIncomeCtx } from './real-estate-income';
+import type { FixedAsset } from '../../db/types';
+import type { PLReport } from '../../domain/reports';
+
+// personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
+// OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
+// 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
+function withRealEstate(realEstateIncome: RealEstateIncomeCtx): NonNullable<XtxContext['personalDeductions']> {
+  return {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+    realEstateIncome,
+  };
+}
 
 function realEstatePl(overrides: Partial<PLReport> = {}): PLReport {
   return {
@@ -73,18 +99,44 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
           totalExpense: '300000',
           netIncome: '700000',
         }),
-        personalDeductions: { realEstateIncome: { businessScale: true } },
+        personalDeductions: withRealEstate({ businessScale: true }),
       })
     );
     // netIncome 70万 + 専従者給与30万（白色は事業的規模に関わらず全額不算入）= 100万
     expect(out.AKG00230).toBe('1000000');
   });
 
+  test('貸倒金（不動産）は AKG00120 へ対映する', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            { accountCode: '5400', accountName: '貸倒金（不動産）', category: 'expense', amount: '40000', displayOrder: 1385 },
+          ],
+        }),
+      })
+    );
+    expect(out.AKG00120).toBe('40000');
+  });
+
+  test('貸倒引当金繰入額（不動産）は白色に引当金制度が無いため出力しない', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            { accountCode: '5410', accountName: '貸倒引当金繰入額（不動産）', category: 'expense', amount: '10000', displayOrder: 1395 },
+          ],
+        }),
+      })
+    );
+    expect(Object.values(out)).not.toContain('10000');
+  });
+
   test('土地等取得の負債利子額を確定額のまま出力する', () => {
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({ netIncome: '-50000' }),
-        personalDeductions: { realEstateIncome: { businessScale: false, landLoanInterestAmount: D(20000) } },
+        personalDeductions: withRealEstate({ businessScale: false, landLoanInterestAmount: D(20000) }),
       })
     );
     expect(out.AKG00260).toBe('20000');
@@ -134,16 +186,14 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
   test('借入金利子の内訳（AKL00000）は公式上限2件で切り詰める', () => {
     const repeats = mapKoa130RepeatedValues(
       ctx({
-        personalDeductions: {
-          realEstateIncome: {
-            businessScale: true,
-            loanInterestPaid: [
-              { amount: '1000', payeeName: 'A' },
-              { amount: '2000', payeeName: 'B' },
-              { amount: '3000', payeeName: 'C' },
-            ],
-          },
-        },
+        personalDeductions: withRealEstate({
+          businessScale: true,
+          loanInterestPaid: [
+            { amount: '1000', payeeName: 'A' },
+            { amount: '2000', payeeName: 'B' },
+            { amount: '3000', payeeName: 'C' },
+          ],
+        }),
       })
     );
     expect(repeats.AKL00000).toHaveLength(2);
