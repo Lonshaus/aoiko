@@ -28,6 +28,8 @@ aoiko is fundamentally a "business P&L only" tool, but at the user's request it 
 > **Public pension income is also entered as a final confirmed amount.** Its formula depends on age, pension amount, and other income across a frequently-revised bracket table, so aoiko doesn't calculate it — transcribe the final amount from the NTA's public pension income worksheet.
 >
 > **The payee breakdowns for rent paid, loan interest paid, and professional fees for real estate income (the detail pages of KOA220/KOA130) are also entered as final confirmed amounts.** The rental property details (property detail) are entered from the fixed asset registration in [08. Depreciation § 2-4](08-depreciation_en.md#2-4-fixed-assets-for-real-estate-income-only-if-enabled-in-settings).
+>
+> **Bad debt for real estate income (write-off vs. allowance) is recorded under two separate accounts.** "貸倒金（不動産）" (bad debt write-off) is an actual realized loss (deductible even if not a business-scale rental, per Income Tax Act art. 64); "貸倒引当金繰入額（不動産）" (bad debt allowance) is a reserve provision (only available for business-scale rentals per art. 51-4 — aoiko does not verify the business-scale requirement itself). For a non-business-scale rental with a bad debt, the correct treatment is generally not an allowance but excluding the uncollectible amount from that year's gross revenue in the year it's confirmed uncollectible. If the year is still unfiled, simply reduce/reverse the corresponding rent journal entry directly; if it relates to an already-filed year, use the correction-entry flow in [12. Amended Return](12-amended_en.md) (there's no dedicated bad-debt feature — it routes through the existing correction flow).
 
 ## 2. Input fields
 

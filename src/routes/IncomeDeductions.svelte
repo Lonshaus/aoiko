@@ -313,7 +313,7 @@
           pl: plCache,
           filingType: filingTypeCache,
           aoiroDeductionKind: aoiroDeductionKindCache,
-          realEstatePl: realEstatePlCache,
+          ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
       : D(0)
@@ -328,7 +328,7 @@
           pl: plCache,
           filingType: filingTypeCache,
           aoiroDeductionKind: aoiroDeductionKindCache,
-          realEstatePl: realEstatePlCache,
+          ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
       : D(0)
