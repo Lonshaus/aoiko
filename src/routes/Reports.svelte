@@ -4,6 +4,7 @@
   import { toISODateLocal } from '../lib/date';
   import {
     buildAll,
+    buildPL,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -11,16 +12,25 @@
     type MonthlyReport,
     type PLReport,
   } from '../domain/reports';
-  import { isYearLocked, markYearFiled, unlockYear } from '../domain/snapshots';
+  import { ledger } from '../stores/ledger.svelte';
+  import {
+    getConsumptionTaxSnapshot,
+    isYearLocked,
+    markYearFiled,
+    unlockYear,
+  } from '../domain/snapshots';
+  import { interimFilingObligation } from '../domain/interim-filing';
   import {
     amendmentChecklist,
     getAmendmentDiff,
     type AmendmentDiff,
   } from '../domain/amended';
-  import { buildXtx2026, type FilingType } from '../tax-schema/2026/xtx';
+  import { buildXtx2026, personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import {
     compareAll,
+    computeTaxableSalesRatio,
+    isFullDeductionEligible,
     isTwoWariEligibleYear,
     processYear,
     type ConsumptionTaxResult,
@@ -77,6 +87,8 @@
   let breakdownAxis = $state<BreakdownAxis>('vendor');
   let amendment = $state<AmendmentDiff | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
+  let taxableSalesRatioPercent = $state('100.00');
+  let taxableSalesRatioFullDeduction = $state(true);
   let taxRegistration = $state<TaxRegistration>('tax-free');
   let filingType = $state<FilingType>('blue');
   let simplifiedCategory = $state<SimplifiedTaxCategory>(4);
@@ -85,6 +97,37 @@
   let confirmingUnlock = $state(false);
   let lockError = $state('');
   let consumptionTaxXtxError = $state('');
+  // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
+  // 無ければ利用者が手入力する（fabricate しない——CLAUDE.md の監査履歴不変原則）
+  let priorYearAmountInput = $state('');
+  // 確定申告への充当用：本年中に実際に中間納付した税額（利用者が手入力）
+  let interimPaidNationalInput = $state('');
+  let interimPaidLocalInput = $state('');
+  let selectedInstallmentIndex = $state(0);
+
+  function safeDecimal(s: string) {
+    try {
+      return D(s || '0');
+    } catch {
+      return D(0);
+    }
+  }
+
+  const interimObligation = $derived(interimFilingObligation(year, safeDecimal(priorYearAmountInput)));
+  // 前年額の編集により installments の件数が変わり selectedInstallmentIndex が範囲外に
+  // なりうるため、範囲外なら先頭にフォールバックする（未定義のまま渡すと period が
+  // undefined になり確定申告モードに化けてしまう——中間申告ボタンとしては致命的な誤動作）
+  const selectedInstallment = $derived(
+    interimObligation.installments[selectedInstallmentIndex] ?? interimObligation.installments[0]
+  );
+
+  $effect(() => {
+    const yr = year;
+    selectedInstallmentIndex = 0;
+    getConsumptionTaxSnapshot(yr - 1).then((snap) => {
+      priorYearAmountInput = snap?.netTaxNational ?? '';
+    });
+  });
 
   $effect(() => {
     const yr = year;
@@ -93,15 +136,25 @@
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
       const filing = (await getSetting('filingType')) ?? 'blue';
+      const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
       const reports = await buildAll(yr, ax);
+      const processed = await processYear(yr);
+      const salesRatio = computeTaxableSalesRatio(
+        processed.taxableBase10,
+        processed.taxableBase8,
+        processed.exportExemptSalesBase,
+        processed.nonTaxableSalesBase
+      );
       return {
         ...reports,
         amendment: await getAmendmentDiff(yr),
-        consumptionTax: await compareAll(yr, cat),
+        consumptionTax: await compareAll(yr, cat, attributionMethod),
         taxRegistration: reg,
         simplifiedCategory: cat,
         filingType: filing,
         locked: await isYearLocked(yr),
+        taxableSalesRatioPercent: salesRatio.ratioPercent,
+        taxableSalesRatioFullDeduction: isFullDeductionEligible(salesRatio),
       };
     }).subscribe((v) => {
       monthly = v.monthly;
@@ -113,6 +166,8 @@
       consumptionTax = v.consumptionTax;
       taxRegistration = v.taxRegistration;
       simplifiedCategory = v.simplifiedCategory;
+      taxableSalesRatioPercent = v.taxableSalesRatioPercent;
+      taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
       filingType = v.filingType;
       locked = v.locked;
     });
@@ -262,6 +317,10 @@
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : year;
+    const storedDeductions = await db.personalDeductions.get(exportYear);
+    const realEstatePl = ledger.realEstateIncomeEnabled
+      ? await buildPL(exportYear, undefined, 'realEstate')
+      : undefined;
     const xml = buildXtx2026({
       year: exportYear,
       businessName,
@@ -273,6 +332,8 @@
       fixedAssets,
       filingType,
       aoiroDeductionKind,
+      ...(realEstatePl ? { realEstatePl } : {}),
+      ...(storedDeductions ? { personalDeductions: personalDeductionsToCtx(storedDeductions) } : {}),
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -284,9 +345,22 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
+  function downloadXml(xml: string, filename: string): void {
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  // period 指定時は中間申告（仮決算方式）用の .xtx を出力する（SHINKOKU_KBN=2・対象期間付き、
+  // 中間納付税額の充当は行わない）。未指定（既定）は確定申告（中間納付税額があれば充当する）。
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
-  async function downloadConsumptionTaxXtx() {
-    if (!isTwoWariEligibleYear(year)) {
+  async function downloadConsumptionTaxXtx(period?: { start: string; end: string }) {
+    if (!period && !isTwoWariEligibleYear(year)) {
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
     }
@@ -297,26 +371,28 @@
     }
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
-    const processed = await processYear(year);
+    const processed = await processYear(year, period);
     const xml = buildTwoWariXtx({
       year,
       businessName,
       filer,
       taxableBase10: processed.taxableBase10,
       taxableBase8: processed.taxableBase8,
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+      ...(period
+        ? { interimPeriod: period }
+        : {
+            interimPaidNational: safeDecimal(interimPaidNationalInput),
+            interimPaidLocal: safeDecimal(interimPaidLocalInput),
+          }),
     });
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aoiko-shohi-${year}.xtx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
-  async function downloadSimplifiedXtx() {
+  async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
     const { filer, missing } = await loadFiler();
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
@@ -324,7 +400,7 @@
     }
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
-    const processed = await processYear(year);
+    const processed = await processYear(year, period);
     const xml = buildSimplifiedXtx({
       year,
       businessName,
@@ -333,19 +409,21 @@
       taxableBase8: processed.taxableBase8,
       category: simplifiedCategory,
       deemedInputRate: deemedInputRate(simplifiedCategory),
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+      ...(period
+        ? { interimPeriod: period }
+        : {
+            interimPaidNational: safeDecimal(interimPaidNationalInput),
+            interimPaidLocal: safeDecimal(interimPaidLocalInput),
+          }),
     });
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aoiko-shohi-${year}.xtx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
-  async function downloadGeneralXtx() {
+  async function downloadGeneralXtx(period?: { start: string; end: string }) {
     const { filer, missing } = await loadFiler();
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
@@ -353,7 +431,8 @@
     }
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
-    const processed = await processYear(year);
+    const processed = await processYear(year, period);
+    const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     const xml = buildGeneralXtx({
       year,
       businessName,
@@ -362,16 +441,29 @@
       taxableBase8: processed.taxableBase8,
       input10: processed.input10,
       input8: processed.input8,
+      exportExemptSalesBase: processed.exportExemptSalesBase,
+      nonTaxableSalesBase: processed.nonTaxableSalesBase,
+      inputCommon10: processed.inputCommon10,
+      inputCommon8: processed.inputCommon8,
+      inputNonTaxableOnly10: processed.inputNonTaxableOnly10,
+      inputNonTaxableOnly8: processed.inputNonTaxableOnly8,
+      importTax10: processed.importTax10,
+      importTax8: processed.importTax8,
+      reverseChargeBase: processed.reverseChargeBase,
+      reverseChargeTax: processed.reverseChargeTax,
+      attributionMethod,
+      badDebtTax10: processed.badDebtTax10,
+      badDebtTax8: processed.badDebtTax8,
+      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+      ...(period
+        ? { interimPeriod: period }
+        : {
+            interimPaidNational: safeDecimal(interimPaidNationalInput),
+            interimPaidLocal: safeDecimal(interimPaidLocalInput),
+          }),
     });
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aoiko-shohi-${year}.xtx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 月別売上のバー高さ計算用、月内の最大売上を取る
   function maxSales(rep: MonthlyReport | null) {
@@ -849,6 +941,12 @@
       <p class="text-xs text-muted-foreground">
         {m.reports_consumption_tax_taxable_base({ amount: formatJPY(ct[0]?.taxableBase ?? '0') })}
       </p>
+      <p class="text-xs text-muted-foreground">
+        {m.reports_consumption_tax_sales_ratio({ percent: taxableSalesRatioPercent })}
+        {#if !taxableSalesRatioFullDeduction}
+          <span class="ml-1">{m.reports_consumption_tax_sales_ratio_partial()}</span>
+        {/if}
+      </p>
       <div class="overflow-x-auto">
         <table class="w-full text-sm tabular-nums">
           <thead>
@@ -917,13 +1015,36 @@
         {m.reports_consumption_tax_settings_link()}
       </p>
       <div class="border-t pt-3 space-y-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <label class="text-xs text-muted-foreground">
+            {m.reports_interim_paid_national_label()}
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={interimPaidNationalInput}
+              placeholder="0"
+              class="mt-1 w-full border rounded px-2 py-1 text-sm"
+            />
+          </label>
+          <label class="text-xs text-muted-foreground">
+            {m.reports_interim_paid_local_label()}
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={interimPaidLocalInput}
+              placeholder="0"
+              class="mt-1 w-full border rounded px-2 py-1 text-sm"
+            />
+          </label>
+        </div>
+        <p class="text-xs text-muted-foreground">{m.reports_interim_paid_hint()}</p>
         {#if ct.some((r) => r.method === 'two-wari')}
           <p class="text-xs text-muted-foreground">
             {m.reports_consumption_tax_xtx_two_wari_intro()}
           </p>
           <button
             type="button"
-            onclick={downloadConsumptionTaxXtx}
+            onclick={() => downloadConsumptionTaxXtx()}
             class="px-4 py-2 border rounded hover:bg-accent"
           >
             {m.reports_consumption_tax_xtx_two_wari_download()}
@@ -934,7 +1055,7 @@
         </p>
         <button
           type="button"
-          onclick={downloadSimplifiedXtx}
+          onclick={() => downloadSimplifiedXtx()}
           class="px-4 py-2 border rounded hover:bg-accent"
         >
           {m.reports_consumption_tax_xtx_simplified_download()}
@@ -944,7 +1065,7 @@
         </p>
         <button
           type="button"
-          onclick={downloadGeneralXtx}
+          onclick={() => downloadGeneralXtx()}
           class="px-4 py-2 border rounded hover:bg-accent"
         >
           {m.reports_consumption_tax_xtx_general_download()}
@@ -955,6 +1076,92 @@
           </p>
         {/if}
       </div>
+    </section>
+
+    <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
+      <header class="flex items-baseline justify-between">
+        <h3 class="text-lg font-semibold">{m.reports_interim_title()}</h3>
+      </header>
+      <p class="text-xs text-muted-foreground">{m.reports_interim_intro()}</p>
+      <label class="block text-xs text-muted-foreground">
+        {m.reports_interim_prior_year_label({ year: year - 1 })}
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={priorYearAmountInput}
+          placeholder="0"
+          class="mt-1 w-full border rounded px-2 py-1 text-sm"
+        />
+      </label>
+      {#if interimObligation.installmentCount === 0}
+        <p class="text-sm text-muted-foreground">{m.reports_interim_no_obligation()}</p>
+      {:else}
+        <p class="text-sm">
+          {m.reports_interim_installment_count({ n: interimObligation.installmentCount })}
+        </p>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm tabular-nums">
+            <thead>
+              <tr class="text-xs text-muted-foreground border-b">
+                <th class="text-left font-normal py-2 pr-2">{m.reports_interim_th_period()}</th>
+                <th class="text-left font-normal px-2">{m.reports_interim_th_due()}</th>
+                <th class="text-right font-normal px-2">{m.reports_interim_th_amount()}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each interimObligation.installments as inst (inst.start)}
+                <tr class="border-b border-border/40">
+                  <td class="py-2 pr-2">{inst.start} 〜 {inst.end}</td>
+                  <td class="px-2">{inst.dueDate}</td>
+                  <td class="text-right px-2">{formatJPY(inst.amount.total)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <p class="text-xs text-muted-foreground">{m.reports_interim_yotei_note()}</p>
+        <div class="border-t pt-3 space-y-2">
+          <label class="block text-xs text-muted-foreground">
+            {m.reports_interim_period_select_label()}
+            <select bind:value={selectedInstallmentIndex} class="mt-1 w-full border rounded px-2 py-1 text-sm">
+              {#each interimObligation.installments as inst, i (inst.start)}
+                <option value={i}>{inst.start} 〜 {inst.end}（{m.reports_interim_th_due()} {inst.dueDate}）</option>
+              {/each}
+            </select>
+          </label>
+          <p class="text-xs text-muted-foreground">{m.reports_interim_kari_kessan_intro()}</p>
+          <div class="flex flex-wrap gap-2">
+            {#if ct && ct.some((r) => r.method === 'two-wari')}
+              <button
+                type="button"
+                onclick={() => downloadConsumptionTaxXtx(selectedInstallment)}
+                class="px-4 py-2 border rounded hover:bg-accent"
+              >
+                {m.reports_consumption_tax_xtx_two_wari_download()}
+              </button>
+            {/if}
+            <button
+              type="button"
+              onclick={() => downloadSimplifiedXtx(selectedInstallment)}
+              class="px-4 py-2 border rounded hover:bg-accent"
+            >
+              {m.reports_consumption_tax_xtx_simplified_download()}
+            </button>
+            <button
+              type="button"
+              onclick={() => downloadGeneralXtx(selectedInstallment)}
+              class="px-4 py-2 border rounded hover:bg-accent"
+            >
+              {m.reports_consumption_tax_xtx_general_download()}
+            </button>
+          </div>
+          {#if consumptionTaxXtxError}
+            <p class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2">
+              {consumptionTaxXtxError}
+            </p>
+          {/if}
+        </div>
+      {/if}
     </section>
   {/if}
 

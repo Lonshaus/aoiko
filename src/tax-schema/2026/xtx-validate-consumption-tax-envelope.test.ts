@@ -52,6 +52,34 @@ const filer = {
   zeimushoName: '麹町',
 };
 
+// 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
+function zeroExtras() {
+  return {
+    exportExemptSalesBase: D('0'),
+    nonTaxableSalesBase: D('0'),
+    inputCommon10: D('0'),
+    inputCommon8: D('0'),
+    inputNonTaxableOnly10: D('0'),
+    inputNonTaxableOnly8: D('0'),
+    importTax10: D('0'),
+    importTax8: D('0'),
+    reverseChargeBase: D('0'),
+    reverseChargeTax: D('0'),
+    attributionMethod: 'proportional' as const,
+    ...badDebtZeroExtras(),
+  };
+}
+
+// 貸倒れ・貸倒回収なしを前提とするテスト用の既定値（mapTwoWari/mapSimplified 共通）
+function badDebtZeroExtras() {
+  return {
+    badDebtTax10: D('0'),
+    badDebtTax8: D('0'),
+    badDebtRecoveryTax10: D('0'),
+    badDebtRecoveryTax8: D('0'),
+  };
+}
+
 describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、xmllint）', () => {
   if (!hasXmllint) {
     test('xmllint 不在のため skip（CI は libxml2-utils 導入で強制）', () => {
@@ -66,6 +94,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       filer,
       taxableBase10: D('6008481'),
       taxableBase8: D('0'),
+      ...badDebtZeroExtras(),
     });
     const { ok, out } = validateAgainstSchema('RSH0030-232.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
@@ -81,6 +110,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       taxableBase8: D('0'),
       category: 5,
       deemedInputRate: 0.5,
+      ...badDebtZeroExtras(),
     });
     const { ok, out } = validateAgainstSchema('RSH0030-232.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
@@ -96,6 +126,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       taxableBase8: D('0'),
       input10: D('100000'),
       input8: D('0'),
+      ...zeroExtras(),
     });
     const { ok, out } = validateAgainstSchema('RSH0010-232.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
@@ -111,6 +142,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       filer,
       taxableBase10: D('6008481'),
       taxableBase8: D('0'),
+      ...badDebtZeroExtras(),
     });
     const wrongXml = xml.replace(/RSH0030/g, 'RSH0010');
     const { ok } = validateAgainstSchema('RSH0010-232.xsd', wrongXml);
