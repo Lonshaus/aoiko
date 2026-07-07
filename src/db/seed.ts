@@ -27,7 +27,8 @@ export async function seedAndReconcileAccounts(
       cur.category !== m.category ||
       cur.taxCategory !== m.taxCategory ||
       cur.parentCode !== m.parentCode ||
-      cur.displayOrder !== m.displayOrder;
+      cur.displayOrder !== m.displayOrder ||
+      cur.incomeType !== m.incomeType;
     if (masterFieldsChanged) {
       // マスタ由来の項目を反映しつつ、利用者の isActive は保持する。
       toPut.push({
