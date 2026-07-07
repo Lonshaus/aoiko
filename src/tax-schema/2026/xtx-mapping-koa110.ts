@@ -151,6 +151,9 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       putRow(row, 'AIM00170', result.amount);
       putRow(row, 'AIM00190', result.amount);
       putRow(row, 'AIM00200', result.bookValueEnd);
+      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === ctx.year) {
+        row.AIM00210 = asset.disposalType === 'sale' ? '売却' : '除却';
+      }
       return row;
     });
   return rows.length > 0 ? { AIM00010: rows } : {};

@@ -15,6 +15,10 @@
     generateYearEndDepreciation,
   } from '../domain/depreciation';
   import {
+    estimateTransferIncome,
+    generateDisposalEntry,
+  } from '../domain/asset-disposal';
+  import {
     applyCarryover,
     computeCarryover,
     removeCarryover,
@@ -32,9 +36,12 @@
   import type {
     Account,
     DepreciationMethod,
+    DisposalType,
     FixedAsset,
+    IncomeType,
     ParserRule,
     ParserRuleMatchType,
+    RealEstatePropertyDetail,
     SubAccount,
     TaxFilingMethod,
     TaxRegistration,
@@ -105,9 +112,32 @@
   let newAssetLife = $state(4);
   let newAssetAccount = $state('1510');
   let newAssetMethod = $state<DepreciationMethod>('straight-line');
+  let newAssetIncomeType = $state<IncomeType>('business');
   let assetError = $state('');
+  let propertyEditId = $state<string | null>(null);
+  let propertyType = $state('');
+  let propertyIsResidential = $state(true);
+  let propertyAddress = $state('');
+  let propertyTenantName = $state('');
+  let propertyTenantAddress = $state('');
+  let propertyRentalStart = $state('');
+  let propertyRentalEnd = $state('');
+  let propertyAreaSqm = $state('');
+  let propertyAnnualRent = $state('');
+  let propertyKeyMoneyEtc = $state('');
+  let propertyOtherIncome = $state('');
+  let propertyDepositBalance = $state('');
+  let propertyError = $state('');
   let depreciationYear = $state(new Date().getFullYear());
   let depreciationStatus = $state('');
+  let disposeEditId = $state<string | null>(null);
+  let disposeDate = $state(todayISO());
+  let disposeType = $state<DisposalType>('scrap');
+  let disposeSalePrice = $state('');
+  let disposeSaleExpenses = $state('');
+  let disposeCashAccount = $state('1110');
+  let disposeError = $state('');
+  let disposeStatus = $state<Record<string, string>>({});
 
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
@@ -132,6 +162,7 @@
   let taxRegistration = $state<TaxRegistration>('tax-free');
   let taxFilingMethod = $state<TaxFilingMethod>('general');
   let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
+  let consumptionTaxAttributionMethod = $state<'individual' | 'proportional'>('proportional');
   let consumptionTaxSaved = $state(false);
   // 申告者情報（e-Tax 提出用）
   let userRiyoshaId = $state('');
@@ -235,6 +266,8 @@
     taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
     taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
     simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
+    consumptionTaxAttributionMethod =
+      (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     userRiyoshaId = (await getSetting('userRiyoshaId')) ?? '';
     userFilerName = (await getSetting('userFilerName')) ?? '';
     userFilerZip = (await getSetting('userFilerZip')) ?? '';
@@ -250,6 +283,7 @@
     await setSetting('taxRegistration', taxRegistration);
     await setSetting('taxFilingMethod', taxFilingMethod);
     await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
+    await setSetting('consumptionTaxAttributionMethod', consumptionTaxAttributionMethod);
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
@@ -498,6 +532,7 @@
       usefulLifeYears: newAssetLife,
       depreciationMethod: newAssetMethod,
       accountCode: newAssetAccount,
+      ...(newAssetIncomeType === 'realEstate' ? { incomeType: 'realEstate' as const } : {}),
     };
     await db.fixedAssets.add(a);
     newAssetName = '';
@@ -507,6 +542,131 @@
 
   async function deleteAsset(id: string) {
     await db.fixedAssets.delete(id);
+  }
+
+  function startEditProperty(a: FixedAsset) {
+    propertyEditId = a.id;
+    const d = a.realEstateDetail;
+    propertyType = d?.propertyType ?? '';
+    propertyIsResidential = d?.isResidential ?? true;
+    propertyAddress = d?.address ?? '';
+    propertyTenantName = d?.tenantName ?? '';
+    propertyTenantAddress = d?.tenantAddress ?? '';
+    propertyRentalStart = d?.rentalPeriodStart ?? '';
+    propertyRentalEnd = d?.rentalPeriodEnd ?? '';
+    propertyAreaSqm = d?.areaSqm ?? '';
+    propertyAnnualRent = d?.annualRent ?? '';
+    propertyKeyMoneyEtc = d?.keyMoneyEtc ?? '';
+    propertyOtherIncome = d?.otherIncome ?? '';
+    propertyDepositBalance = d?.depositBalance ?? '';
+    propertyError = '';
+  }
+
+  function cancelEditProperty() {
+    propertyEditId = null;
+    propertyError = '';
+  }
+
+  async function saveProperty() {
+    if (!propertyEditId) {
+      return;
+    }
+    propertyError = '';
+    if (!propertyType.trim() || !propertyAddress.trim() || !propertyAnnualRent.trim()) {
+      propertyError = m.settings_asset_property_error_required();
+      return;
+    }
+    const a = await db.fixedAssets.get(propertyEditId);
+    if (!a) {
+      return;
+    }
+    const detail: RealEstatePropertyDetail = {
+      propertyType: propertyType.trim(),
+      isResidential: propertyIsResidential,
+      address: propertyAddress.trim(),
+      annualRent: propertyAnnualRent.trim(),
+      ...(propertyTenantName.trim() ? { tenantName: propertyTenantName.trim() } : {}),
+      ...(propertyTenantAddress.trim() ? { tenantAddress: propertyTenantAddress.trim() } : {}),
+      ...(propertyRentalStart ? { rentalPeriodStart: propertyRentalStart } : {}),
+      ...(propertyRentalEnd ? { rentalPeriodEnd: propertyRentalEnd } : {}),
+      ...(propertyAreaSqm.trim() ? { areaSqm: propertyAreaSqm.trim() } : {}),
+      ...(propertyKeyMoneyEtc.trim() ? { keyMoneyEtc: propertyKeyMoneyEtc.trim() } : {}),
+      ...(propertyOtherIncome.trim() ? { otherIncome: propertyOtherIncome.trim() } : {}),
+      ...(propertyDepositBalance.trim() ? { depositBalance: propertyDepositBalance.trim() } : {}),
+    };
+    await db.fixedAssets.put({ ...a, realEstateDetail: detail });
+    propertyEditId = null;
+  }
+
+  function startEditDisposal(a: FixedAsset) {
+    disposeEditId = a.id;
+    disposeDate = a.disposedDate ?? todayISO();
+    disposeType = a.disposalType ?? 'scrap';
+    disposeSalePrice = a.salePrice ?? '';
+    disposeSaleExpenses = a.saleExpenses ?? '';
+    disposeCashAccount = '1110';
+    disposeError = '';
+  }
+
+  function cancelEditDisposal() {
+    disposeEditId = null;
+    disposeError = '';
+  }
+
+  async function saveDisposal() {
+    if (!disposeEditId) {
+      return;
+    }
+    disposeError = '';
+    const trimmedSalePrice = disposeSalePrice.trim();
+    if (disposeType === 'sale' && !trimmedSalePrice) {
+      disposeError = m.settings_asset_disposal_error_sale_price();
+      return;
+    }
+    const a = await db.fixedAssets.get(disposeEditId);
+    if (!a) {
+      return;
+    }
+    const trimmedSaleExpenses = disposeSaleExpenses.trim();
+    const { salePrice: _sp, saleExpenses: _se, ...base } = a;
+    const updated: FixedAsset = {
+      ...base,
+      disposedDate: disposeDate,
+      disposalType: disposeType,
+      ...(disposeType === 'sale'
+        ? {
+            salePrice: trimmedSalePrice,
+            ...(trimmedSaleExpenses ? { saleExpenses: trimmedSaleExpenses } : {}),
+          }
+        : {}),
+    };
+    await db.fixedAssets.put(updated);
+    disposeEditId = null;
+  }
+
+  async function clearDisposal(id: string) {
+    const a = await db.fixedAssets.get(id);
+    if (!a) {
+      return;
+    }
+    const { disposedDate: _dd, disposalType: _dt, salePrice: _sp, saleExpenses: _se, ...rest } = a;
+    await db.fixedAssets.put(rest);
+    delete disposeStatus[id];
+  }
+
+  async function runDisposalEntry(id: string) {
+    const result = await generateDisposalEntry(id, disposeCashAccount);
+    if (result.created) {
+      disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
+      return;
+    }
+    const messages: Record<NonNullable<typeof result.reason>, string> = {
+      'no-disposal': m.settings_asset_disposal_run_error_no_disposal(),
+      'already-exists': m.settings_asset_disposal_run_error_exists(),
+      'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
+      'lump-sum-unsupported': m.settings_asset_disposal_run_error_lump_sum(),
+    };
+    disposeStatus = { ...disposeStatus, [id]: messages[result.reason!] };
   }
 
   async function runDepreciation() {
@@ -755,6 +915,15 @@
         />
       </label>
     </div>
+    <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={ledger.realEstateIncomeEnabled}
+        onchange={(e) =>
+          setSetting('realEstateIncomeEnabled', (e.target as HTMLInputElement).checked)}
+      />
+      {m.settings_basic_real_estate_income_enabled()}
+    </label>
     <div class="flex justify-end">
       <button
         type="submit"
@@ -822,6 +991,20 @@
                 <option value={cat}>{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option>
               {/each}
             </select>
+          </label>
+        {/if}
+        {#if taxFilingMethod === 'general'}
+          <label class="block sm:col-span-2">
+            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_method()}</span>
+            <select
+              bind:value={consumptionTaxAttributionMethod}
+              onchange={saveConsumptionTax}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            >
+              <option value="proportional">{m.settings_consumption_tax_attribution_proportional()}</option>
+              <option value="individual">{m.settings_consumption_tax_attribution_individual()}</option>
+            </select>
+            <span class="block mt-1 text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_hint()}</span>
           </label>
         {/if}
       {/if}
@@ -1253,6 +1436,7 @@
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="1510">1510 工具器具備品</option>
+          <option value="1511">1511 建物</option>
           <option value="1540">1540 車両運搬具</option>
           <option value="1550">1550 建物附属設備</option>
         </select>
@@ -1268,6 +1452,16 @@
           {/if}
           <option value="lump-sum">{m.settings_asset_method_lump_sum()}</option>
         </select>
+        {#if ledger.realEstateIncomeEnabled}
+          <select
+            bind:value={newAssetIncomeType}
+            title={m.journal_form_income_type_label()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          >
+            <option value="business">{m.journal_form_income_type_business()}</option>
+            <option value="realEstate">{m.journal_form_income_type_real_estate()}</option>
+          </select>
+        {/if}
         <button
           type="submit"
           class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
@@ -1317,23 +1511,262 @@
         <tbody>
           {#each ledger.fixedAssets as a (a.id)}
             {@const d = assetCurrentDepreciation(a)}
+            {@const estimate = estimateTransferIncome(a)}
             <tr class="border-t border-border/50">
-              <td class="py-2">{a.name}</td>
+              <td class="py-2">
+                {a.name}
+                {#if a.disposedDate}
+                  <span class="ml-1 text-xs text-muted-foreground">
+                    ({a.disposalType === 'sale' ? m.settings_asset_disposal_type_sale() : m.settings_asset_disposal_type_scrap()}
+                    {a.disposedDate})
+                  </span>
+                {/if}
+              </td>
               <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
               <td class="py-2 text-right tabular-nums">{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
               <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td>
-              <td class="py-2 text-right">
+              <td class="py-2 text-right whitespace-nowrap">
+                {#if a.incomeType === 'realEstate'}
+                  <button
+                    type="button"
+                    onclick={() => startEditProperty(a)}
+                    class="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {m.settings_asset_property_button()}
+                  </button>
+                {/if}
+                <button
+                  type="button"
+                  onclick={() => startEditDisposal(a)}
+                  class="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {a.disposedDate ? m.settings_action_edit() : m.settings_asset_disposal_button()}
+                </button>
                 <button
                   type="button"
                   onclick={() => deleteAsset(a.id)}
-                  class="text-xs text-muted-foreground hover:text-destructive"
+                  class="ml-2 text-xs text-muted-foreground hover:text-destructive"
                 >
                   {m.settings_action_delete()}
                 </button>
               </td>
             </tr>
+            {#if propertyEditId === a.id}
+              <tr class="border-t border-border/50 bg-muted/30">
+                <td colspan="7" class="py-3">
+                  <div class="space-y-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        bind:value={propertyType}
+                        placeholder={m.settings_asset_property_type_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                      />
+                      <input
+                        type="text"
+                        bind:value={propertyAddress}
+                        placeholder={m.settings_asset_property_address_placeholder()}
+                        class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
+                      />
+                      <label class="flex items-center gap-1 text-sm">
+                        <input type="checkbox" bind:checked={propertyIsResidential} />
+                        {m.settings_asset_property_residential()}
+                      </label>
+                      <input
+                        type="text"
+                        bind:value={propertyTenantName}
+                        placeholder={m.settings_asset_property_tenant_name_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                      />
+                      <input
+                        type="text"
+                        bind:value={propertyTenantAddress}
+                        placeholder={m.settings_asset_property_tenant_address_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                      />
+                      <input
+                        type="date"
+                        bind:value={propertyRentalStart}
+                        title={m.settings_asset_property_rental_start_title()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                      />
+                      <input
+                        type="date"
+                        bind:value={propertyRentalEnd}
+                        title={m.settings_asset_property_rental_end_title()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                      />
+                      <input
+                        type="number"
+                        bind:value={propertyAreaSqm}
+                        min="0"
+                        placeholder={m.settings_asset_property_area_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                      />
+                      <input
+                        type="number"
+                        bind:value={propertyAnnualRent}
+                        min="0"
+                        step="1"
+                        required
+                        placeholder={m.settings_asset_property_annual_rent_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                      />
+                      <input
+                        type="number"
+                        bind:value={propertyKeyMoneyEtc}
+                        min="0"
+                        step="1"
+                        placeholder={m.settings_asset_property_key_money_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                      />
+                      <input
+                        type="number"
+                        bind:value={propertyOtherIncome}
+                        min="0"
+                        step="1"
+                        placeholder={m.settings_asset_property_other_income_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                      />
+                      <input
+                        type="number"
+                        bind:value={propertyDepositBalance}
+                        min="0"
+                        step="1"
+                        placeholder={m.settings_asset_property_deposit_placeholder()}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                      />
+                    </div>
+                    {#if propertyError}
+                      <div class="text-xs text-destructive">{propertyError}</div>
+                    {/if}
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        onclick={saveProperty}
+                        class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+                      >
+                        {m.settings_action_save()}
+                      </button>
+                      <button
+                        type="button"
+                        onclick={cancelEditProperty}
+                        class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
+                      >
+                        {m.settings_action_cancel()}
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {/if}
+            {#if disposeEditId === a.id}
+              <tr class="border-t border-border/50 bg-muted/30">
+                <td colspan="7" class="py-3">
+                  <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <input
+                        type="date"
+                        bind:value={disposeDate}
+                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                      />
+                      <label class="flex items-center gap-1 text-sm">
+                        <input type="radio" bind:group={disposeType} value="scrap" />
+                        {m.settings_asset_disposal_type_scrap()}
+                      </label>
+                      <label class="flex items-center gap-1 text-sm">
+                        <input type="radio" bind:group={disposeType} value="sale" />
+                        {m.settings_asset_disposal_type_sale()}
+                      </label>
+                      {#if disposeType === 'sale'}
+                        <input
+                          type="number"
+                          bind:value={disposeSalePrice}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_disposal_sale_price_placeholder()}
+                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={disposeSaleExpenses}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
+                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <select
+                          bind:value={disposeCashAccount}
+                          title={m.settings_asset_disposal_cash_account_title()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        >
+                          <option value="1110">1110 現金</option>
+                          <option value="1130">1130 普通預金</option>
+                        </select>
+                      {/if}
+                    </div>
+                    {#if disposeError}
+                      <div class="text-xs text-destructive">{disposeError}</div>
+                    {/if}
+                    <div class="flex gap-2">
+                      <button
+                        type="button"
+                        onclick={saveDisposal}
+                        class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+                      >
+                        {m.settings_action_save()}
+                      </button>
+                      <button
+                        type="button"
+                        onclick={cancelEditDisposal}
+                        class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
+                      >
+                        {m.settings_action_cancel()}
+                      </button>
+                      {#if a.disposedDate}
+                        <button
+                          type="button"
+                          onclick={() => clearDisposal(a.id)}
+                          class="px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive"
+                        >
+                          {m.settings_asset_disposal_clear()}
+                        </button>
+                      {/if}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {/if}
+            {#if a.disposedDate && disposeEditId !== a.id}
+              <tr class="border-t border-border/50 bg-muted/10">
+                <td colspan="7" class="py-2 text-xs text-muted-foreground space-y-1">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onclick={() => runDisposalEntry(a.id)}
+                      class="px-3 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
+                    >
+                      {m.settings_asset_disposal_run_button()}
+                    </button>
+                    {#if disposeStatus[a.id]}
+                      <span>{disposeStatus[a.id]}</span>
+                    {/if}
+                  </div>
+                  {#if estimate}
+                    <p>
+                      {m.settings_asset_disposal_transfer_estimate({
+                        proceeds: formatJPY(estimate.proceeds),
+                        acquisitionExpense: formatJPY(estimate.acquisitionExpense),
+                        estimate: formatJPY(estimate.estimate),
+                        years: estimate.holdingYears,
+                      })}
+                    </p>
+                  {/if}
+                </td>
+              </tr>
+            {/if}
           {/each}
         </tbody>
       </table>

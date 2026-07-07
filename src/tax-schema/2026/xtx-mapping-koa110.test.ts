@@ -255,4 +255,25 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     const out = mapKoa110RepeatedValues(ctx({}, []));
     expect(out.AIM00010).toBeUndefined();
   });
+
+  test('当年に除却した資産は摘要欄に「除却」を出力する', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'scrap' })])
+    );
+    expect(out.AIM00010![0]!.AIM00210).toBe('除却');
+  });
+
+  test('当年に売却した資産は摘要欄に「売却」を出力する', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'sale', salePrice: '100000' })])
+    );
+    expect(out.AIM00010![0]!.AIM00210).toBe('売却');
+  });
+
+  test('除却日が翌年以降なら当年の摘要欄には出力しない', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [asset({ disposedDate: '2027-06-30', disposalType: 'scrap' })])
+    );
+    expect(out.AIM00010![0]!.AIM00210).toBeUndefined();
+  });
 });

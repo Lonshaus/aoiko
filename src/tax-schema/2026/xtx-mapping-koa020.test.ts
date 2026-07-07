@@ -1,6 +1,14 @@
 import { describe, expect, test } from 'vitest';
-import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
+import { D } from '../../lib/decimal';
+import {
+  combinedTotalIncomeAmount,
+  mapKoa020LeafValues,
+  mapKoa020Values,
+  totalIncomeAmount,
+} from './xtx-mapping-koa020';
 import type { XtxContext } from './xtx';
+import type { IncomeDeductionInput } from './income-deductions';
+import type { PLReport } from '../../domain/reports';
 
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   return {
@@ -94,5 +102,231 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     const values = Object.values(out);
     expect(values).toContain('100000'); // 控除額10万
     expect(values).toContain('1900000'); // 事業所得=控除前200万−10万
+  });
+
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(400_000),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+
+  test('personalDeductions 入力時、所得控除・税額の各欄も出力する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: emptyPersonalDeductions,
+      })
+    );
+    // 336万円以下 → 基礎控除88万円
+    expect(out.ABB00550).toBe('880000');
+    expect(out.ABB00450).toBe('400000');
+    // 事業所得=控除前300万−青色控除65万=235万、所得控除計=88万(基礎)+40万(社保)=128万
+    expect(out.ABB00560).toBe('1280000');
+    expect(out.ABB00580).toBe('1070000'); // 235万-128万
+    expect(out.ABB00590).toBeDefined();
+    expect(out.ABB01030).toBeDefined();
+  });
+
+  test('personalDeductions 未入力なら所得控除・税額の欄は出力しない', () => {
+    const out = mapKoa020LeafValues(
+      ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' })
+    );
+    expect(out.ABB00550).toBeUndefined();
+    expect(out.ABB00590).toBeUndefined();
+  });
+
+  test('税額控除は差引所得税額算出後、外国税額控除等・災害減免額は再差引で別枠控除', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '10000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          foreignTaxCreditAmount: D(1000),
+          disasterExemptionAmount: D(2000),
+        },
+      })
+    );
+    const diffTax = Number(out.ABB00670);
+    const saiSashihiki = Number(out.ABB01010);
+    expect(diffTax - saiSashihiki).toBe(3000);
+  });
+
+  test('給与所得：収入金額等(ABB00080)は税引前、所得金額等(ABB00370)は給与所得控除後', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '0' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
+        },
+      })
+    );
+    expect(out.ABB00080).toBe('1000000');
+    // 1,000,000 - 740,000(令和8・9年分の給与所得控除) = 260,000
+    expect(out.ABB00370).toBe('260000');
+  });
+
+  test('雑所得：公的年金等は所得金額等側のみ、その他雑所得は収入・所得金額等の両方に出力', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '0' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          miscIncome: {
+            publicPensionAmount: D(300_000),
+            otherIncome: D(200_000),
+            otherExpenses: D(50_000),
+          },
+        },
+      })
+    );
+    expect(out.ABB00100).toBeUndefined();
+    expect(out.ABB01060).toBe('300000');
+    expect(out.ABB00110).toBe('200000');
+    expect(out.ABB01120).toBe('150000');
+  });
+
+  test('源泉徴収税額(ABB00710)・申告納税額(ABB00720)を算出する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
+          otherWithholdingTax: D(5_000),
+        },
+      })
+    );
+    expect(out.ABB00710).toBe('35000');
+    expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - 35000);
+  });
+
+  test('給与所得・雑所得は合計所得金額（基礎控除の級距判定）にも加算される', () => {
+    // 事業所得: 収入500万-青色控除65万=435万。給与所得(収入100万)=26万を加えると461万→
+    // 336万円超489万円以下の基礎控除68万円区分に該当する（335万円台なら88万円のはず）
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(0) },
+        },
+      })
+    );
+    expect(out.ABB00550).toBe('680000');
+  });
+
+  test('配偶者の合計所得金額(ABB00780)・公的年金等以外の合計所得金額(ABB00775)を出力する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          spouse: { totalIncome: D(400_000), age: 40 },
+          miscIncome: { publicPensionAmount: D(300_000) },
+        },
+      })
+    );
+    expect(out.ABB00780).toBe('400000');
+    // 事業所得235万+雑所得(年金)30万=265万。公的年金等以外=265万-30万=235万
+    expect(out.ABB00775).toBe('2350000');
+  });
+});
+
+function realEstatePl(netIncome: string): PLReport {
+  return {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome,
+    entryCount: 0,
+  };
+}
+
+describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との共有枠、B7 part2）', () => {
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+
+  test('不動産所得が無ければ従来どおり単独の青色控除額を使う', () => {
+    const c = ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' });
+    expect(totalIncomeAmount(c).toString()).toBe('2350000');
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('2350000');
+  });
+
+  test('不動産所得の黒字分が共有枠から優先控除され、事業所得側の控除額はその分だけ減る', () => {
+    const c = ctx({
+      pl: { ...plBase, netIncome: '5000000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: realEstatePl('4000000'),
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: false },
+      },
+    });
+    // 限度額65万、不動産所得400万から優先控除→65万を使い切り、事業所得側の控除は0
+    expect(totalIncomeAmount(c).toString()).toBe('5000000');
+    // combinedIncome = 事業所得500万 + 損益通算可能な不動産所得(400万-65万=335万) = 835万
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('8350000');
+  });
+
+  test('不動産所得が赤字で土地等負債利子額があれば、その分だけ合計所得金額から除外される', () => {
+    const c = ctx({
+      pl: { ...plBase, netIncome: '3000000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: realEstatePl('-1000000'),
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: true, landLoanInterestAmount: D(300_000) },
+      },
+    });
+    // 事業所得は不動産所得の有無に関わらず単独黒字300万→控除65万→235万
+    expect(totalIncomeAmount(c).toString()).toBe('2350000');
+    // 不動産所得赤字100万のうち30万は損益通算不可→通算できるのは70万分の赤字
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('1650000');
   });
 });
