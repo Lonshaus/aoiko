@@ -40,6 +40,7 @@
   const ROUTE_COMPONENT: Record<string, () => Promise<{ default: Component }>> = {
     '/journal': memo(() => import('./routes/JournalList.svelte')),
     '/reports': memo(() => import('./routes/Reports.svelte')),
+    '/income-deductions': memo(() => import('./routes/IncomeDeductions.svelte')),
     '/import': memo(() => import('./routes/Import.svelte')),
     '/order-import': memo(() => import('./routes/OrderImport.svelte')),
     '/import-history': memo(() => import('./routes/ImportHistory.svelte')),
@@ -60,6 +61,7 @@
         <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_home()}</a>
         <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a>
         <a href="/reports" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a>
+        <a href="/income-deductions" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_income_deductions()}</a>
         <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a>
         <a href="/order-import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_order_import()}</a>
         <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
