@@ -6,6 +6,10 @@
 // 借入金利子・税理士等報酬）・第4頁（貸借対照表）は繰り返しブロック（XtxRepeatedValues）
 // で表現する。
 //
+// KOA220 には貸倒金・貸倒引当金繰入額の専用欄が無いため、EXPENSE_ALIAS 未対応の
+// 不動産経費科目は「追加科目　繰り返し」（ANF00195、上限5）へ出力する
+// （additionalExpenseRows 参照）。
+//
 // 対応しない項目（対応不可分・低優先度、e-Tax 上で利用者が補完）：
 //  - 給料賃金の内訳（ANF00620、専従者以外の使用人の内訳）：不動産所得で使用人を
 //    雇うのは稀なケースのため対象外
@@ -147,6 +151,8 @@ const MAX_DEPRECIATION_ROWS = 13;
 const MAX_RENT_PAID_ROWS = 2;
 const MAX_LOAN_INTEREST_PAID_ROWS = 3;
 const MAX_PROFESSIONAL_FEE_ROWS = 2;
+const MAX_ADDITIONAL_EXPENSE_ROWS = 5;
+const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
   const v = toKingaku(amount);
@@ -255,11 +261,34 @@ function payeeRows<T extends { payeeAddress?: string; payeeName?: string; amount
   });
 }
 
+// KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
+// 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
+// へ出力する。5件を超える分は出力しない（超過時は e-Tax 上で利用者が手動補完）。
+function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
+  const pl = ctx.realEstatePl;
+  if (!pl) {
+    return [];
+  }
+  return pl.expense
+    .filter((row) => !(row.accountName in EXPENSE_ALIAS))
+    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => {
+      const name = row.accountName.replace('（不動産）', '').slice(0, ADDITIONAL_EXPENSE_NAME_MAX_LENGTH);
+      const item: XtxLeafValues = { ANF00060: name };
+      putRow(item, 'ANF00200', row.amount);
+      return item;
+    });
+}
+
 export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const out: XtxRepeatedValues = {};
   const properties = propertyRows(ctx);
   if (properties.length > 0) {
     out.ANF00340 = properties;
+  }
+  const additionalExpenses = additionalExpenseRows(ctx);
+  if (additionalExpenses.length > 0) {
+    out.ANF00195 = additionalExpenses;
   }
   const depreciation = depreciationRows(ctx);
   if (depreciation.length > 0) {
