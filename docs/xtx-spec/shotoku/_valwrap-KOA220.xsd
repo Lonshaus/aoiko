@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  aoiko テスト用 XSD validation ラッパ（非公式）。
+  公式 KOA220-008.xsd は様式要素 KOA220 を xsd:group 内に宣言しグローバル要素が
+  無いため xmllint で直接検証不可。本ラッパは同一 targetNamespace で公式 xsd を
+  xsd:include し、公式 KOA220-8-0group を参照するグローバル要素 ValidationRoot を
+  1 つ足すだけ（e-Tax 非公開エンベロープが group を取り込む機構と等価）。
+  公式 xsd には一切手を加えない。
+-->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  targetNamespace="http://xml.e-tax.nta.go.jp/XSD/shotoku"
+  elementFormDefault="qualified">
+  <xsd:include schemaLocation="KOA220-008.xsd"/>
+  <xsd:element name="ValidationRoot">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:group ref="KOA220-8-0group"/>
+      </xsd:sequence>
+    </xsd:complexType>
+  </xsd:element>
+</xsd:schema>

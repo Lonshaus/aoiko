@@ -1,8 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
-import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
+import {
+  combinedTotalIncomeAmount,
+  mapKoa020LeafValues,
+  mapKoa020Values,
+  totalIncomeAmount,
+} from './xtx-mapping-koa020';
 import type { XtxContext } from './xtx';
 import type { IncomeDeductionInput } from './income-deductions';
+import type { PLReport } from '../../domain/reports';
 
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   return {
@@ -243,5 +249,84 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     expect(out.ABB00780).toBe('400000');
     // 事業所得235万+雑所得(年金)30万=265万。公的年金等以外=265万-30万=235万
     expect(out.ABB00775).toBe('2350000');
+  });
+});
+
+function realEstatePl(netIncome: string): PLReport {
+  return {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome,
+    entryCount: 0,
+  };
+}
+
+describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との共有枠、B7 part2）', () => {
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+
+  test('不動産所得が無ければ従来どおり単独の青色控除額を使う', () => {
+    const c = ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' });
+    expect(totalIncomeAmount(c).toString()).toBe('2350000');
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('2350000');
+  });
+
+  test('不動産所得の黒字分が共有枠から優先控除され、事業所得側の控除額はその分だけ減る', () => {
+    const c = ctx({
+      pl: { ...plBase, netIncome: '5000000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: realEstatePl('4000000'),
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: false },
+      },
+    });
+    // 限度額65万、不動産所得400万から優先控除→65万を使い切り、事業所得側の控除は0
+    expect(totalIncomeAmount(c).toString()).toBe('5000000');
+    // combinedIncome = 事業所得500万 + 損益通算可能な不動産所得(400万-65万=335万) = 835万
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('8350000');
+  });
+
+  test('不動産所得が赤字で土地等負債利子額があれば、その分だけ合計所得金額から除外される', () => {
+    const c = ctx({
+      pl: { ...plBase, netIncome: '3000000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: realEstatePl('-1000000'),
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: true, landLoanInterestAmount: D(300_000) },
+      },
+    });
+    // 事業所得は不動産所得の有無に関わらず単独黒字300万→控除65万→235万
+    expect(totalIncomeAmount(c).toString()).toBe('2350000');
+    // 不動産所得赤字100万のうち30万は損益通算不可→通算できるのは70万分の赤字
+    expect(combinedTotalIncomeAmount(c).toString()).toBe('1650000');
   });
 });

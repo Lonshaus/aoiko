@@ -6,6 +6,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 
 > **By the end of this chapter you can**
 > - Export the tax return (KOA020) + the matching statement — blue-return financial statements (KOA210) or, for white return, the income/expense breakdown statement (KOA110) — into one `.xtx`
+> - If real estate income is entered, the real-estate financial statements (KOA220 for blue, KOA130 for white) are attached to the same `.xtx` too (see [14. Income & tax deductions](14-income-deductions_en.md))
 > - Load the exported `.xtx` into e-Tax software (download edition)
 > - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax, the white-return family-employee deduction)
 >
@@ -17,6 +18,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 
 - **KOA020-023**: tax return, first table
 - **KOA210-011**: blue-return financial statements (general), or **KOA110-012**: income/expense breakdown statement (general) for white return — decided by **Settings ＞ Filer Info ＞ Filing Type**
+- **KOA220-008**: blue-return financial statements (real estate income), or **KOA130-009**: income/expense breakdown statement (real estate income) — attached alongside the business statement above only when **Settings ＞ Use real estate income** is on and real estate income has been entered in [14. Income & tax deductions](14-income-deductions_en.md)
 - **TEA060**: filing/transmission slip
 - **Procedure code**: `RKO0010` (income tax & special reconstruction income tax return)
 
@@ -108,6 +110,7 @@ aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
 - Source CAB: `e-tax19.CAB` "XML schema"
 - Bundled in aoiko: under `docs/xtx-spec/{shotoku,general}/`
   - `KOA020-023.xsd` (tax return), `KOA210-011.xsd` (blue-return statements, general), `KOA110-012.xsd` (income/expense breakdown statement, general)
+  - `KOA220-008.xsd` (blue-return statements, real estate income), `KOA130-009.xsd` (income/expense breakdown statement, real estate income)
   - `General.xsd`, `ITdefinition.xsd`, `ITreference.xsd`, `zeimusho.xsd`, `zeimoku.xsd`
 
 ### Document model

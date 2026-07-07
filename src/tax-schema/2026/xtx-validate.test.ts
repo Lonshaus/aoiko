@@ -21,9 +21,13 @@ import { buildFormFragment, type XtxLeafValues } from './xtx-document';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
+import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
+import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
+import koa220 from './xtx-schema-koa220.generated.json';
+import koa130 from './xtx-schema-koa130.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { FixedAsset } from '../../db/types';
@@ -749,5 +753,317 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     }
     // KOA210 は白色申告バンドルに含まれない
     expect(xtx).not.toContain('<KOA210 ');
+  });
+
+  maybe('KOA220 参照側が公式 xsd に適合する', () => {
+    const { ok, out } = validate(koa220 as XtxSchema, '_valwrap-KOA220.xsd');
+    expect(out).not.toContain('Schemas parser error');
+    expect(ok, out).toBe(true);
+  });
+
+  maybe('KOA130 参照側が公式 xsd に適合する', () => {
+    const { ok, out } = validate(koa130 as XtxSchema, '_valwrap-KOA130.xsd');
+    expect(out).not.toContain('Schemas parser error');
+    expect(ok, out).toBe(true);
+  });
+
+  maybe('KOA220 実 mapping 経路（損益・物件明細・減価償却・地代家賃/借入金利子/税理士報酬の内訳）が公式 xsd に適合する', () => {
+    const realEstatePl: PLReport = {
+      year: 2026,
+      revenue: [
+        { accountCode: '4210', accountName: '賃貸料（不動産）', category: 'revenue', amount: '1200000', displayOrder: 210 },
+      ],
+      expense: [
+        { accountCode: '5320', accountName: '損害保険料（不動産）', category: 'expense', amount: '50000', displayOrder: 1320 },
+      ],
+      totalRevenue: '1200000',
+      totalExpense: '50000',
+      netIncome: '1150000',
+      entryCount: 6,
+    };
+    const fixedAssets: FixedAsset[] = [
+      {
+        id: 'a1',
+        name: '賃貸マンション',
+        acquisitionDate: '2020-01-01',
+        acquisitionCost: '10000000',
+        usefulLifeYears: 22,
+        depreciationMethod: 'straight-line',
+        accountCode: '1511',
+        incomeType: 'realEstate',
+        realEstateDetail: {
+          propertyType: '貸家',
+          isResidential: true,
+          address: '東京都武蔵野市〇〇1-2-3',
+          annualRent: '1200000',
+        },
+      },
+    ];
+    const ctx = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '3000000',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'blue' as const,
+      aoiroDeductionKind: 'electronic' as const,
+      fixedAssets,
+      realEstatePl,
+      personalDeductions: {
+        realEstateIncome: {
+          businessScale: true,
+          landLoanInterestAmount: D(10000),
+          rentPaid: [{ amount: '50000', payeeName: '地主 太郎', deductibleAmount: '50000' }],
+          loanInterestPaid: [{ amount: '30000', payeeName: '〇〇銀行', yearEndBalance: '9000000' }],
+          professionalFeesPaid: [{ amount: '20000', payeeName: '〇〇税理士', withholdingTax: '2000' }],
+        },
+      },
+    };
+    const leafValues = mapKoa220Values(ctx);
+    const repeats = mapKoa220RepeatedValues(ctx);
+    expect(Object.keys(leafValues).length).toBeGreaterThan(5);
+    expect(repeats.ANF00340).toHaveLength(1);
+    expect(repeats.ANF00890).toHaveLength(1);
+    const frag = buildFormFragment(
+      koa220 as XtxSchema,
+      {},
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      leafValues,
+      repeats
+    );
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA220.xsd'), xmlPath],
+      { encoding: 'utf8' }
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
+  maybe('KOA130 実 mapping 経路（損益・物件明細・減価償却の内訳、白色申告）が公式 xsd に適合する', () => {
+    const realEstatePl: PLReport = {
+      year: 2026,
+      revenue: [
+        { accountCode: '4210', accountName: '賃貸料（不動産）', category: 'revenue', amount: '960000', displayOrder: 210 },
+      ],
+      expense: [],
+      totalRevenue: '960000',
+      totalExpense: '0',
+      netIncome: '960000',
+      entryCount: 4,
+    };
+    const fixedAssets: FixedAsset[] = [
+      {
+        id: 'a1',
+        name: '賃貸アパート',
+        acquisitionDate: '2021-04-01',
+        acquisitionCost: '8000000',
+        usefulLifeYears: 22,
+        depreciationMethod: 'straight-line',
+        accountCode: '1511',
+        incomeType: 'realEstate',
+        realEstateDetail: {
+          propertyType: '貸家',
+          address: '東京都〇〇区',
+          annualRent: '960000',
+        },
+      },
+    ];
+    const ctx = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'white' as const,
+      aoiroDeductionKind: 'none' as const,
+      fixedAssets,
+      realEstatePl,
+      personalDeductions: { realEstateIncome: { businessScale: false } },
+    };
+    const leafValues = mapKoa130Values(ctx);
+    const repeats = mapKoa130RepeatedValues(ctx);
+    expect(Object.keys(leafValues).length).toBeGreaterThan(0);
+    expect(repeats.AKH00010).toHaveLength(1);
+    expect(repeats.AKK00010).toHaveLength(1);
+    const frag = buildFormFragment(
+      koa130 as XtxSchema,
+      {},
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      leafValues,
+      repeats
+    );
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA130.xsd'), xmlPath],
+      { encoding: 'utf8' }
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
+  maybe('組立済バンドル（buildXtx2026、事業所得+不動産所得の同時申告）の各様式が公式 xsd に適合する', () => {
+    const ctx = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: {
+        year: 2026,
+        months: Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          sales: String((i + 1) * 100000),
+          expense: String((i + 1) * 10000),
+          purchases: String((i + 1) * 3000),
+        })),
+        totalSales: '7800000',
+        totalExpense: '780000',
+      },
+      pl: {
+        year: 2026,
+        revenue: [
+          { accountCode: '4110', accountName: '売上高', category: 'revenue' as const, amount: '7800000', displayOrder: 110 },
+        ],
+        expense: [
+          { accountCode: '5130', accountName: '水道光熱費', category: 'expense' as const, amount: '120000', displayOrder: 130 },
+        ],
+        totalRevenue: '7800000',
+        totalExpense: '120000',
+        netIncome: '7680000',
+        entryCount: 4,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [
+          { accountCode: '1110', accountName: '現金', category: 'asset' as const, balance: '7680000' },
+        ],
+        liabilities: [],
+        equity: [
+          { accountCode: '3110', accountName: '元入金', category: 'equity' as const, balance: '7680000' },
+        ],
+        netIncome: '7680000',
+        totalAssets: '7680000',
+        totalLiabilitiesAndEquity: '7680000',
+        balanced: true,
+      },
+      filer: {
+        riyoshaId: '1234567890123456',
+        name: '青井 太郎',
+        zip: '1800001',
+        address: '東京都武蔵野市〇〇1-2-3',
+        zeimushoCode: '01101',
+        zeimushoName: '麹町',
+      },
+      filingType: 'blue' as const,
+      aoiroDeductionKind: 'electronic' as const,
+      fixedAssets: [] as FixedAsset[],
+      realEstatePl: {
+        year: 2026,
+        revenue: [
+          { accountCode: '4210', accountName: '賃貸料（不動産）', category: 'revenue' as const, amount: '1200000', displayOrder: 210 },
+        ],
+        expense: [],
+        totalRevenue: '1200000',
+        totalExpense: '0',
+        netIncome: '1200000',
+        entryCount: 3,
+      },
+      personalDeductions: {
+        socialInsurancePaid: D(0),
+        smallBusinessMutualAidPaid: D(0),
+        lifeInsurance: {},
+        earthquakeInsurancePaid: D(0),
+        oldLongTermInsurancePaid: D(0),
+        medicalExpensePaid: D(0),
+        medicalInsuranceReimbursement: D(0),
+        donationAmount: D(0),
+        casualtyLossDeduction: D(0),
+        isDisabled: false,
+        isSpecialDisabled: false,
+        isSingleParent: false,
+        isWidow: false,
+        isWorkingStudent: false,
+        dependents: [],
+        realEstateIncome: { businessScale: true },
+      },
+    };
+    const xtx = buildXtx2026(ctx);
+    const forms: Array<[string, string]> = [
+      ['KOA020', '_valwrap-KOA020.xsd'],
+      ['KOA210', '_valwrap-KOA210.xsd'],
+      ['KOA220', '_valwrap-KOA220.xsd'],
+    ];
+    for (const [tag, wrapper] of forms) {
+      const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xtx);
+      expect(m, `${tag} subtree not found`).not.toBeNull();
+      const doc =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
+      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+      const xmlPath = join(dir, 'doc.xml');
+      writeFileSync(xmlPath, doc, 'utf8');
+      const r = spawnSync(
+        'xmllint',
+        ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath],
+        { encoding: 'utf8' }
+      );
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      expect(out).not.toContain('Schemas parser error');
+      expect(r.status, `${tag}: ${out}`).toBe(0);
+    }
   });
 });
