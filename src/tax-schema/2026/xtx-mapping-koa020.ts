@@ -10,7 +10,6 @@
 
 import koa020 from './xtx-schema-koa020.generated.json';
 import { D, type Decimal } from '../../lib/decimal';
-import { aoiroDeductionAmount } from './aoiro-deduction';
 import { whiteReturnAdjustedNetIncome } from './white-return-income';
 import {
   computeIncomeDeductions,
@@ -19,6 +18,11 @@ import {
   totalTaxCredits,
 } from './income-deductions';
 import { otherIncomeAmount, otherMiscIncome, salaryIncomeAmount, totalWithholdingTax } from './other-income';
+import {
+  computeCombinedBusinessRealEstateIncome,
+  offsettableRealEstateLoss,
+  realEstatePreDeductionIncome,
+} from './real-estate-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues } from './xtx-document';
@@ -96,29 +100,66 @@ function putTag(out: XtxLeafValues, tag: string, amount: string): void {
   }
 }
 
-// 合計所得金額（aoiko は事業所得のみを扱うため、事業所得＝合計所得金額）。
+type IncomeCtx = Pick<
+  XtxContext,
+  'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'realEstatePl' | 'personalDeductions'
+>;
+
+// 事業所得（青色申告特別控除後）。不動産所得（B7 part2）があれば、共有枠での
+// 配分後の実際の控除額を使う（単独計算だと不動産所得と共有する分を考慮せず過小控除になる）。
 // 所得控除・税額控除の計算（income-deductions.ts）にもそのまま使う（IncomeDeductions.svelte 参照）。
-export function totalIncomeAmount(
-  ctx: Pick<XtxContext, 'year' | 'pl' | 'filingType' | 'aoiroDeductionKind'>
-): Decimal {
+export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
   if (ctx.filingType === 'white') {
     // 専従者給与・貸倒引当金繰入額は白色申告では通常の経費として扱えないため、
     // pl.netIncome をそのまま使うと過小になる（詳細は white-return-income.ts）。
+    // 白色申告に青色申告特別控除は無いため、不動産所得の有無はこの値に影響しない。
     return whiteReturnAdjustedNetIncome(ctx.pl);
   }
   const preIncome = D(ctx.pl.netIncome);
-  const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
-  return preIncome.minus(deduction);
+  const hasBusinessIncome = preIncome.greaterThan(0);
+  const combined = computeCombinedBusinessRealEstateIncome(
+    ctx.year,
+    ctx.aoiroDeductionKind,
+    hasBusinessIncome,
+    preIncome,
+    ctx.realEstatePl,
+    ctx.personalDeductions?.realEstateIncome
+  );
+  return combined.businessIncome;
 }
-// 事業所得＋給与所得＋雑所得（B7）。所得控除の計算（基礎控除の級距・配偶者控除の判定等）
-// はこちらを使う。totalIncomeAmount（事業所得のみ）は白色申告の所得補正や
-// IncomeDeductions.svelte の「事業所得」表示にそのまま使うため、意味を変えず残す。
-export function combinedTotalIncomeAmount(
-  ctx: Pick<XtxContext, 'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'personalDeductions'>
-): Decimal {
+// 不動産所得のうち、他の所得と損益通算できる金額（土地等取得の負債利子額による制限後）。
+// 不動産所得が無ければ 0。白色申告は青色申告特別控除が無いため共有枠配分は発生しないが、
+// 専従者給与（不動産）の全額不算入・土地等負債利子額の制限は同様に適用する。
+function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  if (!ctx.realEstatePl || !realEstateInput) {
+    return D(0);
+  }
+  if (ctx.filingType === 'white') {
+    const realEstateIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false);
+    return offsettableRealEstateLoss(realEstateIncome, realEstateInput.landLoanInterestAmount ?? D(0));
+  }
+  const preIncome = D(ctx.pl.netIncome);
+  const hasBusinessIncome = preIncome.greaterThan(0);
+  const combined = computeCombinedBusinessRealEstateIncome(
+    ctx.year,
+    ctx.aoiroDeductionKind,
+    hasBusinessIncome,
+    preIncome,
+    ctx.realEstatePl,
+    realEstateInput
+  );
+  return combined.realEstateOffsettable;
+}
+// 事業所得＋不動産所得（損益通算可能分）＋給与所得＋雑所得（B7）。所得控除の計算
+// （基礎控除の級距・配偶者控除の判定等）はこちらを使う。totalIncomeAmount（事業所得のみ）は
+// 白色申告の所得補正や IncomeDeductions.svelte の「事業所得」表示にそのまま使うため、
+// 意味を変えず残す。
+export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
   const business = totalIncomeAmount(ctx);
+  const realEstate = realEstateOffsettableAmount(ctx);
   const other = ctx.personalDeductions ? otherIncomeAmount(ctx.personalDeductions) : D(0);
-  return business.plus(other);
+  return business.plus(realEstate).plus(other);
 }
 
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
@@ -129,9 +170,10 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
     put(out, '営業等', totalIncomeAmount(ctx).toString());
     return out;
   }
+  // 実際に事業所得側へ配分された青色申告特別控除額（不動産所得が無ければ従来どおり）。
   const preIncome = D(ctx.pl.netIncome);
-  const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
-  const businessIncome = preIncome.minus(deduction);
+  const businessIncome = totalIncomeAmount(ctx);
+  const deduction = preIncome.minus(businessIncome);
   put(out, '営業等', businessIncome.toString());
   put(out, '青色申告特別控除額', deduction.toString());
   putIncomeDeductions(out, ctx);

@@ -94,6 +94,12 @@ Automatic behavior:
 - **Monthly proration**: count the acquisition month as month 1, prorate by months in business use that year. Example: acquired in June, life 4 years, straight-line → 7/12 booked in current year
 - **¥1 residual**: once accumulated depreciation reaches 95% of cost, the residual is amortized to ¥1 book value over 5 years (or remaining years). Per Corporate Tax Act and Income Tax Act.
 
+### 2-4. Fixed assets for real estate income (only if enabled in Settings)
+
+Once **Settings → Use real estate income** is turned on, the registration form gains a **"Business" / "Real estate"** category selector. For assets (e.g. buildings) registered as "Real estate", the **"Property detail"** button in the asset list lets you fill in the rental property's details (address, property type, tenant, rental period, floor area, annual rent, key money etc., deposit balance). The depreciation calculation and entry generation itself use the same logic as business assets.
+
+> While this setting is off, neither the category selector nor the property detail button appears.
+
 ## 3. Year-end depreciation entry generation
 
 At year-end (or any time within), select the **"Target year"** and click **"Generate depreciation entries"**:
