@@ -7,7 +7,7 @@
   import { newId } from '../lib/id';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
-  import type { InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
+  import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
 
   type DraftLine = {
     id: string;
@@ -66,8 +66,19 @@
   let credits = $state<DraftLine[]>([emptyLine()]);
   let error = $state('');
   let saving = $state(false);
+  // 事業/不動産の切替（セッション内のみ記憶、分錄には保存しない）。
+  // realEstateIncomeEnabled が false の間はトグル自体を表示しない。
+  let incomeType = $state<IncomeType>('business');
 
-  const accountGroups = $derived(ledger.groupedAccounts());
+  const accountGroups = $derived(ledger.groupedAccounts(incomeType));
+
+  function onIncomeTypeChange(next: IncomeType) {
+    incomeType = next;
+    for (const l of [...debits, ...credits]) {
+      l.accountCode = '';
+      l.subAccountId = '';
+    }
+  }
 
   function sumAmount(lines: DraftLine[]): string {
     return lines
@@ -207,6 +218,33 @@
   class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
 >
   <h2 class="text-lg font-semibold">{m.journal_form_title()}</h2>
+
+  {#if ledger.realEstateIncomeEnabled}
+    <div class="flex gap-2 text-sm" role="radiogroup" aria-label={m.journal_form_income_type_label()}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={incomeType === 'business'}
+        onclick={() => onIncomeTypeChange('business')}
+        class="px-3 py-1 rounded border"
+        class:bg-primary={incomeType === 'business'}
+        class:text-primary-foreground={incomeType === 'business'}
+      >
+        {m.journal_form_income_type_business()}
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={incomeType === 'realEstate'}
+        onclick={() => onIncomeTypeChange('realEstate')}
+        class="px-3 py-1 rounded border"
+        class:bg-primary={incomeType === 'realEstate'}
+        class:text-primary-foreground={incomeType === 'realEstate'}
+      >
+        {m.journal_form_income_type_real_estate()}
+      </button>
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <label class="block sm:col-span-1">
