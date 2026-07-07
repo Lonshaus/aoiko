@@ -1,7 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from './journal';
-import type { Account, AccountCategory, JournalEntry, JournalLine } from '../db/types';
+import type { Account, AccountCategory, IncomeType, JournalEntry, JournalLine } from '../db/types';
 // 売上原価・仕入（accounts.ts code 5020）。月別「仕入金額」欄に算入する科目。
 // 期首/期末商品棚卸高（5010/5030）は年末調整項目のため月別仕入には含めない。
 const PURCHASES_ACCOUNT_CODE = '5020';
@@ -454,14 +454,19 @@ export async function buildMonthlyPL(year: number, data?: YearData): Promise<Mon
   };
 }
 
-export async function buildPL(year: number, data?: YearData): Promise<PLReport> {
+// incomeType 未指定は 'business' 扱い（既存データ互換、db/types.ts の Account.incomeType 参照）。
+export async function buildPL(
+  year: number,
+  data?: YearData,
+  incomeType: IncomeType = 'business'
+): Promise<PLReport> {
   const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
   const totals = new Map<string, Decimal>();
   for (const line of lines) {
     const acc = accountMap.get(line.accountCode);
-    if (!acc) {
+    if (!acc || (acc.incomeType ?? 'business') !== incomeType) {
       continue;
     }
     const contrib = plContribution(acc.category, line);
@@ -473,7 +478,7 @@ export async function buildPL(year: number, data?: YearData): Promise<PLReport> 
 
   const buildRows = (cat: AccountCategory): PLRow[] =>
     accounts
-      .filter((a) => a.category === cat)
+      .filter((a) => a.category === cat && (a.incomeType ?? 'business') === incomeType)
       .map<PLRow>((a) => ({
         accountCode: a.code,
         accountName: a.name,

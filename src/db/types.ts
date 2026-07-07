@@ -34,6 +34,9 @@ export type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
 export type ReportStatus = 'draft' | 'filed' | 'superseded';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
+// 所得区分。未指定（undefined）は 'business' 扱い（既存データ互換）。
+// freee/MF と同じく科目層級で持つ（同じ費用性質でも所得区分ごとに科目を複製する）。
+export type IncomeType = 'business' | 'realEstate';
 // 消費税の納税義務区分。免税事業者は仕入税額控除の計算対象外。
 export type TaxRegistration = 'taxable' | 'tax-free';
 // 消費税の課税方式。
@@ -86,6 +89,7 @@ export interface Account {
   parentCode?: string;
   displayOrder: number;
   isActive?: boolean;
+  incomeType?: IncomeType;
 }
 
 export interface SubAccount {
@@ -126,6 +130,31 @@ export interface ParserRule {
 // 損益計算書には影響させない（freee 方式、詳細は asset-disposal.ts 冒頭コメント参照）。
 export type DisposalType = 'scrap' | 'sale';
 
+// KOA220（青色申告決算書・不動産所得用）第2頁「貸家等の状況」相当。
+// 月額家賃の期中改定（上段/下段）は追跡せず、年額を確定額で直接入力する
+// （雑損控除等と同じ「複雑な個別事情は確定額直接入力」の方針、real-estate-income.ts 冒頭コメント参照）。
+export interface RealEstatePropertyDetail {
+  /** 貸家貸地等の別 */
+  propertyType: string;
+  /** 用途（住宅用か住宅用以外か） */
+  isResidential?: boolean;
+  address: string;
+  tenantName?: string;
+  tenantAddress?: string;
+  rentalPeriodStart?: string;
+  rentalPeriodEnd?: string;
+  /** 貸付面積（㎡） */
+  areaSqm?: string;
+  /** 賃貸料の年額 */
+  annualRent: string;
+  /** 礼金・権利金・更新料の合計 */
+  keyMoneyEtc?: string;
+  /** 名義書換料その他 */
+  otherIncome?: string;
+  /** 保証金・敷金（期末残高） */
+  depositBalance?: string;
+}
+
 export interface FixedAsset {
   id: string;
   name: string;
@@ -140,6 +169,10 @@ export interface FixedAsset {
   salePrice?: string;
   /** 譲渡費用（仲介手数料等）。譲渡所得の参考試算にのみ使用、仕訳には影響しない */
   saleExpenses?: string;
+  /** 未指定は 'business'（既存データ互換） */
+  incomeType?: IncomeType;
+  /** incomeType === 'realEstate' のときのみ使用 */
+  realEstateDetail?: RealEstatePropertyDetail;
 }
 
 export interface ImportBatch {
@@ -227,6 +260,44 @@ export interface PersonalDeductionMiscIncome {
   otherIncome?: string;
   otherExpenses?: string;
 }
+// KOA220/KOA130 の「支払先の住所・氏名」明細行に共通する形。
+export interface RealEstatePayeeDetail {
+  payeeAddress?: string;
+  payeeName?: string;
+  amount: string;
+  /** 左のうち必要経費算入額 */
+  deductibleAmount?: string;
+}
+
+export interface RealEstateRentPaidDetail extends RealEstatePayeeDetail {
+  /** 賃借物件 */
+  property?: string;
+  keyMoney?: string;
+  renewalFee?: string;
+}
+
+export interface RealEstateLoanInterestPaidDetail extends RealEstatePayeeDetail {
+  /** 期末現在の借入金等の金額 */
+  yearEndBalance?: string;
+}
+
+export interface RealEstateProfessionalFeeDetail extends RealEstatePayeeDetail {
+  withholdingTax?: string;
+}
+
+// 不動産所得の入力（年度ごと）。損益自体は incomeType: 'realEstate' の仕訳から導出するため
+// ここには保存しない。事業的規模は「5棟10室」等の非正式基準で機械判定できないため
+// 利用者の自己申告とする（real-estate-income.ts 冒頭コメント参照）。
+export interface RealEstateIncomeInput {
+  /** 事業的規模か（自己申告）。青色申告特別控除65/55万・専従者給与の可否に影響 */
+  businessScale: boolean;
+  /** 土地等を取得するために要した負債の利子の額（確定額を直接入力、按分計算はしない） */
+  landLoanInterestAmount?: string;
+  rentPaid?: RealEstateRentPaidDetail[];
+  loanInterestPaid?: RealEstateLoanInterestPaidDetail[];
+  professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
+}
+
 // 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
 // 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
 // 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する
@@ -260,6 +331,7 @@ export interface PersonalDeductionInput {
   miscIncome?: PersonalDeductionMiscIncome;
   /** 事業所得側の源泉徴収税額（確定額を直接入力、取引単位の追跡は対象外） */
   otherWithholdingTax?: string;
+  realEstateIncome?: RealEstateIncomeInput;
   updatedAt: number;
 }
 

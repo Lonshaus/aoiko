@@ -4,6 +4,7 @@
   import { toISODateLocal } from '../lib/date';
   import {
     buildAll,
+    buildPL,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -11,6 +12,7 @@
     type MonthlyReport,
     type PLReport,
   } from '../domain/reports';
+  import { ledger } from '../stores/ledger.svelte';
   import {
     getConsumptionTaxSnapshot,
     isYearLocked,
@@ -316,6 +318,9 @@
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : year;
     const storedDeductions = await db.personalDeductions.get(exportYear);
+    const realEstatePl = ledger.realEstateIncomeEnabled
+      ? await buildPL(exportYear, undefined, 'realEstate')
+      : undefined;
     const xml = buildXtx2026({
       year: exportYear,
       businessName,
@@ -327,6 +332,7 @@
       fixedAssets,
       filingType,
       aoiroDeductionKind,
+      ...(realEstatePl ? { realEstatePl } : {}),
       ...(storedDeductions ? { personalDeductions: personalDeductionsToCtx(storedDeductions) } : {}),
     });
     const blob = new Blob([xml], { type: 'application/xml' });
