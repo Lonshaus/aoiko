@@ -91,8 +91,6 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '5810', year: 2026, name: '貸倒引当金繰入額', category: 'expense', taxCategory: 'nontaxable', displayOrder: 810 },
   { code: '5820', year: 2026, name: '専従者給与',       category: 'expense', taxCategory: 'nontaxable', displayOrder: 820 },
   // 費用（5xxx）— 不動産所得用（B7 part2、KOA220 第1頁の必要経費区分に対映）。
-  // 貸倒引当金繰入額（不動産）は事業的規模の遡及見直しルールが複雑なため対象外
-  // （real-estate-income.ts 冒頭コメント参照、科目自体を追加していない）。
   { code: '5310', year: 2026, name: '租税公課（不動産）',   category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1310 },
   { code: '5320', year: 2026, name: '損害保険料（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1320 },
   { code: '5330', year: 2026, name: '修繕費（不動産）',     category: 'expense', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 1330 },
@@ -102,4 +100,9 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '5370', year: 2026, name: '給料賃金（不動産）',   category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1370 },
   { code: '5380', year: 2026, name: '専従者給与（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1380 },
   { code: '5390', year: 2026, name: '雑費（不動産）',       category: 'expense', taxCategory: 'taxable10', incomeType: 'realEstate', displayOrder: 1390 },
+  // 貸倒金（不動産）＝実際の貸倒損失（事業的規模でなくても計上可、所得税法64条）。
+  // 貸倒引当金繰入額（不動産）＝引当金の繰入れ（事業的規模限定、所得税法51条4項準用）。
+  // KOA220に専用欄が無いため追加科目枠（xtx-mapping-koa220.ts）で出力する。
+  { code: '5400', year: 2026, name: '貸倒金（不動産）',         category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1385 },
+  { code: '5410', year: 2026, name: '貸倒引当金繰入額（不動産）', category: 'expense', taxCategory: 'nontaxable', incomeType: 'realEstate', displayOrder: 1395 },
 ];
