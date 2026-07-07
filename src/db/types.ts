@@ -215,6 +215,18 @@ export interface PersonalDeductionLifeInsurance {
   newPension?: string;
   oldPension?: string;
 }
+// 給与所得（源泉徴収票の記載内容を転記）。給与所得控除は other-income.ts が計算する。
+export interface PersonalDeductionSalaryIncome {
+  paidAmount: string;
+  withholdingTax: string;
+}
+// 雑所得。公的年金等は3軸の速算表で複雑なため確定額を直接入力（other-income.ts 冒頭コメント参照）、
+// その他雑所得（副業収入等）は収入−必要経費を aoiko が計算する。
+export interface PersonalDeductionMiscIncome {
+  publicPensionAmount?: string;
+  otherIncome?: string;
+  otherExpenses?: string;
+}
 // 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
 // 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
 // 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する
@@ -244,6 +256,10 @@ export interface PersonalDeductionInput {
   foreignTaxCreditAmount?: string;
   otherTaxCreditAmount?: string;
   disasterExemptionAmount?: string;
+  salaryIncome?: PersonalDeductionSalaryIncome;
+  miscIncome?: PersonalDeductionMiscIncome;
+  /** 事業所得側の源泉徴収税額（確定額を直接入力、取引単位の追跡は対象外） */
+  otherWithholdingTax?: string;
   updatedAt: number;
 }
 

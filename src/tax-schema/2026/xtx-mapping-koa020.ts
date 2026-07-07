@@ -18,6 +18,7 @@ import {
   reconstructionSurtax,
   totalTaxCredits,
 } from './income-deductions';
+import { otherIncomeAmount, otherMiscIncome, salaryIncomeAmount, totalWithholdingTax } from './other-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues } from './xtx-document';
@@ -109,6 +110,16 @@ export function totalIncomeAmount(
   const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
   return preIncome.minus(deduction);
 }
+// 事業所得＋給与所得＋雑所得（B7）。所得控除の計算（基礎控除の級距・配偶者控除の判定等）
+// はこちらを使う。totalIncomeAmount（事業所得のみ）は白色申告の所得補正や
+// IncomeDeductions.svelte の「事業所得」表示にそのまま使うため、意味を変えず残す。
+export function combinedTotalIncomeAmount(
+  ctx: Pick<XtxContext, 'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'personalDeductions'>
+): Decimal {
+  const business = totalIncomeAmount(ctx);
+  const other = ctx.personalDeductions ? otherIncomeAmount(ctx.personalDeductions) : D(0);
+  return business.plus(other);
+}
 
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
@@ -127,19 +138,25 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   return out;
 }
 // 所得控除・税額控除・累進課税（KOA020 第一表「所得から差し引かれる金額」ABB00420〜
-// 「税金の計算」ABB00570）。ctx.personalDeductions が未設定（利用者が入力していない）
-// 場合は何も出力しない（既存どおり e-Tax 上で利用者が補完する）。
+// 「税金の計算」ABB00570）と、給与所得・雑所得（B7、収入金額等 ABB00080/00110〜・
+// 所得金額等 ABB00370/01060/01120）・源泉徴収税額/申告納税額（ABB00710/00720）。
+// ctx.personalDeductions が未設定（利用者が入力していない）場合は何も出力しない
+// （既存どおり e-Tax 上で利用者が補完する）。
 // ⚠ 配偶者(特別)控除・扶養控除・寡婦ひとり親控除・特定親族特別控除・住借金等特別控除・
-// 外国税額控除等の「区分」コード（ABB00495/515/517/535/544/645/647/676）は本人の
-// 続柄・住宅ローンの契約種別等の追加情報が必要なため出力しない。控除額のみ載せるので、
-// これらの控除を使う場合は e-Tax 上で区分コードを利用者が補完すること。
+// 外国税額控除等の「区分」コード（ABB00495/515/517/535/544/645/647/676）、および
+// 給与・業務・その他雑所得の「区分」コード（ABB00075/365/103/107）は本人の続柄・
+// 住宅ローンの契約種別・所得の生じた事情等の追加情報が必要なため出力しない。
+// 金額のみ載せるので、これらを使う場合は e-Tax 上で区分コードを利用者が補完すること。
+// ⚠ 公的年金等（ABB00100/01060）は速算表を計算しないため、収入金額等側（ABB00100）は
+// 出力せず、確定額を所得金額等側（ABB01060）にのみ載せる（詳細は other-income.ts）。
 function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   if (!ctx.personalDeductions) {
     return;
   }
-  const totalIncome = totalIncomeAmount(ctx);
+  const pd = ctx.personalDeductions;
+  const totalIncome = combinedTotalIncomeAmount(ctx);
   const deductions = computeIncomeDeductions(ctx.year, {
-    ...ctx.personalDeductions,
+    ...pd,
     totalIncome,
   });
   putTag(out, 'ABB00430', deductions.casualtyLossDeduction.toString());
@@ -164,29 +181,61 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   const taxAmount = progressiveIncomeTax(taxableIncome);
   putTag(out, 'ABB00580', taxableIncome.toString());
   putTag(out, 'ABB00590', taxAmount.toString());
-  putTag(out, 'ABB00600', (ctx.personalDeductions.dividendDeductionAmount ?? D(0)).toString());
-  putTag(out, 'ABB00650', (ctx.personalDeductions.mortgageDeductionAmount ?? D(0)).toString());
-  putTag(out, 'ABB00660', (ctx.personalDeductions.politicalDonationCreditAmount ?? D(0)).toString());
-  putTag(out, 'ABB00663', (ctx.personalDeductions.housingRenovationCreditAmount ?? D(0)).toString());
-  putTag(out, 'ABB01040', (ctx.personalDeductions.foreignTaxCreditAmount ?? D(0)).toString());
-  putTag(out, 'ABB00640', (ctx.personalDeductions.otherTaxCreditAmount ?? D(0)).toString());
-  putTag(out, 'ABB00680', (ctx.personalDeductions.disasterExemptionAmount ?? D(0)).toString());
+  putTag(out, 'ABB00600', (pd.dividendDeductionAmount ?? D(0)).toString());
+  putTag(out, 'ABB00650', (pd.mortgageDeductionAmount ?? D(0)).toString());
+  putTag(out, 'ABB00660', (pd.politicalDonationCreditAmount ?? D(0)).toString());
+  putTag(out, 'ABB00663', (pd.housingRenovationCreditAmount ?? D(0)).toString());
+  putTag(out, 'ABB01040', (pd.foreignTaxCreditAmount ?? D(0)).toString());
+  putTag(out, 'ABB00640', (pd.otherTaxCreditAmount ?? D(0)).toString());
+  putTag(out, 'ABB00680', (pd.disasterExemptionAmount ?? D(0)).toString());
   // ABB00670（差引所得税額）＝①税額 − 配当控除・住宅ローン控除等の税額控除
   // ABB01010（再差引所得税額）＝差引所得税額 − 外国税額控除等・災害減免額（この2つは実際の
   // 申告書上でも差引所得税額算出後に別枠で控除される）
-  const stage1Credits = totalTaxCredits(ctx.personalDeductions).minus(
-    ctx.personalDeductions.foreignTaxCreditAmount ?? D(0)
-  );
+  const stage1Credits = totalTaxCredits(pd).minus(pd.foreignTaxCreditAmount ?? D(0));
   const diffTax = maxZero(taxAmount.minus(stage1Credits));
   putTag(out, 'ABB00670', diffTax.toString());
-  const stage2Reduction = (ctx.personalDeductions.foreignTaxCreditAmount ?? D(0)).plus(
-    ctx.personalDeductions.disasterExemptionAmount ?? D(0)
+  const stage2Reduction = (pd.foreignTaxCreditAmount ?? D(0)).plus(
+    pd.disasterExemptionAmount ?? D(0)
   );
   const saiSashihiki = maxZero(diffTax.minus(stage2Reduction));
   putTag(out, 'ABB01010', saiSashihiki.toString());
   const surtax = reconstructionSurtax(saiSashihiki);
   putTag(out, 'ABB01020', surtax.toString());
-  putTag(out, 'ABB01030', saiSashihiki.plus(surtax).toString());
+  const taxTotal = saiSashihiki.plus(surtax);
+  putTag(out, 'ABB01030', taxTotal.toString());
+  // 給与所得（収入金額等 ABB00080＝税引前・所得金額等 ABB00370＝給与所得控除後）
+  if (pd.salaryIncome) {
+    putTag(out, 'ABB00080', pd.salaryIncome.paidAmount.toString());
+    putTag(out, 'ABB00370', salaryIncomeAmount(pd.salaryIncome.paidAmount).toString());
+  }
+  // 雑所得。公的年金等は確定額を所得金額等側にのみ載せる（関数冒頭の注記参照）。
+  // その他雑所得は収入金額等側（ABB00110＝収入）・所得金額等側（ABB01120＝収入−必要経費）両方に載せる。
+  if (pd.miscIncome) {
+    if (pd.miscIncome.publicPensionAmount) {
+      putTag(out, 'ABB01060', pd.miscIncome.publicPensionAmount.toString());
+    }
+    if (pd.miscIncome.otherIncome) {
+      putTag(out, 'ABB00110', pd.miscIncome.otherIncome.toString());
+      putTag(
+        out,
+        'ABB01120',
+        otherMiscIncome(pd.miscIncome.otherIncome, pd.miscIncome.otherExpenses ?? D(0)).toString()
+      );
+    }
+  }
+  // 源泉徴収税額（給与＋事業所得側の直接入力分）・申告納税額（マイナス＝還付相当）
+  const withholding = totalWithholdingTax(pd);
+  putTag(out, 'ABB00710', withholding.toString());
+  putTag(out, 'ABB00720', taxTotal.minus(withholding).toString());
+  // 公的年金等以外の合計所得金額・配偶者の合計所得金額（既存収集データからの参考値）
+  putTag(
+    out,
+    'ABB00775',
+    totalIncome.minus(pd.miscIncome?.publicPensionAmount ?? D(0)).toString()
+  );
+  if (pd.spouse) {
+    putTag(out, 'ABB00780', pd.spouse.totalIncome.toString());
+  }
 }
 
 function maxZero(v: Decimal): Decimal {
