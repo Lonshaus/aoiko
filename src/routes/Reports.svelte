@@ -23,7 +23,7 @@
     getAmendmentDiff,
     type AmendmentDiff,
   } from '../domain/amended';
-  import { buildXtx2026, type FilingType } from '../tax-schema/2026/xtx';
+  import { buildXtx2026, personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import {
     compareAll,
@@ -315,6 +315,7 @@
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : year;
+    const storedDeductions = await db.personalDeductions.get(exportYear);
     const xml = buildXtx2026({
       year: exportYear,
       businessName,
@@ -326,6 +327,7 @@
       fixedAssets,
       filingType,
       aoiroDeductionKind,
+      ...(storedDeductions ? { personalDeductions: personalDeductionsToCtx(storedDeductions) } : {}),
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
