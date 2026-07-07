@@ -94,7 +94,9 @@ export function computeDepreciation(
     };
   }
 
-  if (asset.disposedDate) {
+  // 一括償却資産は除却後も 3 年均等償却を継続する（未償却残高の一時損金算入は不可）ため、
+  // 除却による打ち切りの対象外とする。
+  if (asset.disposedDate && asset.depreciationMethod !== 'lump-sum') {
     const disposedYear = Number(asset.disposedDate.slice(0, 4));
     if (year > disposedYear) {
       // 除却済み：当年の償却額は 0。簿価は除却年度末の状態をそのまま引き継ぐ
@@ -115,8 +117,44 @@ export function computeDepreciation(
     return computeDecliningBalance(asset, year, acqYear, acqMonth, cost);
   } else if (asset.depreciationMethod === 'small-asset-special') {
     return computeSmallAssetSpecial(asset, year, acqYear, cost);
+  } else if (asset.depreciationMethod === 'lump-sum') {
+    return computeLumpSum(year, acqYear, cost);
   }
   throw new Error(`未対応の償却方法：${asset.depreciationMethod}`);
+}
+// 一括償却資産（施行令139条）：取得価額を 3 年で均等償却。取得月による月按分は無く、
+// 除却・売却後も未償却残高の一時損金算入はできず 3 年間の償却を継続する。
+// 各年の償却額 = 取得価額 × 当期の月数(常に12)/36。最終年は端数調整で残高を 0 にする。
+function computeLumpSum(
+  year: number,
+  acqYear: number,
+  cost: ReturnType<typeof D>
+): DepreciationResult {
+  const yearlyAmount = cost.dividedBy(3).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const finalYear = acqYear + 2;
+  if (year > finalYear) {
+    return {
+      amount: '0',
+      accumulatedEnd: cost.toString(),
+      bookValueEnd: '0',
+      fullyDepreciated: true,
+    };
+  }
+  let accumulated = D(0);
+  for (let y = acqYear; y <= year; y++) {
+    const isFinalYear = y === finalYear;
+    const yearAmount = isFinalYear ? cost.minus(accumulated) : yearlyAmount;
+    accumulated = accumulated.plus(yearAmount);
+    if (y === year) {
+      return {
+        amount: yearAmount.toString(),
+        accumulatedEnd: accumulated.toString(),
+        bookValueEnd: cost.minus(accumulated).toString(),
+        fullyDepreciated: isFinalYear,
+      };
+    }
+  }
+  throw new Error('unreachable');
 }
 // 少額減価償却資産の特例（措法28の2）：取得年度に全額損金算入。
 // 取得日・取得価額が適用範囲外でもこの関数は計算自体は実施する（呼出元で eligibility は検証する想定）。

@@ -308,7 +308,7 @@
   "reports_amendment_checklist_relock_detail": "After submitting the amended return, run “Lock as filed” again in Reports to save the new snapshot.",
   "reports_consumption_tax_title": "Consumption tax",
   "reports_consumption_tax_tax_free": "You are configured as a tax-free entity (no consumption-tax filing required). The figures below are reference estimates of output tax only.",
-  "reports_consumption_tax_caveat": "Estimates and method comparison only. aoiko does not output the actual consumption-tax return forms (post-table 2-3 etc.). Confirm with your tax accountant or local tax office.",
+  "reports_consumption_tax_caveat": "Estimates and method comparison only. Actual consumption-tax return .xtx export is supported for general taxation, the 20%-special-provision, and simplified taxation (single business category only, below); the 30%-special-provision is not yet supported. Confirm with your tax accountant or local tax office.",
   "reports_consumption_tax_th_method": "Filing method",
   "reports_consumption_tax_th_output": "Output tax",
   "reports_consumption_tax_th_input_raw": "Input tax (before transitional rule)",
@@ -570,5 +570,16 @@
   "settings_filing_type_confirm_title": "Change filing type?",
   "settings_filing_type_confirm_to_white": "Switching to white return. The blue-return special deduction will no longer apply, and .xtx export will bundle the income/expense breakdown statement (general).",
   "settings_filing_type_confirm_to_blue": "Switching to blue return. .xtx export will bundle the blue-return financial statement (general).",
-  "settings_filing_type_confirm_action": "Switch"
+  "settings_filing_type_confirm_action": "Switch",
+  "settings_asset_method_lump_sum": "Lump-sum depreciable asset (3-year even split)",
+  "settings_asset_lump_sum_eligible": "✓ Cost is within 100,000–199,999 JPY (3-year even split)",
+  "settings_asset_lump_sum_ineligible": "⚠ Lump-sum depreciable assets require a cost of 100,000–199,999 JPY",
+  "settings_asset_error_lump_sum_ineligible": "Cannot register: does not meet lump-sum asset requirements (100,000–199,999 JPY)",
+  "reports_consumption_tax_xtx_unsupported_year": "Year {year} is outside the 2%-special-provision period (Oct 2023 – Sep 2026), so .xtx export is unavailable",
+  "reports_consumption_tax_xtx_two_wari_intro": "Export the consumption tax return (simplified-taxation form) + attachment 6 for the 20% special provision as .xtx, per the NTA official XSD (verify the real import into e-Tax software yourself). Sales returns/discounts are already netted into the taxable base, so attachment 6 won't show them as a separate line — the final tax amount is still correct.",
+  "reports_consumption_tax_xtx_two_wari_download": "Download 2%-special .xtx",
+  "reports_consumption_tax_xtx_simplified_intro": "Export the consumption tax return + attachments 4-3 and 5-3 for simplified taxation (single business category) as .xtx, per the NTA official XSD (verify the real import into e-Tax software yourself). Apportionment across multiple business categories (the 75% rule etc.) is not supported.",
+  "reports_consumption_tax_xtx_simplified_download": "Download simplified-taxation .xtx",
+  "reports_consumption_tax_xtx_general_intro": "Export the consumption tax return (general form) + attachments 1-3 and 2-3 for general taxation as .xtx, per the NTA official XSD (verify the real import into e-Tax software yourself). aoiko assumes a 100% taxable-sales ratio (all sales are taxable asset transfers), so non-taxable sales, export exemptions, etc. are not supported.",
+  "reports_consumption_tax_xtx_general_download": "Download general-taxation .xtx"
 }
