@@ -342,6 +342,63 @@ describe('computeDepreciation - small-asset-special', () => {
   })
 })
 
+describe('computeDepreciation - lump-sum（一括償却資産）', () => {
+  test('3年均等償却・取得月按分なし', () => {
+    const a = asset({
+      acquisitionDate: '2026-12-15',
+      acquisitionCost: '180000',
+      depreciationMethod: 'lump-sum',
+    })
+    // 180000/3=60000 ちょうど。12月取得でも月按分されず満額
+    expect(computeDepreciation(a, 2026).amount).toBe('60000')
+    expect(computeDepreciation(a, 2027).amount).toBe('60000')
+    const r2028 = computeDepreciation(a, 2028)
+    expect(r2028.amount).toBe('60000')
+    expect(r2028.bookValueEnd).toBe('0')
+    expect(r2028.fullyDepreciated).toBe(true)
+  })
+
+  test('3で割り切れない金額は最終年で端数調整', () => {
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '100000',
+      depreciationMethod: 'lump-sum',
+    })
+    expect(computeDepreciation(a, 2026).amount).toBe('33333')
+    expect(computeDepreciation(a, 2027).amount).toBe('33333')
+    const r2028 = computeDepreciation(a, 2028)
+    expect(r2028.amount).toBe('33334')
+    expect(r2028.accumulatedEnd).toBe('100000')
+    expect(r2028.bookValueEnd).toBe('0')
+  })
+
+  test('3年経過後は償却0・簿価0', () => {
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '180000',
+      depreciationMethod: 'lump-sum',
+    })
+    const r = computeDepreciation(a, 2029)
+    expect(r.amount).toBe('0')
+    expect(r.bookValueEnd).toBe('0')
+    expect(r.fullyDepreciated).toBe(true)
+  })
+
+  test('除却後も3年均等償却を継続する（一時損金算入しない）', () => {
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '180000',
+      depreciationMethod: 'lump-sum',
+      disposedDate: '2027-06-30',
+    })
+    // 除却翌年（2028）も通常どおり60000償却が続く
+    const r = computeDepreciation(a, 2028)
+    expect(r.amount).toBe('60000')
+    expect(r.bookValueEnd).toBe('0')
+    expect(r.fullyDepreciated).toBe(true)
+  })
+})
+
 describe('generateYearEndDepreciation - small-asset-special', () => {
   test('適用要件外（取得価額が閾値以上）は smallAssetIneligible でカウント', async () => {
     // 2026-04-01 取得で 40 万以上 → 要件外

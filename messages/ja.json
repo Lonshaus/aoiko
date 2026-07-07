@@ -307,7 +307,7 @@
   "reports_amendment_checklist_relock_detail": "修正申告送信後、レポート画面で再度「申告済みとしてロック」を実行し、新しいスナップショットを保存します。",
   "reports_consumption_tax_title": "消費税",
   "reports_consumption_tax_tax_free": "免税事業者として設定されています（消費税申告不要）。下記は売上税額の概算参考値です。",
-  "reports_consumption_tax_caveat": "概算と方式比較を提供します。実際の消費税申告書（付表 2-3 等）の出力は対象外です。最終的に税理士・税務署にご確認ください。",
+  "reports_consumption_tax_caveat": "概算と方式比較を提供します。実際の消費税申告書の出力は本則課税・2割特例・簡易課税（単一事業区分のみ、下記）に対応、3割特例は未対応です。最終的に税理士・税務署にご確認ください。",
   "reports_consumption_tax_th_method": "課税方式",
   "reports_consumption_tax_th_output": "売上税額",
   "reports_consumption_tax_th_input_raw": "仕入税額（経過措置前）",
@@ -569,5 +569,16 @@
   "settings_filing_type_confirm_title": "確定申告方式を変更しますか？",
   "settings_filing_type_confirm_to_white": "白色申告に切り替えます。青色申告特別控除は適用されなくなり、.xtx 出力は収支内訳書（一般用）になります。",
   "settings_filing_type_confirm_to_blue": "青色申告に切り替えます。.xtx 出力は青色申告決算書（一般用）になります。",
-  "settings_filing_type_confirm_action": "切り替える"
+  "settings_filing_type_confirm_action": "切り替える",
+  "settings_asset_method_lump_sum": "一括償却資産（3年均等償却）",
+  "settings_asset_lump_sum_eligible": "✓ 取得価額が10万円以上20万円未満の範囲内です（3年均等償却）",
+  "settings_asset_lump_sum_ineligible": "⚠ 一括償却資産は取得価額10万円以上20万円未満のみ対象です",
+  "settings_asset_error_lump_sum_ineligible": "一括償却資産の要件（10万円以上20万円未満）を満たさないため登録できません",
+  "reports_consumption_tax_xtx_unsupported_year": "{year} 年度は2割特例の適用期間外のため .xtx 出力できません（適用期間：令和5年10月〜令和8年9月）",
+  "reports_consumption_tax_xtx_two_wari_intro": "2割特例で消費税及び地方消費税の申告書（簡易課税用）＋付表6 を国税庁公式 XSD 準拠で .xtx 出力できます（実機組み込み検証は利用者側で確認してください）。売上対価の返還等は課税標準額へネットで反映済みのため付表6には内訳表示されません（最終税額は正しく計算されます）。",
+  "reports_consumption_tax_xtx_two_wari_download": "2割特例の.xtxをダウンロード",
+  "reports_consumption_tax_xtx_simplified_intro": "簡易課税(単一事業区分)で消費税及び地方消費税の申告書＋付表4-3＋付表5-3を国税庁公式 XSD 準拠で.xtx出力できます(実機組み込み検証は利用者側で確認してください)。複数の事業区分にまたがる場合の按分計算(75%ルール等)は未対応です。",
+  "reports_consumption_tax_xtx_simplified_download": "簡易課税の.xtxをダウンロード",
+  "reports_consumption_tax_xtx_general_intro": "本則課税で消費税及び地方消費税の申告書（一般用）＋付表1-3＋付表2-3を国税庁公式 XSD 準拠で.xtx出力できます(実機組み込み検証は利用者側で確認してください)。aoiko は課税売上割合100%（全売上が課税資産の譲渡等）を前提とするため、非課税売上・輸出免税等がある場合は対応していません。",
+  "reports_consumption_tax_xtx_general_download": "本則課税の.xtxをダウンロード"
 }
