@@ -9,13 +9,12 @@
     progressiveIncomeTax,
     reconstructionSurtax,
     totalTaxCredits,
-    type IncomeDeductionInput,
-    type TaxCreditInput,
   } from '../tax-schema/2026/income-deductions';
+  import { otherIncomeAmount, totalWithholdingTax } from '../tax-schema/2026/other-income';
   import { totalIncomeAmount } from '../tax-schema/2026/xtx-mapping-koa020';
   import type { PersonalDeductionDependent, PersonalDeductionInput } from '../db/types';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
-  import type { FilingType } from '../tax-schema/2026/xtx';
+  import { personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
   import { m } from '../paraglide/messages';
 
   const now = new Date();
@@ -64,6 +63,13 @@
   let foreignTaxCreditAmount = $state('0');
   let otherTaxCreditAmount = $state('0');
   let disasterExemptionAmount = $state('0');
+  let hasSalaryIncome = $state(false);
+  let salaryPaidAmount = $state('0');
+  let salaryWithholdingTax = $state('0');
+  let publicPensionAmount = $state('0');
+  let otherMiscIncomeAmount = $state('0');
+  let otherMiscExpenses = $state('0');
+  let otherWithholdingTaxPaid = $state('0');
 
   let saved = $state(false);
   let businessTotalIncome = $state(D(0));
@@ -98,6 +104,13 @@
     foreignTaxCreditAmount = '0';
     otherTaxCreditAmount = '0';
     disasterExemptionAmount = '0';
+    hasSalaryIncome = false;
+    salaryPaidAmount = '0';
+    salaryWithholdingTax = '0';
+    publicPensionAmount = '0';
+    otherMiscIncomeAmount = '0';
+    otherMiscExpenses = '0';
+    otherWithholdingTaxPaid = '0';
   }
 
   function loadFromStored(stored: PersonalDeductionInput) {
@@ -136,6 +149,13 @@
     foreignTaxCreditAmount = stored.foreignTaxCreditAmount ?? '0';
     otherTaxCreditAmount = stored.otherTaxCreditAmount ?? '0';
     disasterExemptionAmount = stored.disasterExemptionAmount ?? '0';
+    hasSalaryIncome = !!stored.salaryIncome;
+    salaryPaidAmount = stored.salaryIncome?.paidAmount ?? '0';
+    salaryWithholdingTax = stored.salaryIncome?.withholdingTax ?? '0';
+    publicPensionAmount = stored.miscIncome?.publicPensionAmount ?? '0';
+    otherMiscIncomeAmount = stored.miscIncome?.otherIncome ?? '0';
+    otherMiscExpenses = stored.miscIncome?.otherExpenses ?? '0';
+    otherWithholdingTaxPaid = stored.otherWithholdingTax ?? '0';
   }
 
   $effect(() => {
@@ -166,104 +186,81 @@
     dependents = dependents.filter((d) => d.id !== id);
   }
 
-  const deductionInput = $derived<IncomeDeductionInput>({
-    totalIncome: businessTotalIncome,
-    socialInsurancePaid: safeDecimal(socialInsurancePaid),
-    smallBusinessMutualAidPaid: safeDecimal(smallBusinessMutualAidPaid),
+  // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
+  // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
+  // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
+  const recordDraft = $derived<Omit<PersonalDeductionInput, 'year' | 'updatedAt'>>({
+    socialInsurancePaid,
+    smallBusinessMutualAidPaid,
     lifeInsurance: {
-      newGeneral: safeDecimal(lifeNewGeneral),
-      oldGeneral: safeDecimal(lifeOldGeneral),
-      newMedical: safeDecimal(lifeNewMedical),
-      newPension: safeDecimal(lifeNewPension),
-      oldPension: safeDecimal(lifeOldPension),
+      newGeneral: lifeNewGeneral,
+      oldGeneral: lifeOldGeneral,
+      newMedical: lifeNewMedical,
+      newPension: lifeNewPension,
+      oldPension: lifeOldPension,
     },
-    earthquakeInsurancePaid: safeDecimal(earthquakeInsurancePaid),
-    oldLongTermInsurancePaid: safeDecimal(oldLongTermInsurancePaid),
-    medicalExpensePaid: safeDecimal(medicalExpensePaid),
-    medicalInsuranceReimbursement: safeDecimal(medicalInsuranceReimbursement),
-    donationAmount: safeDecimal(donationAmount),
-    casualtyLossDeduction: safeDecimal(casualtyLossDeduction),
+    earthquakeInsurancePaid,
+    oldLongTermInsurancePaid,
+    medicalExpensePaid,
+    medicalInsuranceReimbursement,
+    donationAmount,
+    casualtyLossDeduction,
     isDisabled,
     isSpecialDisabled,
     isSingleParent,
     isWidow,
     isWorkingStudent,
-    ...(hasSpouse ? { spouse: { totalIncome: safeDecimal(spouseIncome), age: spouseAge } } : {}),
-    dependents: dependents.map((d) => ({
-      id: d.id,
-      age: d.age,
-      totalIncome: safeDecimal(d.totalIncome),
-      livesWithLinealAscendant: d.livesWithLinealAscendant,
-    })),
+    ...(hasSpouse ? { spouse: { totalIncome: spouseIncome, age: spouseAge } } : {}),
+    dependents: dependents.map(
+      (d): PersonalDeductionDependent => ({
+        id: d.id,
+        name: d.name,
+        age: d.age,
+        totalIncome: d.totalIncome,
+        livesWithLinealAscendant: d.livesWithLinealAscendant,
+      })
+    ),
+    dividendDeductionAmount,
+    mortgageDeductionAmount,
+    politicalDonationCreditAmount,
+    housingRenovationCreditAmount,
+    foreignTaxCreditAmount,
+    otherTaxCreditAmount,
+    disasterExemptionAmount,
+    ...(hasSalaryIncome
+      ? { salaryIncome: { paidAmount: salaryPaidAmount, withholdingTax: salaryWithholdingTax } }
+      : {}),
+    miscIncome: {
+      ...(safeDecimal(publicPensionAmount).greaterThan(0) ? { publicPensionAmount } : {}),
+      otherIncome: otherMiscIncomeAmount,
+      otherExpenses: otherMiscExpenses,
+    },
+    otherWithholdingTax: otherWithholdingTaxPaid,
   });
 
-  const creditInput = $derived<TaxCreditInput>({
-    dividendDeductionAmount: safeDecimal(dividendDeductionAmount),
-    mortgageDeductionAmount: safeDecimal(mortgageDeductionAmount),
-    politicalDonationCreditAmount: safeDecimal(politicalDonationCreditAmount),
-    housingRenovationCreditAmount: safeDecimal(housingRenovationCreditAmount),
-    foreignTaxCreditAmount: safeDecimal(foreignTaxCreditAmount),
-    otherTaxCreditAmount: safeDecimal(otherTaxCreditAmount),
-    disasterExemptionAmount: safeDecimal(disasterExemptionAmount),
-  });
-
-  const result = $derived(computeIncomeDeductions(year, deductionInput));
+  const ctx = $derived(personalDeductionsToCtx(recordDraft));
+  // 事業所得＋給与所得＋雑所得（B7）。基礎控除の級距・配偶者控除の判定等はこちらを使う。
+  const combinedTotalIncome = $derived(businessTotalIncome.plus(otherIncomeAmount(ctx)));
+  const result = $derived(
+    computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome })
+  );
   const taxableIncome = $derived.by(() => {
-    const v = businessTotalIncome.minus(result.total);
+    const v = combinedTotalIncome.minus(result.total);
     return v.greaterThan(0) ? v : D(0);
   });
   const incomeTax = $derived(progressiveIncomeTax(taxableIncome));
-  const credits = $derived(totalTaxCredits(creditInput));
+  const credits = $derived(totalTaxCredits(ctx));
   const afterCredits = $derived.by(() => {
     const v = incomeTax.minus(credits);
     return v.greaterThan(0) ? v : D(0);
   });
   const surtax = $derived(reconstructionSurtax(afterCredits));
   const finalTax = $derived(afterCredits.plus(surtax));
+  const withholding = $derived(totalWithholdingTax(ctx));
+  const netTaxDue = $derived(finalTax.minus(withholding));
 
   async function save() {
-    const record: PersonalDeductionInput = {
-      year,
-      socialInsurancePaid,
-      smallBusinessMutualAidPaid,
-      lifeInsurance: {
-        newGeneral: lifeNewGeneral,
-        oldGeneral: lifeOldGeneral,
-        newMedical: lifeNewMedical,
-        newPension: lifeNewPension,
-        oldPension: lifeOldPension,
-      },
-      earthquakeInsurancePaid,
-      oldLongTermInsurancePaid,
-      medicalExpensePaid,
-      medicalInsuranceReimbursement,
-      donationAmount,
-      casualtyLossDeduction,
-      isDisabled,
-      isSpecialDisabled,
-      isSingleParent,
-      isWidow,
-      isWorkingStudent,
-      ...(hasSpouse ? { spouse: { totalIncome: spouseIncome, age: spouseAge } } : {}),
-      dependents: dependents.map(
-        (d): PersonalDeductionDependent => ({
-          id: d.id,
-          name: d.name,
-          age: d.age,
-          totalIncome: d.totalIncome,
-          livesWithLinealAscendant: d.livesWithLinealAscendant,
-        })
-      ),
-      dividendDeductionAmount,
-      mortgageDeductionAmount,
-      politicalDonationCreditAmount,
-      housingRenovationCreditAmount,
-      foreignTaxCreditAmount,
-      otherTaxCreditAmount,
-      disasterExemptionAmount,
-      updatedAt: Date.now(),
-    };
-    await db.personalDeductions.put(record);
+    await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
     saved = true;
   }
 </script>
@@ -287,6 +284,49 @@
     <p class="text-sm">
       {m.income_deductions_total_income_label()}：<span class="font-mono">{formatJPY(businessTotalIncome)}</span>
     </p>
+    <p class="text-sm">
+      {m.income_deductions_combined_total_income_label()}：<span class="font-mono">{formatJPY(combinedTotalIncome)}</span>
+    </p>
+  </section>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.income_deductions_other_income_title()}</h3>
+    <p class="text-xs text-muted-foreground">{m.income_deductions_other_income_intro()}</p>
+    <label class="flex items-center gap-2">
+      <input type="checkbox" bind:checked={hasSalaryIncome} />
+      <span class="text-sm">{m.income_deductions_salary_checkbox()}</span>
+    </label>
+    {#if hasSalaryIncome}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6">
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.income_deductions_salary_paid_amount()}</span>
+          <input type="text" inputmode="numeric" bind:value={salaryPaidAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.income_deductions_salary_withholding_tax()}</span>
+          <input type="text" inputmode="numeric" bind:value={salaryWithholdingTax} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        </label>
+      </div>
+    {/if}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_deductions_public_pension_amount()}</span>
+        <input type="text" inputmode="numeric" bind:value={publicPensionAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="block mt-1 text-xs text-muted-foreground">{m.income_deductions_public_pension_hint()}</span>
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_income()}</span>
+        <input type="text" inputmode="numeric" bind:value={otherMiscIncomeAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_expenses()}</span>
+        <input type="text" inputmode="numeric" bind:value={otherMiscExpenses} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_deductions_other_withholding_tax()}</span>
+        <input type="text" inputmode="numeric" bind:value={otherWithholdingTaxPaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+      </label>
+    </div>
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
@@ -523,6 +563,8 @@
       <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span class="font-mono text-right">{formatJPY(afterCredits)}</span>
       <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span class="font-mono text-right">{formatJPY(surtax)}</span>
       <span class="font-semibold border-t pt-1">{m.income_deductions_result_final_tax()}</span><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(finalTax)}</span>
+      <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span class="font-mono text-right">{formatJPY(withholding)}</span>
+      <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(netTaxDue)}</span>
     </div>
   </section>
 
