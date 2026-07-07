@@ -31,6 +31,32 @@ import koa130 from './xtx-schema-koa130.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { FixedAsset } from '../../db/types';
+import type { XtxContext } from './xtx';
+import type { RealEstateIncomeCtx } from './real-estate-income';
+
+// personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
+// OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
+// 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
+function withRealEstate(realEstateIncome: RealEstateIncomeCtx): NonNullable<XtxContext['personalDeductions']> {
+  return {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+    realEstateIncome,
+  };
+}
 
 const NS = 'http://xml.e-tax.nta.go.jp/XSD/shotoku';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -775,10 +801,12 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       ],
       expense: [
         { accountCode: '5320', accountName: '損害保険料（不動産）', category: 'expense', amount: '50000', displayOrder: 1320 },
+        { accountCode: '5400', accountName: '貸倒金（不動産）', category: 'expense', amount: '30000', displayOrder: 1385 },
+        { accountCode: '5410', accountName: '貸倒引当金繰入額（不動産）', category: 'expense', amount: '20000', displayOrder: 1395 },
       ],
       totalRevenue: '1200000',
-      totalExpense: '50000',
-      netIncome: '1150000',
+      totalExpense: '100000',
+      netIncome: '1100000',
       entryCount: 6,
     };
     const fixedAssets: FixedAsset[] = [
@@ -829,21 +857,20 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       aoiroDeductionKind: 'electronic' as const,
       fixedAssets,
       realEstatePl,
-      personalDeductions: {
-        realEstateIncome: {
-          businessScale: true,
-          landLoanInterestAmount: D(10000),
-          rentPaid: [{ amount: '50000', payeeName: '地主 太郎', deductibleAmount: '50000' }],
-          loanInterestPaid: [{ amount: '30000', payeeName: '〇〇銀行', yearEndBalance: '9000000' }],
-          professionalFeesPaid: [{ amount: '20000', payeeName: '〇〇税理士', withholdingTax: '2000' }],
-        },
-      },
+      personalDeductions: withRealEstate({
+        businessScale: true,
+        landLoanInterestAmount: D(10000),
+        rentPaid: [{ amount: '50000', payeeName: '地主 太郎', deductibleAmount: '50000' }],
+        loanInterestPaid: [{ amount: '30000', payeeName: '〇〇銀行', yearEndBalance: '9000000' }],
+        professionalFeesPaid: [{ amount: '20000', payeeName: '〇〇税理士', withholdingTax: '2000' }],
+      }),
     };
     const leafValues = mapKoa220Values(ctx);
     const repeats = mapKoa220RepeatedValues(ctx);
     expect(Object.keys(leafValues).length).toBeGreaterThan(5);
     expect(repeats.ANF00340).toHaveLength(1);
     expect(repeats.ANF00890).toHaveLength(1);
+    expect(repeats.ANF00195).toHaveLength(2);
     const frag = buildFormFragment(
       koa220 as XtxSchema,
       {},
@@ -926,7 +953,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       aoiroDeductionKind: 'none' as const,
       fixedAssets,
       realEstatePl,
-      personalDeductions: { realEstateIncome: { businessScale: false } },
+      personalDeductions: withRealEstate({ businessScale: false }),
     };
     const leafValues = mapKoa130Values(ctx);
     const repeats = mapKoa130RepeatedValues(ctx);
