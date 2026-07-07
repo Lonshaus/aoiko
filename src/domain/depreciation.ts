@@ -379,11 +379,16 @@ export async function generateYearEndDepreciation(
     }
     // 訂正済み（reversed）や訂正仕訳は重複判定の対象外。
     // これにより誤った償却仕訳を reverseEntry で訂正したあと、正しい仕訳を再生成できる。
+    // '減価償却' も条件に含めるのは、除却/売却の仕訳（asset-disposal.ts）が同じ資産タグを
+    // 同一日付（除却日が年末なら 12/31 で一致し得る）に持つ場合との誤検出を避けるため。
     const existing = await db.journalEntries
       .where('[year+date]')
       .equals([year, date])
       .filter(
-        (e) => countsTowardTotals(e) && e.description.includes(`#${asset.id.slice(0, 8)}`)
+        (e) =>
+          countsTowardTotals(e) &&
+          e.description.includes(`#${asset.id.slice(0, 8)}`) &&
+          e.description.includes('減価償却')
       )
       .first();
     if (existing) {

@@ -1,5 +1,6 @@
 import { D } from '../lib/decimal';
 import { newId } from '../lib/id';
+import type { InputUsageCategory, TaxCategory } from '../db/types';
 // 家事按分の自動分解。借方明細で homeOfficeRatio が 1 未満の場合、
 // 「事業使用分（経費）」と「個人使用分（1610 事業主貸）」の 2 行に分解する。
 // 個人使用分は複数行から合算して 1 行にまとめる（仕訳全体の可読性向上）。
@@ -15,6 +16,8 @@ export interface SplittableLine {
   taxRate: number;
   taxIncluded: boolean;
   homeOfficeRatio: string; // '' = 適用しない、'0' .. '1' の Decimal 字串
+  taxCategory?: '' | TaxCategory;
+  inputUsageCategory?: '' | InputUsageCategory;
 }
 
 export class HomeOfficeRatioError extends Error {
