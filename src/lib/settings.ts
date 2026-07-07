@@ -55,6 +55,10 @@ export type SettingsMap = {
   aoiroDeductionKind: AoiroDeductionKind;
   // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
   backupIncludeFilerInfo: boolean;
+  // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
+  // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
+  // 所得控除画面の不動産所得区分が表示される（切っている間は既存ユーザーの画面は変わらない）。
+  realEstateIncomeEnabled: boolean;
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。

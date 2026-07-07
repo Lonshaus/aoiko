@@ -9,6 +9,7 @@ import type {
   Account,
   AccountCategory,
   FixedAsset,
+  IncomeType,
   JournalEntry,
   ParserRule,
   SubAccount,
@@ -133,6 +134,8 @@ class LedgerStore {
   recentLedgerRows = $state<LedgerRow[]>([]);
   monthlyOverview = $state<MonthlyOverview>(emptyOverview());
   currentYear = $state<number>(DEFAULT_YEAR);
+  // 不動産所得を使うか（Settings.svelte のオプトイン設定、既定 false）。
+  realEstateIncomeEnabled = $state<boolean>(false);
   // liveQuery がエラー（DB 障害・容量超過等）を出した場合のメッセージ。null＝正常。
   lastError = $state<string | null>(null);
 
@@ -188,6 +191,12 @@ class LedgerStore {
         () => db.journalEntries.orderBy('date').reverse().limit(5).toArray(),
         (v) => {
           this.recentEntries = v;
+        }
+      ),
+      this.sub(
+        () => db.settings.get('realEstateIncomeEnabled'),
+        (v) => {
+          this.realEstateIncomeEnabled = v?.value === true;
         }
       )
     );
@@ -245,9 +254,12 @@ class LedgerStore {
     return this.subAccounts.filter((s) => s.accountCode === accountCode);
   }
 
-  groupedAccounts(): AccountGroup[] {
+  groupedAccounts(incomeType: IncomeType = 'business'): AccountGroup[] {
     const byCategory = new Map<AccountCategory, Account[]>();
     for (const a of this.accounts) {
+      if ((a.incomeType ?? 'business') !== incomeType) {
+        continue;
+      }
       const arr = byCategory.get(a.category) ?? [];
       arr.push(a);
       byCategory.set(a.category, arr);
