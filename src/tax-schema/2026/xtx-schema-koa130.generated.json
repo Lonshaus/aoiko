@@ -1,0 +1,2806 @@
+{
+  "meta": {
+    "formId": "KOA130",
+    "formName": "年分収支内訳書(不動産所得用)",
+    "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
+    "version": "9.0",
+    "source": "e-tax19.CAB shotoku/KOA130-009.xsd",
+    "fetchedAt": "2026-05-16"
+  },
+  "refTree": [
+    {
+      "no": 1,
+      "level": 0,
+      "tag": "KOA130",
+      "ja": "",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 1,
+      "maxOccurs": 1
+    },
+    {
+      "no": 2,
+      "level": 1,
+      "tag": "KOA130-1",
+      "ja": "１ページ目",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": "unbounded"
+    },
+    {
+      "no": 3,
+      "level": 2,
+      "tag": "AKR00000",
+      "ja": "有限責任事業組合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 4,
+      "level": 2,
+      "tag": "AKA00000",
+      "ja": "年分",
+      "kind": "leaf",
+      "idref": "NENBUN",
+      "refType": "gen:NENBUNref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 5,
+      "level": 2,
+      "tag": "AKB00000",
+      "ja": "納税者等部",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 6,
+      "level": 3,
+      "tag": "AKB00010",
+      "ja": "住所",
+      "kind": "leaf",
+      "idref": "NOZEISHA_ADR",
+      "refType": "gen:NOZEISHA_ADRref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 7,
+      "level": 3,
+      "tag": "AKB00020",
+      "ja": "（フリガナ）氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 8,
+      "level": 4,
+      "tag": "AKB00030",
+      "ja": "フリガナ",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM_KN",
+      "refType": "gen:NOZEISHA_NM_KNref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 9,
+      "level": 4,
+      "tag": "AKB00040",
+      "ja": "氏名",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM",
+      "refType": "gen:NOZEISHA_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 10,
+      "level": 3,
+      "tag": "AKB00050",
+      "ja": "職業",
+      "kind": "leaf",
+      "idref": "SHOKUGYO",
+      "refType": "gen:SHOKUGYOref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 11,
+      "level": 3,
+      "tag": "AKB00060",
+      "ja": "電話番号",
+      "kind": "leaf",
+      "idref": "NOZEISHA_TEL",
+      "refType": "gen:NOZEISHA_TELref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 12,
+      "level": 2,
+      "tag": "AKC00000",
+      "ja": "依頼税理士等",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 13,
+      "level": 3,
+      "tag": "AKC00010",
+      "ja": "事務所所在地",
+      "kind": "leaf",
+      "idref": "DAIRI_ADR",
+      "refType": "gen:DAIRI_ADRref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 14,
+      "level": 3,
+      "tag": "AKC00020",
+      "ja": "氏名（名称）",
+      "kind": "leaf",
+      "idref": "DAIRI_NM",
+      "refType": "gen:DAIRI_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 15,
+      "level": 3,
+      "tag": "AKC00030",
+      "ja": "電話番号",
+      "kind": "leaf",
+      "idref": "DAIRI_TEL",
+      "refType": "gen:DAIRI_TELref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 16,
+      "level": 2,
+      "tag": "AKE00000",
+      "ja": "提出年月日",
+      "kind": "leaf",
+      "idref": "TEISYUTSU_DAY",
+      "refType": "gen:TEISYUTSU_DAYref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 17,
+      "level": 2,
+      "tag": "AKF00000",
+      "ja": "事業期間",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 18,
+      "level": 3,
+      "tag": "AKF00010",
+      "ja": "事業期間（自）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:mmdd",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 19,
+      "level": 3,
+      "tag": "AKF00020",
+      "ja": "事業期間（至）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:mmdd",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 20,
+      "level": 2,
+      "tag": "AKG00000",
+      "ja": "収支内訳",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 21,
+      "level": 3,
+      "tag": "AKG00010",
+      "ja": "追加科目名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKG00010-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 22,
+      "level": 3,
+      "tag": "AKG00020",
+      "ja": "収入金額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 23,
+      "level": 4,
+      "tag": "AKG00030",
+      "ja": "賃貸料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 24,
+      "level": 4,
+      "tag": "AKG00040",
+      "ja": "その他の収入",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 25,
+      "level": 5,
+      "tag": "AKG00050",
+      "ja": "礼金・権利金・更新料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 26,
+      "level": 5,
+      "tag": "AKG00060",
+      "ja": "名義書換料その他",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 27,
+      "level": 5,
+      "tag": "AKG00070",
+      "ja": "小計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 28,
+      "level": 4,
+      "tag": "AKG00080",
+      "ja": "計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 29,
+      "level": 3,
+      "tag": "AKG00090",
+      "ja": "経費",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 30,
+      "level": 4,
+      "tag": "AKG00100",
+      "ja": "給料賃金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 31,
+      "level": 4,
+      "tag": "AKG00110",
+      "ja": "減価償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 32,
+      "level": 4,
+      "tag": "AKG00120",
+      "ja": "貸倒金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 33,
+      "level": 4,
+      "tag": "AKG00130",
+      "ja": "地代家賃",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 34,
+      "level": 4,
+      "tag": "AKG00140",
+      "ja": "借入金利子",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 35,
+      "level": 4,
+      "tag": "AKG00150",
+      "ja": "その他の経費",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 36,
+      "level": 5,
+      "tag": "AKG00160",
+      "ja": "租税公課",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 37,
+      "level": 5,
+      "tag": "AKG00170",
+      "ja": "損害保険料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 38,
+      "level": 5,
+      "tag": "AKG00180",
+      "ja": "修繕費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 39,
+      "level": 5,
+      "tag": "AKG00190",
+      "ja": "追加科目の金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 40,
+      "level": 5,
+      "tag": "AKG00200",
+      "ja": "雑費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 41,
+      "level": 5,
+      "tag": "AKG00210",
+      "ja": "小計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 42,
+      "level": 4,
+      "tag": "AKG00220",
+      "ja": "経費計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 43,
+      "level": 3,
+      "tag": "AKG00230",
+      "ja": "専従者控除前の所得金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 44,
+      "level": 3,
+      "tag": "AKG00240",
+      "ja": "専従者控除",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 45,
+      "level": 3,
+      "tag": "AKG00250",
+      "ja": "所得金額（上段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 46,
+      "level": 3,
+      "tag": "AKG00255",
+      "ja": "所得金額（下段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKG00255-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 47,
+      "level": 3,
+      "tag": "AKG00260",
+      "ja": "土地等を取得するために要した負債の利子の額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 48,
+      "level": 2,
+      "tag": "AKG00270",
+      "ja": "必要経費不算入損失額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKG00270-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 49,
+      "level": 2,
+      "tag": "AKH00000",
+      "ja": "不動産所得の収入の内訳",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 50,
+      "level": 3,
+      "tag": "AKH00010",
+      "ja": "不動産所得の収入の内訳明細　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 10
+    },
+    {
+      "no": 51,
+      "level": 4,
+      "tag": "AKH00020",
+      "ja": "貸家貸地等の別",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00020-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 52,
+      "level": 4,
+      "tag": "AKH00025",
+      "ja": "用途(住宅用、住宅用以外等の別)",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00025-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 53,
+      "level": 4,
+      "tag": "AKH00030",
+      "ja": "不動産の所在地",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 54,
+      "level": 4,
+      "tag": "AKH00040",
+      "ja": "賃借人の住所・氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 55,
+      "level": 5,
+      "tag": "AKH00050",
+      "ja": "賃借人の住所",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 56,
+      "level": 5,
+      "tag": "AKH00060",
+      "ja": "賃借人の氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 57,
+      "level": 4,
+      "tag": "AKH00070",
+      "ja": "賃貸契約期間",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 58,
+      "level": 5,
+      "tag": "AKH00080",
+      "ja": "賃貸契約期間（自）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymm",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 59,
+      "level": 5,
+      "tag": "AKH00090",
+      "ja": "賃貸契約期間（至）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymm",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 60,
+      "level": 4,
+      "tag": "AKH00100",
+      "ja": "貸付面積",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00100-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 61,
+      "level": 4,
+      "tag": "AKH00110",
+      "ja": "本年中の収入金額",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 62,
+      "level": 5,
+      "tag": "AKH00120",
+      "ja": "賃貸料",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 63,
+      "level": 6,
+      "tag": "AKH00130",
+      "ja": "月額、__月分まで（上段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00130-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 64,
+      "level": 6,
+      "tag": "AKH00140",
+      "ja": "月額（上段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 65,
+      "level": 6,
+      "tag": "AKH00150",
+      "ja": "月額、__月分から（下段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00150-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 66,
+      "level": 6,
+      "tag": "AKH00160",
+      "ja": "月額（下段）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 67,
+      "level": 6,
+      "tag": "AKH00170",
+      "ja": "年額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 68,
+      "level": 5,
+      "tag": "AKH00180",
+      "ja": "礼金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 69,
+      "level": 5,
+      "tag": "AKH00190",
+      "ja": "権利金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 70,
+      "level": 5,
+      "tag": "AKH00200",
+      "ja": "更新料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 71,
+      "level": 5,
+      "tag": "AKH00210",
+      "ja": "名義書換料その他",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 72,
+      "level": 5,
+      "tag": "AKH00220",
+      "ja": "保証金・敷金（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 73,
+      "level": 3,
+      "tag": "AKH00221",
+      "ja": "次葉合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 74,
+      "level": 4,
+      "tag": "AKH00222",
+      "ja": "項目名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKH00222-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 75,
+      "level": 4,
+      "tag": "AKH00223",
+      "ja": "賃貸料の年額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 76,
+      "level": 4,
+      "tag": "AKH00224",
+      "ja": "礼金・権利金・更新料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 77,
+      "level": 4,
+      "tag": "AKH00225",
+      "ja": "名義書換料その他",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 78,
+      "level": 4,
+      "tag": "AKH00226",
+      "ja": "保証金・敷金（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 79,
+      "level": 3,
+      "tag": "AKH00230",
+      "ja": "計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 80,
+      "level": 4,
+      "tag": "AKH00240",
+      "ja": "賃貸料の年額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 81,
+      "level": 4,
+      "tag": "AKH00250",
+      "ja": "礼金・権利金・更新料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 82,
+      "level": 4,
+      "tag": "AKH00260",
+      "ja": "名義書換料その他",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 83,
+      "level": 4,
+      "tag": "AKH00270",
+      "ja": "保証金・敷金（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 84,
+      "level": 2,
+      "tag": "AKI00000",
+      "ja": "給料賃金の内訳",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 85,
+      "level": 3,
+      "tag": "AKI00010",
+      "ja": "給料賃金明細行",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 86,
+      "level": 4,
+      "tag": "AKI00020",
+      "ja": "氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 87,
+      "level": 4,
+      "tag": "AKI00030",
+      "ja": "年齢",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKI00030-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 88,
+      "level": 4,
+      "tag": "AKI00040",
+      "ja": "従事月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKI00040-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 89,
+      "level": 4,
+      "tag": "AKI00050",
+      "ja": "給料賃金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 90,
+      "level": 4,
+      "tag": "AKI00060",
+      "ja": "賞与",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 91,
+      "level": 4,
+      "tag": "AKI00070",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 92,
+      "level": 4,
+      "tag": "AKI00080",
+      "ja": "所得税及び復興特別所得税の源泉徴収税額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 93,
+      "level": 3,
+      "tag": "AKI00090",
+      "ja": "その他",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 94,
+      "level": 4,
+      "tag": "AKI00100",
+      "ja": "人数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKI00100-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 95,
+      "level": 4,
+      "tag": "AKI00110",
+      "ja": "従事月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKI00110-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 96,
+      "level": 4,
+      "tag": "AKI00120",
+      "ja": "給料賃金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 97,
+      "level": 4,
+      "tag": "AKI00130",
+      "ja": "賞与",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 98,
+      "level": 4,
+      "tag": "AKI00140",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 99,
+      "level": 4,
+      "tag": "AKI00150",
+      "ja": "所得税及び復興特別所得税の源泉徴収税額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 100,
+      "level": 3,
+      "tag": "AKI00160",
+      "ja": "計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 101,
+      "level": 4,
+      "tag": "AKI00170",
+      "ja": "延べ従事月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKI00170-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 102,
+      "level": 4,
+      "tag": "AKI00180",
+      "ja": "給料賃金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 103,
+      "level": 4,
+      "tag": "AKI00190",
+      "ja": "賞与",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 104,
+      "level": 4,
+      "tag": "AKI00200",
+      "ja": "合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 105,
+      "level": 4,
+      "tag": "AKI00210",
+      "ja": "所得税及び復興特別所得税の源泉徴収税額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 106,
+      "level": 2,
+      "tag": "AKJ00000",
+      "ja": "事業専従者の氏名等",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 107,
+      "level": 3,
+      "tag": "AKJ00010",
+      "ja": "事業専従者明細　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 2
+    },
+    {
+      "no": 108,
+      "level": 4,
+      "tag": "AKJ00020",
+      "ja": "氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 109,
+      "level": 4,
+      "tag": "AKJ00030",
+      "ja": "年齢",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKJ00030-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 110,
+      "level": 4,
+      "tag": "AKJ00040",
+      "ja": "続柄",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:zokugara",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 111,
+      "level": 4,
+      "tag": "AKJ00050",
+      "ja": "従事月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKJ00050-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 112,
+      "level": 3,
+      "tag": "AKJ00052",
+      "ja": "次葉合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 113,
+      "level": 4,
+      "tag": "AKJ00054",
+      "ja": "項目名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKJ00054-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 114,
+      "level": 4,
+      "tag": "AKJ00056",
+      "ja": "月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKJ00056-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 115,
+      "level": 3,
+      "tag": "AKJ00060",
+      "ja": "延べ従事月数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKJ00060-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 116,
+      "level": 1,
+      "tag": "KOA130-2",
+      "ja": "２ページ目",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": "unbounded"
+    },
+    {
+      "no": 117,
+      "level": 2,
+      "tag": "AKK00000",
+      "ja": "減価償却費の計算",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 118,
+      "level": 3,
+      "tag": "AKK00010",
+      "ja": "減価償却費の明細　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 8
+    },
+    {
+      "no": 119,
+      "level": 4,
+      "tag": "AKK00020",
+      "ja": "減価償却資産の名称等（繰延資産を含む）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00020-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 120,
+      "level": 4,
+      "tag": "AKK00030",
+      "ja": "面積又は数量",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00030-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 121,
+      "level": 4,
+      "tag": "AKK00050",
+      "ja": "取得年月",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymm",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 122,
+      "level": 4,
+      "tag": "AKK00060",
+      "ja": "取得価額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 123,
+      "level": 4,
+      "tag": "AKK00065",
+      "ja": "（償却保証額）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 124,
+      "level": 4,
+      "tag": "AKK00070",
+      "ja": "償却の基礎になる金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 125,
+      "level": 4,
+      "tag": "AKK00080",
+      "ja": "償却方法",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00080-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 126,
+      "level": 4,
+      "tag": "AKK00090",
+      "ja": "耐用年数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00090-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 127,
+      "level": 4,
+      "tag": "AKK00100",
+      "ja": "償却率又は改定償却率",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 128,
+      "level": 5,
+      "tag": "AKK00110",
+      "ja": "償却率又は改定償却率",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00110-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 129,
+      "level": 4,
+      "tag": "AKK00140",
+      "ja": "本年中の償却期間",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00140-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 130,
+      "level": 4,
+      "tag": "AKK00150",
+      "ja": "本年分の普通償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 131,
+      "level": 4,
+      "tag": "AKK00160",
+      "ja": "割増（特別）償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 132,
+      "level": 4,
+      "tag": "AKK00170",
+      "ja": "本年分の償却費合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 133,
+      "level": 4,
+      "tag": "AKK00180",
+      "ja": "貸付割合",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00180-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 134,
+      "level": 4,
+      "tag": "AKK00190",
+      "ja": "本年分の必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 135,
+      "level": 4,
+      "tag": "AKK00200",
+      "ja": "未償却残高（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 136,
+      "level": 4,
+      "tag": "AKK00210",
+      "ja": "摘要",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00210-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 137,
+      "level": 3,
+      "tag": "AKK00211",
+      "ja": "次葉合計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 138,
+      "level": 4,
+      "tag": "AKK00212",
+      "ja": "項目名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00212-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 139,
+      "level": 4,
+      "tag": "AKK00213",
+      "ja": "本年分の普通償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 140,
+      "level": 4,
+      "tag": "AKK00214",
+      "ja": "割増（特別）償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 141,
+      "level": 4,
+      "tag": "AKK00215",
+      "ja": "本年分の償却費合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 142,
+      "level": 4,
+      "tag": "AKK00216",
+      "ja": "本年分の必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 143,
+      "level": 4,
+      "tag": "AKK00217",
+      "ja": "未償却残高（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 144,
+      "level": 3,
+      "tag": "AKK00220",
+      "ja": "計",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 145,
+      "level": 4,
+      "tag": "AKK00230",
+      "ja": "本年分の普通償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 146,
+      "level": 4,
+      "tag": "AKK00240",
+      "ja": "割増（特別）償却費",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 147,
+      "level": 4,
+      "tag": "AKK00250",
+      "ja": "本年分の償却費合計",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 148,
+      "level": 4,
+      "tag": "AKK00260",
+      "ja": "本年分の必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 149,
+      "level": 4,
+      "tag": "AKK00270",
+      "ja": "未償却残高（期末残高）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 150,
+      "level": 4,
+      "tag": "AKK00280",
+      "ja": "摘要",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKK00280-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 151,
+      "level": 2,
+      "tag": "AKL00000",
+      "ja": "借入金利子の内訳　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 2
+    },
+    {
+      "no": 152,
+      "level": 3,
+      "tag": "AKL00010",
+      "ja": "支払先の住所・氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 153,
+      "level": 4,
+      "tag": "AKL00020",
+      "ja": "支払先の住所",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 154,
+      "level": 4,
+      "tag": "AKL00030",
+      "ja": "支払先の氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 155,
+      "level": 3,
+      "tag": "AKL00040",
+      "ja": "期末現在の借入金等の金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 156,
+      "level": 3,
+      "tag": "AKL00050",
+      "ja": "本年中の借入金利子",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 157,
+      "level": 3,
+      "tag": "AKL00060",
+      "ja": "左のうち必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 158,
+      "level": 2,
+      "tag": "AKM00000",
+      "ja": "修繕費の内訳　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 3
+    },
+    {
+      "no": 159,
+      "level": 3,
+      "tag": "AKM00010",
+      "ja": "支払先の住所・氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 160,
+      "level": 4,
+      "tag": "AKM00020",
+      "ja": "支払先の住所",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 161,
+      "level": 4,
+      "tag": "AKM00030",
+      "ja": "支払先の氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 162,
+      "level": 3,
+      "tag": "AKM00040",
+      "ja": "工事名又は資材の品名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKM00040-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 163,
+      "level": 3,
+      "tag": "AKM00050",
+      "ja": "支払年月日",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymmdd",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 164,
+      "level": 3,
+      "tag": "AKM00060",
+      "ja": "支払金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 165,
+      "level": 3,
+      "tag": "AKM00070",
+      "ja": "左のうち必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 166,
+      "level": 2,
+      "tag": "AKN00000",
+      "ja": "貸付不動産の保有状況",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 167,
+      "level": 3,
+      "tag": "AKN00010",
+      "ja": "住宅用",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 168,
+      "level": 4,
+      "tag": "AKN00020",
+      "ja": "建物",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 169,
+      "level": 5,
+      "tag": "AKN00030",
+      "ja": "一戸建",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00030-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 170,
+      "level": 5,
+      "tag": "AKN00040",
+      "ja": "一戸建以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00040-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 171,
+      "level": 4,
+      "tag": "AKN00050",
+      "ja": "土地",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 172,
+      "level": 5,
+      "tag": "AKN00060",
+      "ja": "契約件数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00060-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 173,
+      "level": 5,
+      "tag": "AKN00070",
+      "ja": "総面積",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00070-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 174,
+      "level": 3,
+      "tag": "AKN00080",
+      "ja": "住宅用以外（事務所店舗等）",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 175,
+      "level": 4,
+      "tag": "AKN00090",
+      "ja": "建物",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 176,
+      "level": 5,
+      "tag": "AKN00100",
+      "ja": "一戸建",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00100-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 177,
+      "level": 5,
+      "tag": "AKN00110",
+      "ja": "一戸建以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00110-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 178,
+      "level": 4,
+      "tag": "AKN00120",
+      "ja": "土地",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 179,
+      "level": 5,
+      "tag": "AKN00130",
+      "ja": "契約件数",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00130-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 180,
+      "level": 5,
+      "tag": "AKN00140",
+      "ja": "総面積",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00140-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 181,
+      "level": 3,
+      "tag": "AKN00150",
+      "ja": "駐車場",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 182,
+      "level": 4,
+      "tag": "AKN00160",
+      "ja": "屋根付",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00160-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 183,
+      "level": 4,
+      "tag": "AKN00170",
+      "ja": "青空",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKN00170-9-0type",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 184,
+      "level": 2,
+      "tag": "AKO00000",
+      "ja": "地代家賃の内訳　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 2
+    },
+    {
+      "no": 185,
+      "level": 3,
+      "tag": "AKO00010",
+      "ja": "支払先の住所・氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 186,
+      "level": 4,
+      "tag": "AKO00020",
+      "ja": "支払先の住所",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 187,
+      "level": 4,
+      "tag": "AKO00030",
+      "ja": "支払先の氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 188,
+      "level": 3,
+      "tag": "AKO00040",
+      "ja": "賃借物件",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKO00040-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 189,
+      "level": 3,
+      "tag": "AKO00050",
+      "ja": "本年中の賃借料・権利金等",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 190,
+      "level": 4,
+      "tag": "AKO00060",
+      "ja": "権利金",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 191,
+      "level": 4,
+      "tag": "AKO00070",
+      "ja": "更新料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 192,
+      "level": 4,
+      "tag": "AKO00080",
+      "ja": "賃借料",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 193,
+      "level": 3,
+      "tag": "AKO00090",
+      "ja": "左の賃借料のうち必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 194,
+      "level": 2,
+      "tag": "AKP00000",
+      "ja": "税理士・弁護士等の報酬・料金の内訳　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 2
+    },
+    {
+      "no": 195,
+      "level": 3,
+      "tag": "AKP00010",
+      "ja": "支払先の住所・氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 196,
+      "level": 4,
+      "tag": "AKP00020",
+      "ja": "支払先の住所",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:address",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 197,
+      "level": 4,
+      "tag": "AKP00030",
+      "ja": "支払先の氏名",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:name",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 198,
+      "level": 3,
+      "tag": "AKP00040",
+      "ja": "本年中の報酬等の金額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 199,
+      "level": 3,
+      "tag": "AKP00050",
+      "ja": "左のうち必要経費算入額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 200,
+      "level": 3,
+      "tag": "AKP00060",
+      "ja": "所得税及び復興特別所得税の源泉徴収税額",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 201,
+      "level": 2,
+      "tag": "AKQ00000",
+      "ja": "本年中における特殊事情・保証金等の運用状況",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKQ00000-9-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    }
+  ],
+  "definitions": [
+    {
+      "name": "ZEIMUSHO",
+      "ja": "税務署名",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "TEISYUTSU_DAY",
+      "ja": "提出年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ID",
+      "ja": "利用者識別番号",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_BANGO",
+      "ja": "個人番号又は法人番号",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIRIBANGO",
+      "ja": "整理番号",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM_KN",
+      "ja": "氏名・名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_NM",
+      "ja": "氏名・名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ZIP",
+      "ja": "納税者所在地郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR_KN",
+      "ja": "納税者所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_ADR",
+      "ja": "納税者所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NOZEISHA_ADR_CODE",
+      "ja": "納税地の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR",
+      "ja": "１月１日住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ICHIGATSUIPPI_ADR_CODE",
+      "ja": "１月１日住所の地方自治体コード",
+      "baseType": "gen:address-code",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO_KN",
+      "ja": "納税者所在地屋号読み",
+      "baseType": "y-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_YAGO",
+      "ja": "納税者所在地屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NOZEISHA_TEL",
+      "ja": "納税者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIBETSU",
+      "ja": "性別",
+      "baseType": "SEIBETSUkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "BIRTHDAY",
+      "ja": "生年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETSURITSU_DAY",
+      "ja": "設立年月日",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_DAY",
+      "ja": "決算日",
+      "baseType": "gen:mmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KESSAN_TIMES",
+      "ja": "決算回数",
+      "baseType": "ITkubunType",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHIHON_KIN",
+      "ja": "資本金又は出資金額",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_NM",
+      "ja": "世帯主氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SETAINUSHI_ZOKU",
+      "ja": "世帯主との続柄",
+      "baseType": "zokugaratype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NAIYO",
+      "ja": "事業内容",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHOKUGYO",
+      "ja": "職業",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KANPU_KINYUKIKAN",
+      "ja": "還付先金融機関",
+      "baseType": "gen:account",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM_KN",
+      "ja": "事業所読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_NM",
+      "ja": "事業所名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ZIP",
+      "ja": "事業所郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_ADR",
+      "ja": "事業所住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_YAGO",
+      "ja": "事業所屋号",
+      "baseType": "yagotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYOSHO_TEL",
+      "ja": "事業所電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM_KN",
+      "ja": "代表者氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_NM",
+      "ja": "代表者氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ZIP",
+      "ja": "代表者郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_ADR",
+      "ja": "代表者住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIHYO_TEL",
+      "ja": "代表者電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM_KN",
+      "ja": "製造場等名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_NM",
+      "ja": "製造場等名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ZIP",
+      "ja": "製造場等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_ADR",
+      "ja": "製造場等所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SEIZOJO_TEL",
+      "ja": "製造場等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ID",
+      "ja": "利用者識別番号（代理人等）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM_KN",
+      "ja": "代理人等氏名読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_NM",
+      "ja": "代理人等氏名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ZIP",
+      "ja": "代理人等郵便番号",
+      "baseType": "gen:zipcode",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_ADR",
+      "ja": "代理人等住所",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "DAIRI_TEL",
+      "ja": "代理人等電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "GROUP_OYA_HOJIN_ID",
+      "ja": "利用者識別番号(通算親法人)",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "TETSUZUKI",
+      "ja": "手続き",
+      "baseType": "TETSUZUKItype",
+      "hasId": true,
+      "minOccurs": 1
+    },
+    {
+      "name": "NENBUN",
+      "ja": "年分",
+      "baseType": "gen:yy",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "NENGETSUBUN",
+      "ja": "年分",
+      "baseType": "gen:yymm",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_FROM",
+      "ja": "事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "JIGYO_NENDO_TO",
+      "ja": "事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_FROM",
+      "ja": "課税期間（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KAZEI_KIKAN_TO",
+      "ja": "課税期間（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEIRI_SEKININSHA",
+      "ja": "経理責任者名",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SHINKOKU_KBN",
+      "ja": "申告の種類",
+      "baseType": "SHINKOKU_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "KEISANSHO_KBN",
+      "ja": "計算書の種類",
+      "baseType": "KEISANSHO_KBNtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_NM",
+      "ja": "親法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "OYA_HOJIN_ADR",
+      "ja": "親法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_ITIREN_NO",
+      "ja": "連結法人一連番号",
+      "baseType": "RENKETSU_ITIREN_NOtype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_FROM",
+      "ja": "連結事業年度（自）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NENDO_TO",
+      "ja": "連結事業年度（至）",
+      "baseType": "gen:yymmdd",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM_KN",
+      "ja": "連結法人名称読み",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_NM",
+      "ja": "連結法人名称",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR_KN",
+      "ja": "連結法人所在地読み",
+      "baseType": "a-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_ADR",
+      "ja": "連結法人所在地",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_HOJIN_TEL",
+      "ja": "連結法人電話番号",
+      "baseType": "gen:tel-number",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_SHIHON_KIN",
+      "ja": "資本金又は出資金額（連結法人）",
+      "baseType": "gen:kingaku",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM_KN",
+      "ja": "代表者氏名読み（連結法人）",
+      "baseType": "n-kanatype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_NM",
+      "ja": "代表者氏名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_DAIHYO_ADR",
+      "ja": "代表者住所（連結法人）",
+      "baseType": "addresstype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_KEIRI_SEKININSHA",
+      "ja": "経理責任者名（連結法人）",
+      "baseType": "nametype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSU_JIGYO_NAIYO",
+      "ja": "事業内容（連結法人）",
+      "baseType": "shokugyotype",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_ID",
+      "ja": "利用者識別番号（連結子法人）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ZEIMUSHO",
+      "ja": "税務署名（連結子法人）",
+      "baseType": "gen:zeimusho",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_NOZEISHA_BANGO",
+      "ja": "法人番号（連結子法人）",
+      "baseType": "gen:bango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_SEIRIBANGO",
+      "ja": "整理番号（連結子法人）",
+      "baseType": "gen:seiribango",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "SONOTA_ID",
+      "ja": "利用者識別番号（その他）",
+      "baseType": "gen:nozeisha-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "ELTAX_ID",
+      "ja": "eLTAXの利用者ID",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    },
+    {
+      "name": "RENKETSUKO_ELTAX_ID",
+      "ja": "eLTAXの利用者ID（連結子法人）",
+      "baseType": "gen:eltax-id",
+      "hasId": true,
+      "minOccurs": 0
+    }
+  ]
+}

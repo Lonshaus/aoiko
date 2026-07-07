@@ -70,6 +70,14 @@ export interface XtxDocumentOptions {
    * いない）。その場合は false を指定する。
    */
   includeSofusho?: boolean;
+  /**
+   * IT部 SHINKOKU_KBN（申告の種類）の kubun_CD。既定 '1'（確定）。
+   * 消費税の中間申告（仮決算方式）を送信する場合のみ '2'（中間）を指定する
+   * （e-tax11.CAB「帳票フィールド仕様書(消費-申告)」で確認：1:確定 2:中間
+   * 3:修正確定 4:修正中間。所得税 KOA020 とも共有する IT部 定義のため、
+   * 所得税側の呼び出しは既定値のまま変更しない）。
+   */
+  shinkokuKbn?: string;
 }
 // e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
@@ -158,6 +166,18 @@ export type XtxRepeatedValues = Record<string, XtxLeafValues[]>;
 // で生 XML を直書きしているのと同じ理由）。ブランチ tag → 内側の生 XML
 // （例：'<kubun_CD>1</kubun_CD>'）を直接指定する対応。
 export type XtxRawValues = Record<string, string>;
+// gen:yymmdd（複合型：<gen:era>/<gen:yy>/<gen:mm>/<gen:dd>）の raw XML を組み立てる。
+// 中間申告の対象期間（AAI00170/180 等）のように、kind:'leaf' だが実際は複合型な項目は
+// leafValues の単純文字列では表現できないため、XtxRawValues 経由で渡す。
+// era/yy/mm/dd は General.xsd 由来の要素（gen: 名前空間）のため、NENBUN（同じく
+// gen:era/gen:yy を使う複合型）と同様に gen: 接頭辞が必須——kubun_CD（各様式の
+// ローカル型）と異なりプレフィックス無しでは xmllint 検証に失敗する（実際に発覚・修正済み）。
+// 令和 = 西暦 − 2018（xtx-mapping-koa020.ts の toReiwa と同じ規約）。
+export function toYymmdd(dateISO: string): string {
+  const [y, m, d] = dateISO.split('-').map(Number) as [number, number, number];
+  const reiwa = y - 2018;
+  return `<gen:era>5</gen:era><gen:yy>${reiwa}</gen:yy><gen:mm>${m}</gen:mm><gen:dd>${d}</gen:dd>`;
+}
 
 interface ItPart {
   /** <IT VR="1.5" id="IT"> … </IT> */
@@ -179,7 +199,8 @@ function buildItPart(
   values: XtxValues,
   procedureTag: string,
   procedureName: string,
-  filer: XtxFilerInfo
+  filer: XtxFilerInfo,
+  shinkokuKbn: string
 ): ItPart {
   const idByName = new Map<string, string>();
   const parts: string[] = [];
@@ -198,7 +219,10 @@ function buildItPart(
       continue;
     }
     if (name === 'SHINKOKU_KBN') {
-      push('SHINKOKU_KBN', '<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
+      push(
+        'SHINKOKU_KBN',
+        `<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>${escapeXml(shinkokuKbn)}</kubun_CD></SHINKOKU_KBN>`
+      );
       continue;
     }
     if (name === 'ZEIMUSHO') {
@@ -468,7 +492,8 @@ export function buildFormFragment(
     values,
     procedureTag,
     procedureName,
-    options.filer ?? {}
+    options.filer ?? {},
+    options.shinkokuKbn ?? '1'
   );
   const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options), repeats, raw);
   return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
@@ -520,7 +545,8 @@ export function buildXtxBundle(
     mergedValues,
     procedureTag,
     procedureName,
-    options.filer ?? {}
+    options.filer ?? {},
+    options.shinkokuKbn ?? '1'
   );
   const rendered: RenderedForm[] = [];
   for (const f of forms) {

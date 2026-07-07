@@ -7,11 +7,14 @@ import {
   compareAll,
   computeGeneral,
   computeSimplified,
+  computeTaxableSalesRatio,
   computeThreeWari,
   computeTwoWari,
+  isFullDeductionEligible,
   processYear,
 } from './consumption-tax';
-import type { Account, LineSide } from '../db/types';
+import { D } from '../lib/decimal';
+import type { Account, InputUsageCategory, LineSide, TaxCategory } from '../db/types';
 
 async function seedAccounts(year: number): Promise<void> {
   const accs: Account[] = ACCOUNTS_2026.map((a) => ({ ...a, year }));
@@ -25,6 +28,8 @@ interface LineSeed {
   taxRate?: number;
   taxIncluded?: boolean;
   invoiceCompliant?: boolean;
+  taxCategory?: TaxCategory;
+  inputUsageCategory?: InputUsageCategory;
 }
 
 async function seedEntry(opts: {
@@ -56,6 +61,8 @@ async function seedEntry(opts: {
         taxRate: p.taxRate ?? 0,
         taxIncluded: p.taxIncluded ?? true,
         invoiceCompliant: p.invoiceCompliant ?? false,
+        ...(p.taxCategory ? { taxCategory: p.taxCategory } : {}),
+        ...(p.inputUsageCategory ? { inputUsageCategory: p.inputUsageCategory } : {}),
       }))
     );
   });
@@ -516,5 +523,316 @@ describe('compareAll - 方式比較', () => {
   test('2029 年以降は特例なし（本則・簡易のみ）', async () => {
     const all = await compareAll(2029, 4);
     expect(all.map((r) => r.method)).toEqual(['general', 'simplified']);
+  });
+});
+
+describe('免税・非課税売上と課税売上割合', () => {
+  test('免税売上（輸出）は課税売上割合の分子に算入される', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1000000' },
+        { side: 'credit', accountCode: '4110', amount: '1000000', taxCategory: 'exportExempt' },
+      ],
+    });
+    const processed = await processYear(2026);
+    expect(processed.exportExemptSalesBase.toString()).toBe('1000000');
+    const ratio = computeTaxableSalesRatio(
+      processed.taxableBase10,
+      processed.taxableBase8,
+      processed.exportExemptSalesBase,
+      processed.nonTaxableSalesBase
+    );
+    // 課税売上 0 ＋ 免税売上 1,000,000 のみ → 分子・分母とも 1,000,000 → 100%
+    expect(ratio.ratioPercent).toBe('100.00');
+  });
+
+  test('非課税売上は分母のみに算入され、課税売上割合が下がる', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-04-02',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000', taxCategory: 'exempt' },
+      ],
+    });
+    const processed = await processYear(2026);
+    expect(processed.nonTaxableSalesBase.toString()).toBe('100000');
+    const ratio = computeTaxableSalesRatio(
+      processed.taxableBase10,
+      processed.taxableBase8,
+      processed.exportExemptSalesBase,
+      processed.nonTaxableSalesBase
+    );
+    // 課税売上 1,000,000 ／ (1,000,000 + 100,000) = 10/11 = 90.90...% → 切り捨て 90.90
+    expect(ratio.ratioPercent).toBe('90.90');
+    expect(isFullDeductionEligible(ratio)).toBe(false);
+  });
+
+  test('課税売上割合95%以上・5億円以下なら全額控除', async () => {
+    const ratio = computeTaxableSalesRatio(D(1000000), D(0), D(0), D(0));
+    expect(isFullDeductionEligible(ratio)).toBe(true);
+  });
+});
+
+describe('輸入消費税・特定課税仕入れ', () => {
+  test('輸入消費税：金額そのものが税額として控除対象仕入税額に加算される', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '5000',
+          taxCategory: 'importTax10',
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    });
+    const processed = await processYear(2026);
+    expect(processed.importTax10.toString()).toBe('5000');
+    expect(processed.input10.toString()).toBe('5000');
+    expect(processed.input.toString()).toBe('5000');
+  });
+
+  test('特定課税仕入れ（リバースチャージ）：自認課税として output にも同額計上', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '11000',
+          taxIncluded: true,
+          taxCategory: 'reverseCharge',
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '11000' },
+      ],
+    });
+    const processed = await processYear(2026);
+    // 11,000 税込 → 国税 = 10,000 × 7.8% = 780
+    expect(processed.reverseChargeTax.toString()).toBe('780');
+    expect(processed.output.toString()).toBe('780');
+    expect(processed.input10.toString()).toBe('780');
+  });
+});
+
+describe('個別対応方式・一括比例配分方式（課税売上割合95%未満）', () => {
+  async function seedRatioUnder95(): Promise<void> {
+    // 課税売上 1,000,000（税込 1,100,000・10%）＋ 非課税売上 100,000 → 課税売上割合 = 10/11 ≒ 90.90%
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-04-02',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000', taxCategory: 'exempt' },
+      ],
+    });
+    // 課税対応仕入：550,000 税込 10% → 国税 39,000（taxableOnly、既定値）
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '550000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '550000' },
+      ],
+    });
+    // 共通対応仕入：110,000 税込 10% → 国税 7,800
+    await seedEntry({
+      date: '2026-05-02',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '110000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+          inputUsageCategory: 'common',
+        },
+        { side: 'credit', accountCode: '1130', amount: '110000' },
+      ],
+    });
+  }
+
+  test('一括比例配分方式：課税仕入れ等の税額の合計額 × 課税売上割合', async () => {
+    await seedRatioUnder95();
+    const r = await computeGeneral(2026, 'proportional');
+    // inputTotal 46,800 × 10/11 = 42,545.4545... → 円未満切捨て 42,545
+    expect(r.inputTax.national).toBe('42545');
+    // netTax = 78,000 − 42,545.4545... = 35,454.5454... → 切捨て 35,454
+    expect(r.netTax.national).toBe('35454');
+  });
+
+  test('個別対応方式：課税対応分は全額控除＋共通対応分 × 課税売上割合', async () => {
+    await seedRatioUnder95();
+    const r = await computeGeneral(2026, 'individual');
+    // 39,000（課税対応、全額）＋ 7,800 × 10/11 = 39,000 + 7,090.909... = 46,090.909... → 切捨て 46,090
+    expect(r.inputTax.national).toBe('46090');
+    expect(r.netTax.national).toBe('31909');
+  });
+
+  test('個別対応方式の方が一括比例配分方式より控除額が大きい（一般的な傾向どおり）', async () => {
+    await seedRatioUnder95();
+    const proportional = await computeGeneral(2026, 'proportional');
+    const individual = await computeGeneral(2026, 'individual');
+    expect(D(individual.inputTax.national).greaterThan(proportional.inputTax.national)).toBe(true);
+  });
+});
+
+describe('貸倒れ・貸倒回収に係る消費税額調整', () => {
+  test('貸倒れ：税込の貸倒金額から、その行の taxRate で税額を逆算する（仕入税額には算入しない）', async () => {
+    await seedEntry({
+      date: '2026-06-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5270',
+          amount: '11000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          taxCategory: 'badDebt',
+        },
+        { side: 'credit', accountCode: '1310', amount: '11000' },
+      ],
+    });
+    const processed = await processYear(2026);
+    // 11,000 税込 → 国税 = 10,000 × 7.8% = 780
+    expect(processed.badDebtTax10.toString()).toBe('780');
+    expect(processed.badDebtTax8.toString()).toBe('0');
+    expect(processed.input.toString()).toBe('0');
+    expect(processed.inputRaw.toString()).toBe('0');
+  });
+
+  test('貸倒回収：課税標準額・課税売上割合には算入せず税額のみ逆算する', async () => {
+    await seedEntry({
+      date: '2026-06-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '10800' },
+        {
+          side: 'credit',
+          accountCode: '4910',
+          amount: '10800',
+          taxRate: 0.08,
+          taxIncluded: true,
+          taxCategory: 'badDebtRecovery',
+        },
+      ],
+    });
+    const processed = await processYear(2026);
+    // 10,800 税込 → 国税 = 10,000 × 6.24% = 624
+    expect(processed.badDebtRecoveryTax8.toString()).toBe('624');
+    expect(processed.badDebtRecoveryTax10.toString()).toBe('0');
+    expect(processed.output.toString()).toBe('0');
+    expect(processed.taxableBase8.toString()).toBe('0');
+  });
+
+  async function seedBadDebtScenario(): Promise<void> {
+    // 通常売上：1,100,000 税込 10% → 売上税額 78,000
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    // 貸倒れ：11,000 税込 10% → 780
+    await seedEntry({
+      date: '2026-06-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5270',
+          amount: '11000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          taxCategory: 'badDebt',
+        },
+        { side: 'credit', accountCode: '1310', amount: '11000' },
+      ],
+    });
+    // 貸倒回収：2,200 税込 10% → 156
+    await seedEntry({
+      date: '2026-07-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '2200' },
+        {
+          side: 'credit',
+          accountCode: '4910',
+          amount: '2200',
+          taxRate: 0.1,
+          taxIncluded: true,
+          taxCategory: 'badDebtRecovery',
+        },
+      ],
+    });
+  }
+
+  test('本則課税：(売上税額＋貸倒回収) − 貸倒れ税額（仕入税額控除は別枠）', async () => {
+    await seedBadDebtScenario();
+    const r = await computeGeneral(2026);
+    // 78,000 + 156 − 0（仕入無し） − 780 = 77,376
+    expect(r.netTax.national).toBe('77376');
+  });
+
+  test('簡易課税：控除対象仕入税額の基礎に貸倒回収を加算、貸倒れは別枠で減算', async () => {
+    await seedBadDebtScenario();
+    const r = await computeSimplified(2026, 5);
+    // 基準消費税額 = 78,000 + 156 = 78,156 → みなし仕入50% = 39,078
+    // 78,156 − 39,078 − 780 = 38,298
+    expect(r.netTax.national).toBe('38298');
+  });
+
+  test('2 割特例：(基準消費税額) × 20% − 貸倒れ税額', async () => {
+    await seedBadDebtScenario();
+    const r = await computeTwoWari(2026);
+    // (78,000 + 156) × 20% − 780 = 15,631.2 − 780 = 14,851.2 → 円未満切捨て 14,851
+    expect(r.netTax.national).toBe('14851');
+  });
+});
+
+describe('period 指定（仮決算・中間申告用の期間限定集計）', () => {
+  test('period を指定すると、その期間内の仕訳のみを集計する', async () => {
+    await seedAccounts(2026);
+    await seedEntry({
+      date: '2026-02-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-08-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '2200000' },
+        { side: 'credit', accountCode: '4110', amount: '2200000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    const full = await processYear(2026);
+    expect(full.output.toString()).toBe('234000');
+    const h1 = await processYear(2026, { start: '2026-01-01', end: '2026-06-30' });
+    expect(h1.output.toString()).toBe('78000');
+    const r = await computeGeneral(2026, 'proportional', { start: '2026-01-01', end: '2026-06-30' });
+    expect(r.netTax.national).toBe('78000');
   });
 });

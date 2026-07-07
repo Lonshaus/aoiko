@@ -27,6 +27,10 @@ const EXPECTED_SHA256 = {
     '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
   'shotoku/KOA110-012.xsd':
     'cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f',
+  'shotoku/KOA220-008.xsd':
+    '7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78',
+  'shotoku/KOA130-009.xsd':
+    'e52eaa460b0f0d3ae6fc970657a57e1146bfd42dd5138fc532c25651d471ebdc',
   'shohi/SHA020-009.xsd':
     '977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53',
   'shohi/SHB070-001.xsd':
@@ -380,6 +384,20 @@ function main() {
     'shotoku/KOA110-012.xsd',
     'KOA110',
     'xtx-schema-koa110.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shotoku/KOA220-008.xsd',
+    'KOA220',
+    'xtx-schema-koa220.generated.json',
+    idrefMap,
+    definitions
+  );
+  buildForm(
+    'shotoku/KOA130-009.xsd',
+    'KOA130',
+    'xtx-schema-koa130.generated.json',
     idrefMap,
     definitions
   );

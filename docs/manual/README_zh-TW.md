@@ -33,6 +33,7 @@
 11. [備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
 12. [修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
 13. [開業時設定(開業精靈)](13-opening-setup_zh-TW.md) — 開業費、轉用資產未償卻殘額計算、自由項目
+14. [所得控除・税額控除](14-income-deductions_zh-TW.md) — 輸入家庭成員・保險費・醫療費・捐款等資料，試算基礎扣除〜復興特別所得税，並反映到 `.xtx` 輸出
 
 ## 意見回饋
 

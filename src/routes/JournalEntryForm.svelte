@@ -7,7 +7,7 @@
   import { newId } from '../lib/id';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
-  import type { JournalLine } from '../db/types';
+  import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
 
   type DraftLine = {
     id: string;
@@ -17,12 +17,34 @@
     taxRate: number;
     taxIncluded: boolean;
     homeOfficeRatio: string;  // '' = 未設定 (=100%), '0.30' 等
+    taxCategory: '' | TaxCategory;  // '' = 科目の既定値を使用
+    inputUsageCategory: '' | InputUsageCategory;  // '' = taxableOnly 扱い
   };
 
   const TAX_OPTIONS: Array<{ value: number; label: () => string }> = [
     { value: 0, label: () => m.journal_tax_exempt() },
     { value: 0.08, label: () => m.journal_tax_reduced() },
     { value: 0.1, label: () => m.journal_tax_standard() },
+  ];
+  // taxRate=0 のときだけ意味を持つ、科目の taxCategory 既定値の上書き（海外取引・非課税売上）
+  const SPECIAL_TAX_CATEGORY_OPTIONS: Array<{ value: '' | TaxCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_tax_category_default() },
+    { value: 'exportExempt', label: () => m.journal_tax_category_export_exempt() },
+    { value: 'exempt', label: () => m.journal_tax_category_exempt() },
+    { value: 'importTax10', label: () => m.journal_tax_category_import10() },
+    { value: 'importTax8', label: () => m.journal_tax_category_import8() },
+    { value: 'reverseCharge', label: () => m.journal_tax_category_reverse_charge() },
+  ];
+  // taxRate>0 のときだけ意味を持つ、貸倒れ・貸倒回収の税区分（元の売上・仕入の税率をそのまま使う）
+  const BAD_DEBT_TAX_CATEGORY_OPTIONS: Array<{ value: '' | TaxCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_tax_category_default() },
+    { value: 'badDebt', label: () => m.journal_tax_category_bad_debt() },
+    { value: 'badDebtRecovery', label: () => m.journal_tax_category_bad_debt_recovery() },
+  ];
+  const USAGE_CATEGORY_OPTIONS: Array<{ value: '' | InputUsageCategory; label: () => string }> = [
+    { value: '', label: () => m.journal_usage_category_taxable_only() },
+    { value: 'common', label: () => m.journal_usage_category_common() },
+    { value: 'nonTaxableOnly', label: () => m.journal_usage_category_non_taxable_only() },
   ];
 
   const today = () => todayISO();
@@ -34,6 +56,8 @@
     taxRate: 0,
     taxIncluded: true,
     homeOfficeRatio: '',
+    taxCategory: '',
+    inputUsageCategory: '',
   });
 
   let date = $state(today());
@@ -42,8 +66,19 @@
   let credits = $state<DraftLine[]>([emptyLine()]);
   let error = $state('');
   let saving = $state(false);
+  // 事業/不動産の切替（セッション内のみ記憶、分錄には保存しない）。
+  // realEstateIncomeEnabled が false の間はトグル自体を表示しない。
+  let incomeType = $state<IncomeType>('business');
 
-  const accountGroups = $derived(ledger.groupedAccounts());
+  const accountGroups = $derived(ledger.groupedAccounts(incomeType));
+
+  function onIncomeTypeChange(next: IncomeType) {
+    incomeType = next;
+    for (const l of [...debits, ...credits]) {
+      l.accountCode = '';
+      l.subAccountId = '';
+    }
+  }
 
   function sumAmount(lines: DraftLine[]): string {
     return lines
@@ -114,6 +149,8 @@
         taxRate: number;
         taxIncluded: boolean;
         homeOfficeRatio: string;
+        taxCategory?: '' | JournalLine['taxCategory'];
+        inputUsageCategory?: '' | JournalLine['inputUsageCategory'];
       };
       const buildLines = (drafts: LineLike[], side: 'debit' | 'credit'): JournalLine[] =>
         drafts.map((d) => ({
@@ -128,6 +165,8 @@
           taxIncluded: d.taxIncluded,
           invoiceCompliant: false,
           ...(d.homeOfficeRatio ? { homeOfficeRatio: d.homeOfficeRatio } : {}),
+          ...(d.taxCategory ? { taxCategory: d.taxCategory } : {}),
+          ...(d.inputUsageCategory ? { inputUsageCategory: d.inputUsageCategory } : {}),
         }));
       // 家事按分のある借方明細を「事業使用分」+「事業主貸」に分解
       const debitsForExpansion: SplittableLine[] = debits.map((d) => ({
@@ -139,6 +178,8 @@
         taxRate: d.taxRate,
         taxIncluded: d.taxIncluded,
         homeOfficeRatio: d.homeOfficeRatio,
+        taxCategory: d.taxCategory,
+        inputUsageCategory: d.inputUsageCategory,
       }));
       const expandedDebits = expandHomeOffice(debitsForExpansion);
 
@@ -177,6 +218,33 @@
   class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
 >
   <h2 class="text-lg font-semibold">{m.journal_form_title()}</h2>
+
+  {#if ledger.realEstateIncomeEnabled}
+    <div class="flex gap-2 text-sm" role="radiogroup" aria-label={m.journal_form_income_type_label()}>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={incomeType === 'business'}
+        onclick={() => onIncomeTypeChange('business')}
+        class="px-3 py-1 rounded border"
+        class:bg-primary={incomeType === 'business'}
+        class:text-primary-foreground={incomeType === 'business'}
+      >
+        {m.journal_form_income_type_business()}
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={incomeType === 'realEstate'}
+        onclick={() => onIncomeTypeChange('realEstate')}
+        class="px-3 py-1 rounded border"
+        class:bg-primary={incomeType === 'realEstate'}
+        class:text-primary-foreground={incomeType === 'realEstate'}
+      >
+        {m.journal_form_income_type_real_estate()}
+      </button>
+    </div>
+  {/if}
 
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <label class="block sm:col-span-1">
@@ -284,6 +352,33 @@
               class="w-16 px-2 py-0.5 bg-background border rounded text-foreground tabular-nums"
             />
           </label>
+          {#if line.taxRate === 0}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each SPECIAL_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {:else}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each BAD_DEBT_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {/if}
+          <select
+            bind:value={line.inputUsageCategory}
+            class="px-2 py-0.5 bg-background border rounded text-foreground"
+          >
+            {#each USAGE_CATEGORY_OPTIONS as opt (opt.value)}
+              <option value={opt.value}>{opt.label()}</option>
+            {/each}
+          </select>
         </div>
       {/if}
     {/each}
@@ -382,6 +477,33 @@
               class="w-16 px-2 py-0.5 bg-background border rounded text-foreground tabular-nums"
             />
           </label>
+          {#if line.taxRate === 0}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each SPECIAL_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {:else}
+            <select
+              bind:value={line.taxCategory}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              {#each BAD_DEBT_TAX_CATEGORY_OPTIONS as opt (opt.value)}
+                <option value={opt.value}>{opt.label()}</option>
+              {/each}
+            </select>
+          {/if}
+          <select
+            bind:value={line.inputUsageCategory}
+            class="px-2 py-0.5 bg-background border rounded text-foreground"
+          >
+            {#each USAGE_CATEGORY_OPTIONS as opt (opt.value)}
+              <option value={opt.value}>{opt.label()}</option>
+            {/each}
+          </select>
         </div>
       {/if}
     {/each}

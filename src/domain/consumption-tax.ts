@@ -157,11 +157,11 @@ export function filingBreakdown(nationalNetRaw: Decimal): ConsumptionTaxBreakdow
 }
 
 export interface ProcessedYearLines {
-  /** 売上税額（国税分） */
+  /** 売上税額（国税分。特定課税仕入れの自認課税分を含む） */
   output: Decimal;
   /** 仕入税額（国税分、経過措置適用前） */
   inputRaw: Decimal;
-  /** 仕入税額（国税分、経過措置適用後 = 控除対象） */
+  /** 仕入税額（国税分、経過措置適用後 = 控除対象。輸入消費税・特定課税仕入れ分を含む） */
   input: Decimal;
   /** 控除対象仕入税額（国税分、標準税率10%＝7.8%分） */
   input10: Decimal;
@@ -171,24 +171,76 @@ export interface ProcessedYearLines {
   taxableBase10: Decimal;
   /** 課税標準額の基礎（税抜課税売上高の純額、軽減税率8%分） */
   taxableBase8: Decimal;
+  /** 免税売上高（税抜、輸出等。課税売上割合の分子に算入） */
+  exportExemptSalesBase: Decimal;
+  /** 非課税売上高（住宅家賃・利子等。課税売上割合の分母のみに算入） */
+  nonTaxableSalesBase: Decimal;
+  /** 個別対応方式：課税売上げと非課税売上げに共通して要する仕入税額（税率別、経過措置適用後） */
+  inputCommon10: Decimal;
+  inputCommon8: Decimal;
+  /** 個別対応方式：非課税売上げにのみ要する仕入税額（税率別、経過措置適用後） */
+  inputNonTaxableOnly10: Decimal;
+  inputNonTaxableOnly8: Decimal;
+  /** 課税貨物に係る消費税額（輸入消費税、税率別。.xtx 付表の内訳表示用） */
+  importTax10: Decimal;
+  importTax8: Decimal;
+  /** 特定課税仕入れ（リバースチャージ）に係る支払対価の額・消費税額（常に標準税率） */
+  reverseChargeBase: Decimal;
+  reverseChargeTax: Decimal;
+  /** 貸倒れに係る税額（税率別。その行の taxRate で税込金額から逆算） */
+  badDebtTax10: Decimal;
+  badDebtTax8: Decimal;
+  /** 貸倒回収に係る消費税額（税率別） */
+  badDebtRecoveryTax10: Decimal;
+  badDebtRecoveryTax8: Decimal;
 }
 
-export async function processYear(year: number): Promise<ProcessedYearLines> {
+function emptyProcessedYearLines(): ProcessedYearLines {
+  return {
+    output: D(0),
+    inputRaw: D(0),
+    input: D(0),
+    input10: D(0),
+    input8: D(0),
+    taxableBase10: D(0),
+    taxableBase8: D(0),
+    exportExemptSalesBase: D(0),
+    nonTaxableSalesBase: D(0),
+    inputCommon10: D(0),
+    inputCommon8: D(0),
+    inputNonTaxableOnly10: D(0),
+    inputNonTaxableOnly8: D(0),
+    importTax10: D(0),
+    importTax8: D(0),
+    reverseChargeBase: D(0),
+    reverseChargeTax: D(0),
+    badDebtTax10: D(0),
+    badDebtTax8: D(0),
+    badDebtRecoveryTax10: D(0),
+    badDebtRecoveryTax8: D(0),
+  };
+}
+
+// period 指定時は仮決算（中間申告）用：年内の一部期間（start〜end、両端含む ISO 日付）
+// のみを集計する。未指定（既定）は年間全体（確定申告）。
+export interface ConsumptionTaxPeriod {
+  start: string;
+  end: string;
+}
+
+export async function processYear(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ProcessedYearLines> {
   const entries = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter(countsTowardTotals)
+    .filter(
+      (e) => countsTowardTotals(e) && (!period || (e.date >= period.start && e.date <= period.end))
+    )
     .toArray();
   if (entries.length === 0) {
-    return {
-      output: D(0),
-      inputRaw: D(0),
-      input: D(0),
-      input10: D(0),
-      input8: D(0),
-      taxableBase10: D(0),
-      taxableBase8: D(0),
-    };
+    return emptyProcessedYearLines();
   }
   const lines = await db.journalLines
     .where('entryId')
@@ -198,29 +250,78 @@ export async function processYear(year: number): Promise<ProcessedYearLines> {
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryDateMap = new Map(entries.map((e) => [e.id, e.date]));
 
-  let output = D(0);
-  let inputRaw = D(0);
-  let input = D(0);
-  let input10 = D(0);
-  let input8 = D(0);
-  let taxableBase10 = D(0);
-  let taxableBase8 = D(0);
+  const acc0 = emptyProcessedYearLines();
+  let { output, inputRaw, input, input10, input8, taxableBase10, taxableBase8 } = acc0;
+  let {
+    exportExemptSalesBase,
+    nonTaxableSalesBase,
+    inputCommon10,
+    inputCommon8,
+    inputNonTaxableOnly10,
+    inputNonTaxableOnly8,
+    importTax10,
+    importTax8,
+    reverseChargeBase,
+    reverseChargeTax,
+    badDebtTax10,
+    badDebtTax8,
+    badDebtRecoveryTax10,
+    badDebtRecoveryTax8,
+  } = acc0;
+
+  // 個別対応方式の用途区分別に控除対象仕入税額を積み上げる（taxableOnly は input からの差分で導出するため個別集計不要）
+  function accumulateUsage(line: (typeof lines)[number], deducted: Decimal, rate: 0.1 | 0.08): void {
+    const usage = line.inputUsageCategory ?? 'taxableOnly';
+    if (usage === 'common') {
+      if (rate === 0.1) {
+        inputCommon10 = inputCommon10.plus(deducted);
+      } else {
+        inputCommon8 = inputCommon8.plus(deducted);
+      }
+    } else if (usage === 'nonTaxableOnly') {
+      if (rate === 0.1) {
+        inputNonTaxableOnly10 = inputNonTaxableOnly10.plus(deducted);
+      } else {
+        inputNonTaxableOnly8 = inputNonTaxableOnly8.plus(deducted);
+      }
+    }
+  }
 
   for (const line of lines) {
-    if (line.taxRate === 0) {
-      continue;
-    }
     const acc = accountMap.get(line.accountCode);
     if (!acc) {
       continue;
     }
-    const national = nationalPortion(
-      D(line.amount),
-      line.taxRate,
-      line.taxIncluded
-    );
+    const effectiveTaxCategory = line.taxCategory ?? acc.taxCategory;
+
+    // 貸倒回収：過去に貸倒控除した売掛金等の回収。新たな売上ではないため課税標準額・
+    // 課税売上割合には算入せず、その行の taxRate で税込金額から税額のみ逆算する
+    if (effectiveTaxCategory === 'badDebtRecovery') {
+      const national = nationalPortion(D(line.amount), line.taxRate, line.taxIncluded);
+      const signed = line.side === 'credit' ? national : national.negated();
+      if (line.taxRate === 0.1) {
+        badDebtRecoveryTax10 = badDebtRecoveryTax10.plus(signed);
+      } else if (line.taxRate === 0.08) {
+        badDebtRecoveryTax8 = badDebtRecoveryTax8.plus(signed);
+      }
+      continue;
+    }
+
     // 売上：revenue は両建てネット（debit ＝ 売上値引・返品は課税標準から控除）
     if (acc.category === 'revenue') {
+      if (line.taxRate === 0) {
+        // 免税・非課税売上は税額こそ無いが、課税売上割合の算定基礎として集計する
+        const amt = D(line.amount);
+        const signed = line.side === 'credit' ? amt : amt.negated();
+        if (effectiveTaxCategory === 'exportExempt') {
+          exportExemptSalesBase = exportExemptSalesBase.plus(signed);
+        } else if (effectiveTaxCategory === 'exempt') {
+          nonTaxableSalesBase = nonTaxableSalesBase.plus(signed);
+        }
+        // 'nontaxable'（課税対象外）・未指定は課税売上割合に算入しない
+        continue;
+      }
+      const national = nationalPortion(D(line.amount), line.taxRate, line.taxIncluded);
       const signed = line.side === 'credit' ? national : national.negated();
       output = output.plus(signed);
       const base = taxExcludedPortion(D(line.amount), line.taxRate, line.taxIncluded);
@@ -232,12 +333,64 @@ export async function processYear(year: number): Promise<ProcessedYearLines> {
       }
       continue;
     }
+
+    // 輸入消費税：金額そのものが税額（税込価格から逆算しない）
+    if (effectiveTaxCategory === 'importTax10' || effectiveTaxCategory === 'importTax8') {
+      const amt = D(line.amount);
+      const signed = line.side === 'debit' ? amt : amt.negated();
+      inputRaw = inputRaw.plus(signed);
+      input = input.plus(signed);
+      const rate: 0.1 | 0.08 = effectiveTaxCategory === 'importTax10' ? 0.1 : 0.08;
+      if (rate === 0.1) {
+        input10 = input10.plus(signed);
+        importTax10 = importTax10.plus(signed);
+      } else {
+        input8 = input8.plus(signed);
+        importTax8 = importTax8.plus(signed);
+      }
+      accumulateUsage(line, signed, rate);
+      continue;
+    }
+
+    // 特定課税仕入れ（リバースチャージ）：常に標準税率。自ら課税売上を計上したものとみなし
+    // output にも同額を加算する（経過措置により実際に申告義務が生じるのは本則課税・課税売上割合95%未満のみ）
+    if (effectiveTaxCategory === 'reverseCharge') {
+      const national = nationalPortion(D(line.amount), 0.1, line.taxIncluded);
+      const signed = line.side === 'debit' ? national : national.negated();
+      inputRaw = inputRaw.plus(signed);
+      input = input.plus(signed);
+      input10 = input10.plus(signed);
+      output = output.plus(signed);
+      reverseChargeTax = reverseChargeTax.plus(signed);
+      const base = taxExcludedPortion(D(line.amount), 0.1, line.taxIncluded);
+      reverseChargeBase = reverseChargeBase.plus(line.side === 'debit' ? base : base.negated());
+      accumulateUsage(line, signed, 0.1);
+      continue;
+    }
+
+    // 貸倒れ：税込の貸倒金額から、その行の taxRate で税額を逆算する。仕入税額控除とは
+    // 別枠の控除項目のため isInput 判定・個別対応方式の用途区分には算入しない
+    if (effectiveTaxCategory === 'badDebt') {
+      const national = nationalPortion(D(line.amount), line.taxRate, line.taxIncluded);
+      const signed = line.side === 'debit' ? national : national.negated();
+      if (line.taxRate === 0.1) {
+        badDebtTax10 = badDebtTax10.plus(signed);
+      } else if (line.taxRate === 0.08) {
+        badDebtTax8 = badDebtTax8.plus(signed);
+      }
+      continue;
+    }
+
+    if (line.taxRate === 0) {
+      continue;
+    }
     // 仕入：expense は両建てネット（credit ＝ 返金は仕入対価の返還）、
     // asset は debit 側のみ（事業主貸を除外。credit 側は通常 決済行や資産譲渡で、仕入控除の対象外）
     const isInput =
       acc.category === 'expense' ||
       (acc.category === 'asset' && line.side === 'debit' && acc.code !== OWNER_WITHDRAW_CODE);
     if (isInput) {
+      const national = nationalPortion(D(line.amount), line.taxRate, line.taxIncluded);
       const signed = line.side === 'debit' ? national : national.negated();
       inputRaw = inputRaw.plus(signed);
       let deducted = signed;
@@ -249,24 +402,123 @@ export async function processYear(year: number): Promise<ProcessedYearLines> {
       input = input.plus(deducted);
       if (line.taxRate === 0.1) {
         input10 = input10.plus(deducted);
+        accumulateUsage(line, deducted, 0.1);
       } else if (line.taxRate === 0.08) {
         input8 = input8.plus(deducted);
+        accumulateUsage(line, deducted, 0.08);
       }
     }
   }
-  return { output, inputRaw, input, input10, input8, taxableBase10, taxableBase8 };
+  return {
+    output,
+    inputRaw,
+    input,
+    input10,
+    input8,
+    taxableBase10,
+    taxableBase8,
+    exportExemptSalesBase,
+    nonTaxableSalesBase,
+    inputCommon10,
+    inputCommon8,
+    inputNonTaxableOnly10,
+    inputNonTaxableOnly8,
+    importTax10,
+    importTax8,
+    reverseChargeBase,
+    reverseChargeTax,
+    badDebtTax10,
+    badDebtTax8,
+    badDebtRecoveryTax10,
+    badDebtRecoveryTax8,
+  };
 }
-// 本則課税：売上税額 − 控除対象仕入税額。
+// 課税売上割合 = (課税売上高＋免税売上高) ／ (課税売上高＋免税売上高＋非課税売上高)。
+// 端数処理：法定の位数指定は無く任意の位で切り捨てが認められる（国税庁質疑応答）。
+// aoiko は小数点2桁で切り捨てる（付表2-3 DTD00000 の表示慣例に合わせる）。
+export interface TaxableSalesRatio {
+  /** 切り捨て前の比率（0〜1） */
+  ratio: Decimal;
+  /** 表示・.xtx 用（例："92.35"、小数点2桁切り捨て） */
+  ratioPercent: string;
+  /** 課税売上高（税抜）＋免税売上高 */
+  taxableSalesTotal: Decimal;
+  /** 上記＋非課税売上高（課税売上割合の分母） */
+  totalSalesForRatio: Decimal;
+}
+
+export function computeTaxableSalesRatio(
+  taxableBase10: Decimal,
+  taxableBase8: Decimal,
+  exportExemptSalesBase: Decimal,
+  nonTaxableSalesBase: Decimal
+): TaxableSalesRatio {
+  const taxableSalesTotal = taxableBase10.plus(taxableBase8).plus(exportExemptSalesBase);
+  const totalSalesForRatio = taxableSalesTotal.plus(nonTaxableSalesBase);
+  if (totalSalesForRatio.lessThanOrEqualTo(0)) {
+    return { ratio: D(1), ratioPercent: '100.00', taxableSalesTotal, totalSalesForRatio };
+  }
+  const ratio = taxableSalesTotal.dividedBy(totalSalesForRatio);
+  const ratioPercent = ratio.times(100).toDecimalPlaces(2, Decimal.ROUND_DOWN).toFixed(2);
+  return { ratio, ratioPercent, taxableSalesTotal, totalSalesForRatio };
+}
+// 課税売上高5億円以下、かつ課税売上割合95%以上なら全額控除（消費税法30条2項）。
+export function isFullDeductionEligible(salesRatio: TaxableSalesRatio): boolean {
+  return (
+    salesRatio.ratio.greaterThanOrEqualTo('0.95') &&
+    salesRatio.taxableSalesTotal.lessThanOrEqualTo(500_000_000)
+  );
+}
+export type ConsumptionTaxAttributionMethod = 'individual' | 'proportional';
+// 課税売上高5億円超・課税売上割合95%未満の場合の控除対象仕入税額を算定。
+// 個別対応方式：課税対応分は全額＋共通対応分×課税売上割合（非課税対応分は控除不可）。
+// 一括比例配分方式：課税仕入れ等の税額の合計額×課税売上割合。
+function computeDeductibleInput(
+  processed: ProcessedYearLines,
+  salesRatio: TaxableSalesRatio,
+  attributionMethod: ConsumptionTaxAttributionMethod
+): Decimal {
+  if (isFullDeductionEligible(salesRatio)) {
+    return processed.input;
+  }
+  if (attributionMethod === 'proportional') {
+    return processed.input.times(salesRatio.ratio);
+  }
+  const common = processed.inputCommon10.plus(processed.inputCommon8);
+  const nonTaxableOnly = processed.inputNonTaxableOnly10.plus(processed.inputNonTaxableOnly8);
+  const taxableOnly = processed.input.minus(common).minus(nonTaxableOnly);
+  return taxableOnly.plus(common.times(salesRatio.ratio));
+}
+// 貸倒れ税額控除・貸倒回収の合計（税率横断）。消費税法39条は本則・簡易・2割・3割特例の
+// いずれにも適用されるため、4方式共通のヘルパーとして分離する。
+function badDebtTotals(processed: ProcessedYearLines): { tax: Decimal; recovery: Decimal } {
+  return {
+    tax: processed.badDebtTax10.plus(processed.badDebtTax8),
+    recovery: processed.badDebtRecoveryTax10.plus(processed.badDebtRecoveryTax8),
+  };
+}
+// 本則課税：(売上税額＋貸倒回収) − (控除対象仕入税額＋貸倒れ税額)。
 // 負の場合は還付（aoiko は概算表示のみ、申告書出力はしない）。
+// attributionMethod は課税売上割合95%未満・課税売上高5億円超のときのみ参照する（既定 proportional）。
 export async function computeGeneral(
-  year: number
+  year: number,
+  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw, input, taxableBase10, taxableBase8 } =
-    await processYear(year);
-  const net = output.minus(input);
+  const processed = await processYear(year, period);
+  const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
+  const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
+  const salesRatio = computeTaxableSalesRatio(
+    taxableBase10,
+    taxableBase8,
+    processed.exportExemptSalesBase,
+    processed.nonTaxableSalesBase
+  );
+  const input = computeDeductibleInput(processed, salesRatio, attributionMethod);
+  const net = output.plus(badDebtRecovery).minus(input).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
   // input は既に１円未満切り捨て済（既存の控除対象仕入税額）を官庁側の売上税額から控除
-  const filingNet = official.outputTax.minus(input);
+  const filingNet = official.outputTax.plus(badDebtRecovery).minus(input).minus(badDebtTax);
   return {
     year,
     method: 'general',
@@ -278,22 +530,27 @@ export async function computeGeneral(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-// 簡易課税：売上税額 × (1 − みなし仕入率)。
-// 仕入実額は無関係、事業区分が決まれば結果は確定。
+// 簡易課税：控除対象仕入税額＝(売上税額＋貸倒回収)×みなし仕入率（貸倒回収は控除計算の
+// 基礎にも算入される。国税庁「簡易課税用申告の手引き」の基準消費税額の定義どおり）。
+// 貸倒れ税額は控除計算とは別枠で最後に差し引く。
 export async function computeSimplified(
   year: number,
-  category: SimplifiedTaxCategory
+  category: SimplifiedTaxCategory,
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
-  const { output, inputRaw, taxableBase10, taxableBase8 } =
-    await processYear(year);
+  const processed = await processYear(year, period);
+  const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
+  const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const rate = deemedInputRate(category);
-  const deemedInput = output.times(rate);
-  const net = output.minus(deemedInput);
+  const basicBase = output.plus(badDebtRecovery);
+  const deemedInput = basicBase.times(rate);
+  const net = basicBase.minus(deemedInput).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const deemedInputOfficial = official.outputTax
+  const officialBasicBase = official.outputTax.plus(badDebtRecovery);
+  const deemedInputOfficial = officialBasicBase
     .times(rate)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  const filingNet = official.outputTax.minus(deemedInputOfficial);
+  const filingNet = officialBasicBase.minus(deemedInputOfficial).minus(badDebtTax);
   return {
     year,
     method: 'simplified',
@@ -305,21 +562,25 @@ export async function computeSimplified(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-// 2 割・3 割特例共通：売上税額 × (1 − 控除率) を納付する方式。
+// 2 割・3 割特例共通：(売上税額＋貸倒回収) × (1 − 控除率) − 貸倒れ税額。
 // 2割特例＝控除率80%（2023/10/01〜2026/09/30 の課税期間限定、インボイス制度の経過措置）。
 // 3割特例＝控除率70%（令和9・10〔2027・2028〕の課税期間限定、令和8年度税制改正で新設）。
 async function computeWariException(
   year: number,
   method: 'two-wari' | 'three-wari',
-  inputDeductionRate: string
+  inputDeductionRate: string,
+  period?: ConsumptionTaxPeriod
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
-  const { output, inputRaw, taxableBase10, taxableBase8 } =
-    await processYear(year);
-  const inputDeducted = output.times(inputDeductionRate);
-  const net = output.times(netRate);
+  const processed = await processYear(year, period);
+  const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
+  const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
+  const basicBase = output.plus(badDebtRecovery);
+  const inputDeducted = basicBase.times(inputDeductionRate);
+  const net = basicBase.times(netRate).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const filingNet = official.outputTax.times(netRate);
+  const officialBasicBase = official.outputTax.plus(badDebtRecovery);
+  const filingNet = officialBasicBase.times(netRate).minus(badDebtTax);
   return {
     year,
     method,
@@ -331,11 +592,17 @@ async function computeWariException(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-export function computeTwoWari(year: number): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'two-wari', '0.8');
+export function computeTwoWari(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'two-wari', '0.8', period);
 }
-export function computeThreeWari(year: number): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'three-wari', '0.7');
+export function computeThreeWari(
+  year: number,
+  period?: ConsumptionTaxPeriod
+): Promise<ConsumptionTaxResult> {
+  return computeWariException(year, 'three-wari', '0.7', period);
 }
 // 2 割特例の適用年度：課税期間 2023/10〜2026/9。個人（暦年）は令和5〜8年分（〜2026）。
 export function isTwoWariEligibleYear(year: number): boolean {
@@ -349,10 +616,11 @@ export function isThreeWariEligibleYear(year: number): boolean {
 // 2 割・3 割特例は適用年度のものだけ含める（適用外の方式を提示して誤選択させない）。
 export async function compareAll(
   year: number,
-  simplifiedCategory: SimplifiedTaxCategory
+  simplifiedCategory: SimplifiedTaxCategory,
+  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional'
 ): Promise<ConsumptionTaxResult[]> {
   const tasks: Promise<ConsumptionTaxResult>[] = [
-    computeGeneral(year),
+    computeGeneral(year, attributionMethod),
     computeSimplified(year, simplifiedCategory),
   ];
   if (isTwoWariEligibleYear(year)) {
