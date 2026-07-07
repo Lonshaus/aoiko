@@ -226,14 +226,20 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         dividendDeductionAmount: D(0),
         foreignTaxCreditAmount: D(1000),
         disasterExemptionAmount: D(500),
+        salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
+        miscIncome: { publicPensionAmount: D(300_000), otherIncome: D(200_000), otherExpenses: D(50_000) },
+        otherWithholdingTax: D(5_000),
       },
     };
     const values = mapKoa020Values(ctx);
+    const leafValues = mapKoa020LeafValues(ctx);
+    expect(leafValues.ABB00080).toBe('1000000');
+    expect(leafValues.ABB00710).toBe('35000');
     const frag = buildFormFragment(
       koa020 as XtxSchema,
       values,
       { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
-      mapKoa020LeafValues(ctx)
+      leafValues
     );
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +

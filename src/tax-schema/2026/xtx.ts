@@ -13,7 +13,8 @@
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
-import type { FixedAsset } from '../../db/types';
+import type { FixedAsset, PersonalDeductionInput } from '../../db/types';
+import { D } from '../../lib/decimal';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -22,6 +23,7 @@ import { buildXtxBundle, type XtxFilerInfo, type XtxFormInput } from './xtx-docu
 import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
 import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
+import type { OtherIncomeInput } from './other-income';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
@@ -49,13 +51,101 @@ export interface XtxContext {
   aoiroDeductionKind: AoiroDeductionKind;
   /** 白色申告の収支内訳書 第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
-  /** 所得控除・税額控除の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
-  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> & TaxCreditInput;
+  /** 所得控除・税額控除・給与/雑所得の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
+  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> & TaxCreditInput & OtherIncomeInput;
 }
 
 const KOA020_SCHEMA = koa020 as XtxSchema;
 const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
+
+// db.personalDeductions（年度ごとに保存された確定額、文字列）を XtxContext.personalDeductions
+// （計算用の Decimal 形状）へ変換する。IncomeDeductions.svelte の試算プレビューと
+// Reports.svelte の .xtx 出力の両方から、この1関数だけを共通で使う（値の食い違いを防ぐ）。
+export function personalDeductionsToCtx(
+  stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>
+): NonNullable<XtxContext['personalDeductions']> {
+  return {
+    socialInsurancePaid: D(stored.socialInsurancePaid),
+    smallBusinessMutualAidPaid: D(stored.smallBusinessMutualAidPaid),
+    lifeInsurance: {
+      ...(stored.lifeInsurance.newGeneral !== undefined ? { newGeneral: D(stored.lifeInsurance.newGeneral) } : {}),
+      ...(stored.lifeInsurance.oldGeneral !== undefined ? { oldGeneral: D(stored.lifeInsurance.oldGeneral) } : {}),
+      ...(stored.lifeInsurance.newMedical !== undefined ? { newMedical: D(stored.lifeInsurance.newMedical) } : {}),
+      ...(stored.lifeInsurance.newPension !== undefined ? { newPension: D(stored.lifeInsurance.newPension) } : {}),
+      ...(stored.lifeInsurance.oldPension !== undefined ? { oldPension: D(stored.lifeInsurance.oldPension) } : {}),
+    },
+    earthquakeInsurancePaid: D(stored.earthquakeInsurancePaid),
+    oldLongTermInsurancePaid: D(stored.oldLongTermInsurancePaid),
+    medicalExpensePaid: D(stored.medicalExpensePaid),
+    medicalInsuranceReimbursement: D(stored.medicalInsuranceReimbursement),
+    donationAmount: D(stored.donationAmount),
+    casualtyLossDeduction: D(stored.casualtyLossDeduction),
+    isDisabled: stored.isDisabled,
+    isSpecialDisabled: stored.isSpecialDisabled,
+    isSingleParent: stored.isSingleParent,
+    isWidow: stored.isWidow,
+    isWorkingStudent: stored.isWorkingStudent,
+    ...(stored.spouse
+      ? { spouse: { totalIncome: D(stored.spouse.totalIncome), age: stored.spouse.age } }
+      : {}),
+    dependents: stored.dependents.map((d) => ({
+      id: d.id,
+      age: d.age,
+      totalIncome: D(d.totalIncome),
+      ...(d.livesWithLinealAscendant !== undefined
+        ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
+        : {}),
+    })),
+    ...(stored.dividendDeductionAmount !== undefined
+      ? { dividendDeductionAmount: D(stored.dividendDeductionAmount) }
+      : {}),
+    ...(stored.mortgageDeductionAmount !== undefined
+      ? { mortgageDeductionAmount: D(stored.mortgageDeductionAmount) }
+      : {}),
+    ...(stored.politicalDonationCreditAmount !== undefined
+      ? { politicalDonationCreditAmount: D(stored.politicalDonationCreditAmount) }
+      : {}),
+    ...(stored.housingRenovationCreditAmount !== undefined
+      ? { housingRenovationCreditAmount: D(stored.housingRenovationCreditAmount) }
+      : {}),
+    ...(stored.foreignTaxCreditAmount !== undefined
+      ? { foreignTaxCreditAmount: D(stored.foreignTaxCreditAmount) }
+      : {}),
+    ...(stored.otherTaxCreditAmount !== undefined
+      ? { otherTaxCreditAmount: D(stored.otherTaxCreditAmount) }
+      : {}),
+    ...(stored.disasterExemptionAmount !== undefined
+      ? { disasterExemptionAmount: D(stored.disasterExemptionAmount) }
+      : {}),
+    ...(stored.salaryIncome
+      ? {
+          salaryIncome: {
+            paidAmount: D(stored.salaryIncome.paidAmount),
+            withholdingTax: D(stored.salaryIncome.withholdingTax),
+          },
+        }
+      : {}),
+    ...(stored.miscIncome
+      ? {
+          miscIncome: {
+            ...(stored.miscIncome.publicPensionAmount !== undefined
+              ? { publicPensionAmount: D(stored.miscIncome.publicPensionAmount) }
+              : {}),
+            ...(stored.miscIncome.otherIncome !== undefined
+              ? { otherIncome: D(stored.miscIncome.otherIncome) }
+              : {}),
+            ...(stored.miscIncome.otherExpenses !== undefined
+              ? { otherExpenses: D(stored.miscIncome.otherExpenses) }
+              : {}),
+          },
+        }
+      : {}),
+    ...(stored.otherWithholdingTax !== undefined
+      ? { otherWithholdingTax: D(stored.otherWithholdingTax) }
+      : {}),
+  };
+}
 
 export function toFilerInfo(f: XtxFiler): XtxFilerInfo {
   return {
