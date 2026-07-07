@@ -19,9 +19,20 @@
   } from '../domain/amended';
   import { buildXtx2026, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
-  import { compareAll, type ConsumptionTaxResult } from '../domain/consumption-tax';
-  import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+  import {
+    compareAll,
+    isTwoWariEligibleYear,
+    processYear,
+    type ConsumptionTaxResult,
+  } from '../domain/consumption-tax';
+  import {
+    buildGeneralXtx,
+    buildSimplifiedXtx,
+    buildTwoWariXtx,
+  } from '../tax-schema/2026/xtx-consumption-tax';
+  import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
   import type { TaxRegistration } from '../db/types';
+  import { db } from '../db/db';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
   import type { AmendmentChecklistKey } from '../domain/amended';
@@ -73,6 +84,7 @@
   let confirmingLock = $state(false);
   let confirmingUnlock = $state(false);
   let lockError = $state('');
+  let consumptionTaxXtxError = $state('');
 
   $effect(() => {
     const yr = year;
@@ -248,6 +260,7 @@
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
+    const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : year;
     const xml = buildXtx2026({
       year: exportYear,
@@ -257,6 +270,7 @@
       pl,
       bs,
       filer,
+      fixedAssets,
       filingType,
       aoiroDeductionKind,
     });
@@ -265,6 +279,95 @@
     const a = document.createElement('a');
     a.href = url;
     a.download = `aoiko-${exportYear}.xtx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
+  async function downloadConsumptionTaxXtx() {
+    if (!isTwoWariEligibleYear(year)) {
+      consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
+      return;
+    }
+    const { filer, missing } = await loadFiler();
+    if (missing) {
+      consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
+      return;
+    }
+    consumptionTaxXtxError = '';
+    const businessName = (await getSetting('userBusinessName')) ?? '';
+    const processed = await processYear(year);
+    const xml = buildTwoWariXtx({
+      year,
+      businessName,
+      filer,
+      taxableBase10: processed.taxableBase10,
+      taxableBase8: processed.taxableBase8,
+    });
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aoiko-shohi-${year}.xtx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
+  async function downloadSimplifiedXtx() {
+    const { filer, missing } = await loadFiler();
+    if (missing) {
+      consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
+      return;
+    }
+    consumptionTaxXtxError = '';
+    const businessName = (await getSetting('userBusinessName')) ?? '';
+    const processed = await processYear(year);
+    const xml = buildSimplifiedXtx({
+      year,
+      businessName,
+      filer,
+      taxableBase10: processed.taxableBase10,
+      taxableBase8: processed.taxableBase8,
+      category: simplifiedCategory,
+      deemedInputRate: deemedInputRate(simplifiedCategory),
+    });
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aoiko-shohi-${year}.xtx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
+  async function downloadGeneralXtx() {
+    const { filer, missing } = await loadFiler();
+    if (missing) {
+      consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
+      return;
+    }
+    consumptionTaxXtxError = '';
+    const businessName = (await getSetting('userBusinessName')) ?? '';
+    const processed = await processYear(year);
+    const xml = buildGeneralXtx({
+      year,
+      businessName,
+      filer,
+      taxableBase10: processed.taxableBase10,
+      taxableBase8: processed.taxableBase8,
+      input10: processed.input10,
+      input8: processed.input8,
+    });
+    const blob = new Blob([xml], { type: 'application/xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `aoiko-shohi-${year}.xtx`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -813,6 +916,45 @@
       <p class="text-xs text-muted-foreground">
         {m.reports_consumption_tax_settings_link()}
       </p>
+      <div class="border-t pt-3 space-y-2">
+        {#if ct.some((r) => r.method === 'two-wari')}
+          <p class="text-xs text-muted-foreground">
+            {m.reports_consumption_tax_xtx_two_wari_intro()}
+          </p>
+          <button
+            type="button"
+            onclick={downloadConsumptionTaxXtx}
+            class="px-4 py-2 border rounded hover:bg-accent"
+          >
+            {m.reports_consumption_tax_xtx_two_wari_download()}
+          </button>
+        {/if}
+        <p class="text-xs text-muted-foreground">
+          {m.reports_consumption_tax_xtx_simplified_intro()}
+        </p>
+        <button
+          type="button"
+          onclick={downloadSimplifiedXtx}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
+          {m.reports_consumption_tax_xtx_simplified_download()}
+        </button>
+        <p class="text-xs text-muted-foreground">
+          {m.reports_consumption_tax_xtx_general_intro()}
+        </p>
+        <button
+          type="button"
+          onclick={downloadGeneralXtx}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
+          {m.reports_consumption_tax_xtx_general_download()}
+        </button>
+        {#if consumptionTaxXtxError}
+          <p class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2">
+            {consumptionTaxXtxError}
+          </p>
+        {/if}
+      </div>
     </section>
   {/if}
 
@@ -841,6 +983,11 @@
           </button>
         {/if}
       </div>
+      {#if lockError}
+        <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+          {lockError}
+        </div>
+      {/if}
     </section>
   {/if}
 </div>

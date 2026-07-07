@@ -23,10 +23,10 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 - **The White Return family-employee deduction** (a flat ¥860,000 for a spouse or ¥500,000 per other relative) is not calculated by aoiko since it depends on relationship data aoiko does not track. Only the pre-deduction income is output — **you must enter the deduction amount and post-deduction income yourself in e-Tax**.
 - **Before using in an actual filing, always load it into e-Tax Software (download edition) and review the content** (loading the income-tax procedure is not supported in the web edition). Procedure codes, attachment requirements, and deductions depend on your situation. The developer assumes no liability for any outcome from submitting this tool's output as-is (see Section 1).
 
-## 3a. Consumption tax filing forms are out of scope
+## 3a. Consumption tax filing form coverage
 
-- The consumption tax computation provided by this tool is **limited to estimates and method comparison (general / simplified / 2% special / 3% special)**.
-- **Generating the consumption tax filing form body (the consumption tax return + supporting tables 2-3 etc.) is out of scope**. Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing.
+- The consumption tax computation provided by this tool is estimates and method comparison (general / simplified / 2% special / 3% special).
+- **`.xtx` export is supported for general taxation, the 20% special provision, and simplified taxation (single business category only)** (general: the consumption tax return, general form, + attachments 1-3 and 2-3; 20% special: the return, simplified-taxation form, + attachment 6; simplified: the return, simplified-taxation form, + attachments 4-3 and 5-3). General taxation assumes a 100% taxable-sales ratio (no non-taxable sales or export exemptions). **Generating the filing form body for simplified taxation across multiple business categories or the 30% special provision is out of scope**. Use the online preparation corner ("作成コーナー") or a tax accountant for those.
 - The transitional input tax credit rates (80/70/50/30%) and the deemed input rates of simplified taxation are applied via tables embedded in the tool, but special cases (mixed business, non-creditable inputs, adjustment amounts, etc.) are not supported.
 
 ## 4. Compliance with the Electronic Books Preservation Act and the Qualified Invoice System is the user's responsibility

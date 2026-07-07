@@ -12,6 +12,7 @@
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
+import type { FixedAsset } from '../../db/types';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -21,7 +22,7 @@ import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
-import { mapKoa110Values } from './xtx-mapping-koa110';
+import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
 // 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
 export interface XtxFiler {
   riyoshaId: string;       // 利用者識別番号（16桁）
@@ -44,13 +45,15 @@ export interface XtxContext {
   filer: XtxFiler;
   filingType: FilingType;
   aoiroDeductionKind: AoiroDeductionKind;
+  /** 白色申告の収支内訳書 第2頁（減価償却資産の明細）用。青色申告時は未使用 */
+  fixedAssets: FixedAsset[];
 }
 
 const KOA020_SCHEMA = koa020 as XtxSchema;
 const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 
-function toFilerInfo(f: XtxFiler): XtxFilerInfo {
+export function toFilerInfo(f: XtxFiler): XtxFilerInfo {
   return {
     zeimushoCode: f.zeimushoCode,
     zeimushoName: f.zeimushoName,
@@ -66,7 +69,12 @@ export function buildXtx2026(ctx: XtxContext): string {
     ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   const statementForm: XtxFormInput =
     ctx.filingType === 'white'
-      ? { schema: KOA110_SCHEMA, values: {}, leafValues: mapKoa110Values(ctx) }
+      ? {
+          schema: KOA110_SCHEMA,
+          values: {},
+          leafValues: mapKoa110Values(ctx),
+          repeats: mapKoa110RepeatedValues(ctx),
+        }
       : { schema: KOA210_SCHEMA, values: {}, leafValues: mapKoa210Values(ctx) };
   return buildXtxBundle(
     [

@@ -63,6 +63,13 @@ export interface XtxDocumentOptions {
   creationDate?: string;
   /** 申告者情報（IT部 定義側の必須項目）。未指定だと IT部 必須項目が欠落する */
   filer?: XtxFilerInfo;
+  /**
+   * 送信票（SOFUSHO/TEA060）を CONTENTS に含めるか。既定 true（所得税 RKO0010 は必須）。
+   * 手続によっては CONTENTS 型が SOFUSHO を許可しない（例：消費税 RSH0010/RSH0030、
+   * 2026-07-05 実機組み込みで発覚：CONTENTS の xsd:sequence に SOFUSHO が定義されて
+   * いない）。その場合は false を指定する。
+   */
+  includeSofusho?: boolean;
 }
 // e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
@@ -140,6 +147,17 @@ interface FormAttrs {
 // 直接値 leaf（idref 無し）の値マップ：leaf tag → 値文字列。
 // KOA210 決算書の金額等はこちら（IT部を経由しない）。
 export type XtxLeafValues = Record<string, string>;
+// 繰り返しブロック（xsd:maxOccurs > 1、例：KOA110 の減価償却資産明細 AIM00010）の値。
+// ブランチ tag → その繰り返し 1 件分の直接値 leaf マップの配列。
+// 各エントリは独立した leafValues として子要素を解決する（他の繰り返しや外側の
+// leafValues とは混ざらない）。エントリが 0 件ならそのブランチ自体を出力しない。
+export type XtxRepeatedValues = Record<string, XtxLeafValues[]>;
+// 「区分」型（gen:kubun、例：SHA020 の ABY00000「税額控除に係る経過措置の適用
+// （２割特例）」）は kubun_CD 子要素を持つが、buildRefTree の型解決では子として
+// 展開されない（KOA020 の SHINKOKU_KBN 等、IT部側の同種フィールドが buildItPart
+// で生 XML を直書きしているのと同じ理由）。ブランチ tag → 内側の生 XML
+// （例：'<kubun_CD>1</kubun_CD>'）を直接指定する対応。
+export type XtxRawValues = Record<string, string>;
 
 interface ItPart {
   /** <IT VR="1.5" id="IT"> … </IT> */
@@ -243,11 +261,15 @@ function buildItPart(
 // 参照側 leaf/branch（level >= 2）を描画。
 //  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素
 //  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG>
-//  - branch：出力対象の子があるときのみ自身を出力
+//  - branch：repeats[tag] があれば繰り返しブロックとして 1 件ごとに独立した
+//    leafValues で子要素を解決し、<TAG>...</TAG> をエントリ数だけ並べて出力する
+//  - branch（通常）：出力対象の子があるときのみ自身を出力
 function renderNode(
   node: RefNode,
   idByName: Map<string, string>,
-  leafValues: XtxLeafValues
+  leafValues: XtxLeafValues,
+  repeats: XtxRepeatedValues,
+  raw: XtxRawValues
 ): string | null {
   if (node.kind === 'leaf') {
     if (node.idref) {
@@ -260,9 +282,29 @@ function renderNode(
     }
     return `<${node.tag}>${escapeXml(v)}</${node.tag}>`;
   }
+  const rawInner = raw[node.tag];
+  if (rawInner !== undefined) {
+    return rawInner === '' ? null : `<${node.tag}>${rawInner}</${node.tag}>`;
+  }
+  const entries = repeats[node.tag];
+  if (entries) {
+    const rendered = entries
+      .map((entry) => {
+        const inner: string[] = [];
+        for (const c of node.children) {
+          const r = renderNode(c, idByName, entry, repeats, raw);
+          if (r !== null) {
+            inner.push(r);
+          }
+        }
+        return inner.length > 0 ? `<${node.tag}>${inner.join('')}</${node.tag}>` : null;
+      })
+      .filter((s): s is string => s !== null);
+    return rendered.length > 0 ? rendered.join('') : null;
+  }
   const inner: string[] = [];
   for (const c of node.children) {
-    const r = renderNode(c, idByName, leafValues);
+    const r = renderNode(c, idByName, leafValues, repeats, raw);
     if (r !== null) {
       inner.push(r);
     }
@@ -285,7 +327,12 @@ function pageNumberOf(tag: string): string {
 // ページが「実質データ（直接値 leaf）」を持つか。年分・申告区分・屋号等のヘッダは
 // IT部 IDREF で全ページに現れるため、それだけのページは出力対象外とする
 // （例：KOA020 第三表＝分離課税・第四表＝損失申告は該当データが無ければ出力しない）。
-function pageHasDirectValue(node: RefNode, leafValues: XtxLeafValues): boolean {
+function pageHasDirectValue(
+  node: RefNode,
+  leafValues: XtxLeafValues,
+  repeats: XtxRepeatedValues,
+  raw: XtxRawValues
+): boolean {
   if (node.kind === 'leaf') {
     if (node.idref) {
       return false;
@@ -293,7 +340,13 @@ function pageHasDirectValue(node: RefNode, leafValues: XtxLeafValues): boolean {
     const v = leafValues[node.tag];
     return v !== undefined && v !== '';
   }
-  return node.children.some((c) => pageHasDirectValue(c, leafValues));
+  if ((repeats[node.tag]?.length ?? 0) > 0) {
+    return true;
+  }
+  if ((raw[node.tag] ?? '') !== '') {
+    return true;
+  }
+  return node.children.some((c) => pageHasDirectValue(c, leafValues, repeats, raw));
 }
 
 interface RenderedForm {
@@ -303,34 +356,64 @@ interface RenderedForm {
 // 様式（参照側）を単一様式要素として描画。公式 xsd モデルどおり、ルート様式要素
 // <KOA210 …> がページ子要素 <KOA210-N page="N"> を内包する。出力対象データを持つ
 // ページのみ出力。全ページ空なら null（その様式は CONTENTS/CATALOG に載せない）。
+// 様式ルートの子要素が「{様式ID}-{面番号}」のページラッパになっているか
+// （KOA020/KOA210/KOA110 等の複数頁様式）。付表6 等の単頁様式は子要素が
+// 意味のあるタグ（AYB00000 等）で、ページラッパを持たない。
+function isPageWrapperTag(formId: string, tag: string): boolean {
+  return new RegExp(`^${formId}-\\d+$`).test(tag);
+}
+
 function renderForm(
   schema: XtxSchema,
   idByName: Map<string, string>,
   leafValues: XtxLeafValues,
-  attrs: FormAttrs
+  attrs: FormAttrs,
+  repeats: XtxRepeatedValues,
+  raw: XtxRawValues
 ): RenderedForm | null {
   const formRoot = buildRefTreeNodes(schema);
   const formId = formRoot.tag;
-  const pages: string[] = [];
-  for (const pageNode of formRoot.children) {
-    if (!pageHasDirectValue(pageNode, leafValues)) {
-      continue;
+  const hasPageWrappers =
+    formRoot.children.length > 0 &&
+    formRoot.children.every((c) => isPageWrapperTag(formId, c.tag));
+
+  let bodyXml: string;
+  if (hasPageWrappers) {
+    const pages: string[] = [];
+    for (const pageNode of formRoot.children) {
+      if (!pageHasDirectValue(pageNode, leafValues, repeats, raw)) {
+        continue;
+      }
+      const inner: string[] = [];
+      for (const c of pageNode.children) {
+        const r = renderNode(c, idByName, leafValues, repeats, raw);
+        if (r !== null) {
+          inner.push(r);
+        }
+      }
+      if (inner.length === 0) {
+        continue;
+      }
+      const p = pageNumberOf(pageNode.tag);
+      pages.push(`<${pageNode.tag} page="${p}">${inner.join('')}</${pageNode.tag}>`);
     }
+    if (pages.length === 0) {
+      return null;
+    }
+    bodyXml = pages.join('');
+  } else {
+    // 単頁様式：子要素をページラッパ無しでそのまま様式ルート直下に描画する。
     const inner: string[] = [];
-    for (const c of pageNode.children) {
-      const r = renderNode(c, idByName, leafValues);
+    for (const c of formRoot.children) {
+      const r = renderNode(c, idByName, leafValues, repeats, raw);
       if (r !== null) {
         inner.push(r);
       }
     }
     if (inner.length === 0) {
-      continue;
+      return null;
     }
-    const p = pageNumberOf(pageNode.tag);
-    pages.push(`<${pageNode.tag} page="${p}">${inner.join('')}</${pageNode.tag}>`);
-  }
-  if (pages.length === 0) {
-    return null;
+    bodyXml = inner.join('');
   }
   const id = formInstanceId(formId);
   // 属性順は参照ファイル準拠：VR id page sakuseiDay sakuseiNM softNM
@@ -339,20 +422,23 @@ function renderForm(
     ` sakuseiDay="${attrs.sakuseiDay}"` +
     ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
     ` softNM="${escapeXml(attrs.softNM)}">`;
-  return { formId, xml: `${open}${pages.join('')}</${formId}>` };
+  return { formId, xml: `${open}${bodyXml}</${formId}>` };
 }
 // CATALOG（RDF マニフェスト）。出力された各様式を FORM_SEC に登録（about="#{様式ID}-1"）。
-function renderCatalog(formIds: string[]): string {
+function renderCatalog(formIds: string[], includeSofusho: boolean): string {
   const formSeq = formIds
     .map((id) => `<rdf:li><rdf:description about="#${formInstanceId(id)}"/></rdf:li>`)
     .join('');
+  const sofushoSec = includeSofusho
+    ? `<SOFUSHO_SEC><rdf:description about="#${SOFUSHO_ID}"/></SOFUSHO_SEC>`
+    : '<SOFUSHO_SEC/>';
   return (
     `<CATALOG id="CATALOG"><rdf:RDF xmlns:rdf="${NS_RDF}"><rdf:description id="REPORT">` +
     '<SEND_DATA/>' +
     '<IT_SEC><rdf:description about="#IT"/></IT_SEC>' +
     `<FORM_SEC><rdf:Seq>${formSeq}</rdf:Seq></FORM_SEC>` +
     '<TENPU_SEC/><XBRL_SEC/><XBRL2_1_SEC/>' +
-    `<SOFUSHO_SEC><rdf:description about="#${SOFUSHO_ID}"/></SOFUSHO_SEC>` +
+    sofushoSec +
     '<ATTACH_SEC/><CSV_SEC/>' +
     '</rdf:description></rdf:RDF></CATALOG>'
   );
@@ -371,7 +457,9 @@ export function buildFormFragment(
   schema: XtxSchema,
   values: XtxValues,
   options: XtxDocumentOptions = {},
-  leafValues: XtxLeafValues = {}
+  leafValues: XtxLeafValues = {},
+  repeats: XtxRepeatedValues = {},
+  raw: XtxRawValues = {}
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
@@ -382,7 +470,7 @@ export function buildFormFragment(
     procedureName,
     options.filer ?? {}
   );
-  const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options));
+  const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options), repeats, raw);
   return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
 }
 
@@ -401,6 +489,10 @@ export interface XtxFormInput {
   values: XtxValues;
   /** 直接値 leaf：leaf tag→値 */
   leafValues?: XtxLeafValues;
+  /** 繰り返しブロック（maxOccurs>1）の値：ブランチ tag→エントリ配列 */
+  repeats?: XtxRepeatedValues;
+  /** 区分（kubun）型ブランチの生 XML 上書き：ブランチ tag→内側の生 XML */
+  raw?: XtxRawValues;
 }
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
@@ -432,18 +524,23 @@ export function buildXtxBundle(
   );
   const rendered: RenderedForm[] = [];
   for (const f of forms) {
-    const r = renderForm(f.schema, it.idByName, f.leafValues ?? {}, attrs);
+    const r = renderForm(f.schema, it.idByName, f.leafValues ?? {}, attrs, f.repeats ?? {}, f.raw ?? {});
     if (r) {
       rendered.push(r);
     }
   }
-  const catalog = renderCatalog(rendered.map((r) => r.formId));
-  const sofusho =
-    `<SOFUSHO VR="${SOFUSHO_VR}" fid="${SOFUSHO_FID}" id="${SOFUSHO_ID}" page="1"` +
-    ` sakuseiDay="${attrs.sakuseiDay}"` +
-    ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
-    ` softNM="${escapeXml(attrs.softNM)}"` +
-    ` xmlns="${NS_KYOTSU}"/>`;
+  const includeSofusho = options.includeSofusho ?? true;
+  const catalog = renderCatalog(
+    rendered.map((r) => r.formId),
+    includeSofusho
+  );
+  const sofusho = includeSofusho
+    ? `<SOFUSHO VR="${SOFUSHO_VR}" fid="${SOFUSHO_FID}" id="${SOFUSHO_ID}" page="1"` +
+      ` sakuseiDay="${attrs.sakuseiDay}"` +
+      ` sakuseiNM="${escapeXml(attrs.sakuseiNM)}"` +
+      ` softNM="${escapeXml(attrs.softNM)}"` +
+      ` xmlns="${NS_KYOTSU}"/>`
+    : '';
   const defaultNs = catalogSchema.meta.namespace;
   const data =
     `<DATA id="DATA" xmlns="${defaultNs}" xmlns:gen="${NS_GENERAL}"` +

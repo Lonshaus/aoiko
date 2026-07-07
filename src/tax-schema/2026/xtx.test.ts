@@ -36,7 +36,7 @@ function makeCtx(): XtxContext {
   };
   return {
     year: 2026,
-    businessName: '青井ウェブ事務所',
+    businessName: 'aoikoウェブ事務所',
     invoiceNumber: 'T1234567890123',
     monthly,
     pl,
@@ -51,6 +51,7 @@ function makeCtx(): XtxContext {
     },
     filingType: 'blue',
     aoiroDeductionKind: 'electronic',
+    fixedAssets: [],
   };
 }
 
@@ -109,14 +110,14 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
   test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toContain(
-      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">青井ウェブ事務所</NOZEISHA_YAGO>'
+      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">aoikoウェブ事務所</NOZEISHA_YAGO>'
     );
   });
 
   test('参照側ルートは様式インスタンスID＋page＋FormAttribute（参照ファイル順）', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(
-      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="青井ウェブ事務所" softNM="aoiko">/
+      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="aoikoウェブ事務所" softNM="aoiko">/
     );
     // ページ子要素は page 属性を持つ
     expect(x).toContain('<KOA020-1 page="1">');
