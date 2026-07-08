@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { auPayCardParser } from './aupay-card'
-import sample from './fixtures/aupay-card-sample.csv?raw'
+import sample from './aupay-card-sample.csv?raw'
 
 describe('auPayCardParser', () => {
   test('metadata', () => {
