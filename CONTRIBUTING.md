@@ -31,12 +31,26 @@ npm run verify   # typecheck + tests + build を順に実行
 ### A. TypeScript で書く（推奨、柔軟）
 
 1. **テンプレートをコピー**
+
+   フラット配置（既存の大半の parser）：
    ```bash
    cp src/parsers/_template.example.ts src/parsers/<bank-name>.ts
    cp src/parsers/_template.example.test.ts src/parsers/<bank-name>.test.ts
    cp src/parsers/fixtures/_template.example-sample.csv \
       src/parsers/fixtures/<bank-name>-sample.csv
    ```
+
+   フォルダ配置（`.ts`・テスト・fixture を1フォルダに完結させたい場合。`src/parsers/aupay-card/` が実例）：
+   ```bash
+   mkdir src/parsers/<bank-name>
+   cp src/parsers/_template.example.ts      src/parsers/<bank-name>/<bank-name>.ts
+   cp src/parsers/_template.example.test.ts src/parsers/<bank-name>/<bank-name>.test.ts
+   cp src/parsers/fixtures/_template.example-sample.csv \
+      src/parsers/<bank-name>/<bank-name>-sample.csv
+   ```
+   フォルダ配置の場合、test 内の fixture import は同じフォルダの相対パス（`./<bank-name>-sample.csv?raw`）にする。
+   `index.ts` の auto-discovery は再帰的なので、どちらの配置でも `index.ts` を編集する必要は無い。
+   `_` で始まるファイル・フォルダ（`_template.example` 等）は除外される。
 
 2. **値を編集**
    - `name`: URL-safe 文字列、他のパーサーと重複しないもの（例：`my-bank`）
