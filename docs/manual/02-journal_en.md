@@ -70,6 +70,14 @@ Choosing a photo in the **"Receipt photo"** field below the description opens a 
 >
 > The confirmation dialog can be skipped via **Settings → Skip the confirmation before attaching receipt photos** (you can re-enable it there any time).
 
+### 1-8. Recording a foreign-currency transaction
+
+aoiko has no dedicated multi-currency feature or exchange-rate lookup. In practice, most foreign-currency transactions already come with a settled yen amount by the time you record them — credit card statements, bank remittance slips, etc. do the conversion at their own rate — so just enter that yen amount as a normal entry (noting the foreign amount in the description, e.g. `USD 100`, makes it easier to cross-reference later).
+
+For an outstanding foreign-currency receivable/payable, or a cash purchase made abroad where you need to work out the yen equivalent yourself, just enter whatever yen amount you consider reasonable at the time. Once the actual settled amount is known, book the difference as an additional entry using "Exchange loss" / "Exchange gain" accounts (create them under **Settings → Accounts**).
+
+> **Why there's no dedicated feature**: neither freee nor Money Forward's individual/sole-proprietor plans offer automatic rate lookup or automatic exchange-gain/loss calculation as a standard feature (freee only offers it via a separate paid app). In practice, "record the yen amount as it occurred, then true up the difference as exchange gain/loss at settlement" is sufficient — aoiko follows the same approach.
+
 ### Common patterns
 
 | Transaction | Debit | Credit |
