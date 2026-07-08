@@ -45,6 +45,7 @@
     '/order-import': memo(() => import('./routes/OrderImport.svelte')),
     '/import-history': memo(() => import('./routes/ImportHistory.svelte')),
     '/receipt': memo(() => import('./routes/Receipt.svelte')),
+    '/invoices': memo(() => import('./routes/Invoices.svelte')),
     '/settings': memo(() => import('./routes/Settings.svelte')),
     '/opening-setup': memo(() => import('./routes/OpeningSetup.svelte')),
   };
@@ -52,7 +53,7 @@
 </script>
 
 <div class="min-h-screen flex flex-col">
-  <header class="sticky top-0 z-10 border-b bg-card text-card-foreground">
+  <header class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground">
     <div class="container mx-auto max-w-3xl px-8 py-4 flex items-center justify-between">
       <a href="/" use:link class="hover:opacity-80">
         <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
@@ -65,6 +66,7 @@
         <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a>
         <a href="/order-import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_order_import()}</a>
         <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
+        <a href="/invoices" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_invoices()}</a>
         <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import_history()}</a>
         <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_settings()}</a>
         <a href="/manual" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_manual()}</a>
@@ -73,7 +75,7 @@
   </header>
   <main class="flex-1 container mx-auto px-8 py-8 {isManual ? 'max-w-5xl' : 'max-w-3xl'}">
     {#if helpChapter}
-      <div class="mb-4 flex justify-end">
+      <div class="print:hidden mb-4 flex justify-end">
         <a
           href="/manual/{helpChapter}"
           use:link
