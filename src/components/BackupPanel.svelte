@@ -175,7 +175,7 @@
 
     <button
       type="button"
-      onclick={() => backup.downloadJson()}
+      onclick={() => backup.downloadBackup()}
       class="px-4 py-2 border rounded hover:bg-accent"
       class:bg-destructive={downloadStale}
       class:text-destructive-foreground={downloadStale}

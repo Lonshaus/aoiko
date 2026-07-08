@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { db } from '../db/db'
 import { toIndexable } from '../lib/decimal'
 import { newId } from '../lib/id'
-import { buildAll, buildBS, buildMonthly, buildPL } from './reports'
+import { buildAll, buildBS, buildMonthly, buildMultiYearBS, buildMultiYearPL, buildPL } from './reports'
 import { reverseEntry } from './reverse'
 import type { Account, JournalLine } from '../db/types'
 
@@ -240,5 +240,74 @@ describe('buildMonthly', () => {
       expect(month.sales).toBe('0')
       expect(month.expense).toBe('0')
     }
+  })
+})
+
+describe('buildMultiYearPL / buildMultiYearBS（C8）', () => {
+  beforeEach(async () => {
+    await db.accounts.bulkAdd(TEST_ACCOUNTS.map((a) => ({ ...a, year: 2025 })))
+  })
+
+  test('buildMultiYearPL は年度ごとに科目をピボットする', async () => {
+    await addEntry({
+      date: '2025-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    })
+    await addEntry({
+      date: '2026-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '150000' },
+        { side: 'credit', accountCode: '4110', amount: '150000' },
+      ],
+    })
+    await addEntry({
+      date: '2026-07-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '3000' },
+        { side: 'credit', accountCode: '1130', amount: '3000' },
+      ],
+    })
+
+    const r = await buildMultiYearPL([2025, 2026])
+    expect(r.years).toEqual([2025, 2026])
+
+    const sales = r.revenue.find((row) => row.accountCode === '4110')
+    expect(sales).toBeDefined()
+    expect(sales!.amounts).toEqual(['100000', '150000'])
+    expect(sales!.total).toBe('250000')
+
+    // 2025 年に無い科目は '0' で埋める
+    const comm = r.expense.find((row) => row.accountCode === '5150')
+    expect(comm).toBeDefined()
+    expect(comm!.amounts).toEqual(['0', '3000'])
+
+    expect(r.yearlyTotalRevenue).toEqual(['100000', '150000'])
+    expect(r.yearlyNetIncome).toEqual(['100000', '147000'])
+  })
+
+  test('buildMultiYearBS は年度ごとに残高をピボットする', async () => {
+    await addEntry({
+      date: '2025-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    })
+    await addEntry({
+      date: '2026-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '50000' },
+        { side: 'credit', accountCode: '4110', amount: '50000' },
+      ],
+    })
+
+    const r = await buildMultiYearBS([2025, 2026])
+    const bank = r.assets.find((row) => row.accountCode === '1130')
+    expect(bank).toBeDefined()
+    expect(bank!.balances).toEqual(['100000', '50000'])
+    expect(r.yearlyTotalAssets).toEqual(['100000', '50000'])
   })
 })

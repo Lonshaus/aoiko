@@ -9,7 +9,7 @@
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
-  import { parseBackupJson, restoreFromJson } from '../domain/restore';
+  import { parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
     computeDepreciation,
     generateYearEndDepreciation,
@@ -82,10 +82,13 @@
   let currentYear = $state(2026);
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
+  let skipAttachmentConfirm = $state(false);
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let confirmingRestore = $state(false);
-  let restorePayload = $state<ReturnType<typeof parseBackupJson> | null>(null);
+  let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
+  let restoreAttachmentCount = $state(0);
+  let restoreAttachmentBlobs: Map<string, Uint8Array> = new Map();
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
@@ -99,6 +102,9 @@
   let newVendorInvoice = $state('');
   let newVendorAccountCode = $state('');
   let vendorError = $state('');
+
+  let newInventoryItemName = $state('');
+  let inventoryItemError = $state('');
 
   let newRuleMatchType = $state<ParserRuleMatchType>('description-includes');
   let newRulePattern = $state('');
@@ -277,6 +283,7 @@
     zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
     filingType = (await getSetting('filingType')) ?? 'blue';
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
+    skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
   });
 
   async function saveConsumptionTax() {
@@ -456,6 +463,26 @@
 
   async function deleteVendor(id: string) {
     await db.vendors.delete(id);
+  }
+
+  async function addInventoryItem(e: Event) {
+    e.preventDefault();
+    inventoryItemError = '';
+    const name = newInventoryItemName.trim();
+    if (!name) {
+      inventoryItemError = m.settings_inventory_item_error_required();
+      return;
+    }
+    if (ledger.inventoryItems.some((it) => it.name === name)) {
+      inventoryItemError = m.settings_inventory_item_error_duplicate();
+      return;
+    }
+    await db.inventoryItems.add({ id: newId(), name });
+    newInventoryItemName = '';
+  }
+
+  async function deleteInventoryItem(id: string) {
+    await db.inventoryItems.delete(id);
   }
 
   async function addRule(e: Event) {
@@ -776,6 +803,8 @@
     restoreError = '';
     restoreSuccess = '';
     restorePayload = null;
+    restoreAttachmentBlobs = new Map();
+    restoreAttachmentCount = 0;
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
@@ -788,8 +817,11 @@
     }
     restoreFileName = file.name;
     try {
-      const text = await file.text();
-      restorePayload = parseBackupJson(text);
+      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む（C7-4）。
+      const parsed = await parseBackupFile(file);
+      restorePayload = parsed.payload;
+      restoreAttachmentBlobs = parsed.attachmentBlobs;
+      restoreAttachmentCount = parsed.attachmentBlobs.size;
     } catch (err) {
       restoreError = err instanceof Error ? err.message : String(err);
     }
@@ -803,9 +835,11 @@
     try {
       // $state はオブジェクトを深く Proxy 化する。Proxy のまま IndexedDB に put すると
       // structured clone 不可で DataCloneError になるため、生のオブジェクトに戻して渡す。
-      const result = await restoreFromJson($state.snapshot(restorePayload));
+      const result = await restoreFromPayload($state.snapshot(restorePayload), restoreAttachmentBlobs);
       restoreSuccess = m.settings_restore_success({ tables: result.tableCount, rows: result.rowCount });
       restorePayload = null;
+      restoreAttachmentBlobs = new Map();
+      restoreAttachmentCount = 0;
     } catch (err) {
       restoreError = err instanceof Error ? err.message : String(err);
     }
@@ -923,6 +957,26 @@
           setSetting('realEstateIncomeEnabled', (e.target as HTMLInputElement).checked)}
       />
       {m.settings_basic_real_estate_income_enabled()}
+    </label>
+    <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={ledger.inventoryAutoValuationEnabled}
+        onchange={(e) =>
+          setSetting('inventoryAutoValuationEnabled', (e.target as HTMLInputElement).checked)}
+      />
+      {m.settings_basic_inventory_auto_valuation_enabled()}
+    </label>
+    <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={skipAttachmentConfirm}
+        onchange={(e) => {
+          skipAttachmentConfirm = (e.target as HTMLInputElement).checked;
+          setSetting('skipAttachmentConfirm', skipAttachmentConfirm);
+        }}
+      />
+      {m.settings_basic_skip_attachment_confirm()}
     </label>
     <div class="flex justify-end">
       <button
@@ -1385,6 +1439,51 @@
       <p class="text-sm text-muted-foreground">{m.settings_vendor_empty()}</p>
     {/if}
   </section>
+
+  {#if ledger.inventoryAutoValuationEnabled}
+    <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+      <h3 class="text-lg font-semibold">{m.settings_inventory_item_title()}</h3>
+      <p class="text-xs text-muted-foreground">
+        {m.settings_inventory_item_intro()}
+      </p>
+      <form onsubmit={addInventoryItem} class="flex flex-wrap gap-3 items-center">
+        <input
+          type="text"
+          bind:value={newInventoryItemName}
+          required
+          placeholder={m.settings_inventory_item_name_placeholder()}
+          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        />
+        <button
+          type="submit"
+          class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.settings_action_add()}
+        </button>
+      </form>
+      {#if inventoryItemError}
+        <div class="text-sm text-destructive">{inventoryItemError}</div>
+      {/if}
+      {#if ledger.inventoryItems.length > 0}
+        <ul class="space-y-1">
+          {#each ledger.inventoryItems as it (it.id)}
+            <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+              <span class="flex-1 min-w-40 break-all">{it.name}</span>
+              <button
+                type="button"
+                onclick={() => deleteInventoryItem(it.id)}
+                class="text-xs text-muted-foreground hover:text-destructive"
+              >
+                {m.settings_action_delete()}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p class="text-sm text-muted-foreground">{m.settings_inventory_item_empty()}</p>
+      {/if}
+    </section>
+  {/if}
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_asset_title()}</h3>
@@ -2121,7 +2220,7 @@
     </p>
     <input
       type="file"
-      accept=".json,application/json"
+      accept=".zip,application/zip,.json,application/json"
       onchange={handleRestoreFile}
       class="w-full text-sm text-muted-foreground"
     />
@@ -2147,6 +2246,11 @@
       <div class="text-xs text-muted-foreground">
         {m.settings_restore_summary({ version: restorePayload.version, tables: Object.keys(restorePayload.tables).length, rows: Object.values(restorePayload.tables).reduce((s, t) => s + t.length, 0) })}
       </div>
+      {#if restoreAttachmentCount > 0}
+        <div class="text-xs text-muted-foreground">
+          {m.settings_restore_summary_attachments({ count: restoreAttachmentCount })}
+        </div>
+      {/if}
       <button
         type="button"
         onclick={() => (confirmingRestore = true)}
