@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import type { Attachment } from '../db/types';
 import type { BackupPayload } from './types';
 // シリアライズ不可能な settings キー（常にバックアップ対象外）
 const SKIP_SETTING_KEYS = new Set(['backupFolderHandle']);
@@ -45,6 +46,14 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
         return true;
       });
     }
+    if (t.name === 'attachments') {
+      // Blob は JSON.stringify 不可。メタデータのみ tables に残し、実体バイナリは
+      // zip の attachments/<id> に別途同梱する（buildBackupZip / collectAttachmentBlobs）。
+      rows = rows.map((r) => {
+        const { blob: _blob, ...meta } = r as Attachment;
+        return meta;
+      });
+    }
     tables[t.name] = rows;
   }
   return {
@@ -52,4 +61,12 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     exportedAt: new Date().toISOString(),
     tables,
   };
+}
+// 証憑写真（C7）の実体バイナリを id → bytes で収集する。zip 同梱用。
+export async function collectAttachmentBlobs(): Promise<Map<string, Uint8Array>> {
+  const rows = await db.attachments.toArray();
+  const entries = await Promise.all(
+    rows.map(async (r): Promise<[string, Uint8Array]> => [r.id, new Uint8Array(await r.blob.arrayBuffer())])
+  );
+  return new Map(entries);
 }

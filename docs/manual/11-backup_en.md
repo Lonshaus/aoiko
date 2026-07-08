@@ -1,13 +1,13 @@
 # 11. Backup and restore
 
-File System Access API, OPFS, manual JSON download / restore.
+File System Access API, OPFS, manual zip download / restore.
 
 **Language**: [日本語](11-backup.md) | **English** | [繁體中文](11-backup_zh-TW.md)
 
 > **By the end of this chapter you can**
-> - Configure a backup folder for automatic JSON backups
-> - Manually export a JSON file
-> - Restore from a backup
+> - Configure a backup folder for automatic backups
+> - Manually export a backup file
+> - Restore from a backup (including receipt photos)
 > - Understand the data-loss risks and your countermeasures
 >
 > **Prerequisites**: [01. Initial setup](01-setup_en.md) done; data is accumulating from bookkeeping.
@@ -45,7 +45,7 @@ Settings → **"Backup"** section.
 4. **"Allow"** on the access-permission dialog
 5. The Settings screen shows **"Current folder: 〇〇"** on success
 
-From then on, on every entry add/edit, a file like `aoiko-ledger-{timestamp}.json` is automatically written to that folder.
+From then on, on every entry add/edit, a file like `aoiko-ledger-{date}.zip` is automatically written to that folder. The zip bundles the ledger data (JSON) together with the original receipt photo images ([02. § 1-7](02-journal_en.md#1-7-attaching-a-receipt-photo)).
 
 > **Google Drive / iCloud / Dropbox integration tip**: if the FSA folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: `~/Google Drive/My Drive/aoiko-backup/` → local writes auto-sync to Google Drive.
 >
@@ -66,13 +66,13 @@ OPFS backup:
 
 Settings → "Backup" section shows **"Last backup: 2026-05-26 14:23"**. If it's stale for long, supplement with a manual export.
 
-## 4. Manual JSON export
+## 4. Manual export
 
-Settings → **"Data management"** or equivalent → **"Export JSON"**:
+Settings → **"Backup"** section → **"Download backup"**:
 
-- All data (entries, sub-accounts, vendors, fixed assets, settings, etc.) bundled into one JSON
+- All data (entries, sub-accounts, vendors, fixed assets, settings, receipt photos, etc.) bundled into one zip file
 - Saved to your browser's "Downloads" folder
-- Filename like `aoiko-ledger-{timestamp}.json`
+- Filename like `aoiko-ledger-{timestamp}.zip`
 
 > **API keys and filer info are excluded by default**. Unless you turn on "Include API keys in backups" and "Include filer info", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
 
@@ -86,7 +86,7 @@ Then:
 
 > Manual download at **milestones** (month-end, quarter-end, year-end) on top of automatic backup gives extra safety.
 
-## 5. Restore from JSON
+## 5. Restore from a backup
 
 ### 5-1. When to restore
 
@@ -96,14 +96,15 @@ Then:
 
 ### 5-2. Procedure
 
-1. Settings → **"Restore from JSON"** section
-2. **"Choose file"** to pick a JSON
+1. Settings → **"Restore from backup"** section
+2. **"Choose file"** to pick a zip (new format) or JSON (legacy format) — the format is auto-detected from the extension/content, so there's only one button
 3. A summary is shown:
    > version 1 · 12 tables · 5,432 rows
+   > Includes 38 receipt photo(s) (only shown for zip backups that contain photos)
 4. Click **"Replace all data and restore"**
 5. Confirmation dialog:
-   > Replace all data with this JSON?
-   > Current data will be deleted and replaced with the contents of the selected JSON. This cannot be undone.
+   > Replace all data?
+   > Current data will be deleted and replaced with the contents of the selected file. This cannot be undone.
 6. **"Replace and restore"** to execute
 7. Success message → **"Reload"** to reload the app
 
@@ -112,6 +113,7 @@ Then:
 - **Full replacement**: IndexedDB is entirely overwritten. If you misclick, there's no undo
 - **Always export manually first** if work is in progress
 - After restoring, do the BS consistency check ([06. § 4-1](06-reports_en.md#4-1-mismatch-warning))
+- **Restoring a legacy (plain-JSON) backup does not restore receipt photos** (older backups never contained them). The ledger data itself — entries, amounts, etc. — restores normally
 
 ## 6. Delete all data (careful)
 

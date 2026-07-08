@@ -1,6 +1,13 @@
 import { db } from '../db/db';
-import { FILER_INFO_SETTING_KEYS, PAYLOAD_VERSION, type BackupPayload } from '../backup';
+import {
+  FILER_INFO_SETTING_KEYS,
+  looksLikeZip,
+  PAYLOAD_VERSION,
+  parseBackupZip,
+  type BackupPayload,
+} from '../backup';
 import { validateBackupPayload } from './restore-validate';
+import type { Attachment } from '../db/types';
 
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
@@ -10,10 +17,24 @@ export class IncompatibleBackupError extends Error {
     this.name = 'IncompatibleBackupError';
   }
 }
-// JSON バックアップの内容で IndexedDB を完全置換する。
-// 既存データはすべて削除されるため、UI 側で必ず確認ダイアログを挟むこと。
-export async function restoreFromJson(
-  payload: BackupPayload
+// アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
+// zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
+export async function parseBackupFile(
+  file: File
+): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Uint8Array> }> {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (looksLikeZip(bytes)) {
+    return parseBackupZip(bytes);
+  }
+  const text = new TextDecoder('utf-8').decode(bytes);
+  return { payload: parseBackupJson(text), attachmentBlobs: new Map() };
+}
+// バックアップの内容で IndexedDB を完全置換する。既存データはすべて削除されるため、
+// UI 側で必ず確認ダイアログを挟むこと。attachmentBlobs が空の場合（旧形式 JSON 等）は
+// 証憑写真の実体を復元しない（メタデータのみ残っていても blob は空になる）。
+export async function restoreFromPayload(
+  payload: BackupPayload,
+  attachmentBlobs: Map<string, Uint8Array>
 ): Promise<{ tableCount: number; rowCount: number }> {
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
@@ -39,9 +60,16 @@ export async function restoreFromJson(
   let rowCount = 0;
 
   for (const table of db.tables) {
-    const rows = payload.tables[table.name];
+    let rows = payload.tables[table.name];
     if (!Array.isArray(rows) || rows.length === 0) {
       continue;
+    }
+    if (table.name === 'attachments') {
+      rows = rows.map((r) => {
+        const meta = r as Omit<Attachment, 'blob'>;
+        const bytes = attachmentBlobs.get(meta.id);
+        return { ...meta, blob: new Blob(bytes ? [bytes.slice()] : [], { type: meta.mimeType }) };
+      });
     }
     await table.bulkPut(rows);
     tableCount++;
@@ -52,6 +80,12 @@ export async function restoreFromJson(
   }
 
   return { tableCount, rowCount };
+}
+// 旧形式（証憑写真を含まない純 JSON payload）専用の互換ラッパー。
+export async function restoreFromJson(
+  payload: BackupPayload
+): Promise<{ tableCount: number; rowCount: number }> {
+  return restoreFromPayload(payload, new Map());
 }
 // JSON テキストをパース・検証する。形式不正時は throw。
 export function parseBackupJson(text: string): BackupPayload {
