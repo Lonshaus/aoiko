@@ -1,4 +1,4 @@
-import type { BackupAdapter, BackupPayload } from './types';
+import type { BackupAdapter } from './types';
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
 // FSA API 非対応（Safari / Firefox / iOS）の主要な永続化フォルバック。
 // 同期フォルダではないため、ブラウザのデータ削除で失われる。
@@ -34,24 +34,24 @@ export class OpfsBackupAdapter implements BackupAdapter {
     await this.ensurePermission();
   }
 
-  async backup(payload: BackupPayload): Promise<{ fileName: string }> {
+  async backup(bytes: Uint8Array, fileName: string): Promise<{ fileName: string }> {
     const root = await navigator.storage.getDirectory();
-    const date = payload.exportedAt.slice(0, 10);
-    const dailyName = `aoiko-ledger-${date}.json`;
-    const json = JSON.stringify(payload, null, 2);
+    const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
     // 当日分（複数回上書き可、無視で OK）
-    const dailyHandle = await root.getFileHandle(dailyName, { create: true });
+    const dailyHandle = await root.getFileHandle(fileName, { create: true });
     const dailyWritable = await dailyHandle.createWritable();
-    await dailyWritable.write(json);
+    // TS の Uint8Array<ArrayBufferLike> vs FileSystemWriteChunkType の ArrayBuffer 限定の
+    // 型不一致を吸収する（fflate の出力は ArrayBufferLike 型のまま）。
+    await dailyWritable.write(bytes.slice());
     await dailyWritable.close();
     // 復元時に参照しやすいよう「最新」固定名のコピーも保持
-    const latestHandle = await root.getFileHandle('aoiko-ledger-latest.json', {
+    const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
       create: true,
     });
     const latestWritable = await latestHandle.createWritable();
-    await latestWritable.write(json);
+    await latestWritable.write(bytes.slice());
     await latestWritable.close();
 
-    return { fileName: dailyName };
+    return { fileName };
   }
 }

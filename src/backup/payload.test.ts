@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { db } from '../db/db'
-import { buildPayload, PAYLOAD_VERSION } from './payload'
+import { buildPayload, collectAttachmentBlobs, PAYLOAD_VERSION } from './payload'
 
 interface SettingRow {
   key: string
@@ -82,5 +82,30 @@ describe('buildPayload', () => {
       .settings as SettingRow[]
     expect(rows.find((r) => r.key === 'userRiyoshaId')?.value).toBe('1234567890123456')
     expect(rows.find((r) => r.key === 'userFilerName')?.value).toBe('青井 太郎')
+  })
+
+  test('attachments のメタデータには blob（JSON 化不可）を含めない', async () => {
+    await db.attachments.add({
+      id: 'a1',
+      entryId: 'e1',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/jpeg' }),
+      mimeType: 'image/jpeg',
+      fileName: 'x.jpg',
+      createdAt: Date.now(),
+    })
+    const p = await buildPayload()
+    const rows = p.tables.attachments as Array<Record<string, unknown>>
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).not.toHaveProperty('blob')
+    expect(rows[0]!['fileName']).toBe('x.jpg')
+    // JSON 化できることを確認（Blob が残っていれば JSON.stringify は落ちないが値が壊れる）
+    expect(() => JSON.stringify(p)).not.toThrow()
+  })
+})
+
+describe('collectAttachmentBlobs', () => {
+  test('添付が無ければ空 Map', async () => {
+    const m = await collectAttachmentBlobs()
+    expect(m.size).toBe(0)
   })
 })
