@@ -78,6 +78,16 @@ For an outstanding foreign-currency receivable/payable, or a cash purchase made 
 
 > **Why there's no dedicated feature**: neither freee nor Money Forward's individual/sole-proprietor plans offer automatic rate lookup or automatic exchange-gain/loss calculation as a standard feature (freee only offers it via a separate paid app). In practice, "record the yen amount as it occurred, then true up the difference as exchange gain/loss at settlement" is sufficient — aoiko follows the same approach.
 
+### 1-9. Recording employee salary and withholding tax
+
+aoiko has no payroll calculation or automatic withholding-tax feature. If you employ regular staff (not a family employee under blue-return status), work out the withholding tax yourself using the NTA's official "[Withholding tax table for employment income](https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/01.htm)" and record it as a normal entry.
+
+1. **Debit**: `5230 Salaries` for the gross salary (before social insurance deductions)
+2. **Credit**: `1130 Ordinary deposit` etc. for the actual net amount paid
+3. **Credit**: a `2xxx Withholdings payable` account (create one under **Settings → Accounts** if you don't have one) for the withholding tax plus the employee's share of social insurance
+
+> **Why there's no dedicated feature**: even freee's individual/sole-proprietor "tax return" product doesn't calculate withholding tax or estimate monthly payroll — you just enter the confirmed totals into a summary field, and the actual calculation is handled by a separate product ("freee HR/payroll"). Since hiring regular employees is a relatively uncommon scenario for aoiko's target users, aoiko follows the same approach.
+
 ### Common patterns
 
 | Transaction | Debit | Credit |
