@@ -30,6 +30,7 @@
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
     "@tailwindcss/vite": "^4.2.4",
     "@tsconfig/svelte": "^5.0.8",
+    "@types/encoding-japanese": "^2.2.1",
     "@types/node": "^25.9.1",
     "@vitest/ui": "^4.1.8",
     "bits-ui": "^2.18.1",
@@ -53,6 +54,7 @@
   "dependencies": {
     "decimal.js": "^10.6.0",
     "dexie": "^4.4.3",
+    "encoding-japanese": "^2.2.0",
     "fflate": "^0.8.3",
     "marked": "^18.0.4",
     "tesseract.js": "^7.0.0"
