@@ -136,6 +136,13 @@ describe('issueInvoice', () => {
 
     await expect(issueInvoice(reloaded!, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(/下書き/);
   });
+
+  test('取引先未選択（vendorId空）は発行できない', async () => {
+    const draft = createDraftInvoice('invoice', '', '2026-07-08');
+    draft.lineItems = [lineItem({})];
+
+    await expect(issueInvoice(draft, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(/取引先/);
+  });
 });
 
 describe('voidInvoice', () => {
