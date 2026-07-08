@@ -3,11 +3,22 @@ import { db } from '../db/db';
 import {
   FsaBackupAdapter,
   OpfsBackupAdapter,
+  buildBackupZip,
   buildPayload,
+  collectAttachmentBlobs,
   type BackupAdapter,
 } from '../backup';
 import { getSetting, setSetting } from '../lib/settings';
 import { todayISO } from '../lib/date';
+
+async function buildBackupZipBytes(options: {
+  includeApiKeys: boolean;
+  includeFilerInfo: boolean;
+}): Promise<Uint8Array> {
+  const payload = await buildPayload(options);
+  const attachmentBlobs = await collectAttachmentBlobs();
+  return buildBackupZip(payload, attachmentBlobs);
+}
 
 export type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
 
@@ -172,8 +183,9 @@ class BackupManager {
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
-      await this.adapter.backup(payload);
+      const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
+      const fileName = `aoiko-ledger-${todayISO()}.zip`;
+      await this.adapter.backup(bytes, fileName);
       this.lastBackupAt = Date.now();
       await setSetting('lastBackupAt', this.lastBackupAt);
       this.lastError = '';
@@ -183,20 +195,20 @@ class BackupManager {
       this.status = prev === 'permission-required' ? 'permission-required' : 'error';
     }
   }
-  // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ JSON を書き出す。
-  // 全環境で動作。OPFS 使用環境では iCloud Drive 等への手動コピーの起点となる。
-  async downloadJson(): Promise<void> {
+  // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ zip を書き出す
+  // （帳簿データ + 証憑写真原本を同梱）。全環境で動作。
+  // OPFS 使用環境では iCloud Drive 等への手動コピーの起点となる。
+  async downloadBackup(): Promise<void> {
     this.lastError = '';
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
-      const json = JSON.stringify(payload, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
+      const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
+      const blob = new Blob([bytes.slice()], { type: 'application/zip' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `aoiko-ledger-${todayISO()}.json`;
+      a.download = `aoiko-ledger-${todayISO()}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
