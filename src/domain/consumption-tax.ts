@@ -54,7 +54,7 @@ export interface ConsumptionTaxResult {
   filingRounded: ConsumptionTaxBreakdown;
 }
 // 取引金額（税込 or 税抜）から税抜金額（課税標準額の基礎）を計算。
-function taxExcludedPortion(
+export function taxExcludedPortion(
   amount: Decimal,
   taxRate: number,
   taxIncluded: boolean
