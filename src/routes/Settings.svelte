@@ -11,6 +11,11 @@
   import { ledger } from '../stores/ledger.svelte';
   import { parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
+    exportCorrectionHistoryCsv,
+    exportGenericCsv,
+    exportYayoiCsv,
+  } from '../domain/accountant-export';
+  import {
     computeDepreciation,
     generateYearEndDepreciation,
   } from '../domain/depreciation';
@@ -92,6 +97,8 @@
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
+
+  let accountantExportError = $state('');
 
   let newSubParent = $state('');
   let newSubName = $state('');
@@ -842,6 +849,48 @@
       restoreAttachmentCount = 0;
     } catch (err) {
       restoreError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  function downloadBytes(bytes: Uint8Array, filename: string, mimeType: string): void {
+    const blob = new Blob([bytes.slice()], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadYayoiCsv() {
+    accountantExportError = '';
+    try {
+      const bytes = await exportYayoiCsv(currentYear);
+      downloadBytes(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
+    } catch (err) {
+      accountantExportError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function downloadGenericCsv() {
+    accountantExportError = '';
+    try {
+      const bytes = await exportGenericCsv(currentYear);
+      downloadBytes(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
+    } catch (err) {
+      accountantExportError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  async function downloadCorrectionHistoryCsv() {
+    accountantExportError = '';
+    try {
+      const bytes = await exportCorrectionHistoryCsv(currentYear);
+      downloadBytes(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
+    } catch (err) {
+      accountantExportError = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -2184,6 +2233,40 @@
   </section>
 
   <BackupPanel />
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_accountant_export_title()}</h3>
+    <p class="text-xs text-muted-foreground">{m.settings_accountant_export_intro({ year: currentYear })}</p>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        onclick={downloadYayoiCsv}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+      >
+        {m.settings_accountant_export_yayoi()}
+      </button>
+      <button
+        type="button"
+        onclick={downloadGenericCsv}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_accountant_export_generic()}
+      </button>
+      <button
+        type="button"
+        onclick={downloadCorrectionHistoryCsv}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_accountant_export_corrections()}
+      </button>
+    </div>
+    <p class="text-xs text-muted-foreground border-t pt-2">
+      {m.settings_accountant_export_disclaimer()}
+    </p>
+    {#if accountantExportError}
+      <div class="text-sm text-destructive">{accountantExportError}</div>
+    {/if}
+  </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_qualified_book_title()}</h3>
