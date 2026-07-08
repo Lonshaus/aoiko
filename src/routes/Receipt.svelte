@@ -6,6 +6,8 @@
     type ReceiptExtracted,
   } from '../domain/ocr';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
+  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
+  import { buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
@@ -19,6 +21,7 @@
   import type { JournalLine } from '../db/types';
   import type { LlmImageInput } from '../domain/llm';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
+  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
   let file = $state<File | null>(null);
@@ -36,8 +39,24 @@
     image: LlmImageInput;
     host: string;
   } | null>(null);
+  // 証憑写真の添付前確認（C7-3）
+  let attachmentConfirmOpen = $state(false);
+  let attachmentPreview = $state<string | null>(null);
+  let pendingAttachmentFile: File | null = null;
+  let pendingInput: HTMLInputElement | null = null;
 
   const accountGroups = $derived(ledger.groupedAccounts());
+
+  function stageFile(f: File) {
+    file = f;
+    extracted = null;
+    error = '';
+    success = '';
+    if (preview) {
+      URL.revokeObjectURL(preview);
+    }
+    preview = URL.createObjectURL(f);
+  }
 
   async function handleFile(e: Event) {
     const input = e.target as HTMLInputElement;
@@ -50,14 +69,45 @@
       input.value = '';
       return;
     }
-    file = f;
-    extracted = null;
-    error = '';
-    success = '';
-    if (preview) {
-      URL.revokeObjectURL(preview);
+    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+      pendingAttachmentFile = f;
+      pendingInput = input;
+      attachmentPreview = URL.createObjectURL(f);
+      attachmentConfirmOpen = true;
+      return;
     }
-    preview = URL.createObjectURL(f);
+    stageFile(f);
+  }
+
+  async function onAttachmentConfirm(dontAskAgain: boolean) {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    const f = pendingAttachmentFile;
+    pendingAttachmentFile = null;
+    pendingInput = null;
+    if (!f) {
+      return;
+    }
+    if (dontAskAgain) {
+      await setSetting('skipAttachmentConfirm', true);
+    }
+    stageFile(f);
+  }
+
+  function onAttachmentCancel() {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    pendingAttachmentFile = null;
+    if (pendingInput) {
+      pendingInput.value = '';
+      pendingInput = null;
+    }
   }
 
   async function analyze() {
@@ -162,7 +212,7 @@
       const description = data.vendorName || m.receipt_default_description();
       await db.transaction(
         'rw',
-        [db.journalEntries, db.journalLines],
+        [db.journalEntries, db.journalLines, db.attachments],
         async () => {
           await db.journalEntries.add({
             id: entryId,
@@ -175,6 +225,11 @@
             confirmedAt: now,
           });
           await db.journalLines.bulkAdd(lines);
+          // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+          // 書き込み、孤児画像・空参照を防ぐ。
+          if (file) {
+            await db.attachments.add(buildAttachmentRecord(entryId, file, now));
+          }
         }
       );
 
@@ -377,4 +432,10 @@
   host={pending?.host ?? ''}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
+/>
+<AttachmentConfirmDialog
+  open={attachmentConfirmOpen}
+  previewUrl={attachmentPreview}
+  onconfirm={onAttachmentConfirm}
+  oncancel={onAttachmentCancel}
 />

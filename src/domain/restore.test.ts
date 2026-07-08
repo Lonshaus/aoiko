@@ -1,12 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { db } from '../db/db'
-import { buildPayload, PAYLOAD_VERSION } from '../backup'
+import { buildBackupZip, buildPayload, PAYLOAD_VERSION } from '../backup'
 import { newId } from '../lib/id'
 import { toIndexable } from '../lib/decimal'
 import {
   IncompatibleBackupError,
+  parseBackupFile,
   parseBackupJson,
   restoreFromJson,
+  restoreFromPayload,
 } from './restore'
 
 beforeEach(async () => {
@@ -160,5 +162,55 @@ describe('restoreFromJson', () => {
       },
     })
     expect((await db.settings.get('userRiyoshaId'))?.value).toBe('NEW')
+  })
+})
+
+describe('証憑写真（C7）の zip 往復', () => {
+  // 備考：happy-dom + fake-indexeddb の組み合わせでは Blob の structured clone が
+  // 中身（バイト列）を保持しない既知の制限があるため（実ブラウザの IndexedDB では問題ない、
+  // 生 Node の IndexedDB でも別途動作確認済み）、ここでは attachments 行のメタデータ
+  // （entryId・fileName・mimeType）の紐付けのみ検証する。バイト列の往復自体は
+  // Dexie を介さない archive.test.ts / attachments.test.ts で厳密に検証済み。
+  test('restoreFromPayload は attachments のメタデータを復元する', async () => {
+    const entryId = newId()
+    const now = Date.now()
+    await db.journalEntries.add({
+      id: entryId,
+      date: '2026-05-01',
+      year: 2026,
+      description: 'テスト',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    })
+
+    const payload = await buildPayload()
+    const attachmentBlobs = new Map([['att-1', new Uint8Array([1, 2, 3])]])
+    payload.tables['attachments'] = [
+      { id: 'att-1', entryId, mimeType: 'image/jpeg', fileName: 'r.jpg', createdAt: now },
+    ]
+
+    await restoreFromPayload(payload, attachmentBlobs)
+
+    const restored = await db.attachments.toArray()
+    expect(restored).toHaveLength(1)
+    expect(restored[0]!.entryId).toBe(entryId)
+    expect(restored[0]!.fileName).toBe('r.jpg')
+    expect(restored[0]!.mimeType).toBe('image/jpeg')
+  })
+
+  test('parseBackupFile は zip / 旧 JSON を自動判定する', async () => {
+    const payload = { version: PAYLOAD_VERSION, exportedAt: '2026-05-10', tables: { vendors: [{ id: 'v1', name: '業者' }] } }
+    const zipBytes = buildBackupZip(payload, new Map([['a1', new Uint8Array([9, 9])]]))
+    const zipFile = new File([zipBytes.slice()], 'backup.zip', { type: 'application/zip' })
+    const zipParsed = await parseBackupFile(zipFile)
+    expect(zipParsed.payload.tables['vendors']).toHaveLength(1)
+    expect(zipParsed.attachmentBlobs.get('a1')).toEqual(new Uint8Array([9, 9]))
+
+    const jsonFile = new File([JSON.stringify(payload)], 'backup.json', { type: 'application/json' })
+    const jsonParsed = await parseBackupFile(jsonFile)
+    expect(jsonParsed.payload.tables['vendors']).toHaveLength(1)
+    expect(jsonParsed.attachmentBlobs.size).toBe(0)
   })
 })

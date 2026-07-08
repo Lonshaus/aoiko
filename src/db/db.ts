@@ -1,8 +1,12 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Account,
+  ArApEntry,
+  Attachment,
+  Budget,
   FixedAsset,
   ImportBatch,
+  InventoryItem,
   JournalEntry,
   JournalLine,
   ParserRule,
@@ -25,6 +29,10 @@ export class AoikoDB extends Dexie {
   reportSnapshots!: Table<ReportSnapshot, string>;
   settings!: Table<Setting, string>;
   personalDeductions!: Table<PersonalDeductionInput, number>;
+  inventoryItems!: Table<InventoryItem, string>;
+  attachments!: Table<Attachment, string>;
+  budgets!: Table<Budget, [number, number]>;
+  arApEntries!: Table<ArApEntry, string>;
 
   constructor() {
     super('aoiko');
@@ -61,6 +69,25 @@ export class AoikoDB extends Dexie {
     // v4: 所得控除・税額控除の入力（年度ごと、B5拡張）を追加。
     this.version(4).stores({
       personalDeductions: 'year',
+    });
+    // v5: 簡易在庫管理（C4）の商品主檔を追加。年度非依存（Vendor と同じく永続マスタ）。
+    this.version(5).stores({
+      inventoryItems: 'id, name',
+    });
+    // v6: 部門タグ（C5）。journalEntries に department 索引を追加。
+    this.version(6).stores({
+      journalEntries:
+        'id, date, year, status, originalEntryId, sourceImportId, department, [year+date], [date+status]',
+    });
+    // v7: 証憑原本の保存（C7）。分錄と 1:N、entryId で紐付け。
+    this.version(7).stores({
+      attachments: 'id, entryId',
+    });
+    // v8: 予算管理・現金流予測（C10）。budgets は年月複合キー、arApEntries は
+    // 独立子帳（JournalLine とは紐付けない、詳細は types.ts のコメント参照）。
+    this.version(8).stores({
+      budgets: '[year+month], year',
+      arApEntries: 'id, type, dueDate',
     });
   }
 }
