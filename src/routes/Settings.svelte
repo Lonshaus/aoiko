@@ -37,6 +37,7 @@
   } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
   import BackupPanel from '../components/BackupPanel.svelte';
+  import { DEFAULT_INVOICE_PREFIX, DEFAULT_QUOTE_PREFIX } from '../domain/invoice';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type {
     Account,
@@ -108,7 +109,11 @@
   let newVendorEntityType = $state<VendorEntityType>('unknown');
   let newVendorInvoice = $state('');
   let newVendorAccountCode = $state('');
+  let newVendorAddress = $state('');
   let vendorError = $state('');
+
+  let invoiceNumberPrefix = $state(DEFAULT_INVOICE_PREFIX);
+  let quoteNumberPrefix = $state(DEFAULT_QUOTE_PREFIX);
 
   let newInventoryItemName = $state('');
   let inventoryItemError = $state('');
@@ -267,6 +272,8 @@
     currentYear = (await getSetting('currentYear')) ?? 2026;
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
+    invoiceNumberPrefix = (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX;
+    quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
@@ -355,6 +362,8 @@
     await setSetting('currentYear', currentYear);
     await setSetting('userBusinessName', userBusinessName);
     await setSetting('userInvoiceNumber', userInvoiceNumber);
+    await setSetting('invoiceNumberPrefix', invoiceNumberPrefix);
+    await setSetting('quoteNumberPrefix', quoteNumberPrefix);
     basicSaved = true;
     setTimeout(() => {
       basicSaved = false;
@@ -461,10 +470,14 @@
     if (newVendorAccountCode) {
       v.defaultAccountCode = newVendorAccountCode;
     }
+    if (newVendorAddress.trim()) {
+      v.address = newVendorAddress.trim();
+    }
     await db.vendors.add(v);
     newVendorName = '';
     newVendorInvoice = '';
     newVendorAccountCode = '';
+    newVendorAddress = '';
     newVendorEntityType = 'unknown';
   }
 
@@ -997,6 +1010,24 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
       </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_invoice_number_prefix()}</span>
+        <input
+          type="text"
+          bind:value={invoiceNumberPrefix}
+          placeholder={DEFAULT_INVOICE_PREFIX}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_quote_number_prefix()}</span>
+        <input
+          type="text"
+          bind:value={quoteNumberPrefix}
+          placeholder={DEFAULT_QUOTE_PREFIX}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
     </div>
     <label class="flex items-center gap-2 text-sm cursor-pointer">
       <input
@@ -1440,6 +1471,12 @@
           </optgroup>
         {/each}
       </select>
+      <input
+        type="text"
+        bind:value={newVendorAddress}
+        placeholder={m.settings_vendor_address_placeholder()}
+        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground"
+      />
       <button
         type="submit"
         class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
@@ -1457,6 +1494,9 @@
             <span class="flex-1 min-w-40 break-all">
               {v.name}
               <span class="text-xs text-muted-foreground ml-2">{vendorEntityLabel(v.entityType)}</span>
+              {#if v.address}
+                <span class="block text-xs text-muted-foreground">{v.address}</span>
+              {/if}
             </span>
             <span class="font-mono text-xs text-muted-foreground">{v.invoiceNumber ?? ''}</span>
             <span class="text-xs text-muted-foreground">
