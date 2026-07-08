@@ -6,6 +6,7 @@ import type {
   Budget,
   FixedAsset,
   ImportBatch,
+  Invoice,
   InventoryItem,
   JournalEntry,
   JournalLine,
@@ -33,6 +34,7 @@ export class AoikoDB extends Dexie {
   attachments!: Table<Attachment, string>;
   budgets!: Table<Budget, [number, number]>;
   arApEntries!: Table<ArApEntry, string>;
+  invoices!: Table<Invoice, string>;
 
   constructor() {
     super('aoiko');
@@ -88,6 +90,10 @@ export class AoikoDB extends Dexie {
     this.version(8).stores({
       budgets: '[year+month], year',
       arApEntries: 'id, type, dueDate',
+    });
+    // v9: 請求書・見積書の発行（C1）。
+    this.version(9).stores({
+      invoices: 'id, documentType, status, vendorId, date, [documentType+date]',
     });
   }
 }
