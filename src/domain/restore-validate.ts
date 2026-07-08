@@ -31,6 +31,11 @@ const PRIMARY_KEY: Record<string, string> = {
   importBatches: 'id',
   reportSnapshots: 'id',
   settings: 'key',
+  inventoryItems: 'id',
+  personalDeductions: 'year',
+  attachments: 'id',
+  budgets: 'year',
+  arApEntries: 'id',
 };
 
 function validateJournalEntry(r: unknown, i: number): void {

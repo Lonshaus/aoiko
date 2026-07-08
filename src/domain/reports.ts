@@ -39,9 +39,9 @@ export interface PLReport {
   netIncome: string;
   entryCount: number;
 }
-// 取引先別 / 補助科目別の集計。指定した軸（vendor / subAccount）で
+// 取引先別 / 補助科目別 / 部門別の集計。指定した軸（vendor / subAccount / department）で
 // 各勘定科目内の取引を分解する。経費分析・実績把握に使う。
-export type BreakdownAxis = 'vendor' | 'subAccount';
+export type BreakdownAxis = 'vendor' | 'subAccount' | 'department';
 
 export interface BreakdownEntry {
   key: string;            // vendorId / subAccountId / '' (未分類)
@@ -71,6 +71,7 @@ export async function buildBreakdown(
 ): Promise<BreakdownReport> {
   const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
+  const entryMap = new Map(entries.map((e) => [e.id, e]));
   const entryIds = new Set(entries.map((e) => e.id));
 
   const vendors = axis === 'vendor' ? await db.vendors.toArray() : [];
@@ -99,7 +100,12 @@ export async function buildBreakdown(
     if (contrib === null || contrib.isZero()) {
       continue;
     }
-    const key = axis === 'vendor' ? (line.vendorId ?? '') : (line.subAccountId ?? '');
+    const key =
+      axis === 'vendor'
+        ? (line.vendorId ?? '')
+        : axis === 'subAccount'
+          ? (line.subAccountId ?? '')
+          : (entryMap.get(line.entryId)?.department ?? '');
     let inner = matrix.get(line.accountCode);
     if (!inner) {
       inner = new Map();
@@ -116,7 +122,10 @@ export async function buildBreakdown(
     if (axis === 'vendor') {
       return vendorMap.get(key) ?? '（不明な取引先）';
     }
-    return subMap.get(key) ?? '（不明な補助科目）';
+    if (axis === 'subAccount') {
+      return subMap.get(key) ?? '（不明な補助科目）';
+    }
+    return key;
   };
 
   const groups: BreakdownGroup[] = [];
@@ -507,5 +516,121 @@ export async function buildPL(
     totalExpense,
     netIncome,
     entryCount: entries.length,
+  };
+}
+// 複数年度トレンド分析（C8）。PL/BS のみ対応（方案A、AOIKO_FUTURE_IDEAS.md 参照）。
+// 各年度の buildPL/buildBS をそのまま呼び出し、科目単位でピボットするだけ
+// （既存の単年度計算ロジックをそのまま再利用、按分等の新規計算は行わない）。
+export interface MultiYearPLRow {
+  accountCode: string;
+  accountName: string;
+  category: AccountCategory;
+  amounts: string[];  // years と同じ長さ・同じ並び順
+  total: string;
+}
+
+export interface MultiYearPLReport {
+  years: number[];
+  revenue: MultiYearPLRow[];
+  expense: MultiYearPLRow[];
+  yearlyTotalRevenue: string[];
+  yearlyTotalExpense: string[];
+  yearlyNetIncome: string[];
+}
+
+export async function buildMultiYearPL(years: number[]): Promise<MultiYearPLReport> {
+  const perYear = await Promise.all(years.map((y) => buildPL(y)));
+
+  const pivot = (rows: PLRow[][]): MultiYearPLRow[] => {
+    const byCode = new Map<string, { accountName: string; category: AccountCategory; amounts: Decimal[] }>();
+    rows.forEach((yearRows, i) => {
+      for (const r of yearRows) {
+        let entry = byCode.get(r.accountCode);
+        if (!entry) {
+          entry = {
+            accountName: r.accountName,
+            category: r.category,
+            amounts: years.map(() => D(0)),
+          };
+          byCode.set(r.accountCode, entry);
+        }
+        entry.amounts[i] = D(r.amount);
+      }
+    });
+    return [...byCode.entries()]
+      .map(([accountCode, v]) => ({
+        accountCode,
+        accountName: v.accountName,
+        category: v.category,
+        amounts: v.amounts.map((d) => d.toString()),
+        total: v.amounts.reduce((s, d) => s.plus(d), D(0)).toString(),
+      }))
+      .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  };
+
+  return {
+    years,
+    revenue: pivot(perYear.map((p) => p.revenue)),
+    expense: pivot(perYear.map((p) => p.expense)),
+    yearlyTotalRevenue: perYear.map((p) => p.totalRevenue),
+    yearlyTotalExpense: perYear.map((p) => p.totalExpense),
+    yearlyNetIncome: perYear.map((p) => p.netIncome),
+  };
+}
+
+export interface MultiYearBSRow {
+  accountCode: string;
+  accountName: string;
+  category: AccountCategory;
+  balances: string[];  // years と同じ長さ・同じ並び順
+}
+
+export interface MultiYearBSReport {
+  years: number[];
+  assets: MultiYearBSRow[];
+  liabilities: MultiYearBSRow[];
+  equity: MultiYearBSRow[];
+  yearlyTotalAssets: string[];
+  yearlyTotalLiabilitiesAndEquity: string[];
+  yearlyNetIncome: string[];
+}
+
+export async function buildMultiYearBS(years: number[]): Promise<MultiYearBSReport> {
+  const perYear = await Promise.all(years.map((y) => buildBS(y)));
+
+  const pivot = (rows: BSRow[][]): MultiYearBSRow[] => {
+    const byCode = new Map<string, { accountName: string; category: AccountCategory; balances: Decimal[] }>();
+    rows.forEach((yearRows, i) => {
+      for (const r of yearRows) {
+        let entry = byCode.get(r.accountCode);
+        if (!entry) {
+          entry = {
+            accountName: r.accountName,
+            category: r.category,
+            balances: years.map(() => D(0)),
+          };
+          byCode.set(r.accountCode, entry);
+        }
+        entry.balances[i] = D(r.balance);
+      }
+    });
+    return [...byCode.entries()]
+      .map(([accountCode, v]) => ({
+        accountCode,
+        accountName: v.accountName,
+        category: v.category,
+        balances: v.balances.map((d) => d.toString()),
+      }))
+      .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  };
+
+  return {
+    years,
+    assets: pivot(perYear.map((p) => p.assets)),
+    liabilities: pivot(perYear.map((p) => p.liabilities)),
+    equity: pivot(perYear.map((p) => p.equity)),
+    yearlyTotalAssets: perYear.map((p) => p.totalAssets),
+    yearlyTotalLiabilitiesAndEquity: perYear.map((p) => p.totalLiabilitiesAndEquity),
+    yearlyNetIncome: perYear.map((p) => p.netIncome),
   };
 }
