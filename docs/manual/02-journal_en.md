@@ -50,6 +50,26 @@ For expenses that split between business and personal at your home office:
 
 Use **"Clear"** to reset everything mid-entry.
 
+### 1-5. Recording item and quantity (simple inventory)
+
+Choosing a **Purchases (5020)** or **Sales (4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **Settings** item master. Once recorded, the [06. Reports](06-reports_en.md) profit & loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
+
+> If you've filed for a valuation method other than most-recent-purchase-cost, tick **Settings → Valuation method is not most-recent-purchase-cost** to disable this estimate and go back to journaling ending inventory manually.
+
+### 1-6. Adding a department tag
+
+The **"Department tag"** field next to the description lets you attach a free-text tag (e.g. `Tokyo branch`, `Online sales`) for lightly separating multiple locations, business lines, or channels. Previously used tags appear as autocomplete suggestions.
+
+> Department tags are a display label for aggregation/filtering only — they never affect tax calculations or `.xtx` export. You can filter the account breakdown by department in [06. Reports](06-reports_en.md).
+
+### 1-7. Attaching a receipt photo
+
+Choosing a photo in the **"Receipt photo"** field below the description opens a confirmation dialog with a preview. Confirm the photo is correct and press **"Attach"** — it's saved together with the entry once confirmed. Repeat to attach multiple photos (remove a thumbnail with **×** before submitting).
+
+> **Once confirmed, attachments cannot be replaced or deleted** (required for record integrity under Japan's electronic bookkeeping law). If you attached the wrong photo, use a correcting entry instead — the original photo stays in the history.
+>
+> The confirmation dialog can be skipped via **Settings → Skip the confirmation before attaching receipt photos** (you can re-enable it there any time).
+
 ### Common patterns
 
 | Transaction | Debit | Credit |
@@ -85,6 +105,8 @@ Use **"Reset"** to clear filters (year reverts to current, month to current).
 ### 2-2. View entry details
 
 Click on a row to **expand** it. Each debit/credit line is shown with account, sub-account, tax rate, amount, and memo. The `▾` / `▸` icon indicates expanded state.
+
+Below the line details you'll find a list of **receipt photos** (click a thumbnail for full size) and a field to add more. Whether the entry came from CSV import, OCR, or manual entry, you can attach a receipt photo here after the fact (the same confirmation flow from 1-7 applies).
 
 ### 2-3. Pagination
 

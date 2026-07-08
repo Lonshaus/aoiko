@@ -3,13 +3,18 @@
   import { db } from '../db';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
+  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
+  import { buildAttachmentRecord } from '../domain/attachments';
+  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { getSetting, setSetting } from '../lib/settings';
   import {
     buildLedgerRows,
     type LedgerRow,
   } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
-  import type { Vendor } from '../db/types';
+  import type { Attachment, Vendor } from '../db/types';
 
   const PAGE_SIZE = 50;
   const now = new Date();
@@ -35,6 +40,39 @@
   let expandedId = $state<string | null>(null);
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
+  // 証憑写真（C7）。展開中の分錄の添付一覧と、事後添付の確認フロー。
+  let expandedAttachments = $state<Attachment[]>([]);
+  let attachmentUrls = $state<Map<string, string>>(new Map());
+  let attachmentError = $state('');
+  let attachmentConfirmOpen = $state(false);
+  let attachmentPreview = $state<string | null>(null);
+  let pendingAttachmentFile: File | null = null;
+  let pendingAttachmentInput: HTMLInputElement | null = null;
+
+  $effect(() => {
+    const id = expandedId;
+    if (!id) {
+      expandedAttachments = [];
+      return;
+    }
+    const sub = liveQuery(() =>
+      db.attachments.where('entryId').equals(id).toArray()
+    ).subscribe((v) => {
+      expandedAttachments = v;
+    });
+    return () => sub.unsubscribe();
+  });
+
+  $effect(() => {
+    const atts = expandedAttachments;
+    const urls = new Map(atts.map((a) => [a.id, URL.createObjectURL(a.blob)]));
+    attachmentUrls = urls;
+    return () => {
+      for (const u of urls.values()) {
+        URL.revokeObjectURL(u);
+      }
+    };
+  });
 
   function pad2(n: number): string {
     return String(n).padStart(2, '0');
@@ -218,6 +256,76 @@
       expandedId = null;
     } catch (e) {
       reverseError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function handleAttachmentFile(e: Event) {
+    attachmentError = '';
+    const input = e.target as HTMLInputElement;
+    const f = input.files?.[0];
+    if (!f) {
+      return;
+    }
+    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+      attachmentError = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      input.value = '';
+      return;
+    }
+    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+      pendingAttachmentFile = f;
+      pendingAttachmentInput = input;
+      attachmentPreview = URL.createObjectURL(f);
+      attachmentConfirmOpen = true;
+      return;
+    }
+    await saveAttachment(f);
+    input.value = '';
+  }
+
+  async function saveAttachment(f: File): Promise<void> {
+    const id = expandedId;
+    if (!id) {
+      return;
+    }
+    try {
+      await db.attachments.add(buildAttachmentRecord(id, f, Date.now()));
+    } catch (e) {
+      attachmentError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function onAttachmentConfirm(dontAskAgain: boolean) {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    const f = pendingAttachmentFile;
+    const input = pendingAttachmentInput;
+    pendingAttachmentFile = null;
+    pendingAttachmentInput = null;
+    if (!f) {
+      return;
+    }
+    if (dontAskAgain) {
+      await setSetting('skipAttachmentConfirm', true);
+    }
+    await saveAttachment(f);
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  function onAttachmentCancel() {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    pendingAttachmentFile = null;
+    if (pendingAttachmentInput) {
+      pendingAttachmentInput.value = '';
+      pendingAttachmentInput = null;
     }
   }
 
@@ -480,6 +588,38 @@
                       </div>
                     </div>
 
+                    <div class="pt-2 border-t border-border/50">
+                      <div class="text-xs text-muted-foreground mb-1">{m.journal_list_attachments_title()}</div>
+                      {#if expandedAttachments.length > 0}
+                        <ul class="flex flex-wrap gap-2 mb-2">
+                          {#each expandedAttachments as a (a.id)}
+                            <li>
+                              <a
+                                href={attachmentUrls.get(a.id)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onclick={(e) => e.stopPropagation()}
+                              >
+                                <img src={attachmentUrls.get(a.id)} alt={a.fileName} class="h-16 w-16 object-cover rounded border" />
+                              </a>
+                            </li>
+                          {/each}
+                        </ul>
+                      {:else}
+                        <p class="text-xs text-muted-foreground mb-2">{m.journal_list_attachments_empty()}</p>
+                      {/if}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onchange={handleAttachmentFile}
+                        onclick={(e) => e.stopPropagation()}
+                        class="text-xs text-muted-foreground"
+                      />
+                      {#if attachmentError}
+                        <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
+                      {/if}
+                    </div>
+
                     <div class="flex items-center justify-between pt-2 border-t border-border/50">
                       <div class="text-xs text-muted-foreground font-mono">{row.entry.id}</div>
                       {#if !reversed}
@@ -540,3 +680,10 @@
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
+
+<AttachmentConfirmDialog
+  open={attachmentConfirmOpen}
+  previewUrl={attachmentPreview}
+  onconfirm={onAttachmentConfirm}
+  oncancel={onAttachmentCancel}
+/>

@@ -18,6 +18,8 @@ export interface SplittableLine {
   homeOfficeRatio: string; // '' = 適用しない、'0' .. '1' の Decimal 字串
   taxCategory?: '' | TaxCategory;
   inputUsageCategory?: '' | InputUsageCategory;
+  itemId?: string;
+  quantity?: string;
 }
 
 export class HomeOfficeRatioError extends Error {
