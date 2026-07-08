@@ -133,7 +133,6 @@
     errorMessage = '';
     try {
       const snapshot = $state.snapshot(editing);
-      await db.invoices.put(snapshot);
       const prefix = tab === 'invoice'
         ? (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX
         : (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;

@@ -92,6 +92,9 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
   if (invoice.status !== 'draft') {
     throw new InvoiceError('下書きの文書のみ発行できます');
   }
+  if (!invoice.vendorId) {
+    throw new InvoiceError('宛先の取引先を選択してください');
+  }
   if (invoice.lineItems.length === 0) {
     throw new InvoiceError('明細が1件もありません');
   }
