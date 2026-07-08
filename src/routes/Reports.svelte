@@ -4,12 +4,16 @@
   import { toISODateLocal } from '../lib/date';
   import {
     buildAll,
+    buildMultiYearBS,
+    buildMultiYearPL,
     buildPL,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
     type MonthlyPLReport,
     type MonthlyReport,
+    type MultiYearBSReport,
+    type MultiYearPLReport,
     type PLReport,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
@@ -20,6 +24,15 @@
     unlockYear,
   } from '../domain/snapshots';
   import { interimFilingObligation } from '../domain/interim-filing';
+  import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
+  import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
+  import {
+    addArApEntry,
+    forecastCashFlow,
+    recordPayment,
+    remainingBalance,
+    type CashFlowForecast,
+  } from '../domain/cash-flow';
   import {
     amendmentChecklist,
     getAmendmentDiff,
@@ -41,7 +54,7 @@
     buildTwoWariXtx,
   } from '../tax-schema/2026/xtx-consumption-tax';
   import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
-  import type { TaxRegistration } from '../db/types';
+  import type { ArApEntry, ArApType, TaxRegistration } from '../db/types';
   import { db } from '../db/db';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
@@ -82,6 +95,7 @@
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
   let bs = $state<BSReport | null>(null);
+  let inventoryValuation = $state<InventoryValuation | null>(null);
   let monthlyPL = $state<MonthlyPLReport | null>(null);
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
@@ -104,6 +118,133 @@
   let interimPaidNationalInput = $state('');
   let interimPaidLocalInput = $state('');
   let selectedInstallmentIndex = $state(0);
+  // 複数年度トレンド分析（C8）。ボタン押下時のみ計算する（自動計算にしないのは、
+  // 年数が多いと buildPL/buildBS を年数分呼ぶため、通常の年度別レポートより負荷が高いため）。
+  const MAX_TREND_YEARS = 10;
+  let trendStartYear = $state(now.getFullYear() - 2);
+  let trendEndYear = $state(now.getFullYear());
+  let multiYearPL = $state<MultiYearPLReport | null>(null);
+  let multiYearBS = $state<MultiYearBSReport | null>(null);
+  let trendLoading = $state(false);
+  let trendError = $state('');
+
+  async function loadTrend() {
+    trendError = '';
+    if (trendEndYear < trendStartYear) {
+      trendError = m.reports_trend_error_range();
+      return;
+    }
+    if (trendEndYear - trendStartYear + 1 > MAX_TREND_YEARS) {
+      trendError = m.reports_trend_error_too_many({ max: MAX_TREND_YEARS });
+      return;
+    }
+    const years: number[] = [];
+    for (let y = trendStartYear; y <= trendEndYear; y++) {
+      years.push(y);
+    }
+    trendLoading = true;
+    try {
+      multiYearPL = await buildMultiYearPL(years);
+      multiYearBS = await buildMultiYearBS(years);
+    } finally {
+      trendLoading = false;
+    }
+  }
+  // 予算管理（C10）。実績・予算差異は年度切替の $effect（下記）で読み込み、
+  // 編集欄（budgetDrafts）はその結果が変わるたびに同期する。
+  let budgetVsActual = $state<BudgetVsActualReport | null>(null);
+  let budgetDrafts = $state<Array<{ month: number; revenueBudget: string; expenseBudget: string }>>([]);
+  let budgetSaving = $state(false);
+  let budgetSaved = $state(false);
+  let lastBudgetDraftYear: number | null = null;
+
+  function syncBudgetDrafts(report: BudgetVsActualReport) {
+    budgetDrafts = report.months.map((m) => ({
+      month: m.month,
+      revenueBudget: m.revenueBudget,
+      expenseBudget: m.expenseBudget,
+    }));
+  }
+
+  async function saveBudgets() {
+    budgetSaving = true;
+    try {
+      for (const d of budgetDrafts) {
+        await setBudget({
+          year,
+          month: d.month,
+          revenueBudget: d.revenueBudget || '0',
+          expenseBudget: d.expenseBudget || '0',
+        });
+      }
+      budgetSaved = true;
+      setTimeout(() => {
+        budgetSaved = false;
+      }, 2000);
+    } finally {
+      budgetSaving = false;
+    }
+  }
+  // 現金流予測（C10）。売掛金/買掛金子帳は年度非依存（全件）で持つため、専用の liveQuery で購読する。
+  let arApEntries = $state<ArApEntry[]>([]);
+  let newArApType = $state<ArApType>('receivable');
+  let newArApDescription = $state('');
+  let newArApDueDate = $state(todayISOForArAp());
+  let newArApAmount = $state('');
+  let arApError = $state('');
+  let paymentDrafts = $state<Record<string, string>>({});
+  let cashFlowAsOfDate = $state(todayISOForArAp());
+  let cashFlowHorizon = $state(6);
+  let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
+
+  function todayISOForArAp(): string {
+    return toISODateLocal(new Date());
+  }
+
+  $effect(() => {
+    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe((v) => {
+      arApEntries = v;
+    });
+    return () => sub.unsubscribe();
+  });
+
+  async function submitArApEntry(e: Event) {
+    e.preventDefault();
+    arApError = '';
+    if (!newArApDescription || !newArApAmount) {
+      return;
+    }
+    try {
+      await addArApEntry({
+        type: newArApType,
+        description: newArApDescription,
+        dueDate: newArApDueDate,
+        originalAmount: newArApAmount,
+      });
+      newArApDescription = '';
+      newArApAmount = '';
+    } catch (e) {
+      arApError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function submitPayment(id: string) {
+    arApError = '';
+    const amount = paymentDrafts[id];
+    if (!amount) {
+      return;
+    }
+    try {
+      await recordPayment(id, amount);
+      paymentDrafts = { ...paymentDrafts, [id]: '' };
+    } catch (e) {
+      arApError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  async function loadCashFlowForecast() {
+    cashFlowForecastResult = await forecastCashFlow(cashFlowAsOfDate, cashFlowHorizon);
+  }
 
   function safeDecimal(s: string) {
     try {
@@ -139,6 +280,10 @@
       const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
       const reports = await buildAll(yr, ax);
       const processed = await processYear(yr);
+      const inventory = ledger.inventoryAutoValuationEnabled
+        ? await computeInventoryValuation(`${yr}-12-31`)
+        : null;
+      const budget = await computeBudgetVsActual(yr);
       const salesRatio = computeTaxableSalesRatio(
         processed.taxableBase10,
         processed.taxableBase8,
@@ -155,11 +300,14 @@
         locked: await isYearLocked(yr),
         taxableSalesRatioPercent: salesRatio.ratioPercent,
         taxableSalesRatioFullDeduction: isFullDeductionEligible(salesRatio),
+        inventory,
+        budget,
       };
     }).subscribe((v) => {
       monthly = v.monthly;
       pl = v.pl;
       bs = v.bs;
+      inventoryValuation = v.inventory;
       monthlyPL = v.monthlyPL;
       breakdown = v.breakdown;
       amendment = v.amendment;
@@ -170,6 +318,14 @@
       taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
       filingType = v.filingType;
       locked = v.locked;
+      budgetVsActual = v.budget;
+      // 予算編集欄（budgetDrafts）は年度切替時のみ同期する。ここは liveQuery の
+      // 全再発火（無関係な仕訳変更等でも起きる）を拾うため、編集中の入力を
+      // 上書きしないよう年度が変わった時だけ同期する。
+      if (lastBudgetDraftYear !== yr) {
+        lastBudgetDraftYear = yr;
+        syncBudgetDrafts(v.budget);
+      }
     });
     return () => sub.unsubscribe();
   });
@@ -632,6 +788,16 @@
         {/if}
       </div>
 
+      {#if inventoryValuation && inventoryValuation.items.length > 0}
+        <div class="border rounded px-3 py-2 text-xs text-muted-foreground space-y-1">
+          <p class="font-medium text-foreground">{m.reports_pl_inventory_suggestion_title()}</p>
+          <p class="tabular-nums">
+            {m.reports_pl_inventory_suggestion_total({ amount: formatJPY(inventoryValuation.totalValue.toString()) })}
+          </p>
+          <p>{m.reports_pl_inventory_suggestion_hint()}</p>
+        </div>
+      {/if}
+
       <div class="pt-4 border-t border-border flex justify-between items-baseline">
         <span class="text-base font-semibold">{m.reports_pl_net_income_label()}</span>
         <span
@@ -851,6 +1017,16 @@
           >
             {m.reports_breakdown_by_subaccount()}
           </button>
+          <button
+            type="button"
+            onclick={() => (breakdownAxis = 'department')}
+            class="px-3 py-1 border rounded"
+            class:bg-primary={breakdownAxis === 'department'}
+            class:text-primary-foreground={breakdownAxis === 'department'}
+            class:hover:bg-accent={breakdownAxis !== 'department'}
+          >
+            {m.reports_breakdown_by_department()}
+          </button>
         </div>
       </header>
       <div class="space-y-4">
@@ -874,6 +1050,378 @@
       </div>
     </section>
   {/if}
+
+  <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
+    <header class="flex items-baseline justify-between flex-wrap gap-2">
+      <h3 class="text-lg font-semibold">{m.reports_trend_title()}</h3>
+      <div class="flex items-end gap-2 text-xs">
+        <label class="block">
+          <span class="text-muted-foreground">{m.reports_trend_from()}</span>
+          <input
+            type="number"
+            bind:value={trendStartYear}
+            min="2020"
+            max="2099"
+            step="1"
+            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <label class="block">
+          <span class="text-muted-foreground">{m.reports_trend_to()}</span>
+          <input
+            type="number"
+            bind:value={trendEndYear}
+            min="2020"
+            max="2099"
+            step="1"
+            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <button
+          type="button"
+          onclick={loadTrend}
+          disabled={trendLoading}
+          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {trendLoading ? m.reports_trend_loading() : m.reports_trend_run()}
+        </button>
+      </div>
+    </header>
+
+    {#if trendError}
+      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+        {trendError}
+      </div>
+    {/if}
+
+    {#if multiYearPL}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-muted-foreground">
+              <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
+              {#each multiYearPL.years as y (y)}
+                <th class="text-right font-normal px-3 py-2 tabular-nums">{y}</th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="text-xs text-muted-foreground border-t border-border/50">
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>{m.reports_pl_revenue()}</td>
+            </tr>
+            {#each multiYearPL.revenue as row (row.accountCode)}
+              <tr class="border-t border-border/50">
+                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                {#each row.amounts as a, i (i)}
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
+                {/each}
+              </tr>
+            {/each}
+            <tr class="border-t border-border/50 font-medium">
+              <td class="px-3 py-1">{m.reports_pl_revenue_total()}</td>
+              {#each multiYearPL.yearlyTotalRevenue as v, i (i)}
+                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(v)}</td>
+              {/each}
+            </tr>
+            <tr class="text-xs text-muted-foreground border-t border-border/50">
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>{m.reports_pl_expense()}</td>
+            </tr>
+            {#each multiYearPL.expense as row (row.accountCode)}
+              <tr class="border-t border-border/50">
+                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                {#each row.amounts as a, i (i)}
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
+                {/each}
+              </tr>
+            {/each}
+            <tr class="border-t border-border/50 font-medium">
+              <td class="px-3 py-1">{m.reports_pl_expense_total()}</td>
+              {#each multiYearPL.yearlyTotalExpense as v, i (i)}
+                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(v)}</td>
+              {/each}
+            </tr>
+            <tr class="border-t-2 border-border font-semibold">
+              <td class="px-3 py-1">{m.reports_pl_net_income_label()}</td>
+              {#each multiYearPL.yearlyNetIncome as v, i (i)}
+                <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(v).isNegative()}>{formatJPY(v)}</td>
+              {/each}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {/if}
+
+    {#if multiYearBS}
+      <div class="overflow-x-auto pt-4 border-t border-border/50">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-muted-foreground">
+              <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
+              {#each multiYearBS.years as y (y)}
+                <th class="text-right font-normal px-3 py-2 tabular-nums">{y}</th>
+              {/each}
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="text-xs text-muted-foreground border-t border-border/50">
+              <td class="px-3 py-1 font-medium" colspan={multiYearBS.years.length + 1}>{m.reports_bs_assets()}</td>
+            </tr>
+            {#each multiYearBS.assets as row (row.accountCode)}
+              <tr class="border-t border-border/50">
+                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                {#each row.balances as b, i (i)}
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(b)}</td>
+                {/each}
+              </tr>
+            {/each}
+            <tr class="border-t border-border/50 font-medium">
+              <td class="px-3 py-1">{m.reports_bs_assets_total()}</td>
+              {#each multiYearBS.yearlyTotalAssets as v, i (i)}
+                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(v)}</td>
+              {/each}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </section>
+
+  <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
+    <h3 class="text-lg font-semibold">{m.reports_budget_title()}</h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-xs text-muted-foreground">
+            <th class="text-left font-normal px-3 py-2">{m.reports_budget_month()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_revenue_budget()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_revenue_actual()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_revenue_diff()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_expense_budget()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_expense_actual()}</th>
+            <th class="text-right font-normal px-3 py-2">{m.reports_budget_expense_diff()}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each budgetDrafts as d, i (d.month)}
+            {@const actual = budgetVsActual?.months[i]}
+            <tr class="border-t border-border/50">
+              <td class="px-3 py-1 tabular-nums">{m.journal_list_filter_month_label({ m: d.month })}</td>
+              <td class="px-3 py-1 text-right">
+                <input
+                  type="number"
+                  bind:value={d.revenueBudget}
+                  min="0"
+                  step="1"
+                  class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
+                />
+              </td>
+              <td class="px-3 py-1 text-right tabular-nums">{formatJPY(actual?.revenueActual ?? '0')}</td>
+              <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(actual?.revenueDiff ?? '0').isNegative()}>
+                {formatJPY(actual?.revenueDiff ?? '0')}
+              </td>
+              <td class="px-3 py-1 text-right">
+                <input
+                  type="number"
+                  bind:value={d.expenseBudget}
+                  min="0"
+                  step="1"
+                  class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
+                />
+              </td>
+              <td class="px-3 py-1 text-right tabular-nums">{formatJPY(actual?.expenseActual ?? '0')}</td>
+              <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(actual?.expenseDiff ?? '0').isPositive()}>
+                {formatJPY(actual?.expenseDiff ?? '0')}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    <div class="flex justify-end">
+      <button
+        type="button"
+        onclick={saveBudgets}
+        disabled={budgetSaving}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+      >
+        {budgetSaved ? m.settings_basic_saved() : m.reports_budget_save()}
+      </button>
+    </div>
+  </section>
+
+  <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
+    <h3 class="text-lg font-semibold">{m.reports_arap_title()}</h3>
+
+    <form onsubmit={submitArApEntry} class="flex flex-wrap gap-2 items-end text-xs">
+      <label class="block">
+        <span class="text-muted-foreground">{m.reports_arap_type()}</span>
+        <select
+          bind:value={newArApType}
+          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground"
+        >
+          <option value="receivable">{m.reports_arap_type_receivable()}</option>
+          <option value="payable">{m.reports_arap_type_payable()}</option>
+        </select>
+      </label>
+      <label class="block flex-1 min-w-40">
+        <span class="text-muted-foreground">{m.reports_arap_description()}</span>
+        <input
+          type="text"
+          bind:value={newArApDescription}
+          required
+          class="mt-1 w-full px-2 py-1.5 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block">
+        <span class="text-muted-foreground">{m.reports_arap_due_date()}</span>
+        <input
+          type="date"
+          bind:value={newArApDueDate}
+          required
+          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+        />
+      </label>
+      <label class="block">
+        <span class="text-muted-foreground">{m.reports_arap_amount()}</span>
+        <input
+          type="number"
+          bind:value={newArApAmount}
+          min="0"
+          step="1"
+          required
+          class="mt-1 w-28 px-2 py-1.5 bg-background border rounded text-foreground text-right tabular-nums"
+        />
+      </label>
+      <button
+        type="submit"
+        class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+      >
+        {m.reports_arap_add()}
+      </button>
+    </form>
+
+    {#if arApError}
+      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+        {arApError}
+      </div>
+    {/if}
+
+    {#if arApEntries.length > 0}
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-muted-foreground">
+              <th class="text-left font-normal px-3 py-2">{m.reports_arap_type()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.reports_arap_description()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.reports_arap_due_date()}</th>
+              <th class="text-right font-normal px-3 py-2">{m.reports_arap_amount()}</th>
+              <th class="text-right font-normal px-3 py-2">{m.reports_arap_remaining()}</th>
+              <th class="text-left font-normal px-3 py-2">{m.reports_arap_record_payment()}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each arApEntries as e (e.id)}
+              {@const remaining = remainingBalance(e)}
+              <tr class="border-t border-border/50">
+                <td class="px-3 py-1">
+                  {e.type === 'receivable' ? m.reports_arap_type_receivable() : m.reports_arap_type_payable()}
+                </td>
+                <td class="px-3 py-1">{e.description}</td>
+                <td class="px-3 py-1 tabular-nums whitespace-nowrap">{e.dueDate}</td>
+                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
+                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
+                <td class="px-3 py-1">
+                  {#if remaining.isPositive()}
+                    <div class="flex gap-1">
+                      <input
+                        type="number"
+                        value={paymentDrafts[e.id] ?? ''}
+                        oninput={(ev) => {
+                          paymentDrafts = { ...paymentDrafts, [e.id]: (ev.target as HTMLInputElement).value };
+                        }}
+                        min="0"
+                        step="1"
+                        placeholder={m.reports_arap_payment_placeholder()}
+                        class="w-24 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums text-xs"
+                      />
+                      <button
+                        type="button"
+                        onclick={() => submitPayment(e.id)}
+                        class="px-2 py-1 border rounded hover:bg-accent text-xs whitespace-nowrap"
+                      >
+                        {m.reports_arap_record_payment()}
+                      </button>
+                    </div>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {:else}
+      <p class="text-sm text-muted-foreground">{m.reports_arap_empty()}</p>
+    {/if}
+
+    <div class="pt-4 border-t border-border/50 space-y-3">
+      <h4 class="text-sm font-semibold">{m.reports_cashflow_title()}</h4>
+      <div class="flex flex-wrap items-end gap-2 text-xs">
+        <label class="block">
+          <span class="text-muted-foreground">{m.reports_cashflow_asof()}</span>
+          <input
+            type="date"
+            bind:value={cashFlowAsOfDate}
+            class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <label class="block">
+          <span class="text-muted-foreground">{m.reports_cashflow_horizon()}</span>
+          <input
+            type="number"
+            bind:value={cashFlowHorizon}
+            min="1"
+            max="24"
+            step="1"
+            class="mt-1 w-20 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <button
+          type="button"
+          onclick={loadCashFlowForecast}
+          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.reports_cashflow_run()}
+        </button>
+      </div>
+
+      {#if cashFlowForecastResult}
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-muted-foreground">
+                <th class="text-left font-normal px-3 py-2">{m.reports_cashflow_month()}</th>
+                <th class="text-right font-normal px-3 py-2">{m.reports_cashflow_inflow()}</th>
+                <th class="text-right font-normal px-3 py-2">{m.reports_cashflow_outflow()}</th>
+                <th class="text-right font-normal px-3 py-2">{m.reports_cashflow_net()}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each cashFlowForecastResult.months as mo (mo.yearMonth)}
+                <tr class="border-t border-border/50">
+                  <td class="px-3 py-1 tabular-nums">{mo.yearMonth}</td>
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(mo.expectedInflow)}</td>
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(mo.expectedOutflow)}</td>
+                  <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(mo.netChange).isNegative()}>
+                    {formatJPY(mo.netChange)}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {/if}
+    </div>
+  </section>
 
   {#if amendment}
     {@const a = amendment}

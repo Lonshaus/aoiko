@@ -136,7 +136,29 @@ After locking:
 
 For an amended return: **"Unlock"** → add correcting entries → **"Lock as Filed"** again. The diff is saved as a new snapshot, overwriting the old. The amended-filing flow is in [12. Amended filing](12-amended_en.md).
 
-## 9. Sanity-check perspectives
+## 9. Multi-year trend analysis
+
+In the **"Multi-year trend analysis"** section, pick a start and end year (up to 10 years) and press **"Run analysis"** to compare P/L and balance-sheet account amounts side by side across years.
+
+> This is a plain numeric table, not a chart — you can directly subtract the two columns to see how much changed. It only computes on demand (opening the page doesn't trigger it automatically).
+
+Covers P/L and BS only (consumption tax, fixed assets, etc. are out of scope).
+
+## 10. Budget management & cash flow forecast
+
+### 10-1. Budget vs actual
+
+In the **"Budget management"** section, enter a **revenue budget** and **expense budget** per month, then press **"Save budget"**. The same row shows actuals (pulled automatically from the existing monthly totals) and the difference.
+
+> Budgets are monthly totals only (not broken down by account).
+
+### 10-2. Receivables/payables and cash flow forecast
+
+In the **"Receivables & payables"** section, register each item with a type (receivable/payable), description, due date, and amount — it's tracked as an independent sub-ledger. When a payment comes in or goes out, enter the amount in that row's field and press **"Record payment"** (the remaining balance decreases automatically).
+
+Below, in **"Cash flow forecast"**, pick an as-of date and horizon (in months), then press **"Run forecast"** to see expected inflow, outflow, and net change per month. Anything past due but not yet settled is rolled into the nearest month.
+
+## 11. Sanity-check perspectives
 
 When looking at Reports, scan these points for anything off:
 
@@ -150,7 +172,7 @@ When looking at Reports, scan these points for anything off:
 
 > If you find something off, use the journal-list filters ([02. § 2](02-journal_en.md#2-browsing-entries--journal-list)) to narrow down to the culprit, then reverse and re-enter.
 
-## 10. Next steps
+## 12. Next steps
 
 - Once books are stable, export to e-Tax format → [10. `.xtx` export](10-xtx-export_en.md)
 - Lock the year after filing → § 8
