@@ -115,6 +115,8 @@ export interface Vendor {
   defaultAccountCode?: string;
   defaultTaxRate?: number;
   aliases?: string[];
+  // 請求書（C1）の送付先住所。既存の取引先（仕入先）には不要なので任意項目。
+  address?: string;
 }
 // 簡易在庫管理（C4）の商品主檔。数量・単価は保持しない（JournalLine の itemId/quantity から
 // 都度導出する。分錄が唯一の真実の情報源という原則に従い、別途可変状態を持たない）。
@@ -385,4 +387,41 @@ export interface Setting<T = unknown> {
   key: string;
   value: T;
   updatedAt: number;
+}
+// 請求書・見積書の発行（C1）。
+// 見積書は成立前の提案のため仕訳・ArApEntry を一切生成しない（documentType==='quote' は
+// journalEntryId/arApEntryId を持たない）。請求書は発行時に仕訳＋ArApEntry を自動生成する。
+// 発行済み文書の訂正は削除して作り直すのではなく、journal.ts と同じ打消し仕訳方式（voidInvoice）。
+export type InvoiceDocumentType = 'invoice' | 'quote';
+export type InvoiceStatus = 'draft' | 'issued' | 'voided';
+
+export interface InvoiceLineItem {
+  id: string;
+  name: string;
+  quantity: string;
+  // 税抜単価。インボイス制度の「税率ごとに 1 回だけ端数処理」の原則に合わせ、
+  // 消費税額は明細行単位ではなく税率グループ単位で計算する（invoice.ts 参照）。
+  unitPrice: string;
+  taxRate: 0.1 | 0.08;
+}
+
+export interface Invoice {
+  id: string;
+  documentType: InvoiceDocumentType;
+  status: InvoiceStatus;
+  // 発行時に採番。下書きの間は空文字（採番すると欠番が発生するため発行時まで確定させない）。
+  number: string;
+  vendorId: string;
+  date: string;       // 取引年月日（YYYY-MM-DD）
+  dueDate?: string;    // 請求書のみ。ArApEntry.dueDate と同期
+  lineItems: InvoiceLineItem[];
+  memo?: string;
+  // 発行時（請求書のみ）に生成した仕訳・ArApEntry への参照
+  journalEntryId?: string;
+  arApEntryId?: string;
+  // 見積書 → 請求書のワンクリック変換で生成された請求書への参照（見積書側にのみ設定）
+  convertedToInvoiceId?: string;
+  createdAt: number;
+  issuedAt?: number;
+  voidedAt?: number;
 }
