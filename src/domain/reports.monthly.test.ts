@@ -15,6 +15,7 @@ const TEST_ACCOUNTS: Account[] = [
 
 async function addEntry(opts: {
   date: string;
+  department?: string;
   lines: Array<{
     side: LineSide;
     accountCode: string;
@@ -31,6 +32,7 @@ async function addEntry(opts: {
       date: opts.date,
       year: Number(opts.date.slice(0, 4)),
       description: 'テスト',
+      ...(opts.department !== undefined ? { department: opts.department } : {}),
       status: 'confirmed',
       source: 'manual',
       createdAt: now,
@@ -242,5 +244,42 @@ describe('buildBreakdown', () => {
     expect(g!.entries).toHaveLength(2);
     expect(g!.entries[0]!.label).toBe('三菱UFJ');
     expect(g!.entries[0]!.amount).toBe('50000');
+  });
+
+  test('部門別（department、分錄ではなく仕訳単位のタグ）', async () => {
+    await addEntry({
+      date: '2026-04-01',
+      department: '東京店',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '10000' },
+        { side: 'credit', accountCode: '1130', amount: '10000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-05-01',
+      department: '大阪店',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-06-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '3000' },
+        { side: 'credit', accountCode: '1130', amount: '3000' },
+      ],
+    });
+
+    const r = await buildBreakdown(2026, 'department');
+    const g = r.groups.find((x) => x.accountCode === '5150');
+    expect(g).toBeDefined();
+    expect(g!.total).toBe('18000');
+    expect(g!.entries).toHaveLength(3);
+    expect(g!.entries[0]!.label).toBe('東京店');
+    expect(g!.entries[0]!.amount).toBe('10000');
+    const unclassified = g!.entries.find((e) => e.key === '');
+    expect(unclassified!.label).toBe('（未分類）');
+    expect(unclassified!.amount).toBe('3000');
   });
 });

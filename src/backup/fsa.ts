@@ -1,4 +1,4 @@
-import type { BackupAdapter, BackupPayload } from './types';
+import type { BackupAdapter } from './types';
 
 type GetHandle = () => Promise<FileSystemDirectoryHandle | null>;
 type SetHandle = (handle: FileSystemDirectoryHandle) => Promise<void>;
@@ -42,7 +42,7 @@ export class FsaBackupAdapter implements BackupAdapter {
     await this.setHandle(handle);
   }
 
-  async backup(payload: BackupPayload): Promise<{ fileName: string }> {
+  async backup(bytes: Uint8Array, fileName: string): Promise<{ fileName: string }> {
     const h = await this.getHandle();
     if (!h) {
       throw new Error('バックアップフォルダが未設定です');
@@ -50,11 +50,11 @@ export class FsaBackupAdapter implements BackupAdapter {
     if (!(await this.ensurePermission())) {
       throw new Error('フォルダへのアクセス許可が拒否されました');
     }
-    const date = payload.exportedAt.slice(0, 10);
-    const fileName = `aoiko-ledger-${date}.json`;
     const fileHandle = await h.getFileHandle(fileName, { create: true });
     const writable = await fileHandle.createWritable();
-    await writable.write(JSON.stringify(payload, null, 2));
+    // TS の Uint8Array<ArrayBufferLike> vs FileSystemWriteChunkType の ArrayBuffer 限定の
+    // 型不一致を吸収する（fflate の出力は ArrayBufferLike 型のまま）。
+    await writable.write(bytes.slice());
     await writable.close();
     return { fileName };
   }

@@ -2,10 +2,15 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
+  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
+  import { buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { newId } from '../lib/id';
+  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
+  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
 
@@ -19,7 +24,12 @@
     homeOfficeRatio: string;  // '' = 未設定 (=100%), '0.30' 等
     taxCategory: '' | TaxCategory;  // '' = 科目の既定値を使用
     inputUsageCategory: '' | InputUsageCategory;  // '' = taxableOnly 扱い
+    itemId: string;   // 簡易在庫管理（C4）。仕入・売上科目でのみ意味を持つ
+    quantity: string;
   };
+  // 簡易在庫管理（C4）の対象科目（仕入・売上高）。実estate用の複製科目は対象外
+  // （不動産所得に在庫の概念は無い）。
+  const INVENTORY_TRACKED_ACCOUNTS = new Set(['5020', '4110']);
 
   const TAX_OPTIONS: Array<{ value: number; label: () => string }> = [
     { value: 0, label: () => m.journal_tax_exempt() },
@@ -58,10 +68,20 @@
     homeOfficeRatio: '',
     taxCategory: '',
     inputUsageCategory: '',
+    itemId: '',
+    quantity: '',
   });
 
   let date = $state(today());
   let description = $state('');
+  let department = $state('');
+  // 証憑写真の添付（C7）。確認済みで送信待ちのファイル一覧。
+  let attachments = $state<{ id: string; file: File; previewUrl: string }[]>([]);
+  let attachmentError = $state('');
+  let attachmentConfirmOpen = $state(false);
+  let attachmentPreview = $state<string | null>(null);
+  let pendingAttachmentFile: File | null = null;
+  let pendingAttachmentInput: HTMLInputElement | null = null;
   let debits = $state<DraftLine[]>([emptyLine()]);
   let credits = $state<DraftLine[]>([emptyLine()]);
   let error = $state('');
@@ -129,9 +149,85 @@
 
   function reset() {
     description = '';
+    department = '';
+    for (const a of attachments) {
+      URL.revokeObjectURL(a.previewUrl);
+    }
+    attachments = [];
+    attachmentError = '';
     debits = [emptyLine()];
     credits = [emptyLine()];
     error = '';
+  }
+
+  async function handleAttachmentFile(e: Event) {
+    attachmentError = '';
+    const input = e.target as HTMLInputElement;
+    const f = input.files?.[0];
+    if (!f) {
+      return;
+    }
+    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+      attachmentError = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      input.value = '';
+      return;
+    }
+    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+      pendingAttachmentFile = f;
+      pendingAttachmentInput = input;
+      attachmentPreview = URL.createObjectURL(f);
+      attachmentConfirmOpen = true;
+      return;
+    }
+    stageAttachment(f);
+    input.value = '';
+  }
+
+  function stageAttachment(f: File) {
+    attachments = [...attachments, { id: newId(), file: f, previewUrl: URL.createObjectURL(f) }];
+  }
+
+  async function onAttachmentConfirm(dontAskAgain: boolean) {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    const f = pendingAttachmentFile;
+    const input = pendingAttachmentInput;
+    pendingAttachmentFile = null;
+    pendingAttachmentInput = null;
+    if (!f) {
+      return;
+    }
+    if (dontAskAgain) {
+      await setSetting('skipAttachmentConfirm', true);
+    }
+    stageAttachment(f);
+    if (input) {
+      input.value = '';
+    }
+  }
+
+  function onAttachmentCancel() {
+    attachmentConfirmOpen = false;
+    if (attachmentPreview) {
+      URL.revokeObjectURL(attachmentPreview);
+      attachmentPreview = null;
+    }
+    pendingAttachmentFile = null;
+    if (pendingAttachmentInput) {
+      pendingAttachmentInput.value = '';
+      pendingAttachmentInput = null;
+    }
+  }
+
+  function removeAttachment(id: string) {
+    const target = attachments.find((a) => a.id === id);
+    if (target) {
+      URL.revokeObjectURL(target.previewUrl);
+    }
+    attachments = attachments.filter((a) => a.id !== id);
   }
 
   async function handleSubmit(e: Event) {
@@ -151,6 +247,8 @@
         homeOfficeRatio: string;
         taxCategory?: '' | JournalLine['taxCategory'];
         inputUsageCategory?: '' | JournalLine['inputUsageCategory'];
+        itemId?: string;
+        quantity?: string;
       };
       const buildLines = (drafts: LineLike[], side: 'debit' | 'credit'): JournalLine[] =>
         drafts.map((d) => ({
@@ -167,6 +265,7 @@
           ...(d.homeOfficeRatio ? { homeOfficeRatio: d.homeOfficeRatio } : {}),
           ...(d.taxCategory ? { taxCategory: d.taxCategory } : {}),
           ...(d.inputUsageCategory ? { inputUsageCategory: d.inputUsageCategory } : {}),
+          ...(d.itemId && d.quantity ? { itemId: d.itemId, quantity: d.quantity } : {}),
         }));
       // 家事按分のある借方明細を「事業使用分」+「事業主貸」に分解
       const debitsForExpansion: SplittableLine[] = debits.map((d) => ({
@@ -180,6 +279,8 @@
         homeOfficeRatio: d.homeOfficeRatio,
         taxCategory: d.taxCategory,
         inputUsageCategory: d.inputUsageCategory,
+        itemId: d.itemId,
+        quantity: d.quantity,
       }));
       const expandedDebits = expandHomeOffice(debitsForExpansion);
 
@@ -189,19 +290,29 @@
       ];
       validateLines(lines);
 
-      await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
-        await db.journalEntries.add({
-          id: entryId,
-          date,
-          year: Number(date.slice(0, 4)),
-          description,
-          status: 'confirmed',
-          source: 'manual',
-          createdAt: now,
-          confirmedAt: now,
-        });
-        await db.journalLines.bulkAdd(lines);
-      });
+      await db.transaction(
+        'rw',
+        [db.journalEntries, db.journalLines, db.attachments],
+        async () => {
+          await db.journalEntries.add({
+            id: entryId,
+            date,
+            year: Number(date.slice(0, 4)),
+            description,
+            ...(department ? { department } : {}),
+            status: 'confirmed',
+            source: 'manual',
+            createdAt: now,
+            confirmedAt: now,
+          });
+          await db.journalLines.bulkAdd(lines);
+          if (attachments.length > 0) {
+            await db.attachments.bulkAdd(
+              attachments.map((a) => buildAttachmentRecord(entryId, a.file, now))
+            );
+          }
+        }
+      );
 
       reset();
       date = today();
@@ -265,6 +376,50 @@
         placeholder={m.journal_form_placeholder_description()}
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
+    </label>
+    <label class="block sm:col-span-3">
+      <span class="text-xs text-muted-foreground">{m.journal_form_label_department()}</span>
+      <input
+        type="text"
+        list="department-options"
+        bind:value={department}
+        placeholder={m.journal_form_placeholder_department()}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+      />
+      <datalist id="department-options">
+        {#each ledger.departments as d (d)}
+          <option value={d}></option>
+        {/each}
+      </datalist>
+    </label>
+    <label class="block sm:col-span-3">
+      <span class="text-xs text-muted-foreground">{m.journal_form_label_attachment()}</span>
+      <input
+        type="file"
+        accept="image/*"
+        onchange={handleAttachmentFile}
+        class="mt-1 w-full text-sm text-muted-foreground"
+      />
+      {#if attachmentError}
+        <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
+      {/if}
+      {#if attachments.length > 0}
+        <ul class="mt-2 flex flex-wrap gap-2">
+          {#each attachments as a (a.id)}
+            <li class="relative">
+              <img src={a.previewUrl} alt={a.file.name} class="h-16 w-16 object-cover rounded border" />
+              <button
+                type="button"
+                onclick={() => removeAttachment(a.id)}
+                class="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs leading-none"
+                aria-label={m.journal_form_attachment_remove()}
+              >
+                ×
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
     </label>
   </div>
 
@@ -379,6 +534,27 @@
               <option value={opt.value}>{opt.label()}</option>
             {/each}
           </select>
+          {#if ledger.inventoryAutoValuationEnabled && INVENTORY_TRACKED_ACCOUNTS.has(line.accountCode)}
+            <select
+              bind:value={line.itemId}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              <option value="">{m.journal_form_inventory_item_select()}</option>
+              {#each ledger.inventoryItems as it (it.id)}
+                <option value={it.id}>{it.name}</option>
+              {/each}
+            </select>
+            {#if line.itemId}
+              <input
+                type="number"
+                bind:value={line.quantity}
+                min="0"
+                step="1"
+                placeholder={m.journal_form_inventory_quantity_placeholder()}
+                class="w-20 px-2 py-0.5 bg-background border rounded text-right text-foreground tabular-nums"
+              />
+            {/if}
+          {/if}
         </div>
       {/if}
     {/each}
@@ -504,6 +680,27 @@
               <option value={opt.value}>{opt.label()}</option>
             {/each}
           </select>
+          {#if ledger.inventoryAutoValuationEnabled && INVENTORY_TRACKED_ACCOUNTS.has(line.accountCode)}
+            <select
+              bind:value={line.itemId}
+              class="px-2 py-0.5 bg-background border rounded text-foreground"
+            >
+              <option value="">{m.journal_form_inventory_item_select()}</option>
+              {#each ledger.inventoryItems as it (it.id)}
+                <option value={it.id}>{it.name}</option>
+              {/each}
+            </select>
+            {#if line.itemId}
+              <input
+                type="number"
+                bind:value={line.quantity}
+                min="0"
+                step="1"
+                placeholder={m.journal_form_inventory_quantity_placeholder()}
+                class="w-20 px-2 py-0.5 bg-background border rounded text-right text-foreground tabular-nums"
+              />
+            {/if}
+          {/if}
         </div>
       {/if}
     {/each}
@@ -548,3 +745,10 @@
     </button>
   </div>
 </form>
+
+<AttachmentConfirmDialog
+  open={attachmentConfirmOpen}
+  previewUrl={attachmentPreview}
+  onconfirm={onAttachmentConfirm}
+  oncancel={onAttachmentCancel}
+/>

@@ -58,6 +58,9 @@ export interface JournalEntry {
   sourceImportId?: string;
   createdAt: number;
   confirmedAt: number;
+  // 部門タグ（C5）。複数事業体・複数拠点等の軽量な分類用の自由記述タグ。
+  // 集計・絞込のみに使う表示用ラベルで、税額計算・.xtx 出力には一切関与しない。
+  department?: string;
 }
 
 export interface JournalLine {
@@ -78,6 +81,9 @@ export interface JournalLine {
   taxCategory?: TaxCategory;
   // 個別対応方式の用途区分の上書き。未指定なら 'taxableOnly'
   inputUsageCategory?: InputUsageCategory;
+  // 簡易在庫管理（C4）。仕入・売上科目の行でのみ意味を持つ（itemId とペアで指定）。
+  itemId?: string;
+  quantity?: string;
 }
 
 export interface Account {
@@ -109,6 +115,46 @@ export interface Vendor {
   defaultAccountCode?: string;
   defaultTaxRate?: number;
   aliases?: string[];
+}
+// 簡易在庫管理（C4）の商品主檔。数量・単価は保持しない（JournalLine の itemId/quantity から
+// 都度導出する。分錄が唯一の真実の情報源という原則に従い、別途可変状態を持たない）。
+export interface InventoryItem {
+  id: string;
+  name: string;
+}
+// 証憑原本（C7）。分錄と同一 transaction で書き込む（孤児画像・空参照を防ぐため）。
+// entryId は 1:N（同じ仕訳に複数枚の添付可）。確定仕訳と同様、更新・削除の口は用意しない
+// （不可竄改。附け間違いは訂正仕訳＋別記録で対応、電子帳簿保存法の真実性確保要件）。
+export interface Attachment {
+  id: string;
+  entryId: string;
+  blob: Blob;
+  mimeType: string;
+  fileName: string;
+  createdAt: number;
+}
+
+// 予算管理（C10）。月次総額（収入予算・支出予算）のみ、科目別には分解しない
+// （個人事業主想定では科目別入力の設定コストが見合わないとユーザーと合意——AOIKO_FUTURE_IDEAS.md 参照）。
+export interface Budget {
+  year: number;
+  month: number;  // 1-12
+  revenueBudget: string;
+  expenseBudget: string;
+}
+// 現金流予測（C10）用の独立した売掛金/買掛金子帳。JournalLine に到期日を持たせず
+// 独立表にした理由：分錄は確定後不可変更だが、入金/支払は分割・延滞等で状態が変化し続けるため
+// （詳細は project memory 参照）。
+export type ArApType = 'receivable' | 'payable';
+
+export interface ArApEntry {
+  id: string;
+  type: ArApType;
+  description: string;
+  dueDate: string;       // YYYY-MM-DD
+  originalAmount: string;
+  paidAmount: string;    // 累計収受・支払済み額（originalAmount 到達で決済完了）
+  createdAt: number;
 }
 
 export type ParserRuleMatchType = 'vendor-name' | 'description-includes' | 'regex';
