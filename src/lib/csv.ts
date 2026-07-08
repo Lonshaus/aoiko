@@ -58,3 +58,15 @@ export function parseCsv(text: string): string[][] {
   // 完全に空の行は除外
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }
+// CSV 出力用のフィールドエスケープ（RFC 4180）。カンマ・ダブルクォート・改行を
+// 含む場合のみ "" でクォートし、内部の " は "" にエスケープする。
+export function csvField(value: string): string {
+  if (/[",\r\n]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+// 複数行の CSV テキストを組み立てる。lineEnding は既定で CRLF（弥生形式が要求する改行）。
+export function buildCsv(rows: string[][], lineEnding: '\r\n' | '\n' = '\r\n'): string {
+  return rows.map((row) => row.map(csvField).join(',')).join(lineEnding) + lineEnding;
+}

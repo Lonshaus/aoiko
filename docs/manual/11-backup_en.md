@@ -137,7 +137,21 @@ Three layers:
 
 > Especially important for years you've already filed. Combine with year lock ([06. § 8](06-reports_en.md#8-year-lock-filed)) for change detection.
 
-## 8. Next steps
+## 8. Handing data off to your accountant
+
+Settings → **"Export for your accountant"** lets you export journal entries as CSV for handing off to your tax accountant (this is separate from the backup zip — the backup is for restoring aoiko itself; this is for importing into other accounting software).
+
+| File | Format | Purpose |
+|---|---|---|
+| Yayoi-format CSV | Shift-JIS, CRLF, 25 columns | **Default, recommended.** Readable by most Japanese accounting software (Yayoi, freee, Money Forward, etc.) via their "Yayoi format import" option |
+| Generic CSV | UTF-8, one row per journal line | Fallback for accounting software that doesn't support Yayoi format |
+| Correction (cancellation) history CSV | UTF-8 | List of correcting entries (original + reversal). The two main CSVs exclude correction pairs from totals, so use this if you need to see what was cancelled |
+
+The target year is whichever year is currently selected under "Basic info" in Settings.
+
+> **About tax category codes**: The "tax category" column in the Yayoi-format CSV (taxable sales, taxable purchase, etc.) is inferred by aoiko itself. It is not an officially guaranteed spec, especially around reduced tax rates, invoice-deduction rates, and simplified-taxation business categories — please have your accountant verify these before importing.
+
+## 9. Next steps
 
 - Amend a previously-filed year → [12. Amended filing](12-amended_en.md)
 - Also store `.xtx` outputs in multiple places → [10. `.xtx` export](10-xtx-export_en.md)
