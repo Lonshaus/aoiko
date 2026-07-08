@@ -9,6 +9,7 @@ const ROUTE_CHAPTER: Record<string, string> = {
   '/receipt': '04-receipt-ocr',
   '/settings': '01-setup',
   '/income-deductions': '14-income-deductions',
+  '/invoices': '15-invoices',
 }
 
 export function pathToChapter(path: string): string | null {

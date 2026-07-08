@@ -34,6 +34,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 12. [Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
 13. [Business opening setup (Opening Wizard)](13-opening-setup_en.md) — pre-opening expenses, converted-asset book value calculation, custom items
 14. [Income & tax deductions](14-income-deductions_en.md) — entering family, insurance, medical expense, and donation data; estimating from the basic deduction through the special reconstruction income tax; reflecting the result in the `.xtx` export
+15. [Issuing invoices and quotes](15-invoices_en.md) — auto-generated journal entry and receivable on issue, correction via reversing entry, converting a quote to an invoice
 
 ## Feedback
 
