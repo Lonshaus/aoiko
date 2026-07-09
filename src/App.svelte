@@ -48,6 +48,7 @@
     '/invoices': memo(() => import('./routes/Invoices.svelte')),
     '/settings': memo(() => import('./routes/Settings.svelte')),
     '/opening-setup': memo(() => import('./routes/OpeningSetup.svelte')),
+    '/accountant-export': memo(() => import('./routes/AccountantExport.svelte')),
   };
   const routeLoader = $derived(ROUTE_COMPONENT[router.path] ?? null);
 </script>

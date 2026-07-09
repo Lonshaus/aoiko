@@ -7,6 +7,7 @@ describe('pathToChapter', () => {
     expect(pathToChapter('/reports')).toBe('06-reports')
     expect(pathToChapter('/settings')).toBe('01-setup')
     expect(pathToChapter('/import-history')).toBe('03-csv-import')
+    expect(pathToChapter('/accountant-export')).toBe('11-backup')
   })
 
   it('対応が無ければ null', () => {
