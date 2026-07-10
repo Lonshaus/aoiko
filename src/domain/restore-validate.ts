@@ -36,6 +36,7 @@ const PRIMARY_KEY: Record<string, string> = {
   attachments: 'id',
   budgets: 'year',
   arApEntries: 'id',
+  invoices: 'id',
 };
 
 function validateJournalEntry(r: unknown, i: number): void {
