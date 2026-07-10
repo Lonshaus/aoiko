@@ -139,7 +139,7 @@ Three layers:
 
 ## 8. Handing data off to your accountant
 
-Settings → **"Open accountant export"** takes you to a dedicated screen where you can export journal entries as CSV for handing off to your tax accountant (this is separate from the backup zip — the backup is for restoring aoiko itself; this is for importing into other accounting software).
+Settings → **"Export for your accountant"** lets you export journal entries as CSV for handing off to your tax accountant (this is separate from the backup zip — the backup is for restoring aoiko itself; this is for importing into other accounting software).
 
 | File | Format | Purpose |
 |---|---|---|
