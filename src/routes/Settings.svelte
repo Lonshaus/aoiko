@@ -192,6 +192,31 @@
   let filingType = $state<FilingType>('blue');
   let pendingFilingType = $state<FilingType | null>(null);
   let confirmingFilingType = $state(false);
+  type PendingConfirm = { title: string; desc: string; action: string; run: () => Promise<void> };
+  let pendingConfirm = $state<PendingConfirm | null>(null);
+  let confirmingDelete = $state(false);
+  function askDelete(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_delete_confirm_title(),
+      desc: m.settings_delete_confirm_desc({ name }),
+      action: m.settings_action_delete(),
+      run,
+    };
+    confirmingDelete = true;
+  }
+  function askClearDisposal(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_disposal_clear_confirm_title(),
+      desc: m.settings_disposal_clear_confirm_desc({ name }),
+      action: m.settings_asset_disposal_clear(),
+      run,
+    };
+    confirmingDelete = true;
+  }
+  async function runPendingConfirm() {
+    confirmingDelete = false;
+    await pendingConfirm?.run();
+  }
   let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
   let filerSaved = $state(false);
   const zeimushoCodeInvalid = $derived(
@@ -1412,7 +1437,7 @@
                   <span>{sa.name}</span>
                   <button
                     type="button"
-                    onclick={() => deleteSubAccount(sa.id)}
+                    onclick={() => askDelete(sa.name, () => deleteSubAccount(sa.id))}
                     class="text-xs text-muted-foreground hover:text-destructive"
                   >
                     {m.settings_action_delete()}
@@ -1515,7 +1540,7 @@
               {/if}
               <button
                 type="button"
-                onclick={() => deleteVendor(v.id)}
+                onclick={() => askDelete(v.name, () => deleteVendor(v.id))}
                 class="text-xs text-muted-foreground hover:text-destructive"
               >
                 {m.settings_action_delete()}
@@ -1560,7 +1585,7 @@
               <span class="flex-1 min-w-40 break-all">{it.name}</span>
               <button
                 type="button"
-                onclick={() => deleteInventoryItem(it.id)}
+                onclick={() => askDelete(it.name, () => deleteInventoryItem(it.id))}
                 class="text-xs text-muted-foreground hover:text-destructive"
               >
                 {m.settings_action_delete()}
@@ -1734,7 +1759,7 @@
                 </button>
                 <button
                   type="button"
-                  onclick={() => deleteAsset(a.id)}
+                  onclick={() => askDelete(a.name, () => deleteAsset(a.id))}
                   class="ml-2 text-xs text-muted-foreground hover:text-destructive"
                 >
                   {m.settings_action_delete()}
@@ -1916,7 +1941,7 @@
                       {#if a.disposedDate}
                         <button
                           type="button"
-                          onclick={() => clearDisposal(a.id)}
+                          onclick={() => askClearDisposal(a.name, () => clearDisposal(a.id))}
                           class="px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive"
                         >
                           {m.settings_asset_disposal_clear()}
@@ -2052,7 +2077,7 @@
             <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_hits({ n: r.hitCount })}</span>
             <button
               type="button"
-              onclick={() => deleteRule(r.id)}
+              onclick={() => askDelete(r.pattern, () => deleteRule(r.id))}
               class="ml-auto text-xs text-muted-foreground hover:text-destructive"
             >
               {m.settings_action_delete()}
@@ -2484,6 +2509,24 @@
         class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
       >
         {m.settings_restore_confirm_action()}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
+
+<AlertDialog.Root bind:open={confirmingDelete}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>{pendingConfirm?.title}</AlertDialog.Title>
+      <AlertDialog.Description>{pendingConfirm?.desc}</AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action
+        onclick={runPendingConfirm}
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      >
+        {pendingConfirm?.action}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
