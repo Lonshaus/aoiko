@@ -512,11 +512,10 @@
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
-  // period 指定時は中間申告（仮決算方式）用の .xtx を出力する（SHINKOKU_KBN=2・対象期間付き、
-  // 中間納付税額の充当は行わない）。未指定（既定）は確定申告（中間納付税額があれば充当する）。
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
-  async function downloadConsumptionTaxXtx(period?: { start: string; end: string }) {
-    if (!period && !isTwoWariEligibleYear(year)) {
+  // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。
+  async function downloadConsumptionTaxXtx() {
+    if (!isTwoWariEligibleYear(year)) {
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
     }
@@ -527,7 +526,7 @@
     }
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
-    const processed = await processYear(year, period);
+    const processed = await processYear(year);
     const xml = buildTwoWariXtx({
       year,
       businessName,
@@ -538,14 +537,10 @@
       badDebtTax8: processed.badDebtTax8,
       badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
       badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
-      ...(period
-        ? { interimPeriod: period }
-        : {
-            interimPaidNational: safeDecimal(interimPaidNationalInput),
-            interimPaidLocal: safeDecimal(interimPaidLocalInput),
-          }),
+      interimPaidNational: safeDecimal(interimPaidNationalInput),
+      interimPaidLocal: safeDecimal(interimPaidLocalInput),
     });
-    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
+    downloadXml(xml, `aoiko-shohi-${year}.xtx`);
   }
   // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
@@ -1679,15 +1674,6 @@
           </label>
           <p class="text-xs text-muted-foreground">{m.reports_interim_kari_kessan_intro()}</p>
           <div class="flex flex-wrap gap-2">
-            {#if ct && ct.some((r) => r.method === 'two-wari')}
-              <button
-                type="button"
-                onclick={() => downloadConsumptionTaxXtx(selectedInstallment)}
-                class="px-4 py-2 border rounded hover:bg-accent"
-              >
-                {m.reports_consumption_tax_xtx_two_wari_download()}
-              </button>
-            {/if}
             <button
               type="button"
               onclick={() => downloadSimplifiedXtx(selectedInstallment)}
