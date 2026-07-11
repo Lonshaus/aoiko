@@ -200,6 +200,60 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.sha010.AAK00130).toBe('111700');
   });
 
+  test('仕入税額控除が売上税額を上回る本体還付：差引欄でなく控除不足還付欄へ正値', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('200000'),
+      input8: D('0'),
+      ...zeroExtras(),
+    });
+    // 売上税額 78000 − 仕入税額控除 200000 = −122000 → 控除不足還付 122000
+    expect(result.sha010.AAJ00090).toBe('122000');
+    expect(result.sha010.AAJ00100).toBeUndefined();
+    // 納付税額（差引の充当先）は出力しない
+    expect(result.sha010.AAJ00120).toBeUndefined();
+    // 地方：課税標準となる消費税額も控除不足還付欄へ
+    expect(result.sha010.AAK00020).toBe('122000');
+    expect(result.sha010.AAK00030).toBeUndefined();
+    // 譲渡割額 = 122000 × 22/78 = 34410.25… → 百円未満切り捨て 34400 を還付額へ
+    expect(result.sha010.AAK00050).toBe('34400');
+    expect(result.sha010.AAK00060).toBeUndefined();
+    expect(result.sha010.AAK00080).toBeUndefined();
+    // 合計（納付又は還付）は符号付き純額（負＝還付）
+    expect(result.sha010.AAK00130).toBe('-156400');
+    // 付表1-3 も同様に控除不足還付欄へ
+    expect(result.shb017.DSG00000).toBe('122000');
+    expect(result.shb017.DSH00000).toBeUndefined();
+    expect(result.shb017.DSI00010).toBe('122000');
+    expect(result.shb017.DSI00020).toBeUndefined();
+    expect(result.shb017.DSJ00010).toBe('34400');
+    expect(result.shb017.DSJ00020).toBeUndefined();
+  });
+
+  test('本体還付かつ中間納付あり:控除不足還付と中間納付還付を二重計上しない', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('200000'),
+      input8: D('0'),
+      ...zeroExtras(),
+      interimPaidNational: D('30000'),
+      interimPaidLocal: D('5000'),
+    });
+    // 控除不足還付は据え置き（中間納付の影響を受けない）
+    expect(result.sha010.AAJ00090).toBe('122000');
+    expect(result.sha010.AAJ00100).toBeUndefined();
+    // 差引が無いので中間納付額の全額が中間納付還付税額
+    expect(result.sha010.AAJ00110).toBe('30000');
+    expect(result.sha010.AAJ00130).toBe('30000');
+    expect(result.sha010.AAJ00120).toBeUndefined();
+    expect(result.sha010.AAK00090).toBe('5000');
+    expect(result.sha010.AAK00080).toBeUndefined();
+    // 合計 = −(控除不足還付122000 + 譲渡割還付34400 + 中間納付還付30000 + 5000)
+    expect(result.sha010.AAK00130).toBe('-191400');
+  });
+
   test('中間納付税額が確定申告の差引税額を上回る場合は還付になる', () => {
     const result = mapGeneral({
       taxableBase10: D('1000000'),
