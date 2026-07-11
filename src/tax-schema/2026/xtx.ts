@@ -14,7 +14,7 @@
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { FixedAsset, PersonalDeductionInput } from '../../db/types';
-import { D } from '../../lib/decimal';
+import { D, type Decimal } from '../../lib/decimal';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -70,6 +70,19 @@ const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
 
+// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、throw させず 0 扱いにする。
+function toDec(s: string): Decimal {
+  const trimmed = s.trim();
+  if (trimmed === '') {
+    return D(0);
+  }
+  try {
+    return D(trimmed);
+  } catch {
+    return D(0);
+  }
+}
+
 // db.personalDeductions（年度ごとに保存された確定額、文字列）を XtxContext.personalDeductions
 // （計算用の Decimal 形状）へ変換する。IncomeDeductions.svelte の試算プレビューと
 // Reports.svelte の .xtx 出力の両方から、この1関数だけを共通で使う（値の食い違いを防ぐ）。
@@ -77,63 +90,63 @@ export function personalDeductionsToCtx(
   stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>
 ): NonNullable<XtxContext['personalDeductions']> {
   return {
-    socialInsurancePaid: D(stored.socialInsurancePaid),
-    smallBusinessMutualAidPaid: D(stored.smallBusinessMutualAidPaid),
+    socialInsurancePaid: toDec(stored.socialInsurancePaid),
+    smallBusinessMutualAidPaid: toDec(stored.smallBusinessMutualAidPaid),
     lifeInsurance: {
-      ...(stored.lifeInsurance.newGeneral !== undefined ? { newGeneral: D(stored.lifeInsurance.newGeneral) } : {}),
-      ...(stored.lifeInsurance.oldGeneral !== undefined ? { oldGeneral: D(stored.lifeInsurance.oldGeneral) } : {}),
-      ...(stored.lifeInsurance.newMedical !== undefined ? { newMedical: D(stored.lifeInsurance.newMedical) } : {}),
-      ...(stored.lifeInsurance.newPension !== undefined ? { newPension: D(stored.lifeInsurance.newPension) } : {}),
-      ...(stored.lifeInsurance.oldPension !== undefined ? { oldPension: D(stored.lifeInsurance.oldPension) } : {}),
+      ...(stored.lifeInsurance.newGeneral !== undefined ? { newGeneral: toDec(stored.lifeInsurance.newGeneral) } : {}),
+      ...(stored.lifeInsurance.oldGeneral !== undefined ? { oldGeneral: toDec(stored.lifeInsurance.oldGeneral) } : {}),
+      ...(stored.lifeInsurance.newMedical !== undefined ? { newMedical: toDec(stored.lifeInsurance.newMedical) } : {}),
+      ...(stored.lifeInsurance.newPension !== undefined ? { newPension: toDec(stored.lifeInsurance.newPension) } : {}),
+      ...(stored.lifeInsurance.oldPension !== undefined ? { oldPension: toDec(stored.lifeInsurance.oldPension) } : {}),
     },
-    earthquakeInsurancePaid: D(stored.earthquakeInsurancePaid),
-    oldLongTermInsurancePaid: D(stored.oldLongTermInsurancePaid),
-    medicalExpensePaid: D(stored.medicalExpensePaid),
-    medicalInsuranceReimbursement: D(stored.medicalInsuranceReimbursement),
-    donationAmount: D(stored.donationAmount),
-    casualtyLossDeduction: D(stored.casualtyLossDeduction),
+    earthquakeInsurancePaid: toDec(stored.earthquakeInsurancePaid),
+    oldLongTermInsurancePaid: toDec(stored.oldLongTermInsurancePaid),
+    medicalExpensePaid: toDec(stored.medicalExpensePaid),
+    medicalInsuranceReimbursement: toDec(stored.medicalInsuranceReimbursement),
+    donationAmount: toDec(stored.donationAmount),
+    casualtyLossDeduction: toDec(stored.casualtyLossDeduction),
     isDisabled: stored.isDisabled,
     isSpecialDisabled: stored.isSpecialDisabled,
     isSingleParent: stored.isSingleParent,
     isWidow: stored.isWidow,
     isWorkingStudent: stored.isWorkingStudent,
     ...(stored.spouse
-      ? { spouse: { totalIncome: D(stored.spouse.totalIncome), age: stored.spouse.age } }
+      ? { spouse: { totalIncome: toDec(stored.spouse.totalIncome), age: stored.spouse.age } }
       : {}),
     dependents: stored.dependents.map((d) => ({
       id: d.id,
       age: d.age,
-      totalIncome: D(d.totalIncome),
+      totalIncome: toDec(d.totalIncome),
       ...(d.livesWithLinealAscendant !== undefined
         ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
         : {}),
     })),
     ...(stored.dividendDeductionAmount !== undefined
-      ? { dividendDeductionAmount: D(stored.dividendDeductionAmount) }
+      ? { dividendDeductionAmount: toDec(stored.dividendDeductionAmount) }
       : {}),
     ...(stored.mortgageDeductionAmount !== undefined
-      ? { mortgageDeductionAmount: D(stored.mortgageDeductionAmount) }
+      ? { mortgageDeductionAmount: toDec(stored.mortgageDeductionAmount) }
       : {}),
     ...(stored.politicalDonationCreditAmount !== undefined
-      ? { politicalDonationCreditAmount: D(stored.politicalDonationCreditAmount) }
+      ? { politicalDonationCreditAmount: toDec(stored.politicalDonationCreditAmount) }
       : {}),
     ...(stored.housingRenovationCreditAmount !== undefined
-      ? { housingRenovationCreditAmount: D(stored.housingRenovationCreditAmount) }
+      ? { housingRenovationCreditAmount: toDec(stored.housingRenovationCreditAmount) }
       : {}),
     ...(stored.foreignTaxCreditAmount !== undefined
-      ? { foreignTaxCreditAmount: D(stored.foreignTaxCreditAmount) }
+      ? { foreignTaxCreditAmount: toDec(stored.foreignTaxCreditAmount) }
       : {}),
     ...(stored.otherTaxCreditAmount !== undefined
-      ? { otherTaxCreditAmount: D(stored.otherTaxCreditAmount) }
+      ? { otherTaxCreditAmount: toDec(stored.otherTaxCreditAmount) }
       : {}),
     ...(stored.disasterExemptionAmount !== undefined
-      ? { disasterExemptionAmount: D(stored.disasterExemptionAmount) }
+      ? { disasterExemptionAmount: toDec(stored.disasterExemptionAmount) }
       : {}),
     ...(stored.salaryIncome
       ? {
           salaryIncome: {
-            paidAmount: D(stored.salaryIncome.paidAmount),
-            withholdingTax: D(stored.salaryIncome.withholdingTax),
+            paidAmount: toDec(stored.salaryIncome.paidAmount),
+            withholdingTax: toDec(stored.salaryIncome.withholdingTax),
           },
         }
       : {}),
@@ -141,26 +154,26 @@ export function personalDeductionsToCtx(
       ? {
           miscIncome: {
             ...(stored.miscIncome.publicPensionAmount !== undefined
-              ? { publicPensionAmount: D(stored.miscIncome.publicPensionAmount) }
+              ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
               : {}),
             ...(stored.miscIncome.otherIncome !== undefined
-              ? { otherIncome: D(stored.miscIncome.otherIncome) }
+              ? { otherIncome: toDec(stored.miscIncome.otherIncome) }
               : {}),
             ...(stored.miscIncome.otherExpenses !== undefined
-              ? { otherExpenses: D(stored.miscIncome.otherExpenses) }
+              ? { otherExpenses: toDec(stored.miscIncome.otherExpenses) }
               : {}),
           },
         }
       : {}),
     ...(stored.otherWithholdingTax !== undefined
-      ? { otherWithholdingTax: D(stored.otherWithholdingTax) }
+      ? { otherWithholdingTax: toDec(stored.otherWithholdingTax) }
       : {}),
     ...(stored.realEstateIncome
       ? {
           realEstateIncome: {
             businessScale: stored.realEstateIncome.businessScale,
             ...(stored.realEstateIncome.landLoanInterestAmount !== undefined
-              ? { landLoanInterestAmount: D(stored.realEstateIncome.landLoanInterestAmount) }
+              ? { landLoanInterestAmount: toDec(stored.realEstateIncome.landLoanInterestAmount) }
               : {}),
             ...(stored.realEstateIncome.rentPaid ? { rentPaid: stored.realEstateIncome.rentPaid } : {}),
             ...(stored.realEstateIncome.loanInterestPaid
