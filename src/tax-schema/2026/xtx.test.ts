@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { buildXtx2026, type XtxContext } from './xtx';
+import { buildXtx2026, personalDeductionsToCtx, type XtxContext } from './xtx';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
+import type { PersonalDeductionInput } from '../../db/types';
 
 function makeCtx(): XtxContext {
   const monthly: MonthlyReport = {
@@ -200,5 +201,43 @@ describe('buildXtx2026（filingType: white → KOA020+KOA110 併載）', () => {
     // 事業所得（控除無し）＝400万。青色申告特別控除額（65万）は出ない
     expect(x).toContain('>4000000<');
     expect(x).not.toContain('>650000<');
+  });
+});
+
+describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が throw せず 0 扱い）', () => {
+  function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
+    return {
+      socialInsurancePaid: '',
+      smallBusinessMutualAidPaid: '  ',
+      lifeInsurance: { newGeneral: '１２３４' },
+      earthquakeInsurancePaid: '',
+      oldLongTermInsurancePaid: '',
+      medicalExpensePaid: '',
+      medicalInsuranceReimbursement: '',
+      donationAmount: '',
+      casualtyLossDeduction: '',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: { totalIncome: '', age: 40 },
+      dependents: [{ id: '1', name: 'テスト 子', age: 20, totalIncome: '' }],
+      salaryIncome: { paidAmount: '', withholdingTax: '' },
+      miscIncome: { publicPensionAmount: '', otherIncome: '', otherExpenses: '' },
+      realEstateIncome: { businessScale: false, landLoanInterestAmount: '' },
+    };
+  }
+
+  test('空文字・空白・全角数字を含む入力で throw せず 0 として扱われる', () => {
+    const ctx = personalDeductionsToCtx(makeStored());
+    expect(ctx.socialInsurancePaid.toString()).toBe('0');
+    expect(ctx.smallBusinessMutualAidPaid.toString()).toBe('0');
+    expect(ctx.lifeInsurance.newGeneral?.toString()).toBe('0');
+    expect(ctx.spouse?.totalIncome.toString()).toBe('0');
+    expect(ctx.dependents[0]?.totalIncome.toString()).toBe('0');
+    expect(ctx.salaryIncome?.paidAmount.toString()).toBe('0');
+    expect(ctx.miscIncome?.publicPensionAmount?.toString()).toBe('0');
+    expect(ctx.realEstateIncome?.landLoanInterestAmount?.toString()).toBe('0');
   });
 });
