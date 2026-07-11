@@ -395,3 +395,72 @@ describe('mapKoa020LeafValues（不動産所得ありの第一表・第二表欄
     expect(out.ABI00170).toBeUndefined();
   });
 });
+
+describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産所得欄）', () => {
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(400_000),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+
+  test('白色×personalDeductions：所得控除・課税所得・税額・復興税を出力する', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        filingType: 'white',
+        pl: { ...plBase, netIncome: '3000000' },
+        personalDeductions: emptyPersonalDeductions,
+      })
+    );
+    // 白色は青色申告特別控除が無いため事業所得＝控除前300万。合計所得300万→基礎控除88万
+    expect(out.ABB00550).toBe('880000');
+    expect(out.ABB00560).toBe('1280000'); // 88万(基礎)+40万(社保)
+    expect(out.ABB00580).toBe('1720000'); // 300万-128万
+    expect(out.ABB00590).toBe('86000'); // 172万×5%
+    expect(out.ABB01020).toBeDefined(); // 復興特別所得税
+    // 青色申告特別控除欄は白色では出さない
+    expect(out.ABB00800).toBeUndefined();
+    expect(out.ABI00170).toBeUndefined();
+  });
+
+  test('白色×不動産：収入(ABB00050)・損益通算可能額(ABB00340)を出力し青色控除欄は出さない', () => {
+    const rePl = realEstatePl('325000');
+    rePl.totalRevenue = '352000';
+    const out = mapKoa020LeafValues(
+      ctx({
+        filingType: 'white',
+        pl: { ...plBase, netIncome: '1000000' },
+        realEstatePl: rePl,
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          realEstateIncome: { businessScale: false },
+        },
+      })
+    );
+    expect(out.ABB00050).toBe('352000');
+    // 白色は青色控除が無いため不動産所得は控除前のまま損益通算可能
+    expect(out.ABB00340).toBe('325000');
+    expect(out.ABB00800).toBeUndefined();
+    expect(out.ABI00170).toBeUndefined();
+  });
+});
