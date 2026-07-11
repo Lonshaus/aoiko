@@ -104,6 +104,11 @@
   }
 
   let saved = $state(false);
+  // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
+  // 抱えたままなので保存を禁じる（新年度キーへの誤書き込み防止）。
+  let loadedYear = $state<number | null>(null);
+  // 素早い年度往復で後着の旧 promise が新年度の表示を上書きしないための世代トークン。
+  let loadToken = 0;
   // 年度ごとに DB/設定から読み込む値（ユーザーの入力欄とは独立、年度切替時のみ再取得）。
   let plCache = $state<Awaited<ReturnType<typeof buildPL>> | null>(null);
   let realEstatePlCache = $state<Awaited<ReturnType<typeof buildPL>> | undefined>(undefined);
@@ -212,20 +217,34 @@
 
   $effect(() => {
     const yr = year;
+    const gen = ++loadToken;
     saved = false;
+    loadedYear = null;
     (async () => {
       const stored = await db.personalDeductions.get(yr);
+      if (gen !== loadToken) {
+        return;
+      }
       if (stored) {
         loadFromStored(stored);
       } else {
         resetForm();
       }
-      plCache = await buildPL(yr);
-      filingTypeCache = ((await getSetting('filingType')) ?? 'blue') as FilingType;
-      aoiroDeductionKindCache = ((await getSetting('aoiroDeductionKind')) ?? 'electronic') as AoiroDeductionKind;
-      realEstatePlCache = ledger.realEstateIncomeEnabled
+      const pl = await buildPL(yr);
+      const filingType = ((await getSetting('filingType')) ?? 'blue') as FilingType;
+      const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ??
+        'electronic') as AoiroDeductionKind;
+      const realEstatePl = ledger.realEstateIncomeEnabled
         ? await buildPL(yr, undefined, 'realEstate')
         : undefined;
+      if (gen !== loadToken) {
+        return;
+      }
+      plCache = pl;
+      filingTypeCache = filingType;
+      aoiroDeductionKindCache = aoiroDeductionKind;
+      realEstatePlCache = realEstatePl;
+      loadedYear = yr;
     })();
   });
 
@@ -352,6 +371,9 @@
   const netTaxDue = $derived(finalTax.minus(withholding));
 
   async function save() {
+    if (loadedYear !== year) {
+      return;
+    }
     await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
     saved = true;
   }
@@ -749,7 +771,8 @@
     <button
       type="button"
       onclick={save}
-      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+      disabled={loadedYear !== year}
+      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {m.income_deductions_save()}
     </button>
