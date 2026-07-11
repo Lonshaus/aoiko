@@ -222,7 +222,7 @@ describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が thro
       isWidow: false,
       isWorkingStudent: false,
       spouse: { totalIncome: '', age: 40 },
-      dependents: [{ id: '1', age: 20, totalIncome: '' }],
+      dependents: [{ id: '1', name: 'テスト 子', age: 20, totalIncome: '' }],
       salaryIncome: { paidAmount: '', withholdingTax: '' },
       miscIncome: { publicPensionAmount: '', otherIncome: '', otherExpenses: '' },
       realEstateIncome: { businessScale: false, landLoanInterestAmount: '' },
