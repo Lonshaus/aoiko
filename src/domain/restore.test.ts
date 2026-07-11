@@ -121,6 +121,38 @@ describe('restoreFromJson', () => {
     expect(vendors[0]?.name).toBe('残る業者')
   })
 
+  test('不正な invoices 行（id 欠落）は全消去の前に弾かれ既存データが残る', async () => {
+    await db.vendors.add({ id: 'keep-1', name: '残る業者' })
+    await expect(
+      restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        tables: { invoices: [{ documentType: 'invoice' }] },
+      })
+    ).rejects.toThrow(/invoices/)
+    const vendors = await db.vendors.toArray()
+    expect(vendors).toHaveLength(1)
+    expect(vendors[0]?.name).toBe('残る業者')
+  })
+
+  test('書き込み途中の失敗はトランザクションで全ロールバックされ半書き込みを残さない', async () => {
+    // validateGeneric は主キーの有無しか見ないため関数値を持つ行は検証を通過するが、
+    // structured clone 不可で bulkPut が throw する。全消去後の書き込み失敗を再現する。
+    await expect(
+      restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        tables: {
+          vendors: [{ id: 'v1', name: '業者' }],
+          invoices: [{ id: 'inv-1', notCloneable: () => {} }],
+        },
+      })
+    ).rejects.toThrow()
+    // vendors は invoices より先に処理されるが、ロールバックで空になる（半書き込みが残らない）。
+    const vendors = await db.vendors.toArray()
+    expect(vendors).toHaveLength(0)
+  })
+
   test('clears existing data before restore', async () => {
     await db.vendors.add({ id: newId(), name: '消える業者' })
 
@@ -198,6 +230,33 @@ describe('証憑写真（C7）の zip 往復', () => {
     expect(restored[0]!.entryId).toBe(entryId)
     expect(restored[0]!.fileName).toBe('r.jpg')
     expect(restored[0]!.mimeType).toBe('image/jpeg')
+  })
+
+  test('実体の無い添付は missingBlobCount に計上される', async () => {
+    const now = Date.now()
+    const payload = {
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-05-10',
+      tables: {
+        attachments: [
+          { id: 'has', entryId: 'e', mimeType: 'image/jpeg', fileName: 'a.jpg', createdAt: now },
+          { id: 'missing', entryId: 'e', mimeType: 'image/jpeg', fileName: 'b.jpg', createdAt: now },
+        ],
+      },
+    }
+    const blobs = new Map([['has', new Uint8Array([1, 2, 3])]])
+    const result = await restoreFromPayload(payload, blobs)
+    expect(result.missingBlobCount).toBe(1)
+  })
+
+  test('旧 JSON 形式（attachmentBlobs 空）でも欠損を計上する', async () => {
+    const now = Date.now()
+    const result = await restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-05-10',
+      tables: { attachments: [{ id: 'a', entryId: 'e', mimeType: 'image/jpeg', fileName: 'a.jpg', createdAt: now }] },
+    })
+    expect(result.missingBlobCount).toBe(1)
   })
 
   test('parseBackupFile は zip / 旧 JSON を自動判定する', async () => {

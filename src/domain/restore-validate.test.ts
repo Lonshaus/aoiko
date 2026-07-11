@@ -96,4 +96,16 @@ describe('validateBackupPayload', () => {
       validateBackupPayload(payload({ vendors: [{ id: 'v1', name: 'X' }], settings: [{ key: 'k', value: 1 }] }))
     ).not.toThrow()
   })
+
+  test('invoices（v9 追加）は主キー id 欠落で投げる', () => {
+    expect(() =>
+      validateBackupPayload(payload({ invoices: [{ documentType: 'invoice' }] }))
+    ).toThrow(/invoices/)
+  })
+
+  test('invoices は id があれば通る', () => {
+    expect(() =>
+      validateBackupPayload(payload({ invoices: [{ id: 'inv-1', documentType: 'invoice' }] }))
+    ).not.toThrow()
+  })
 })
