@@ -98,6 +98,7 @@
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
+  let restoreWarning = $state('');
 
   let accountantExportError = $state('');
 
@@ -822,6 +823,7 @@
   async function handleRestoreFile(e: Event) {
     restoreError = '';
     restoreSuccess = '';
+    restoreWarning = '';
     restorePayload = null;
     restoreAttachmentBlobs = new Map();
     restoreAttachmentCount = 0;
@@ -857,6 +859,7 @@
       // structured clone 不可で DataCloneError になるため、生のオブジェクトに戻して渡す。
       const result = await restoreFromPayload($state.snapshot(restorePayload), restoreAttachmentBlobs);
       restoreSuccess = m.settings_restore_success({ tables: result.tableCount, rows: result.rowCount });
+      restoreWarning = result.missingBlobCount > 0 ? m.settings_restore_missing_blobs({ count: result.missingBlobCount }) : '';
       restorePayload = null;
       restoreAttachmentBlobs = new Map();
       restoreAttachmentCount = 0;
@@ -2363,6 +2366,11 @@
         >
           {m.settings_restore_reload()}
         </button>
+      </div>
+    {/if}
+    {#if restoreWarning}
+      <div class="text-sm text-foreground border border-destructive bg-destructive/10 rounded px-3 py-2">
+        ⚠ {restoreWarning}
       </div>
     {/if}
     {#if restorePayload}

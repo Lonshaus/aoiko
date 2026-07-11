@@ -35,7 +35,7 @@ export async function parseBackupFile(
 export async function restoreFromPayload(
   payload: BackupPayload,
   attachmentBlobs: Map<string, Uint8Array>
-): Promise<{ tableCount: number; rowCount: number }> {
+): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
   }
@@ -52,13 +52,10 @@ export async function restoreFromPayload(
   const preservedFilerSettings = (await db.settings.toArray()).filter(
     (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key)
   );
-
-  await db.delete();
-  await db.open();
-
-  let tableCount = 0;
-  let rowCount = 0;
-
+  // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
+  // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
+  const writes: { name: string; rows: unknown[] }[] = [];
+  let missingBlobCount = 0;
   for (const table of db.tables) {
     let rows = payload.tables[table.name];
     if (!Array.isArray(rows) || rows.length === 0) {
@@ -68,23 +65,35 @@ export async function restoreFromPayload(
       rows = rows.map((r) => {
         const meta = r as Omit<Attachment, 'blob'>;
         const bytes = attachmentBlobs.get(meta.id);
+        // メタデータはあるが二進位が無い＝旧 JSON 形式や不完全な zip。空 Blob で復元し件数を記録。
+        if (!bytes) {
+          missingBlobCount++;
+        }
         return { ...meta, blob: new Blob(bytes ? [bytes.slice()] : [], { type: meta.mimeType }) };
       });
     }
-    await table.bulkPut(rows);
-    tableCount++;
-    rowCount += rows.length;
-  }
-  if (preservedFilerSettings.length > 0) {
-    await db.settings.bulkPut(preservedFilerSettings);
+    writes.push({ name: table.name, rows });
   }
 
-  return { tableCount, rowCount };
+  await db.delete();
+  await db.open();
+  // 全消去後の書き込みは全か無かにする。1 行でも失敗したら全ロールバックし半書き込みを残さない。
+  await db.transaction('rw', db.tables, async () => {
+    for (const w of writes) {
+      await db.table(w.name).bulkPut(w.rows);
+    }
+    if (preservedFilerSettings.length > 0) {
+      await db.settings.bulkPut(preservedFilerSettings);
+    }
+  });
+
+  const rowCount = writes.reduce((n, w) => n + w.rows.length, 0);
+  return { tableCount: writes.length, rowCount, missingBlobCount };
 }
 // 旧形式（証憑写真を含まない純 JSON payload）専用の互換ラッパー。
 export async function restoreFromJson(
   payload: BackupPayload
-): Promise<{ tableCount: number; rowCount: number }> {
+): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   return restoreFromPayload(payload, new Map());
 }
 // JSON テキストをパース・検証する。形式不正時は throw。
