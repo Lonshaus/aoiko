@@ -357,8 +357,21 @@ export async function buildBS(year: number, data?: YearData): Promise<BSReport> 
   const assets = buildRows('asset');
   const liabilities = buildRows('liability');
   const equity = buildRows('equity');
-  // 当期純利益（純資産に加算）は PL と同じ計算のため使い回す
-  const netIncome = D((await buildPL(year, { entries, lines, accounts })).netIncome);
+  // 当期純利益（純資産に加算）は全 incomeType 合算。buildPL は incomeType 単位のため、
+  // 不動産所得の収益・費用が B/S 純資産から漏れて貸借不一致になる。合算 B/S に合わせて全業務を集計する。
+  let netIncome = D(0);
+  for (const line of lines) {
+    const acc = accountMap.get(line.accountCode);
+    if (!acc) {
+      continue;
+    }
+    const contrib = plContribution(acc.category, line);
+    if (contrib === null) {
+      continue;
+    }
+    // plContribution は収益・費用とも符号正で返すため、費用は差し引く（純利益＝収益−費用）
+    netIncome = acc.category === 'revenue' ? netIncome.plus(contrib) : netIncome.minus(contrib);
+  }
 
   const totalAssets = assets.reduce((s, r) => s.plus(r.balance), D(0));
   const totalLiab = liabilities.reduce((s, r) => s.plus(r.balance), D(0));
