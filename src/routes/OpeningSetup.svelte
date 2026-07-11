@@ -3,7 +3,7 @@
   import { router, link } from '../router.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
-  import { formatJPY } from '../lib/decimal';
+  import { D, formatJPY } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
   import {
@@ -43,7 +43,7 @@
   function removeExpense(i: number) {
     expenses.splice(i, 1);
   }
-  const expenseTotal = $derived(expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
+  const expenseTotal = $derived(expenses.reduce((sum, e) => sum.plus(D(e.amount || '0')), D(0)));
 
   interface ConvertedAssetRow {
     name: string;
