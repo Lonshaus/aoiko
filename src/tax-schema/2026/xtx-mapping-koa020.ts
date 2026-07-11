@@ -173,9 +173,31 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   // 実際に事業所得側へ配分された青色申告特別控除額（不動産所得が無ければ従来どおり）。
   const preIncome = D(ctx.pl.netIncome);
   const businessIncome = totalIncomeAmount(ctx);
-  const deduction = preIncome.minus(businessIncome);
+  const businessDeduction = preIncome.minus(businessIncome);
   put(out, '営業等', businessIncome.toString());
-  put(out, '青色申告特別控除額', deduction.toString());
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  if (ctx.realEstatePl && realEstateInput) {
+    const combined = computeCombinedBusinessRealEstateIncome(
+      ctx.year,
+      ctx.aoiroDeductionKind,
+      preIncome.greaterThan(0),
+      preIncome,
+      ctx.realEstatePl,
+      realEstateInput
+    );
+    const realEstatePreIncome = realEstatePreDeductionIncome(ctx.realEstatePl, realEstateInput.businessScale);
+    const realEstateDeduction = realEstatePreIncome.minus(combined.realEstateIncomeAfterDeduction);
+    // 第一表の青色申告特別控除額は2枚の決算書の控除額の合計を転記する（手引き p.49）
+    putTag(out, 'ABB00800', businessDeduction.plus(realEstateDeduction).toString());
+    // 収入金額等・不動産＝不動産所得の総収入金額
+    putTag(out, 'ABB00050', ctx.realEstatePl.totalRevenue);
+    // 所得金額等・不動産＝損益通算可能な不動産所得（赤字は土地等負債利子制限後）
+    putTag(out, 'ABB00340', combined.realEstateOffsettable.toString());
+    // 事業税は青色申告特別控除を認めないため、都道府県が加算に使う不動産充当分を第二表へ載せる（手引き p.56）
+    putTag(out, 'ABI00170', realEstateDeduction.toString());
+  } else {
+    put(out, '青色申告特別控除額', businessDeduction.toString());
+  }
   putIncomeDeductions(out, ctx);
   return out;
 }
