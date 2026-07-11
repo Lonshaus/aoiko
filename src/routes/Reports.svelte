@@ -369,12 +369,16 @@
   async function lockYear() {
     confirmingLock = false;
     lockError = '';
+    // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
+    // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
+    const lockYearTarget = year;
+    const { monthly, pl, bs } = await buildAll(lockYearTarget, breakdownAxis);
     if (!monthly || !pl) {
       return;
     }
     try {
       await markYearFiled(
-        year,
+        lockYearTarget,
         {
           monthlySales: {
             type: 'monthly-sales',
@@ -419,7 +423,7 @@
               }
             : {}),
         },
-        `${year}-12-31`
+        `${lockYearTarget}-12-31`
       );
     } catch (e) {
       lockError = e instanceof Error ? e.message : String(e);
@@ -454,11 +458,15 @@
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
   // 令和7年分（NENBUN=7）で行う。封包構造は年分非依存（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
+    // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
+    // 対象年度をその場再計算して封包する（消費税側の processYear 方式と統一）
+    const filingYear = year;
+    const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
       return;
     }
-    if (year !== 2026) {
-      lockError = m.reports_xtx_unsupported_year({ year });
+    if (filingYear !== 2026) {
+      lockError = m.reports_xtx_unsupported_year({ year: filingYear });
       return;
     }
     const { filer, missing } = await loadFiler();
@@ -472,10 +480,10 @@
     const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const fixedAssets = await db.fixedAssets.toArray();
-    const exportYear = testReiwa7 ? 2025 : year;
-    const storedDeductions = await db.personalDeductions.get(year);
+    const exportYear = testReiwa7 ? 2025 : filingYear;
+    const storedDeductions = await db.personalDeductions.get(filingYear);
     const realEstatePl = ledger.realEstateIncomeEnabled
-      ? await buildPL(year, undefined, 'realEstate')
+      ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
     const xml = buildXtx2026({
       year: exportYear,
