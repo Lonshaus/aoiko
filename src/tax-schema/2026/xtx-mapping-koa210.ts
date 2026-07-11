@@ -44,6 +44,29 @@ const PAGES = kingakuLeavesByPage();
 const PAGE1 = PAGES.get('KOA210-1') ?? []; // 損益計算書
 const PAGE2 = PAGES.get('KOA210-2') ?? []; // 月別売上(仕入)金額
 const PAGE4 = PAGES.get('KOA210-4') ?? []; // 貸借対照表
+// BS の各科目は期首(AMG00040/00490)・期末(AMG00240/00620)の両ブランチに二重に存在し
+// tagByJa の find は文書順最初＝期首を返す。期末残高は期末ブランチ配下の leaf に限定する。
+function bsPeriodEndLeaves(): Leaf[] {
+  const out: Leaf[] = [];
+  let page = '';
+  let period = '';
+  for (const e of SCHEMA.refTree) {
+    if (e.level === 1) {
+      page = e.tag;
+    }
+    if (page !== 'KOA210-4') {
+      continue;
+    }
+    if (e.kind === 'branch' && e.level <= 4) {
+      period = e.ja === '期末' ? '期末' : e.ja === '期首' ? '期首' : '';
+    }
+    if (e.kind === 'leaf' && !e.idref && e.refType === 'gen:kingaku' && period === '期末') {
+      out.push({ tag: e.tag, ja: e.ja });
+    }
+  }
+  return out;
+}
+const PAGE4_END = bsPeriodEndLeaves();
 // ページ内で日本語名が完全一致する最初の leaf tag を返す
 function tagByJa(leaves: Leaf[], ja: string): string | undefined {
   return leaves.find((l) => l.ja === ja)?.tag;
@@ -110,10 +133,14 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
     put(out, sales[i]?.tag, mo.sales);
     put(out, shiire[i]?.tag, mo.purchases);
   });
-  // 貸借対照表（ページ4、期末）
+  // 貸借対照表（ページ4）。aoiko は期首(繰越)残高を持たないため期末列のみ出力する（期首列は将来対応）。
   const bsLine = (accountName: string, amount: string) => {
     const ja = BS_ALIAS[accountName] ?? accountName;
-    put(out, tagByJa(PAGE4, ja), amount);
+    put(out, tagByJa(PAGE4_END, ja), amount);
+    if (ja === '元入金') {
+      // 手引き(一般用の書き方 p.6): 元入金は期首と期末に同じ金額を記入する。
+      put(out, tagByJa(PAGE4, ja), amount);
+    }
   };
   for (const r of bs.assets) {
     bsLine(r.accountName, r.balance);
