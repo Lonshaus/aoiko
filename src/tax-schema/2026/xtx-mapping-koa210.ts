@@ -8,7 +8,7 @@
 
 import koa210 from './xtx-schema-koa210.generated.json';
 import { D } from '../../lib/decimal';
-import { aoiroDeductionAmount } from './aoiro-deduction';
+import { computeCombinedBusinessRealEstateIncome } from './real-estate-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues } from './xtx-document';
@@ -89,7 +89,16 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   }
   // 青色申告特別控除：控除前所得・控除額・控除後所得
   const preIncome = D(pl.netIncome);
-  const deduction = aoiroDeductionAmount(ctx.year, ctx.aoiroDeductionKind, preIncome);
+  // 控除は不動産所得から先に充当し（措法25の2③）、44欄には事業への配分残額のみ入れる（二重計上防止）。
+  const combined = computeCombinedBusinessRealEstateIncome(
+    ctx.year,
+    ctx.aoiroDeductionKind,
+    preIncome.greaterThan(0),
+    preIncome,
+    ctx.realEstatePl,
+    ctx.personalDeductions?.realEstateIncome
+  );
+  const deduction = preIncome.minus(combined.businessIncome);
   put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), pl.netIncome);
   put(out, tagByJa(PAGE1, '青色申告特別控除額'), deduction.toString());
   put(out, tagByJa(PAGE1, '所得金額'), preIncome.minus(deduction).toString());
