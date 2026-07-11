@@ -53,12 +53,30 @@ export function oldStraightLineRate(usefulLifeYears: number): Decimal {
   }
   return D(rate);
 }
+interface YMD {
+  y: number;
+  m: number;
+  d: number;
+}
+function parseYMD(iso: string): YMD {
+  const [y, m, d] = iso.split('-').map(Number);
+  return { y: y ?? 0, m: m ?? 0, d: d ?? 0 };
+}
+// 取得日から供用日までの満了月数。応当日（取得日の「日」）に達していない月は満了に数えない。
+// 応当日が存在しない月（例：1/31 取得の 2 月）は民法の期間計算に従いその月の末日を満期日とする。
+function elapsedFullMonths(acq: YMD, start: YMD): number {
+  let months = (start.y - acq.y) * 12 + (start.m - acq.m);
+  // 供用日の属する月の末日（1 始まりの月をそのまま渡すと翌月 0 日＝当月末日になる）。
+  const lastDayOfStartMonth = new Date(start.y, start.m, 0).getDate();
+  const anniversaryDay = Math.min(acq.d, lastDayOfStartMonth);
+  if (start.d < anniversaryDay) {
+    months -= 1;
+  }
+  return months;
+}
 // 非業務期間の年数。6ヶ月未満切り捨て、6ヶ月以上は1年に切り上げ。
 function nonBusinessPeriodYears(acquisitionDate: string, businessStartDate: string): number {
-  const acq = new Date(acquisitionDate);
-  const start = new Date(businessStartDate);
-  const totalMonths =
-    (start.getFullYear() - acq.getFullYear()) * 12 + (start.getMonth() - acq.getMonth());
+  const totalMonths = elapsedFullMonths(parseYMD(acquisitionDate), parseYMD(businessStartDate));
   const years = Math.floor(totalMonths / 12);
   const remainderMonths = totalMonths % 12;
   return remainderMonths >= 6 ? years + 1 : years;
