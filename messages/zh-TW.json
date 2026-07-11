@@ -647,6 +647,7 @@
   "settings_restore_intro_html": "從備份的 JSON 檔完整還原。<strong class=\"text-foreground\">目前的全部資料將被刪除。</strong>",
   "settings_restore_selected": "已選擇：{name}",
   "settings_restore_success": "已還原 {tables} 個表 / {rows} 列。請重新整理頁面。",
+  "settings_restore_missing_blobs": "有 {count} 筆憑證照片找不到實體資料，已還原為空白。",
   "settings_restore_reload": "重新整理",
   "settings_restore_summary": "version {version} ・ {tables} 個表 ・ {rows} 列",
   "settings_restore_summary_attachments": "包含 {count} 張憑證照片",

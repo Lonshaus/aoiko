@@ -646,6 +646,7 @@
   "settings_restore_intro_html": "バックアップした JSON ファイルから完全復元します。<strong class=\"text-foreground\">現在の全データは削除されます。</strong>",
   "settings_restore_selected": "選択中：{name}",
   "settings_restore_success": "{tables} テーブル / {rows} 行 を復元しました。ページを再読み込みしてください。",
+  "settings_restore_missing_blobs": "証憑写真 {count} 件の実体データが見つからなかったため、空のまま復元しました。",
   "settings_restore_reload": "再読み込み",
   "settings_restore_summary": "version {version} ・ {tables} テーブル ・ {rows} 行",
   "settings_restore_summary_attachments": "証憑写真 {count} 枚を含む",
