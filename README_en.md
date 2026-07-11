@@ -1,4 +1,4 @@
-# aoiko（あおいこ / 青い子）
+# aoiko（あおいこ）
 
 <p align="center">
   <img src="src/assets/logo-wordmark.png" alt="aoiko" width="360" />
