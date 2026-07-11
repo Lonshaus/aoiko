@@ -259,15 +259,13 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(out, 'ABB00640', (pd.otherTaxCreditAmount ?? D(0)).toString());
   putTag(out, 'ABB00680', (pd.disasterExemptionAmount ?? D(0)).toString());
   // ABB00670（差引所得税額）＝①税額 − 配当控除・住宅ローン控除等の税額控除
-  // ABB01010（再差引所得税額）＝差引所得税額 − 外国税額控除等・災害減免額（この2つは実際の
-  // 申告書上でも差引所得税額算出後に別枠で控除される）
   const stage1Credits = totalTaxCredits(pd).minus(pd.foreignTaxCreditAmount ?? D(0));
   const diffTax = maxZero(taxAmount.minus(stage1Credits));
   putTag(out, 'ABB00670', diffTax.toString());
-  const stage2Reduction = (pd.foreignTaxCreditAmount ?? D(0)).plus(
-    pd.disasterExemptionAmount ?? D(0)
-  );
-  const saiSashihiki = maxZero(diffTax.minus(stage2Reduction));
+  // ABB01010（再差引所得税額＝基準所得税額）＝差引所得税額 − 災害減免額。外国税額控除は
+  // 復興特別所得税の算定後（所得税及び復興特別所得税の額のあと）に控除するため、ここでは
+  // 含めない（手引き 令和7年分 060.pdf の欄順：再差引所得税額→復興特別所得税→合計→外国税額控除等）。
+  const saiSashihiki = maxZero(diffTax.minus(pd.disasterExemptionAmount ?? D(0)));
   putTag(out, 'ABB01010', saiSashihiki.toString());
   const surtax = reconstructionSurtax(saiSashihiki);
   putTag(out, 'ABB01020', surtax.toString());
@@ -293,10 +291,12 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
       );
     }
   }
-  // 源泉徴収税額（給与＋事業所得側の直接入力分）・申告納税額（マイナス＝還付相当）
+  // 源泉徴収税額（給与＋事業所得側の直接入力分）・申告納税額（マイナス＝還付相当）。
+  // 申告納税額＝所得税及び復興特別所得税の額 − 外国税額控除等 − 源泉徴収税額。
   const withholding = totalWithholdingTax(pd);
   putTag(out, 'ABB00710', withholding.toString());
-  putTag(out, 'ABB00720', taxTotal.minus(withholding).toString());
+  const foreignTaxCredit = pd.foreignTaxCreditAmount ?? D(0);
+  putTag(out, 'ABB00720', taxTotal.minus(foreignTaxCredit).minus(withholding).toString());
   // 公的年金等以外の合計所得金額・配偶者の合計所得金額（既存収集データからの参考値）
   putTag(
     out,
