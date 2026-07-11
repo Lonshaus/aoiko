@@ -14,8 +14,9 @@
 //  - 基準期間の課税売上高等、2割特例では「記載不要」とされる事業区分欄は出力しない
 //  - 簡易課税で複数事業区分を営む場合の按分計算（75%ルール等、付表5-3 二面）は未対応。
 //    aoiko の設定は単一の事業区分のみを持つ前提（[07. 消費税] マニュアル参照）
-//  - 中間納付税額の確定申告への充当（ABI00110-130・ABJ00070-090）：本年中の中間納付額が
-//    当年の差引税額を超えて還付になるケース（ABJ00130 合計が負値）は未検証
+//  - 控除超過還付（簡易課税で貸倒れ税額が控除税額小計を上回る等）は差引税額（ABI00100）へ
+//    負値を書かず、控除不足還付税額欄（国税 ABI00090・地方 ABJ00020/ABJ00050）へ正値で出力する。
+//    中間納付の充当は差引税額（納付側）に対してのみ行い、ABJ00130 は符号付き純額（負＝還付）
 
 import { D, Decimal } from '../../lib/decimal';
 import {
@@ -39,6 +40,17 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
   const v = toKingaku(value);
   if (v !== '0') {
     out[tag] = v;
+  }
+}
+
+// 差引が正なら差引欄（dueTag）、負なら還付欄（refundTag）へ絶対値を書き込む。
+// 消費税申告書は控除超過による還付を差引税額の負値ではなく、専用の控除不足還付税額欄に
+// 正値で記載する（簡易課税では貸倒れ税額が控除税額小計を超えると差引が負になり得る）。
+function putSigned(out: XtxLeafValues, dueTag: string, refundTag: string, value: Decimal): void {
+  if (value.isNegative()) {
+    put(out, refundTag, value.negated());
+  } else {
+    put(out, dueTag, value);
   }
 }
 
@@ -74,12 +86,16 @@ function buildSha020Common(
   put(sha020, 'ABI00050', creditTotal);
   put(sha020, 'ABI00070', badDebtTax);
   put(sha020, 'ABI00080', creditSubtotal);
-  put(sha020, 'ABI00100', filingNational);
-  put(sha020, 'ABJ00030', filingNational);
-  put(sha020, 'ABJ00060', filingLocal);
+  putSigned(sha020, 'ABI00100', 'ABI00090', filingNational);
+  putSigned(sha020, 'ABJ00030', 'ABJ00020', filingNational);
+  putSigned(sha020, 'ABJ00060', 'ABJ00050', filingLocal);
 
-  const national = applyInterimCredit(filingNational, interimPaidNational);
-  const local = applyInterimCredit(filingLocal, interimPaidLocal);
+  // 中間納付の充当は差引税額（納付側）に対してのみ行う。控除不足還付（差引が負）の
+  // 場合は差引税額が無く、中間納付額はその全額が中間納付還付税額となる。
+  const nationalDue = filingNational.isNegative() ? D(0) : filingNational;
+  const localDue = filingLocal.isNegative() ? D(0) : filingLocal;
+  const national = applyInterimCredit(nationalDue, interimPaidNational);
+  const local = applyInterimCredit(localDue, interimPaidLocal);
   if (interimPaidNational.greaterThan(0)) {
     put(sha020, 'ABI00110', interimPaidNational);
     if (national.refund.greaterThan(0)) {
@@ -88,7 +104,7 @@ function buildSha020Common(
       put(sha020, 'ABI00120', national.due);
     }
   } else {
-    put(sha020, 'ABI00120', filingNational);
+    put(sha020, 'ABI00120', nationalDue);
   }
   if (interimPaidLocal.greaterThan(0)) {
     put(sha020, 'ABJ00070', interimPaidLocal);
@@ -98,12 +114,14 @@ function buildSha020Common(
       put(sha020, 'ABJ00080', local.due);
     }
   } else {
-    put(sha020, 'ABJ00080', filingLocal);
+    put(sha020, 'ABJ00080', localDue);
   }
+  // 合計（納付又は還付）税額：控除不足還付・中間納付還付を含む符号付き純額
+  // （正＝納付、負＝還付）。控除不足還付分は差引税額(filing)の負値に含まれる。
   put(
     sha020,
     'ABJ00130',
-    national.due.minus(national.refund).plus(local.due).minus(local.refund)
+    filingNational.minus(interimPaidNational).plus(filingLocal).minus(interimPaidLocal)
   );
   // 第二表（内訳）：軽減税率のみの利用者が多い想定だが、両税率とも同じ値を転記
   put(sha020, 'ABO00000', official.taxableBase);
@@ -305,9 +323,9 @@ export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping 
     .minus(deemedInputTotal)
     .minus(badDebtTaxTotal);
   const filing = filingBreakdown(nationalNetRaw);
-  put(shb047, 'DUH00000', D(filing.national));
-  put(shb047, 'DUI00020', D(filing.national));
-  put(shb047, 'DUJ00020', D(filing.local));
+  putSigned(shb047, 'DUH00000', 'DUG00000', D(filing.national));
+  putSigned(shb047, 'DUI00020', 'DUI00010', D(filing.national));
+  putSigned(shb047, 'DUJ00020', 'DUJ00010', D(filing.local));
 
   const shb067: XtxLeafValues = {};
   put(shb067, 'DVB00020', official.tax8);
