@@ -90,15 +90,12 @@ export interface TwoWariXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
-  /** 中間申告（仮決算方式）の対象期間。指定時は SHINKOKU_KBN=2（中間）で出力する */
-  interimPeriod?: { start: string; end: string };
   /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
   interimPaidNational?: Decimal;
   /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
   interimPaidLocal?: Decimal;
 }
-// 2割特例の .xtx を生成する。interimPeriod 指定時は中間申告（仮決算方式）用に
-// SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
+// 2割特例の .xtx を生成する（確定申告書への付記制のため中間申告非対応）。
 export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
   const mapping = mapTwoWari({
     taxableBase10: ctx.taxableBase10,
@@ -107,7 +104,6 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
-    ...(ctx.interimPeriod ? { interimPeriod: ctx.interimPeriod } : {}),
     ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
     ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),
   });
@@ -130,7 +126,7 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     ctx.filer,
     PROCEDURE_TAG_SIMPLIFIED,
     PROCEDURE_NAME_SIMPLIFIED,
-    shinkokuKbnFor(ctx.interimPeriod)
+    '1'
   );
 }
 
