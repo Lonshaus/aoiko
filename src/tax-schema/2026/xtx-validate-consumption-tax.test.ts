@@ -458,4 +458,33 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
   });
+
+  maybe('本体還付（控除不足還付税額 AAJ00090）が公式 xsd に適合する', () => {
+    const xml = buildGeneralXtx({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      filer: {
+        riyoshaId: '1234567890123456',
+        name: '青井 太郎',
+        zip: '1800001',
+        address: '東京都武蔵野市〇〇1-2-3',
+        zeimushoCode: '01101',
+        zeimushoName: '麹町',
+      },
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('200000'),
+      input8: D('0'),
+      ...zeroExtras(),
+    });
+    // 差引税額（⑨）へ負値を書かず、控除不足還付税額（⑧）へ正値。合計は符号付き（負＝還付）
+    expect(xml).toContain('<AAJ00090>122000</AAJ00090>');
+    expect(xml).not.toContain('<AAJ00100>');
+    expect(xml).toContain('<AAK00130>-156400</AAK00130>');
+    const m = /<SHA010 [\s\S]*?<\/SHA010>/.exec(xml);
+    expect(m, 'SHA010 subtree not found').not.toBeNull();
+    const { ok, out } = validate('_valwrap-SHA010.xsd', m![0]);
+    expect(out).not.toContain('Schemas parser error');
+    expect(ok, out).toBe(true);
+  });
 });
