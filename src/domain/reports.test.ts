@@ -11,6 +11,8 @@ const TEST_ACCOUNTS: Account[] = [
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
   { code: '5130', year: 2026, name: '水道光熱費', category: 'expense', displayOrder: 130 },
   { code: '5150', year: 2026, name: '通信費', category: 'expense', displayOrder: 150 },
+  { code: '4210', year: 2026, name: '賃貸料', category: 'revenue', displayOrder: 210, incomeType: 'realEstate' },
+  { code: '5310', year: 2026, name: '租税公課', category: 'expense', displayOrder: 310, incomeType: 'realEstate' },
 ]
 
 async function addEntry(opts: {
@@ -194,6 +196,47 @@ describe('buildAll', () => {
     expect(all.bs).toEqual(bs)
     expect(all.monthly).toEqual(monthly)
     expect(all.breakdown.axis).toBe('vendor')
+  })
+})
+
+describe('buildBS', () => {
+  test('不動産所得の収益・費用を含めても当期純利益が全 incomeType 合算で貸借一致する', async () => {
+    // 事業所得：売上 100,000／経費 8,000（純利益 92,000）
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    })
+    await addEntry({
+      date: '2026-05-10',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '8000' },
+        { side: 'credit', accountCode: '1130', amount: '8000' },
+      ],
+    })
+    // 不動産所得：賃貸料 60,000／租税公課 5,000（純利益 55,000）
+    await addEntry({
+      date: '2026-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '60000' },
+        { side: 'credit', accountCode: '4210', amount: '60000' },
+      ],
+    })
+    await addEntry({
+      date: '2026-07-01',
+      lines: [
+        { side: 'debit', accountCode: '5310', amount: '5000' },
+        { side: 'credit', accountCode: '1130', amount: '5000' },
+      ],
+    })
+
+    const bs = await buildBS(2026)
+    expect(bs.netIncome).toBe('147000')
+    expect(bs.totalAssets).toBe('147000')
+    expect(bs.totalLiabilitiesAndEquity).toBe('147000')
+    expect(bs.balanced).toBe(true)
   })
 })
 
