@@ -179,6 +179,19 @@ export interface TransferIncomeEstimate {
   /** 取得日から売却日までの満年数（参考値。分離課税の長期/短期判定は利用者が別途確認する） */
   holdingYears: number;
 }
+// 取得日から処分日までの満年数（応当日基準の暦計算）。総合課税の譲渡所得の
+// 短期/長期判定は 365.25 日平均ではなく暦の 5 年境界で行うため、月日で応当日を判定する。
+// 2/29 取得を平年に処分した場合、同月内の月日比較（2/28 < 2/29）が自然に未到達となり、
+// 民法の月末満了慣例（応当日翌日 3/1 到来をもって満了）と一致する。
+function fullYearsBetween(acquisitionDate: string, disposedDate: string): number {
+  const [ay, am, ad] = acquisitionDate.split('-').map(Number);
+  const [dy, dm, dd] = disposedDate.split('-').map(Number);
+  let years = dy! - ay!;
+  if (dm! < am! || (dm === am && dd! < ad!)) {
+    years -= 1;
+  }
+  return years;
+}
 // 譲渡所得の参考試算（分離課税、事業所得には含めない）。
 // 特別控除（最高50万円、要件充足時のみ）・短期/長期の税率適用は行わない。
 // 確定申告書第三表（分離課税用）は本試算の対象外で、利用者が別途申告する。
@@ -190,9 +203,7 @@ export function estimateTransferIncome(asset: FixedAsset): TransferIncomeEstimat
   const proceeds = D(asset.salePrice);
   const saleExpenses = D(asset.saleExpenses ?? '0');
   const estimate = proceeds.minus(bookValueEnd).minus(saleExpenses);
-  const acqMs = new Date(asset.acquisitionDate).getTime();
-  const dispMs = new Date(asset.disposedDate).getTime();
-  const holdingYears = Math.floor((dispMs - acqMs) / (365.25 * 24 * 3600 * 1000));
+  const holdingYears = fullYearsBetween(asset.acquisitionDate, asset.disposedDate);
   return {
     proceeds: proceeds.toString(),
     acquisitionExpense: bookValueEnd,

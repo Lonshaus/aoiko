@@ -205,4 +205,34 @@ describe('estimateTransferIncome', () => {
   test('未売却（disposedDate 無し）なら null', () => {
     expect(estimateTransferIncome(asset())).toBeNull()
   })
+
+  function holdingYears(acquisitionDate: string, disposedDate: string): number {
+    const a = asset({
+      acquisitionDate,
+      disposedDate,
+      disposalType: 'sale',
+      salePrice: '1',
+    })
+    return estimateTransferIncome(a)!.holdingYears
+  }
+  // 応当日基準の暦計算：5 年境界の前後・うるう年またぎ・同日を検証する。
+  test('応当日の前日は満年数が 1 少ない（4 年）', () => {
+    expect(holdingYears('2020-06-15', '2025-06-14')).toBe(4)
+  })
+
+  test('応当日当日は満年数に達する（5 年）', () => {
+    expect(holdingYears('2020-06-15', '2025-06-15')).toBe(5)
+  })
+
+  test('2/29 取得を平年 2/28 に処分すると未満（4 年）', () => {
+    expect(holdingYears('2020-02-29', '2025-02-28')).toBe(4)
+  })
+
+  test('2/29 取得を平年 3/1 に処分すると満了（5 年）', () => {
+    expect(holdingYears('2020-02-29', '2025-03-01')).toBe(5)
+  })
+
+  test('同日取得・処分は 0 年', () => {
+    expect(holdingYears('2023-06-30', '2023-06-30')).toBe(0)
+  })
 })
