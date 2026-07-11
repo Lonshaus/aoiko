@@ -71,6 +71,22 @@
     itemId: '',
     quantity: '',
   });
+  // emptyLine() と同じ内容か（id は無視）。未保存判定に使う
+  const lineIsEmpty = (l: DraftLine): boolean =>
+    l.accountCode === '' &&
+    l.subAccountId === '' &&
+    l.amount === '' &&
+    l.taxRate === 0 &&
+    l.taxIncluded === true &&
+    l.homeOfficeRatio === '' &&
+    l.taxCategory === '' &&
+    l.inputUsageCategory === '' &&
+    l.itemId === '' &&
+    l.quantity === '';
+  const linesPristine = (lines: DraftLine[]): boolean => {
+    const first = lines[0];
+    return lines.length === 1 && first !== undefined && lineIsEmpty(first);
+  };
 
   let date = $state(today());
   let description = $state('');
@@ -110,6 +126,30 @@
   const creditTotal = $derived(sumAmount(credits));
   const diff = $derived(D(debitTotal).minus(creditTotal).toString());
   const balanced = $derived(D(diff).isZero() && !D(debitTotal).isZero());
+  // 入力途中でタブを閉じる・リロードした際にデータが無言で消えるのを防ぐ。
+  // bind:value を多用しているため、入力ハンドラで flag を立てるより
+  // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
+  const isDirty = $derived(
+    description !== '' ||
+    department !== '' ||
+    attachments.length > 0 ||
+    !linesPristine(debits) ||
+    !linesPristine(credits)
+  );
+  $effect(() => {
+    if (!isDirty) {
+      return;
+    }
+    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
+    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  });
 
   function addDebit() {
     debits = [...debits, emptyLine()];
