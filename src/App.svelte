@@ -28,6 +28,21 @@
   function onConsentAccepted() {
     consentState = 'granted';
   }
+  // svelte:boundary は描画・effect 中の例外しか捕捉しない。イベントハンドラや async の
+  // 未捕捉例外はここで拾い、画面を殺さずに非破壊的なバナーで知らせる。連発しても
+  // 単一バナーに畳むため boolean 一つで管理する。
+  let showErrorBanner = $state(false);
+  onMount(() => {
+    const onError = () => {
+      showErrorBanner = true;
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onError);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onError);
+    };
+  });
   // 初回ロードを軽くするため、ホーム以外の画面は遅延読み込みする。
   // memo で同一 promise を返し、画面遷移のたびに再 import されないようにする。
   function memo(
@@ -53,6 +68,18 @@
 </script>
 
 <div class="min-h-screen flex flex-col">
+  {#if showErrorBanner}
+    <div class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-8 py-2 text-sm text-destructive">
+      <span>{m.error_banner_message()}</span>
+      <button
+        type="button"
+        class="shrink-0 rounded px-2 py-1 hover:bg-destructive/20"
+        onclick={() => (showErrorBanner = false)}
+      >
+        {m.common_close()}
+      </button>
+    </div>
+  {/if}
   <header class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground">
     <div class="container mx-auto max-w-3xl px-8 py-4 flex items-center justify-between">
       <a href="/" use:link class="hover:opacity-80">
@@ -85,25 +112,44 @@
         </a>
       </div>
     {/if}
-    {#if router.path === '/' || router.path === ''}
-      <Home />
-    {:else if router.path === '/manual' || router.path.startsWith('/manual/')}
-      {#await loadManual() then mod}
-        {@const Manual = mod.default}
-        <Manual />
-      {/await}
-    {:else if routeLoader}
-      {#await routeLoader() then mod}
-        {@const Route = mod.default}
-        <Route />
-      {/await}
-    {:else}
-      <div class="space-y-4 py-12 text-center">
-        <h2 class="text-lg font-semibold">{m.manual_not_found()}</h2>
-        <p class="text-muted-foreground">{m.not_found_body()}</p>
-        <a href="/" use:link class="text-primary hover:underline">{m.nav_home()}</a>
-      </div>
-    {/if}
+    <svelte:boundary>
+      {#if router.path === '/' || router.path === ''}
+        <Home />
+      {:else if router.path === '/manual' || router.path.startsWith('/manual/')}
+        {#await loadManual() then mod}
+          {@const Manual = mod.default}
+          <Manual />
+        {/await}
+      {:else if routeLoader}
+        {#await routeLoader() then mod}
+          {@const Route = mod.default}
+          <Route />
+        {/await}
+      {:else}
+        <div class="space-y-4 py-12 text-center">
+          <h2 class="text-lg font-semibold">{m.manual_not_found()}</h2>
+          <p class="text-muted-foreground">{m.not_found_body()}</p>
+          <a href="/" use:link class="text-primary hover:underline">{m.nav_home()}</a>
+        </div>
+      {/if}
+      {#snippet failed(error)}
+        <div class="space-y-4 py-12">
+          <h2 class="text-lg font-semibold text-destructive">{m.error_boundary_title()}</h2>
+          <p class="text-muted-foreground">{m.error_boundary_body()}</p>
+          <button
+            type="button"
+            class="rounded bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
+            onclick={() => location.reload()}
+          >
+            {m.error_reload()}
+          </button>
+          <details class="text-sm text-muted-foreground">
+            <summary class="cursor-pointer">{m.error_detail_summary()}</summary>
+            <pre class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">{error instanceof Error ? (error.stack ?? error.message) : String(error)}</pre>
+          </details>
+        </div>
+      {/snippet}
+    </svelte:boundary>
   </main>
 </div>
 
