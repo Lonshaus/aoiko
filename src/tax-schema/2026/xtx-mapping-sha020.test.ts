@@ -83,21 +83,6 @@ describe('mapTwoWari（2割特例）', () => {
     expect(result.sha020.ABI00080).toBe('63980');
   });
 
-  test('interimPeriod を指定すると ABH00160 に中間申告の対象期間が raw で立つ', () => {
-    const result = mapTwoWari({
-      taxableBase10: D('1000000'),
-      taxableBase8: D('0'),
-      ...zeroExtras(),
-      interimPeriod: { start: '2026-01-01', end: '2026-06-30' },
-    });
-    expect(result.sha020Raw.ABH00160).toBe(
-      '<ABH00170><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>1</gen:mm><gen:dd>1</gen:dd></ABH00170>' +
-        '<ABH00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd></ABH00180>'
-    );
-    // 2割特例チェック欄は period 指定時も維持される
-    expect(result.sha020Raw.ABY00000).toBe('<kubun_CD>1</kubun_CD>');
-  });
-
   test('本年中の中間納付税額を確定申告の差引税額に充当する', () => {
     const result = mapTwoWari({
       taxableBase10: D('6008481'),

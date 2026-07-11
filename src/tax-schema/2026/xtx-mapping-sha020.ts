@@ -140,8 +140,6 @@ export interface TwoWariMappingInput {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
-  /** 中間申告（仮決算方式）の対象期間。指定時は ABH00160 に転記する */
-  interimPeriod?: { start: string; end: string };
   /** 本年中に中間納付した消費税額（国税分）。確定申告の差引税額から充当する */
   interimPaidNational?: Decimal;
   /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告の差引税額から充当する */
@@ -208,10 +206,6 @@ export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
     input.interimPaidLocal ?? D(0)
   );
   const sha020Raw: XtxRawValues = { ABY00000: '<kubun_CD>1</kubun_CD>' };
-  const interimPeriodRaw = buildInterimPeriodRaw(input.interimPeriod);
-  if (interimPeriodRaw) {
-    sha020Raw.ABH00160 = interimPeriodRaw;
-  }
 
   return {
     sha020,
