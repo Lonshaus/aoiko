@@ -58,46 +58,46 @@
 
 ```
 src/
-├── domain/                    # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
-│   ├── journal.ts             # 仕訳の作成・確定
-│   ├── reverse.ts             # 訂正仕訳
-│   ├── reports.ts             # PL / BS / 月別 / 取引先別
-│   ├── depreciation.ts        # 定額法・定率法 減価償却
-│   ├── carryover.ts           # 前期繰越（期首振替）
-│   ├── business-opening.ts    # 開業精霊（転用資産の未償却残高計算・開業仕訳生成）
-│   ├── home-office.ts         # 家事按分
-│   ├── consumption-tax.ts     # 消費税 4 方式（本則/簡易/2割/3割）+ 経過措置
-│   ├── snapshots.ts           # 年度ロック（申告済み）
-│   ├── amended.ts             # 修正申告ガイド
-│   ├── llm-classify.ts        # LLM による CSV 行分類
-│   ├── ocr.ts                 # 領収書 OCR（vision LLM 路）
-│   ├── receipt-text-extract.ts # OCR 生テキスト → 構造化（Tesseract 路の確定性抽出）
-│   ├── order-extract.ts       # 注文ページ貼り付けテキスト → 構造化（LLM 抽出）
-│   ├── rules.ts               # ルール エンジン
-│   ├── send-confirm.ts        # 外部送信前確認ロジック
-│   ├── import.ts              # CSV インポートのオーケストレーション
-│   ├── import-batch.ts        # CSV 取込履歴・バッチ単位 reverse
-│   └── restore.ts             # バックアップ復元
-├── parsers/                   # 銀行・カード CSV パーサ（プラグイン）
-├── routes/                    # Svelte ルート（Home / JournalList / JournalEntryForm /
-│                              #   Import / OrderImport / ImportHistory / Receipt /
-│                              #   Reports / Settings）
-├── components/                # 再利用 Svelte コンポーネント（送信確認ダイアログ等）
-├── stores/                    # グローバル state（class + singleton）
-├── lib/                       # 共有ヘルパ
-│   ├── decimal.ts             # Decimal.js ラッパ + ソート可能インデックス変換
-│   ├── csv.ts                 # 標準 CSV パーサ（BOM 除去・引用付き対応）
-│   ├── llm-adapter.ts         # vision LLM アダプタ factory（Gemini / OpenAI 互換）
-│   ├── receipt-extractor.ts   # OCR 引擎抽象（vision LLM / Tesseract 共通）
-│   ├── order-extractor.ts     # 注文取込 引擎抽象（LLM Adapter 包装）
-│   ├── ocr/tesseract-engine.ts # Tesseract WASM 包装（動的 import）
-│   ├── settings.ts            # 設定 KV ストア
-│   ├── id.ts                  # ID 生成
-│   └── utils.ts               # shadcn-svelte 由来ユーティリティ
-├── db/                        # Dexie スキーマ
-├── backup/                    # バックアップ adapter（FSA / OPFS）
-└── tax-schema/                # 年度別税制スキーマ
-    └── 2026/                  # 勘定科目テーブル・.xtx 出力（公式 XSD 準拠・実機組み込み検証済み）
+├── domain/                      # ドメインロジック（フレームワーク非依存・Vitest テスト対象）
+│   ├── journal.ts               # 仕訳の作成・確定
+│   ├── reverse.ts               # 訂正仕訳
+│   ├── reports.ts               # PL / BS / 月別 / 取引先別
+│   ├── depreciation.ts          # 定額法・定率法 減価償却
+│   ├── carryover.ts             # 前期繰越（期首振替）
+│   ├── business-opening.ts      # 開業精霊（転用資産の未償却残高計算・開業仕訳生成）
+│   ├── home-office.ts           # 家事按分
+│   ├── consumption-tax.ts       # 消費税 4 方式（本則/簡易/2割/3割）+ 経過措置
+│   ├── snapshots.ts             # 年度ロック（申告済み）
+│   ├── amended.ts               # 修正申告ガイド
+│   ├── llm-classify.ts          # LLM による CSV 行分類
+│   ├── ocr.ts                   # 領収書 OCR（vision LLM 路）
+│   ├── receipt-text-extract.ts  # OCR 生テキスト → 構造化（Tesseract 路の確定性抽出）
+│   ├── order-extract.ts         # 注文ページ貼り付けテキスト → 構造化（LLM 抽出）
+│   ├── rules.ts                 # ルール エンジン
+│   ├── send-confirm.ts          # 外部送信前確認ロジック
+│   ├── import.ts                # CSV インポートのオーケストレーション
+│   ├── import-batch.ts          # CSV 取込履歴・バッチ単位 reverse
+│   └── restore.ts               # バックアップ復元
+├── parsers/                     # 銀行・カード CSV パーサ（プラグイン）
+├── routes/                      # Svelte ルート（Home / JournalList / JournalEntryForm /
+│                                #   Import / OrderImport / ImportHistory / Receipt /
+│                                #   Reports / Settings）
+├── components/                  # 再利用 Svelte コンポーネント（送信確認ダイアログ等）
+├── stores/                      # グローバル state（class + singleton）
+├── lib/                         # 共有ヘルパ
+│   ├── decimal.ts               # Decimal.js ラッパ + ソート可能インデックス変換
+│   ├── csv.ts                   # 標準 CSV パーサ（BOM 除去・引用付き対応）
+│   ├── llm-adapter.ts           # vision LLM アダプタ factory（Gemini / OpenAI 互換）
+│   ├── receipt-extractor.ts     # OCR エンジン抽象（vision LLM / Tesseract 共通）
+│   ├── order-extractor.ts       # 注文取込 エンジン抽象（LLM Adapter 包装）
+│   ├── ocr/tesseract-engine.ts  # Tesseract WASM 包装（動的 import）
+│   ├── settings.ts              # 設定 KV ストア
+│   ├── id.ts                    # ID 生成
+│   └── utils.ts                 # shadcn-svelte 由来ユーティリティ
+├── db/                          # Dexie スキーマ
+├── backup/                      # バックアップ adapter（FSA / OPFS）
+└── tax-schema/                  # 年度別税制スキーマ
+    └── 2026/                    # 勘定科目テーブル・.xtx 出力（公式 XSD 準拠・実機組み込み検証済み）
 ```
 
 ## 利用者向け：ローカル起動

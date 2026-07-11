@@ -58,46 +58,46 @@
 
 ```
 src/
-├── domain/                    # 領域邏輯（與框架無關、Vitest 測試對象）
-│   ├── journal.ts             # 仕訳建立／確定
-│   ├── reverse.ts             # 訂正仕訳
-│   ├── reports.ts             # PL / BS / 月別 / 取引先別
-│   ├── depreciation.ts        # 定額法、定率法 減價償卻
-│   ├── carryover.ts           # 前期繰越（期首振替）
-│   ├── business-opening.ts    # 開業精靈（轉用資產未償卻殘額計算、開業傳票生成）
-│   ├── home-office.ts         # 家事按分
-│   ├── consumption-tax.ts     # 消費稅 4 方式 ＋ 經過措置
-│   ├── snapshots.ts           # 年度鎖定（申告済）
-│   ├── amended.ts             # 修正申告引導
-│   ├── llm-classify.ts        # LLM 進行 CSV 行分類
-│   ├── ocr.ts                 # 收據 OCR（vision LLM 路）
-│   ├── receipt-text-extract.ts # OCR 原始文字 → 結構化（Tesseract 確定性抽取）
-│   ├── order-extract.ts       # 訂單頁貼上文字 → 結構化（LLM 抽取）
-│   ├── rules.ts               # 規則引擎
-│   ├── send-confirm.ts        # 對外送出前確認邏輯
-│   ├── import.ts              # CSV 匯入流程編排
-│   ├── import-batch.ts        # CSV 取込履歴・批次 reverse
-│   └── restore.ts             # 備份還原
-├── parsers/                   # 銀行・卡片 CSV parser（plugin 式）
-├── routes/                    # Svelte 路由（Home / JournalList / JournalEntryForm /
-│                              #   Import / OrderImport / ImportHistory / Receipt /
-│                              #   Reports / Settings）
-├── components/                # 共用 Svelte 元件（送出確認對話框等）
-├── stores/                    # 全域 state（class ＋ singleton）
-├── lib/                       # 共用 helper
-│   ├── decimal.ts             # Decimal.js wrapper ＋ 可排序索引轉換
-│   ├── csv.ts                 # 標準 CSV parser（BOM 除去、引號處理）
-│   ├── llm-adapter.ts         # vision LLM adapter factory（Gemini / OpenAI 相容）
-│   ├── receipt-extractor.ts   # OCR 引擎抽象（vision LLM / Tesseract 共通）
-│   ├── order-extractor.ts     # 訂單取込引擎抽象（包裝 LLM Adapter）
-│   ├── ocr/tesseract-engine.ts # Tesseract WASM 包裝（動態 import）
-│   ├── settings.ts            # 設定 KV store
-│   ├── id.ts                  # ID 產生
-│   └── utils.ts               # shadcn-svelte 工具
-├── db/                        # Dexie schema
-├── backup/                    # 備份 adapter（FSA / OPFS）
-└── tax-schema/                # 年度版稅務 schema
-    └── 2026/                  # 勘定科目表、`.xtx` 輸出（依官方 XSD、已通過實機組み込み驗證）
+├── domain/                      # 領域邏輯（與框架無關、Vitest 測試對象）
+│   ├── journal.ts               # 仕訳建立／確定
+│   ├── reverse.ts               # 訂正仕訳
+│   ├── reports.ts               # PL / BS / 月別 / 取引先別
+│   ├── depreciation.ts          # 定額法、定率法 減價償卻
+│   ├── carryover.ts             # 前期繰越（期首振替）
+│   ├── business-opening.ts      # 開業精靈（轉用資產未償卻殘額計算、開業傳票生成）
+│   ├── home-office.ts           # 家事按分
+│   ├── consumption-tax.ts       # 消費稅 4 方式 ＋ 經過措置
+│   ├── snapshots.ts             # 年度鎖定（申告済）
+│   ├── amended.ts               # 修正申告引導
+│   ├── llm-classify.ts          # LLM 進行 CSV 行分類
+│   ├── ocr.ts                   # 收據 OCR（vision LLM 路）
+│   ├── receipt-text-extract.ts  # OCR 原始文字 → 結構化（Tesseract 確定性抽取）
+│   ├── order-extract.ts         # 訂單頁貼上文字 → 結構化（LLM 抽取）
+│   ├── rules.ts                 # 規則引擎
+│   ├── send-confirm.ts          # 對外送出前確認邏輯
+│   ├── import.ts                # CSV 匯入流程編排
+│   ├── import-batch.ts          # CSV 取込履歴・批次 reverse
+│   └── restore.ts               # 備份還原
+├── parsers/                     # 銀行・卡片 CSV parser（plugin 式）
+├── routes/                      # Svelte 路由（Home / JournalList / JournalEntryForm /
+│                                #   Import / OrderImport / ImportHistory / Receipt /
+│                                #   Reports / Settings）
+├── components/                  # 共用 Svelte 元件（送出確認對話框等）
+├── stores/                      # 全域 state（class ＋ singleton）
+├── lib/                         # 共用 helper
+│   ├── decimal.ts               # Decimal.js wrapper ＋ 可排序索引轉換
+│   ├── csv.ts                   # 標準 CSV parser（BOM 除去、引號處理）
+│   ├── llm-adapter.ts           # vision LLM adapter factory（Gemini / OpenAI 相容）
+│   ├── receipt-extractor.ts     # OCR 引擎抽象（vision LLM / Tesseract 共通）
+│   ├── order-extractor.ts       # 訂單取込引擎抽象（包裝 LLM Adapter）
+│   ├── ocr/tesseract-engine.ts  # Tesseract WASM 包裝（動態 import）
+│   ├── settings.ts              # 設定 KV store
+│   ├── id.ts                    # ID 產生
+│   └── utils.ts                 # shadcn-svelte 工具
+├── db/                          # Dexie schema
+├── backup/                      # 備份 adapter（FSA / OPFS）
+└── tax-schema/                  # 年度版稅務 schema
+    └── 2026/                    # 勘定科目表、`.xtx` 輸出（依官方 XSD、已通過實機組み込み驗證）
 ```
 
 ## 使用者向：本機啟動
