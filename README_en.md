@@ -58,46 +58,46 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 
 ```
 src/
-├── domain/                    # Domain logic (framework-agnostic, Vitest-tested)
-│   ├── journal.ts             # Journal entry creation / confirmation
-│   ├── reverse.ts             # Correcting entries
-│   ├── reports.ts             # P/L / BS / monthly / vendor breakdowns
-│   ├── depreciation.ts        # Straight-line / declining-balance depreciation
-│   ├── carryover.ts           # Prior-period carryover (opening journal)
-│   ├── business-opening.ts    # Opening Wizard (converted-asset book value calc, opening entries)
-│   ├── home-office.ts         # Home office allocation
-│   ├── consumption-tax.ts     # Consumption tax 4 methods + transitional rule
-│   ├── snapshots.ts           # Year-end lock (filed)
-│   ├── amended.ts             # Amended filing guide
-│   ├── llm-classify.ts        # LLM-based CSV line classification
-│   ├── ocr.ts                 # Receipt OCR (vision LLM path)
-│   ├── receipt-text-extract.ts # Raw OCR text → structured (Tesseract deterministic path)
-│   ├── order-extract.ts       # Order page paste text → structured (LLM extract)
-│   ├── rules.ts               # Rule engine
-│   ├── send-confirm.ts        # External send confirmation logic
-│   ├── import.ts              # CSV import orchestration
-│   ├── import-batch.ts        # CSV import history / batch-level reverse
-│   └── restore.ts             # Backup restore
-├── parsers/                   # Bank / card CSV parsers (plugin-style)
-├── routes/                    # Svelte routes (Home / JournalList / JournalEntryForm /
-│                              #   Import / OrderImport / ImportHistory / Receipt /
-│                              #   Reports / Settings)
-├── components/                # Shared Svelte components (send-confirm dialog etc.)
-├── stores/                    # Global state (class + singleton)
-├── lib/                       # Shared helpers
-│   ├── decimal.ts             # Decimal.js wrapper + sortable index conversion
-│   ├── csv.ts                 # Standard CSV parser (BOM strip, quoted fields)
-│   ├── llm-adapter.ts         # Vision LLM adapter factory (Gemini / OpenAI-compatible)
-│   ├── receipt-extractor.ts   # OCR engine abstraction (vision LLM / Tesseract)
-│   ├── order-extractor.ts     # Order import abstraction (wraps LLM adapter)
-│   ├── ocr/tesseract-engine.ts # Tesseract WASM wrapper (dynamic import)
-│   ├── settings.ts            # Settings KV store
-│   ├── id.ts                  # ID generator
-│   └── utils.ts               # shadcn-svelte utilities
-├── db/                        # Dexie schema
-├── backup/                    # Backup adapter (FSA / OPFS)
-└── tax-schema/                # Year-versioned tax schemas
-    └── 2026/                  # Account table + .xtx output (official XSD compliant; verified on real e-Tax software)
+├── domain/                      # Domain logic (framework-agnostic, Vitest-tested)
+│   ├── journal.ts               # Journal entry creation / confirmation
+│   ├── reverse.ts               # Correcting entries
+│   ├── reports.ts               # P/L / BS / monthly / vendor breakdowns
+│   ├── depreciation.ts          # Straight-line / declining-balance depreciation
+│   ├── carryover.ts             # Prior-period carryover (opening journal)
+│   ├── business-opening.ts      # Opening Wizard (converted-asset book value calc, opening entries)
+│   ├── home-office.ts           # Home office allocation
+│   ├── consumption-tax.ts       # Consumption tax 4 methods + transitional rule
+│   ├── snapshots.ts             # Year-end lock (filed)
+│   ├── amended.ts               # Amended filing guide
+│   ├── llm-classify.ts          # LLM-based CSV line classification
+│   ├── ocr.ts                   # Receipt OCR (vision LLM path)
+│   ├── receipt-text-extract.ts  # Raw OCR text → structured (Tesseract deterministic path)
+│   ├── order-extract.ts         # Order page paste text → structured (LLM extract)
+│   ├── rules.ts                 # Rule engine
+│   ├── send-confirm.ts          # External send confirmation logic
+│   ├── import.ts                # CSV import orchestration
+│   ├── import-batch.ts          # CSV import history / batch-level reverse
+│   └── restore.ts               # Backup restore
+├── parsers/                     # Bank / card CSV parsers (plugin-style)
+├── routes/                      # Svelte routes (Home / JournalList / JournalEntryForm /
+│                                #   Import / OrderImport / ImportHistory / Receipt /
+│                                #   Reports / Settings)
+├── components/                  # Shared Svelte components (send-confirm dialog etc.)
+├── stores/                      # Global state (class + singleton)
+├── lib/                         # Shared helpers
+│   ├── decimal.ts               # Decimal.js wrapper + sortable index conversion
+│   ├── csv.ts                   # Standard CSV parser (BOM strip, quoted fields)
+│   ├── llm-adapter.ts           # Vision LLM adapter factory (Gemini / OpenAI-compatible)
+│   ├── receipt-extractor.ts     # OCR engine abstraction (vision LLM / Tesseract)
+│   ├── order-extractor.ts       # Order import abstraction (wraps LLM adapter)
+│   ├── ocr/tesseract-engine.ts  # Tesseract WASM wrapper (dynamic import)
+│   ├── settings.ts              # Settings KV store
+│   ├── id.ts                    # ID generator
+│   └── utils.ts                 # shadcn-svelte utilities
+├── db/                          # Dexie schema
+├── backup/                      # Backup adapter (FSA / OPFS)
+└── tax-schema/                  # Year-versioned tax schemas
+    └── 2026/                    # Account table + .xtx output (official XSD compliant; verified on real e-Tax software)
 ```
 
 ## Running locally
