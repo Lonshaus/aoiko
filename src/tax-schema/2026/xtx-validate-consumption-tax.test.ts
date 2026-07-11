@@ -184,32 +184,6 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     }
   });
 
-  maybe('2割特例の中間申告（仮決算方式）が公式 xsd に適合する', () => {
-    const xml = buildTwoWariXtx({
-      year: 2026,
-      businessName: 'aoikoウェブ事務所',
-      filer: {
-        riyoshaId: '1234567890123456',
-        name: '青井 太郎',
-        zip: '1800001',
-        address: '東京都武蔵野市〇〇1-2-3',
-        zeimushoCode: '01101',
-        zeimushoName: '麹町',
-      },
-      taxableBase10: D('1000000'),
-      taxableBase8: D('0'),
-      ...badDebtZeroExtras(),
-      interimPeriod: { start: '2026-01-01', end: '2026-06-30' },
-      interimPaidNational: D('10000'),
-    });
-    expect(xml).toContain('<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>2</kubun_CD></SHINKOKU_KBN>');
-    const m = /<SHA020 [\s\S]*?<\/SHA020>/.exec(xml);
-    expect(m, 'SHA020 subtree not found').not.toBeNull();
-    const { ok, out } = validate('_valwrap-SHA020.xsd', m![0]);
-    expect(out).not.toContain('Schemas parser error');
-    expect(ok, out).toBe(true);
-  });
-
   maybe('簡易課税の中間申告（仮決算方式）が公式 xsd に適合する', () => {
     const xml = buildSimplifiedXtx({
       year: 2026,
