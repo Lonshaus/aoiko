@@ -473,9 +473,9 @@
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : year;
-    const storedDeductions = await db.personalDeductions.get(exportYear);
+    const storedDeductions = await db.personalDeductions.get(year);
     const realEstatePl = ledger.realEstateIncomeEnabled
-      ? await buildPL(exportYear, undefined, 'realEstate')
+      ? await buildPL(year, undefined, 'realEstate')
       : undefined;
     const xml = buildXtx2026({
       year: exportYear,
