@@ -166,16 +166,22 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
   const isWhite = ctx.filingType === 'white';
   put(out, '営業等　金額', ctx.pl.totalRevenue);
+  const preIncome = D(ctx.pl.netIncome);
+  const businessIncome = totalIncomeAmount(ctx);
+  put(out, '営業等', businessIncome.toString());
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  // 白色申告は青色申告特別控除が無いため ABB00800/ABI00170 は出さないが、不動産所得の
+  // 収入・損益通算可能額と所得控除・税額（putIncomeDeductions）は青色と同様に出力する。
   if (isWhite) {
-    put(out, '営業等', totalIncomeAmount(ctx).toString());
+    if (ctx.realEstatePl && realEstateInput) {
+      putTag(out, 'ABB00050', ctx.realEstatePl.totalRevenue);
+      putTag(out, 'ABB00340', realEstateOffsettableAmount(ctx).toString());
+    }
+    putIncomeDeductions(out, ctx);
     return out;
   }
   // 実際に事業所得側へ配分された青色申告特別控除額（不動産所得が無ければ従来どおり）。
-  const preIncome = D(ctx.pl.netIncome);
-  const businessIncome = totalIncomeAmount(ctx);
   const businessDeduction = preIncome.minus(businessIncome);
-  put(out, '営業等', businessIncome.toString());
-  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (ctx.realEstatePl && realEstateInput) {
     const combined = computeCombinedBusinessRealEstateIncome(
       ctx.year,
