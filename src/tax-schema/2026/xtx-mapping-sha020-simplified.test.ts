@@ -110,6 +110,37 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
     );
   });
 
+  test('貸倒れ税額が控除税額小計を上回る還付:差引欄でなく控除不足還付欄へ正値', () => {
+    const result = mapSimplified({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      category: 5,
+      deemedInputRate: 0.5,
+      ...zeroExtras(),
+      badDebtTax10: D('100000'),
+    });
+    // 売上税額 78000 −（みなし仕入 39000 ＋ 貸倒れ 100000）= −61000 → 控除不足還付 61000
+    expect(result.sha020.ABI00090).toBe('61000');
+    expect(result.sha020.ABI00100).toBeUndefined();
+    expect(result.sha020.ABI00120).toBeUndefined();
+    // 地方：課税標準となる消費税額・譲渡割額とも還付欄へ
+    expect(result.sha020.ABJ00020).toBe('61000');
+    expect(result.sha020.ABJ00030).toBeUndefined();
+    // 譲渡割額 = 61000 × 22/78 = 17205.1… → 百円未満切り捨て 17200 を還付額へ
+    expect(result.sha020.ABJ00050).toBe('17200');
+    expect(result.sha020.ABJ00060).toBeUndefined();
+    expect(result.sha020.ABJ00080).toBeUndefined();
+    // 合計（納付又は還付）は符号付き純額（負＝還付）
+    expect(result.sha020.ABJ00130).toBe('-78200');
+    // 付表4-3 も同様に控除不足還付欄へ
+    expect(result.shb047.DUG00000).toBe('61000');
+    expect(result.shb047.DUH00000).toBeUndefined();
+    expect(result.shb047.DUI00010).toBe('61000');
+    expect(result.shb047.DUI00020).toBeUndefined();
+    expect(result.shb047.DUJ00010).toBe('17200');
+    expect(result.shb047.DUJ00020).toBeUndefined();
+  });
+
   test('本年中の中間納付税額を確定申告の差引税額に充当する', () => {
     const result = mapSimplified({
       taxableBase10: D('2000000'),
