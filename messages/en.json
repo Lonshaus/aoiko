@@ -647,6 +647,7 @@
   "settings_restore_intro_html": "Fully restores from a backup JSON file. <strong class=\"text-foreground\">All current data will be deleted.</strong>",
   "settings_restore_selected": "Selected: {name}",
   "settings_restore_success": "Restored {tables} tables / {rows} rows. Please reload the page.",
+  "settings_restore_missing_blobs": "{count} receipt photo(s) had no image data, so they were restored empty.",
   "settings_restore_reload": "Reload",
   "settings_restore_summary": "version {version} ・ {tables} tables ・ {rows} rows",
   "settings_restore_summary_attachments": "Includes {count} receipt photo(s)",
