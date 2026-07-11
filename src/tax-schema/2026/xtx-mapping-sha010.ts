@@ -10,9 +10,10 @@
 //    （控除額自体は経過措置適用後の input10/input8 に反映済みのため税額計算には影響しない）
 //  - 売上対価の返還等に係る税額：aoiko の集計は返品・値引を課税標準額へネットで
 //    反映済みのため、内訳を分離して転記しない（最終税額は正しいが内訳表示にはならない）
-//  - 中間納付税額の確定申告への充当（AAJ00110-130・AAK00070-090）：本年中に中間納付した
-//    税額が「当年の差引税額（本則計算後）」を超えて還付になるケース（AAK00130 が負値になる）
-//    は未検証。通常は中間納付額が年間確定額を上回ることは稀なため、その前提で実装する
+//  - 控除不足還付（仕入税額控除が売上税額を上回る本体還付）は差引税額（AAJ00100）へ負値を
+//    書かず、控除不足還付税額欄（国税 AAJ00090・地方 AAK00020/AAK00050）へ正値で出力する。
+//    中間納付の充当は差引税額（納付側）に対してのみ行い、還付時は中間納付額の全額が
+//    中間納付還付税額（AAJ00130/AAK00090）となる。AAK00130 は符号付き純額（負＝還付）
 
 import { D, Decimal } from '../../lib/decimal';
 import {
@@ -39,6 +40,17 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
   const v = toKingaku(value);
   if (v !== '0') {
     out[tag] = v;
+  }
+}
+
+// 差引が正なら差引欄（dueTag）、負なら還付欄（refundTag）へ絶対値を書き込む。
+// 消費税申告書は控除超過による還付を差引税額の負値ではなく、専用の控除不足還付税額欄に
+// 正値で記載する（⑧控除不足還付税額・地方の控除不足還付・還付額など）。
+function putSigned(out: XtxLeafValues, dueTag: string, refundTag: string, value: Decimal): void {
+  if (value.isNegative()) {
+    put(out, refundTag, value.negated());
+  } else {
+    put(out, dueTag, value);
   }
 }
 
@@ -201,9 +213,9 @@ function buildShb017(
     .minus(deductibleInput)
     .minus(badDebtTaxTotal);
   const filing = filingBreakdown(nationalNetRaw);
-  put(shb017, 'DSH00000', D(filing.national));
-  put(shb017, 'DSI00020', D(filing.national));
-  put(shb017, 'DSJ00020', D(filing.local));
+  putSigned(shb017, 'DSH00000', 'DSG00000', D(filing.national));
+  putSigned(shb017, 'DSI00020', 'DSI00010', D(filing.national));
+  putSigned(shb017, 'DSJ00020', 'DSJ00010', D(filing.local));
   return shb017;
 }
 
@@ -302,12 +314,16 @@ function buildSha010(
   const filing = filingBreakdown(nationalNetRaw);
   const filingNational = D(filing.national);
   const filingLocal = D(filing.local);
-  put(sha010, 'AAJ00100', filingNational);
-  put(sha010, 'AAK00030', filingNational);
-  put(sha010, 'AAK00060', filingLocal);
+  putSigned(sha010, 'AAJ00100', 'AAJ00090', filingNational);
+  putSigned(sha010, 'AAK00030', 'AAK00020', filingNational);
+  putSigned(sha010, 'AAK00060', 'AAK00050', filingLocal);
 
-  const national = applyInterimCredit(filingNational, interimPaidNational);
-  const local = applyInterimCredit(filingLocal, interimPaidLocal);
+  // 中間納付の充当は差引税額（納付側）に対してのみ行う。控除不足還付（差引が負）の
+  // 場合は差引税額が無く、中間納付額はその全額が中間納付還付税額となる。
+  const nationalDue = filingNational.isNegative() ? D(0) : filingNational;
+  const localDue = filingLocal.isNegative() ? D(0) : filingLocal;
+  const national = applyInterimCredit(nationalDue, interimPaidNational);
+  const local = applyInterimCredit(localDue, interimPaidLocal);
   if (interimPaidNational.greaterThan(0)) {
     put(sha010, 'AAJ00110', interimPaidNational);
     if (national.refund.greaterThan(0)) {
@@ -316,7 +332,7 @@ function buildSha010(
       put(sha010, 'AAJ00120', national.due);
     }
   } else {
-    put(sha010, 'AAJ00120', filingNational);
+    put(sha010, 'AAJ00120', nationalDue);
   }
   if (interimPaidLocal.greaterThan(0)) {
     put(sha010, 'AAK00070', interimPaidLocal);
@@ -326,12 +342,14 @@ function buildSha010(
       put(sha010, 'AAK00080', local.due);
     }
   } else {
-    put(sha010, 'AAK00080', filingLocal);
+    put(sha010, 'AAK00080', localDue);
   }
-  const combinedTotal = national.due
-    .minus(national.refund)
-    .plus(local.due)
-    .minus(local.refund);
+  // 合計（納付又は還付）税額：控除不足還付・中間納付還付を含む符号付き純額
+  // （正＝納付、負＝還付）。控除不足還付分は差引税額(filing)の負値に含まれる。
+  const combinedTotal = filingNational
+    .minus(interimPaidNational)
+    .plus(filingLocal)
+    .minus(interimPaidLocal);
   put(sha010, 'AAK00130', combinedTotal);
   // 第二表（内訳）
   put(sha010, 'AAP00000', official.taxableBase);
