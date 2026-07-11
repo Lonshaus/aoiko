@@ -148,7 +148,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     expect(out.ABB00590).toBeUndefined();
   });
 
-  test('税額控除は差引所得税額算出後、外国税額控除等・災害減免額は再差引で別枠控除', () => {
+  test('配当・住宅ローン控除は差引所得税額で、災害減免額のみ再差引で別枠控除', () => {
     const out = mapKoa020LeafValues(
       ctx({
         pl: { ...plBase, netIncome: '10000000' },
@@ -162,7 +162,34 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     );
     const diffTax = Number(out.ABB00670);
     const saiSashihiki = Number(out.ABB01010);
-    expect(diffTax - saiSashihiki).toBe(3000);
+    // 再差引所得税額は災害減免額のみ控除（外国税額控除は復興税算定後に控除するため含めない）
+    expect(diffTax - saiSashihiki).toBe(2000);
+  });
+
+  test('外国税額控除は復興税算定後：ABB01010/01020/01030 に影響せず申告納税額(ABB00720)で控除', () => {
+    // 税額100,000・外国税額10,000・災害減免0・源泉0 の想定チェーン
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '10000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          foreignTaxCreditAmount: D(10_000),
+        },
+      })
+    );
+    const taxAmount = Number(out.ABB00590);
+    const foreignCredit = 10_000;
+    // ABB01010（再差引）＝税額（外国税額控除は含めない）
+    expect(Number(out.ABB01010)).toBe(taxAmount);
+    // ABB01020（復興税）＝ABB01010×2.1%（1円未満切捨て）
+    expect(Number(out.ABB01020)).toBe(Math.floor(taxAmount * 0.021));
+    // ABB01030（合計）＝ABB01010＋ABB01020
+    expect(Number(out.ABB01030)).toBe(Number(out.ABB01010) + Number(out.ABB01020));
+    // ABB01040（外国税額控除の欄）は控除額そのものを維持
+    expect(out.ABB01040).toBe('10000');
+    // ABB00720（申告納税額）＝ABB01030 − 外国税額控除 − 源泉(0)
+    expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - foreignCredit);
   });
 
   test('給与所得：収入金額等(ABB00080)は税引前、所得金額等(ABB00370)は給与所得控除後', () => {
