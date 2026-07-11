@@ -45,6 +45,63 @@ describe('computeConvertedAssetBasis', () => {
   });
 });
 
+describe('非業務期間の月数計算（応当日ベース）', () => {
+  // 耐用年数4年→1.5倍で6年→旧定額法償却率0.166。1年あたりの非業務減価＝300000×0.9×0.166＝44820。
+  const cost = '300000';
+  const life = 4;
+
+  it('応当日の前日は満了とみなさず切り捨て：2025-06-30取得→2025-12-01供用は5か月1日で0年', () => {
+    const result = computeConvertedAssetBasis('2025-06-30', '2025-12-01', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('0');
+    expect(result.businessStartBasis.toString()).toBe('300000');
+  });
+
+  it('応当日ちょうどで6か月に達し1年に切り上げ：2025-06-30→2025-12-30', () => {
+    const result = computeConvertedAssetBasis('2025-06-30', '2025-12-30', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+
+  it('応当日の翌日も6か月のまま1年：2025-06-30→2025-12-31', () => {
+    const result = computeConvertedAssetBasis('2025-06-30', '2025-12-31', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+
+  it('月末取得は応当日不在月をその月の末日で満了：2024-08-31→2025-02-28は6か月で1年', () => {
+    const result = computeConvertedAssetBasis('2024-08-31', '2025-02-28', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+
+  it('月末取得で満期日（末日）の前日はまだ満了しない：2024-08-31→2025-02-27は5か月で0年', () => {
+    const result = computeConvertedAssetBasis('2024-08-31', '2025-02-27', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('0');
+  });
+
+  it('うるう年2/29取得は翌年2/28を満期日とみなし12か月ちょうどで1年：2024-02-29→2025-02-28', () => {
+    const result = computeConvertedAssetBasis('2024-02-29', '2025-02-28', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+
+  it('うるう年2/29取得の応当日は各月29日：2024-08-29で6か月（1年）', () => {
+    const result = computeConvertedAssetBasis('2024-02-29', '2024-08-29', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+
+  it('うるう年2/29取得の応当日前日は満了しない：2024-08-28で5か月（0年）', () => {
+    const result = computeConvertedAssetBasis('2024-02-29', '2024-08-28', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('0');
+  });
+
+  it('跨年の6か月境界の手前は0年：2025-10-15→2026-04-14は5か月', () => {
+    const result = computeConvertedAssetBasis('2025-10-15', '2026-04-14', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('0');
+  });
+
+  it('跨年の6か月境界ちょうどは1年：2025-10-15→2026-04-15', () => {
+    const result = computeConvertedAssetBasis('2025-10-15', '2026-04-15', cost, life);
+    expect(result.nonBusinessDepreciation.toString()).toBe('44820');
+  });
+});
+
 describe('generateOpeningEntries', () => {
   it('開業費のみ：全額費用化で計上仕訳と償却仕訳の2本を生成', async () => {
     const result = await generateOpeningEntries({
