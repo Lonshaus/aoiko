@@ -610,6 +610,8 @@
       importTax8: processed.importTax8,
       reverseChargeBase: processed.reverseChargeBase,
       reverseChargeTax: processed.reverseChargeTax,
+      reverseChargeCommonTax: processed.reverseChargeCommonTax,
+      reverseChargeNonTaxableOnlyTax: processed.reverseChargeNonTaxableOnlyTax,
       attributionMethod,
       badDebtTax10: processed.badDebtTax10,
       badDebtTax8: processed.badDebtTax8,

@@ -35,6 +35,8 @@ function zeroExtras() {
     importTax8: D('0'),
     reverseChargeBase: D('0'),
     reverseChargeTax: D('0'),
+    reverseChargeCommonTax: D('0'),
+    reverseChargeNonTaxableOnlyTax: D('0'),
     attributionMethod: 'proportional' as const,
     ...badDebtZeroExtras(),
   };
@@ -360,6 +362,42 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       expect(ok, `${label}: ${out}`).toBe(true);
     }
   });
+
+  maybe(
+    '特定課税仕入れ適用（割合95%未満）の mapGeneral が公式 xsd に適合する（新規 DSC・AAR・DTE00090系）',
+    () => {
+      const mapping = mapGeneral({
+        taxableBase10: D('1000000'),
+        taxableBase8: D('500000'),
+        input10: D('30000'),
+        input8: D('10000'),
+        ...zeroExtras(),
+        nonTaxableSalesBase: D('200000'),
+        reverseChargeBase: D('100000'),
+        reverseChargeTax: D('7800'),
+      });
+      // 適用時のみ立つ新規タグが実際に出力されていることを確認してから XSD 検証する
+      expect(mapping.shb017.DSC00030).toBeDefined();
+      expect(mapping.sha010.AAR00020).toBeDefined();
+      expect(mapping.shb033.DTE00100).toBeDefined();
+      const cases: Array<[string, string, XtxSchema, XtxLeafValues]> = [
+        ['SHA010', '_valwrap-SHA010.xsd', sha010 as XtxSchema, mapping.sha010],
+        ['SHB017', '_valwrap-SHB017.xsd', shb017 as XtxSchema, mapping.shb017],
+        ['SHB033', '_valwrap-SHB033.xsd', shb033 as XtxSchema, mapping.shb033],
+      ];
+      for (const [label, wrapper, schema, leafValues] of cases) {
+        const frag = buildFormFragment(
+          schema,
+          {},
+          { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+          leafValues
+        );
+        const { ok, out } = validate(wrapper, frag);
+        expect(out, label).not.toContain('Schemas parser error');
+        expect(ok, `${label}: ${out}`).toBe(true);
+      }
+    }
+  );
 
   maybe(
     '組立済バンドル（buildGeneralXtx）が公式 xsd に適合する（SHA010・SHB017・SHB033）',
