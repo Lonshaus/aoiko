@@ -65,6 +65,8 @@ function zeroExtras() {
     importTax8: D('0'),
     reverseChargeBase: D('0'),
     reverseChargeTax: D('0'),
+    reverseChargeCommonTax: D('0'),
+    reverseChargeNonTaxableOnlyTax: D('0'),
     attributionMethod: 'proportional' as const,
     ...badDebtZeroExtras(),
   };

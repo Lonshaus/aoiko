@@ -15,6 +15,8 @@ function zeroExtras() {
     importTax8: D('0'),
     reverseChargeBase: D('0'),
     reverseChargeTax: D('0'),
+    reverseChargeCommonTax: D('0'),
+    reverseChargeNonTaxableOnlyTax: D('0'),
     attributionMethod: 'proportional' as const,
     badDebtTax10: D('0'),
     badDebtTax8: D('0'),
@@ -147,6 +149,68 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.shb017.DSF00190).toBe('780');
     expect(result.shb017.DSE00010).toBe('624');
     expect(result.shb033.DTJ00010).toBe('624');
+  });
+
+  test('特定課税仕入れ適用（割合95%未満）：課税標準・控除・第二表内訳が対称に配線される', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('0'),
+      input8: D('0'),
+      ...zeroExtras(),
+      nonTaxableSalesBase: D('100000'),
+      reverseChargeBase: D('100000'),
+      reverseChargeTax: D('7800'),
+    });
+    // 課税標準額（7.8%）= 合算後千円未満切捨て floor1000(1,000,000 + 100,000) = 1,100,000
+    expect(result.shb017.DSB00020).toBe('1100000');
+    expect(result.shb017.DSD00020).toBe('85800');
+    // (1)の内訳：課税資産の譲渡等の対価（生値）と特定課税仕入れの対価を分離
+    expect(result.shb017.DSC00020).toBeUndefined();
+    expect(result.shb017.DSC00030).toBe('1000000');
+    expect(result.shb017.DSC00040).toBe('1000000');
+    expect(result.shb017.DSC00060).toBe('100000');
+    expect(result.shb017.DSC00070).toBe('100000');
+    // 第二表：課税資産の譲渡等の対価は生値（RC を含めない）、特定課税仕入れは AAR に別掲
+    expect(result.sha010.AAQ00040).toBeUndefined();
+    expect(result.sha010.AAQ00050).toBe('1000000');
+    expect(result.sha010.AAQ00060).toBe('1000000');
+    expect(result.sha010.AAR00020).toBe('100000');
+    expect(result.sha010.AAR00030).toBe('100000');
+    // 付表2-3：⑨特定課税仕入れの対価・⑩消費税額
+    expect(result.shb033.DTE00100).toBe('100000');
+    expect(result.shb033.DTE00110).toBe('100000');
+    expect(result.shb033.DTE00130).toBe('7800');
+    expect(result.shb033.DTE00140).toBe('7800');
+    // ⑬課税仕入れ等の税額の合計額（7.8%列 = ⑧7.8 0 ＋ ⑩ 7,800 ＋ ⑪7.8 0）
+    expect(result.shb033.DTE00250).toBe('7800');
+    expect(result.shb033.DTE00260).toBe('7800');
+    // 控除対象仕入税額（一括比例配分）= floor(7,800 × 1,000,000/1,100,000) = 7,090
+    expect(result.shb033.DTG00170).toBe('7090');
+    // 第一表：課税標準額・消費税額・控除対象仕入税額・差引
+    expect(result.sha010.AAJ00010).toBe('1100000');
+    expect(result.sha010.AAJ00020).toBe('85800');
+    expect(result.sha010.AAJ00050).toBe('7090');
+    // 差引 = floor100(85,800 − 7,090) = 78,700
+    expect(result.sha010.AAJ00100).toBe('78700');
+  });
+
+  test('⑧課税仕入れに係る消費税額は輸入消費税を除いた国内分のみ（⑪との二重計上を回避）', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('50000'),
+      input8: D('0'),
+      ...zeroExtras(),
+      importTax10: D('3000'),
+    });
+    // ⑧7.8 = input10 50,000 − 輸入 3,000 = 47,000（⑪ DTE00170 と重複しない）
+    expect(result.shb033.DTE00070).toBe('47000');
+    expect(result.shb033.DTE00080).toBe('47000');
+    expect(result.shb033.DTE00170).toBe('3000');
+    // ⑬7.8 = ⑧47,000 ＋ ⑪3,000 = 50,000
+    expect(result.shb033.DTE00250).toBe('50000');
+    expect(result.shb033.DTE00260).toBe('50000');
   });
 
   test('interimPeriod を指定すると AAI00160 に中間申告の対象期間が raw で立つ', () => {

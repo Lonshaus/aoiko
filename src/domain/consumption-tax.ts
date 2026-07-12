@@ -157,13 +157,13 @@ export function filingBreakdown(nationalNetRaw: Decimal): ConsumptionTaxBreakdow
 }
 
 export interface ProcessedYearLines {
-  /** 売上税額（国税分。特定課税仕入れの自認課税分を含む） */
+  /** 売上税額（国税分。特定課税仕入れの自認課税分は含まない。経過措置判定は集計後） */
   output: Decimal;
   /** 仕入税額（国税分、経過措置適用前） */
   inputRaw: Decimal;
-  /** 仕入税額（国税分、経過措置適用後 = 控除対象。輸入消費税・特定課税仕入れ分を含む） */
+  /** 仕入税額（国税分、経過措置適用後 = 控除対象。輸入消費税分を含む。特定課税仕入れ分は含まない） */
   input: Decimal;
-  /** 控除対象仕入税額（国税分、標準税率10%＝7.8%分） */
+  /** 控除対象仕入税額（国税分、標準税率10%＝7.8%分。特定課税仕入れ分は含まない） */
   input10: Decimal;
   /** 控除対象仕入税額（国税分、軽減税率8%＝6.24%分） */
   input8: Decimal;
@@ -187,6 +187,10 @@ export interface ProcessedYearLines {
   /** 特定課税仕入れ（リバースチャージ）に係る支払対価の額・消費税額（常に標準税率） */
   reverseChargeBase: Decimal;
   reverseChargeTax: Decimal;
+  /** 特定課税仕入れのうち個別対応方式の用途区分別内訳（常に標準税率＝7.8%分のみ）。
+   * inputUsageCategory が common/nonTaxableOnly の行の税額。既定 taxableOnly はどちらにも入らない */
+  reverseChargeCommonTax: Decimal;
+  reverseChargeNonTaxableOnlyTax: Decimal;
   /** 貸倒れに係る税額（税率別。その行の taxRate で税込金額から逆算） */
   badDebtTax10: Decimal;
   badDebtTax8: Decimal;
@@ -214,6 +218,8 @@ function emptyProcessedYearLines(): ProcessedYearLines {
     importTax8: D(0),
     reverseChargeBase: D(0),
     reverseChargeTax: D(0),
+    reverseChargeCommonTax: D(0),
+    reverseChargeNonTaxableOnlyTax: D(0),
     badDebtTax10: D(0),
     badDebtTax8: D(0),
     badDebtRecoveryTax10: D(0),
@@ -263,6 +269,8 @@ export async function processYear(
     importTax8,
     reverseChargeBase,
     reverseChargeTax,
+    reverseChargeCommonTax,
+    reverseChargeNonTaxableOnlyTax,
     badDebtTax10,
     badDebtTax8,
     badDebtRecoveryTax10,
@@ -352,19 +360,23 @@ export async function processYear(
       continue;
     }
 
-    // 特定課税仕入れ（リバースチャージ）：常に標準税率。自ら課税売上を計上したものとみなし
-    // output にも同額を加算する（経過措置により実際に申告義務が生じるのは本則課税・課税売上割合95%未満のみ）
+    // 特定課税仕入れ（リバースチャージ）：常に標準税率。経過措置の適用判定
+    // （本則課税・課税売上割合95%未満のみ申告義務。95%以上・簡易・2割/3割特例は
+    // 当分の間「なかったもの」）は集計後に行うため、ここでは独立集計のみ行う。
+    // output・input への混入はせず、用途区分別内訳（reverseChargeApplies 判定後に
+    // 控除側へ織り込むため）を別枠で保持する。
     if (effectiveTaxCategory === 'reverseCharge') {
       const national = nationalPortion(D(line.amount), 0.1, line.taxIncluded);
       const signed = line.side === 'debit' ? national : national.negated();
-      inputRaw = inputRaw.plus(signed);
-      input = input.plus(signed);
-      input10 = input10.plus(signed);
-      output = output.plus(signed);
       reverseChargeTax = reverseChargeTax.plus(signed);
       const base = taxExcludedPortion(D(line.amount), 0.1, line.taxIncluded);
       reverseChargeBase = reverseChargeBase.plus(line.side === 'debit' ? base : base.negated());
-      accumulateUsage(line, signed, 0.1);
+      const usage = line.inputUsageCategory ?? 'taxableOnly';
+      if (usage === 'common') {
+        reverseChargeCommonTax = reverseChargeCommonTax.plus(signed);
+      } else if (usage === 'nonTaxableOnly') {
+        reverseChargeNonTaxableOnlyTax = reverseChargeNonTaxableOnlyTax.plus(signed);
+      }
       continue;
     }
 
@@ -427,6 +439,8 @@ export async function processYear(
     importTax8,
     reverseChargeBase,
     reverseChargeTax,
+    reverseChargeCommonTax,
+    reverseChargeNonTaxableOnlyTax,
     badDebtTax10,
     badDebtTax8,
     badDebtRecoveryTax10,
@@ -468,6 +482,12 @@ export function isFullDeductionEligible(salesRatio: TaxableSalesRatio): boolean 
     salesRatio.ratio.greaterThanOrEqualTo('0.95') &&
     salesRatio.taxableSalesTotal.lessThanOrEqualTo(500_000_000)
   );
+}
+// 特定課税仕入れ（リバースチャージ）の申告義務判定。一般課税かつ課税売上割合95%未満のみ適用。
+// 95%以上（平成27年改正法附則42）・簡易課税（附則44②）・2割/3割特例の課税期間は
+// 当分の間「なかったものとされる」ため、この関数の呼び出し側は一般課税経路に限る。
+export function reverseChargeApplies(salesRatio: TaxableSalesRatio): boolean {
+  return salesRatio.ratio.lessThan('0.95');
 }
 export type ConsumptionTaxAttributionMethod = 'individual' | 'proportional';
 // 課税売上高5億円超・課税売上割合95%未満の場合の控除対象仕入税額を算定。
@@ -514,16 +534,34 @@ export async function computeGeneral(
     processed.exportExemptSalesBase,
     processed.nonTaxableSalesBase
   );
-  const input = computeDeductibleInput(processed, salesRatio, attributionMethod);
-  const net = output.plus(badDebtRecovery).minus(input).minus(badDebtTax);
-  const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
+  // 特定課税仕入れは一般課税かつ課税売上割合95%未満のときのみ、売上側（課税標準）と
+  // 控除側の双方へ対称に配線する。適用時は 95%未満のため全額控除には入らない。
+  const rcApplies = reverseChargeApplies(salesRatio);
+  const rcTax = rcApplies ? processed.reverseChargeTax : D(0);
+  const rcBase = rcApplies ? processed.reverseChargeBase : D(0);
+  const effectiveProcessed: ProcessedYearLines = rcApplies
+    ? {
+        ...processed,
+        inputRaw: inputRaw.plus(rcTax),
+        input: processed.input.plus(rcTax),
+        input10: processed.input10.plus(rcTax),
+        inputCommon10: processed.inputCommon10.plus(processed.reverseChargeCommonTax),
+        inputNonTaxableOnly10: processed.inputNonTaxableOnly10.plus(
+          processed.reverseChargeNonTaxableOnlyTax
+        ),
+      }
+    : processed;
+  const input = computeDeductibleInput(effectiveProcessed, salesRatio, attributionMethod);
+  const effectiveOutput = output.plus(rcTax);
+  const net = effectiveOutput.plus(badDebtRecovery).minus(input).minus(badDebtTax);
+  const official = computeOfficialOutputTax(taxableBase10.plus(rcBase), taxableBase8);
   // input は既に１円未満切り捨て済（既存の控除対象仕入税額）を官庁側の売上税額から控除
   const filingNet = official.outputTax.plus(badDebtRecovery).minus(input).minus(badDebtTax);
   return {
     year,
     method: 'general',
-    outputTax: asBreakdown(output),
-    inputTaxRaw: asBreakdown(inputRaw),
+    outputTax: asBreakdown(effectiveOutput),
+    inputTaxRaw: asBreakdown(effectiveProcessed.inputRaw),
     inputTax: asBreakdown(input),
     netTax: asBreakdown(net),
     taxableBase: official.taxableBase.toString(),
@@ -533,6 +571,8 @@ export async function computeGeneral(
 // 簡易課税：控除対象仕入税額＝(売上税額＋貸倒回収)×みなし仕入率（貸倒回収は控除計算の
 // 基礎にも算入される。国税庁「簡易課税用申告の手引き」の基準消費税額の定義どおり）。
 // 貸倒れ税額は控除計算とは別枠で最後に差し引く。
+// 特定課税仕入れは経過措置（附則44②）で簡易課税の課税期間は「なかったもの」とされるため、
+// processYear が output に混入しないことで自動的に集計から除外される。
 export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory,
@@ -565,6 +605,8 @@ export async function computeSimplified(
 // 2 割・3 割特例共通：(売上税額＋貸倒回収) × (1 − 控除率) − 貸倒れ税額。
 // 2割特例＝控除率80%（2023/10/01〜2026/09/30 の課税期間限定、インボイス制度の経過措置）。
 // 3割特例＝控除率70%（令和9・10〔2027・2028〕の課税期間限定、令和8年度税制改正で新設）。
+// 特定課税仕入れは 2割/3割特例の課税期間も経過措置で「なかったもの」とされ、
+// processYear が output に混入しないことで自動的に集計から除外される。
 async function computeWariException(
   year: number,
   method: 'two-wari' | 'three-wari',
