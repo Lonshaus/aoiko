@@ -17,8 +17,7 @@ import type { ReceiptExtracted } from './ocr';
 //   notes         : OCR 全文（プレフィル）
 
 const INVOICE_NUMBER_RE = /T\d{13}/;
-const WESTERN_DATE_RE =
-  /(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
+const WESTERN_DATE_RE = /(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
 const REIWA_DATE_RE =
   /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
 // 金額 token：¥1,500 / ￥1,500 / 1,500 / 1500円 / \1,500 等。

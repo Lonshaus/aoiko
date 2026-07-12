@@ -1,11 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import {
-  hostOf,
-  isLocalHost,
-  listOpenAiModels,
-  LlmError,
-  OpenAICompatibleAdapter,
-} from './llm';
+import { hostOf, isLocalHost, listOpenAiModels, LlmError, OpenAICompatibleAdapter } from './llm';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -22,7 +16,7 @@ function mockFetch(impl: (url: string, init?: RequestInit) => unknown) {
         json: async () => r,
         text: async () => JSON.stringify(r),
       } as unknown as Response;
-    })
+    }),
   );
 }
 
@@ -41,19 +35,13 @@ describe('hostOf / isLocalHost', () => {
 
 describe('OpenAICompatibleAdapter', () => {
   test('localhost は external=false（送信前確認スキップ対象）', () => {
-    const a = new OpenAICompatibleAdapter(
-      'http://localhost:11434/v1',
-      'ministral-3'
-    );
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'ministral-3');
     expect(a.external).toBe(false);
     expect(a.destinationHost).toBe('localhost:11434');
   });
 
   test('リモートは external=true', () => {
-    const a = new OpenAICompatibleAdapter(
-      'https://api.openai.com/v1',
-      'gpt-4o'
-    );
+    const a = new OpenAICompatibleAdapter('https://api.openai.com/v1', 'gpt-4o');
     expect(a.external).toBe(true);
   });
 
@@ -65,11 +53,7 @@ describe('OpenAICompatibleAdapter', () => {
         choices: [{ message: { content: '{"totalAmount":"1500"}' } }],
       };
     });
-    const a = new OpenAICompatibleAdapter(
-      'http://localhost:11434/v1/',
-      'moondream',
-      'sk-x'
-    );
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1/', 'moondream', 'sk-x');
     const out = await a.generateJson('読み取れ', {
       base64: 'QUJD',
       mimeType: 'image/png',
@@ -78,16 +62,12 @@ describe('OpenAICompatibleAdapter', () => {
     expect(captured!.url).toBe('http://localhost:11434/v1/chat/completions');
     const body = JSON.parse(captured!.body);
     expect(body.model).toBe('moondream');
-    expect(body.messages[0].content[1].image_url.url).toBe(
-      'data:image/png;base64,QUJD'
-    );
+    expect(body.messages[0].content[1].image_url.url).toBe('data:image/png;base64,QUJD');
   });
 
   test('```json フェンス付き応答も解析できる', async () => {
     mockFetch(() => ({
-      choices: [
-        { message: { content: '```json\n{"a":1}\n```' } },
-      ],
+      choices: [{ message: { content: '```json\n{"a":1}\n```' } }],
     }));
     const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm');
     expect(await a.generateJson('x')).toEqual({ a: 1 });
@@ -105,9 +85,6 @@ describe('listOpenAiModels', () => {
       expect(url).toBe('http://localhost:11434/v1/models');
       return { data: [{ id: 'ministral-3' }, { id: 'llama3' }, {}] };
     });
-    expect(await listOpenAiModels('http://localhost:11434/v1/')).toEqual([
-      'llama3',
-      'ministral-3',
-    ]);
+    expect(await listOpenAiModels('http://localhost:11434/v1/')).toEqual(['llama3', 'ministral-3']);
   });
 });

@@ -1,6 +1,6 @@
 name: 税制改正の報告
 description: 税法・勘定科目・.xtx スキーマの年度変更を報告する
-labels: ["tax-law"]
+labels: ['tax-law']
 body:
   - type: markdown
     attributes:
@@ -11,7 +11,7 @@ body:
     id: year
     attributes:
       label: 対象年度
-      placeholder: "令和8年分（2026年）"
+      placeholder: '令和8年分（2026年）'
     validations:
       required: true
   - type: textarea

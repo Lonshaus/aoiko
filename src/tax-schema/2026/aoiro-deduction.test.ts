@@ -18,21 +18,15 @@ describe('aoiroDeductionLimit', () => {
 
 describe('aoiroDeductionAmount', () => {
   test('控除前所得が限度額以上なら限度額を全額控除', () => {
-    expect(aoiroDeductionAmount(2026, 'electronic', D(5000000)).toString()).toBe(
-      '650000'
-    );
+    expect(aoiroDeductionAmount(2026, 'electronic', D(5000000)).toString()).toBe('650000');
   });
 
   test('控除前所得が限度額未満なら控除前所得が上限', () => {
-    expect(aoiroDeductionAmount(2026, 'electronic', D(400000)).toString()).toBe(
-      '400000'
-    );
+    expect(aoiroDeductionAmount(2026, 'electronic', D(400000)).toString()).toBe('400000');
   });
 
   test('赤字（控除前所得が0以下）なら控除0', () => {
-    expect(aoiroDeductionAmount(2026, 'electronic', D(-100000)).toString()).toBe(
-      '0'
-    );
+    expect(aoiroDeductionAmount(2026, 'electronic', D(-100000)).toString()).toBe('0');
     expect(aoiroDeductionAmount(2026, 'simple', D(0)).toString()).toBe('0');
   });
 });

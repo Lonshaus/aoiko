@@ -35,10 +35,7 @@
       </div>
       <div>
         <div class="text-xs text-muted-foreground mb-1">{m.home_overview_income()}</div>
-        <div
-          class="text-3xl font-bold tabular-nums"
-          class:text-destructive={!isPositive}
-        >
+        <div class="text-3xl font-bold tabular-nums" class:text-destructive={!isPositive}>
           {formatJPY(overview.netIncome)}
         </div>
       </div>
@@ -88,7 +85,9 @@
                   {#if row.debits[0]}
                     <span>{row.debits[0].name}</span>
                     {#if row.debits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1">+{row.debits.length - 1}</span>
+                      <span class="text-xs text-muted-foreground ml-1"
+                        >+{row.debits.length - 1}</span
+                      >
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
@@ -98,7 +97,9 @@
                   {#if row.credits[0]}
                     <span>{row.credits[0].name}</span>
                     {#if row.credits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1">+{row.credits.length - 1}</span>
+                      <span class="text-xs text-muted-foreground ml-1"
+                        >+{row.credits.length - 1}</span
+                      >
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>

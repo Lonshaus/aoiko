@@ -29,7 +29,14 @@ async function seedVendor(): Promise<string> {
 }
 
 function lineItem(overrides: Partial<InvoiceLineItem>): InvoiceLineItem {
-  return { id: newId(), name: '商品A', quantity: '1', unitPrice: '1000', taxRate: 0.1, ...overrides };
+  return {
+    id: newId(),
+    name: '商品A',
+    quantity: '1',
+    unitPrice: '1000',
+    taxRate: 0.1,
+    ...overrides,
+  };
 }
 
 describe('groupLineItemsByTaxRate / invoiceTotal', () => {

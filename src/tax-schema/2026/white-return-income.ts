@@ -10,10 +10,7 @@
 import { D, type Decimal } from '../../lib/decimal';
 import type { PLReport } from '../../domain/reports';
 
-export const WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS = new Set([
-  '専従者給与',
-  '貸倒引当金繰入額',
-]);
+export const WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS = new Set(['専従者給与', '貸倒引当金繰入額']);
 
 export function whiteReturnAdjustedNetIncome(pl: PLReport): Decimal {
   const excluded = pl.expense

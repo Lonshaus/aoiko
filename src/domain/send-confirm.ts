@@ -11,7 +11,7 @@ export interface ExternalSendTarget {
 
 export function shouldConfirmExternalSend(
   target: ExternalSendTarget,
-  skipConfirmSetting: boolean | undefined
+  skipConfirmSetting: boolean | undefined,
 ): boolean {
   if (!target.external) {
     return false;

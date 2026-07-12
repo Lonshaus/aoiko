@@ -15,14 +15,8 @@
     exportGenericCsv,
     exportYayoiCsv,
   } from '../domain/accountant-export';
-  import {
-    computeDepreciation,
-    generateYearEndDepreciation,
-  } from '../domain/depreciation';
-  import {
-    estimateTransferIncome,
-    generateDisposalEntry,
-  } from '../domain/asset-disposal';
+  import { computeDepreciation, generateYearEndDepreciation } from '../domain/depreciation';
+  import { estimateTransferIncome, generateDisposalEntry } from '../domain/asset-disposal';
   import {
     applyCarryover,
     computeCarryover,
@@ -54,7 +48,10 @@
     Vendor,
     VendorEntityType,
   } from '../db/types';
-  import { simplifiedTaxCategoryLabel, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
+  import {
+    simplifiedTaxCategoryLabel,
+    type SimplifiedTaxCategory,
+  } from '../tax-schema/2026/simplified-tax';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import type { FilingType } from '../tax-schema/2026/xtx';
   import {
@@ -221,7 +218,7 @@
   let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
   let filerSaved = $state(false);
   const zeimushoCodeInvalid = $derived(
-    userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode)
+    userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode),
   );
   // 税務署サジェスト（署名・コードで検索 → コード+署名を確定）
   let zeimushoQuery = $state('');
@@ -271,20 +268,14 @@
       }
     }
     return Array.from(groups.values()).sort(
-      (a, b) => a.account.displayOrder - b.account.displayOrder
+      (a, b) => a.account.displayOrder - b.account.displayOrder,
     );
   });
 
   const allAccountGroups = $derived.by(() => {
     type G = { category: string; label: string; items: Account[] };
     const groups: G[] = [];
-    const order: Account['category'][] = [
-      'asset',
-      'liability',
-      'equity',
-      'revenue',
-      'expense',
-    ];
+    const order: Account['category'][] = ['asset', 'liability', 'equity', 'revenue', 'expense'];
     for (const key of order) {
       const items = ledger.allAccounts.filter((a) => a.category === key);
       if (items.length > 0) {
@@ -435,7 +426,9 @@
     carryoverStatus = '';
     try {
       const r = await removeCarryover(currentYear);
-      carryoverStatus = r.removed ? m.settings_carryover_deleted() : m.settings_carryover_no_target();
+      carryoverStatus = r.removed
+        ? m.settings_carryover_deleted()
+        : m.settings_carryover_no_target();
     } catch (err) {
       carryoverError = err instanceof Error ? err.message : String(err);
     }
@@ -450,9 +443,7 @@
       subError = m.settings_subaccount_error_required();
       return;
     }
-    const exists = ledger.subAccounts.some(
-      (s) => s.accountCode === parent && s.name === name
-    );
+    const exists = ledger.subAccounts.some((s) => s.accountCode === parent && s.name === name);
     if (exists) {
       subError = m.settings_subaccount_error_duplicate();
       return;
@@ -750,7 +741,7 @@
       parts.push(
         r.skipped > 0
           ? m.settings_asset_run_success_with_skipped({ created: r.created, skipped: r.skipped })
-          : m.settings_asset_run_success({ created: r.created })
+          : m.settings_asset_run_success({ created: r.created }),
       );
       if (r.smallAssetCapExceeded > 0) {
         parts.push(m.settings_asset_run_warn_small_cap({ count: r.smallAssetCapExceeded }));
@@ -760,7 +751,9 @@
       }
       depreciationStatus = parts.join(' / ');
     } catch (e) {
-      depreciationStatus = m.settings_asset_run_error({ message: e instanceof Error ? e.message : String(e) });
+      depreciationStatus = m.settings_asset_run_error({
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -786,11 +779,13 @@
       const { GeminiAdapter } = await import('../domain/llm');
       const adapter = new GeminiAdapter(geminiKey.trim());
       await adapter.generateJson(
-        '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。'
+        '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。',
       );
       geminiTestStatus = m.settings_llm_test_success();
     } catch (e) {
-      geminiTestStatus = m.settings_llm_test_error({ message: e instanceof Error ? e.message : String(e) });
+      geminiTestStatus = m.settings_llm_test_error({
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -811,10 +806,7 @@
     openaiStatus = m.settings_llm_testing();
     try {
       const { listOpenAiModels } = await import('../domain/llm');
-      openaiModels = await listOpenAiModels(
-        openaiBaseUrl.trim(),
-        openaiApiKey.trim()
-      );
+      openaiModels = await listOpenAiModels(openaiBaseUrl.trim(), openaiApiKey.trim());
       openaiStatus = m.settings_openai_models_loaded({
         count: openaiModels.length,
       });
@@ -832,10 +824,10 @@
       const adapter = new OpenAICompatibleAdapter(
         openaiBaseUrl.trim(),
         openaiClassifyModel.trim() || openaiOcrModel.trim(),
-        openaiApiKey.trim()
+        openaiApiKey.trim(),
       );
       await adapter.generateJson(
-        '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。'
+        '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。',
       );
       openaiStatus = m.settings_llm_test_success();
     } catch (e) {
@@ -858,7 +850,10 @@
       return;
     }
     if (exceedsLimit(file.size, MAX_BACKUP_BYTES)) {
-      restoreError = m.common_file_too_large({ size: formatBytes(file.size), limit: formatBytes(MAX_BACKUP_BYTES) });
+      restoreError = m.common_file_too_large({
+        size: formatBytes(file.size),
+        limit: formatBytes(MAX_BACKUP_BYTES),
+      });
       input.value = '';
       return;
     }
@@ -882,9 +877,18 @@
     try {
       // $state はオブジェクトを深く Proxy 化する。Proxy のまま IndexedDB に put すると
       // structured clone 不可で DataCloneError になるため、生のオブジェクトに戻して渡す。
-      const result = await restoreFromPayload($state.snapshot(restorePayload), restoreAttachmentBlobs);
-      restoreSuccess = m.settings_restore_success({ tables: result.tableCount, rows: result.rowCount });
-      restoreWarning = result.missingBlobCount > 0 ? m.settings_restore_missing_blobs({ count: result.missingBlobCount }) : '';
+      const result = await restoreFromPayload(
+        $state.snapshot(restorePayload),
+        restoreAttachmentBlobs,
+      );
+      restoreSuccess = m.settings_restore_success({
+        tables: result.tableCount,
+        rows: result.rowCount,
+      });
+      restoreWarning =
+        result.missingBlobCount > 0
+          ? m.settings_restore_missing_blobs({ count: result.missingBlobCount })
+          : '';
       restorePayload = null;
       restoreAttachmentBlobs = new Map();
       restoreAttachmentCount = 0;
@@ -999,10 +1003,7 @@
     </label>
   </section>
 
-  <form
-    onsubmit={saveBasic}
-    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
-  >
+  <form onsubmit={saveBasic} class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_basic_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_basic_intro_html()}
@@ -1117,7 +1118,9 @@
     </p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_registration()}</span>
+        <span class="text-xs text-muted-foreground"
+          >{m.settings_consumption_tax_registration()}</span
+        >
         <select
           bind:value={taxRegistration}
           onchange={saveConsumptionTax}
@@ -1143,30 +1146,42 @@
         </label>
         {#if taxFilingMethod === 'simplified'}
           <label class="block sm:col-span-2">
-            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_simplified_category()}</span>
+            <span class="text-xs text-muted-foreground"
+              >{m.settings_consumption_tax_simplified_category()}</span
+            >
             <select
               bind:value={simplifiedTaxCategory}
               onchange={saveConsumptionTax}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
               {#each [1, 2, 3, 4, 5, 6] as cat (cat)}
-                <option value={cat}>{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option>
+                <option value={cat}
+                  >{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option
+                >
               {/each}
             </select>
           </label>
         {/if}
         {#if taxFilingMethod === 'general'}
           <label class="block sm:col-span-2">
-            <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_method()}</span>
+            <span class="text-xs text-muted-foreground"
+              >{m.settings_consumption_tax_attribution_method()}</span
+            >
             <select
               bind:value={consumptionTaxAttributionMethod}
               onchange={saveConsumptionTax}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
-              <option value="proportional">{m.settings_consumption_tax_attribution_proportional()}</option>
-              <option value="individual">{m.settings_consumption_tax_attribution_individual()}</option>
+              <option value="proportional"
+                >{m.settings_consumption_tax_attribution_proportional()}</option
+              >
+              <option value="individual"
+                >{m.settings_consumption_tax_attribution_individual()}</option
+              >
             </select>
-            <span class="block mt-1 text-xs text-muted-foreground">{m.settings_consumption_tax_attribution_hint()}</span>
+            <span class="block mt-1 text-xs text-muted-foreground"
+              >{m.settings_consumption_tax_attribution_hint()}</span
+            >
           </label>
         {/if}
       {/if}
@@ -1176,10 +1191,7 @@
     {/if}
   </section>
 
-  <form
-    onsubmit={saveFiler}
-    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
-  >
+  <form onsubmit={saveFiler} class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_filer_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_filer_intro_html()}
@@ -1383,9 +1395,22 @@
         </div>
       </div>
       <div class="text-xs text-muted-foreground border-t pt-2 space-y-0.5">
-        <p>{m.settings_carryover_prior_net_income()}：<span class="font-mono">{formatJPY(p.priorNetIncome)}</span></p>
-        <p>{m.settings_carryover_prior_capital()}：<span class="font-mono">{formatJPY(p.priorEndingCapital)}</span></p>
-        <p>{m.settings_carryover_prior_owner_movements({ withdrawals: formatJPY(p.priorOwnerWithdrawals), contributions: formatJPY(p.priorOwnerContributions) })}</p>
+        <p>
+          {m.settings_carryover_prior_net_income()}：<span class="font-mono"
+            >{formatJPY(p.priorNetIncome)}</span
+          >
+        </p>
+        <p>
+          {m.settings_carryover_prior_capital()}：<span class="font-mono"
+            >{formatJPY(p.priorEndingCapital)}</span
+          >
+        </p>
+        <p>
+          {m.settings_carryover_prior_owner_movements({
+            withdrawals: formatJPY(p.priorOwnerWithdrawals),
+            contributions: formatJPY(p.priorOwnerContributions),
+          })}
+        </p>
       </div>
     {/if}
   </section>
@@ -1432,11 +1457,14 @@
         {#each subGroups as group (group.account.code)}
           <li class="space-y-1">
             <div class="text-xs text-muted-foreground">
-              <span class="font-mono">{group.account.code}</span> {group.account.name}
+              <span class="font-mono">{group.account.code}</span>
+              {group.account.name}
             </div>
             <ul class="space-y-1">
               {#each group.items as sa (sa.id)}
-                <li class="flex items-center justify-between border rounded px-3 py-2 bg-background">
+                <li
+                  class="flex items-center justify-between border rounded px-3 py-2 bg-background"
+                >
                   <span>{sa.name}</span>
                   <button
                     type="button"
@@ -1518,10 +1546,14 @@
     {#if ledger.vendors.length > 0}
       <ul class="space-y-1">
         {#each ledger.vendors as v (v.id)}
-          <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+          <li
+            class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm"
+          >
             <span class="flex-1 min-w-40 break-all">
               {v.name}
-              <span class="text-xs text-muted-foreground ml-2">{vendorEntityLabel(v.entityType)}</span>
+              <span class="text-xs text-muted-foreground ml-2"
+                >{vendorEntityLabel(v.entityType)}</span
+              >
               {#if v.address}
                 <span class="block text-xs text-muted-foreground">{v.address}</span>
               {/if}
@@ -1584,7 +1616,9 @@
       {#if ledger.inventoryItems.length > 0}
         <ul class="space-y-1">
           {#each ledger.inventoryItems as it (it.id)}
-            <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+            <li
+              class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm"
+            >
               <span class="flex-1 min-w-40 break-all">{it.name}</span>
               <button
                 type="button"
@@ -1689,11 +1723,16 @@
     {#if newAssetMethod === 'small-asset-special'}
       {#if newAssetSmallCheck.state === 'eligible'}
         <p class="text-xs text-green-600">
-          {m.settings_asset_small_eligible({ date: newAssetDate, threshold: formatJPY(newAssetSmallCheck.threshold) })}
+          {m.settings_asset_small_eligible({
+            date: newAssetDate,
+            threshold: formatJPY(newAssetSmallCheck.threshold),
+          })}
         </p>
       {:else if newAssetSmallCheck.state === 'cost'}
         <p class="text-xs text-destructive">
-          {m.settings_asset_small_ineligible_cost({ threshold: formatJPY(newAssetSmallCheck.threshold) })}
+          {m.settings_asset_small_ineligible_cost({
+            threshold: formatJPY(newAssetSmallCheck.threshold),
+          })}
         </p>
       {:else if newAssetSmallCheck.state === 'expired'}
         <p class="text-xs text-destructive">
@@ -1733,16 +1772,21 @@
                 {a.name}
                 {#if a.disposedDate}
                   <span class="ml-1 text-xs text-muted-foreground">
-                    ({a.disposalType === 'sale' ? m.settings_asset_disposal_type_sale() : m.settings_asset_disposal_type_scrap()}
+                    ({a.disposalType === 'sale'
+                      ? m.settings_asset_disposal_type_sale()
+                      : m.settings_asset_disposal_type_scrap()}
                     {a.disposedDate})
                   </span>
                 {/if}
               </td>
               <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
               <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
-              <td class="py-2 text-right tabular-nums">{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td>
+              <td class="py-2 text-right tabular-nums"
+                >{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td
+              >
               <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
-              <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td>
+              <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td
+              >
               <td class="py-2 text-right whitespace-nowrap">
                 {#if a.incomeType === 'realEstate'}
                   <button
@@ -2072,12 +2116,18 @@
     {#if ledger.parserRules.length > 0}
       <ul class="space-y-1">
         {#each ledger.parserRules as r (r.id)}
-          <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+          <li
+            class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm"
+          >
             <span class="text-xs text-muted-foreground">{matchTypeLabel(r.matchType)}</span>
             <span class="font-mono flex-1 min-w-32 break-all">{r.pattern}</span>
             <span class="font-mono text-xs text-muted-foreground">→ {r.accountCode}</span>
-            <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_priority_short({ n: r.priority })}</span>
-            <span class="text-xs text-muted-foreground tabular-nums">{m.settings_rule_hits({ n: r.hitCount })}</span>
+            <span class="text-xs text-muted-foreground tabular-nums"
+              >{m.settings_rule_priority_short({ n: r.priority })}</span
+            >
+            <span class="text-xs text-muted-foreground tabular-nums"
+              >{m.settings_rule_hits({ n: r.hitCount })}</span
+            >
             <button
               type="button"
               onclick={() => askDelete(r.pattern, () => deleteRule(r.id))}
@@ -2103,7 +2153,10 @@
         <summary class="cursor-pointer px-3 py-2 text-sm font-medium">
           {group.label}
           <span class="text-xs text-muted-foreground ml-2">
-            {m.settings_account_active_count({ active: group.items.filter((a) => a.isActive !== false).length, total: group.items.length })}
+            {m.settings_account_active_count({
+              active: group.items.filter((a) => a.isActive !== false).length,
+              total: group.items.length,
+            })}
           </span>
         </summary>
         <ul class="border-t divide-y divide-border/50">
@@ -2111,7 +2164,10 @@
             <li class="flex items-center justify-between px-3 py-2 text-sm">
               <span>
                 <span class="font-mono text-xs text-muted-foreground mr-2">{a.code}</span>
-                <span class:line-through={a.isActive === false} class:opacity-50={a.isActive === false}>
+                <span
+                  class:line-through={a.isActive === false}
+                  class:opacity-50={a.isActive === false}
+                >
                   {a.name}
                 </span>
               </span>
@@ -2260,7 +2316,9 @@
           {/if}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.settings_openai_classify_model_label()}</span>
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_openai_classify_model_label()}</span
+          >
           {#if openaiModels.length > 0}
             <select
               bind:value={openaiClassifyModel}
@@ -2304,7 +2362,9 @@
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_accountant_export_title()}</h3>
-    <p class="text-xs text-muted-foreground">{m.settings_accountant_export_intro({ year: currentYear })}</p>
+    <p class="text-xs text-muted-foreground">
+      {m.settings_accountant_export_intro({ year: currentYear })}
+    </p>
     <div class="flex flex-wrap gap-2">
       <button
         type="button"
@@ -2376,7 +2436,9 @@
       class="w-full text-sm text-muted-foreground"
     />
     {#if restoreFileName}
-      <p class="text-xs text-muted-foreground">{m.settings_restore_selected({ name: restoreFileName })}</p>
+      <p class="text-xs text-muted-foreground">
+        {m.settings_restore_selected({ name: restoreFileName })}
+      </p>
     {/if}
     {#if restoreError}
       <div class="text-sm text-destructive">{restoreError}</div>
@@ -2384,23 +2446,25 @@
     {#if restoreSuccess}
       <div class="text-sm text-foreground border border-primary bg-primary/10 rounded px-3 py-2">
         ✓ {restoreSuccess}
-        <button
-          type="button"
-          onclick={() => location.reload()}
-          class="ml-2 text-primary underline"
-        >
+        <button type="button" onclick={() => location.reload()} class="ml-2 text-primary underline">
           {m.settings_restore_reload()}
         </button>
       </div>
     {/if}
     {#if restoreWarning}
-      <div class="text-sm text-foreground border border-destructive bg-destructive/10 rounded px-3 py-2">
+      <div
+        class="text-sm text-foreground border border-destructive bg-destructive/10 rounded px-3 py-2"
+      >
         ⚠ {restoreWarning}
       </div>
     {/if}
     {#if restorePayload}
       <div class="text-xs text-muted-foreground">
-        {m.settings_restore_summary({ version: restorePayload.version, tables: Object.keys(restorePayload.tables).length, rows: Object.values(restorePayload.tables).reduce((s, t) => s + t.length, 0) })}
+        {m.settings_restore_summary({
+          version: restorePayload.version,
+          tables: Object.keys(restorePayload.tables).length,
+          rows: Object.values(restorePayload.tables).reduce((s, t) => s + t.length, 0),
+        })}
       </div>
       {#if restoreAttachmentCount > 0}
         <div class="text-xs text-muted-foreground">
@@ -2421,7 +2485,10 @@
     <h3 class="text-lg font-semibold">{m.settings_disclaimer_title()}</h3>
     {#if disclaimerAcceptedAt}
       <p class="text-sm">
-        {m.settings_disclaimer_accepted({ date: toISODateLocal(new Date(disclaimerAcceptedAt)), version: disclaimerAcceptedVersion ?? 0 })}
+        {m.settings_disclaimer_accepted({
+          date: toISODateLocal(new Date(disclaimerAcceptedAt)),
+          version: disclaimerAcceptedVersion ?? 0,
+        })}
       </p>
       <p class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}
@@ -2429,8 +2496,8 @@
           href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline hover:text-foreground"
-        >DISCLAIMER.md</a>
+          class="underline hover:text-foreground">DISCLAIMER.md</a
+        >
       </p>
       <div>
         <button

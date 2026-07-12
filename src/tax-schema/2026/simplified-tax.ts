@@ -22,9 +22,7 @@ export function deemedInputRate(category: SimplifiedTaxCategory): number {
   return DEEMED_INPUT_RATES[category];
 }
 // 事業区分の人間可読ラベル（UI 表示用）。
-export function simplifiedTaxCategoryLabel(
-  category: SimplifiedTaxCategory
-): string {
+export function simplifiedTaxCategoryLabel(category: SimplifiedTaxCategory): string {
   switch (category) {
     case 1:
       return '第 1 種（卸売業、90%）';

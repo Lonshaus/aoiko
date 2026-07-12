@@ -1,22 +1,22 @@
 <script module lang="ts">
-  import { marked } from 'marked'
-  import { slugifyHeading } from '../lib/manual'
+  import { marked } from 'marked';
+  import { slugifyHeading } from '../lib/manual';
   // 見出しに id を付与し、章間 `#アンカー` と章内目次のジャンプ先を一致させる。
   marked.use({
     renderer: {
       heading(token) {
-        const inner = this.parser.parseInline(token.tokens)
-        return `<h${token.depth} id="${slugifyHeading(token.text)}">${inner}</h${token.depth}>`
+        const inner = this.parser.parseInline(token.tokens);
+        return `<h${token.depth} id="${slugifyHeading(token.text)}">${inner}</h${token.depth}>`;
       },
     },
-  })
+  });
 </script>
 
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
-  import { router, link } from '../router.svelte'
-  import { getLocale } from '../paraglide/runtime'
-  import { m } from '../paraglide/messages'
+  import { onMount, tick } from 'svelte';
+  import { router, link } from '../router.svelte';
+  import { getLocale } from '../paraglide/runtime';
+  import { m } from '../paraglide/messages';
   import {
     INDEX_SLUG,
     slugFromPath,
@@ -29,70 +29,72 @@
     rewriteImagePaths,
     stripLanguageNav,
     searchManual,
-  } from '../lib/manual'
+  } from '../lib/manual';
 
-  const locale = getLocale()
+  const locale = getLocale();
 
-  let query = $state('')
-  const results = $derived(searchManual(query, locale))
-  const searching = $derived(query.trim().length > 0)
+  let query = $state('');
+  const results = $derived(searchManual(query, locale));
+  const searching = $derived(query.trim().length > 0);
 
-  const slug = $derived(slugFromPath(router.path))
-  const isIndex = $derived(slug === INDEX_SLUG)
-  const content = $derived(getManualContent(slug, locale))
+  const slug = $derived(slugFromPath(router.path));
+  const isIndex = $derived(slug === INDEX_SLUG);
+  const content = $derived(getManualContent(slug, locale));
   const html = $derived(
     content === null
       ? null
-      : (marked.parse(rewriteImagePaths(rewriteLinks(stripLanguageNav(content))), { async: false }) as string),
-  )
-  const headings = $derived(content === null ? [] : extractHeadings(stripLanguageNav(content)))
-  const adjacent = $derived(adjacentChapters(slug))
+      : (marked.parse(rewriteImagePaths(rewriteLinks(stripLanguageNav(content))), {
+          async: false,
+        }) as string),
+  );
+  const headings = $derived(content === null ? [] : extractHeadings(stripLanguageNav(content)));
+  const adjacent = $derived(adjacentChapters(slug));
 
   function titleOf(s: string): string {
-    return extractTitle(getManualContent(s, locale) ?? '') || s
+    return extractTitle(getManualContent(s, locale) ?? '') || s;
   }
 
-  const chapters = chapterSlugs().map((s) => ({ slug: s, title: titleOf(s) }))
+  const chapters = chapterSlugs().map((s) => ({ slug: s, title: titleOf(s) }));
 
   function scrollToHash(hash: string) {
     if (!hash) {
-      return
+      return;
     }
-    document.getElementById(decodeURIComponent(hash))?.scrollIntoView()
+    document.getElementById(decodeURIComponent(hash))?.scrollIntoView();
   }
 
   onMount(() => {
-    scrollToHash(window.location.hash.slice(1))
-  })
+    scrollToHash(window.location.hash.slice(1));
+  });
   // {@html} 内・章内目次のリンクを SPA 遷移／アンカージャンプに変換する。
   function onContentClick(e: MouseEvent) {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
-      return
+      return;
     }
-    const anchor = (e.target as HTMLElement | null)?.closest('a')
+    const anchor = (e.target as HTMLElement | null)?.closest('a');
     if (!anchor) {
-      return
+      return;
     }
-    const href = anchor.getAttribute('href')
+    const href = anchor.getAttribute('href');
     if (!href) {
-      return
+      return;
     }
     if (href.startsWith('#')) {
-      e.preventDefault()
-      scrollToHash(href.slice(1))
-      return
+      e.preventDefault();
+      scrollToHash(href.slice(1));
+      return;
     }
     if (href.startsWith('/manual')) {
-      e.preventDefault()
-      const [path, hash] = href.split('#')
-      router.goto(path ?? '/manual')
-      void tick().then(() => scrollToHash(hash ?? ''))
+      e.preventDefault();
+      const [path, hash] = href.split('#');
+      router.goto(path ?? '/manual');
+      void tick().then(() => scrollToHash(hash ?? ''));
     }
   }
 
   function go(path: string) {
-    query = ''
-    router.goto(path)
+    query = '';
+    router.goto(path);
   }
 </script>
 
@@ -163,7 +165,11 @@
           <ul class="space-y-1">
             {#each headings as h (h.id)}
               <li class={h.level === 3 ? 'ml-4' : ''}>
-                <a href="#{h.id}" class="text-muted-foreground hover:text-foreground" onclick={onContentClick}>
+                <a
+                  href="#{h.id}"
+                  class="text-muted-foreground hover:text-foreground"
+                  onclick={onContentClick}
+                >
                   {h.text}
                 </a>
               </li>
@@ -185,7 +191,11 @@
             <span></span>
           {/if}
           {#if adjacent.next}
-            <a href="/manual/{adjacent.next}" use:link class="text-primary hover:underline text-right">
+            <a
+              href="/manual/{adjacent.next}"
+              use:link
+              class="text-primary hover:underline text-right"
+            >
               {m.manual_next()}：{titleOf(adjacent.next)} →
             </a>
           {:else}

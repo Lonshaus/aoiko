@@ -130,7 +130,7 @@ describe('computeCombinedBusinessRealEstateIncome', () => {
       true,
       D(3000000),
       undefined,
-      undefined
+      undefined,
     );
     expect(r.businessIncome.toString()).toBe('2350000');
     expect(r.combinedIncome.toString()).toBe('2350000');
@@ -139,7 +139,14 @@ describe('computeCombinedBusinessRealEstateIncome', () => {
   test('両方黒字なら共有枠を配分し、combinedIncome は両方の合計から控除額を引いたもの', () => {
     const pl = plWith('400000');
     const input: RealEstateIncomeCtx = { businessScale: true };
-    const r = computeCombinedBusinessRealEstateIncome(2026, 'electronic', true, D(500000), pl, input);
+    const r = computeCombinedBusinessRealEstateIncome(
+      2026,
+      'electronic',
+      true,
+      D(500000),
+      pl,
+      input,
+    );
     expect(r.realEstateIncomeAfterDeduction.toString()).toBe('0');
     expect(r.businessIncome.toString()).toBe('250000');
     expect(r.combinedIncome.toString()).toBe('250000');
@@ -148,7 +155,14 @@ describe('computeCombinedBusinessRealEstateIncome', () => {
   test('不動産所得が赤字で土地利子額が無ければ全額が事業所得と損益通算できる', () => {
     const pl = plWith('-200000');
     const input: RealEstateIncomeCtx = { businessScale: true };
-    const r = computeCombinedBusinessRealEstateIncome(2026, 'electronic', true, D(500000), pl, input);
+    const r = computeCombinedBusinessRealEstateIncome(
+      2026,
+      'electronic',
+      true,
+      D(500000),
+      pl,
+      input,
+    );
     expect(r.realEstateIncomeAfterDeduction.toString()).toBe('-200000');
     expect(r.realEstateOffsettable.toString()).toBe('-200000');
     expect(r.combinedIncome.toString()).toBe('-200000');
@@ -157,7 +171,14 @@ describe('computeCombinedBusinessRealEstateIncome', () => {
   test('不動産所得が赤字で土地利子額があれば、その分だけ損益通算から除外される', () => {
     const pl = plWith('-200000');
     const input: RealEstateIncomeCtx = { businessScale: true, landLoanInterestAmount: D(50000) };
-    const r = computeCombinedBusinessRealEstateIncome(2026, 'electronic', true, D(500000), pl, input);
+    const r = computeCombinedBusinessRealEstateIncome(
+      2026,
+      'electronic',
+      true,
+      D(500000),
+      pl,
+      input,
+    );
     expect(r.realEstateOffsettable.toString()).toBe('-150000');
     expect(r.combinedIncome.toString()).toBe('-150000');
   });

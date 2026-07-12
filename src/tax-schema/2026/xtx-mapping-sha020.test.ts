@@ -56,7 +56,11 @@ describe('mapTwoWari（2割特例）', () => {
   });
 
   test('2割特例チェック欄（ABY00000）が raw で立つ', () => {
-    const result = mapTwoWari({ taxableBase10: D('1000000'), taxableBase8: D('0'), ...zeroExtras() });
+    const result = mapTwoWari({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      ...zeroExtras(),
+    });
     expect(result.sha020Raw.ABY00000).toBe('<kubun_CD>1</kubun_CD>');
   });
 

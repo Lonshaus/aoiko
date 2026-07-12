@@ -18,9 +18,9 @@ export interface CarryoverPreview {
   priorEndingCapital: string;
 }
 
-const CAPITAL_CODE = '3110';        // 元入金
+const CAPITAL_CODE = '3110'; // 元入金
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
-const OWNER_CONTRIB_CODE = '3120';  // 事業主借
+const OWNER_CONTRIB_CODE = '3120'; // 事業主借
 // 個人事業主の期首振替仕訳を生成する。
 // 仕組み：前年の資産・負債残高をそのまま翌年期首に持ち越し、
 // 事業主貸・事業主借・前期純利益はすべて元入金へ吸収する。
@@ -72,8 +72,12 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
     const amount = D(line.amount);
     const signed =
       acc.category === 'asset' || acc.category === 'expense'
-        ? (line.side === 'debit' ? amount : amount.negated())
-        : (line.side === 'credit' ? amount : amount.negated());
+        ? line.side === 'debit'
+          ? amount
+          : amount.negated()
+        : line.side === 'credit'
+          ? amount
+          : amount.negated();
     balances.set(line.accountCode, cur.plus(signed));
   }
   // 前年純利益 = 収益合計 − 費用合計
@@ -96,10 +100,7 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
   const ownerContributions = balances.get(OWNER_CONTRIB_CODE) ?? D(0);
   const priorCapital = balances.get(CAPITAL_CODE) ?? D(0);
   // 元入金更新：前期末元入金 + 純利益 + 事業主借 − 事業主貸
-  const newCapital = priorCapital
-    .plus(netIncome)
-    .plus(ownerContributions)
-    .minus(ownerWithdrawals);
+  const newCapital = priorCapital.plus(netIncome).plus(ownerContributions).minus(ownerWithdrawals);
 
   const buildList = (cat: 'asset' | 'liability') => {
     const out: Array<{ accountCode: string; accountName: string; amount: string }> = [];
@@ -136,9 +137,15 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
 }
 // 期首振替を実際の仕訳としてデータベースへ書き込む。
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
-export async function applyCarryover(year: number): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
+export async function applyCarryover(
+  year: number,
+): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
   const preview = await computeCarryover(year);
-  if (preview.assets.length === 0 && preview.liabilities.length === 0 && D(preview.capitalAmount).isZero()) {
+  if (
+    preview.assets.length === 0 &&
+    preview.liabilities.length === 0 &&
+    D(preview.capitalAmount).isZero()
+  ) {
     return { reason: 'empty' };
   }
 
@@ -169,7 +176,7 @@ export async function applyCarryover(year: number): Promise<{ entryId: string } 
     accountCode: string,
     amount: Decimal,
     positiveSide: 'debit' | 'credit',
-    memo: string
+    memo: string,
   ): void => {
     if (amount.isZero()) {
       return;
@@ -196,7 +203,13 @@ export async function applyCarryover(year: number): Promise<{ entryId: string } 
   for (const l of preview.liabilities) {
     pushSignedLine(lines, l.accountCode, D(l.amount), 'credit', '前期繰越');
   }
-  pushSignedLine(lines, preview.capitalCode, D(preview.capitalAmount), 'credit', '前期繰越（元入金）');
+  pushSignedLine(
+    lines,
+    preview.capitalCode,
+    D(preview.capitalAmount),
+    'credit',
+    '前期繰越（元入金）',
+  );
 
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
     await db.journalEntries.add(entry);

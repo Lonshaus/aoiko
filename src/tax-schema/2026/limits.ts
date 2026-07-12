@@ -14,10 +14,7 @@ export const SMALL_ASSET_ANNUAL_CAP = 3_000_000;
 export const SMALL_ASSET_EXPIRY = '2029-03-31';
 // 取得日が適用期間内かつ取得価額が閾値未満なら true。
 // 青色申告者限定（措法 28 の 2）。呼出元（UI）で filingType==='blue' も確認すること。
-export function isSmallAssetEligible(
-  acquisitionDate: string,
-  acquisitionCost: string
-): boolean {
+export function isSmallAssetEligible(acquisitionDate: string, acquisitionCost: string): boolean {
   if (acquisitionDate > SMALL_ASSET_EXPIRY) {
     return false;
   }

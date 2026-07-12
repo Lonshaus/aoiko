@@ -57,7 +57,7 @@ export function disposalBookValue(asset: FixedAsset): {
 // 除却/売却の仕訳明細を組み立てる純粋関数（DB へは書き込まない）。
 export function buildDisposalLines(
   asset: FixedAsset,
-  cashAccountCode: string = DEFAULT_CASH_ACCOUNT
+  cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
 ): DisposalLineSpec[] {
   if (asset.depreciationMethod === 'lump-sum') {
     throw new Error('一括償却資産の除却・売却仕訳には対応していません');
@@ -76,10 +76,18 @@ export function buildDisposalLines(
       { side: 'debit', accountCode: cashAccountCode, amount: salePrice.toString() },
     ];
     if (D(accumulatedEnd).greaterThan(0)) {
-      lines.push({ side: 'debit', accountCode: ACCUMULATED_DEPRECIATION_ACCOUNT, amount: accumulatedEnd });
+      lines.push({
+        side: 'debit',
+        accountCode: ACCUMULATED_DEPRECIATION_ACCOUNT,
+        amount: accumulatedEnd,
+      });
     }
     if (diff.greaterThan(0)) {
-      lines.push({ side: 'credit', accountCode: OWNER_CONTRIBUTION_ACCOUNT, amount: diff.toString() });
+      lines.push({
+        side: 'credit',
+        accountCode: OWNER_CONTRIBUTION_ACCOUNT,
+        amount: diff.toString(),
+      });
     } else if (diff.lessThan(0)) {
       lines.push({ side: 'debit', accountCode: OWNER_DRAW_ACCOUNT, amount: diff.abs().toString() });
     }
@@ -92,7 +100,11 @@ export function buildDisposalLines(
     lines.push({ side: 'debit', accountCode: DISPOSAL_LOSS_ACCOUNT, amount: bookValueEnd });
   }
   if (D(accumulatedEnd).greaterThan(0)) {
-    lines.push({ side: 'debit', accountCode: ACCUMULATED_DEPRECIATION_ACCOUNT, amount: accumulatedEnd });
+    lines.push({
+      side: 'debit',
+      accountCode: ACCUMULATED_DEPRECIATION_ACCOUNT,
+      amount: accumulatedEnd,
+    });
   }
   lines.push({ side: 'credit', accountCode: asset.accountCode, amount: cost.toString() });
   return lines;
@@ -106,7 +118,7 @@ export interface DisposalEntryResult {
 // （generateYearEndDepreciation と同じ重複防止パターン）。
 export async function generateDisposalEntry(
   assetId: string,
-  cashAccountCode: string = DEFAULT_CASH_ACCOUNT
+  cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
 ): Promise<DisposalEntryResult> {
   const asset = await db.fixedAssets.get(assetId);
   const disposedDate = asset?.disposedDate;
@@ -129,7 +141,7 @@ export async function generateDisposalEntry(
     .where('[year+date]')
     .equals([year, disposedDate])
     .filter(
-      (e) => countsTowardTotals(e) && e.description.includes(tag) && e.description.includes(marker)
+      (e) => countsTowardTotals(e) && e.description.includes(tag) && e.description.includes(marker),
     )
     .first();
   if (existing) {

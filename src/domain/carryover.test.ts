@@ -49,7 +49,7 @@ async function seedEntry(opts: {
         taxRate: 0,
         taxIncluded: false,
         invoiceCompliant: false,
-      }))
+      })),
     );
   });
   return entryId;
@@ -88,9 +88,7 @@ describe('computeCarryover', () => {
       ],
     });
     const p = await computeCarryover(2026);
-    expect(p.assets).toEqual([
-      { accountCode: '1130', accountName: '普通預金', amount: '100000' },
-    ]);
+    expect(p.assets).toEqual([{ accountCode: '1130', accountName: '普通預金', amount: '100000' }]);
     expect(p.liabilities).toEqual([]);
     expect(p.capitalAmount).toBe('100000');
   });
@@ -126,9 +124,7 @@ describe('computeCarryover', () => {
     });
     const p = await computeCarryover(2026);
     // 普通預金 = 100000 + 50000 - 10000 = 140000
-    expect(p.assets).toEqual([
-      { accountCode: '1130', accountName: '普通預金', amount: '140000' },
-    ]);
+    expect(p.assets).toEqual([{ accountCode: '1130', accountName: '普通預金', amount: '140000' }]);
     expect(p.priorNetIncome).toBe('40000');
     // 元入金 = 100000 + 40000 = 140000
     expect(p.capitalAmount).toBe('140000');
@@ -233,9 +229,7 @@ describe('computeCarryover', () => {
 
     const p = await computeCarryover(2026);
     // 訂正ペアは正味ゼロ：開業仕訳だけが繰越される
-    expect(p.assets).toEqual([
-      { accountCode: '1130', accountName: '普通預金', amount: '100000' },
-    ]);
+    expect(p.assets).toEqual([{ accountCode: '1130', accountName: '普通預金', amount: '100000' }]);
     expect(p.priorNetIncome).toBe('0');
     expect(p.capitalAmount).toBe('100000');
   });
@@ -293,9 +287,7 @@ describe('applyCarryover', () => {
     expect(entry?.year).toBe(2026);
 
     const lines = await db.journalLines.where('entryId').equals(r.entryId).toArray();
-    const debit = lines
-      .filter((l) => l.side === 'debit')
-      .reduce((s, l) => s.plus(l.amount), D(0));
+    const debit = lines.filter((l) => l.side === 'debit').reduce((s, l) => s.plus(l.amount), D(0));
     const credit = lines
       .filter((l) => l.side === 'credit')
       .reduce((s, l) => s.plus(l.amount), D(0));

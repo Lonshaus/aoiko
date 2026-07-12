@@ -43,12 +43,12 @@ export type SettingsMap = {
   consumptionTaxAttributionMethod: 'individual' | 'proportional';
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
   // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
-  userRiyoshaId: string;        // 利用者識別番号（16桁）
-  userFilerName: string;        // 氏名・名称（NOZEISHA_NM）
-  userFilerZip: string;         // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
-  userFilerAddress: string;     // 住所（NOZEISHA_ADR）
-  userZeimushoCode: string;     // 提出先税務署コード（5桁、gen:zeimusho_CD）
-  userZeimushoName: string;     // 提出先税務署名（任意、gen:zeimusho_NM）
+  userRiyoshaId: string; // 利用者識別番号（16桁）
+  userFilerName: string; // 氏名・名称（NOZEISHA_NM）
+  userFilerZip: string; // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
+  userFilerAddress: string; // 住所（NOZEISHA_ADR）
+  userZeimushoCode: string; // 提出先税務署コード（5桁、gen:zeimusho_CD）
+  userZeimushoName: string; // 提出先税務署名（任意、gen:zeimusho_NM）
   // 確定申告方式（.xtx 出力の様式・青色申告特別控除の適用可否に影響）
   filingType: FilingType;
   // 青色申告特別控除の区分（事業所得・控除額の算定に使用。青色申告のみ）
@@ -79,7 +79,7 @@ export type SettingsMap = {
 export const DISCLAIMER_VERSION = 3;
 
 export async function getSetting<K extends keyof SettingsMap>(
-  key: K
+  key: K,
 ): Promise<SettingsMap[K] | undefined> {
   const row = await db.settings.get(key);
   return row?.value as SettingsMap[K] | undefined;
@@ -87,7 +87,7 @@ export async function getSetting<K extends keyof SettingsMap>(
 
 export async function setSetting<K extends keyof SettingsMap>(
   key: K,
-  value: SettingsMap[K]
+  value: SettingsMap[K],
 ): Promise<void> {
   await db.settings.put({ key, value, updatedAt: Date.now() });
 }

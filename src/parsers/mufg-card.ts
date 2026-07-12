@@ -47,9 +47,7 @@ const mufgCardParser: CsvParser = {
       if (!isDateLike(dateRaw)) {
         continue;
       }
-      const description = (
-        row[idx['ご利用店名（海外ご利用店名／海外都市名）']!] ?? ''
-      ).trim();
+      const description = (row[idx['ご利用店名（海外ご利用店名／海外都市名）']!] ?? '').trim();
       const amountRaw = (row[idx['ご利用金額（円）']!] ?? '').trim();
       if (!amountRaw) {
         continue;
