@@ -215,6 +215,9 @@ export interface GeneralXtxContext {
   /** 特定課税仕入れ（リバースチャージ）に係る支払対価の額・消費税額 */
   reverseChargeBase: Decimal;
   reverseChargeTax: Decimal;
+  /** 特定課税仕入れのうち個別対応方式の用途区分別内訳（常に標準税率＝7.8%分のみ） */
+  reverseChargeCommonTax: Decimal;
+  reverseChargeNonTaxableOnlyTax: Decimal;
   /** 課税売上高5億円超または課税売上割合95%未満のときの控除計算方式 */
   attributionMethod: ConsumptionTaxAttributionMethod;
   /** 貸倒れに係る税額（税率別） */
@@ -248,6 +251,8 @@ export function buildGeneralXtx(ctx: GeneralXtxContext): string {
     importTax8: ctx.importTax8,
     reverseChargeBase: ctx.reverseChargeBase,
     reverseChargeTax: ctx.reverseChargeTax,
+    reverseChargeCommonTax: ctx.reverseChargeCommonTax,
+    reverseChargeNonTaxableOnlyTax: ctx.reverseChargeNonTaxableOnlyTax,
     attributionMethod: ctx.attributionMethod,
     badDebtTax10: ctx.badDebtTax10,
     badDebtTax8: ctx.badDebtTax8,
