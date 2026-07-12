@@ -602,7 +602,7 @@ describe('輸入消費税・特定課税仕入れ', () => {
     expect(processed.input.toString()).toBe('5000');
   });
 
-  test('特定課税仕入れ（リバースチャージ）：自認課税として output にも同額計上', async () => {
+  test('特定課税仕入れ（リバースチャージ）：output・input には混入せず独立集計のみ', async () => {
     await seedEntry({
       date: '2026-04-01',
       pairs: [
@@ -618,10 +618,121 @@ describe('輸入消費税・特定課税仕入れ', () => {
       ],
     });
     const processed = await processYear(2026);
-    // 11,000 税込 → 国税 = 10,000 × 7.8% = 780
+    // 11,000 税込 → 国税 = 10,000 × 7.8% = 780。経過措置判定は集計後に行うため、
+    // ここでは output・input10 に混入させず reverseCharge* にのみ計上する
+    expect(processed.reverseChargeBase.toString()).toBe('10000');
     expect(processed.reverseChargeTax.toString()).toBe('780');
-    expect(processed.output.toString()).toBe('780');
-    expect(processed.input10.toString()).toBe('780');
+    expect(processed.output.toString()).toBe('0');
+    expect(processed.input10.toString()).toBe('0');
+    expect(processed.input.toString()).toBe('0');
+    expect(processed.inputRaw.toString()).toBe('0');
+  });
+
+  test('特定課税仕入れの用途区分（common）は reverseChargeCommonTax に入り inputCommon10 には入らない', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '11000',
+          taxIncluded: true,
+          taxCategory: 'reverseCharge',
+          invoiceCompliant: true,
+          inputUsageCategory: 'common',
+        },
+        { side: 'credit', accountCode: '1130', amount: '11000' },
+      ],
+    });
+    const processed = await processYear(2026);
+    expect(processed.reverseChargeCommonTax.toString()).toBe('780');
+    expect(processed.reverseChargeNonTaxableOnlyTax.toString()).toBe('0');
+    expect(processed.inputCommon10.toString()).toBe('0');
+  });
+});
+
+describe('特定課税仕入れの経過措置配線（computeGeneral / 簡易・特例）', () => {
+  // 課税売上 税込1,100,000（10%）→ 税抜 1,000,000・売上税額 78,000
+  async function seedTaxableSale(): Promise<void> {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+  }
+  // 特定課税仕入れ 税抜 100,000（10%）→ 国税 7,800
+  async function seedReverseCharge(): Promise<void> {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5020',
+          amount: '100000',
+          taxIncluded: false,
+          taxCategory: 'reverseCharge',
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '100000' },
+      ],
+    });
+  }
+  // 非課税売上 100,000 → 課税売上割合を 95% 未満に落とす
+  async function seedNonTaxableSale(): Promise<void> {
+    await seedEntry({
+      date: '2026-04-02',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000', taxCategory: 'exempt' },
+      ],
+    });
+  }
+
+  test('本則課税・課税売上割合95%未満：課税標準側にも控除側にも RC が配線される', async () => {
+    await seedTaxableSale();
+    await seedNonTaxableSale();
+    await seedReverseCharge();
+    const r = await computeGeneral(2026, 'proportional');
+    // 課税標準額 = floor1000(1,000,000 + 100,000) = 1,100,000
+    expect(r.taxableBase).toBe('1100000');
+    // 売上消費税 = 1,100,000 × 7.8% = 85,800
+    expect(r.outputTax.national).toBe('85800');
+    // 控除側：RC 税額 7,800 を一括比例配分（割合 1,000,000/1,100,000）で按分 → 7,090.9… 切捨て 7,090
+    expect(r.inputTax.national).toBe('7090');
+    // 差引 = 85,800 − 7,090.9… = 78,709.09… → 百円未満切捨て 78,700
+    expect(r.filingRounded.national).toBe('78700');
+  });
+
+  test('本則課税・課税売上割合95%以上：RC は課税標準・控除いずれにも入らない（RC なしと同値）', async () => {
+    await seedTaxableSale();
+    await seedReverseCharge();
+    const r = await computeGeneral(2026, 'proportional');
+    // 割合100% → RC は「なかったもの」。RC なし（課税売上のみ）と完全同値
+    expect(r.taxableBase).toBe('1000000');
+    expect(r.outputTax.national).toBe('78000');
+    expect(r.inputTax.national).toBe('0');
+    expect(r.netTax.national).toBe('78000');
+  });
+
+  test('簡易課税：RC は output に混入せず「なかったもの」として扱われる', async () => {
+    await seedTaxableSale();
+    await seedReverseCharge();
+    const r = await computeSimplified(2026, 5);
+    // 売上税額 78,000 × みなし50% → 控除 39,000、差引 39,000。RC は不算入
+    expect(r.taxableBase).toBe('1000000');
+    expect(r.inputTax.national).toBe('39000');
+    expect(r.netTax.national).toBe('39000');
+  });
+
+  test('2割特例：RC は output に混入せず「なかったもの」として扱われる', async () => {
+    await seedTaxableSale();
+    await seedReverseCharge();
+    const r = await computeTwoWari(2026);
+    // 売上税額 78,000 × (1 − 0.8) = 15,600。RC は不算入
+    expect(r.taxableBase).toBe('1000000');
+    expect(r.netTax.national).toBe('15600');
   });
 });
 
