@@ -21,34 +21,20 @@ const OUT = join(ROOT, 'src/tax-schema/2026');
 const FETCHED_AT = '2026-05-16';
 
 const EXPECTED_SHA256 = {
-  'shotoku/KOA020-023.xsd':
-    '8de959bacc36112f0ae6972dadc809a9f793dd30da169af98f83ee5c91107d0d',
-  'shotoku/KOA210-011.xsd':
-    '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
-  'shotoku/KOA110-012.xsd':
-    'cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f',
-  'shotoku/KOA220-008.xsd':
-    '7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78',
-  'shotoku/KOA130-009.xsd':
-    'e52eaa460b0f0d3ae6fc970657a57e1146bfd42dd5138fc532c25651d471ebdc',
-  'shohi/SHA020-009.xsd':
-    '977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53',
-  'shohi/SHB070-001.xsd':
-    '25a603aa463d35803264ed2c55ad39a76146723fd6fa727b1a31a93bb6448fbc',
-  'shohi/SHB047-001.xsd':
-    'db0fb768bd9868a26d2b3ad8639c82c8c68b8a44b964fb845795f78f19719dbe',
-  'shohi/SHB067-001.xsd':
-    '43ccd8e2d01e22ca8c705b530aef4787a43752ab2ddcf14cac1075feb9bfe452',
-  'shohi/SHA010-010.xsd':
-    '1da04ae0ceaa9608967b0f3dbf6e882bcbfbd1975c48d3e65bc376ac83ca6465',
-  'shohi/SHB017-002.xsd':
-    '177ee78a92e30c2434cc862e39a8b7d6c0c456920c1cfca57347a974ff7509c5',
-  'shohi/SHB033-002.xsd':
-    '2205915de109a05b86525c27a2e43a131d4730fdf3961b672f8733c022b51713',
-  'general/ITdefinition.xsd':
-    'b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643',
-  'general/ITreference.xsd':
-    '09117f8c211ed60d1b86284da56593da55f1e0405c0bcd74d306ec2178e1c8d4',
+  'shotoku/KOA020-023.xsd': '8de959bacc36112f0ae6972dadc809a9f793dd30da169af98f83ee5c91107d0d',
+  'shotoku/KOA210-011.xsd': '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
+  'shotoku/KOA110-012.xsd': 'cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f',
+  'shotoku/KOA220-008.xsd': '7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78',
+  'shotoku/KOA130-009.xsd': 'e52eaa460b0f0d3ae6fc970657a57e1146bfd42dd5138fc532c25651d471ebdc',
+  'shohi/SHA020-009.xsd': '977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53',
+  'shohi/SHB070-001.xsd': '25a603aa463d35803264ed2c55ad39a76146723fd6fa727b1a31a93bb6448fbc',
+  'shohi/SHB047-001.xsd': 'db0fb768bd9868a26d2b3ad8639c82c8c68b8a44b964fb845795f78f19719dbe',
+  'shohi/SHB067-001.xsd': '43ccd8e2d01e22ca8c705b530aef4787a43752ab2ddcf14cac1075feb9bfe452',
+  'shohi/SHA010-010.xsd': '1da04ae0ceaa9608967b0f3dbf6e882bcbfbd1975c48d3e65bc376ac83ca6465',
+  'shohi/SHB017-002.xsd': '177ee78a92e30c2434cc862e39a8b7d6c0c456920c1cfca57347a974ff7509c5',
+  'shohi/SHB033-002.xsd': '2205915de109a05b86525c27a2e43a131d4730fdf3961b672f8733c022b51713',
+  'general/ITdefinition.xsd': 'b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643',
+  'general/ITreference.xsd': '09117f8c211ed60d1b86284da56593da55f1e0405c0bcd74d306ec2178e1c8d4',
 };
 
 const parser = new XMLParser({
@@ -73,9 +59,7 @@ function loadXsd(rel) {
   if (expected) {
     const actual = sha256(path);
     if (actual !== expected) {
-      fail(
-        `SHA256 mismatch: ${rel}\n expected ${expected}\n actual   ${actual}`
-      );
+      fail(`SHA256 mismatch: ${rel}\n expected ${expected}\n actual   ${actual}`);
     }
   }
   return parser.parse(readFileSync(path, 'utf8'));
@@ -174,8 +158,7 @@ function parseOccurs(attrs) {
   const max = attrs['@_maxOccurs'];
   return {
     minOccurs: min === undefined ? 1 : Number(min),
-    maxOccurs:
-      max === undefined ? 1 : max === 'unbounded' ? 'unbounded' : Number(max),
+    maxOccurs: max === undefined ? 1 : max === 'unbounded' ? 'unbounded' : Number(max),
   };
 }
 
@@ -289,8 +272,7 @@ function buildDefinitions() {
     let hasId = false;
     const ctype = kid(el, 'xsd:complexType');
     if (ctype) {
-      const cc =
-        kid(ctype, 'xsd:complexContent') ?? kid(ctype, 'xsd:simpleContent');
+      const cc = kid(ctype, 'xsd:complexContent') ?? kid(ctype, 'xsd:simpleContent');
       const ext = cc && kid(cc, 'xsd:extension');
       if (ext) {
         baseType = attrsOf(ext)['@_base'] ?? '';
@@ -322,10 +304,7 @@ function metaOf(schema, formId, rel) {
   const formName = nameLine.replace(/^様式名[:：]\s*/, '').trim();
   let version = '';
   for (const n of childrenOf(schema)) {
-    if (
-      tagOf(n) === 'xsd:simpleType' &&
-      String(attrsOf(n)['@_name']).endsWith('VRtype')
-    ) {
+    if (tagOf(n) === 'xsd:simpleType' && String(attrsOf(n)['@_name']).endsWith('VRtype')) {
       const r = kid(n, 'xsd:restriction');
       const e = r && kid(r, 'xsd:enumeration');
       if (e) {
@@ -350,16 +329,12 @@ function buildForm(rel, formId, outFile, idrefMap, definitions) {
   const refTree = buildRefTree(schema, types, idrefMap);
   const meta = metaOf(schema, formId, rel);
   const schemaJson = { meta, refTree, definitions };
-  writeFileSync(
-    join(OUT, outFile),
-    JSON.stringify(schemaJson, null, 2) + '\n',
-    'utf8'
-  );
+  writeFileSync(join(OUT, outFile), JSON.stringify(schemaJson, null, 2) + '\n', 'utf8');
   const leaves = refTree.filter((e) => e.kind === 'leaf').length;
   console.log(
     `[build-xtx-schema] ${outFile}: formId=${meta.formId}` +
       ` ns=${meta.namespace} ver=${meta.version}` +
-      ` refTree=${refTree.length}(leaf ${leaves}) defs=${definitions.length}`
+      ` refTree=${refTree.length}(leaf ${leaves}) defs=${definitions.length}`,
   );
 }
 
@@ -371,84 +346,84 @@ function main() {
     'KOA020',
     'xtx-schema-koa020.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shotoku/KOA210-011.xsd',
     'KOA210',
     'xtx-schema-koa210.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shotoku/KOA110-012.xsd',
     'KOA110',
     'xtx-schema-koa110.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shotoku/KOA220-008.xsd',
     'KOA220',
     'xtx-schema-koa220.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shotoku/KOA130-009.xsd',
     'KOA130',
     'xtx-schema-koa130.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHA020-009.xsd',
     'SHA020',
     'xtx-schema-sha020.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHB070-001.xsd',
     'SHB070',
     'xtx-schema-shb070.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHB047-001.xsd',
     'SHB047',
     'xtx-schema-shb047.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHB067-001.xsd',
     'SHB067',
     'xtx-schema-shb067.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHA010-010.xsd',
     'SHA010',
     'xtx-schema-sha010.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHB017-002.xsd',
     'SHB017',
     'xtx-schema-shb017.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
   buildForm(
     'shohi/SHB033-002.xsd',
     'SHB033',
     'xtx-schema-shb033.generated.json',
     idrefMap,
-    definitions
+    definitions,
   );
 }
 

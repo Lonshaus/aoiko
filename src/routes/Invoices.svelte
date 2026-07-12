@@ -61,7 +61,9 @@
   }
   loadIssuerInfo();
 
-  const filtered = $derived(invoices.filter((inv) => inv.documentType === tab).sort((a, b) => (a.date < b.date ? 1 : -1)));
+  const filtered = $derived(
+    invoices.filter((inv) => inv.documentType === tab).sort((a, b) => (a.date < b.date ? 1 : -1)),
+  );
 
   function vendorName(vendorId: string): string {
     return ledger.vendors.find((v) => v.id === vendorId)?.name ?? '';
@@ -133,9 +135,10 @@
     errorMessage = '';
     try {
       const snapshot = $state.snapshot(editing);
-      const prefix = tab === 'invoice'
-        ? (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX
-        : (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
+      const prefix =
+        tab === 'invoice'
+          ? ((await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX)
+          : ((await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX);
       await issueInvoice(snapshot, prefix);
       if (convertingFromQuoteId) {
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
@@ -172,7 +175,9 @@
   }
 
   const printingInvoice = $derived(invoices.find((inv) => inv.id === printingId) ?? null);
-  const printingGroups = $derived(printingInvoice ? groupLineItemsByTaxRate(printingInvoice.lineItems) : []);
+  const printingGroups = $derived(
+    printingInvoice ? groupLineItemsByTaxRate(printingInvoice.lineItems) : [],
+  );
   const printingTotal = $derived(printingInvoice ? invoiceTotal(printingInvoice.lineItems) : D(0));
 </script>
 
@@ -184,14 +189,18 @@
       <button
         type="button"
         onclick={() => (tab = 'invoice')}
-        class="px-4 py-2 text-sm {tab === 'invoice' ? 'border-b-2 border-primary font-semibold' : 'text-muted-foreground'}"
+        class="px-4 py-2 text-sm {tab === 'invoice'
+          ? 'border-b-2 border-primary font-semibold'
+          : 'text-muted-foreground'}"
       >
         {m.invoices_tab_invoice()}
       </button>
       <button
         type="button"
         onclick={() => (tab = 'quote')}
-        class="px-4 py-2 text-sm {tab === 'quote' ? 'border-b-2 border-primary font-semibold' : 'text-muted-foreground'}"
+        class="px-4 py-2 text-sm {tab === 'quote'
+          ? 'border-b-2 border-primary font-semibold'
+          : 'text-muted-foreground'}"
       >
         {m.invoices_tab_quote()}
       </button>
@@ -213,30 +222,52 @@
       <ul class="space-y-2">
         {#each filtered as inv (inv.id)}
           <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-card text-sm">
-            <span class="font-mono text-xs text-muted-foreground min-w-32">{inv.number || m.invoices_status_draft()}</span>
+            <span class="font-mono text-xs text-muted-foreground min-w-32"
+              >{inv.number || m.invoices_status_draft()}</span
+            >
             <span class="min-w-32">{vendorName(inv.vendorId)}</span>
             <span class="text-xs text-muted-foreground">{inv.date}</span>
             <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
             <span class="text-xs px-2 py-0.5 rounded bg-muted">{statusLabel(inv.status)}</span>
             <div class="ml-auto flex gap-2">
               {#if inv.status === 'draft'}
-                <button type="button" onclick={() => openEdit(inv)} class="text-xs text-primary hover:underline">
+                <button
+                  type="button"
+                  onclick={() => openEdit(inv)}
+                  class="text-xs text-primary hover:underline"
+                >
                   {m.invoices_action_edit()}
                 </button>
-                <button type="button" onclick={() => deleteDraft(inv.id)} class="text-xs text-muted-foreground hover:text-destructive">
+                <button
+                  type="button"
+                  onclick={() => deleteDraft(inv.id)}
+                  class="text-xs text-muted-foreground hover:text-destructive"
+                >
                   {m.settings_action_delete()}
                 </button>
               {:else}
-                <button type="button" onclick={() => print(inv.id)} class="text-xs text-primary hover:underline">
+                <button
+                  type="button"
+                  onclick={() => print(inv.id)}
+                  class="text-xs text-primary hover:underline"
+                >
                   {m.invoices_action_print()}
                 </button>
                 {#if inv.documentType === 'quote' && inv.status === 'issued' && !inv.convertedToInvoiceId}
-                  <button type="button" onclick={() => convertToInvoice(inv)} class="text-xs text-primary hover:underline">
+                  <button
+                    type="button"
+                    onclick={() => convertToInvoice(inv)}
+                    class="text-xs text-primary hover:underline"
+                  >
                     {m.invoices_action_convert()}
                   </button>
                 {/if}
                 {#if inv.status === 'issued'}
-                  <button type="button" onclick={() => onVoid(inv.id)} class="text-xs text-muted-foreground hover:text-destructive">
+                  <button
+                    type="button"
+                    onclick={() => onVoid(inv.id)}
+                    class="text-xs text-muted-foreground hover:text-destructive"
+                  >
                     {m.invoices_action_void()}
                   </button>
                 {/if}
@@ -253,7 +284,10 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.invoices_form_vendor()}</span>
-          <select bind:value={editing.vendorId} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground">
+          <select
+            bind:value={editing.vendorId}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
             {#each ledger.vendors as v (v.id)}
               <option value={v.id}>{v.name}</option>
             {/each}
@@ -261,12 +295,20 @@
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.invoices_form_date()}</span>
-          <input type="date" bind:value={editing.date} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground" />
+          <input
+            type="date"
+            bind:value={editing.date}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          />
         </label>
         {#if editing.documentType === 'invoice'}
           <label class="block">
             <span class="text-xs text-muted-foreground">{m.invoices_form_due_date()}</span>
-            <input type="date" bind:value={editing.dueDate} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground" />
+            <input
+              type="date"
+              bind:value={editing.dueDate}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            />
           </label>
         {/if}
       </div>
@@ -295,11 +337,18 @@
               placeholder={m.invoices_form_item_unit_price()}
               class="w-28 px-3 py-2 bg-background border rounded text-foreground"
             />
-            <select bind:value={item.taxRate} class="px-3 py-2 bg-background border rounded text-foreground">
+            <select
+              bind:value={item.taxRate}
+              class="px-3 py-2 bg-background border rounded text-foreground"
+            >
               <option value={0.1}>10%</option>
               <option value={0.08}>8%</option>
             </select>
-            <button type="button" onclick={() => removeLine(item.id)} class="text-xs text-muted-foreground hover:text-destructive">
+            <button
+              type="button"
+              onclick={() => removeLine(item.id)}
+              class="text-xs text-muted-foreground hover:text-destructive"
+            >
               {m.settings_action_delete()}
             </button>
           </div>
@@ -311,14 +360,19 @@
 
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.invoices_form_memo()}</span>
-        <textarea bind:value={editing.memo} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground" rows="2"></textarea>
+        <textarea
+          bind:value={editing.memo}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          rows="2"></textarea>
       </label>
 
       <div class="text-sm space-y-1">
         {#each groupLineItemsByTaxRate(editing.lineItems) as g (g.taxRate)}
           <div class="flex justify-between text-muted-foreground">
             <span>{m.invoices_form_subtotal_at_rate({ rate: g.taxRate * 100 })}</span>
-            <span class="font-mono">{formatJPY(g.subtotalExcl)} + {m.invoices_form_tax()} {formatJPY(g.taxAmount)}</span>
+            <span class="font-mono"
+              >{formatJPY(g.subtotalExcl)} + {m.invoices_form_tax()} {formatJPY(g.taxAmount)}</span
+            >
           </div>
         {/each}
         <div class="flex justify-between font-semibold">
@@ -335,10 +389,18 @@
         <button type="button" onclick={saveDraft} class="px-4 py-2 border rounded hover:bg-muted">
           {m.invoices_action_save_draft()}
         </button>
-        <button type="button" onclick={issue} class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90">
+        <button
+          type="button"
+          onclick={issue}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
           {m.invoices_action_issue()}
         </button>
-        <button type="button" onclick={closeForm} class="ml-auto px-4 py-2 text-muted-foreground hover:text-foreground">
+        <button
+          type="button"
+          onclick={closeForm}
+          class="ml-auto px-4 py-2 text-muted-foreground hover:text-foreground"
+        >
           {m.settings_action_cancel()}
         </button>
       </div>
@@ -349,12 +411,19 @@
 {#if printingInvoice}
   <div class="hidden print:block p-8 text-black bg-white text-sm space-y-6">
     <h1 class="text-2xl font-bold text-center">
-      {printingInvoice.documentType === 'invoice' ? m.invoices_print_title_invoice() : m.invoices_print_title_quote()}
+      {printingInvoice.documentType === 'invoice'
+        ? m.invoices_print_title_invoice()
+        : m.invoices_print_title_quote()}
     </h1>
     <div class="flex justify-between">
       <div>
-        <p class="font-semibold">{vendorName(printingInvoice.vendorId)} {m.invoices_print_addressee_suffix()}</p>
-        <p class="text-xs">{ledger.vendors.find((v) => v.id === printingInvoice.vendorId)?.address ?? ''}</p>
+        <p class="font-semibold">
+          {vendorName(printingInvoice.vendorId)}
+          {m.invoices_print_addressee_suffix()}
+        </p>
+        <p class="text-xs">
+          {ledger.vendors.find((v) => v.id === printingInvoice.vendorId)?.address ?? ''}
+        </p>
       </div>
       <div class="text-right text-xs">
         <p>{m.invoices_print_number()}: {printingInvoice.number}</p>

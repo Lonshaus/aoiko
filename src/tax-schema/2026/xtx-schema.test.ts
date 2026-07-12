@@ -10,9 +10,7 @@ describe('xtx-schema (e-tax19 XSD 由来)', () => {
   test('KOA020 メタが令和8年版・正式名前空間 URI', () => {
     expect(k020.meta.formId).toBe('KOA020');
     expect(k020.meta.version).toBe('23.0');
-    expect(k020.meta.namespace).toBe(
-      'http://xml.e-tax.nta.go.jp/XSD/shotoku'
-    );
+    expect(k020.meta.namespace).toBe('http://xml.e-tax.nta.go.jp/XSD/shotoku');
     expect(k020.meta.source).toContain('KOA020-023.xsd');
   });
 
@@ -20,9 +18,7 @@ describe('xtx-schema (e-tax19 XSD 由来)', () => {
     expect(k210.meta.formId).toBe('KOA210');
     expect(k210.meta.version).toBe('11.0');
     expect(k210.meta.formName).toContain('青色申告決算書');
-    expect(k210.meta.namespace).toBe(
-      'http://xml.e-tax.nta.go.jp/XSD/shotoku'
-    );
+    expect(k210.meta.namespace).toBe('http://xml.e-tax.nta.go.jp/XSD/shotoku');
   });
 
   test('参照側ツリー：ルートは様式要素 level=0 branch', () => {
@@ -39,9 +35,7 @@ describe('xtx-schema (e-tax19 XSD 由来)', () => {
   });
 
   test('KOA210 は 1〜4 ページ構造（level=1）', () => {
-    const pages = k210.refTree
-      .filter((e) => e.level === 1)
-      .map((e) => e.tag);
+    const pages = k210.refTree.filter((e) => e.level === 1).map((e) => e.tag);
     expect(pages).toEqual(['KOA210-1', 'KOA210-2', 'KOA210-3', 'KOA210-4']);
   });
 
@@ -56,8 +50,7 @@ describe('xtx-schema (e-tax19 XSD 由来)', () => {
   });
 
   test('定義側カタログ（IT部）に NENBUN/ZEIMUSHO が ID 付きで存在', () => {
-    const byName = (s: XtxSchema, n: string) =>
-      s.definitions.find((d) => d.name === n);
+    const byName = (s: XtxSchema, n: string) => s.definitions.find((d) => d.name === n);
     const nenbun = byName(k020, 'NENBUN');
     expect(nenbun).toMatchObject({
       name: 'NENBUN',

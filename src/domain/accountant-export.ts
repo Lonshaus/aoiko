@@ -56,7 +56,7 @@ function yayoiTaxInfo(
   line: JournalLine,
   account: Account,
   entryDate: string,
-  ctx: YayoiExportContext
+  ctx: YayoiExportContext,
 ): { label: string; taxAmount: string } {
   const effectiveTaxCategory: TaxCategory | undefined = line.taxCategory ?? account.taxCategory;
 
@@ -145,7 +145,7 @@ export function buildYayoiCsvRows(
   lines: JournalLine[],
   accounts: Account[],
   subAccounts: SubAccount[],
-  ctx: YayoiExportContext
+  ctx: YayoiExportContext,
 ): string[][] {
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const subAccountMap = new Map(subAccounts.map((s) => [s.id, s.name]));
@@ -242,7 +242,7 @@ export function buildGenericCsvRows(
   entries: JournalEntry[],
   lines: JournalLine[],
   accounts: Account[],
-  subAccounts: SubAccount[]
+  subAccounts: SubAccount[],
 ): string[][] {
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const subAccountMap = new Map(subAccounts.map((s) => [s.id, s.name]));
@@ -282,7 +282,7 @@ const CORRECTION_HISTORY_HEADER = ['原仕訳日付', '原仕訳摘要', '原仕
 // データモデル上存在しないため出力しない（AOIKO_FUTURE_IDEAS.md 参照）。
 export function buildCorrectionHistoryRows(
   entries: JournalEntry[],
-  lines: JournalLine[]
+  lines: JournalLine[],
 ): string[][] {
   const entryMap = new Map(entries.map((e) => [e.id, e]));
   const linesByEntry = groupLinesByEntry(lines);
@@ -315,7 +315,10 @@ async function loadExportData(year: number): Promise<ExportData> {
   const lines =
     entries.length === 0
       ? []
-      : await db.journalLines.where('entryId').anyOf(entries.map((e) => e.id)).toArray();
+      : await db.journalLines
+          .where('entryId')
+          .anyOf(entries.map((e) => e.id))
+          .toArray();
   const accounts = await db.accounts.where({ year }).toArray();
   const subAccounts = await db.subAccounts.toArray();
   const taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
@@ -346,7 +349,10 @@ export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Arr
   const lines =
     entries.length === 0
       ? []
-      : await db.journalLines.where('entryId').anyOf(entries.map((e) => e.id)).toArray();
+      : await db.journalLines
+          .where('entryId')
+          .anyOf(entries.map((e) => e.id))
+          .toArray();
   const rows = buildCorrectionHistoryRows(entries, lines);
   return encodeUtf8WithBom(buildCsv([CORRECTION_HISTORY_HEADER, ...rows]));
 }

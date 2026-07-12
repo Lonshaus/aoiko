@@ -1,10 +1,7 @@
 <script lang="ts">
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
-  import {
-    fileToBase64,
-    type ReceiptExtracted,
-  } from '../domain/ocr';
+  import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { buildAttachmentRecord } from '../domain/attachments';
@@ -12,10 +9,7 @@
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
-  import {
-    createReceiptExtractor,
-    type ReceiptExtractor,
-  } from '../lib/receipt-extractor';
+  import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
@@ -27,8 +21,8 @@
   let file = $state<File | null>(null);
   let preview = $state<string | null>(null);
   let extracted = $state<ReceiptExtracted | null>(null);
-  let counterpartAccount = $state('5910');  // 雑費 デフォルト
-  let knownAccount = $state('1110');         // 現金 デフォルト
+  let counterpartAccount = $state('5910'); // 雑費 デフォルト
+  let knownAccount = $state('1110'); // 現金 デフォルト
   let processing = $state(false);
   let error = $state('');
   let success = $state('');
@@ -65,7 +59,10 @@
       return;
     }
     if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
-      error = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      error = m.common_file_too_large({
+        size: formatBytes(f.size),
+        limit: formatBytes(MAX_IMAGE_BYTES),
+      });
       input.value = '';
       return;
     }
@@ -123,7 +120,7 @@
       if (
         shouldConfirmExternalSend(
           { external: extractor.external, host: extractor.destinationHost },
-          skip
+          skip,
         )
       ) {
         pending = { extractor, image, host: extractor.destinationHost };
@@ -172,7 +169,7 @@
     if (!extracted) {
       return;
     }
-    const data = extracted;  // 以降のクロージャ内でも narrowed 保証
+    const data = extracted; // 以降のクロージャ内でも narrowed 保証
     error = '';
     success = '';
     // ローカル OCR は totalAmount が空のまま戻ることがあるため、ここで必須検証
@@ -210,28 +207,24 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
-      await db.transaction(
-        'rw',
-        [db.journalEntries, db.journalLines, db.attachments],
-        async () => {
-          await db.journalEntries.add({
-            id: entryId,
-            date: data.date,
-            year: Number(data.date.slice(0, 4)),
-            description,
-            status: 'confirmed',
-            source: 'ocr',
-            createdAt: now,
-            confirmedAt: now,
-          });
-          await db.journalLines.bulkAdd(lines);
-          // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
-          // 書き込み、孤児画像・空参照を防ぐ。
-          if (file) {
-            await db.attachments.add(buildAttachmentRecord(entryId, file, now));
-          }
+      await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        await db.journalEntries.add({
+          id: entryId,
+          date: data.date,
+          year: Number(data.date.slice(0, 4)),
+          description,
+          status: 'confirmed',
+          source: 'ocr',
+          createdAt: now,
+          confirmedAt: now,
+        });
+        await db.journalLines.bulkAdd(lines);
+        // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+        // 書き込み、孤児画像・空参照を防ぐ。
+        if (file) {
+          await db.attachments.add(buildAttachmentRecord(entryId, file, now));
         }
-      );
+      });
 
       success = m.receipt_success({ name: description, amount: formatJPY(data.totalAmount) });
       extracted = null;
@@ -296,7 +289,9 @@
     {/if}
 
     {#if error}
-      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+      <div
+        class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
+      >
         {error}
       </div>
     {/if}
@@ -311,7 +306,9 @@
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
       {#if lastEngine === 'tesseract'}
-        <div class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs">
+        <div
+          class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
+        >
           {m.receipt_local_engine_notice()}
         </div>
       {/if}
@@ -408,11 +405,7 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          onclick={reset}
-          class="px-4 py-2 border rounded hover:bg-accent"
-        >
+        <button type="button" onclick={reset} class="px-4 py-2 border rounded hover:bg-accent">
           {m.common_cancel()}
         </button>
         <button

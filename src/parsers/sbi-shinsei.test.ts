@@ -63,9 +63,7 @@ describe('sbiShinseiParser', () => {
 
   test('throws on unrecognized header', () => {
     const csv = '"DATE","DESC","OUT","IN"\n"2026/05/01","x","100",""';
-    expect(() => sbiShinseiParser.parse(csv)).toThrow(
-      /CSV ヘッダー形式と一致しません/
-    );
+    expect(() => sbiShinseiParser.parse(csv)).toThrow(/CSV ヘッダー形式と一致しません/);
   });
 
   test('returns empty for header-only CSV', () => {

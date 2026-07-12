@@ -6,10 +6,7 @@ import { D, type Decimal } from '../../lib/decimal';
 //  - none：控除なし
 export type AoiroDeductionKind = 'electronic' | 'doubleEntry' | 'simple' | 'none';
 // 区分ごとの控除限度額（円）。年分で電子区分の額が変わる（令和9年分〜は 75万）。
-export function aoiroDeductionLimit(
-  year: number,
-  kind: AoiroDeductionKind
-): Decimal {
+export function aoiroDeductionLimit(year: number, kind: AoiroDeductionKind): Decimal {
   switch (kind) {
     case 'electronic':
       // 令和9年分（2027）以降は 75万円、それ以前は 65万円。
@@ -27,7 +24,7 @@ export function aoiroDeductionLimit(
 export function aoiroDeductionAmount(
   year: number,
   kind: AoiroDeductionKind,
-  preDeductionIncome: Decimal
+  preDeductionIncome: Decimal,
 ): Decimal {
   const base = preDeductionIncome.greaterThan(0) ? preDeductionIncome : D(0);
   const limit = aoiroDeductionLimit(year, kind);

@@ -11,7 +11,7 @@ export function looksLikeZip(bytes: Uint8Array): boolean {
 // zip 内に原始バイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
 export function buildBackupZip(
   payload: BackupPayload,
-  attachmentBlobs: Map<string, Uint8Array>
+  attachmentBlobs: Map<string, Uint8Array>,
 ): Uint8Array {
   const files: Record<string, Uint8Array> = {
     [PAYLOAD_ENTRY_NAME]: strToU8(JSON.stringify(payload)),

@@ -61,21 +61,16 @@ function xmllintAvailable(): boolean {
   return r.error === undefined && r.status === 0;
 }
 
-function validate(
-  wrapper: string,
-  frag: string
-): { ok: boolean; out: string } {
+function validate(wrapper: string, frag: string): { ok: boolean; out: string } {
   const doc =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<ValidationRoot xmlns="${NS}" xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general">\n${frag}\n</ValidationRoot>\n`;
   const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
   const xmlPath = join(dir, 'doc.xml');
   writeFileSync(xmlPath, doc, 'utf8');
-  const r = spawnSync(
-    'xmllint',
-    ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath],
-    { encoding: 'utf8' }
-  );
+  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
+    encoding: 'utf8',
+  });
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
@@ -96,7 +91,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       sha020 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { ABI00010: '100' }
+      { ABI00010: '100' },
     );
     const { ok, out } = validate('_valwrap-SHA020.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -111,7 +106,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb070 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { AYB00020: '100' }
+      { AYB00020: '100' },
     );
     const { ok, out } = validate('_valwrap-SHB070.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -130,7 +125,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
       mapping.sha020,
       {},
-      mapping.sha020Raw
+      mapping.sha020Raw,
     );
     const { ok, out } = validate('_valwrap-SHA020.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -147,7 +142,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb070 as XtxSchema,
       {},
       { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
-      mapping.shb070
+      mapping.shb070,
     );
     const { ok, out } = validate('_valwrap-SHB070.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -219,7 +214,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb047 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { DUB00010: '100' }
+      { DUB00010: '100' },
     );
     const { ok, out } = validate('_valwrap-SHB047.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -231,7 +226,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb067 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { DVB00020: '100' }
+      { DVB00020: '100' },
     );
     const { ok, out } = validate('_valwrap-SHB067.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -258,7 +253,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
         leafValues,
         {},
-        raw ?? {}
+        raw ?? {},
       );
       const { ok, out } = validate(wrapper, frag);
       expect(out, label).not.toContain('Schemas parser error');
@@ -298,7 +293,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         expect(out).not.toContain('Schemas parser error');
         expect(ok, `${tag}: ${out}`).toBe(true);
       }
-    }
+    },
   );
 
   maybe('SHA010 参照側が公式 xsd に適合する', () => {
@@ -306,7 +301,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       sha010 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { AAJ00010: '100' }
+      { AAJ00010: '100' },
     );
     const { ok, out } = validate('_valwrap-SHA010.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -318,7 +313,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb017 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { DSB00010: '100' }
+      { DSB00010: '100' },
     );
     const { ok, out } = validate('_valwrap-SHB017.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -330,7 +325,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       shb033 as XtxSchema,
       {},
       { creatorName: '青井事務所', creationDate: '2026-05-13' },
-      { DTB00020: '100' }
+      { DTB00020: '100' },
     );
     const { ok, out } = validate('_valwrap-SHB033.xsd', frag);
     expect(out).not.toContain('Schemas parser error');
@@ -355,7 +350,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         schema,
         {},
         { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
-        leafValues
+        leafValues,
       );
       const { ok, out } = validate(wrapper, frag);
       expect(out, label).not.toContain('Schemas parser error');
@@ -390,49 +385,46 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
           schema,
           {},
           { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
-          leafValues
+          leafValues,
         );
         const { ok, out } = validate(wrapper, frag);
         expect(out, label).not.toContain('Schemas parser error');
         expect(ok, `${label}: ${out}`).toBe(true);
       }
-    }
+    },
   );
 
-  maybe(
-    '組立済バンドル（buildGeneralXtx）が公式 xsd に適合する（SHA010・SHB017・SHB033）',
-    () => {
-      const xml = buildGeneralXtx({
-        year: 2026,
-        businessName: 'aoikoウェブ事務所',
-        filer: {
-          riyoshaId: '1234567890123456',
-          name: '青井 太郎',
-          zip: '1800001',
-          address: '東京都武蔵野市〇〇1-2-3',
-          zeimushoCode: '01101',
-          zeimushoName: '麹町',
-        },
-        taxableBase10: D('3000000'),
-        taxableBase8: D('0'),
-        input10: D('100000'),
-        input8: D('0'),
-        ...zeroExtras(),
-      });
-      const forms: Array<[string, string]> = [
-        ['SHA010', '_valwrap-SHA010.xsd'],
-        ['SHB017', '_valwrap-SHB017.xsd'],
-        ['SHB033', '_valwrap-SHB033.xsd'],
-      ];
-      for (const [tag, wrapper] of forms) {
-        const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xml);
-        expect(m, `${tag} subtree not found`).not.toBeNull();
-        const { ok, out } = validate(wrapper, m![0]);
-        expect(out).not.toContain('Schemas parser error');
-        expect(ok, `${tag}: ${out}`).toBe(true);
-      }
+  maybe('組立済バンドル（buildGeneralXtx）が公式 xsd に適合する（SHA010・SHB017・SHB033）', () => {
+    const xml = buildGeneralXtx({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      filer: {
+        riyoshaId: '1234567890123456',
+        name: '青井 太郎',
+        zip: '1800001',
+        address: '東京都武蔵野市〇〇1-2-3',
+        zeimushoCode: '01101',
+        zeimushoName: '麹町',
+      },
+      taxableBase10: D('3000000'),
+      taxableBase8: D('0'),
+      input10: D('100000'),
+      input8: D('0'),
+      ...zeroExtras(),
+    });
+    const forms: Array<[string, string]> = [
+      ['SHA010', '_valwrap-SHA010.xsd'],
+      ['SHB017', '_valwrap-SHB017.xsd'],
+      ['SHB033', '_valwrap-SHB033.xsd'],
+    ];
+    for (const [tag, wrapper] of forms) {
+      const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xml);
+      expect(m, `${tag} subtree not found`).not.toBeNull();
+      const { ok, out } = validate(wrapper, m![0]);
+      expect(out).not.toContain('Schemas parser error');
+      expect(ok, `${tag}: ${out}`).toBe(true);
     }
-  );
+  });
 
   maybe(
     '中間申告（仮決算方式・SHINKOKU_KBN=2＋対象期間＋中間納付税額）が公式 xsd に適合する',
@@ -455,17 +447,19 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
         ...zeroExtras(),
         interimPeriod: { start: '2026-01-01', end: '2026-06-30' },
       });
-      expect(xml).toContain('<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>2</kubun_CD></SHINKOKU_KBN>');
+      expect(xml).toContain(
+        '<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>2</kubun_CD></SHINKOKU_KBN>',
+      );
       expect(xml).toContain(
         '<AAI00160><AAI00170><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>1</gen:mm><gen:dd>1</gen:dd></AAI00170>' +
-          '<AAI00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd></AAI00180></AAI00160>'
+          '<AAI00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd></AAI00180></AAI00160>',
       );
       const m = /<SHA010 [\s\S]*?<\/SHA010>/.exec(xml);
       expect(m, 'SHA010 subtree not found').not.toBeNull();
       const { ok, out } = validate('_valwrap-SHA010.xsd', m![0]);
       expect(out).not.toContain('Schemas parser error');
       expect(ok, out).toBe(true);
-    }
+    },
   );
 
   maybe('確定申告への中間納付税額の充当（AAJ00110-130）が公式 xsd に適合する', () => {

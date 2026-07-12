@@ -12,13 +12,7 @@
 // 詳細は CONTRIBUTING.md を参照。
 
 import { parseCsv } from '../lib/csv';
-import {
-  buildRawRow,
-  normalizeDate,
-  optionalColumn,
-  requireColumns,
-  stripComma,
-} from './_helpers';
+import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
 
 const DISPLAY = 'マイ銀行';
@@ -27,8 +21,8 @@ const REQUIRED = ['日付', '摘要', '出金額', '入金額'] as const;
 const myBankParser: CsvParser = {
   name: 'my-bank',
   displayName: DISPLAY,
-  accountCode: '1130',  // 1110 現金 / 1130 普通預金 / 2120 未払金（カード） から選ぶ
-  encoding: 'shift_jis',  // 'utf-8' or 'shift_jis'
+  accountCode: '1130', // 1110 現金 / 1130 普通預金 / 2120 未払金（カード） から選ぶ
+  encoding: 'shift_jis', // 'utf-8' or 'shift_jis'
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
     if (rows.length < 2) {
@@ -53,10 +47,10 @@ const myBankParser: CsvParser = {
       let side: 'debit' | 'credit';
       if (outRaw && !inRaw) {
         amount = stripComma(outRaw);
-        side = 'credit';  // 普通預金から出金 = 貸方
+        side = 'credit'; // 普通預金から出金 = 貸方
       } else if (inRaw && !outRaw) {
         amount = stripComma(inRaw);
-        side = 'debit';   // 普通預金へ入金 = 借方
+        side = 'debit'; // 普通預金へ入金 = 借方
       } else {
         continue;
       }

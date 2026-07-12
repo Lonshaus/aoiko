@@ -164,7 +164,8 @@ npm run test       # Vitest
 npm run check      # svelte-check 型別檢查
 npm run build      # 正式建置
 npm run preview    # 建置後預覽（http://localhost:31527）
-npm run verify     # check ＋ test ＋ build
+npm run format     # Prettier 格式化
+npm run verify     # format:check ＋ check ＋ test ＋ build
 ```
 
 Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ npm（Node.js 內建）。

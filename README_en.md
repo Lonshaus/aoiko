@@ -164,7 +164,8 @@ npm run test       # Vitest
 npm run check      # svelte-check type checking
 npm run build      # Production build
 npm run preview    # Preview the build (http://localhost:31527)
-npm run verify     # check + test + build
+npm run format     # Prettier formatting
+npm run verify     # format:check + check + test + build
 ```
 
 Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) / npm (bundled with Node.js).
