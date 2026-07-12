@@ -9,7 +9,9 @@ import type { PLReport } from '../../domain/reports';
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
 // OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
-function withRealEstate(realEstateIncome: RealEstateIncomeCtx): NonNullable<XtxContext['personalDeductions']> {
+function withRealEstate(
+  realEstateIncome: RealEstateIncomeCtx,
+): NonNullable<XtxContext['personalDeductions']> {
   return {
     socialInsurancePaid: D(0),
     smallBusinessMutualAidPaid: D(0),
@@ -94,13 +96,19 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
       ctx({
         realEstatePl: realEstatePl({
           expense: [
-            { accountCode: '5380', accountName: '専従者給与（不動産）', category: 'expense', amount: '300000', displayOrder: 1380 },
+            {
+              accountCode: '5380',
+              accountName: '専従者給与（不動産）',
+              category: 'expense',
+              amount: '300000',
+              displayOrder: 1380,
+            },
           ],
           totalExpense: '300000',
           netIncome: '700000',
         }),
         personalDeductions: withRealEstate({ businessScale: true }),
-      })
+      }),
     );
     // netIncome 70万 + 専従者給与30万（白色は事業的規模に関わらず全額不算入）= 100万
     expect(out.AKG00230).toBe('1000000');
@@ -111,10 +119,16 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
       ctx({
         realEstatePl: realEstatePl({
           expense: [
-            { accountCode: '5400', accountName: '貸倒金（不動産）', category: 'expense', amount: '40000', displayOrder: 1385 },
+            {
+              accountCode: '5400',
+              accountName: '貸倒金（不動産）',
+              category: 'expense',
+              amount: '40000',
+              displayOrder: 1385,
+            },
           ],
         }),
-      })
+      }),
     );
     expect(out.AKG00120).toBe('40000');
   });
@@ -124,10 +138,16 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
       ctx({
         realEstatePl: realEstatePl({
           expense: [
-            { accountCode: '5410', accountName: '貸倒引当金繰入額（不動産）', category: 'expense', amount: '10000', displayOrder: 1395 },
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '10000',
+              displayOrder: 1395,
+            },
           ],
         }),
-      })
+      }),
     );
     expect(Object.values(out)).not.toContain('10000');
   });
@@ -136,8 +156,11 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({ netIncome: '-50000' }),
-        personalDeductions: withRealEstate({ businessScale: false, landLoanInterestAmount: D(20000) }),
-      })
+        personalDeductions: withRealEstate({
+          businessScale: false,
+          landLoanInterestAmount: D(20000),
+        }),
+      }),
     );
     expect(out.AKG00260).toBe('20000');
   });
@@ -163,10 +186,14 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
       ctx({
         fixedAssets: [
           realEstateAsset({
-            realEstateDetail: { propertyType: '貸家', address: '東京都〇〇区', annualRent: '960000' },
+            realEstateDetail: {
+              propertyType: '貸家',
+              address: '東京都〇〇区',
+              annualRent: '960000',
+            },
           }),
         ],
-      })
+      }),
     );
     expect(repeats.AKH00010).toHaveLength(1);
     expect(repeats.AKH00010?.[0]?.AKH00030).toBe('東京都〇〇区');
@@ -176,8 +203,11 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
   test('減価償却明細（AKK00010）は incomeType: realEstate の資産のみ含める', () => {
     const repeats = mapKoa130RepeatedValues(
       ctx({
-        fixedAssets: [realEstateAsset(), realEstateAsset({ id: 'a2', incomeType: 'business', name: '事業用車両' })],
-      })
+        fixedAssets: [
+          realEstateAsset(),
+          realEstateAsset({ id: 'a2', incomeType: 'business', name: '事業用車両' }),
+        ],
+      }),
     );
     expect(repeats.AKK00010).toHaveLength(1);
     expect(repeats.AKK00010?.[0]?.AKK00020).toBe('賃貸アパート');
@@ -194,7 +224,7 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
             { amount: '3000', payeeName: 'C' },
           ],
         }),
-      })
+      }),
     );
     expect(repeats.AKL00000).toHaveLength(2);
   });

@@ -106,7 +106,7 @@ describe('mapSimplified（簡易課税・単一事業区分）', () => {
     });
     expect(result.sha020Raw.ABH00160).toBe(
       '<ABH00170><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>7</gen:mm><gen:dd>1</gen:dd></ABH00170>' +
-        '<ABH00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>9</gen:mm><gen:dd>30</gen:dd></ABH00180>'
+        '<ABH00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>9</gen:mm><gen:dd>30</gen:dd></ABH00180>',
     );
   });
 

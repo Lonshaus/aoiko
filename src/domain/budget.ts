@@ -7,10 +7,10 @@ export interface MonthlyBudgetRow {
   month: number;
   revenueBudget: string;
   revenueActual: string;
-  revenueDiff: string;   // 実績 - 予算（収入は正なら予算超過達成）
+  revenueDiff: string; // 実績 - 予算（収入は正なら予算超過達成）
   expenseBudget: string;
   expenseActual: string;
-  expenseDiff: string;   // 実績 - 予算（支出は正なら予算オーバー）
+  expenseDiff: string; // 実績 - 予算（支出は正なら予算オーバー）
 }
 
 export interface BudgetVsActualReport {

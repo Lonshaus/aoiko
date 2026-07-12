@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-import tailwindcss from '@tailwindcss/vite'
-import { VitePWA } from 'vite-plugin-pwa'
-import { paraglideVitePlugin } from '@inlang/paraglide-js'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import tailwindcss from '@tailwindcss/vite';
+import { VitePWA } from 'vite-plugin-pwa';
+import { paraglideVitePlugin } from '@inlang/paraglide-js';
+import { fileURLToPath, URL } from 'node:url';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,11 +17,17 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png'],
+      includeAssets: [
+        'icons/icon-192.png',
+        'icons/icon-512.png',
+        'icons/maskable-192.png',
+        'icons/maskable-512.png',
+      ],
       manifest: {
         name: 'aoiko - 青色申告ツール',
         short_name: 'aoiko',
-        description: '個人事業主向けの青色申告 75 万円控除（令和 9 年分以降、要 e-Tax + 優良な電子帳簿）対応の記帳ツール',
+        description:
+          '個人事業主向けの青色申告 75 万円控除（令和 9 年分以降、要 e-Tax + 優良な電子帳簿）対応の記帳ツール',
         lang: 'ja',
         theme_color: '#15374a',
         background_color: '#15374a',
@@ -81,4 +87,4 @@ export default defineConfig({
   preview: {
     port: 31527,
   },
-})
+});

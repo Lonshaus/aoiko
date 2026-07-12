@@ -6,7 +6,10 @@ type SetHandle = (handle: FileSystemDirectoryHandle) => Promise<void>;
 export class FsaBackupAdapter implements BackupAdapter {
   readonly name = 'fsa';
 
-  constructor(private getHandle: GetHandle, private setHandle: SetHandle) {}
+  constructor(
+    private getHandle: GetHandle,
+    private setHandle: SetHandle,
+  ) {}
 
   async isAvailable(): Promise<boolean> {
     return typeof window !== 'undefined' && 'showDirectoryPicker' in window;

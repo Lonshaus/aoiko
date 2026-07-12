@@ -1,11 +1,5 @@
 import { parseCsv } from '../lib/csv';
-import {
-  buildRawRow,
-  normalizeDate,
-  optionalColumn,
-  requireColumns,
-  stripComma,
-} from './_helpers';
+import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
 // SBI新生銀行 パワーダイレクトの入出金明細 CSV ダウンロード形式（実データ確認済）。
 // 旧「新生銀行」が 2023-01 に SBI 集団へ加入し改名した個人向け銀行。

@@ -1,6 +1,6 @@
 name: バグ報告
 description: 動作の不具合・想定と違う挙動を報告する
-labels: ["bug"]
+labels: ['bug']
 body:
   - type: markdown
     attributes:
@@ -55,7 +55,7 @@ body:
     attributes:
       label: 環境
       description: ブラウザ・バージョン・OS
-      placeholder: "Chrome 124 / macOS 15"
+      placeholder: 'Chrome 124 / macOS 15'
     validations:
       required: true
   - type: checkboxes

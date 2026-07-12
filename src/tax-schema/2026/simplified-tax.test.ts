@@ -1,9 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import {
-  DEEMED_INPUT_RATES,
-  deemedInputRate,
-  simplifiedTaxCategoryLabel,
-} from './simplified-tax';
+import { DEEMED_INPUT_RATES, deemedInputRate, simplifiedTaxCategoryLabel } from './simplified-tax';
 
 describe('DEEMED_INPUT_RATES', () => {
   test('全 6 区分が定義されている', () => {
