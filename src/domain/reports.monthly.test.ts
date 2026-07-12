@@ -92,11 +92,11 @@ describe('buildMonthlyPL', () => {
     const r = await buildMonthlyPL(2026);
     expect(r.revenue).toHaveLength(1);
     expect(r.revenue[0]!.accountCode).toBe('4110');
-    expect(r.revenue[0]!.monthly[3]).toBe('100000');  // 4月
+    expect(r.revenue[0]!.monthly[3]).toBe('100000'); // 4月
     expect(r.revenue[0]!.total).toBe('100000');
 
     expect(r.expense).toHaveLength(2);
-    expect(r.monthlyExpenseTotals[4]).toBe('8000');  // 5月
+    expect(r.monthlyExpenseTotals[4]).toBe('8000'); // 5月
     expect(r.monthlyNetIncomes[3]).toBe('100000');
     expect(r.monthlyNetIncomes[4]).toBe('-8000');
     expect(r.netIncome).toBe('92000');

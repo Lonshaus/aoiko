@@ -200,7 +200,7 @@ function buildItPart(
   procedureTag: string,
   procedureName: string,
   filer: XtxFilerInfo,
-  shinkokuKbn: string
+  shinkokuKbn: string,
 ): ItPart {
   const idByName = new Map<string, string>();
   const parts: string[] = [];
@@ -214,14 +214,14 @@ function buildItPart(
       push(
         'TETSUZUKI',
         `<TETSUZUKI ID="TETSUZUKI"><procedure_CD>${escapeXml(procedureTag)}</procedure_CD>` +
-          `<procedure_NM>${escapeXml(procedureName)}</procedure_NM></TETSUZUKI>`
+          `<procedure_NM>${escapeXml(procedureName)}</procedure_NM></TETSUZUKI>`,
       );
       continue;
     }
     if (name === 'SHINKOKU_KBN') {
       push(
         'SHINKOKU_KBN',
-        `<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>${escapeXml(shinkokuKbn)}</kubun_CD></SHINKOKU_KBN>`
+        `<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>${escapeXml(shinkokuKbn)}</kubun_CD></SHINKOKU_KBN>`,
       );
       continue;
     }
@@ -232,14 +232,17 @@ function buildItPart(
           : '';
         push(
           'ZEIMUSHO',
-          `<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>${escapeXml(filer.zeimushoCode)}</gen:zeimusho_CD>${nm}</ZEIMUSHO>`
+          `<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>${escapeXml(filer.zeimushoCode)}</gen:zeimusho_CD>${nm}</ZEIMUSHO>`,
         );
       }
       continue;
     }
     if (name === 'NOZEISHA_ID') {
       if (filer.riyoshaId) {
-        push('NOZEISHA_ID', `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(filer.riyoshaId)}</NOZEISHA_ID>`);
+        push(
+          'NOZEISHA_ID',
+          `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(filer.riyoshaId)}</NOZEISHA_ID>`,
+        );
       }
       continue;
     }
@@ -255,14 +258,17 @@ function buildItPart(
         push(
           'NOZEISHA_ZIP',
           `<NOZEISHA_ZIP ID="NOZEISHA_ZIP"><gen:zip1>${zip.slice(0, 3)}</gen:zip1>` +
-            `<gen:zip2>${zip.slice(3)}</gen:zip2></NOZEISHA_ZIP>`
+            `<gen:zip2>${zip.slice(3)}</gen:zip2></NOZEISHA_ZIP>`,
         );
       }
       continue;
     }
     if (name === 'NOZEISHA_ADR') {
       if (filer.address) {
-        push('NOZEISHA_ADR', `<NOZEISHA_ADR ID="NOZEISHA_ADR">${escapeXml(filer.address)}</NOZEISHA_ADR>`);
+        push(
+          'NOZEISHA_ADR',
+          `<NOZEISHA_ADR ID="NOZEISHA_ADR">${escapeXml(filer.address)}</NOZEISHA_ADR>`,
+        );
       }
       continue;
     }
@@ -274,7 +280,7 @@ function buildItPart(
       push(
         'NENBUN',
         `<NENBUN ID="NENBUN"><gen:era>${NENBUN_ERA_REIWA}</gen:era>` +
-          `<gen:yy>${escapeXml(v)}</gen:yy></NENBUN>`
+          `<gen:yy>${escapeXml(v)}</gen:yy></NENBUN>`,
       );
     } else {
       push(name, `<${name} ID="${name}">${escapeXml(v)}</${name}>`);
@@ -293,7 +299,7 @@ function renderNode(
   idByName: Map<string, string>,
   leafValues: XtxLeafValues,
   repeats: XtxRepeatedValues,
-  raw: XtxRawValues
+  raw: XtxRawValues,
 ): string | null {
   if (node.kind === 'leaf') {
     if (node.idref) {
@@ -355,7 +361,7 @@ function pageHasDirectValue(
   node: RefNode,
   leafValues: XtxLeafValues,
   repeats: XtxRepeatedValues,
-  raw: XtxRawValues
+  raw: XtxRawValues,
 ): boolean {
   if (node.kind === 'leaf') {
     if (node.idref) {
@@ -393,13 +399,12 @@ function renderForm(
   leafValues: XtxLeafValues,
   attrs: FormAttrs,
   repeats: XtxRepeatedValues,
-  raw: XtxRawValues
+  raw: XtxRawValues,
 ): RenderedForm | null {
   const formRoot = buildRefTreeNodes(schema);
   const formId = formRoot.tag;
   const hasPageWrappers =
-    formRoot.children.length > 0 &&
-    formRoot.children.every((c) => isPageWrapperTag(formId, c.tag));
+    formRoot.children.length > 0 && formRoot.children.every((c) => isPageWrapperTag(formId, c.tag));
 
   let bodyXml: string;
   if (hasPageWrappers) {
@@ -483,7 +488,7 @@ export function buildFormFragment(
   options: XtxDocumentOptions = {},
   leafValues: XtxLeafValues = {},
   repeats: XtxRepeatedValues = {},
-  raw: XtxRawValues = {}
+  raw: XtxRawValues = {},
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
@@ -493,7 +498,7 @@ export function buildFormFragment(
     procedureTag,
     procedureName,
     options.filer ?? {},
-    options.shinkokuKbn ?? '1'
+    options.shinkokuKbn ?? '1',
   );
   const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options), repeats, raw);
   return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
@@ -503,7 +508,7 @@ export function buildXtxDocument(
   schema: XtxSchema,
   values: XtxValues,
   options: XtxDocumentOptions = {},
-  leafValues: XtxLeafValues = {}
+  leafValues: XtxLeafValues = {},
 ): string {
   return buildXtxBundle([{ schema, values, leafValues }], options);
 }
@@ -522,10 +527,7 @@ export interface XtxFormInput {
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
 // 様式で共通）。各様式の参照側を順に出力し、CATALOG・送信票を付して封包する。
-export function buildXtxBundle(
-  forms: XtxFormInput[],
-  options: XtxDocumentOptions = {}
-): string {
+export function buildXtxBundle(forms: XtxFormInput[], options: XtxDocumentOptions = {}): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureVersion = options.procedureVersion ?? DEFAULT_PROCEDURE_VERSION;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
@@ -546,11 +548,18 @@ export function buildXtxBundle(
     procedureTag,
     procedureName,
     options.filer ?? {},
-    options.shinkokuKbn ?? '1'
+    options.shinkokuKbn ?? '1',
   );
   const rendered: RenderedForm[] = [];
   for (const f of forms) {
-    const r = renderForm(f.schema, it.idByName, f.leafValues ?? {}, attrs, f.repeats ?? {}, f.raw ?? {});
+    const r = renderForm(
+      f.schema,
+      it.idByName,
+      f.leafValues ?? {},
+      attrs,
+      f.repeats ?? {},
+      f.raw ?? {},
+    );
     if (r) {
       rendered.push(r);
     }
@@ -558,7 +567,7 @@ export function buildXtxBundle(
   const includeSofusho = options.includeSofusho ?? true;
   const catalog = renderCatalog(
     rendered.map((r) => r.formId),
-    includeSofusho
+    includeSofusho,
   );
   const sofusho = includeSofusho
     ? `<SOFUSHO VR="${SOFUSHO_VR}" fid="${SOFUSHO_FID}" id="${SOFUSHO_ID}" page="1"` +

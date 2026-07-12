@@ -13,7 +13,13 @@ const TEST_ACCOUNTS: Account[] = [
 
 async function addEntry(opts: {
   date: string;
-  lines: Array<{ side: 'debit' | 'credit'; accountCode: string; amount: string; itemId?: string; quantity?: string }>;
+  lines: Array<{
+    side: 'debit' | 'credit';
+    accountCode: string;
+    amount: string;
+    itemId?: string;
+    quantity?: string;
+  }>;
   status?: 'confirmed' | 'reversed';
   originalEntryId?: string;
 }): Promise<string> {

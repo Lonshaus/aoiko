@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+.claude/
+# 生成物（手で編集しない）
+src/paraglide/
+src/tax-schema/*/xtx-schema-*.generated.json
+# shadcn-svelte vendor（CLI 再生成対象、手動整形禁止 — CLAUDE.md 参照）
+src/lib/components/ui/
+src/lib/utils.ts
+# ドキュメントは整形対象外（README のツリー整列・手引きの体裁を保持）
+*.md

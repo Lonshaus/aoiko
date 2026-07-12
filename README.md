@@ -164,7 +164,8 @@ npm run test       # Vitest 実行
 npm run check      # svelte-check 型チェック
 npm run build      # 本番ビルド
 npm run preview    # ビルド後のプレビュー（http://localhost:31527）
-npm run verify     # check + test + build
+npm run format     # Prettier 整形
+npm run verify     # format:check + check + test + build
 ```
 
 Node 22 LTS（CI も 22 で実行。ローカルは Node 24 でも可、`engines: >=22`）/ npm（Node.js に同梱）。

@@ -17,10 +17,7 @@ import { db } from '../db/db';
 import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
-import {
-  deemedInputRate,
-  type SimplifiedTaxCategory,
-} from '../tax-schema/2026/simplified-tax';
+import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { TaxFilingMethod } from '../db/types';
 
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
@@ -57,7 +54,7 @@ export interface ConsumptionTaxResult {
 export function taxExcludedPortion(
   amount: Decimal,
   taxRate: number,
-  taxIncluded: boolean
+  taxIncluded: boolean,
 ): Decimal {
   if (taxRate === 0) {
     return D(0);
@@ -68,11 +65,7 @@ export function taxExcludedPortion(
 // 取引金額から国税相当の消費税額を計算。
 // taxIncluded=true: amount は税込価格、国税 = amount × 7.8/110（標準）
 // taxIncluded=false: amount は税抜価格、税込 = amount × (1 + taxRate)、国税は税込から逆算
-function nationalPortion(
-  amount: Decimal,
-  taxRate: number,
-  taxIncluded: boolean
-): Decimal {
+function nationalPortion(amount: Decimal, taxRate: number, taxIncluded: boolean): Decimal {
   const base = taxExcludedPortion(amount, taxRate, taxIncluded);
   if (taxRate === 0.1) {
     return base.times('0.078');
@@ -128,7 +121,7 @@ export interface OfficialOutputTax {
 
 export function computeOfficialOutputTax(
   taxableBase10Raw: Decimal,
-  taxableBase8Raw: Decimal
+  taxableBase8Raw: Decimal,
 ): OfficialOutputTax {
   const base10 = floorToUnit(taxableBase10Raw, 1000);
   const base8 = floorToUnit(taxableBase8Raw, 1000);
@@ -236,13 +229,13 @@ export interface ConsumptionTaxPeriod {
 
 export async function processYear(
   year: number,
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ProcessedYearLines> {
   const entries = await db.journalEntries
     .where('year')
     .equals(year)
     .filter(
-      (e) => countsTowardTotals(e) && (!period || (e.date >= period.start && e.date <= period.end))
+      (e) => countsTowardTotals(e) && (!period || (e.date >= period.start && e.date <= period.end)),
     )
     .toArray();
   if (entries.length === 0) {
@@ -278,7 +271,11 @@ export async function processYear(
   } = acc0;
 
   // 個別対応方式の用途区分別に控除対象仕入税額を積み上げる（taxableOnly は input からの差分で導出するため個別集計不要）
-  function accumulateUsage(line: (typeof lines)[number], deducted: Decimal, rate: 0.1 | 0.08): void {
+  function accumulateUsage(
+    line: (typeof lines)[number],
+    deducted: Decimal,
+    rate: 0.1 | 0.08,
+  ): void {
     const usage = line.inputUsageCategory ?? 'taxableOnly';
     if (usage === 'common') {
       if (rate === 0.1) {
@@ -465,7 +462,7 @@ export function computeTaxableSalesRatio(
   taxableBase10: Decimal,
   taxableBase8: Decimal,
   exportExemptSalesBase: Decimal,
-  nonTaxableSalesBase: Decimal
+  nonTaxableSalesBase: Decimal,
 ): TaxableSalesRatio {
   const taxableSalesTotal = taxableBase10.plus(taxableBase8).plus(exportExemptSalesBase);
   const totalSalesForRatio = taxableSalesTotal.plus(nonTaxableSalesBase);
@@ -496,7 +493,7 @@ export type ConsumptionTaxAttributionMethod = 'individual' | 'proportional';
 function computeDeductibleInput(
   processed: ProcessedYearLines,
   salesRatio: TaxableSalesRatio,
-  attributionMethod: ConsumptionTaxAttributionMethod
+  attributionMethod: ConsumptionTaxAttributionMethod,
 ): Decimal {
   if (isFullDeductionEligible(salesRatio)) {
     return processed.input;
@@ -523,7 +520,7 @@ function badDebtTotals(processed: ProcessedYearLines): { tax: Decimal; recovery:
 export async function computeGeneral(
   year: number,
   attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
@@ -532,7 +529,7 @@ export async function computeGeneral(
     taxableBase10,
     taxableBase8,
     processed.exportExemptSalesBase,
-    processed.nonTaxableSalesBase
+    processed.nonTaxableSalesBase,
   );
   // 特定課税仕入れは一般課税かつ課税売上割合95%未満のときのみ、売上側（課税標準）と
   // 控除側の双方へ対称に配線する。適用時は 95%未満のため全額控除には入らない。
@@ -547,7 +544,7 @@ export async function computeGeneral(
         input10: processed.input10.plus(rcTax),
         inputCommon10: processed.inputCommon10.plus(processed.reverseChargeCommonTax),
         inputNonTaxableOnly10: processed.inputNonTaxableOnly10.plus(
-          processed.reverseChargeNonTaxableOnlyTax
+          processed.reverseChargeNonTaxableOnlyTax,
         ),
       }
     : processed;
@@ -576,7 +573,7 @@ export async function computeGeneral(
 export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory,
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
@@ -587,9 +584,7 @@ export async function computeSimplified(
   const net = basicBase.minus(deemedInput).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
   const officialBasicBase = official.outputTax.plus(badDebtRecovery);
-  const deemedInputOfficial = officialBasicBase
-    .times(rate)
-    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const deemedInputOfficial = officialBasicBase.times(rate).toDecimalPlaces(0, Decimal.ROUND_DOWN);
   const filingNet = officialBasicBase.minus(deemedInputOfficial).minus(badDebtTax);
   return {
     year,
@@ -611,7 +606,7 @@ async function computeWariException(
   year: number,
   method: 'two-wari' | 'three-wari',
   inputDeductionRate: string,
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
   const processed = await processYear(year, period);
@@ -636,13 +631,13 @@ async function computeWariException(
 }
 export function computeTwoWari(
   year: number,
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   return computeWariException(year, 'two-wari', '0.8', period);
 }
 export function computeThreeWari(
   year: number,
-  period?: ConsumptionTaxPeriod
+  period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   return computeWariException(year, 'three-wari', '0.7', period);
 }
@@ -659,7 +654,7 @@ export function isThreeWariEligibleYear(year: number): boolean {
 export async function compareAll(
   year: number,
   simplifiedCategory: SimplifiedTaxCategory,
-  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional'
+  attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
 ): Promise<ConsumptionTaxResult[]> {
   const tasks: Promise<ConsumptionTaxResult>[] = [
     computeGeneral(year, attributionMethod),

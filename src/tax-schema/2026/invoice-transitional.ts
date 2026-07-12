@@ -38,9 +38,7 @@ export type TransitionalPeriodLabel =
   | '30%（2030/10〜2031/9）'
   | '0%（2031/10〜、適用外）';
 
-export function transitionalPeriodLabel(
-  transactionDate: string
-): TransitionalPeriodLabel {
+export function transitionalPeriodLabel(transactionDate: string): TransitionalPeriodLabel {
   if (transactionDate < TRANSITIONAL_BOUNDARY_2026_10) {
     return '80%（2023/10〜2026/9）';
   }

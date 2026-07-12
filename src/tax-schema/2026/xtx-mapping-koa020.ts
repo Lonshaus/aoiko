@@ -17,7 +17,12 @@ import {
   reconstructionSurtax,
   totalTaxCredits,
 } from './income-deductions';
-import { otherIncomeAmount, otherMiscIncome, salaryIncomeAmount, totalWithholdingTax } from './other-income';
+import {
+  otherIncomeAmount,
+  otherMiscIncome,
+  salaryIncomeAmount,
+  totalWithholdingTax,
+} from './other-income';
 import {
   computeCombinedBusinessRealEstateIncome,
   offsettableRealEstateLoss,
@@ -123,7 +128,7 @@ export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
     hasBusinessIncome,
     preIncome,
     ctx.realEstatePl,
-    ctx.personalDeductions?.realEstateIncome
+    ctx.personalDeductions?.realEstateIncome,
   );
   return combined.businessIncome;
 }
@@ -137,7 +142,10 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
   }
   if (ctx.filingType === 'white') {
     const realEstateIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false);
-    return offsettableRealEstateLoss(realEstateIncome, realEstateInput.landLoanInterestAmount ?? D(0));
+    return offsettableRealEstateLoss(
+      realEstateIncome,
+      realEstateInput.landLoanInterestAmount ?? D(0),
+    );
   }
   const preIncome = D(ctx.pl.netIncome);
   const hasBusinessIncome = preIncome.greaterThan(0);
@@ -147,7 +155,7 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
     hasBusinessIncome,
     preIncome,
     ctx.realEstatePl,
-    realEstateInput
+    realEstateInput,
   );
   return combined.realEstateOffsettable;
 }
@@ -189,9 +197,12 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
       preIncome.greaterThan(0),
       preIncome,
       ctx.realEstatePl,
-      realEstateInput
+      realEstateInput,
     );
-    const realEstatePreIncome = realEstatePreDeductionIncome(ctx.realEstatePl, realEstateInput.businessScale);
+    const realEstatePreIncome = realEstatePreDeductionIncome(
+      ctx.realEstatePl,
+      realEstateInput.businessScale,
+    );
     const realEstateDeduction = realEstatePreIncome.minus(combined.realEstateIncomeAfterDeduction);
     // 第一表の青色申告特別控除額は2枚の決算書の控除額の合計を転記する（手引き p.49）
     putTag(out, 'ABB00800', businessDeduction.plus(realEstateDeduction).toString());
@@ -240,7 +251,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(
     out,
     'ABB00510',
-    deductions.workingStudentDeduction.plus(deductions.disabilityDeduction).toString()
+    deductions.workingStudentDeduction.plus(deductions.disabilityDeduction).toString(),
   );
   putTag(out, 'ABB00520', deductions.spouseDeduction.toString());
   putTag(out, 'ABB00540', deductions.dependentDeduction.toString());
@@ -287,7 +298,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
       putTag(
         out,
         'ABB01120',
-        otherMiscIncome(pd.miscIncome.otherIncome, pd.miscIncome.otherExpenses ?? D(0)).toString()
+        otherMiscIncome(pd.miscIncome.otherIncome, pd.miscIncome.otherExpenses ?? D(0)).toString(),
       );
     }
   }
@@ -298,11 +309,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   const foreignTaxCredit = pd.foreignTaxCreditAmount ?? D(0);
   putTag(out, 'ABB00720', taxTotal.minus(foreignTaxCredit).minus(withholding).toString());
   // 公的年金等以外の合計所得金額・配偶者の合計所得金額（既存収集データからの参考値）
-  putTag(
-    out,
-    'ABB00775',
-    totalIncome.minus(pd.miscIncome?.publicPensionAmount ?? D(0)).toString()
-  );
+  putTag(out, 'ABB00775', totalIncome.minus(pd.miscIncome?.publicPensionAmount ?? D(0)).toString());
   if (pd.spouse) {
     putTag(out, 'ABB00780', pd.spouse.totalIncome.toString());
   }

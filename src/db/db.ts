@@ -40,8 +40,7 @@ export class AoikoDB extends Dexie {
     super('aoiko');
 
     this.version(1).stores({
-      journalEntries:
-        'id, date, year, status, originalEntryId, [year+date], [date+status]',
+      journalEntries: 'id, date, year, status, originalEntryId, [year+date], [date+status]',
       journalLines:
         'id, entryId, accountCode, vendorId, side, amountIndexed, [entryId+side], [accountCode+vendorId], [accountCode+amountIndexed], [vendorId+amountIndexed]',
       accounts: '[code+year], year, category, parentCode',
@@ -49,8 +48,7 @@ export class AoikoDB extends Dexie {
       vendors: 'id, name, invoiceNumber, entityType, *aliases',
       fixedAssets: 'id, acquisitionDate, accountCode',
       homeOfficeRules: 'id, accountCode, [accountCode+validFrom]',
-      candidateEntries:
-        'id, importBatchId, status, date, [importBatchId+status]',
+      candidateEntries: 'id, importBatchId, status, date, [importBatchId+status]',
       parserRules: 'id, matchType, vendorId, accountCode, priority',
       importBatches: 'id, parserName, fileHash, importedAt',
       reportSnapshots: 'id, year, type, status, [year+type+status]',

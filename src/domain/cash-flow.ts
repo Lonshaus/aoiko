@@ -45,7 +45,7 @@ export async function recordPayment(id: string, amount: string): Promise<void> {
 }
 
 export interface CashFlowMonthBucket {
-  yearMonth: string;  // 'YYYY-MM'
+  yearMonth: string; // 'YYYY-MM'
   expectedInflow: string;
   expectedOutflow: string;
   netChange: string;
@@ -61,7 +61,7 @@ export interface CashFlowForecast {
 export function computeCashFlowForecast(
   entries: ArApEntry[],
   asOfDate: string,
-  horizonMonths: number
+  horizonMonths: number,
 ): CashFlowForecast {
   const asOfYearMonth = asOfDate.slice(0, 7);
   const [asOfYear, asOfMonth] = asOfYearMonth.split('-').map(Number) as [number, number];
@@ -75,7 +75,7 @@ export function computeCashFlowForecast(
   }
   const firstBucketKey = bucketKeys[0]!;
   const buckets = new Map<string, { inflow: Decimal; outflow: Decimal }>(
-    bucketKeys.map((k) => [k, { inflow: D(0), outflow: D(0) }])
+    bucketKeys.map((k) => [k, { inflow: D(0), outflow: D(0) }]),
   );
 
   for (const e of entries) {
@@ -87,7 +87,7 @@ export function computeCashFlowForecast(
     const key = dueYearMonth < firstBucketKey ? firstBucketKey : dueYearMonth;
     const bucket = buckets.get(key);
     if (!bucket) {
-      continue;  // 予測期間より先の到期分は対象外
+      continue; // 予測期間より先の到期分は対象外
     }
     if (e.type === 'receivable') {
       bucket.inflow = bucket.inflow.plus(remaining);
@@ -109,7 +109,10 @@ export function computeCashFlowForecast(
   return { asOfDate, months };
 }
 
-export async function forecastCashFlow(asOfDate: string, horizonMonths: number): Promise<CashFlowForecast> {
+export async function forecastCashFlow(
+  asOfDate: string,
+  horizonMonths: number,
+): Promise<CashFlowForecast> {
   const entries = await db.arApEntries.toArray();
   return computeCashFlowForecast(entries, asOfDate, horizonMonths);
 }

@@ -48,7 +48,7 @@ describe('whiteReturnAdjustedNetIncome', () => {
             displayOrder: 130,
           },
         ],
-      })
+      }),
     );
     // 3690000 + 860000 + 30000 = 4580000（水道光熱費は通常どおり控除済みのまま）
     expect(result.toString()).toBe('4580000');

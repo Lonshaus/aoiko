@@ -71,7 +71,7 @@ function buildSha020Common(
   badDebtTax: Decimal,
   badDebtRecoveryTax: Decimal,
   interimPaidNational: Decimal,
-  interimPaidLocal: Decimal
+  interimPaidLocal: Decimal,
 ): XtxLeafValues {
   const creditSubtotal = creditTotal.plus(badDebtTax);
   const nationalNetRaw = official.outputTax.plus(badDebtRecoveryTax).minus(creditSubtotal);
@@ -121,7 +121,7 @@ function buildSha020Common(
   put(
     sha020,
     'ABJ00130',
-    filingNational.minus(interimPaidNational).plus(filingLocal).minus(interimPaidLocal)
+    filingNational.minus(interimPaidNational).plus(filingLocal).minus(interimPaidLocal),
   );
   // 第二表（内訳）：軽減税率のみの利用者が多い想定だが、両税率とも同じ値を転記
   put(sha020, 'ABO00000', official.taxableBase);
@@ -221,7 +221,7 @@ export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
     badDebtTaxTotal,
     badDebtRecoveryTaxTotal,
     input.interimPaidNational ?? D(0),
-    input.interimPaidLocal ?? D(0)
+    input.interimPaidLocal ?? D(0),
   );
   const sha020Raw: XtxRawValues = { ABY00000: '<kubun_CD>1</kubun_CD>' };
 
@@ -347,12 +347,12 @@ export function mapSimplified(input: SimplifiedMappingInput): SimplifiedMapping 
     badDebtTaxTotal,
     badDebtRecoveryTaxTotal,
     input.interimPaidNational ?? D(0),
-    input.interimPaidLocal ?? D(0)
+    input.interimPaidLocal ?? D(0),
   );
   put(
     sha020,
     CATEGORY_TAXABLE_SALES_TAG[input.category],
-    input.taxableBase8.plus(input.taxableBase10)
+    input.taxableBase8.plus(input.taxableBase10),
   );
   const sha020Raw: XtxRawValues = {};
   const interimPeriodRaw = buildInterimPeriodRaw(input.interimPeriod);

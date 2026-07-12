@@ -16,7 +16,7 @@ export function plContribution(category: AccountCategory, line: JournalLine): De
 // 帳簿上に残るが、集計上は両方除外して正味ゼロにする。
 // 片方だけ算入すると B/S・繰越が原仕訳 1 件分マイナスに歪むため、必ずペアで扱うこと。
 export function countsTowardTotals(
-  entry: Pick<JournalEntry, 'status' | 'originalEntryId'>
+  entry: Pick<JournalEntry, 'status' | 'originalEntryId'>,
 ): boolean {
   return entry.status === 'confirmed' && entry.originalEntryId === undefined;
 }
@@ -24,7 +24,8 @@ export function countsTowardTotals(
 export class JournalValidationError extends Error {
   constructor(
     message: string,
-    public readonly code: 'unbalanced' | 'negative-amount' | 'no-lines' | 'one-sided' | 'zero-amount'
+    public readonly code:
+      'unbalanced' | 'negative-amount' | 'no-lines' | 'one-sided' | 'zero-amount',
   ) {
     super(message);
     this.name = 'JournalValidationError';
@@ -45,7 +46,7 @@ export function validateLines(lines: JournalLine[]): void {
     if (amount.isNegative()) {
       throw new JournalValidationError(
         `negative amount on line ${line.id}: ${line.amount}`,
-        'negative-amount'
+        'negative-amount',
       );
     }
     if (line.side === 'debit') {
@@ -65,7 +66,7 @@ export function validateLines(lines: JournalLine[]): void {
   if (!debitTotal.equals(creditTotal)) {
     throw new JournalValidationError(
       `unbalanced: debit=${debitTotal.toString()} credit=${creditTotal.toString()}`,
-      'unbalanced'
+      'unbalanced',
     );
   }
   // 合計ゼロの仕訳（全行 0 円）は意味を持たないため拒否する。

@@ -41,7 +41,7 @@ describe('parseOrderResponse', () => {
         orderNumber: '',
         items: [{ description: 'a', amount: '100' }],
         totalAmount: '100',
-      }).orderNumber
+      }).orderNumber,
     ).toBeUndefined();
 
     expect(
@@ -50,7 +50,7 @@ describe('parseOrderResponse', () => {
         vendor: 'X',
         items: [{ description: 'a', amount: '100' }],
         totalAmount: '100',
-      }).orderNumber
+      }).orderNumber,
     ).toBeUndefined();
   });
 
@@ -103,7 +103,7 @@ describe('parseOrderResponse', () => {
         vendor: 'X',
         items: [{ description: 'a', amount: '100' }],
         totalAmount: '',
-      })
+      }),
     ).toThrow(LlmError);
   });
 
@@ -114,7 +114,7 @@ describe('parseOrderResponse', () => {
         vendor: 'X',
         items: [],
         totalAmount: '100',
-      })
+      }),
     ).toThrow(LlmError);
 
     expect(() =>
@@ -123,7 +123,7 @@ describe('parseOrderResponse', () => {
         vendor: 'X',
         items: [{ description: '', amount: '50' }],
         totalAmount: '100',
-      })
+      }),
     ).toThrow(LlmError);
   });
 

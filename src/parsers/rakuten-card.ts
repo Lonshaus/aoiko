@@ -21,7 +21,7 @@ const REQUIRED = ['利用日', '利用店名・商品名', '利用金額'] as co
 const rakutenCardParser: CsvParser = {
   name: 'rakuten-card',
   displayName: DISPLAY,
-  accountCode: '2120',  // 未払金
+  accountCode: '2120', // 未払金
   encoding: 'utf-8',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);

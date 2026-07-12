@@ -60,9 +60,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
   test('エンベロープ骨格を持つ（手続 RKO0010）', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
-    expect(x).toContain(
-      '<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"'
-    );
+    expect(x).toContain('<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"');
     expect(x).toContain('<RKO0010 VR="25.0.0" id="RKO0010">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
     expect(x).toContain('<IT VR="1.5" id="IT">');
@@ -83,11 +81,11 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<SOFUSHO_SEC><rdf:description about="#TEA060-1"/></SOFUSHO_SEC>');
     // 送信票 SOFUSHO（kyotsu ns で自閉）
     expect(x).toMatch(
-      /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/
+      /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
     );
     // IT部 構造項目（手続・申告区分）
     expect(x).toContain(
-      '<TETSUZUKI ID="TETSUZUKI"><procedure_CD>RKO0010</procedure_CD><procedure_NM>所得税及び復興特別所得税申告</procedure_NM></TETSUZUKI>'
+      '<TETSUZUKI ID="TETSUZUKI"><procedure_CD>RKO0010</procedure_CD><procedure_NM>所得税及び復興特別所得税申告</procedure_NM></TETSUZUKI>',
     );
     expect(x).toContain('<SHINKOKU_KBN ID="SHINKOKU_KBN"><kubun_CD>1</kubun_CD></SHINKOKU_KBN>');
   });
@@ -103,22 +101,18 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
 
   test('年分が令和（2026→8）で定義側 NENBUN が複合型で入る', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toContain(
-      '<NENBUN ID="NENBUN"><gen:era>5</gen:era><gen:yy>8</gen:yy></NENBUN>'
-    );
+    expect(x).toContain('<NENBUN ID="NENBUN"><gen:era>5</gen:era><gen:yy>8</gen:yy></NENBUN>');
   });
 
   test('屋号が businessName から NOZEISHA_YAGO に入る', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toContain(
-      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">aoikoウェブ事務所</NOZEISHA_YAGO>'
-    );
+    expect(x).toContain('<NOZEISHA_YAGO ID="NOZEISHA_YAGO">aoikoウェブ事務所</NOZEISHA_YAGO>');
   });
 
   test('参照側ルートは様式インスタンスID＋page＋FormAttribute（参照ファイル順）', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(
-      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="aoikoウェブ事務所" softNM="aoiko">/
+      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="aoikoウェブ事務所" softNM="aoiko">/,
     );
     // ページ子要素は page 属性を持つ
     expect(x).toContain('<KOA020-1 page="1">');
@@ -127,12 +121,8 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
 
   test('参照側 IDREF が定義側 ID に解決する', () => {
     const x = buildXtx2026(makeCtx());
-    const ids = new Set(
-      [...x.matchAll(/\sID="([A-Z_0-9]+)"/g)].map((m) => m[1])
-    );
-    const idrefs = [...x.matchAll(/\sIDREF="([A-Z_0-9]+)"/g)].map(
-      (m) => m[1]
-    );
+    const ids = new Set([...x.matchAll(/\sID="([A-Z_0-9]+)"/g)].map((m) => m[1]));
+    const idrefs = [...x.matchAll(/\sIDREF="([A-Z_0-9]+)"/g)].map((m) => m[1]);
     expect(idrefs.length).toBeGreaterThan(0);
     for (const r of idrefs) {
       expect(ids.has(r)).toBe(true);
@@ -142,7 +132,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
   test('申告者情報が IT部の必須項目（税務署・利用者識別番号・氏名・住所）に入る', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toContain(
-      '<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>01101</gen:zeimusho_CD><gen:zeimusho_NM>麹町</gen:zeimusho_NM></ZEIMUSHO>'
+      '<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>01101</gen:zeimusho_CD><gen:zeimusho_NM>麹町</gen:zeimusho_NM></ZEIMUSHO>',
     );
     expect(x).toContain('<NOZEISHA_ID ID="NOZEISHA_ID">1234567890123456</NOZEISHA_ID>');
     expect(x).toContain('<NOZEISHA_NM ID="NOZEISHA_NM">青井 太郎</NOZEISHA_NM>');
@@ -170,9 +160,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const ctx = makeCtx();
     ctx.businessName = 'A & B <Co>';
     const x = buildXtx2026(ctx);
-    expect(x).toContain(
-      '<NOZEISHA_YAGO ID="NOZEISHA_YAGO">A &amp; B &lt;Co&gt;</NOZEISHA_YAGO>'
-    );
+    expect(x).toContain('<NOZEISHA_YAGO ID="NOZEISHA_YAGO">A &amp; B &lt;Co&gt;</NOZEISHA_YAGO>');
   });
 
   test('屋号未設定なら NOZEISHA_YAGO は出力されない', () => {

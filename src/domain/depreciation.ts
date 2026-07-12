@@ -3,10 +3,7 @@ import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
-import {
-  SMALL_ASSET_ANNUAL_CAP,
-  isSmallAssetEligible,
-} from '../tax-schema/2026/limits';
+import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 減価償却の計算と仕訳生成。
 // 直接法（straight-line）と 200% 定率法（declining-balance）に加え、
@@ -33,7 +30,7 @@ function activeMonths(
   acqYear: number,
   acqMonth: number,
   disposedYear: number | null,
-  disposedMonth: number
+  disposedMonth: number,
 ): number {
   const start = y === acqYear ? acqMonth : 1;
   const end = disposedYear !== null && y === disposedYear ? disposedMonth : 12;
@@ -77,10 +74,7 @@ export interface DepreciationResult {
   fullyDepreciated: boolean;
 }
 
-export function computeDepreciation(
-  asset: FixedAsset,
-  year: number
-): DepreciationResult {
+export function computeDepreciation(asset: FixedAsset, year: number): DepreciationResult {
   const cost = D(asset.acquisitionCost);
   const acqYear = Number(asset.acquisitionDate.slice(0, 4));
   const acqMonth = Number(asset.acquisitionDate.slice(5, 7));
@@ -128,7 +122,7 @@ export function computeDepreciation(
 function computeLumpSum(
   year: number,
   acqYear: number,
-  cost: ReturnType<typeof D>
+  cost: ReturnType<typeof D>,
 ): DepreciationResult {
   const yearlyAmount = cost.dividedBy(3).toDecimalPlaces(0, Decimal.ROUND_DOWN);
   const finalYear = acqYear + 2;
@@ -163,7 +157,7 @@ function computeSmallAssetSpecial(
   asset: FixedAsset,
   year: number,
   acqYear: number,
-  cost: ReturnType<typeof D>
+  cost: ReturnType<typeof D>,
 ): DepreciationResult {
   if (year === acqYear) {
     return {
@@ -186,7 +180,7 @@ function computeStraightLine(
   year: number,
   acqYear: number,
   acqMonth: number,
-  cost: ReturnType<typeof D>
+  cost: ReturnType<typeof D>,
 ): DepreciationResult {
   // 平成19年以後の定額法：満年度額 = 取得価額 × 定額法償却率。
   // 残存簿価 1 円は償却を最終年で打ち切ることで担保する（取得価額そのものを基準にする）。
@@ -198,10 +192,7 @@ function computeStraightLine(
   let accumulated = D(0);
   for (let y = acqYear; y <= year; y++) {
     const monthsThisYear = activeMonths(y, acqYear, acqMonth, disposedYear, disposedMonth);
-    let yearAmount = fullYearAmount
-      .times(monthsThisYear)
-      .dividedBy(12)
-      .toDecimalPlaces(0);
+    let yearAmount = fullYearAmount.times(monthsThisYear).dividedBy(12).toDecimalPlaces(0);
 
     const remaining = depreciableBase.minus(accumulated);
     if (yearAmount.greaterThan(remaining)) {
@@ -236,12 +227,12 @@ function computeDecliningBalance(
   year: number,
   acqYear: number,
   acqMonth: number,
-  cost: ReturnType<typeof D>
+  cost: ReturnType<typeof D>,
 ): DepreciationResult {
   const rates = DECLINING_RATE_TABLE[asset.usefulLifeYears];
   if (!rates) {
     throw new Error(
-      `定率法の償却率テーブルに耐用年数 ${asset.usefulLifeYears} 年が未登録（対応：2〜20年）`
+      `定率法の償却率テーブルに耐用年数 ${asset.usefulLifeYears} 年が未登録（対応：2〜20年）`,
     );
   }
 
@@ -327,7 +318,7 @@ function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
 // 少額減価償却資産の特例：年合計 300 万円 cap を超える資産は取得日昇順で打ち切り、超過分は仕訳未作成。
 //   要件外の指定（適用期限超過 / 取得価額が閾値以上）も仕訳未作成として返す。
 export async function generateYearEndDepreciation(
-  year: number
+  year: number,
 ): Promise<YearEndDepreciationResult> {
   const assets = await db.fixedAssets.toArray();
   const date = `${year}-12-31`;
@@ -388,7 +379,7 @@ export async function generateYearEndDepreciation(
         (e) =>
           countsTowardTotals(e) &&
           e.description.includes(`#${asset.id.slice(0, 8)}`) &&
-          e.description.includes('減価償却')
+          e.description.includes('減価償却'),
       )
       .first();
     if (existing) {
@@ -400,48 +391,44 @@ export async function generateYearEndDepreciation(
     const description = isSmallThisYear
       ? `減価償却（措法28の2）${asset.name} #${asset.id.slice(0, 8)}`
       : `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`;
-    await db.transaction(
-      'rw',
-      [db.journalEntries, db.journalLines],
-      async () => {
-        await db.journalEntries.add({
-          id: entryId,
-          date,
-          year,
-          description,
-          status: 'confirmed',
-          source: 'manual',
-          createdAt: now,
-          confirmedAt: now,
-        } satisfies JournalEntry);
+    await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      await db.journalEntries.add({
+        id: entryId,
+        date,
+        year,
+        description,
+        status: 'confirmed',
+        source: 'manual',
+        createdAt: now,
+        confirmedAt: now,
+      } satisfies JournalEntry);
 
-        const lines: JournalLine[] = [
-          {
-            id: newId(),
-            entryId,
-            side: 'debit',
-            accountCode: DEPRECIATION_EXPENSE,
-            amount: result.amount,
-            amountIndexed: toIndexable(result.amount),
-            taxRate: 0,
-            taxIncluded: true,
-            invoiceCompliant: false,
-          },
-          {
-            id: newId(),
-            entryId,
-            side: 'credit',
-            accountCode: ACCUMULATED_DEPRECIATION,
-            amount: result.amount,
-            amountIndexed: toIndexable(result.amount),
-            taxRate: 0,
-            taxIncluded: true,
-            invoiceCompliant: false,
-          },
-        ];
-        await db.journalLines.bulkAdd(lines);
-      }
-    );
+      const lines: JournalLine[] = [
+        {
+          id: newId(),
+          entryId,
+          side: 'debit',
+          accountCode: DEPRECIATION_EXPENSE,
+          amount: result.amount,
+          amountIndexed: toIndexable(result.amount),
+          taxRate: 0,
+          taxIncluded: true,
+          invoiceCompliant: false,
+        },
+        {
+          id: newId(),
+          entryId,
+          side: 'credit',
+          accountCode: ACCUMULATED_DEPRECIATION,
+          amount: result.amount,
+          amountIndexed: toIndexable(result.amount),
+          taxRate: 0,
+          taxIncluded: true,
+          invoiceCompliant: false,
+        },
+      ];
+      await db.journalLines.bulkAdd(lines);
+    });
     created++;
   }
 

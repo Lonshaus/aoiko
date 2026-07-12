@@ -3,7 +3,13 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { isYearLocked } from './snapshots';
 import { reverseEntry } from './reverse';
-import type { Invoice, InvoiceDocumentType, InvoiceLineItem, JournalEntry, JournalLine } from '../db/types';
+import type {
+  Invoice,
+  InvoiceDocumentType,
+  InvoiceLineItem,
+  JournalEntry,
+  JournalLine,
+} from '../db/types';
 
 const RECEIVABLE_ACCOUNT_CODE = '1310'; // 売掛金
 const SALES_ACCOUNT_CODE = '4110'; // 売上高
@@ -17,7 +23,11 @@ export function newLineItem(): InvoiceLineItem {
   return { id: newId(), name: '', quantity: '1', unitPrice: '0', taxRate: 0.1 };
 }
 
-export function createDraftInvoice(documentType: InvoiceDocumentType, vendorId: string, date: string): Invoice {
+export function createDraftInvoice(
+  documentType: InvoiceDocumentType,
+  vendorId: string,
+  date: string,
+): Invoice {
   return {
     id: newId(),
     documentType,
@@ -55,7 +65,11 @@ export function invoiceTotal(lineItems: InvoiceLineItem[]): Decimal {
   return groupLineItemsByTaxRate(lineItems).reduce((sum, g) => sum.plus(g.grossAmount), D(0));
 }
 
-async function nextDocumentNumber(documentType: InvoiceDocumentType, year: number, prefix: string): Promise<string> {
+async function nextDocumentNumber(
+  documentType: InvoiceDocumentType,
+  year: number,
+  prefix: string,
+): Promise<string> {
   const issued = await db.invoices
     .where('[documentType+date]')
     .between([documentType, `${year}-01-01`], [documentType, `${year}-12-31`])
@@ -71,7 +85,7 @@ function newJournalLine(
   amount: Decimal,
   taxRate: number,
   taxIncluded: boolean,
-  vendorId: string
+  vendorId: string,
 ): JournalLine {
   return {
     id: newId(),
@@ -130,31 +144,46 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
   const lines: JournalLine[] = [
     newJournalLine(entryId, 'debit', RECEIVABLE_ACCOUNT_CODE, total, 0, false, invoice.vendorId),
     ...groups.map((g) =>
-      newJournalLine(entryId, 'credit', SALES_ACCOUNT_CODE, g.grossAmount, g.taxRate, true, invoice.vendorId)
+      newJournalLine(
+        entryId,
+        'credit',
+        SALES_ACCOUNT_CODE,
+        g.grossAmount,
+        g.taxRate,
+        true,
+        invoice.vendorId,
+      ),
     ),
   ];
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, db.arApEntries, db.invoices, async () => {
-    await db.journalEntries.add(entry);
-    await db.journalLines.bulkAdd(lines);
-    await db.arApEntries.add({
-      id: arApEntryId,
-      type: 'receivable',
-      description: `${number}（${invoice.vendorId}）`,
-      dueDate: invoice.dueDate ?? invoice.date,
-      originalAmount: total.toString(),
-      paidAmount: '0',
-      createdAt: now,
-    });
-    await db.invoices.put({
-      ...invoice,
-      status: 'issued',
-      number,
-      issuedAt: now,
-      journalEntryId: entryId,
-      arApEntryId,
-    });
-  });
+  await db.transaction(
+    'rw',
+    db.journalEntries,
+    db.journalLines,
+    db.arApEntries,
+    db.invoices,
+    async () => {
+      await db.journalEntries.add(entry);
+      await db.journalLines.bulkAdd(lines);
+      await db.arApEntries.add({
+        id: arApEntryId,
+        type: 'receivable',
+        description: `${number}（${invoice.vendorId}）`,
+        dueDate: invoice.dueDate ?? invoice.date,
+        originalAmount: total.toString(),
+        paidAmount: '0',
+        createdAt: now,
+      });
+      await db.invoices.put({
+        ...invoice,
+        status: 'issued',
+        number,
+        issuedAt: now,
+        journalEntryId: entryId,
+        arApEntryId,
+      });
+    },
+  );
 
   return (await db.invoices.get(invoice.id))!;
 }
@@ -172,7 +201,9 @@ export async function voidInvoice(invoiceId: string): Promise<void> {
   if (invoice.arApEntryId) {
     const arApEntry = await db.arApEntries.get(invoice.arApEntryId);
     if (arApEntry && D(arApEntry.paidAmount).greaterThan(0)) {
-      throw new InvoiceError('入金記録がある請求書は取消できません。先に入金記録を取り消してください');
+      throw new InvoiceError(
+        '入金記録がある請求書は取消できません。先に入金記録を取り消してください',
+      );
     }
   }
 

@@ -21,10 +21,10 @@
     amount: string;
     taxRate: number;
     taxIncluded: boolean;
-    homeOfficeRatio: string;  // '' = 未設定 (=100%), '0.30' 等
-    taxCategory: '' | TaxCategory;  // '' = 科目の既定値を使用
-    inputUsageCategory: '' | InputUsageCategory;  // '' = taxableOnly 扱い
-    itemId: string;   // 簡易在庫管理（C4）。仕入・売上科目でのみ意味を持つ
+    homeOfficeRatio: string; // '' = 未設定 (=100%), '0.30' 等
+    taxCategory: '' | TaxCategory; // '' = 科目の既定値を使用
+    inputUsageCategory: '' | InputUsageCategory; // '' = taxableOnly 扱い
+    itemId: string; // 簡易在庫管理（C4）。仕入・売上科目でのみ意味を持つ
     quantity: string;
   };
   // 簡易在庫管理（C4）の対象科目（仕入・売上高）。実estate用の複製科目は対象外
@@ -117,9 +117,7 @@
   }
 
   function sumAmount(lines: DraftLine[]): string {
-    return lines
-      .reduce((s, l) => (l.amount ? s.plus(l.amount) : s), D(0))
-      .toString();
+    return lines.reduce((s, l) => (l.amount ? s.plus(l.amount) : s), D(0)).toString();
   }
 
   const debitTotal = $derived(sumAmount(debits));
@@ -131,10 +129,10 @@
   // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
   const isDirty = $derived(
     description !== '' ||
-    department !== '' ||
-    attachments.length > 0 ||
-    !linesPristine(debits) ||
-    !linesPristine(credits)
+      department !== '' ||
+      attachments.length > 0 ||
+      !linesPristine(debits) ||
+      !linesPristine(credits),
   );
   $effect(() => {
     if (!isDirty) {
@@ -176,13 +174,7 @@
   // 借方・貸方ともに 1 行のみ、かつ貸方が空のときに借方金額を貸方へ初期コピー
   function onDebitAmountInput(line: DraftLine, value: string) {
     line.amount = value;
-    if (
-      debits.length === 1 &&
-      credits.length === 1 &&
-      credits[0] &&
-      !credits[0].amount &&
-      value
-    ) {
+    if (debits.length === 1 && credits.length === 1 && credits[0] && !credits[0].amount && value) {
       credits[0].amount = value;
     }
   }
@@ -208,7 +200,10 @@
       return;
     }
     if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
-      attachmentError = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      attachmentError = m.common_file_too_large({
+        size: formatBytes(f.size),
+        limit: formatBytes(MAX_IMAGE_BYTES),
+      });
       input.value = '';
       return;
     }
@@ -324,35 +319,28 @@
       }));
       const expandedDebits = expandHomeOffice(debitsForExpansion);
 
-      const lines = [
-        ...buildLines(expandedDebits, 'debit'),
-        ...buildLines(credits, 'credit'),
-      ];
+      const lines = [...buildLines(expandedDebits, 'debit'), ...buildLines(credits, 'credit')];
       validateLines(lines);
 
-      await db.transaction(
-        'rw',
-        [db.journalEntries, db.journalLines, db.attachments],
-        async () => {
-          await db.journalEntries.add({
-            id: entryId,
-            date,
-            year: Number(date.slice(0, 4)),
-            description,
-            ...(department ? { department } : {}),
-            status: 'confirmed',
-            source: 'manual',
-            createdAt: now,
-            confirmedAt: now,
-          });
-          await db.journalLines.bulkAdd(lines);
-          if (attachments.length > 0) {
-            await db.attachments.bulkAdd(
-              attachments.map((a) => buildAttachmentRecord(entryId, a.file, now))
-            );
-          }
+      await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        await db.journalEntries.add({
+          id: entryId,
+          date,
+          year: Number(date.slice(0, 4)),
+          description,
+          ...(department ? { department } : {}),
+          status: 'confirmed',
+          source: 'manual',
+          createdAt: now,
+          confirmedAt: now,
+        });
+        await db.journalLines.bulkAdd(lines);
+        if (attachments.length > 0) {
+          await db.attachments.bulkAdd(
+            attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
+          );
         }
-      );
+      });
 
       reset();
       date = today();
@@ -364,14 +352,15 @@
   }
 </script>
 
-<form
-  onsubmit={handleSubmit}
-  class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
->
+<form onsubmit={handleSubmit} class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
   <h2 class="text-lg font-semibold">{m.journal_form_title()}</h2>
 
   {#if ledger.realEstateIncomeEnabled}
-    <div class="flex gap-2 text-sm" role="radiogroup" aria-label={m.journal_form_income_type_label()}>
+    <div
+      class="flex gap-2 text-sm"
+      role="radiogroup"
+      aria-label={m.journal_form_income_type_label()}
+    >
       <button
         type="button"
         role="radio"
@@ -447,7 +436,11 @@
         <ul class="mt-2 flex flex-wrap gap-2">
           {#each attachments as a (a.id)}
             <li class="relative">
-              <img src={a.previewUrl} alt={a.file.name} class="h-16 w-16 object-cover rounded border" />
+              <img
+                src={a.previewUrl}
+                alt={a.file.name}
+                class="h-16 w-16 object-cover rounded border"
+              />
               <button
                 type="button"
                 onclick={() => removeAttachment(a.id)}
@@ -466,7 +459,9 @@
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_debit()}</h3>
-      <span class="text-xs text-muted-foreground tabular-nums">{m.journal_form_total({ amount: formatJPY(debitTotal) })}</span>
+      <span class="text-xs text-muted-foreground tabular-nums"
+        >{m.journal_form_total({ amount: formatJPY(debitTotal) })}</span
+      >
     </div>
     {#each debits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
@@ -530,7 +525,8 @@
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" bind:checked={line.taxIncluded} /> {m.journal_form_tax_included()}
+            <input type="checkbox" bind:checked={line.taxIncluded} />
+            {m.journal_form_tax_included()}
           </label>
           <label class="flex items-center gap-1">
             {m.journal_form_home_office()}
@@ -610,7 +606,9 @@
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_credit()}</h3>
-      <span class="text-xs text-muted-foreground tabular-nums">{m.journal_form_total({ amount: formatJPY(creditTotal) })}</span>
+      <span class="text-xs text-muted-foreground tabular-nums"
+        >{m.journal_form_total({ amount: formatJPY(creditTotal) })}</span
+      >
     </div>
     {#each credits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
@@ -676,7 +674,8 @@
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" bind:checked={line.taxIncluded} /> {m.journal_form_tax_included()}
+            <input type="checkbox" bind:checked={line.taxIncluded} />
+            {m.journal_form_tax_included()}
           </label>
           <label class="flex items-center gap-1">
             {m.journal_form_home_office()}

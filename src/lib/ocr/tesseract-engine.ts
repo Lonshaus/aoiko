@@ -14,9 +14,7 @@ import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 
-export function createTesseractReceiptExtractor(
-  langPath?: string
-): ReceiptExtractor {
+export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',

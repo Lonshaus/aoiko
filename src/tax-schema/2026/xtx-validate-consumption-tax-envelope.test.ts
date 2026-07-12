@@ -32,11 +32,9 @@ function validateAgainstSchema(schemaFile: string, xml: string): { ok: boolean; 
   const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-envelope-'));
   const xmlPath = join(dir, 'doc.xml');
   writeFileSync(xmlPath, xml, 'utf8');
-  const r = spawnSync(
-    'xmllint',
-    ['--noout', '--schema', join(SPEC_DIR, schemaFile), xmlPath],
-    { encoding: 'utf8' }
-  );
+  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, schemaFile), xmlPath], {
+    encoding: 'utf8',
+  });
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
