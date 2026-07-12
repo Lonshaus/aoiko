@@ -60,7 +60,7 @@
     "dexie": "^4.4.3",
     "encoding-japanese": "^2.2.0",
     "fflate": "^0.8.3",
-    "marked": "^18.0.4",
+    "marked": "^18.0.6",
     "tesseract.js": "^7.0.0"
   }
 }
