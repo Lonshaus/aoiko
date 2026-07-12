@@ -1,6 +1,6 @@
-import { defineConfig } from 'vitest/config'
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
   plugins: [svelte()],
@@ -16,4 +16,4 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,svelte.ts}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/_template.*.test.ts'],
   },
-})
+});

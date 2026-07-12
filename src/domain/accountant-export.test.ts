@@ -248,7 +248,11 @@ describe('encodeShiftJis', () => {
   test('日本語文字列を Shift-JIS バイト列に変換し、デコードすると元に戻る', () => {
     const text = '課税売上込10%\r\n摘要テスト';
     const bytes = encodeShiftJis(text);
-    const decoded = Encoding.convert(Array.from(bytes), { to: 'UNICODE', from: 'SJIS', type: 'string' });
+    const decoded = Encoding.convert(Array.from(bytes), {
+      to: 'UNICODE',
+      from: 'SJIS',
+      type: 'string',
+    });
     expect(decoded).toBe(text);
   });
 });

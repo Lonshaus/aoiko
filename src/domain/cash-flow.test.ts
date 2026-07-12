@@ -35,14 +35,24 @@ describe('remainingBalance', () => {
 
 describe('addArApEntry / recordPayment', () => {
   test('新規登録は paidAmount=0 で作成される', async () => {
-    await addArApEntry({ type: 'receivable', description: 'A社', dueDate: '2026-08-01', originalAmount: '50000' });
+    await addArApEntry({
+      type: 'receivable',
+      description: 'A社',
+      dueDate: '2026-08-01',
+      originalAmount: '50000',
+    });
     const rows = await db.arApEntries.toArray();
     expect(rows).toHaveLength(1);
     expect(rows[0]!.paidAmount).toBe('0');
   });
 
   test('入金を記録すると paidAmount が加算される', async () => {
-    await addArApEntry({ type: 'receivable', description: 'A社', dueDate: '2026-08-01', originalAmount: '50000' });
+    await addArApEntry({
+      type: 'receivable',
+      description: 'A社',
+      dueDate: '2026-08-01',
+      originalAmount: '50000',
+    });
     const row = (await db.arApEntries.toArray())[0]!;
     await recordPayment(row.id, '20000');
     const updated = await db.arApEntries.get(row.id);
@@ -50,7 +60,12 @@ describe('addArApEntry / recordPayment', () => {
   });
 
   test('残高を超える入金は throw', async () => {
-    await addArApEntry({ type: 'payable', description: 'B社', dueDate: '2026-08-01', originalAmount: '10000' });
+    await addArApEntry({
+      type: 'payable',
+      description: 'B社',
+      dueDate: '2026-08-01',
+      originalAmount: '10000',
+    });
     const row = (await db.arApEntries.toArray())[0]!;
     await expect(recordPayment(row.id, '20000')).rejects.toThrow(OverpaymentError);
   });
@@ -91,7 +106,9 @@ describe('computeCashFlowForecast', () => {
   });
 
   test('完済済み（残高0）は集計から除外', () => {
-    const entries = [entry({ dueDate: '2026-07-15', originalAmount: '10000', paidAmount: '10000' })];
+    const entries = [
+      entry({ dueDate: '2026-07-15', originalAmount: '10000', paidAmount: '10000' }),
+    ];
     const r = computeCashFlowForecast(entries, '2026-07-01', 1);
     expect(r.months[0]!.expectedInflow).toBe('0');
   });

@@ -9,7 +9,7 @@ import type { Account } from './types';
 // 科目表を更新しても seedIfEmpty 方式では既存利用者の DB に新科目が入らなかったため、
 // その差分を埋める。
 export async function seedAndReconcileAccounts(
-  master: Account[] = ACCOUNTS_2026
+  master: Account[] = ACCOUNTS_2026,
 ): Promise<{ added: number; updated: number }> {
   const existing = await db.accounts.toArray();
   const byKey = new Map(existing.map((a) => [`${a.code}__${a.year}`, a]));

@@ -145,7 +145,10 @@ function oldLifeInsuranceRow(paid: Decimal): Decimal {
   return D(50_000);
 }
 // 新旧両方の支払いがある区分は、新のみ・旧のみ・新旧合算（上限4万円）のうち最も有利な額を採る。
-function lifeInsuranceCategoryAmount(newPaid: Decimal | undefined, oldPaid: Decimal | undefined): Decimal {
+function lifeInsuranceCategoryAmount(
+  newPaid: Decimal | undefined,
+  oldPaid: Decimal | undefined,
+): Decimal {
   const n = newPaid && newPaid.greaterThan(0) ? newLifeInsuranceRow(newPaid) : D(0);
   const o = oldPaid && oldPaid.greaterThan(0) ? oldLifeInsuranceRow(oldPaid) : D(0);
   if (n.greaterThan(0) && o.greaterThan(0)) {
@@ -157,15 +160,19 @@ function lifeInsuranceCategoryAmount(newPaid: Decimal | undefined, oldPaid: Deci
 
 export function lifeInsuranceDeduction(payments: LifeInsurancePayments): Decimal {
   const general = lifeInsuranceCategoryAmount(payments.newGeneral, payments.oldGeneral);
-  const medical = payments.newMedical && payments.newMedical.greaterThan(0)
-    ? newLifeInsuranceRow(payments.newMedical)
-    : D(0);
+  const medical =
+    payments.newMedical && payments.newMedical.greaterThan(0)
+      ? newLifeInsuranceRow(payments.newMedical)
+      : D(0);
   const pension = lifeInsuranceCategoryAmount(payments.newPension, payments.oldPension);
   const total = sum(general, medical, pension);
   return total.greaterThan(120_000) ? D(120_000) : total;
 }
 // 地震保険料控除（上限5万円）＋経過措置（旧長期損害保険、上限1.5万円）を合算し、合計5万円を上限とする。
-export function earthquakeInsuranceDeduction(earthquakePaid: Decimal, oldLongTermPaid: Decimal): Decimal {
+export function earthquakeInsuranceDeduction(
+  earthquakePaid: Decimal,
+  oldLongTermPaid: Decimal,
+): Decimal {
   const earthquake = earthquakePaid.greaterThan(50_000) ? D(50_000) : earthquakePaid;
   let oldLongTerm = D(0);
   if (oldLongTermPaid.greaterThan(0)) {
@@ -181,7 +188,11 @@ export function earthquakeInsuranceDeduction(earthquakePaid: Decimal, oldLongTer
   return total.greaterThan(50_000) ? D(50_000) : total;
 }
 // 医療費控除＝(支払医療費−保険金等補填額)−min(10万円, 総所得金額×5%)、下限0・上限200万円。
-export function medicalExpenseDeduction(paid: Decimal, reimbursement: Decimal, totalIncome: Decimal): Decimal {
+export function medicalExpenseDeduction(
+  paid: Decimal,
+  reimbursement: Decimal,
+  totalIncome: Decimal,
+): Decimal {
   const net = paid.minus(reimbursement);
   if (net.lessThanOrEqualTo(0)) {
     return D(0);
@@ -205,7 +216,7 @@ export function donationDeduction(donationAmount: Decimal, totalIncome: Decimal)
 // 障害者控除（27万円）・特別障害者控除（40万円）。本人のみが対象
 // （配偶者・扶養親族の障害者控除、同居特別障害者加算75万円は稀なケースのため対象外）。
 export function disabilityDeduction(
-  input: Pick<IncomeDeductionInput, 'isDisabled' | 'isSpecialDisabled'>
+  input: Pick<IncomeDeductionInput, 'isDisabled' | 'isSpecialDisabled'>,
 ): Decimal {
   if (input.isSpecialDisabled) {
     return D(400_000);
@@ -254,7 +265,10 @@ export function spouseDeduction(taxpayerIncome: Decimal, spouse: SpouseInput | u
   if (!spouse) {
     return D(0);
   }
-  if (taxpayerIncome.greaterThan(10_000_000) || spouse.totalIncome.greaterThan(SPOUSE_INCOME_CEILING)) {
+  if (
+    taxpayerIncome.greaterThan(10_000_000) ||
+    spouse.totalIncome.greaterThan(SPOUSE_INCOME_CEILING)
+  ) {
     return D(0);
   }
   const taxpayerTierIndex = taxpayerIncome.lessThanOrEqualTo(9_000_000)
@@ -293,7 +307,10 @@ const SPECIFIC_RELATIVE_SPECIAL_TABLE: Array<[number, number]> = [
 ];
 
 function specificRelativeSpecialDeductionAmount(totalIncome: Decimal): Decimal {
-  if (totalIncome.lessThanOrEqualTo(SPOUSE_DEDUCTION_INCOME_CEILING) || totalIncome.greaterThan(1_230_000)) {
+  if (
+    totalIncome.lessThanOrEqualTo(SPOUSE_DEDUCTION_INCOME_CEILING) ||
+    totalIncome.greaterThan(1_230_000)
+  ) {
     return D(0);
   }
   for (const [ceiling, amount] of SPECIFIC_RELATIVE_SPECIAL_TABLE) {
@@ -312,9 +329,13 @@ export function dependentDeductions(dependents: DependentInput[]): {
   let dependentDeduction = D(0);
   let specificRelativeSpecialDeduction = D(0);
   for (const dep of dependents) {
-    if (dep.age >= 19 && dep.age <= 22 && dep.totalIncome.greaterThan(SPOUSE_DEDUCTION_INCOME_CEILING)) {
+    if (
+      dep.age >= 19 &&
+      dep.age <= 22 &&
+      dep.totalIncome.greaterThan(SPOUSE_DEDUCTION_INCOME_CEILING)
+    ) {
       specificRelativeSpecialDeduction = specificRelativeSpecialDeduction.plus(
-        specificRelativeSpecialDeductionAmount(dep.totalIncome)
+        specificRelativeSpecialDeductionAmount(dep.totalIncome),
       );
       continue;
     }
@@ -324,7 +345,9 @@ export function dependentDeductions(dependents: DependentInput[]): {
     if (dep.age >= 19 && dep.age <= 22) {
       dependentDeduction = dependentDeduction.plus(630_000);
     } else if (isElderly(dep.age)) {
-      dependentDeduction = dependentDeduction.plus(dep.livesWithLinealAscendant ? 580_000 : 480_000);
+      dependentDeduction = dependentDeduction.plus(
+        dep.livesWithLinealAscendant ? 580_000 : 480_000,
+      );
     } else {
       dependentDeduction = dependentDeduction.plus(380_000);
     }
@@ -332,15 +355,27 @@ export function dependentDeductions(dependents: DependentInput[]): {
   return { dependentDeduction, specificRelativeSpecialDeduction };
 }
 
-export function computeIncomeDeductions(year: number, input: IncomeDeductionInput): IncomeDeductionResult {
-  const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions(input.dependents);
+export function computeIncomeDeductions(
+  year: number,
+  input: IncomeDeductionInput,
+): IncomeDeductionResult {
+  const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions(
+    input.dependents,
+  );
   const result: IncomeDeductionResult = {
     basicDeduction: basicDeduction(year, input.totalIncome),
     socialInsuranceDeduction: input.socialInsurancePaid,
     smallBusinessMutualAidDeduction: input.smallBusinessMutualAidPaid,
     lifeInsuranceDeduction: lifeInsuranceDeduction(input.lifeInsurance),
-    earthquakeInsuranceDeduction: earthquakeInsuranceDeduction(input.earthquakeInsurancePaid, input.oldLongTermInsurancePaid),
-    medicalExpenseDeduction: medicalExpenseDeduction(input.medicalExpensePaid, input.medicalInsuranceReimbursement, input.totalIncome),
+    earthquakeInsuranceDeduction: earthquakeInsuranceDeduction(
+      input.earthquakeInsurancePaid,
+      input.oldLongTermInsurancePaid,
+    ),
+    medicalExpenseDeduction: medicalExpenseDeduction(
+      input.medicalExpensePaid,
+      input.medicalInsuranceReimbursement,
+      input.totalIncome,
+    ),
     donationDeduction: donationDeduction(input.donationAmount, input.totalIncome),
     casualtyLossDeduction: input.casualtyLossDeduction,
     disabilityDeduction: disabilityDeduction(input),
@@ -365,7 +400,7 @@ export function computeIncomeDeductions(year: number, input: IncomeDeductionInpu
     result.workingStudentDeduction,
     result.spouseDeduction,
     result.dependentDeduction,
-    result.specificRelativeSpecialDeduction
+    result.specificRelativeSpecialDeduction,
   );
   return result;
 }
@@ -377,7 +412,7 @@ export function totalTaxCredits(input: TaxCreditInput): Decimal {
     input.politicalDonationCreditAmount ?? D(0),
     input.housingRenovationCreditAmount ?? D(0),
     input.foreignTaxCreditAmount ?? D(0),
-    input.otherTaxCreditAmount ?? D(0)
+    input.otherTaxCreditAmount ?? D(0),
   );
 }
 // 課税される所得金額に対する所得税額（速算表、所得税法89条）。taxableIncome は
@@ -396,7 +431,10 @@ export function progressiveIncomeTax(taxableIncome: Decimal): Decimal {
   if (taxableIncome.lessThanOrEqualTo(0)) {
     return D(0);
   }
-  const truncated = taxableIncome.dividedBy(1_000).toDecimalPlaces(0, Decimal.ROUND_DOWN).times(1_000);
+  const truncated = taxableIncome
+    .dividedBy(1_000)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN)
+    .times(1_000);
   for (const [ceiling, rate, deduction] of TAX_BRACKETS) {
     if (truncated.lessThanOrEqualTo(ceiling)) {
       const tax = truncated.times(rate).minus(deduction);

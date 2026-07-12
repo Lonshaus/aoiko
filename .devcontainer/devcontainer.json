@@ -11,11 +11,7 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "svelte.svelte-vscode",
-        "bradlc.vscode-tailwindcss",
-        "vitest.explorer"
-      ]
+      "extensions": ["svelte.svelte-vscode", "bradlc.vscode-tailwindcss", "vitest.explorer"]
     }
   }
 }

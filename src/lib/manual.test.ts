@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vitest';
 import {
   INDEX_SLUG,
   slugFromPath,
@@ -14,90 +14,91 @@ import {
   slugifyHeading,
   extractHeadings,
   searchManual,
-} from './manual'
+} from './manual';
 
 describe('stripInline', () => {
   it('インラインコード・太字・リンクを除去する', () => {
-    expect(stripInline('`.xtx` 出力')).toBe('.xtx 出力')
-    expect(stripInline('**重要** な点')).toBe('重要 な点')
-    expect(stripInline('[詳細](x.md) はこちら')).toBe('詳細 はこちら')
-  })
-})
+    expect(stripInline('`.xtx` 出力')).toBe('.xtx 出力');
+    expect(stripInline('**重要** な点')).toBe('重要 な点');
+    expect(stripInline('[詳細](x.md) はこちら')).toBe('詳細 はこちら');
+  });
+});
 
 describe('slugifyHeading', () => {
   it('既存の章間アンカーと一致する（CJK 保持・記号除去）', () => {
-    expect(slugifyHeading('4. 選擇消費税方式')).toBe('4-選擇消費税方式')
-    expect(slugifyHeading('7. 要用 OCR/LLM 才做的設定')).toBe('7-要用-ocrllm-才做的設定')
-    expect(slugifyHeading('2-1. Filters')).toBe('2-1-filters')
+    expect(slugifyHeading('4. 選擇消費税方式')).toBe('4-選擇消費税方式');
+    expect(slugifyHeading('7. 要用 OCR/LLM 才做的設定')).toBe('7-要用-ocrllm-才做的設定');
+    expect(slugifyHeading('2-1. Filters')).toBe('2-1-filters');
     expect(slugifyHeading('1-2. Use the home-office (mixed-use) allocation')).toBe(
       '1-2-use-the-home-office-mixed-use-allocation',
-    )
-  })
-})
+    );
+  });
+});
 
 describe('extractHeadings', () => {
   it('h2 / h3 を抽出し h1 とコードブロックは除外', () => {
-    const md = '# 章タイトル\n\n## 1. 節\n本文\n### 1-1. 小節\n\n```bash\n## これはコード\n```\n## 2. `.xtx` 出力'
+    const md =
+      '# 章タイトル\n\n## 1. 節\n本文\n### 1-1. 小節\n\n```bash\n## これはコード\n```\n## 2. `.xtx` 出力';
     expect(extractHeadings(md)).toEqual([
       { level: 2, text: '1. 節', id: '1-節' },
       { level: 3, text: '1-1. 小節', id: '1-1-小節' },
       { level: 2, text: '2. .xtx 出力', id: '2-xtx-出力' },
-    ])
-  })
-})
+    ]);
+  });
+});
 
 describe('searchManual', () => {
   it('該当章をヒットさせスニペットを返す', () => {
-    const hits = searchManual('消費税', 'ja')
-    expect(hits.length).toBeGreaterThan(0)
-    expect(hits.map((h) => h.slug)).toContain('07-consumption-tax')
-    expect(hits[0]?.snippet.length).toBeGreaterThan(0)
-  })
+    const hits = searchManual('消費税', 'ja');
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits.map((h) => h.slug)).toContain('07-consumption-tax');
+    expect(hits[0]?.snippet.length).toBeGreaterThan(0);
+  });
 
   it('空クエリは空配列', () => {
-    expect(searchManual('   ', 'ja')).toEqual([])
-  })
+    expect(searchManual('   ', 'ja')).toEqual([]);
+  });
 
   it('ヒット無しは空配列', () => {
-    expect(searchManual('zzzznonexistentqueryzzz', 'ja')).toEqual([])
-  })
-})
-
+    expect(searchManual('zzzznonexistentqueryzzz', 'ja')).toEqual([]);
+  });
+});
 
 describe('stripLanguageNav', () => {
   it('言語切替行を取り除く', () => {
-    const src = '# 01. 初次設定\n\n本文\n\n**Language**: [日本語](01-setup.md) | **繁體中文**\n\n続き'
-    const out = stripLanguageNav(src)
-    expect(out).not.toContain('**Language**')
-    expect(out).toContain('# 01. 初次設定')
-    expect(out).toContain('続き')
-  })
+    const src =
+      '# 01. 初次設定\n\n本文\n\n**Language**: [日本語](01-setup.md) | **繁體中文**\n\n続き';
+    const out = stripLanguageNav(src);
+    expect(out).not.toContain('**Language**');
+    expect(out).toContain('# 01. 初次設定');
+    expect(out).toContain('続き');
+  });
 
   it('言語行が無ければそのまま', () => {
-    const src = '# 見出し\n\n本文'
-    expect(stripLanguageNav(src)).toBe(src)
-  })
-})
+    const src = '# 見出し\n\n本文';
+    expect(stripLanguageNav(src)).toBe(src);
+  });
+});
 
 describe('slugFromPath', () => {
   it('/manual は索引 slug', () => {
-    expect(slugFromPath('/manual')).toBe(INDEX_SLUG)
-    expect(slugFromPath('/manual/')).toBe(INDEX_SLUG)
-  })
+    expect(slugFromPath('/manual')).toBe(INDEX_SLUG);
+    expect(slugFromPath('/manual/')).toBe(INDEX_SLUG);
+  });
 
   it('/manual/<slug> は章 slug を返す', () => {
-    expect(slugFromPath('/manual/01-setup')).toBe('01-setup')
-  })
+    expect(slugFromPath('/manual/01-setup')).toBe('01-setup');
+  });
 
   it('末尾スラッシュを除去する', () => {
-    expect(slugFromPath('/manual/02-journal/')).toBe('02-journal')
-  })
+    expect(slugFromPath('/manual/02-journal/')).toBe('02-journal');
+  });
 
   it('#アンカーやクエリを除去する', () => {
-    expect(slugFromPath('/manual/01-setup#4-選擇消費税方式')).toBe('01-setup')
-    expect(slugFromPath('/manual/01-setup?x=1')).toBe('01-setup')
-  })
-})
+    expect(slugFromPath('/manual/01-setup#4-選擇消費税方式')).toBe('01-setup');
+    expect(slugFromPath('/manual/01-setup?x=1')).toBe('01-setup');
+  });
+});
 
 describe('chapterSlugs', () => {
   it('15 章を番号順で返し README を含まない', () => {
@@ -117,111 +118,113 @@ describe('chapterSlugs', () => {
       '13-opening-setup',
       '14-income-deductions',
       '15-invoices',
-    ])
-    expect(chapterSlugs()).not.toContain(INDEX_SLUG)
-  })
-})
+    ]);
+    expect(chapterSlugs()).not.toContain(INDEX_SLUG);
+  });
+});
 
 describe('hasChapter', () => {
   it('存在する slug は true、しないものは false', () => {
-    expect(hasChapter('01-setup')).toBe(true)
-    expect(hasChapter(INDEX_SLUG)).toBe(true)
-    expect(hasChapter('999-nope')).toBe(false)
-  })
-})
+    expect(hasChapter('01-setup')).toBe(true);
+    expect(hasChapter(INDEX_SLUG)).toBe(true);
+    expect(hasChapter('999-nope')).toBe(false);
+  });
+});
 
 describe('getManualContent', () => {
   it('指定 locale の本文を返す', () => {
-    expect(getManualContent('01-setup', 'ja')).toContain('# ')
-    expect(getManualContent('01-setup', 'zh-TW')).toContain('# ')
-    expect(getManualContent('01-setup', 'en')).toContain('# ')
-  })
+    expect(getManualContent('01-setup', 'ja')).toContain('# ');
+    expect(getManualContent('01-setup', 'zh-TW')).toContain('# ');
+    expect(getManualContent('01-setup', 'en')).toContain('# ');
+  });
 
   it('未知の slug は null', () => {
-    expect(getManualContent('999-nope', 'ja')).toBeNull()
-  })
-})
+    expect(getManualContent('999-nope', 'ja')).toBeNull();
+  });
+});
 
 describe('extractTitle', () => {
   it('最初の見出しを抜き出す', () => {
-    expect(extractTitle('# はじめに\n\n本文')).toBe('はじめに')
-  })
+    expect(extractTitle('# はじめに\n\n本文')).toBe('はじめに');
+  });
 
   it('前置きがあっても最初の h1 を取る', () => {
-    expect(extractTitle('> 注意\n\n# 本題\n## 小見出し')).toBe('本題')
-  })
+    expect(extractTitle('> 注意\n\n# 本題\n## 小見出し')).toBe('本題');
+  });
 
   it('見出しが無ければ空文字', () => {
-    expect(extractTitle('本文だけ')).toBe('')
-  })
+    expect(extractTitle('本文だけ')).toBe('');
+  });
 
   it('タイトル内のインライン記法を除去する', () => {
-    expect(extractTitle('# 10. `.xtx` 出力')).toBe('10. .xtx 出力')
-  })
-})
+    expect(extractTitle('# 10. `.xtx` 出力')).toBe('10. .xtx 出力');
+  });
+});
 
 describe('adjacentChapters', () => {
   it('中間の章は前後を返す', () => {
     expect(adjacentChapters('02-journal')).toEqual({
       prev: '01-setup',
       next: '03-csv-import',
-    })
-  })
+    });
+  });
 
   it('最初の章は prev が null', () => {
-    expect(adjacentChapters('01-setup').prev).toBeNull()
-  })
+    expect(adjacentChapters('01-setup').prev).toBeNull();
+  });
 
   it('最後の章は next が null', () => {
-    expect(adjacentChapters('15-invoices').next).toBeNull()
-  })
+    expect(adjacentChapters('15-invoices').next).toBeNull();
+  });
 
   it('章でない slug は両方 null', () => {
-    expect(adjacentChapters(INDEX_SLUG)).toEqual({ prev: null, next: null })
-  })
-})
+    expect(adjacentChapters(INDEX_SLUG)).toEqual({ prev: null, next: null });
+  });
+});
 
 describe('rewriteLinks', () => {
   it('章リンクを SPA ルートへ書き換える', () => {
-    expect(rewriteLinks('[次へ](02-journal.md)')).toBe('[次へ](/manual/02-journal)')
-  })
+    expect(rewriteLinks('[次へ](02-journal.md)')).toBe('[次へ](/manual/02-journal)');
+  });
 
   it('locale サフィックス付きも slug に正規化', () => {
-    expect(rewriteLinks('[次へ](02-journal_zh-TW.md)')).toBe('[次へ](/manual/02-journal)')
-    expect(rewriteLinks('[next](08-depreciation_en.md)')).toBe('[next](/manual/08-depreciation)')
-  })
+    expect(rewriteLinks('[次へ](02-journal_zh-TW.md)')).toBe('[次へ](/manual/02-journal)');
+    expect(rewriteLinks('[next](08-depreciation_en.md)')).toBe('[next](/manual/08-depreciation)');
+  });
 
   it('README リンクは目次ルートへ', () => {
-    expect(rewriteLinks('[目次](README_zh-TW.md)')).toBe('[目次](/manual)')
-  })
+    expect(rewriteLinks('[目次](README_zh-TW.md)')).toBe('[目次](/manual)');
+  });
 
   it('アンカーを保持する', () => {
-    expect(rewriteLinks('[節](03-csv-import_zh-TW.md#rules)')).toBe('[節](/manual/03-csv-import#rules)')
-  })
+    expect(rewriteLinks('[節](03-csv-import_zh-TW.md#rules)')).toBe(
+      '[節](/manual/03-csv-import#rules)',
+    );
+  });
 
   it('./ 接頭辞を許容', () => {
-    expect(rewriteLinks('[x](./05-order-import.md)')).toBe('[x](/manual/05-order-import)')
-  })
+    expect(rewriteLinks('[x](./05-order-import.md)')).toBe('[x](/manual/05-order-import)');
+  });
 
   it('マニュアル外リンク（../../README）は書き換えない', () => {
-    const src = '[主 README](../../README_zh-TW.md)'
-    expect(rewriteLinks(src)).toBe(src)
-  })
+    const src = '[主 README](../../README_zh-TW.md)';
+    expect(rewriteLinks(src)).toBe(src);
+  });
 
   it('外部 URL は書き換えない', () => {
-    const src = '[issues](https://github.com/Lonshaus/aoiko/issues)'
-    expect(rewriteLinks(src)).toBe(src)
-  })
-})
+    const src = '[issues](https://github.com/Lonshaus/aoiko/issues)';
+    expect(rewriteLinks(src)).toBe(src);
+  });
+});
 
 describe('rewriteImagePaths', () => {
   it('ロゴ画像の GitHub 相対パスをアプリ内絶対パスへ書き換える', () => {
-    const src = '<img src="../../src/assets/logo-wordmark.png" alt="aoiko" width="360" />'
-    expect(rewriteImagePaths(src)).toBe('<img src="/logo-wordmark.png" alt="aoiko" width="360" />')
-  })
+    const src = '<img src="../../src/assets/logo-wordmark.png" alt="aoiko" width="360" />';
+    expect(rewriteImagePaths(src)).toBe('<img src="/logo-wordmark.png" alt="aoiko" width="360" />');
+  });
 
   it('無関係なパスは書き換えない', () => {
-    const src = '<img src="./other-image.png" alt="x" />'
-    expect(rewriteImagePaths(src)).toBe(src)
-  })
-})
+    const src = '<img src="./other-image.png" alt="x" />';
+    expect(rewriteImagePaths(src)).toBe(src);
+  });
+});

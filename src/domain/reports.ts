@@ -44,10 +44,10 @@ export interface PLReport {
 export type BreakdownAxis = 'vendor' | 'subAccount' | 'department';
 
 export interface BreakdownEntry {
-  key: string;            // vendorId / subAccountId / '' (未分類)
-  label: string;          // 表示名
+  key: string; // vendorId / subAccountId / '' (未分類)
+  label: string; // 表示名
   amount: string;
-  count: number;          // 含まれる仕訳行数
+  count: number; // 含まれる仕訳行数
 }
 
 export interface BreakdownGroup {
@@ -67,7 +67,7 @@ export interface BreakdownReport {
 export async function buildBreakdown(
   year: number,
   axis: BreakdownAxis,
-  data?: YearData
+  data?: YearData,
 ): Promise<BreakdownReport> {
   const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
@@ -168,7 +168,7 @@ export interface MonthlyPLRow {
   accountName: string;
   category: AccountCategory;
   displayOrder: number;
-  monthly: string[];  // 長さ 12
+  monthly: string[]; // 長さ 12
   total: string;
 }
 
@@ -197,7 +197,7 @@ export interface BSReport {
   assets: BSRow[];
   liabilities: BSRow[];
   equity: BSRow[];
-  netIncome: string;       // 当期純利益（PL 由来、純資産に算入）
+  netIncome: string; // 当期純利益（PL 由来、純資産に算入）
   totalAssets: string;
   totalLiabilitiesAndEquity: string;
   balanced: boolean;
@@ -456,7 +456,9 @@ export async function buildMonthlyPL(year: number, data?: YearData): Promise<Mon
   const monthlyRevenueTotals = sumByMonth(revenue);
   const monthlyExpenseTotals = sumByMonth(expense);
   const monthlyNetIncomes = monthlyRevenueTotals.map((r, i) =>
-    D(r).minus(monthlyExpenseTotals[i] ?? '0').toString()
+    D(r)
+      .minus(monthlyExpenseTotals[i] ?? '0')
+      .toString(),
   );
 
   const totalRevenue = monthlyRevenueTotals.reduce((s, v) => s.plus(v), D(0)).toString();
@@ -480,7 +482,7 @@ export async function buildMonthlyPL(year: number, data?: YearData): Promise<Mon
 export async function buildPL(
   year: number,
   data?: YearData,
-  incomeType: IncomeType = 'business'
+  incomeType: IncomeType = 'business',
 ): Promise<PLReport> {
   const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
@@ -513,12 +515,8 @@ export async function buildPL(
 
   const revenue = buildRows('revenue');
   const expense = buildRows('expense');
-  const totalRevenue = revenue
-    .reduce((s, r) => s.plus(r.amount), D(0))
-    .toString();
-  const totalExpense = expense
-    .reduce((s, r) => s.plus(r.amount), D(0))
-    .toString();
+  const totalRevenue = revenue.reduce((s, r) => s.plus(r.amount), D(0)).toString();
+  const totalExpense = expense.reduce((s, r) => s.plus(r.amount), D(0)).toString();
   const netIncome = D(totalRevenue).minus(totalExpense).toString();
 
   return {
@@ -538,7 +536,7 @@ export interface MultiYearPLRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
-  amounts: string[];  // years と同じ長さ・同じ並び順
+  amounts: string[]; // years と同じ長さ・同じ並び順
   total: string;
 }
 
@@ -555,7 +553,10 @@ export async function buildMultiYearPL(years: number[]): Promise<MultiYearPLRepo
   const perYear = await Promise.all(years.map((y) => buildPL(y)));
 
   const pivot = (rows: PLRow[][]): MultiYearPLRow[] => {
-    const byCode = new Map<string, { accountName: string; category: AccountCategory; amounts: Decimal[] }>();
+    const byCode = new Map<
+      string,
+      { accountName: string; category: AccountCategory; amounts: Decimal[] }
+    >();
     rows.forEach((yearRows, i) => {
       for (const r of yearRows) {
         let entry = byCode.get(r.accountCode);
@@ -595,7 +596,7 @@ export interface MultiYearBSRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
-  balances: string[];  // years と同じ長さ・同じ並び順
+  balances: string[]; // years と同じ長さ・同じ並び順
 }
 
 export interface MultiYearBSReport {
@@ -612,7 +613,10 @@ export async function buildMultiYearBS(years: number[]): Promise<MultiYearBSRepo
   const perYear = await Promise.all(years.map((y) => buildBS(y)));
 
   const pivot = (rows: BSRow[][]): MultiYearBSRow[] => {
-    const byCode = new Map<string, { accountName: string; category: AccountCategory; balances: Decimal[] }>();
+    const byCode = new Map<
+      string,
+      { accountName: string; category: AccountCategory; balances: Decimal[] }
+    >();
     rows.forEach((yearRows, i) => {
       for (const r of yearRows) {
         let entry = byCode.get(r.accountCode);

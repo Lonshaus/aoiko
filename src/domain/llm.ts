@@ -22,7 +22,7 @@ export interface LlmAdapter {
 export class LlmError extends Error {
   constructor(
     message: string,
-    public readonly cause?: unknown
+    public readonly cause?: unknown,
   ) {
     super(message);
     this.name = 'LlmError';
@@ -35,7 +35,7 @@ export class GeminiAdapter implements LlmAdapter {
   readonly destinationHost = 'generativelanguage.googleapis.com';
   constructor(
     private readonly apiKey: string,
-    private readonly model: string = 'gemini-2.5-flash'
+    private readonly model: string = 'gemini-2.5-flash',
   ) {}
 
   async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
@@ -43,10 +43,9 @@ export class GeminiAdapter implements LlmAdapter {
       throw new LlmError('Gemini API キーが設定されていません');
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
-    const parts: Array<
-      | { text: string }
-      | { inlineData: { mimeType: string; data: string } }
-    > = [{ text: prompt }];
+    const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+      { text: prompt },
+    ];
     if (image) {
       parts.push({
         inlineData: { mimeType: image.mimeType, data: image.base64 },
@@ -73,9 +72,7 @@ export class GeminiAdapter implements LlmAdapter {
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      throw new LlmError(
-        `Gemini API エラー ${response.status}: ${errText.slice(0, 200)}`
-      );
+      throw new LlmError(`Gemini API エラー ${response.status}: ${errText.slice(0, 200)}`);
     }
 
     const payload = (await response.json()) as {
@@ -95,13 +92,7 @@ export class GeminiAdapter implements LlmAdapter {
   }
 }
 
-const LOCAL_HOSTS = new Set([
-  'localhost',
-  '127.0.0.1',
-  '0.0.0.0',
-  '::1',
-  '[::1]',
-]);
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
 
 export function hostOf(baseUrl: string): string {
   try {
@@ -140,7 +131,7 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
   constructor(
     baseUrl: string,
     private readonly model: string,
-    private readonly apiKey: string = ''
+    private readonly apiKey: string = '',
   ) {
     this.base = baseUrl.replace(/\/+$/, '');
     this.destinationHost = hostOf(this.base);
@@ -187,14 +178,12 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     } catch (e) {
       throw new LlmError(
         `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,
-        e
+        e,
       );
     }
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      throw new LlmError(
-        `LLM API エラー ${response.status}: ${errText.slice(0, 200)}`
-      );
+      throw new LlmError(`LLM API エラー ${response.status}: ${errText.slice(0, 200)}`);
     }
     const payload = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
@@ -206,18 +195,12 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     try {
       return parseLooseJson(text);
     } catch (e) {
-      throw new LlmError(
-        `LLM レスポンスを JSON として解析できません: ${text.slice(0, 200)}`,
-        e
-      );
+      throw new LlmError(`LLM レスポンスを JSON として解析できません: ${text.slice(0, 200)}`, e);
     }
   }
 }
 // OpenAI 互換 /models からインストール済モデル ID 一覧を取得（Page Assist 方式）
-export async function listOpenAiModels(
-  baseUrl: string,
-  apiKey: string = ''
-): Promise<string[]> {
+export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Promise<string[]> {
   const base = baseUrl.replace(/\/+$/, '');
   const headers: Record<string, string> = {};
   if (apiKey) {
@@ -227,10 +210,7 @@ export async function listOpenAiModels(
   try {
     response = await fetch(`${base}/models`, { headers });
   } catch (e) {
-    throw new LlmError(
-      `${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`,
-      e
-    );
+    throw new LlmError(`${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`, e);
   }
   if (!response.ok) {
     throw new LlmError(`モデル一覧取得エラー ${response.status}`);

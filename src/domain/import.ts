@@ -9,7 +9,7 @@ export interface ImportRow {
   transaction: ParsedTransaction;
   counterpartAccountCode: string;
   counterpartSubAccountId?: string;
-  description?: string;  // ユーザーが上書きした摘要（空なら parser 由来を使用）
+  description?: string; // ユーザーが上書きした摘要（空なら parser 由来を使用）
   skip?: boolean;
   // 相手科目（費用・収益）側の税区分。未指定なら 0（非課税扱い）。
   // 本則課税では仕入税額控除・売上税額の基礎になるため、確定前に正しく設定する。
@@ -27,7 +27,9 @@ export interface ImportBatchInfo {
 
 export class DuplicateImportError extends Error {
   constructor(public readonly previousImport: { fileName: string; importedAt: number }) {
-    super(`このファイルは既にインポート済みです（${previousImport.fileName}, ${new Date(previousImport.importedAt).toLocaleDateString('ja-JP')}）`);
+    super(
+      `このファイルは既にインポート済みです（${previousImport.fileName}, ${new Date(previousImport.importedAt).toLocaleDateString('ja-JP')}）`,
+    );
     this.name = 'DuplicateImportError';
   }
 }
@@ -37,12 +39,9 @@ export class DuplicateImportError extends Error {
 // - 各行から借方 1 + 貸方 1 の仕訳を生成、source='csv', sourceImportId=batchId を付与
 export async function commitImport(
   info: ImportBatchInfo,
-  rows: ImportRow[]
+  rows: ImportRow[],
 ): Promise<{ batchId: string; entryCount: number }> {
-  const existing = await db.importBatches
-    .where('fileHash')
-    .equals(info.fileHash)
-    .first();
+  const existing = await db.importBatches.where('fileHash').equals(info.fileHash).first();
   if (existing) {
     throw new DuplicateImportError({
       fileName: existing.fileName,
@@ -50,9 +49,7 @@ export async function commitImport(
     });
   }
 
-  const validRows = rows.filter(
-    (r) => !r.skip && r.counterpartAccountCode.length > 0
-  );
+  const validRows = rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0);
   if (validRows.length === 0) {
     throw new Error('登録対象の行がありません');
   }
@@ -60,71 +57,61 @@ export async function commitImport(
   const batchId = newId();
   const now = Date.now();
 
-  await db.transaction(
-    'rw',
-    [db.journalEntries, db.journalLines, db.importBatches],
-    async () => {
-      await db.importBatches.add({
-        id: batchId,
-        parserName: info.parserName,
-        fileName: info.fileName,
-        fileHash: info.fileHash,
-        importedAt: now,
-        rowCount: validRows.length,
+  await db.transaction('rw', [db.journalEntries, db.journalLines, db.importBatches], async () => {
+    await db.importBatches.add({
+      id: batchId,
+      parserName: info.parserName,
+      fileName: info.fileName,
+      fileHash: info.fileHash,
+      importedAt: now,
+      rowCount: validRows.length,
+    });
+
+    for (const row of validRows) {
+      const tx = row.transaction;
+      const entryId = newId();
+
+      await db.journalEntries.add({
+        id: entryId,
+        date: tx.date,
+        year: Number(tx.date.slice(0, 4)),
+        description:
+          row.description && row.description.length > 0 ? row.description : tx.description,
+        status: 'confirmed',
+        source: 'csv',
+        sourceImportId: batchId,
+        createdAt: now,
+        confirmedAt: now,
       });
 
-      for (const row of validRows) {
-        const tx = row.transaction;
-        const entryId = newId();
+      const knownLine: JournalLine = {
+        id: newId(),
+        entryId,
+        side: tx.side,
+        accountCode: info.knownAccountCode,
+        ...(info.knownSubAccountId ? { subAccountId: info.knownSubAccountId } : {}),
+        amount: tx.amount,
+        amountIndexed: toIndexable(tx.amount),
+        taxRate: 0,
+        taxIncluded: true,
+        invoiceCompliant: false,
+      };
+      const counterpartLine: JournalLine = {
+        id: newId(),
+        entryId,
+        side: tx.side === 'debit' ? 'credit' : 'debit',
+        accountCode: row.counterpartAccountCode,
+        ...(row.counterpartSubAccountId ? { subAccountId: row.counterpartSubAccountId } : {}),
+        amount: tx.amount,
+        amountIndexed: toIndexable(tx.amount),
+        taxRate: row.counterpartTaxRate ?? 0,
+        taxIncluded: true,
+        invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
+      };
 
-        await db.journalEntries.add({
-          id: entryId,
-          date: tx.date,
-          year: Number(tx.date.slice(0, 4)),
-          description:
-            row.description && row.description.length > 0
-              ? row.description
-              : tx.description,
-          status: 'confirmed',
-          source: 'csv',
-          sourceImportId: batchId,
-          createdAt: now,
-          confirmedAt: now,
-        });
-
-        const knownLine: JournalLine = {
-          id: newId(),
-          entryId,
-          side: tx.side,
-          accountCode: info.knownAccountCode,
-          ...(info.knownSubAccountId
-            ? { subAccountId: info.knownSubAccountId }
-            : {}),
-          amount: tx.amount,
-          amountIndexed: toIndexable(tx.amount),
-          taxRate: 0,
-          taxIncluded: true,
-          invoiceCompliant: false,
-        };
-        const counterpartLine: JournalLine = {
-          id: newId(),
-          entryId,
-          side: tx.side === 'debit' ? 'credit' : 'debit',
-          accountCode: row.counterpartAccountCode,
-          ...(row.counterpartSubAccountId
-            ? { subAccountId: row.counterpartSubAccountId }
-            : {}),
-          amount: tx.amount,
-          amountIndexed: toIndexable(tx.amount),
-          taxRate: row.counterpartTaxRate ?? 0,
-          taxIncluded: true,
-          invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
-        };
-
-        await db.journalLines.bulkAdd([knownLine, counterpartLine]);
-      }
+      await db.journalLines.bulkAdd([knownLine, counterpartLine]);
     }
-  );
+  });
 
   return { batchId, entryCount: validRows.length };
 }
@@ -135,23 +122,20 @@ export async function commitImport(
 // ハードブロックはしない（同額取引の誤検知回避）。戻り値は重複候補の行インデックス集合。
 export async function findOverlappingRows(
   transactions: Pick<ParsedTransaction, 'date' | 'amount' | 'side'>[],
-  knownAccountCode: string
+  knownAccountCode: string,
 ): Promise<Set<number>> {
   const flagged = new Set<number>();
   if (transactions.length === 0) {
     return flagged;
   }
-  const lines = await db.journalLines
-    .where('accountCode')
-    .equals(knownAccountCode)
-    .toArray();
+  const lines = await db.journalLines.where('accountCode').equals(knownAccountCode).toArray();
   if (lines.length === 0) {
     return flagged;
   }
   const entryIds = [...new Set(lines.map((l) => l.entryId))];
   const entries = await db.journalEntries.where('id').anyOf(entryIds).toArray();
   const csvEntryById = new Map(
-    entries.filter((e) => e.source === 'csv' && countsTowardTotals(e)).map((e) => [e.id, e])
+    entries.filter((e) => e.source === 'csv' && countsTowardTotals(e)).map((e) => [e.id, e]),
   );
   const counts = new Map<string, number>();
   for (const l of lines) {

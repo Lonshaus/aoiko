@@ -1,4 +1,5 @@
-export type EntrySource = 'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste' | 'opening';
+export type EntrySource =
+  'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste' | 'opening';
 export type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
@@ -25,10 +26,7 @@ export type InputUsageCategory = 'taxableOnly' | 'common' | 'nonTaxableOnly';
 // 'small-asset-special' は少額減価償却資産の特例（措法28の2、青色申告限定）。取得年度に全額損金算入し、以降の償却なし。
 // 'lump-sum' は一括償却資産（施行令139条、青色/白色問わず）。取得価額を3年均等償却、除却後も償却継続。
 export type DepreciationMethod =
-  | 'straight-line'
-  | 'declining-balance'
-  | 'small-asset-special'
-  | 'lump-sum';
+  'straight-line' | 'declining-balance' | 'small-asset-special' | 'lump-sum';
 export type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 // 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
@@ -140,7 +138,7 @@ export interface Attachment {
 // （個人事業主想定では科目別入力の設定コストが見合わないとユーザーと合意——AOIKO_FUTURE_IDEAS.md 参照）。
 export interface Budget {
   year: number;
-  month: number;  // 1-12
+  month: number; // 1-12
   revenueBudget: string;
   expenseBudget: string;
 }
@@ -153,9 +151,9 @@ export interface ArApEntry {
   id: string;
   type: ArApType;
   description: string;
-  dueDate: string;       // YYYY-MM-DD
+  dueDate: string; // YYYY-MM-DD
   originalAmount: string;
-  paidAmount: string;    // 累計収受・支払済み額（originalAmount 到達で決済完了）
+  paidAmount: string; // 累計収受・支払済み額（originalAmount 到達で決済完了）
   createdAt: number;
 }
 
@@ -412,8 +410,8 @@ export interface Invoice {
   // 発行時に採番。下書きの間は空文字（採番すると欠番が発生するため発行時まで確定させない）。
   number: string;
   vendorId: string;
-  date: string;       // 取引年月日（YYYY-MM-DD）
-  dueDate?: string;    // 請求書のみ。ArApEntry.dueDate と同期
+  date: string; // 取引年月日（YYYY-MM-DD）
+  dueDate?: string; // 請求書のみ。ArApEntry.dueDate と同期
   lineItems: InvoiceLineItem[];
   memo?: string;
   // 発行時（請求書のみ）に生成した仕訳・ArApEntry への参照

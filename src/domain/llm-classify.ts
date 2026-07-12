@@ -27,7 +27,7 @@ export interface ClassifyOptions {
 export async function classifyWithLlm(
   adapter: LlmAdapter,
   inputs: ClassifyInput[],
-  options: ClassifyOptions
+  options: ClassifyOptions,
 ): Promise<ClassifySuggestion[]> {
   if (inputs.length === 0) {
     return [];
@@ -37,10 +37,7 @@ export async function classifyWithLlm(
   return parseResponse(raw, inputs, options.candidateAccounts);
 }
 // プロンプト生成：日本語で会計コンテキストを明示し、JSON 出力を要求する
-export function buildPrompt(
-  inputs: ClassifyInput[],
-  options: ClassifyOptions
-): string {
+export function buildPrompt(inputs: ClassifyInput[], options: ClassifyOptions): string {
   const knownSideJa = options.knownSide === 'debit' ? '借方' : '貸方';
   const counterpartSideJa = options.knownSide === 'debit' ? '貸方' : '借方';
   const candidateList = options.candidateAccounts
@@ -49,7 +46,7 @@ export function buildPrompt(
 
   const txList = inputs
     .map(
-      (t) => `[ref="${escapeJson(t.ref)}", 摘要="${escapeJson(t.description)}", 金額=${t.amount}]`
+      (t) => `[ref="${escapeJson(t.ref)}", 摘要="${escapeJson(t.description)}", 金額=${t.amount}]`,
     )
     .join('\n');
 
@@ -79,7 +76,7 @@ export function buildPrompt(
 function parseResponse(
   raw: unknown,
   inputs: ClassifyInput[],
-  candidates: Account[]
+  candidates: Account[],
 ): ClassifySuggestion[] {
   if (!raw || typeof raw !== 'object' || !('classifications' in raw)) {
     throw new LlmError('レスポンス形式が想定外（classifications がない）');
@@ -101,9 +98,7 @@ function parseResponse(
       continue;
     }
     const accountCode =
-      typeof r.accountCode === 'string' && codeSet.has(r.accountCode)
-        ? r.accountCode
-        : null;
+      typeof r.accountCode === 'string' && codeSet.has(r.accountCode) ? r.accountCode : null;
     let confidence: ClassifySuggestion['confidence'] = 'none';
     if (r.confidence === 'high' && accountCode) {
       confidence = 'high';
@@ -127,18 +122,20 @@ function parseResponse(
         ref: t.ref,
         accountCode: null,
         confidence: 'none' as const,
-      }
+      },
   );
 }
 
 function categoryLabel(c: AccountCategory): string {
-  return ({
-    asset: '資産',
-    liability: '負債',
-    equity: '純資産',
-    revenue: '収益',
-    expense: '費用',
-  } as const)[c];
+  return (
+    {
+      asset: '資産',
+      liability: '負債',
+      equity: '純資産',
+      revenue: '収益',
+      expense: '費用',
+    } as const
+  )[c];
 }
 
 function escapeJson(s: string): string {

@@ -5,7 +5,7 @@ import type { FixedAsset } from '../../db/types';
 
 function ctx(
   overrides: Partial<XtxContext['pl']> = {},
-  fixedAssets: FixedAsset[] = []
+  fixedAssets: FixedAsset[] = [],
 ): XtxContext {
   return {
     year: 2026,
@@ -68,7 +68,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             displayOrder: 130,
           },
         ],
-      })
+      }),
     );
     expect(out.AIG00370).toBe('4880000');
   });
@@ -85,7 +85,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             displayOrder: 130,
           },
         ],
-      })
+      }),
     );
     expect(out.AIG00240).toBe('120000');
   });
@@ -116,7 +116,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             displayOrder: 30,
           },
         ],
-      })
+      }),
     );
     expect(out.AIG00080).toBe('10000');
     expect(out.AIG00090).toBe('200000');
@@ -142,7 +142,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             displayOrder: 260,
           },
         ],
-      })
+      }),
     );
     expect(Object.values(out)).not.toContain('860000');
     expect(Object.values(out)).not.toContain('30000');
@@ -177,7 +177,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             displayOrder: 260,
           },
         ],
-      })
+      }),
     );
     // 専従者給与・貸倒引当金繰入額の分を所得へ加算し直す：3990000+860000+30000=4880000
     expect(out.AIG00370).toBe('4880000');
@@ -233,20 +233,30 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
 
   test('7件以上あれば取得日昇順で先頭6件のみ出力する', () => {
     const assets = Array.from({ length: 8 }, (_, i) =>
-      asset({ id: `a${i}`, name: `資産${i}`, acquisitionDate: `2026-01-0${i + 1}` })
+      asset({ id: `a${i}`, name: `資産${i}`, acquisitionDate: `2026-01-0${i + 1}` }),
     );
     const out = mapKoa110RepeatedValues(ctx({}, assets));
     expect(out.AIM00010).toHaveLength(6);
     expect(out.AIM00010!.map((r) => r.AIM00020)).toEqual([
-      '資産0', '資産1', '資産2', '資産3', '資産4', '資産5',
+      '資産0',
+      '資産1',
+      '資産2',
+      '資産3',
+      '資産4',
+      '資産5',
     ]);
   });
 
   test('償却方法ごとに正しいラベルを出力する', () => {
     const out = mapKoa110RepeatedValues(
       ctx({}, [
-        asset({ id: 'a', acquisitionCost: '150000', usefulLifeYears: 4, depreciationMethod: 'lump-sum' }),
-      ])
+        asset({
+          id: 'a',
+          acquisitionCost: '150000',
+          usefulLifeYears: 4,
+          depreciationMethod: 'lump-sum',
+        }),
+      ]),
     );
     expect(out.AIM00010![0]!.AIM00080).toBe('一括償却');
   });
@@ -258,21 +268,21 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
 
   test('当年に除却した資産は摘要欄に「除却」を出力する', () => {
     const out = mapKoa110RepeatedValues(
-      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'scrap' })])
+      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'scrap' })]),
     );
     expect(out.AIM00010![0]!.AIM00210).toBe('除却');
   });
 
   test('当年に売却した資産は摘要欄に「売却」を出力する', () => {
     const out = mapKoa110RepeatedValues(
-      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'sale', salePrice: '100000' })])
+      ctx({}, [asset({ disposedDate: '2026-06-30', disposalType: 'sale', salePrice: '100000' })]),
     );
     expect(out.AIM00010![0]!.AIM00210).toBe('売却');
   });
 
   test('除却日が翌年以降なら当年の摘要欄には出力しない', () => {
     const out = mapKoa110RepeatedValues(
-      ctx({}, [asset({ disposedDate: '2027-06-30', disposalType: 'scrap' })])
+      ctx({}, [asset({ disposedDate: '2027-06-30', disposalType: 'scrap' })]),
     );
     expect(out.AIM00010![0]!.AIM00210).toBeUndefined();
   });

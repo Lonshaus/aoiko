@@ -17,13 +17,7 @@ import type {
   Vendor,
 } from '../db/types';
 
-const CATEGORY_ORDER: AccountCategory[] = [
-  'asset',
-  'liability',
-  'equity',
-  'revenue',
-  'expense',
-];
+const CATEGORY_ORDER: AccountCategory[] = ['asset', 'liability', 'equity', 'revenue', 'expense'];
 
 const CATEGORY_LABEL: Record<AccountCategory, string> = {
   asset: '資産',
@@ -65,10 +59,7 @@ export interface MonthlyOverview {
 }
 // 仕訳一覧 / 直近の仕訳で共通利用する LedgerRow 構築ヘルパー。
 // 与えられた entries に対して lines / accounts / subAccounts を一括取得して結合する。
-export async function buildLedgerRows(
-  entries: JournalEntry[],
-  year: number
-): Promise<LedgerRow[]> {
+export async function buildLedgerRows(entries: JournalEntry[], year: number): Promise<LedgerRow[]> {
   if (entries.length === 0) {
     return [];
   }
@@ -101,9 +92,7 @@ export async function buildLedgerRows(
 
     const debits = buildSide('debit');
     const credits = buildSide('credit');
-    const totalAmount = debits
-      .reduce((sum, l) => sum.plus(l.amount), D(0))
-      .toString();
+    const totalAmount = debits.reduce((sum, l) => sum.plus(l.amount), D(0)).toString();
     return { entry, debits, credits, totalAmount };
   });
 }
@@ -157,74 +146,74 @@ class LedgerStore {
         () => db.subAccounts.orderBy('name').toArray(),
         (v) => {
           this.subAccounts = v;
-        }
+        },
       ),
       this.sub(
         () => db.vendors.orderBy('name').toArray(),
         (v) => {
           this.vendors = v;
-        }
+        },
       ),
       this.sub(
         () => db.parserRules.orderBy('priority').reverse().toArray(),
         (v) => {
           this.parserRules = v;
-        }
+        },
       ),
       this.sub(
         () => db.fixedAssets.orderBy('acquisitionDate').toArray(),
         (v) => {
           this.fixedAssets = v;
-        }
+        },
       ),
       this.sub(
         () => db.accounts.count(),
         (v) => {
           this.accountsCount = v;
-        }
+        },
       ),
       this.sub(
         () => db.journalEntries.count(),
         (v) => {
           this.entriesCount = v;
-        }
+        },
       ),
       this.sub(
         () => db.journalLines.count(),
         (v) => {
           this.linesCount = v;
-        }
+        },
       ),
       this.sub(
         () => db.journalEntries.orderBy('date').reverse().limit(5).toArray(),
         (v) => {
           this.recentEntries = v;
-        }
+        },
       ),
       this.sub(
         () => db.settings.get('realEstateIncomeEnabled'),
         (v) => {
           this.realEstateIncomeEnabled = v?.value === true;
-        }
+        },
       ),
       this.sub(
         () => db.inventoryItems.orderBy('name').toArray(),
         (v) => {
           this.inventoryItems = v;
-        }
+        },
       ),
       this.sub(
         () => db.settings.get('inventoryAutoValuationEnabled'),
         (v) => {
           this.inventoryAutoValuationEnabled = v?.value !== false;
-        }
+        },
       ),
       this.sub(
         () => db.journalEntries.orderBy('department').uniqueKeys(),
         (v) => {
           this.departments = v.filter((d): d is string => typeof d === 'string' && d !== '');
-        }
-      )
+        },
+      ),
     );
     // 年度依存の購読は currentYear 設定を読んでから（既定値で先に張り、設定値が違えば張り直す）
     this.subscribeYearScoped();
@@ -259,19 +248,19 @@ class LedgerStore {
         (v) => {
           this.allAccounts = v;
           this.accounts = v.filter((a) => a.isActive !== false);
-        }
+        },
       ),
       this.sub(
         () => this.computeRecentRows(year),
         (v) => {
           this.recentLedgerRows = v;
-        }
+        },
       ),
       this.sub(
         () => this.computeMonthlyOverview(year),
         (v) => {
           this.monthlyOverview = v;
-        }
+        },
       ),
     ];
   }
@@ -292,18 +281,12 @@ class LedgerStore {
     }
     return CATEGORY_ORDER.flatMap((cat) => {
       const items = byCategory.get(cat);
-      return items
-        ? [{ category: cat, label: CATEGORY_LABEL[cat], items }]
-        : [];
+      return items ? [{ category: cat, label: CATEGORY_LABEL[cat], items }] : [];
     });
   }
 
   private async computeRecentRows(year: number): Promise<LedgerRow[]> {
-    const entries = await db.journalEntries
-      .orderBy('date')
-      .reverse()
-      .limit(10)
-      .toArray();
+    const entries = await db.journalEntries.orderBy('date').reverse().limit(10).toArray();
     return buildLedgerRows(entries, year);
   }
 
@@ -311,9 +294,7 @@ class LedgerStore {
     const month = new Date().getMonth() + 1;
     const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
     const nextMonthStart =
-      month === 12
-        ? `${year + 1}-01-01`
-        : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+      month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
     const entries = await db.journalEntries
       .where('[year+date]')
