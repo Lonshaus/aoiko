@@ -46,7 +46,7 @@
   // 初回ロードを軽くするため、ホーム以外の画面は遅延読み込みする。
   // memo で同一 promise を返し、画面遷移のたびに再 import されないようにする。
   function memo(
-    importer: () => Promise<{ default: Component }>
+    importer: () => Promise<{ default: Component }>,
   ): () => Promise<{ default: Component }> {
     let p: Promise<{ default: Component }> | null = null;
     return () => (p ??= importer());
@@ -69,7 +69,9 @@
 
 <div class="min-h-screen flex flex-col">
   {#if showErrorBanner}
-    <div class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-8 py-2 text-sm text-destructive">
+    <div
+      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-8 py-2 text-sm text-destructive"
+    >
       <span>{m.error_banner_message()}</span>
       <button
         type="button"
@@ -86,17 +88,64 @@
         <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
       </a>
       <nav class="flex gap-6 text-sm">
-        <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_home()}</a>
-        <a href="/journal" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a>
-        <a href="/reports" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a>
-        <a href="/income-deductions" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_income_deductions()}</a>
-        <a href="/import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a>
-        <a href="/order-import" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_order_import()}</a>
-        <a href="/receipt" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a>
-        <a href="/invoices" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_invoices()}</a>
-        <a href="/import-history" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import_history()}</a>
-        <a href="/settings" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_settings()}</a>
-        <a href="/manual" use:link class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_manual()}</a>
+        <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_home()}</a
+        >
+        <a
+          href="/journal"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a
+        >
+        <a
+          href="/reports"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a
+        >
+        <a
+          href="/income-deductions"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_income_deductions()}</a
+        >
+        <a
+          href="/import"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a
+        >
+        <a
+          href="/order-import"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_order_import()}</a
+        >
+        <a
+          href="/receipt"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a
+        >
+        <a
+          href="/invoices"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_invoices()}</a
+        >
+        <a
+          href="/import-history"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_import_history()}</a
+        >
+        <a
+          href="/settings"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_settings()}</a
+        >
+        <a
+          href="/manual"
+          use:link
+          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_manual()}</a
+        >
       </nav>
     </div>
   </header>
@@ -145,7 +194,11 @@
           </button>
           <details class="text-sm text-muted-foreground">
             <summary class="cursor-pointer">{m.error_detail_summary()}</summary>
-            <pre class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">{error instanceof Error ? (error.stack ?? error.message) : String(error)}</pre>
+            <pre
+              class="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-3 text-xs">{error instanceof
+              Error
+                ? (error.stack ?? error.message)
+                : String(error)}</pre>
           </details>
         </div>
       {/snippet}

@@ -22,7 +22,11 @@ import type {
   RealEstateProfessionalFeeDetail,
   RealEstateRentPaidDetail,
 } from '../../db/types';
-import { aoiroDeductionAmount, aoiroDeductionLimit, type AoiroDeductionKind } from './aoiro-deduction';
+import {
+  aoiroDeductionAmount,
+  aoiroDeductionLimit,
+  type AoiroDeductionKind,
+} from './aoiro-deduction';
 
 export const REAL_ESTATE_SENJUSHA_ACCOUNT_NAME = '専従者給与（不動産）';
 
@@ -58,7 +62,7 @@ export function computeCombinedBusinessRealEstateIncome(
   hasBusinessIncome: boolean,
   businessPreDeductionIncome: Decimal,
   realEstatePl: PLReport | undefined,
-  realEstateInput: RealEstateIncomeCtx | undefined
+  realEstateInput: RealEstateIncomeCtx | undefined,
 ): CombinedBusinessRealEstateIncome {
   if (!realEstatePl || !realEstateInput) {
     const deduction = aoiroDeductionAmount(year, aoiroKind, businessPreDeductionIncome);
@@ -70,20 +74,23 @@ export function computeCombinedBusinessRealEstateIncome(
       combinedIncome: businessIncome,
     };
   }
-  const realEstatePreIncome = realEstatePreDeductionIncome(realEstatePl, realEstateInput.businessScale);
+  const realEstatePreIncome = realEstatePreDeductionIncome(
+    realEstatePl,
+    realEstateInput.businessScale,
+  );
   const allocation = allocateAoiroDeduction(
     year,
     aoiroKind,
     hasBusinessIncome,
     realEstateInput.businessScale,
     businessPreDeductionIncome,
-    realEstatePreIncome
+    realEstatePreIncome,
   );
   const businessIncome = businessPreDeductionIncome.minus(allocation.businessDeduction);
   const realEstateIncomeAfterDeduction = realEstatePreIncome.minus(allocation.realEstateDeduction);
   const realEstateOffsettable = offsettableRealEstateLoss(
     realEstateIncomeAfterDeduction,
-    realEstateInput.landLoanInterestAmount ?? D(0)
+    realEstateInput.landLoanInterestAmount ?? D(0),
   );
   return {
     businessIncome,
@@ -112,7 +119,7 @@ export function realEstatePreDeductionIncome(pl: PLReport, businessScale: boolea
 export function combinedAoiroDeductionKind(
   kind: AoiroDeductionKind,
   hasBusinessIncome: boolean,
-  businessScale: boolean
+  businessScale: boolean,
 ): AoiroDeductionKind {
   if (hasBusinessIncome || businessScale || kind === 'none' || kind === 'simple') {
     return kind;
@@ -134,15 +141,21 @@ export function allocateAoiroDeduction(
   hasBusinessIncome: boolean,
   businessScale: boolean,
   businessPreDeductionIncome: Decimal,
-  realEstatePreDeductionIncome: Decimal
+  realEstatePreDeductionIncome: Decimal,
 ): CombinedAoiroDeductionResult {
   const effectiveKind = combinedAoiroDeductionKind(kind, hasBusinessIncome, businessScale);
   const limit = aoiroDeductionLimit(year, effectiveKind);
-  const businessBase = businessPreDeductionIncome.greaterThan(0) ? businessPreDeductionIncome : D(0);
-  const realEstateBase = realEstatePreDeductionIncome.greaterThan(0) ? realEstatePreDeductionIncome : D(0);
+  const businessBase = businessPreDeductionIncome.greaterThan(0)
+    ? businessPreDeductionIncome
+    : D(0);
+  const realEstateBase = realEstatePreDeductionIncome.greaterThan(0)
+    ? realEstatePreDeductionIncome
+    : D(0);
   const combinedBase = businessBase.plus(realEstateBase);
   const totalDeduction = combinedBase.lessThan(limit) ? combinedBase : limit;
-  const realEstateDeduction = totalDeduction.lessThan(realEstateBase) ? totalDeduction : realEstateBase;
+  const realEstateDeduction = totalDeduction.lessThan(realEstateBase)
+    ? totalDeduction
+    : realEstateBase;
   const businessDeduction = totalDeduction.minus(realEstateDeduction);
   return { realEstateDeduction, businessDeduction, totalDeduction };
 }
@@ -151,12 +164,14 @@ export function allocateAoiroDeduction(
 // 他の所得と損益通算できない。損益通算可能な金額（0以下）を返す。
 export function offsettableRealEstateLoss(
   incomeAfterDeduction: Decimal,
-  landLoanInterestAmount: Decimal
+  landLoanInterestAmount: Decimal,
 ): Decimal {
   if (incomeAfterDeduction.greaterThanOrEqualTo(0)) {
     return incomeAfterDeduction;
   }
   const lossMagnitude = incomeAfterDeduction.abs();
-  const excluded = lossMagnitude.lessThan(landLoanInterestAmount) ? lossMagnitude : landLoanInterestAmount;
+  const excluded = lossMagnitude.lessThan(landLoanInterestAmount)
+    ? lossMagnitude
+    : landLoanInterestAmount;
   return incomeAfterDeduction.plus(excluded);
 }

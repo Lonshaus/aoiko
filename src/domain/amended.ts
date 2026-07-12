@@ -27,7 +27,7 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
     .filter((s) => s.type === 'pl' && (s.status === 'filed' || s.status === 'superseded'))
     .toArray();
   const snap = candidates.sort(
-    (a, b) => (b.filedAt ?? b.generatedAt) - (a.filedAt ?? a.generatedAt)
+    (a, b) => (b.filedAt ?? b.generatedAt) - (a.filedAt ?? a.generatedAt),
   )[0];
   if (!snap || snap.payload.type !== 'pl') {
     return null;
@@ -54,12 +54,7 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
   };
 }
 
-export type AmendmentChecklistKey =
-  | 'unlock'
-  | 'reverse'
-  | 'review'
-  | 'submit'
-  | 'relock';
+export type AmendmentChecklistKey = 'unlock' | 'reverse' | 'review' | 'submit' | 'relock';
 
 export interface AmendmentChecklistItem {
   key: AmendmentChecklistKey;

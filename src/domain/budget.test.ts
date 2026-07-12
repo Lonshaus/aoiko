@@ -11,7 +11,10 @@ const TEST_ACCOUNTS: Account[] = [
   { code: '5150', year: 2026, name: '通信費', category: 'expense', displayOrder: 150 },
 ];
 
-async function addEntry(date: string, lines: Array<{ side: 'debit' | 'credit'; accountCode: string; amount: string }>): Promise<void> {
+async function addEntry(
+  date: string,
+  lines: Array<{ side: 'debit' | 'credit'; accountCode: string; amount: string }>,
+): Promise<void> {
   const entryId = newId();
   const now = Date.now();
   await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
@@ -36,7 +39,7 @@ async function addEntry(date: string, lines: Array<{ side: 'debit' | 'credit'; a
         taxRate: 0,
         taxIncluded: true,
         invoiceCompliant: false,
-      }))
+      })),
     );
   });
 }

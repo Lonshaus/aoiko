@@ -29,7 +29,7 @@ export interface ReceiptExtracted {
 
 export async function extractReceipt(
   adapter: LlmAdapter,
-  image: LlmImageInput
+  image: LlmImageInput,
 ): Promise<ReceiptExtracted> {
   const prompt = buildOcrPrompt();
   const raw = await adapter.generateJson(prompt, image);
@@ -68,8 +68,7 @@ function parseOcrResponse(raw: unknown): ReceiptExtracted {
 
   const date = typeof r.date === 'string' && r.date ? r.date : todayISO();
   const vendorName = typeof r.vendorName === 'string' ? r.vendorName : '';
-  const totalAmount =
-    typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
+  const totalAmount = typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
   if (!totalAmount) {
     throw new LlmError('合計金額を抽出できませんでした');
   }
@@ -82,8 +81,7 @@ function parseOcrResponse(raw: unknown): ReceiptExtracted {
       }
       const it = item as Record<string, unknown>;
       const desc = typeof it.description === 'string' ? it.description : '';
-      const amt =
-        typeof it.amount === 'string' ? sanitizeAmount(it.amount) : '';
+      const amt = typeof it.amount === 'string' ? sanitizeAmount(it.amount) : '';
       if (desc && amt) {
         items.push({ description: desc, amount: amt });
       }

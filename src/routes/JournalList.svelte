@@ -7,10 +7,7 @@
   import { buildAttachmentRecord } from '../domain/attachments';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { getSetting, setSetting } from '../lib/settings';
-  import {
-    buildLedgerRows,
-    type LedgerRow,
-  } from '../stores/ledger.svelte';
+  import { buildLedgerRows, type LedgerRow } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -55,11 +52,11 @@
       expandedAttachments = [];
       return;
     }
-    const sub = liveQuery(() =>
-      db.attachments.where('entryId').equals(id).toArray()
-    ).subscribe((v) => {
-      expandedAttachments = v;
-    });
+    const sub = liveQuery(() => db.attachments.where('entryId').equals(id).toArray()).subscribe(
+      (v) => {
+        expandedAttachments = v;
+      },
+    );
     return () => sub.unsubscribe();
   });
 
@@ -89,7 +86,7 @@
     amountMin: string,
     amountMax: string,
     vendorId: string,
-    offset: number
+    offset: number,
   ): Promise<{ rows: LedgerRow[]; total: number }> {
     let entries = month
       ? await db.journalEntries
@@ -98,7 +95,7 @@
             [year, `${year}-${pad2(month)}-01`],
             [year, nextMonthStart(year, month)],
             true,
-            false
+            false,
           )
           .toArray()
       : await db.journalEntries.where('year').equals(year).toArray();
@@ -158,9 +155,7 @@
   }
 
   $effect(() => {
-    const sub = liveQuery(() =>
-      db.vendors.orderBy('name').toArray()
-    ).subscribe((v) => {
+    const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe((v) => {
       vendors = v;
     });
     return () => sub.unsubscribe();
@@ -179,7 +174,7 @@
         rows = result.rows;
         totalCount = result.total;
         loading = false;
-      }
+      },
     );
     return () => sub.unsubscribe();
   });
@@ -267,7 +262,10 @@
       return;
     }
     if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
-      attachmentError = m.common_file_too_large({ size: formatBytes(f.size), limit: formatBytes(MAX_IMAGE_BYTES) });
+      attachmentError = m.common_file_too_large({
+        size: formatBytes(f.size),
+        limit: formatBytes(MAX_IMAGE_BYTES),
+      });
       input.value = '';
       return;
     }
@@ -462,7 +460,11 @@
         {#if loading}
           {m.journal_list_loading()}
         {:else}
-          {m.journal_list_pagination({ total: totalCount, current: currentPage, pages: totalPages })}
+          {m.journal_list_pagination({
+            total: totalCount,
+            current: currentPage,
+            pages: totalPages,
+          })}
         {/if}
       </span>
       <div class="flex gap-2">
@@ -487,7 +489,9 @@
   </section>
 
   {#if reverseError}
-    <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
       {reverseError}
     </div>
   {/if}
@@ -529,14 +533,18 @@
               </td>
               <td class="px-4 py-3">
                 {#if row.debits[0]}
-                  {row.debits[0].name}{#if row.debits.length > 1}<span class="text-xs text-muted-foreground ml-1">+{row.debits.length - 1}</span>{/if}
+                  {row.debits[0].name}{#if row.debits.length > 1}<span
+                      class="text-xs text-muted-foreground ml-1">+{row.debits.length - 1}</span
+                    >{/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
                 {/if}
               </td>
               <td class="px-4 py-3">
                 {#if row.credits[0]}
-                  {row.credits[0].name}{#if row.credits.length > 1}<span class="text-xs text-muted-foreground ml-1">+{row.credits.length - 1}</span>{/if}
+                  {row.credits[0].name}{#if row.credits.length > 1}<span
+                      class="text-xs text-muted-foreground ml-1">+{row.credits.length - 1}</span
+                    >{/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
                 {/if}
@@ -551,16 +559,24 @@
                   <div class="space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <div class="text-xs text-muted-foreground mb-1">{m.journal_side_debit()}</div>
+                        <div class="text-xs text-muted-foreground mb-1">
+                          {m.journal_side_debit()}
+                        </div>
                         <ul class="space-y-1">
                           {#each row.debits as l, i (`d-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
                               <span>
-                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span>
-                                {l.name}{#if l.subAccountName} / {l.subAccountName}{/if}
-                                <span class="text-xs text-muted-foreground ml-1">{fmtTax(l.taxRate)}</span>
+                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span
+                                >
+                                {l.name}{#if l.subAccountName}
+                                  / {l.subAccountName}{/if}
+                                <span class="text-xs text-muted-foreground ml-1"
+                                  >{fmtTax(l.taxRate)}</span
+                                >
                               </span>
-                              <span class="tabular-nums whitespace-nowrap">{formatJPY(l.amount)}</span>
+                              <span class="tabular-nums whitespace-nowrap"
+                                >{formatJPY(l.amount)}</span
+                              >
                             </li>
                             {#if l.memo}
                               <li class="text-xs text-muted-foreground pl-2">↳ {l.memo}</li>
@@ -569,16 +585,24 @@
                         </ul>
                       </div>
                       <div>
-                        <div class="text-xs text-muted-foreground mb-1">{m.journal_side_credit()}</div>
+                        <div class="text-xs text-muted-foreground mb-1">
+                          {m.journal_side_credit()}
+                        </div>
                         <ul class="space-y-1">
                           {#each row.credits as l, i (`c-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
                               <span>
-                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span>
-                                {l.name}{#if l.subAccountName} / {l.subAccountName}{/if}
-                                <span class="text-xs text-muted-foreground ml-1">{fmtTax(l.taxRate)}</span>
+                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span
+                                >
+                                {l.name}{#if l.subAccountName}
+                                  / {l.subAccountName}{/if}
+                                <span class="text-xs text-muted-foreground ml-1"
+                                  >{fmtTax(l.taxRate)}</span
+                                >
                               </span>
-                              <span class="tabular-nums whitespace-nowrap">{formatJPY(l.amount)}</span>
+                              <span class="tabular-nums whitespace-nowrap"
+                                >{formatJPY(l.amount)}</span
+                              >
                             </li>
                             {#if l.memo}
                               <li class="text-xs text-muted-foreground pl-2">↳ {l.memo}</li>
@@ -589,7 +613,9 @@
                     </div>
 
                     <div class="pt-2 border-t border-border/50">
-                      <div class="text-xs text-muted-foreground mb-1">{m.journal_list_attachments_title()}</div>
+                      <div class="text-xs text-muted-foreground mb-1">
+                        {m.journal_list_attachments_title()}
+                      </div>
                       {#if expandedAttachments.length > 0}
                         <ul class="flex flex-wrap gap-2 mb-2">
                           {#each expandedAttachments as a (a.id)}
@@ -600,13 +626,19 @@
                                 rel="noopener noreferrer"
                                 onclick={(e) => e.stopPropagation()}
                               >
-                                <img src={attachmentUrls.get(a.id)} alt={a.fileName} class="h-16 w-16 object-cover rounded border" />
+                                <img
+                                  src={attachmentUrls.get(a.id)}
+                                  alt={a.fileName}
+                                  class="h-16 w-16 object-cover rounded border"
+                                />
                               </a>
                             </li>
                           {/each}
                         </ul>
                       {:else}
-                        <p class="text-xs text-muted-foreground mb-2">{m.journal_list_attachments_empty()}</p>
+                        <p class="text-xs text-muted-foreground mb-2">
+                          {m.journal_list_attachments_empty()}
+                        </p>
                       {/if}
                       <input
                         type="file"
@@ -634,7 +666,9 @@
                           {m.journal_list_reverse_button()}
                         </button>
                       {:else}
-                        <span class="text-xs text-muted-foreground">{m.journal_list_reversed_label()}</span>
+                        <span class="text-xs text-muted-foreground"
+                          >{m.journal_list_reversed_label()}</span
+                        >
                       {/if}
                     </div>
                   </div>

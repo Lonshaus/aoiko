@@ -224,7 +224,7 @@ describe('mapGeneral（本則課税）', () => {
     });
     expect(result.sha010Raw.AAI00160).toBe(
       '<AAI00170><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>1</gen:mm><gen:dd>1</gen:dd></AAI00170>' +
-        '<AAI00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd></AAI00180>'
+        '<AAI00180><gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd></AAI00180>',
     );
   });
 

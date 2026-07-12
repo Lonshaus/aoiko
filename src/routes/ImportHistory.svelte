@@ -17,7 +17,7 @@
 
   $effect(() => {
     const sub1 = liveQuery(() =>
-      db.importBatches.orderBy('importedAt').reverse().toArray()
+      db.importBatches.orderBy('importedAt').reverse().toArray(),
     ).subscribe((v) => {
       batches = v;
     });
@@ -58,9 +58,13 @@
     lastSuccess = '';
     try {
       const r = await reverseImportBatch(id);
-      lastSuccess = r.alreadyReversedCount > 0
-        ? m.import_history_reverse_success_with_skipped({ count: r.reversedCount, skipped: r.alreadyReversedCount })
-        : m.import_history_reverse_success({ count: r.reversedCount });
+      lastSuccess =
+        r.alreadyReversedCount > 0
+          ? m.import_history_reverse_success_with_skipped({
+              count: r.reversedCount,
+              skipped: r.alreadyReversedCount,
+            })
+          : m.import_history_reverse_success({ count: r.reversedCount });
     } catch (e) {
       lastError = e instanceof Error ? e.message : String(e);
     }
@@ -92,7 +96,9 @@
   </header>
 
   {#if lastError}
-    <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
       {lastError}
     </div>
   {/if}
@@ -139,11 +145,16 @@
               <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">{batch.rowCount}</td>
               <td class="px-4 py-3 text-xs">
                 {#if reversed === 0}
-                  <span class="text-foreground">{m.import_history_status_active({ n: active })}</span>
+                  <span class="text-foreground"
+                    >{m.import_history_status_active({ n: active })}</span
+                  >
                 {:else if active === 0}
-                  <span class="text-muted-foreground">{m.import_history_status_all_reversed()}</span>
+                  <span class="text-muted-foreground">{m.import_history_status_all_reversed()}</span
+                  >
                 {:else}
-                  <span class="text-foreground">{m.import_history_status_mixed({ active, reversed })}</span>
+                  <span class="text-foreground"
+                    >{m.import_history_status_mixed({ active, reversed })}</span
+                  >
                 {/if}
               </td>
             </tr>
@@ -156,7 +167,10 @@
                         <li class="flex items-center justify-between text-sm">
                           <span>
                             <span class="text-muted-foreground tabular-nums mr-2">{e.date}</span>
-                            <span class:line-through={e.status === 'reversed'} class:opacity-60={e.status === 'reversed'}>
+                            <span
+                              class:line-through={e.status === 'reversed'}
+                              class:opacity-60={e.status === 'reversed'}
+                            >
                               {e.description}
                             </span>
                           </span>
@@ -165,7 +179,9 @@
                       {/each}
                     </ul>
                   {:else}
-                    <p class="text-xs text-muted-foreground mb-3">{m.import_history_no_entries()}</p>
+                    <p class="text-xs text-muted-foreground mb-3">
+                      {m.import_history_no_entries()}
+                    </p>
                   {/if}
 
                   {#if active > 0}
@@ -180,7 +196,9 @@
                       {m.import_history_batch_reverse_button({ count: active })}
                     </button>
                   {:else}
-                    <span class="text-xs text-muted-foreground">{m.import_history_batch_already_reversed()}</span>
+                    <span class="text-xs text-muted-foreground"
+                      >{m.import_history_batch_already_reversed()}</span
+                    >
                   {/if}
                 </td>
               </tr>

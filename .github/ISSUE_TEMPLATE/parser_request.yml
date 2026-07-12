@@ -1,6 +1,6 @@
 name: CSV パーサー追加リクエスト
 description: 未対応の銀行・カード・電子マネーの CSV 対応を依頼する
-labels: ["parser"]
+labels: ['parser']
 body:
   - type: markdown
     attributes:
@@ -12,7 +12,7 @@ body:
     id: name
     attributes:
       label: 銀行 / カード / 電子マネー名
-      placeholder: "○○銀行 / ○○カード"
+      placeholder: '○○銀行 / ○○カード'
     validations:
       required: true
   - type: textarea

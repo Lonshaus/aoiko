@@ -40,7 +40,7 @@ async function addEntry(opts: {
         taxRate: 0,
         taxIncluded: false,
         invoiceCompliant: false,
-      }))
+      })),
     );
   });
   return id;
@@ -84,7 +84,7 @@ describe('getAmendmentDiff', () => {
           },
         },
       },
-      '2026-12-31'
+      '2026-12-31',
     );
     const r = await getAmendmentDiff(2026);
     expect(r).not.toBeNull();
@@ -114,7 +114,7 @@ describe('getAmendmentDiff', () => {
           },
         },
       },
-      '2026-12-31'
+      '2026-12-31',
     );
     // 漏れていた経費を追加
     await addEntry({
@@ -154,7 +154,7 @@ describe('getAmendmentDiff', () => {
           },
         },
       },
-      '2026-12-31'
+      '2026-12-31',
     );
     await unlockYear(2026);
     // 解除後に経費を追加
@@ -176,12 +176,6 @@ describe('getAmendmentDiff', () => {
 describe('amendmentChecklist', () => {
   test('5 ステップの key を順に返す', () => {
     const items = amendmentChecklist();
-    expect(items.map((i) => i.key)).toEqual([
-      'unlock',
-      'reverse',
-      'review',
-      'submit',
-      'relock',
-    ]);
+    expect(items.map((i) => i.key)).toEqual(['unlock', 'reverse', 'review', 'submit', 'relock']);
   });
 });

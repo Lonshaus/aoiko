@@ -27,11 +27,8 @@ export async function createReceiptExtractor(): Promise<ReceiptExtractor> {
   const engine = (await getSetting('ocrEngine')) ?? 'gemini';
 
   if (engine === 'tesseract') {
-    const langPath =
-      (await getSetting('tesseractLangPath'))?.trim() || undefined;
-    const { createTesseractReceiptExtractor } = await import(
-      './ocr/tesseract-engine'
-    );
+    const langPath = (await getSetting('tesseractLangPath'))?.trim() || undefined;
+    const { createTesseractReceiptExtractor } = await import('./ocr/tesseract-engine');
     return createTesseractReceiptExtractor(langPath);
   }
 

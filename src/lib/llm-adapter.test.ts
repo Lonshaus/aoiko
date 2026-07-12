@@ -2,10 +2,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { createLlmAdapter } from './llm-adapter';
 import { setSetting } from './settings';
-import {
-  GeminiAdapter,
-  OpenAICompatibleAdapter,
-} from '../domain/llm';
+import { GeminiAdapter, OpenAICompatibleAdapter } from '../domain/llm';
 
 afterEach(async () => {
   await db.settings.clear();

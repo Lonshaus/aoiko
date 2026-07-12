@@ -2,11 +2,7 @@
 // Phase 3 の方針：Chrome 拡張による DOM scraping ではなく、貼り付け＋LLM 抽出を採用。
 // classify 用途の LLM Adapter を流用（テキストのみ、画像不要）。
 
-import {
-  buildOrderPrompt,
-  parseOrderResponse,
-  type OrderExtracted,
-} from '../domain/order-extract';
+import { buildOrderPrompt, parseOrderResponse, type OrderExtracted } from '../domain/order-extract';
 import { createLlmAdapter } from './llm-adapter';
 
 export interface OrderExtractor {
