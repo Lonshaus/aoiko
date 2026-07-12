@@ -42,7 +42,10 @@ function monthEndAfter(year: number, month: number, monthsAfter: number): string
   return ymd(y, m, lastDayOfMonth(y, m));
 }
 
-function installmentAmount(priorYearNationalTax: Decimal, divisor: number): ConsumptionTaxBreakdown {
+function installmentAmount(
+  priorYearNationalTax: Decimal,
+  divisor: number,
+): ConsumptionTaxBreakdown {
   const national = priorYearNationalTax.dividedBy(divisor).toDecimalPlaces(0, Decimal.ROUND_DOWN);
   return filingBreakdown(national);
 }
@@ -53,7 +56,7 @@ function installmentAmount(priorYearNationalTax: Decimal, divisor: number): Cons
 //  4800万円超：年11回（前年額×1/12、毎月、期限は各月末+2月）
 export function interimFilingObligation(
   year: number,
-  priorYearNationalTax: Decimal
+  priorYearNationalTax: Decimal,
 ): InterimFilingObligation {
   if (priorYearNationalTax.lessThanOrEqualTo(480_000)) {
     return { installmentCount: 0, installments: [] };

@@ -27,7 +27,9 @@
   aria-modal="true"
   aria-labelledby="disclaimer-title"
 >
-  <div class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-xl">
+  <div
+    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-xl"
+  >
     <header class="space-y-2">
       <h2 id="disclaimer-title" class="text-2xl font-bold">{m.disclaimer_welcome_title()}</h2>
       <p class="text-sm text-muted-foreground">
@@ -36,7 +38,9 @@
     </header>
 
     <section class="space-y-3 text-sm">
-      <div class="rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 px-4 py-3">
+      <div
+        class="rounded border border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 px-4 py-3"
+      >
         <p class="font-medium">{@html m.disclaimer_prototype_title_html()}</p>
         <p class="text-xs mt-1">{m.disclaimer_prototype_subtitle()}</p>
       </div>
@@ -55,26 +59,29 @@
           href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline hover:text-foreground"
-        >DISCLAIMER.md</a>
-        ／ <a
+          class="underline hover:text-foreground">DISCLAIMER.md</a
+        >
+        ／
+        <a
           href="https://github.com/Lonshaus/aoiko/blob/master/PRIVACY.md"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline hover:text-foreground"
-        >PRIVACY.md</a>
-        ／ <a
+          class="underline hover:text-foreground">PRIVACY.md</a
+        >
+        ／
+        <a
           href="https://github.com/Lonshaus/aoiko/blob/master/SECURITY.md"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline hover:text-foreground"
-        >SECURITY.md</a>
-        ／ <a
+          class="underline hover:text-foreground">SECURITY.md</a
+        >
+        ／
+        <a
           href="https://github.com/Lonshaus/aoiko/blob/master/LICENSE"
           target="_blank"
           rel="noopener noreferrer"
-          class="underline hover:text-foreground"
-        >LICENSE (AGPL-3.0)</a>
+          class="underline hover:text-foreground">LICENSE (AGPL-3.0)</a
+        >
       </p>
     </section>
 

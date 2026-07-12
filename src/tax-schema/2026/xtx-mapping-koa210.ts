@@ -28,12 +28,7 @@ function kingakuLeavesByPage(): Map<string, Leaf[]> {
       page = e.tag;
       byPage.set(page, []);
     }
-    if (
-      e.kind === 'leaf' &&
-      !e.idref &&
-      e.refType === 'gen:kingaku' &&
-      page
-    ) {
+    if (e.kind === 'leaf' && !e.idref && e.refType === 'gen:kingaku' && page) {
       byPage.get(page)!.push({ tag: e.tag, ja: e.ja });
     }
   }
@@ -119,7 +114,7 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
     preIncome.greaterThan(0),
     preIncome,
     ctx.realEstatePl,
-    ctx.personalDeductions?.realEstateIncome
+    ctx.personalDeductions?.realEstateIncome,
   );
   const deduction = preIncome.minus(combined.businessIncome);
   put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), pl.netIncome);

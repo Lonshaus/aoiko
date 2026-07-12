@@ -66,7 +66,10 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
 export async function collectAttachmentBlobs(): Promise<Map<string, Uint8Array>> {
   const rows = await db.attachments.toArray();
   const entries = await Promise.all(
-    rows.map(async (r): Promise<[string, Uint8Array]> => [r.id, new Uint8Array(await r.blob.arrayBuffer())])
+    rows.map(async (r): Promise<[string, Uint8Array]> => [
+      r.id,
+      new Uint8Array(await r.blob.arrayBuffer()),
+    ]),
   );
   return new Map(entries);
 }

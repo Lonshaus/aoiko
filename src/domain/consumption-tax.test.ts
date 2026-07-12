@@ -63,7 +63,7 @@ async function seedEntry(opts: {
         invoiceCompliant: p.invoiceCompliant ?? false,
         ...(p.taxCategory ? { taxCategory: p.taxCategory } : {}),
         ...(p.inputUsageCategory ? { inputUsageCategory: p.inputUsageCategory } : {}),
-      }))
+      })),
     );
   });
   return entryId;
@@ -428,7 +428,13 @@ describe('filingRounded / taxableBase - 申告書相当額（千円/百円未満
       date: '2026-04-01',
       pairs: [
         { side: 'debit', accountCode: '1130', amount: '1358024' },
-        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '1234567',
+          taxRate: 0.1,
+          taxIncluded: false,
+        },
       ],
     });
     const r = await computeGeneral(2026);
@@ -447,7 +453,13 @@ describe('filingRounded / taxableBase - 申告書相当額（千円/百円未満
       pairs: [
         { side: 'debit', accountCode: '1130', amount: '801600' },
         { side: 'credit', accountCode: '4110', amount: '500700', taxRate: 0.1, taxIncluded: false },
-        { side: 'credit', accountCode: '4110', amount: '300900', taxRate: 0.08, taxIncluded: false },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '300900',
+          taxRate: 0.08,
+          taxIncluded: false,
+        },
       ],
     });
     const r = await computeGeneral(2026);
@@ -466,7 +478,13 @@ describe('filingRounded / taxableBase - 申告書相当額（千円/百円未満
       date: '2026-04-01',
       pairs: [
         { side: 'debit', accountCode: '1130', amount: '1358024' },
-        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '1234567',
+          taxRate: 0.1,
+          taxIncluded: false,
+        },
       ],
     });
     const r = await computeSimplified(2026, 4);
@@ -479,7 +497,13 @@ describe('filingRounded / taxableBase - 申告書相当額（千円/百円未満
       date: '2026-04-01',
       pairs: [
         { side: 'debit', accountCode: '1130', amount: '1358024' },
-        { side: 'credit', accountCode: '4110', amount: '1234567', taxRate: 0.1, taxIncluded: false },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '1234567',
+          taxRate: 0.1,
+          taxIncluded: false,
+        },
       ],
     });
     const two = await computeTwoWari(2026);
@@ -541,7 +565,7 @@ describe('免税・非課税売上と課税売上割合', () => {
       processed.taxableBase10,
       processed.taxableBase8,
       processed.exportExemptSalesBase,
-      processed.nonTaxableSalesBase
+      processed.nonTaxableSalesBase,
     );
     // 課税売上 0 ＋ 免税売上 1,000,000 のみ → 分子・分母とも 1,000,000 → 100%
     expect(ratio.ratioPercent).toBe('100.00');
@@ -568,7 +592,7 @@ describe('免税・非課税売上と課税売上割合', () => {
       processed.taxableBase10,
       processed.taxableBase8,
       processed.exportExemptSalesBase,
-      processed.nonTaxableSalesBase
+      processed.nonTaxableSalesBase,
     );
     // 課税売上 1,000,000 ／ (1,000,000 + 100,000) = 10/11 = 90.90...% → 切り捨て 90.90
     expect(ratio.ratioPercent).toBe('90.90');
@@ -943,7 +967,10 @@ describe('period 指定（仮決算・中間申告用の期間限定集計）', 
     expect(full.output.toString()).toBe('234000');
     const h1 = await processYear(2026, { start: '2026-01-01', end: '2026-06-30' });
     expect(h1.output.toString()).toBe('78000');
-    const r = await computeGeneral(2026, 'proportional', { start: '2026-01-01', end: '2026-06-30' });
+    const r = await computeGeneral(2026, 'proportional', {
+      start: '2026-01-01',
+      end: '2026-06-30',
+    });
     expect(r.netTax.national).toBe('78000');
   });
 });

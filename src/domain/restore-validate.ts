@@ -15,9 +15,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 function fail(table: string, index: number, detail: string): never {
-  throw new BackupValidationError(
-    `バックアップの ${table} ${index + 1} 件目が不正です：${detail}`
-  );
+  throw new BackupValidationError(`バックアップの ${table} ${index + 1} 件目が不正です：${detail}`);
 }
 // 既知テーブルの主キー列。ここに無いテーブル名は復元時に無視される（破壊はしない）。
 const PRIMARY_KEY: Record<string, string> = {

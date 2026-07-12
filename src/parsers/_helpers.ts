@@ -2,9 +2,7 @@
 // YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日 を 'YYYY-MM-DD' に正規化。
 // 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
 export function normalizeDate(s: string): string {
-  const dateOnly = (s.trim().split(/[ \t]/)[0] ?? '')
-    .replace(/年|月/g, '/')
-    .replace(/日/g, '');
+  const dateOnly = (s.trim().split(/[ \t]/)[0] ?? '').replace(/年|月/g, '/').replace(/日/g, '');
   const parts = dateOnly.split(/[/\-.]/).map((p) => p.trim());
   if (parts.length !== 3) {
     throw new Error(`日付形式が認識できません: ${s}`);
@@ -31,7 +29,7 @@ export function stripComma(s: string): string {
 // 対応表記：-1234 / −1234（全角マイナス）/ ▲1234 / △1234
 export function applySign(
   amount: string,
-  defaultSide: 'debit' | 'credit'
+  defaultSide: 'debit' | 'credit',
 ): { amount: string; side: 'debit' | 'credit' } {
   const t = amount.trim();
   const m = /^[-−－▲△]\s*(.+)$/.exec(t);
@@ -44,10 +42,7 @@ export function applySign(
   return { amount: t, side: defaultSide };
 }
 
-export function buildRawRow(
-  header: string[],
-  row: string[]
-): Record<string, string> {
+export function buildRawRow(header: string[], row: string[]): Record<string, string> {
   const result: Record<string, string> = {};
   for (let i = 0; i < header.length; i++) {
     result[header[i] ?? ''] = row[i] ?? '';
@@ -58,7 +53,7 @@ export function buildRawRow(
 export function requireColumns(
   header: string[],
   names: readonly string[],
-  parserDisplayName: string
+  parserDisplayName: string,
 ): Record<string, number> {
   const indices: Record<string, number> = {};
   const missing: string[] = [];
@@ -72,7 +67,7 @@ export function requireColumns(
   }
   if (missing.length > 0) {
     throw new Error(
-      `${parserDisplayName} の CSV ヘッダー形式と一致しません（不足列：${missing.join(', ')}）`
+      `${parserDisplayName} の CSV ヘッダー形式と一致しません（不足列：${missing.join(', ')}）`,
     );
   }
   return indices;
@@ -87,7 +82,7 @@ export function optionalColumn(header: string[], name: string): number {
 export function findHeaderRow(
   rows: string[][],
   required: readonly string[],
-  searchLimit = 30
+  searchLimit = 30,
 ): number {
   const limit = Math.min(rows.length, searchLimit);
   for (let i = 0; i < limit; i++) {

@@ -4,10 +4,7 @@
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import {
-    createOrderExtractor,
-    type OrderExtractor,
-  } from '../lib/order-extractor';
+  import { createOrderExtractor, type OrderExtractor } from '../lib/order-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
@@ -61,7 +58,7 @@
       if (
         shouldConfirmExternalSend(
           { external: extractor.external, host: extractor.destinationHost },
-          skip
+          skip,
         )
       ) {
         pending = { extractor, text: pastedText, host: extractor.destinationHost };
@@ -135,7 +132,7 @@
       return;
     }
     const validItems = reviewItems.filter(
-      (it) => it.description.trim() !== '' && /^-?\d+$/.test(it.amount)
+      (it) => it.description.trim() !== '' && /^-?\d+$/.test(it.amount),
     );
     if (validItems.length === 0) {
       error = m.order_no_items();
@@ -149,7 +146,7 @@
         m.order_total_mismatch({
           itemSum: formatJPY(itemsSum.toString()),
           total: formatJPY(data.totalAmount),
-        })
+        }),
       );
       if (!ok) {
         return;
@@ -197,23 +194,19 @@
           : data.vendor
         : m.order_default_description();
 
-      await db.transaction(
-        'rw',
-        [db.journalEntries, db.journalLines],
-        async () => {
-          await db.journalEntries.add({
-            id: entryId,
-            date: data.date,
-            year: Number(data.date.slice(0, 4)),
-            description,
-            status: 'confirmed',
-            source: 'paste',
-            createdAt: now,
-            confirmedAt: now,
-          });
-          await db.journalLines.bulkAdd(lines);
-        }
-      );
+      await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+        await db.journalEntries.add({
+          id: entryId,
+          date: data.date,
+          year: Number(data.date.slice(0, 4)),
+          description,
+          status: 'confirmed',
+          source: 'paste',
+          createdAt: now,
+          confirmedAt: now,
+        });
+        await db.journalLines.bulkAdd(lines);
+      });
 
       success = m.order_success({
         name: description,
@@ -265,7 +258,9 @@
     {/if}
 
     {#if error}
-      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+      <div
+        class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
+      >
         {error}
       </div>
     {/if}
@@ -409,11 +404,7 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <button
-          type="button"
-          onclick={reset}
-          class="px-4 py-2 border rounded hover:bg-accent"
-        >
+        <button type="button" onclick={reset} class="px-4 py-2 border rounded hover:bg-accent">
           {m.common_cancel()}
         </button>
         <button

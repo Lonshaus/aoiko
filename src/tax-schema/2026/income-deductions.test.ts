@@ -75,9 +75,7 @@ describe('earthquakeInsuranceDeduction', () => {
 describe('medicalExpenseDeduction', () => {
   test('総所得金額の5%と10万円の低い方を差し引く', () => {
     // 総所得150万円 → 5%=75,000円 < 10万円 → 75,000円を差し引く
-    expect(
-      medicalExpenseDeduction(D(200_000), D(0), D(1_500_000)).toString()
-    ).toBe('125000');
+    expect(medicalExpenseDeduction(D(200_000), D(0), D(1_500_000)).toString()).toBe('125000');
   });
 
   test('保険金補填後がマイナスなら控除0', () => {
@@ -85,9 +83,7 @@ describe('medicalExpenseDeduction', () => {
   });
 
   test('上限200万円', () => {
-    expect(
-      medicalExpenseDeduction(D(3_000_000), D(0), D(10_000_000)).toString()
-    ).toBe('2000000');
+    expect(medicalExpenseDeduction(D(3_000_000), D(0), D(10_000_000)).toString()).toBe('2000000');
   });
 });
 
@@ -103,33 +99,33 @@ describe('donationDeduction', () => {
 
 describe('spouseDeduction', () => {
   test('配偶者所得58万円以下・納税者900万円以下は38万円（一般）', () => {
-    expect(
-      spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 40 }).toString()
-    ).toBe('380000');
+    expect(spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 40 }).toString()).toBe(
+      '380000',
+    );
   });
 
   test('老人控除対象配偶者（70歳以上）は48万円', () => {
-    expect(
-      spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 72 }).toString()
-    ).toBe('480000');
+    expect(spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 72 }).toString()).toBe(
+      '480000',
+    );
   });
 
   test('配偶者特別控除：所得95万円以下は38万円', () => {
-    expect(
-      spouseDeduction(D(5_000_000), { totalIncome: D(900_000), age: 40 }).toString()
-    ).toBe('380000');
+    expect(spouseDeduction(D(5_000_000), { totalIncome: D(900_000), age: 40 }).toString()).toBe(
+      '380000',
+    );
   });
 
   test('配偶者特別控除：所得133万円超は控除なし', () => {
-    expect(
-      spouseDeduction(D(5_000_000), { totalIncome: D(1_400_000), age: 40 }).toString()
-    ).toBe('0');
+    expect(spouseDeduction(D(5_000_000), { totalIncome: D(1_400_000), age: 40 }).toString()).toBe(
+      '0',
+    );
   });
 
   test('納税者本人の合計所得金額1,000万円超は控除なし', () => {
-    expect(
-      spouseDeduction(D(10_100_000), { totalIncome: D(500_000), age: 40 }).toString()
-    ).toBe('0');
+    expect(spouseDeduction(D(10_100_000), { totalIncome: D(500_000), age: 40 }).toString()).toBe(
+      '0',
+    );
   });
 
   test('配偶者なしは0', () => {
@@ -139,9 +135,7 @@ describe('spouseDeduction', () => {
 
 describe('dependentDeductions', () => {
   test('一般扶養親族（16〜18歳・23〜69歳）は38万円', () => {
-    const { dependentDeduction } = dependentDeductions([
-      { id: '1', age: 17, totalIncome: D(0) },
-    ]);
+    const { dependentDeduction } = dependentDeductions([{ id: '1', age: 17, totalIncome: D(0) }]);
     expect(dependentDeduction.toString()).toBe('380000');
   });
 
@@ -161,9 +155,7 @@ describe('dependentDeductions', () => {
   });
 
   test('16歳未満（年少扶養親族）は控除なし', () => {
-    const { dependentDeduction } = dependentDeductions([
-      { id: '1', age: 10, totalIncome: D(0) },
-    ]);
+    const { dependentDeduction } = dependentDeductions([{ id: '1', age: 10, totalIncome: D(0) }]);
     expect(dependentDeduction.toString()).toBe('0');
   });
 
@@ -197,8 +189,12 @@ describe('その他の単純控除', () => {
   });
 
   test('障害者控除27万円・特別障害者控除40万円', () => {
-    expect(disabilityDeduction({ isDisabled: true, isSpecialDisabled: false }).toString()).toBe('270000');
-    expect(disabilityDeduction({ isDisabled: false, isSpecialDisabled: true }).toString()).toBe('400000');
+    expect(disabilityDeduction({ isDisabled: true, isSpecialDisabled: false }).toString()).toBe(
+      '270000',
+    );
+    expect(disabilityDeduction({ isDisabled: false, isSpecialDisabled: true }).toString()).toBe(
+      '400000',
+    );
   });
 });
 
@@ -245,7 +241,7 @@ describe('progressiveIncomeTax', () => {
 
   test('1,000円未満は切り捨ててから計算', () => {
     expect(progressiveIncomeTax(D(1_000_999)).toString()).toBe(
-      progressiveIncomeTax(D(1_000_000)).toString()
+      progressiveIncomeTax(D(1_000_000)).toString(),
     );
   });
 

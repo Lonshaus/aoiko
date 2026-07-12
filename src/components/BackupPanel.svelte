@@ -40,7 +40,7 @@
   const lastDownloadLabel = $derived(formatTime(backup.lastDownloadAt));
   const downloadDays = $derived(daysSince(backup.lastDownloadAt));
   const downloadStale = $derived(
-    backup.adapterKind === 'opfs' && (downloadDays === null || downloadDays >= 7)
+    backup.adapterKind === 'opfs' && (downloadDays === null || downloadDays >= 7),
   );
 
   const statusLabel = $derived(
@@ -56,7 +56,7 @@
               ? m.backup_panel_status_writing()
               : backup.status === 'error'
                 ? m.backup_panel_status_error()
-                : m.backup_panel_status_ok()
+                : m.backup_panel_status_ok(),
   );
 
   const adapterLabel = $derived(
@@ -64,7 +64,7 @@
       ? m.backup_panel_adapter_fsa()
       : backup.adapterKind === 'opfs'
         ? m.backup_panel_adapter_opfs()
-        : m.backup_panel_adapter_none()
+        : m.backup_panel_adapter_none(),
   );
 </script>
 

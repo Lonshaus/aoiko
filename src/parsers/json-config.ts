@@ -49,13 +49,19 @@ export interface SignedAmountColumns {
   signedAmount: { header: string };
 }
 
-function isBank(c: ColumnsConfig): c is BankColumns & { balance?: { header: string }; memo?: { header: string } } {
+function isBank(
+  c: ColumnsConfig,
+): c is BankColumns & { balance?: { header: string }; memo?: { header: string } } {
   return 'withdrawal' in c && 'deposit' in c;
 }
-function isCard(c: ColumnsConfig): c is CardColumns & { balance?: { header: string }; memo?: { header: string } } {
+function isCard(
+  c: ColumnsConfig,
+): c is CardColumns & { balance?: { header: string }; memo?: { header: string } } {
   return 'amount' in c;
 }
-function isSigned(c: ColumnsConfig): c is SignedAmountColumns & { balance?: { header: string }; memo?: { header: string } } {
+function isSigned(
+  c: ColumnsConfig,
+): c is SignedAmountColumns & { balance?: { header: string }; memo?: { header: string } } {
   return 'signedAmount' in c;
 }
 // JsonParserConfig を CsvParser インスタンスに変換する。
@@ -74,9 +80,7 @@ export function defineParser(config: JsonParserConfig): CsvParser {
       const cols = config.columns;
       const required = collectRequiredHeaders(cols);
       const idxMap = requireColumns(header, required, config.displayName);
-      const idxBalance = cols.balance
-        ? optionalColumn(header, cols.balance.header)
-        : -1;
+      const idxBalance = cols.balance ? optionalColumn(header, cols.balance.header) : -1;
       const idxMemo = cols.memo ? optionalColumn(header, cols.memo.header) : -1;
       const idxDescFallback =
         cols.description.fallbackHeader !== undefined

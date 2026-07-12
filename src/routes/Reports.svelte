@@ -33,11 +33,7 @@
     remainingBalance,
     type CashFlowForecast,
   } from '../domain/cash-flow';
-  import {
-    amendmentChecklist,
-    getAmendmentDiff,
-    type AmendmentDiff,
-  } from '../domain/amended';
+  import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
   import { buildXtx2026, personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import {
@@ -153,7 +149,9 @@
   // 予算管理（C10）。実績・予算差異は年度切替の $effect（下記）で読み込み、
   // 編集欄（budgetDrafts）はその結果が変わるたびに同期する。
   let budgetVsActual = $state<BudgetVsActualReport | null>(null);
-  let budgetDrafts = $state<Array<{ month: number; revenueBudget: string; expenseBudget: string }>>([]);
+  let budgetDrafts = $state<Array<{ month: number; revenueBudget: string; expenseBudget: string }>>(
+    [],
+  );
   let budgetSaving = $state(false);
   let budgetSaved = $state(false);
   let lastBudgetDraftYear: number | null = null;
@@ -254,12 +252,14 @@
     }
   }
 
-  const interimObligation = $derived(interimFilingObligation(year, safeDecimal(priorYearAmountInput)));
+  const interimObligation = $derived(
+    interimFilingObligation(year, safeDecimal(priorYearAmountInput)),
+  );
   // 前年額の編集により installments の件数が変わり selectedInstallmentIndex が範囲外に
   // なりうるため、範囲外なら先頭にフォールバックする（未定義のまま渡すと period が
   // undefined になり確定申告モードに化けてしまう——中間申告ボタンとしては致命的な誤動作）
   const selectedInstallment = $derived(
-    interimObligation.installments[selectedInstallmentIndex] ?? interimObligation.installments[0]
+    interimObligation.installments[selectedInstallmentIndex] ?? interimObligation.installments[0],
   );
 
   $effect(() => {
@@ -277,7 +277,8 @@
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
       const filing = (await getSetting('filingType')) ?? 'blue';
-      const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
+      const attributionMethod =
+        (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
       const reports = await buildAll(yr, ax);
       const processed = await processYear(yr);
       const inventory = ledger.inventoryAutoValuationEnabled
@@ -288,7 +289,7 @@
         processed.taxableBase10,
         processed.taxableBase8,
         processed.exportExemptSalesBase,
-        processed.nonTaxableSalesBase
+        processed.nonTaxableSalesBase,
       );
       return {
         ...reports,
@@ -330,7 +331,10 @@
     return () => sub.unsubscribe();
   });
 
-  function consumptionTaxMethodLabel(r: ConsumptionTaxResult, simplifiedCat: SimplifiedTaxCategory): string {
+  function consumptionTaxMethodLabel(
+    r: ConsumptionTaxResult,
+    simplifiedCat: SimplifiedTaxCategory,
+  ): string {
     switch (r.method) {
       case 'general':
         return m.reports_consumption_tax_method_general();
@@ -423,7 +427,7 @@
               }
             : {}),
         },
-        `${lockYearTarget}-12-31`
+        `${lockYearTarget}-12-31`,
       );
     } catch (e) {
       lockError = e instanceof Error ? e.message : String(e);
@@ -451,8 +455,7 @@
       zeimushoCode: (await getSetting('userZeimushoCode')) ?? '',
       zeimushoName: (await getSetting('userZeimushoName')) ?? '',
     };
-    const missing =
-      !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
+    const missing = !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
     return { filer, missing };
   }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
@@ -497,7 +500,9 @@
       filingType,
       aoiroDeductionKind,
       ...(realEstatePl ? { realEstatePl } : {}),
-      ...(storedDeductions ? { personalDeductions: personalDeductionsToCtx(storedDeductions) } : {}),
+      ...(storedDeductions
+        ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
+        : {}),
     });
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
@@ -591,7 +596,8 @@
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year, period);
-    const attributionMethod = (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
+    const attributionMethod =
+      (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     const xml = buildGeneralXtx({
       year,
       businessName,
@@ -664,7 +670,9 @@
   </header>
 
   {#if lockError}
-    <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
       {lockError}
     </div>
   {/if}
@@ -675,7 +683,9 @@
         <h3 class="text-lg font-semibold">{m.reports_overview_title({ year })}</h3>
         <div class="flex items-center gap-3">
           {#if locked}
-            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary">{m.reports_filed_badge()}</span>
+            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary"
+              >{m.reports_filed_badge()}</span
+            >
             <button
               type="button"
               onclick={() => (confirmingUnlock = true)}
@@ -731,7 +741,9 @@
       <ul class="space-y-1">
         {#each monthly.months as mo (mo.month)}
           <li class="grid grid-cols-[3rem_1fr_auto] gap-3 items-center text-sm">
-            <span class="text-muted-foreground tabular-nums">{m.reports_monthly_month({ m: mo.month })}</span>
+            <span class="text-muted-foreground tabular-nums"
+              >{m.reports_monthly_month({ m: mo.month })}</span
+            >
             <div class="h-2 bg-background rounded overflow-hidden">
               <div
                 class="h-full bg-primary/60 transition-all"
@@ -797,7 +809,9 @@
         <div class="border rounded px-3 py-2 text-xs text-muted-foreground space-y-1">
           <p class="font-medium text-foreground">{m.reports_pl_inventory_suggestion_title()}</p>
           <p class="tabular-nums">
-            {m.reports_pl_inventory_suggestion_total({ amount: formatJPY(inventoryValuation.totalValue.toString()) })}
+            {m.reports_pl_inventory_suggestion_total({
+              amount: formatJPY(inventoryValuation.totalValue.toString()),
+            })}
           </p>
           <p>{m.reports_pl_inventory_suggestion_hint()}</p>
         </div>
@@ -819,7 +833,9 @@
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-6 shadow-sm">
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_bs_title()}</h3>
-        <span class="text-xs text-muted-foreground tabular-nums">{m.reports_bs_asof({ date: bs.asOf })}</span>
+        <span class="text-xs text-muted-foreground tabular-nums"
+          >{m.reports_bs_asof({ date: bs.asOf })}</span
+        >
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -835,7 +851,9 @@
                 </li>
               {/each}
             </ul>
-            <div class="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-medium">
+            <div
+              class="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-medium"
+            >
               <span>{m.reports_bs_assets_total()}</span>
               <span class="tabular-nums">{formatJPY(bs.totalAssets)}</span>
             </div>
@@ -893,8 +911,13 @@
       </div>
 
       {#if !bs.balanced}
-        <div class="border border-destructive bg-destructive/10 text-destructive rounded px-3 py-2 text-xs">
-          {m.reports_bs_imbalance_warning({ assets: formatJPY(bs.totalAssets), liabEquity: formatJPY(bs.totalLiabilitiesAndEquity) })}
+        <div
+          class="border border-destructive bg-destructive/10 text-destructive rounded px-3 py-2 text-xs"
+        >
+          {m.reports_bs_imbalance_warning({
+            assets: formatJPY(bs.totalAssets),
+            liabEquity: formatJPY(bs.totalLiabilitiesAndEquity),
+          })}
         </div>
       {/if}
     </section>
@@ -920,9 +943,13 @@
         <table class="w-full text-xs tabular-nums">
           <thead>
             <tr class="text-muted-foreground border-b">
-              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_th_account()}</th>
+              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card"
+                >{m.reports_monthly_pl_th_account()}</th
+              >
               {#each Array(12) as _, i (i)}
-                <th class="text-right font-normal px-2">{m.reports_monthly_pl_th_month({ m: i + 1 })}</th>
+                <th class="text-right font-normal px-2"
+                  >{m.reports_monthly_pl_th_month({ m: i + 1 })}</th
+                >
               {/each}
               <th class="text-right font-medium px-2">{m.reports_monthly_pl_th_total()}</th>
             </tr>
@@ -930,7 +957,8 @@
           <tbody>
             {#if monthlyPL.revenue.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_row()}</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_row()}</td
+                >
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.revenue as row (row.accountCode)}
@@ -945,7 +973,9 @@
                 </tr>
               {/each}
               <tr class="border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_total()}</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card"
+                  >{m.reports_monthly_pl_revenue_total()}</td
+                >
                 {#each monthlyPL.monthlyRevenueTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -956,7 +986,8 @@
             {/if}
             {#if monthlyPL.expense.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_row()}</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_row()}</td
+                >
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.expense as row (row.accountCode)}
@@ -971,7 +1002,9 @@
                 </tr>
               {/each}
               <tr class="border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_total()}</td>
+                <td class="py-1 pr-2 sticky left-0 bg-card"
+                  >{m.reports_monthly_pl_expense_total()}</td
+                >
                 {#each monthlyPL.monthlyExpenseTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -981,13 +1014,18 @@
               </tr>
             {/if}
             <tr class="font-semibold border-t-2">
-              <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_net_income_row()}</td>
+              <td class="py-1 pr-2 sticky left-0 bg-card"
+                >{m.reports_monthly_pl_net_income_row()}</td
+              >
               {#each monthlyPL.monthlyNetIncomes as v, i (i)}
                 <td class="text-right px-2" class:text-destructive={D(v).isNegative()}>
                   {v === '0' ? '' : formatJPY(v)}
                 </td>
               {/each}
-              <td class="text-right px-2" class:text-destructive={D(monthlyPL.netIncome).isNegative()}>
+              <td
+                class="text-right px-2"
+                class:text-destructive={D(monthlyPL.netIncome).isNegative()}
+              >
                 {formatJPY(monthlyPL.netIncome)}
               </td>
             </tr>
@@ -1037,16 +1075,25 @@
       <div class="space-y-4">
         {#each breakdown.groups as g (g.accountCode)}
           <div>
-            <header class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1">
-              <span><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span>{g.accountName}</span>
+            <header
+              class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
+            >
+              <span
+                ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
+                >{g.accountName}</span
+              >
               <span class="tabular-nums">{formatJPY(g.total)}</span>
             </header>
             <ul class="space-y-0.5 text-sm pl-4">
               {#each g.entries as e (e.key)}
                 <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
                   <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                  <span class="text-xs text-muted-foreground tabular-nums">{m.reports_breakdown_count({ n: e.count })}</span>
-                  <span class="tabular-nums whitespace-nowrap w-28 text-right">{formatJPY(e.amount)}</span>
+                  <span class="text-xs text-muted-foreground tabular-nums"
+                    >{m.reports_breakdown_count({ n: e.count })}</span
+                  >
+                  <span class="tabular-nums whitespace-nowrap w-28 text-right"
+                    >{formatJPY(e.amount)}</span
+                  >
                 </li>
               {/each}
             </ul>
@@ -1094,7 +1141,9 @@
     </header>
 
     {#if trendError}
-      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+      <div
+        class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
+      >
         {trendError}
       </div>
     {/if}
@@ -1112,11 +1161,17 @@
           </thead>
           <tbody>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>{m.reports_pl_revenue()}</td>
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}
+                >{m.reports_pl_revenue()}</td
+              >
             </tr>
             {#each multiYearPL.revenue as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                <td class="px-3 py-1"
+                  ><span class="font-mono text-xs text-muted-foreground mr-2"
+                    >{row.accountCode}</span
+                  >{row.accountName}</td
+                >
                 {#each row.amounts as a, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
                 {/each}
@@ -1129,11 +1184,17 @@
               {/each}
             </tr>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>{m.reports_pl_expense()}</td>
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}
+                >{m.reports_pl_expense()}</td
+              >
             </tr>
             {#each multiYearPL.expense as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                <td class="px-3 py-1"
+                  ><span class="font-mono text-xs text-muted-foreground mr-2"
+                    >{row.accountCode}</span
+                  >{row.accountName}</td
+                >
                 {#each row.amounts as a, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
                 {/each}
@@ -1148,7 +1209,10 @@
             <tr class="border-t-2 border-border font-semibold">
               <td class="px-3 py-1">{m.reports_pl_net_income_label()}</td>
               {#each multiYearPL.yearlyNetIncome as v, i (i)}
-                <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(v).isNegative()}>{formatJPY(v)}</td>
+                <td
+                  class="px-3 py-1 text-right tabular-nums"
+                  class:text-destructive={D(v).isNegative()}>{formatJPY(v)}</td
+                >
               {/each}
             </tr>
           </tbody>
@@ -1169,11 +1233,17 @@
           </thead>
           <tbody>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearBS.years.length + 1}>{m.reports_bs_assets()}</td>
+              <td class="px-3 py-1 font-medium" colspan={multiYearBS.years.length + 1}
+                >{m.reports_bs_assets()}</td
+              >
             </tr>
             {#each multiYearBS.assets as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"><span class="font-mono text-xs text-muted-foreground mr-2">{row.accountCode}</span>{row.accountName}</td>
+                <td class="px-3 py-1"
+                  ><span class="font-mono text-xs text-muted-foreground mr-2"
+                    >{row.accountCode}</span
+                  >{row.accountName}</td
+                >
                 {#each row.balances as b, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(b)}</td>
                 {/each}
@@ -1210,7 +1280,9 @@
           {#each budgetDrafts as d, i (d.month)}
             {@const actual = budgetVsActual?.months[i]}
             <tr class="border-t border-border/50">
-              <td class="px-3 py-1 tabular-nums">{m.journal_list_filter_month_label({ m: d.month })}</td>
+              <td class="px-3 py-1 tabular-nums"
+                >{m.journal_list_filter_month_label({ m: d.month })}</td
+              >
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
@@ -1220,8 +1292,13 @@
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
                 />
               </td>
-              <td class="px-3 py-1 text-right tabular-nums">{formatJPY(actual?.revenueActual ?? '0')}</td>
-              <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(actual?.revenueDiff ?? '0').isNegative()}>
+              <td class="px-3 py-1 text-right tabular-nums"
+                >{formatJPY(actual?.revenueActual ?? '0')}</td
+              >
+              <td
+                class="px-3 py-1 text-right tabular-nums"
+                class:text-destructive={D(actual?.revenueDiff ?? '0').isNegative()}
+              >
                 {formatJPY(actual?.revenueDiff ?? '0')}
               </td>
               <td class="px-3 py-1 text-right">
@@ -1233,8 +1310,13 @@
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
                 />
               </td>
-              <td class="px-3 py-1 text-right tabular-nums">{formatJPY(actual?.expenseActual ?? '0')}</td>
-              <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(actual?.expenseDiff ?? '0').isPositive()}>
+              <td class="px-3 py-1 text-right tabular-nums"
+                >{formatJPY(actual?.expenseActual ?? '0')}</td
+              >
+              <td
+                class="px-3 py-1 text-right tabular-nums"
+                class:text-destructive={D(actual?.expenseDiff ?? '0').isPositive()}
+              >
                 {formatJPY(actual?.expenseDiff ?? '0')}
               </td>
             </tr>
@@ -1306,7 +1388,9 @@
     </form>
 
     {#if arApError}
-      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm">
+      <div
+        class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
+      >
         {arApError}
       </div>
     {/if}
@@ -1329,7 +1413,9 @@
               {@const remaining = remainingBalance(e)}
               <tr class="border-t border-border/50">
                 <td class="px-3 py-1">
-                  {e.type === 'receivable' ? m.reports_arap_type_receivable() : m.reports_arap_type_payable()}
+                  {e.type === 'receivable'
+                    ? m.reports_arap_type_receivable()
+                    : m.reports_arap_type_payable()}
                 </td>
                 <td class="px-3 py-1">{e.description}</td>
                 <td class="px-3 py-1 tabular-nums whitespace-nowrap">{e.dueDate}</td>
@@ -1342,7 +1428,10 @@
                         type="number"
                         value={paymentDrafts[e.id] ?? ''}
                         oninput={(ev) => {
-                          paymentDrafts = { ...paymentDrafts, [e.id]: (ev.target as HTMLInputElement).value };
+                          paymentDrafts = {
+                            ...paymentDrafts,
+                            [e.id]: (ev.target as HTMLInputElement).value,
+                          };
                         }}
                         min="0"
                         step="1"
@@ -1416,7 +1505,10 @@
                   <td class="px-3 py-1 tabular-nums">{mo.yearMonth}</td>
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(mo.expectedInflow)}</td>
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(mo.expectedOutflow)}</td>
-                  <td class="px-3 py-1 text-right tabular-nums" class:text-destructive={D(mo.netChange).isNegative()}>
+                  <td
+                    class="px-3 py-1 text-right tabular-nums"
+                    class:text-destructive={D(mo.netChange).isNegative()}
+                  >
                     {formatJPY(mo.netChange)}
                   </td>
                 </tr>
@@ -1453,18 +1545,25 @@
           <div>
             <div class="text-xs text-muted-foreground">{m.reports_amendment_revenue()}</div>
             <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedTotalRevenue) })}</div>
-            <div class="font-medium">{m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalRevenue) })}</div>
+            <div class="font-medium">
+              {m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalRevenue) })}
+            </div>
           </div>
           <div>
             <div class="text-xs text-muted-foreground">{m.reports_amendment_expense()}</div>
             <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedTotalExpense) })}</div>
-            <div class="font-medium">{m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalExpense) })}</div>
+            <div class="font-medium">
+              {m.reports_amendment_current_value({ amount: formatJPY(a.currentTotalExpense) })}
+            </div>
           </div>
           <div>
             <div class="text-xs text-muted-foreground">{m.reports_amendment_net_income()}</div>
             <div>{m.reports_amendment_filed_value({ amount: formatJPY(a.filedNetIncome) })}</div>
             <div class="font-medium" class:text-destructive={D(a.netIncomeDelta).isNegative()}>
-              {m.reports_amendment_current_value_with_delta({ amount: formatJPY(a.currentNetIncome), delta: formatJPY(a.netIncomeDelta) })}
+              {m.reports_amendment_current_value_with_delta({
+                amount: formatJPY(a.currentNetIncome),
+                delta: formatJPY(a.netIncomeDelta),
+              })}
             </div>
           </div>
         </div>
@@ -1504,9 +1603,12 @@
         <table class="w-full text-sm tabular-nums">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
-              <th class="text-left font-normal py-2 pr-2">{m.reports_consumption_tax_th_method()}</th>
+              <th class="text-left font-normal py-2 pr-2"
+                >{m.reports_consumption_tax_th_method()}</th
+              >
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_output()}</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input_raw()}</th>
+              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input_raw()}</th
+              >
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input()}</th>
               <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_net()}</th>
               <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_filing()}</th>
@@ -1514,7 +1616,11 @@
           </thead>
           <tbody>
             {#each ct as r (r.method)}
-              <tr class="border-b border-border/40" class:bg-primary={r.method === best} class:text-primary-foreground={r.method === best}>
+              <tr
+                class="border-b border-border/40"
+                class:bg-primary={r.method === best}
+                class:text-primary-foreground={r.method === best}
+              >
                 <td class="py-2 pr-2">
                   {consumptionTaxMethodLabel(r, cat)}
                   {#if r.method === best}
@@ -1522,7 +1628,10 @@
                   {/if}
                 </td>
                 <td class="text-right px-2">{formatJPY(r.outputTax.total)}</td>
-                <td class="text-right px-2 text-muted-foreground" class:text-primary-foreground={r.method === best}>
+                <td
+                  class="text-right px-2 text-muted-foreground"
+                  class:text-primary-foreground={r.method === best}
+                >
                   {r.method === 'general' ? formatJPY(r.inputTaxRaw.total) : '—'}
                 </td>
                 <td class="text-right px-2">{formatJPY(r.inputTax.total)}</td>
@@ -1534,15 +1643,27 @@
         </table>
       </div>
       <details class="text-xs text-muted-foreground">
-        <summary class="cursor-pointer">{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary>
+        <summary class="cursor-pointer"
+          >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
+        >
         <table class="w-full text-xs tabular-nums mt-2">
           <thead>
             <tr class="text-muted-foreground border-b">
-              <th class="text-left font-normal py-1 pr-2">{m.reports_consumption_tax_th_method()}</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th>
+              <th class="text-left font-normal py-1 pr-2"
+                >{m.reports_consumption_tax_th_method()}</th
+              >
+              <th class="text-right font-normal px-2"
+                >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th
+              >
+              <th class="text-right font-normal px-2"
+                >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th
+              >
+              <th class="text-right font-normal px-2"
+                >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th
+              >
+              <th class="text-right font-normal px-2"
+                >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th
+              >
             </tr>
           </thead>
           <tbody>
@@ -1624,7 +1745,9 @@
           {m.reports_consumption_tax_xtx_general_download()}
         </button>
         {#if consumptionTaxXtxError}
-          <p class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2">
+          <p
+            class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2"
+          >
             {consumptionTaxXtxError}
           </p>
         {/if}
@@ -1676,9 +1799,14 @@
         <div class="border-t pt-3 space-y-2">
           <label class="block text-xs text-muted-foreground">
             {m.reports_interim_period_select_label()}
-            <select bind:value={selectedInstallmentIndex} class="mt-1 w-full border rounded px-2 py-1 text-sm">
+            <select
+              bind:value={selectedInstallmentIndex}
+              class="mt-1 w-full border rounded px-2 py-1 text-sm"
+            >
               {#each interimObligation.installments as inst, i (inst.start)}
-                <option value={i}>{inst.start} 〜 {inst.end}（{m.reports_interim_th_due()} {inst.dueDate}）</option>
+                <option value={i}
+                  >{inst.start} 〜 {inst.end}（{m.reports_interim_th_due()} {inst.dueDate}）</option
+                >
               {/each}
             </select>
           </label>
@@ -1700,7 +1828,9 @@
             </button>
           </div>
           {#if consumptionTaxXtxError}
-            <p class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2">
+            <p
+              class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2"
+            >
               {consumptionTaxXtxError}
             </p>
           {/if}
@@ -1713,7 +1843,9 @@
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-3 shadow-sm">
       <h3 class="text-lg font-semibold">{m.reports_xtx_title()}</h3>
       <p class="text-xs text-muted-foreground">
-        {@html filingType === 'white' ? m.reports_xtx_intro_white_html() : m.reports_xtx_intro_html()}
+        {@html filingType === 'white'
+          ? m.reports_xtx_intro_white_html()
+          : m.reports_xtx_intro_html()}
       </p>
       <div class="flex flex-wrap gap-2">
         <button
@@ -1735,7 +1867,9 @@
         {/if}
       </div>
       {#if lockError}
-        <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+        <div
+          class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+        >
           {lockError}
         </div>
       {/if}

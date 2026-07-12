@@ -119,7 +119,7 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
     input.taxableBase10,
     input.taxableBase8,
     input.exportExemptSalesBase,
-    input.nonTaxableSalesBase
+    input.nonTaxableSalesBase,
   );
   // 特定課税仕入れ（リバースチャージ）は一般課税かつ課税売上割合95%未満のときのみ、
   // 売上（課税標準）と控除の双方へ対称に配線する。非適用時は全 RC 値をゼロ化し、
@@ -155,7 +155,7 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
     rcApplies,
     rcBase,
     input.taxableBase8,
-    input.taxableBase10
+    input.taxableBase10,
   );
   const shb033 = buildShb033(
     input,
@@ -168,7 +168,7 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
     rcTax,
     rcBase,
     rcCommon,
-    rcNonTaxableOnly
+    rcNonTaxableOnly,
   );
   const sha010 = buildSha010(
     official,
@@ -181,7 +181,7 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
     rcApplies,
     rcBase,
     input.taxableBase8,
-    input.taxableBase10
+    input.taxableBase10,
   );
   const sha010Raw: XtxRawValues = {};
   if (input.interimPeriod) {
@@ -198,7 +198,7 @@ function computeAttributedDeduction(
   salesRatio: TaxableSalesRatio,
   rcTax: Decimal,
   rcCommon: Decimal,
-  rcNonTaxableOnly: Decimal
+  rcNonTaxableOnly: Decimal,
 ): Decimal {
   // 特定課税仕入れの消費税額（常に7.8%）を課税仕入れ等の税額の合計へ織り込む。
   // 用途区分は共通対応分に rcCommon・非課税のみ対応分に rcNonTaxableOnly、残りは課税売上のみ対応分。
@@ -214,9 +214,7 @@ function computeAttributedDeduction(
     .plus(input.inputNonTaxableOnly8)
     .plus(rcNonTaxableOnly);
   const taxableOnly = inputTotal.minus(common).minus(nonTaxableOnly);
-  return taxableOnly
-    .plus(common.times(salesRatio.ratio))
-    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  return taxableOnly.plus(common.times(salesRatio.ratio)).toDecimalPlaces(0, Decimal.ROUND_DOWN);
 }
 
 function buildShb017(
@@ -231,7 +229,7 @@ function buildShb017(
   rcApplies: boolean,
   rcBase: Decimal,
   taxableBase8: Decimal,
-  taxableBase10: Decimal
+  taxableBase10: Decimal,
 ): XtxLeafValues {
   const shb017: XtxLeafValues = {};
   put(shb017, 'DSB00010', official.base8);
@@ -288,7 +286,7 @@ function buildShb033(
   rcTax: Decimal,
   rcBase: Decimal,
   rcCommon: Decimal,
-  rcNonTaxableOnly: Decimal
+  rcNonTaxableOnly: Decimal,
 ): XtxLeafValues {
   const shb033: XtxLeafValues = {};
   put(shb033, 'DTB00020', official.base8);
@@ -371,7 +369,7 @@ function buildSha010(
   rcApplies: boolean,
   rcBase: Decimal,
   taxableBase8: Decimal,
-  taxableBase10: Decimal
+  taxableBase10: Decimal,
 ): XtxLeafValues {
   const sha010: XtxLeafValues = {};
   put(sha010, 'AAJ00010', official.taxableBase);

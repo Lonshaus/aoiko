@@ -11,7 +11,10 @@
     totalTaxCredits,
   } from '../tax-schema/2026/income-deductions';
   import { totalWithholdingTax } from '../tax-schema/2026/other-income';
-  import { combinedTotalIncomeAmount, totalIncomeAmount } from '../tax-schema/2026/xtx-mapping-koa020';
+  import {
+    combinedTotalIncomeAmount,
+    totalIncomeAmount,
+  } from '../tax-schema/2026/xtx-mapping-koa020';
   import type {
     PersonalDeductionDependent,
     PersonalDeductionInput,
@@ -56,13 +59,15 @@
   let hasSpouse = $state(false);
   let spouseIncome = $state('0');
   let spouseAge = $state(40);
-  let dependents = $state<Array<{
-    id: string;
-    name: string;
-    age: number;
-    totalIncome: string;
-    livesWithLinealAscendant: boolean;
-  }>>([]);
+  let dependents = $state<
+    Array<{
+      id: string;
+      name: string;
+      age: number;
+      totalIncome: string;
+      livesWithLinealAscendant: boolean;
+    }>
+  >([]);
   let dividendDeductionAmount = $state('0');
   let mortgageDeductionAmount = $state('0');
   let politicalDonationCreditAmount = $state('0');
@@ -81,8 +86,12 @@
   let realEstateBusinessScale = $state(false);
   let realEstateLandLoanInterest = $state('0');
   let realEstateRentPaid = $state<Array<RealEstateRentPaidDetail & { id: string }>>([]);
-  let realEstateLoanInterestPaid = $state<Array<RealEstateLoanInterestPaidDetail & { id: string }>>([]);
-  let realEstateProfessionalFeesPaid = $state<Array<RealEstateProfessionalFeeDetail & { id: string }>>([]);
+  let realEstateLoanInterestPaid = $state<Array<RealEstateLoanInterestPaidDetail & { id: string }>>(
+    [],
+  );
+  let realEstateProfessionalFeesPaid = $state<
+    Array<RealEstateProfessionalFeeDetail & { id: string }>
+  >([]);
 
   function addRealEstateRentPaid() {
     realEstateRentPaid = [...realEstateRentPaid, { id: newId(), amount: '0' }];
@@ -97,7 +106,10 @@
     realEstateLoanInterestPaid = realEstateLoanInterestPaid.filter((r) => r.id !== id);
   }
   function addRealEstateProfessionalFeesPaid() {
-    realEstateProfessionalFeesPaid = [...realEstateProfessionalFeesPaid, { id: newId(), amount: '0' }];
+    realEstateProfessionalFeesPaid = [
+      ...realEstateProfessionalFeesPaid,
+      { id: newId(), amount: '0' },
+    ];
   }
   function removeRealEstateProfessionalFeesPaid(id: string) {
     realEstateProfessionalFeesPaid = realEstateProfessionalFeesPaid.filter((r) => r.id !== id);
@@ -204,15 +216,20 @@
     otherWithholdingTaxPaid = stored.otherWithholdingTax ?? '0';
     realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
     realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
-    realEstateRentPaid = (stored.realEstateIncome?.rentPaid ?? []).map((r) => ({ ...r, id: newId() }));
+    realEstateRentPaid = (stored.realEstateIncome?.rentPaid ?? []).map((r) => ({
+      ...r,
+      id: newId(),
+    }));
     realEstateLoanInterestPaid = (stored.realEstateIncome?.loanInterestPaid ?? []).map((r) => ({
       ...r,
       id: newId(),
     }));
-    realEstateProfessionalFeesPaid = (stored.realEstateIncome?.professionalFeesPaid ?? []).map((r) => ({
-      ...r,
-      id: newId(),
-    }));
+    realEstateProfessionalFeesPaid = (stored.realEstateIncome?.professionalFeesPaid ?? []).map(
+      (r) => ({
+        ...r,
+        id: newId(),
+      }),
+    );
   }
 
   $effect(() => {
@@ -284,15 +301,13 @@
     isWidow,
     isWorkingStudent,
     ...(hasSpouse ? { spouse: { totalIncome: spouseIncome, age: spouseAge } } : {}),
-    dependents: dependents.map(
-      (d): PersonalDeductionDependent => ({
-        id: d.id,
-        name: d.name,
-        age: d.age,
-        totalIncome: d.totalIncome,
-        livesWithLinealAscendant: d.livesWithLinealAscendant,
-      })
-    ),
+    dependents: dependents.map((d): PersonalDeductionDependent => ({
+      id: d.id,
+      name: d.name,
+      age: d.age,
+      totalIncome: d.totalIncome,
+      livesWithLinealAscendant: d.livesWithLinealAscendant,
+    })),
     dividendDeductionAmount,
     mortgageDeductionAmount,
     politicalDonationCreditAmount,
@@ -335,7 +350,7 @@
           ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
-      : D(0)
+      : D(0),
   );
   // 不動産所得のPL（青色控除前）。試算欄の内訳表示にのみ使う。
   const realEstateTotalIncome = $derived(realEstatePlCache ? D(realEstatePlCache.netIncome) : D(0));
@@ -350,10 +365,10 @@
           ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
-      : D(0)
+      : D(0),
   );
   const result = $derived(
-    computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome })
+    computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome }),
   );
   const taxableIncome = $derived.by(() => {
     const v = combinedTotalIncome.minus(result.total);
@@ -396,10 +411,14 @@
       />
     </label>
     <p class="text-sm">
-      {m.income_deductions_total_income_label()}：<span class="font-mono">{formatJPY(businessTotalIncome)}</span>
+      {m.income_deductions_total_income_label()}：<span class="font-mono"
+        >{formatJPY(businessTotalIncome)}</span
+      >
     </p>
     <p class="text-sm">
-      {m.income_deductions_combined_total_income_label()}：<span class="font-mono">{formatJPY(combinedTotalIncome)}</span>
+      {m.income_deductions_combined_total_income_label()}：<span class="font-mono"
+        >{formatJPY(combinedTotalIncome)}</span
+      >
     </p>
   </section>
 
@@ -413,32 +432,74 @@
     {#if hasSalaryIncome}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6">
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.income_deductions_salary_paid_amount()}</span>
-          <input type="text" inputmode="numeric" bind:value={salaryPaidAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_salary_paid_amount()}</span
+          >
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={salaryPaidAmount}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+          />
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.income_deductions_salary_withholding_tax()}</span>
-          <input type="text" inputmode="numeric" bind:value={salaryWithholdingTax} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_salary_withholding_tax()}</span
+          >
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={salaryWithholdingTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+          />
         </label>
       </div>
     {/if}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_public_pension_amount()}</span>
-        <input type="text" inputmode="numeric" bind:value={publicPensionAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
-        <span class="block mt-1 text-xs text-muted-foreground">{m.income_deductions_public_pension_hint()}</span>
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_public_pension_amount()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={publicPensionAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        <span class="block mt-1 text-xs text-muted-foreground"
+          >{m.income_deductions_public_pension_hint()}</span
+        >
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_income()}</span>
-        <input type="text" inputmode="numeric" bind:value={otherMiscIncomeAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={otherMiscIncomeAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_expenses()}</span>
-        <input type="text" inputmode="numeric" bind:value={otherMiscExpenses} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_other_misc_expenses()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={otherMiscExpenses}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_other_withholding_tax()}</span>
-        <input type="text" inputmode="numeric" bind:value={otherWithholdingTaxPaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_other_withholding_tax()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={otherWithholdingTaxPaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
     </div>
   </section>
@@ -448,33 +509,79 @@
       <h3 class="text-lg font-semibold">{m.income_deductions_real_estate_title()}</h3>
       <p class="text-xs text-muted-foreground">{m.income_deductions_real_estate_intro()}</p>
       <p class="text-sm">
-        {m.income_deductions_real_estate_pl_label()}：<span class="font-mono">{formatJPY(realEstateTotalIncome)}</span>
+        {m.income_deductions_real_estate_pl_label()}：<span class="font-mono"
+          >{formatJPY(realEstateTotalIncome)}</span
+        >
       </p>
       <label class="flex items-center gap-2">
         <input type="checkbox" bind:checked={realEstateBusinessScale} />
         <span class="text-sm">{m.income_deductions_real_estate_business_scale()}</span>
       </label>
       <label class="block sm:max-w-xs">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_real_estate_land_loan_interest()}</span>
-        <input type="text" inputmode="numeric" bind:value={realEstateLandLoanInterest} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
-        <span class="block mt-1 text-xs text-muted-foreground">{m.income_deductions_real_estate_land_loan_interest_hint()}</span>
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_real_estate_land_loan_interest()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={realEstateLandLoanInterest}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        <span class="block mt-1 text-xs text-muted-foreground"
+          >{m.income_deductions_real_estate_land_loan_interest_hint()}</span
+        >
       </label>
 
       <div class="flex items-center justify-between pt-2 border-t">
         <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_rent_paid_title()}</h4>
-        <button type="button" onclick={addRealEstateRentPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+        <button
+          type="button"
+          onclick={addRealEstateRentPaid}
+          class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+        >
           {m.income_deductions_dependent_add()}
         </button>
       </div>
       {#each realEstateRentPaid as r (r.id)}
         <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
-          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" bind:value={r.property} placeholder={m.income_deductions_real_estate_rent_property()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <input
+            type="text"
+            bind:value={r.payeeName}
+            placeholder={m.income_deductions_real_estate_payee_name()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            bind:value={r.payeeAddress}
+            placeholder={m.income_deductions_real_estate_payee_address()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            bind:value={r.property}
+            placeholder={m.income_deductions_real_estate_rent_property()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={r.amount}
+            placeholder={m.income_deductions_real_estate_amount()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+          />
           <div class="flex gap-2 items-center">
-            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
-            <button type="button" onclick={() => removeRealEstateRentPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={r.deductibleAmount}
+              placeholder={m.income_deductions_real_estate_deductible_amount()}
+              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+            />
+            <button
+              type="button"
+              onclick={() => removeRealEstateRentPaid(r.id)}
+              class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90"
+            >
               {m.income_deductions_dependent_remove()}
             </button>
           </div>
@@ -482,20 +589,58 @@
       {/each}
 
       <div class="flex items-center justify-between pt-2 border-t">
-        <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_loan_interest_paid_title()}</h4>
-        <button type="button" onclick={addRealEstateLoanInterestPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+        <h4 class="text-sm font-semibold">
+          {m.income_deductions_real_estate_loan_interest_paid_title()}
+        </h4>
+        <button
+          type="button"
+          onclick={addRealEstateLoanInterestPaid}
+          class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+        >
           {m.income_deductions_dependent_add()}
         </button>
       </div>
       {#each realEstateLoanInterestPaid as r (r.id)}
         <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
-          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" inputmode="numeric" bind:value={r.yearEndBalance} placeholder={m.income_deductions_real_estate_year_end_balance()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
-          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <input
+            type="text"
+            bind:value={r.payeeName}
+            placeholder={m.income_deductions_real_estate_payee_name()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            bind:value={r.payeeAddress}
+            placeholder={m.income_deductions_real_estate_payee_address()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={r.yearEndBalance}
+            placeholder={m.income_deductions_real_estate_year_end_balance()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={r.amount}
+            placeholder={m.income_deductions_real_estate_amount()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+          />
           <div class="flex gap-2 items-center">
-            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
-            <button type="button" onclick={() => removeRealEstateLoanInterestPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={r.deductibleAmount}
+              placeholder={m.income_deductions_real_estate_deductible_amount()}
+              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+            />
+            <button
+              type="button"
+              onclick={() => removeRealEstateLoanInterestPaid(r.id)}
+              class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90"
+            >
               {m.income_deductions_dependent_remove()}
             </button>
           </div>
@@ -503,20 +648,58 @@
       {/each}
 
       <div class="flex items-center justify-between pt-2 border-t">
-        <h4 class="text-sm font-semibold">{m.income_deductions_real_estate_professional_fees_title()}</h4>
-        <button type="button" onclick={addRealEstateProfessionalFeesPaid} class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90">
+        <h4 class="text-sm font-semibold">
+          {m.income_deductions_real_estate_professional_fees_title()}
+        </h4>
+        <button
+          type="button"
+          onclick={addRealEstateProfessionalFeesPaid}
+          class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+        >
           {m.income_deductions_dependent_add()}
         </button>
       </div>
       {#each realEstateProfessionalFeesPaid as r (r.id)}
         <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
-          <input type="text" bind:value={r.payeeName} placeholder={m.income_deductions_real_estate_payee_name()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" bind:value={r.payeeAddress} placeholder={m.income_deductions_real_estate_payee_address()} class="px-3 py-2 bg-background border rounded text-foreground text-sm" />
-          <input type="text" inputmode="numeric" bind:value={r.amount} placeholder={m.income_deductions_real_estate_amount()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
-          <input type="text" inputmode="numeric" bind:value={r.withholdingTax} placeholder={m.income_deductions_real_estate_withholding_tax()} class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
+          <input
+            type="text"
+            bind:value={r.payeeName}
+            placeholder={m.income_deductions_real_estate_payee_name()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            bind:value={r.payeeAddress}
+            placeholder={m.income_deductions_real_estate_payee_address()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={r.amount}
+            placeholder={m.income_deductions_real_estate_amount()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+          />
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={r.withholdingTax}
+            placeholder={m.income_deductions_real_estate_withholding_tax()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+          />
           <div class="flex gap-2 items-center">
-            <input type="text" inputmode="numeric" bind:value={r.deductibleAmount} placeholder={m.income_deductions_real_estate_deductible_amount()} class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right" />
-            <button type="button" onclick={() => removeRealEstateProfessionalFeesPaid(r.id)} class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90">
+            <input
+              type="text"
+              inputmode="numeric"
+              bind:value={r.deductibleAmount}
+              placeholder={m.income_deductions_real_estate_deductible_amount()}
+              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+            />
+            <button
+              type="button"
+              onclick={() => removeRealEstateProfessionalFeesPaid(r.id)}
+              class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90"
+            >
               {m.income_deductions_dependent_remove()}
             </button>
           </div>
@@ -586,7 +769,8 @@
           />
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_income()}</span>
+          <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_income()}</span
+          >
           <input
             type="text"
             inputmode="numeric"
@@ -615,40 +799,103 @@
     <h3 class="text-lg font-semibold">{m.income_deductions_insurance_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_social_insurance_paid()}</span>
-        <input type="text" inputmode="numeric" bind:value={socialInsurancePaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_social_insurance_paid()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={socialInsurancePaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_small_business_mutual_aid_paid()}</span>
-        <input type="text" inputmode="numeric" bind:value={smallBusinessMutualAidPaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_small_business_mutual_aid_paid()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={smallBusinessMutualAidPaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_life_insurance_new_general()}</span>
-        <input type="text" inputmode="numeric" bind:value={lifeNewGeneral} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_life_insurance_new_general()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={lifeNewGeneral}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_life_insurance_old_general()}</span>
-        <input type="text" inputmode="numeric" bind:value={lifeOldGeneral} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_life_insurance_old_general()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={lifeOldGeneral}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_life_insurance_new_medical()}</span>
-        <input type="text" inputmode="numeric" bind:value={lifeNewMedical} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_life_insurance_new_medical()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={lifeNewMedical}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_life_insurance_new_pension()}</span>
-        <input type="text" inputmode="numeric" bind:value={lifeNewPension} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_life_insurance_new_pension()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={lifeNewPension}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_life_insurance_old_pension()}</span>
-        <input type="text" inputmode="numeric" bind:value={lifeOldPension} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_life_insurance_old_pension()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={lifeOldPension}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_earthquake_insurance_paid()}</span>
-        <input type="text" inputmode="numeric" bind:value={earthquakeInsurancePaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_earthquake_insurance_paid()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={earthquakeInsurancePaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_old_long_term_insurance_paid()}</span>
-        <input type="text" inputmode="numeric" bind:value={oldLongTermInsurancePaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_old_long_term_insurance_paid()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={oldLongTermInsurancePaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
     </div>
   </section>
@@ -657,21 +904,49 @@
     <h3 class="text-lg font-semibold">{m.income_deductions_medical_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_medical_expense_paid()}</span>
-        <input type="text" inputmode="numeric" bind:value={medicalExpensePaid} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_medical_expense_paid()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={medicalExpensePaid}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_medical_insurance_reimbursement()}</span>
-        <input type="text" inputmode="numeric" bind:value={medicalInsuranceReimbursement} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_medical_insurance_reimbursement()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={medicalInsuranceReimbursement}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_donation_amount()}</span>
-        <input type="text" inputmode="numeric" bind:value={donationAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={donationAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_casualty_loss_deduction()}</span>
-        <input type="text" inputmode="numeric" bind:value={casualtyLossDeduction} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
-        <span class="block mt-1 text-xs text-muted-foreground">{m.income_deductions_casualty_loss_hint()}</span>
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_casualty_loss_deduction()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={casualtyLossDeduction}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        <span class="block mt-1 text-xs text-muted-foreground"
+          >{m.income_deductions_casualty_loss_hint()}</span
+        >
       </label>
     </div>
   </section>
@@ -708,31 +983,72 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_dividend_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={dividendDeductionAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={dividendDeductionAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_mortgage_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={mortgageDeductionAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={mortgageDeductionAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_political_donation_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={politicalDonationCreditAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_political_donation_credit()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={politicalDonationCreditAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_housing_renovation_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={housingRenovationCreditAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground"
+          >{m.income_deductions_housing_renovation_credit()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={housingRenovationCreditAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={foreignTaxCreditAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={foreignTaxCreditAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_tax_credit()}</span>
-        <input type="text" inputmode="numeric" bind:value={otherTaxCreditAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={otherTaxCreditAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_disaster_exemption()}</span>
-        <input type="text" inputmode="numeric" bind:value={disasterExemptionAmount} class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono" />
+        <span class="text-xs text-muted-foreground">{m.income_deductions_disaster_exemption()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={disasterExemptionAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
       </label>
     </div>
   </section>
@@ -740,27 +1056,67 @@
   <section class="space-y-2 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_result_title()}</h3>
     <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      <span class="text-muted-foreground">{m.income_deductions_result_basic()}</span><span class="font-mono text-right">{formatJPY(result.basicDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_social_insurance()}</span><span class="font-mono text-right">{formatJPY(result.socialInsuranceDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_small_business_mutual_aid()}</span><span class="font-mono text-right">{formatJPY(result.smallBusinessMutualAidDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_life_insurance()}</span><span class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_earthquake_insurance()}</span><span class="font-mono text-right">{formatJPY(result.earthquakeInsuranceDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_medical_expense()}</span><span class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_donation()}</span><span class="font-mono text-right">{formatJPY(result.donationDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_casualty_loss()}</span><span class="font-mono text-right">{formatJPY(result.casualtyLossDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_disability()}</span><span class="font-mono text-right">{formatJPY(result.disabilityDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_single_parent_or_widow()}</span><span class="font-mono text-right">{formatJPY(result.singleParentOrWidowDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_working_student()}</span><span class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_spouse()}</span><span class="font-mono text-right">{formatJPY(result.spouseDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_dependent()}</span><span class="font-mono text-right">{formatJPY(result.dependentDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_specific_relative_special()}</span><span class="font-mono text-right">{formatJPY(result.specificRelativeSpecialDeduction)}</span>
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_total()}</span><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(result.total)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_taxable_income()}</span><span class="font-mono text-right">{formatJPY(taxableIncome)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span class="font-mono text-right">{formatJPY(afterCredits)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span class="font-mono text-right">{formatJPY(surtax)}</span>
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_final_tax()}</span><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(finalTax)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span class="font-mono text-right">{formatJPY(withholding)}</span>
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(netTaxDue)}</span>
+      <span class="text-muted-foreground">{m.income_deductions_result_basic()}</span><span
+        class="font-mono text-right">{formatJPY(result.basicDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_social_insurance()}</span
+      ><span class="font-mono text-right">{formatJPY(result.socialInsuranceDeduction)}</span>
+      <span class="text-muted-foreground"
+        >{m.income_deductions_result_small_business_mutual_aid()}</span
+      ><span class="font-mono text-right">{formatJPY(result.smallBusinessMutualAidDeduction)}</span>
+      <span class="text-muted-foreground">{m.income_deductions_result_life_insurance()}</span><span
+        class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_earthquake_insurance()}</span
+      ><span class="font-mono text-right">{formatJPY(result.earthquakeInsuranceDeduction)}</span>
+      <span class="text-muted-foreground">{m.income_deductions_result_medical_expense()}</span><span
+        class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_donation()}</span><span
+        class="font-mono text-right">{formatJPY(result.donationDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_casualty_loss()}</span><span
+        class="font-mono text-right">{formatJPY(result.casualtyLossDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_disability()}</span><span
+        class="font-mono text-right">{formatJPY(result.disabilityDeduction)}</span
+      >
+      <span class="text-muted-foreground"
+        >{m.income_deductions_result_single_parent_or_widow()}</span
+      ><span class="font-mono text-right">{formatJPY(result.singleParentOrWidowDeduction)}</span>
+      <span class="text-muted-foreground">{m.income_deductions_result_working_student()}</span><span
+        class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_spouse()}</span><span
+        class="font-mono text-right">{formatJPY(result.spouseDeduction)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_dependent()}</span><span
+        class="font-mono text-right">{formatJPY(result.dependentDeduction)}</span
+      >
+      <span class="text-muted-foreground"
+        >{m.income_deductions_result_specific_relative_special()}</span
+      ><span class="font-mono text-right">{formatJPY(result.specificRelativeSpecialDeduction)}</span
+      >
+      <span class="font-semibold border-t pt-1">{m.income_deductions_result_total()}</span><span
+        class="font-mono text-right font-semibold border-t pt-1">{formatJPY(result.total)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_taxable_income()}</span><span
+        class="font-mono text-right">{formatJPY(taxableIncome)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span
+        class="font-mono text-right">{formatJPY(afterCredits)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span
+        class="font-mono text-right">{formatJPY(surtax)}</span
+      >
+      <span class="font-semibold border-t pt-1">{m.income_deductions_result_final_tax()}</span><span
+        class="font-mono text-right font-semibold border-t pt-1">{formatJPY(finalTax)}</span
+      >
+      <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span
+        class="font-mono text-right">{formatJPY(withholding)}</span
+      >
+      <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span
+      ><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(netTaxDue)}</span>
     </div>
   </section>
 

@@ -90,7 +90,11 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   if (!pl) {
     return out;
   }
-  put(out, tagByJa(PAGE1, '賃貸料'), pl.revenue.find((r) => r.accountName === '賃貸料（不動産）')?.amount ?? '0');
+  put(
+    out,
+    tagByJa(PAGE1, '賃貸料'),
+    pl.revenue.find((r) => r.accountName === '賃貸料（不動産）')?.amount ?? '0',
+  );
   const otherRevenue = pl.revenue
     .filter((r) => r.accountName !== '賃貸料（不動産）')
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
@@ -109,7 +113,11 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (realEstateInput?.landLoanInterestAmount) {
-    put(out, tagByJa(PAGE1, '土地等を取得するために要した負債の利子の額'), realEstateInput.landLoanInterestAmount.toString());
+    put(
+      out,
+      tagByJa(PAGE1, '土地等を取得するために要した負債の利子の額'),
+      realEstateInput.landLoanInterestAmount.toString(),
+    );
   }
   return out;
 }
@@ -205,14 +213,21 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
     });
 }
 
-function payeeRows<T extends { payeeAddress?: string; payeeName?: string; amount: string; deductibleAmount?: string }>(
+function payeeRows<
+  T extends {
+    payeeAddress?: string;
+    payeeName?: string;
+    amount: string;
+    deductibleAmount?: string;
+  },
+>(
   items: T[] | undefined,
   max: number,
   addressTag: string,
   nameTag: string,
   amountTag: string,
   deductibleTag: string,
-  extra?: (row: XtxLeafValues, item: T) => void
+  extra?: (row: XtxLeafValues, item: T) => void,
 ): XtxLeafValues[] {
   return (items ?? []).slice(0, max).map((item) => {
     const row: XtxLeafValues = {};
@@ -248,7 +263,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     'AKO00020',
     'AKO00030',
     'AKO00080',
-    'AKO00090'
+    'AKO00090',
   );
   if (rentPaid.length > 0) {
     out.AKO00000 = rentPaid;
@@ -264,7 +279,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       if (item.yearEndBalance) {
         putRow(row, 'AKL00040', item.yearEndBalance);
       }
-    }
+    },
   );
   if (loanInterestPaid.length > 0) {
     out.AKL00000 = loanInterestPaid;
@@ -280,7 +295,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       if (item.withholdingTax) {
         putRow(row, 'AKP00060', item.withholdingTax);
       }
-    }
+    },
   );
   if (professionalFeesPaid.length > 0) {
     out.AKP00000 = professionalFeesPaid;

@@ -67,7 +67,7 @@ class BackupManager {
           this.lastError = e instanceof Error ? e.message : String(e);
           this.status = 'error';
         },
-      })
+      }),
     );
   }
 
@@ -77,7 +77,7 @@ class BackupManager {
       async (h) => {
         await setSetting('backupFolderHandle', h);
         this.folderName = h.name;
-      }
+      },
     );
 
     if (await fsa.isAvailable()) {

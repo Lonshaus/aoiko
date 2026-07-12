@@ -3,7 +3,10 @@ import { newId } from '../lib/id';
 import { exceedsLimit, MAX_IMAGE_BYTES } from '../lib/file-limit';
 
 export class AttachmentTooLargeError extends Error {
-  constructor(public readonly size: number, public readonly limit: number) {
+  constructor(
+    public readonly size: number,
+    public readonly limit: number,
+  ) {
     super('添付ファイルのサイズが上限を超えています');
     this.name = 'AttachmentTooLargeError';
   }

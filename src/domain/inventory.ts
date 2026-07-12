@@ -35,7 +35,8 @@ export async function computeInventoryValuation(asOfDate: string): Promise<Inven
     .filter(countsTowardTotals)
     .sort((a, b) => a.date.localeCompare(b.date));
   const entryIds = entries.map((e) => e.id);
-  const lines = entryIds.length > 0 ? await db.journalLines.where('entryId').anyOf(entryIds).toArray() : [];
+  const lines =
+    entryIds.length > 0 ? await db.journalLines.where('entryId').anyOf(entryIds).toArray() : [];
   const linesByEntry = new Map<string, typeof lines>();
   for (const line of lines) {
     const arr = linesByEntry.get(line.entryId) ?? [];

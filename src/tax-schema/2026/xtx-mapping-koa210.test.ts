@@ -95,7 +95,7 @@ describe('mapKoa210Values 青色申告特別控除の充当（一般用44欄）'
           ...emptyPersonalDeductions,
           realEstateIncome: { businessScale: false },
         },
-      })
+      }),
     );
     // 控除枠65万を不動産所得32.5万が先に使い、事業への配分残は32.5万
     expect(out.AMF00500).toBe('1044300'); // 控除前所得
@@ -116,7 +116,7 @@ describe('mapKoa210Values 青色申告特別控除の充当（一般用44欄）'
           entryCount: 0,
         },
         aoiroDeductionKind: 'electronic',
-      })
+      }),
     );
     expect(out.AMF00500).toBe('3000000');
     expect(out.AMF00510).toBe('650000');
@@ -131,18 +131,47 @@ describe('mapKoa210Values 貸借対照表（期末列への出力）', () => {
         year: 2026,
         asOf: '2026-12-31',
         assets: [
-          { accountCode: '1110', accountName: '現金', category: 'asset' as const, balance: '100000' },
-          { accountCode: '1130', accountName: '普通預金', category: 'asset' as const, balance: '500000' },
-          { accountCode: '1510', accountName: '工具器具備品', category: 'asset' as const, balance: '300000' },
+          {
+            accountCode: '1110',
+            accountName: '現金',
+            category: 'asset' as const,
+            balance: '100000',
+          },
+          {
+            accountCode: '1130',
+            accountName: '普通預金',
+            category: 'asset' as const,
+            balance: '500000',
+          },
+          {
+            accountCode: '1510',
+            accountName: '工具器具備品',
+            category: 'asset' as const,
+            balance: '300000',
+          },
         ],
-        liabilities: [{ accountCode: '2110', accountName: '買掛金', category: 'liability' as const, balance: '80000' }],
-        equity: [{ accountCode: '3110', accountName: '元入金', category: 'equity' as const, balance: '700000' }],
+        liabilities: [
+          {
+            accountCode: '2110',
+            accountName: '買掛金',
+            category: 'liability' as const,
+            balance: '80000',
+          },
+        ],
+        equity: [
+          {
+            accountCode: '3110',
+            accountName: '元入金',
+            category: 'equity' as const,
+            balance: '700000',
+          },
+        ],
         netIncome: '0',
         totalAssets: '900000',
         totalLiabilitiesAndEquity: '900000',
         balanced: true,
       },
-    })
+    }),
   );
   test('期末残高は期末ブランチの tag に入る', () => {
     expect(out.AMG00260).toBe('100000'); // 現金（期末）

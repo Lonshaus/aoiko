@@ -5,14 +5,14 @@ import type { InputUsageCategory, TaxCategory } from '../db/types';
 // 「事業使用分（経費）」と「個人使用分（1610 事業主貸）」の 2 行に分解する。
 // 個人使用分は複数行から合算して 1 行にまとめる（仕訳全体の可読性向上）。
 
-const DRAWING_ACCOUNT_CODE = '1610';  // 事業主貸
+const DRAWING_ACCOUNT_CODE = '1610'; // 事業主貸
 
 export interface SplittableLine {
   id: string;
   side: 'debit' | 'credit';
   accountCode: string;
   subAccountId: string;
-  amount: string;          // Decimal 字串、円単位
+  amount: string; // Decimal 字串、円単位
   taxRate: number;
   taxIncluded: boolean;
   homeOfficeRatio: string; // '' = 適用しない、'0' .. '1' の Decimal 字串
@@ -41,14 +41,10 @@ function parseRatio(ratio: string): { apply: boolean; value: ReturnType<typeof D
     throw new HomeOfficeRatioError(`家事按分比率の値が不正です: ${ratio}`);
   }
   if (d.lessThan(0) || d.greaterThan(1)) {
-    throw new HomeOfficeRatioError(
-      `家事按分比率は 0 〜 1 の範囲で指定してください: ${ratio}`
-    );
+    throw new HomeOfficeRatioError(`家事按分比率は 0 〜 1 の範囲で指定してください: ${ratio}`);
   }
   if (d.isZero()) {
-    throw new HomeOfficeRatioError(
-      '家事按分比率が 0% の行は意味がないため登録できません'
-    );
+    throw new HomeOfficeRatioError('家事按分比率が 0% の行は意味がないため登録できません');
   }
   return { apply: true, value: d };
 }
