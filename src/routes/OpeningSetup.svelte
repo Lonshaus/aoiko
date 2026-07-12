@@ -90,7 +90,7 @@
         row.acquisitionDate,
         businessStartDate,
         row.acquisitionCost,
-        row.usefulLifeYears
+        row.usefulLifeYears,
       );
     } catch {
       return null;
@@ -138,7 +138,7 @@
   let error = $state('');
 
   const hasAnyItem = $derived(
-    expenses.length > 0 || convertedAssets.length > 0 || customItems.length > 0
+    expenses.length > 0 || convertedAssets.length > 0 || customItems.length > 0,
   );
 
   async function handleGenerate() {
@@ -217,7 +217,10 @@
           placeholder={m.opening_amount_placeholder()}
           class="w-32 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
         />
-        <button type="submit" class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90">
+        <button
+          type="submit"
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
           {m.settings_action_add()}
         </button>
       </form>
@@ -239,7 +242,9 @@
             </li>
           {/each}
         </ul>
-        <p class="text-sm font-semibold text-right">{m.opening_expense_total({ amount: formatJPY(String(expenseTotal)) })}</p>
+        <p class="text-sm font-semibold text-right">
+          {m.opening_expense_total({ amount: formatJPY(String(expenseTotal)) })}
+        </p>
         <div class="flex gap-4 text-sm">
           <label class="flex items-center gap-1">
             <input type="radio" bind:group={expenseAmortization} value="immediate" />
@@ -302,7 +307,10 @@
             <option value="1540">1540 車両運搬具</option>
             <option value="1550">1550 建物附属設備</option>
           </select>
-          <button type="submit" class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90">
+          <button
+            type="submit"
+            class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          >
             {m.settings_action_add()}
           </button>
         </div>
@@ -340,7 +348,9 @@
                       {m.opening_small_asset_apply_label()}
                       {#if isSmallAssetEligible(businessStartDate, basis.businessStartBasis.toString())}
                         <span class="text-muted-foreground">
-                          {m.opening_small_asset_threshold_note({ threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))) })}
+                          {m.opening_small_asset_threshold_note({
+                            threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))),
+                          })}
                         </span>
                       {/if}
                     </span>
@@ -355,8 +365,13 @@
     </section>
 
     <section class="border rounded-lg p-6 bg-card text-card-foreground">
-      <button type="button" class="text-sm font-semibold" onclick={() => (showInventory = !showInventory)}>
-        {showInventory ? '▾' : '▸'} {m.opening_inventory_title()}
+      <button
+        type="button"
+        class="text-sm font-semibold"
+        onclick={() => (showInventory = !showInventory)}
+      >
+        {showInventory ? '▾' : '▸'}
+        {m.opening_inventory_title()}
       </button>
       {#if showInventory}
         <p class="text-xs text-muted-foreground mt-2">{m.opening_inventory_hint()}</p>
@@ -364,8 +379,13 @@
     </section>
 
     <section class="border rounded-lg p-6 bg-card text-card-foreground">
-      <button type="button" class="text-sm font-semibold" onclick={() => (showDeposit = !showDeposit)}>
-        {showDeposit ? '▾' : '▸'} {m.opening_deposit_title()}
+      <button
+        type="button"
+        class="text-sm font-semibold"
+        onclick={() => (showDeposit = !showDeposit)}
+      >
+        {showDeposit ? '▾' : '▸'}
+        {m.opening_deposit_title()}
       </button>
       {#if showDeposit}
         <p class="text-xs text-muted-foreground mt-2">{m.opening_deposit_hint()}</p>
@@ -396,7 +416,10 @@
             <option value={a.code}>{a.code} {a.name}</option>
           {/each}
         </select>
-        <select bind:value={customSide} class="px-3 py-2 bg-background border rounded text-foreground text-sm">
+        <select
+          bind:value={customSide}
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        >
           <option value="debit">{m.opening_custom_side_debit()}</option>
           <option value="credit">{m.opening_custom_side_credit()}</option>
         </select>
@@ -408,7 +431,10 @@
           placeholder={m.opening_amount_placeholder()}
           class="w-32 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
         />
-        <button type="submit" class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90">
+        <button
+          type="submit"
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
           {m.settings_action_add()}
         </button>
       </form>
@@ -447,7 +473,9 @@
     <section class="space-y-3 border rounded-lg p-6 bg-card text-card-foreground">
       <h3 class="text-lg font-semibold">{m.opening_preview_title()}</h3>
       {#if expenses.length > 0}
-        <p class="text-sm">{m.opening_preview_expense({ amount: formatJPY(String(expenseTotal)) })}</p>
+        <p class="text-sm">
+          {m.opening_preview_expense({ amount: formatJPY(String(expenseTotal)) })}
+        </p>
       {/if}
       {#if convertedAssets.length > 0}
         <p class="text-sm">{m.opening_preview_assets({ count: convertedAssets.length })}</p>
@@ -479,7 +507,11 @@
   {:else}
     <section class="space-y-3 border rounded-lg p-6 bg-card text-card-foreground text-center">
       <p class="text-sm">{m.opening_done_message()}</p>
-      <a href="/journal" use:link class="inline-block px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90">
+      <a
+        href="/journal"
+        use:link
+        class="inline-block px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+      >
         {m.nav_journal()}
       </a>
     </section>

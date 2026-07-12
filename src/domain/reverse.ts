@@ -17,12 +17,14 @@ export async function reverseEntry(entryId: string): Promise<string> {
     throw new Error('すでに訂正済みの仕訳です');
   }
   if (orig.originalEntryId !== undefined) {
-    throw new Error('訂正仕訳そのものは訂正できません。必要なら正しい内容で新しい仕訳を入力してください。');
+    throw new Error(
+      '訂正仕訳そのものは訂正できません。必要なら正しい内容で新しい仕訳を入力してください。',
+    );
   }
 
   if (await isYearLocked(orig.year)) {
     throw new Error(
-      `${orig.year} 年は申告済みのためロックされています。訂正は新しい年度内の仕訳で対応してください。`
+      `${orig.year} 年は申告済みのためロックされています。訂正は新しい年度内の仕訳で対応してください。`,
     );
   }
 
@@ -30,7 +32,7 @@ export async function reverseEntry(entryId: string): Promise<string> {
   const todayYear = Number(today.slice(0, 4));
   if (todayYear !== orig.year && (await isYearLocked(todayYear))) {
     throw new Error(
-      `${todayYear} 年は申告済みのためロックされています。訂正仕訳を記帳できません。`
+      `${todayYear} 年は申告済みのためロックされています。訂正仕訳を記帳できません。`,
     );
   }
 
@@ -41,46 +43,42 @@ export async function reverseEntry(entryId: string): Promise<string> {
   const newEntryId = newId();
   const now = Date.now();
 
-  await db.transaction(
-    'rw',
-    [db.journalEntries, db.journalLines],
-    async () => {
-      await db.journalEntries.add({
-        id: newEntryId,
-        date: today,
-        year: todayYear,
-        description: `[訂正] ${orig.description}`,
-        status: 'confirmed',
-        originalEntryId: orig.id,
-        source: 'manual',
-        createdAt: now,
-        confirmedAt: now,
-      });
+  await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+    await db.journalEntries.add({
+      id: newEntryId,
+      date: today,
+      year: todayYear,
+      description: `[訂正] ${orig.description}`,
+      status: 'confirmed',
+      originalEntryId: orig.id,
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
 
-      for (const line of lines) {
-        await db.journalLines.add({
-          id: newId(),
-          entryId: newEntryId,
-          side: line.side === 'debit' ? 'credit' : 'debit',
-          accountCode: line.accountCode,
-          ...(line.subAccountId ? { subAccountId: line.subAccountId } : {}),
-          ...(line.vendorId ? { vendorId: line.vendorId } : {}),
-          amount: line.amount,
-          amountIndexed: line.amountIndexed,
-          taxRate: line.taxRate,
-          taxIncluded: line.taxIncluded,
-          invoiceCompliant: line.invoiceCompliant,
-          ...(line.homeOfficeRatio ? { homeOfficeRatio: line.homeOfficeRatio } : {}),
-          ...(line.memo ? { memo: line.memo } : {}),
-        });
-      }
-
-      await db.journalEntries.update(orig.id, {
-        status: 'reversed',
-        reversedByEntryId: newEntryId,
+    for (const line of lines) {
+      await db.journalLines.add({
+        id: newId(),
+        entryId: newEntryId,
+        side: line.side === 'debit' ? 'credit' : 'debit',
+        accountCode: line.accountCode,
+        ...(line.subAccountId ? { subAccountId: line.subAccountId } : {}),
+        ...(line.vendorId ? { vendorId: line.vendorId } : {}),
+        amount: line.amount,
+        amountIndexed: line.amountIndexed,
+        taxRate: line.taxRate,
+        taxIncluded: line.taxIncluded,
+        invoiceCompliant: line.invoiceCompliant,
+        ...(line.homeOfficeRatio ? { homeOfficeRatio: line.homeOfficeRatio } : {}),
+        ...(line.memo ? { memo: line.memo } : {}),
       });
     }
-  );
+
+    await db.journalEntries.update(orig.id, {
+      status: 'reversed',
+      reversedByEntryId: newEntryId,
+    });
+  });
 
   return newEntryId;
 }

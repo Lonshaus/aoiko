@@ -54,8 +54,7 @@ describe('paypayCardParser', () => {
 
   test('strips thousand-separator commas from amounts', () => {
     const csv =
-      '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' +
-      '"2026/05/01","テスト","1,234,567"';
+      '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' + '"2026/05/01","テスト","1,234,567"';
     const result = paypayCardParser.parse(csv);
     expect(result[0]?.amount).toBe('1234567');
   });
@@ -72,9 +71,7 @@ describe('paypayCardParser', () => {
 
   test('throws on unrecognized header', () => {
     const csv = '"DATE","SHOP","AMOUNT"\n"2026/05/01","x","100"';
-    expect(() => paypayCardParser.parse(csv)).toThrow(
-      /CSV ヘッダー形式と一致しません/
-    );
+    expect(() => paypayCardParser.parse(csv)).toThrow(/CSV ヘッダー形式と一致しません/);
   });
 
   test('returns empty for header-only CSV', () => {

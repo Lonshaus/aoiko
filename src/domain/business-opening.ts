@@ -90,7 +90,7 @@ export function computeConvertedAssetBasis(
   acquisitionDate: string,
   businessStartDate: string,
   acquisitionCost: string,
-  usefulLifeYears: number
+  usefulLifeYears: number,
 ): ConvertedAssetBasis {
   const extendedLife = extendedUsefulLife(usefulLifeYears);
   const rate = oldStraightLineRate(extendedLife);
@@ -140,7 +140,7 @@ function newLine(
   side: 'debit' | 'credit',
   accountCode: string,
   amount: Decimal,
-  memo: string
+  memo: string,
 ): JournalLine {
   return {
     id: newId(),
@@ -174,7 +174,7 @@ function newEntry(date: string, description: string): JournalEntry {
 // 年末一括生成（generateYearEndDepreciation）に委ねる。ここでは開業時点の
 // 未償却残高を計上する開業仕訳のみを作る。
 export async function generateOpeningEntries(
-  input: OpeningSetupInput
+  input: OpeningSetupInput,
 ): Promise<OpeningSetupResult> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
@@ -210,13 +210,18 @@ export async function generateOpeningEntries(
     }
 
     // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
-    const assetLines: Array<{ side: 'debit' | 'credit'; accountCode: string; amount: Decimal; memo: string }> = [];
+    const assetLines: Array<{
+      side: 'debit' | 'credit';
+      accountCode: string;
+      amount: Decimal;
+      memo: string;
+    }> = [];
     for (const asset of input.convertedAssets) {
       const basis = computeConvertedAssetBasis(
         asset.acquisitionDate,
         date,
         asset.acquisitionCost,
-        asset.usefulLifeYears
+        asset.usefulLifeYears,
       );
       const fixedAsset: FixedAsset = {
         id: newId(),
@@ -249,9 +254,11 @@ export async function generateOpeningEntries(
       const entry = newEntry(date, '開業時資産計上（開業精霊）');
       const netDebit = assetLines.reduce(
         (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
-        D(0)
+        D(0),
       );
-      const lines = assetLines.map((l) => newLine(entry.id, l.side, l.accountCode, l.amount, l.memo));
+      const lines = assetLines.map((l) =>
+        newLine(entry.id, l.side, l.accountCode, l.amount, l.memo),
+      );
       if (!netDebit.isZero()) {
         const capitalSide = netDebit.isPositive() ? 'credit' : 'debit';
         lines.push(newLine(entry.id, capitalSide, CAPITAL_CODE, netDebit.abs(), '開業（元入金）'));

@@ -30,10 +30,10 @@
     counterpartSubAccountId: string;
     description: string;
     skip: boolean;
-    matchedRuleId: string;       // ルール命中時の ID、'' = 非適用
-    llmConfidence: '' | 'high' | 'low';  // LLM 分類の信頼度、'' = LLM 未適用
-    taxRate: number;             // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
-    invoiceCompliant: boolean;   // 適格請求書あり（仕入税額控除 100%）
+    matchedRuleId: string; // ルール命中時の ID、'' = 非適用
+    llmConfidence: '' | 'high' | 'low'; // LLM 分類の信頼度、'' = LLM 未適用
+    taxRate: number; // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
+    invoiceCompliant: boolean; // 適格請求書あり（仕入税額控除 100%）
   };
   // 相手科目コードから税区分由来の既定税率を引く。
   function defaultTaxRateFor(accountCode: string): number {
@@ -61,16 +61,14 @@
 
   const currentParser = $derived(findParser(selectedParserName));
   const knownAccount = $derived(
-    currentParser
-      ? ledger.accounts.find((a) => a.code === currentParser.accountCode)
-      : null
+    currentParser ? ledger.accounts.find((a) => a.code === currentParser.accountCode) : null,
   );
   const knownSubAccounts = $derived(
-    currentParser ? ledger.subAccountsFor(currentParser.accountCode) : []
+    currentParser ? ledger.subAccountsFor(currentParser.accountCode) : [],
   );
   const accountGroups = $derived(ledger.groupedAccounts());
   const validCount = $derived(
-    rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length
+    rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length,
   );
 
   async function handleFile(e: Event) {
@@ -83,7 +81,10 @@
       return;
     }
     if (exceedsLimit(file.size, MAX_CSV_BYTES)) {
-      error = m.common_file_too_large({ size: formatBytes(file.size), limit: formatBytes(MAX_CSV_BYTES) });
+      error = m.common_file_too_large({
+        size: formatBytes(file.size),
+        limit: formatBytes(MAX_CSV_BYTES),
+      });
       input.value = '';
       return;
     }
@@ -93,10 +94,7 @@
       const text = decodeCsv(buffer, currentParser.encoding);
       fileHash = await computeFileHash(text);
 
-      const dup = await db.importBatches
-        .where('fileHash')
-        .equals(fileHash)
-        .first();
+      const dup = await db.importBatches.where('fileHash').equals(fileHash).first();
       if (dup) {
         error = m.import_duplicate_error({
           date: new Date(dup.importedAt).toLocaleDateString('ja-JP'),
@@ -123,7 +121,7 @@
             taxRate: defaultTaxRateFor(code),
             invoiceCompliant: false,
           };
-        })
+        }),
       );
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
@@ -145,14 +143,10 @@
     // 既知側の反対側として妥当な科目を選ぶ
     if (knownSide === 'debit') {
       // 既知が借方（入金等）→ 対方は貸方：収益 or 資産（振替）
-      return ledger.accounts.filter(
-        (a) => a.category === 'revenue' || a.category === 'asset'
-      );
+      return ledger.accounts.filter((a) => a.category === 'revenue' || a.category === 'asset');
     }
     // 既知が貸方（出金等）→ 対方は借方：費用 or 資産（振替・前払）
-    return ledger.accounts.filter(
-      (a) => a.category === 'expense' || a.category === 'asset'
-    );
+    return ledger.accounts.filter((a) => a.category === 'expense' || a.category === 'asset');
   }
 
   async function classifyRemainingWithLlm() {
@@ -179,10 +173,7 @@
     }
     const skip = await getSetting('skipExternalSendConfirm');
     if (
-      shouldConfirmExternalSend(
-        { external: adapter.external, host: adapter.destinationHost },
-        skip
-      )
+      shouldConfirmExternalSend({ external: adapter.external, host: adapter.destinationHost }, skip)
     ) {
       llmPending = { adapter, targets, host: adapter.destinationHost };
       llmConfirmOpen = true;
@@ -191,10 +182,7 @@
     await runClassify(adapter, targets);
   }
 
-  async function runClassify(
-    adapter: LlmAdapter,
-    targets: { row: RowState; index: number }[]
-  ) {
+  async function runClassify(adapter: LlmAdapter, targets: { row: RowState; index: number }[]) {
     if (!currentParser) {
       return;
     }
@@ -243,9 +231,15 @@
           }
         }
       }
-      llmStatus = noneCount > 0
-        ? m.import_llm_status_with_none({ count: highCount + lowCount, high: highCount, low: lowCount, none: noneCount })
-        : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
+      llmStatus =
+        noneCount > 0
+          ? m.import_llm_status_with_none({
+              count: highCount + lowCount,
+              high: highCount,
+              low: lowCount,
+              none: noneCount,
+            })
+          : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -294,9 +288,7 @@
         ...(r.counterpartSubAccountId
           ? { counterpartSubAccountId: r.counterpartSubAccountId }
           : {}),
-        ...(r.description !== r.transaction.description
-          ? { description: r.description }
-          : {}),
+        ...(r.description !== r.transaction.description ? { description: r.description } : {}),
         skip: r.skip,
         counterpartTaxRate: r.taxRate,
         counterpartInvoiceCompliant: r.invoiceCompliant,
@@ -309,18 +301,15 @@
           knownAccountCode: currentParser.accountCode,
           ...(knownSubAccountId ? { knownSubAccountId } : {}),
         },
-        importRows
+        importRows,
       );
       // 採用されたルールの hitCount をインクリメント
       const ruleIds = new Set(
         rows
           .filter(
-            (r) =>
-              !r.skip &&
-              r.matchedRuleId.length > 0 &&
-              r.counterpartAccountCode.length > 0
+            (r) => !r.skip && r.matchedRuleId.length > 0 && r.counterpartAccountCode.length > 0,
           )
-          .map((r) => r.matchedRuleId)
+          .map((r) => r.matchedRuleId),
       );
       for (const id of ruleIds) {
         await recordRuleHit(id);
@@ -396,7 +385,9 @@
     </div>
 
     {#if error}
-      <div class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm">
+      <div
+        class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+      >
         {error}
       </div>
     {/if}
@@ -406,7 +397,9 @@
       </div>
     {/if}
     {#if duplicateNotice}
-      <div class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm">
+      <div
+        class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
+      >
         ⚠ {duplicateNotice}
       </div>
     {/if}
@@ -452,10 +445,7 @@
               {@const subs = row.counterpartAccountCode
                 ? ledger.subAccountsFor(row.counterpartAccountCode)
                 : []}
-              <tr
-                class="border-t border-border/50 align-top"
-                class:opacity-50={row.skip}
-              >
+              <tr class="border-t border-border/50 align-top" class:opacity-50={row.skip}>
                 <td class="px-3 py-2 text-muted-foreground tabular-nums whitespace-nowrap">
                   {row.transaction.date}
                 </td>
@@ -467,10 +457,10 @@
                   />
                 </td>
                 <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                  <span
-                    class:text-destructive={row.transaction.side === 'credit'}
-                  >
-                    {row.transaction.side === 'debit' ? '+' : '-'}{formatJPY(row.transaction.amount)}
+                  <span class:text-destructive={row.transaction.side === 'credit'}>
+                    {row.transaction.side === 'debit' ? '+' : '-'}{formatJPY(
+                      row.transaction.amount,
+                    )}
                   </span>
                 </td>
                 <td class="px-3 py-2 space-y-1">
@@ -491,11 +481,20 @@
                       {/each}
                     </select>
                     {#if row.matchedRuleId}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title={m.import_badge_rule_title()}>{m.import_badge_rule()}</span>
+                      <span
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
+                        title={m.import_badge_rule_title()}>{m.import_badge_rule()}</span
+                      >
                     {:else if row.llmConfidence === 'high'}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap" title={m.import_badge_llm_high_title()}>{m.import_badge_llm_high()}</span>
+                      <span
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
+                        title={m.import_badge_llm_high_title()}>{m.import_badge_llm_high()}</span
+                      >
                     {:else if row.llmConfidence === 'low'}
-                      <span class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap" title={m.import_badge_llm_low_title()}>{m.import_badge_llm_low()}</span>
+                      <span
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap"
+                        title={m.import_badge_llm_low_title()}>{m.import_badge_llm_low()}</span
+                      >
                     {/if}
                   </div>
                   {#if subs.length > 0}
@@ -522,8 +521,15 @@
                     <option value={0.1}>{m.journal_tax_standard()}</option>
                   </select>
                   {#if row.taxRate > 0}
-                    <label class="flex items-center gap-1 text-xs text-muted-foreground" title={m.import_invoice_compliant_title()}>
-                      <input type="checkbox" bind:checked={row.invoiceCompliant} disabled={row.skip} />
+                    <label
+                      class="flex items-center gap-1 text-xs text-muted-foreground"
+                      title={m.import_invoice_compliant_title()}
+                    >
+                      <input
+                        type="checkbox"
+                        bind:checked={row.invoiceCompliant}
+                        disabled={row.skip}
+                      />
                       {m.import_invoice_compliant()}
                     </label>
                   {/if}

@@ -21,7 +21,7 @@ const modules = import.meta.glob<{ default: CsvParser }>(
     '!./json-config.ts',
     '!./_helpers.ts',
   ],
-  { eager: true }
+  { eager: true },
 );
 
 function isCsvParser(obj: unknown): obj is CsvParser {
@@ -52,8 +52,11 @@ for (const [path, mod] of Object.entries(modules)) {
 }
 // 銀行 → カード → 電子マネー の順で並べる。同種は displayName 50 音順
 const KIND_ORDER: Record<string, number> = {
-  '1110': 0, '1120': 0, '1130': 0, '1140': 0,  // 預金
-  '2120': 1,  // 未払金（カード）
+  '1110': 0,
+  '1120': 0,
+  '1130': 0,
+  '1140': 0, // 預金
+  '2120': 1, // 未払金（カード）
 };
 
 export const PARSERS: readonly CsvParser[] = discovered.sort((a, b) => {

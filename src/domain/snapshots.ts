@@ -12,7 +12,7 @@ export async function markYearFiled(
     bs?: ReportSnapshotData & { type: 'bs' };
     consumptionTax?: ReportSnapshotData & { type: 'consumption-tax' };
   },
-  generatedFromEntriesUpTo: string
+  generatedFromEntriesUpTo: string,
 ): Promise<void> {
   const now = Date.now();
   const records: ReportSnapshot[] = [
@@ -67,7 +67,7 @@ export async function markYearFiled(
 // superseded（修正申告でロック解除済み）は対象外——当初申告ではなく「今も有効な
 // 確定額」を返す必要があるため。
 export async function getConsumptionTaxSnapshot(
-  year: number
+  year: number,
 ): Promise<ConsumptionTaxSnapshotData | undefined> {
   const filed = await db.reportSnapshots
     .where('[year+type+status]')

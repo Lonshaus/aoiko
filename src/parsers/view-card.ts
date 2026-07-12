@@ -48,8 +48,7 @@ const viewCardParser: CsvParser = {
       }
       const description = (row[idx['ご利用箇所']!] ?? '').trim();
       const useRaw = (row[idx['ご利用額']!] ?? '').trim();
-      const refundRaw =
-        idxRefund >= 0 ? (row[idxRefund] ?? '').trim() : '';
+      const refundRaw = idxRefund >= 0 ? (row[idxRefund] ?? '').trim() : '';
 
       let amount: string;
       let side: 'debit' | 'credit';

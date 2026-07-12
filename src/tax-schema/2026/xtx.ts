@@ -34,12 +34,12 @@ import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
 // 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
 export interface XtxFiler {
-  riyoshaId: string;       // 利用者識別番号（16桁）
-  name: string;            // 氏名・名称
-  zip: string;             // 郵便番号（7桁・ハイフン無し）
-  address: string;         // 住所
-  zeimushoCode: string;    // 提出先税務署コード（5桁）
-  zeimushoName: string;    // 提出先税務署名
+  riyoshaId: string; // 利用者識別番号（16桁）
+  name: string; // 氏名・名称
+  zip: string; // 郵便番号（7桁・ハイフン無し）
+  address: string; // 住所
+  zeimushoCode: string; // 提出先税務署コード（5桁）
+  zeimushoName: string; // 提出先税務署名
 }
 // 確定申告方式。青色申告特別控除・決算書の様式（KOA210/KOA110）に影響する。
 export type FilingType = 'blue' | 'white';
@@ -59,9 +59,11 @@ export interface XtxContext {
   /** 不動産所得のPL（incomeType: 'realEstate' の仕訳から buildPL で算出）。無ければ不動産所得なし */
   realEstatePl?: PLReport;
   /** 所得控除・税額控除・給与/雑所得の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
-  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> & TaxCreditInput & OtherIncomeInput & {
-    realEstateIncome?: RealEstateIncomeCtx;
-  };
+  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> &
+    TaxCreditInput &
+    OtherIncomeInput & {
+      realEstateIncome?: RealEstateIncomeCtx;
+    };
 }
 
 const KOA020_SCHEMA = koa020 as XtxSchema;
@@ -87,17 +89,27 @@ function toDec(s: string): Decimal {
 // （計算用の Decimal 形状）へ変換する。IncomeDeductions.svelte の試算プレビューと
 // Reports.svelte の .xtx 出力の両方から、この1関数だけを共通で使う（値の食い違いを防ぐ）。
 export function personalDeductionsToCtx(
-  stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>
+  stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>,
 ): NonNullable<XtxContext['personalDeductions']> {
   return {
     socialInsurancePaid: toDec(stored.socialInsurancePaid),
     smallBusinessMutualAidPaid: toDec(stored.smallBusinessMutualAidPaid),
     lifeInsurance: {
-      ...(stored.lifeInsurance.newGeneral !== undefined ? { newGeneral: toDec(stored.lifeInsurance.newGeneral) } : {}),
-      ...(stored.lifeInsurance.oldGeneral !== undefined ? { oldGeneral: toDec(stored.lifeInsurance.oldGeneral) } : {}),
-      ...(stored.lifeInsurance.newMedical !== undefined ? { newMedical: toDec(stored.lifeInsurance.newMedical) } : {}),
-      ...(stored.lifeInsurance.newPension !== undefined ? { newPension: toDec(stored.lifeInsurance.newPension) } : {}),
-      ...(stored.lifeInsurance.oldPension !== undefined ? { oldPension: toDec(stored.lifeInsurance.oldPension) } : {}),
+      ...(stored.lifeInsurance.newGeneral !== undefined
+        ? { newGeneral: toDec(stored.lifeInsurance.newGeneral) }
+        : {}),
+      ...(stored.lifeInsurance.oldGeneral !== undefined
+        ? { oldGeneral: toDec(stored.lifeInsurance.oldGeneral) }
+        : {}),
+      ...(stored.lifeInsurance.newMedical !== undefined
+        ? { newMedical: toDec(stored.lifeInsurance.newMedical) }
+        : {}),
+      ...(stored.lifeInsurance.newPension !== undefined
+        ? { newPension: toDec(stored.lifeInsurance.newPension) }
+        : {}),
+      ...(stored.lifeInsurance.oldPension !== undefined
+        ? { oldPension: toDec(stored.lifeInsurance.oldPension) }
+        : {}),
     },
     earthquakeInsurancePaid: toDec(stored.earthquakeInsurancePaid),
     oldLongTermInsurancePaid: toDec(stored.oldLongTermInsurancePaid),
@@ -175,7 +187,9 @@ export function personalDeductionsToCtx(
             ...(stored.realEstateIncome.landLoanInterestAmount !== undefined
               ? { landLoanInterestAmount: toDec(stored.realEstateIncome.landLoanInterestAmount) }
               : {}),
-            ...(stored.realEstateIncome.rentPaid ? { rentPaid: stored.realEstateIncome.rentPaid } : {}),
+            ...(stored.realEstateIncome.rentPaid
+              ? { rentPaid: stored.realEstateIncome.rentPaid }
+              : {}),
             ...(stored.realEstateIncome.loanInterestPaid
               ? { loanInterestPaid: stored.realEstateIncome.loanInterestPaid }
               : {}),
@@ -200,8 +214,7 @@ export function toFilerInfo(f: XtxFiler): XtxFilerInfo {
 }
 
 export function buildXtx2026(ctx: XtxContext): string {
-  const creatorName =
-    ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
+  const creatorName = ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   // 事業用の決算書・収支内訳書は常に載る。不動産所得用（KOA220/KOA130）は
   // ctx.realEstatePl がある場合のみ追加で載せる（B7 part2、両方同時申告に対応）。
   const businessStatementForm: XtxFormInput =
@@ -242,6 +255,6 @@ export function buildXtx2026(ctx: XtxContext): string {
       creatorName,
       creationDate: todayISO(),
       filer: toFilerInfo(ctx.filer),
-    }
+    },
   );
 }

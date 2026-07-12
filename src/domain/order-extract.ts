@@ -61,8 +61,7 @@ export function parseOrderResponse(raw: unknown): OrderExtracted {
 
   const date = typeof r.date === 'string' ? r.date : '';
   const vendor = typeof r.vendor === 'string' ? r.vendor : '';
-  const totalAmount =
-    typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
+  const totalAmount = typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
   if (!totalAmount) {
     throw new LlmError('注文の合計金額を抽出できませんでした');
   }
@@ -75,8 +74,7 @@ export function parseOrderResponse(raw: unknown): OrderExtracted {
       }
       const it = item as Record<string, unknown>;
       const desc = typeof it.description === 'string' ? it.description : '';
-      const amt =
-        typeof it.amount === 'string' ? sanitizeAmount(it.amount, true) : '';
+      const amt = typeof it.amount === 'string' ? sanitizeAmount(it.amount, true) : '';
       if (desc && amt !== '') {
         items.push({ description: desc, amount: amt });
       }

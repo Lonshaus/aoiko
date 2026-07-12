@@ -1,11 +1,5 @@
 import { parseCsv } from '../lib/csv';
-import {
-  buildRawRow,
-  normalizeDate,
-  optionalColumn,
-  requireColumns,
-  stripComma,
-} from './_helpers';
+import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
 // 三菱UFJ 銀行 Direct ダウンロードの CSV 形式（実データ確認済）。
 // エンコーディング：Shift_JIS
@@ -40,8 +34,7 @@ const mufgParser: CsvParser = {
         continue;
       }
       const summary = (row[idx['摘要']!] ?? '').trim();
-      const detail =
-        idxDetail >= 0 ? (row[idxDetail] ?? '').trim() : '';
+      const detail = idxDetail >= 0 ? (row[idxDetail] ?? '').trim() : '';
       const description = detail || summary;
 
       const outRaw = (row[idx['支払い金額']!] ?? '').trim();

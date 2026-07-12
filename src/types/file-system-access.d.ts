@@ -10,12 +10,6 @@ interface Window {
     id?: string;
     mode?: 'read' | 'readwrite';
     startIn?:
-      | FileSystemHandle
-      | 'desktop'
-      | 'documents'
-      | 'downloads'
-      | 'music'
-      | 'pictures'
-      | 'videos';
+      FileSystemHandle | 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos';
   }): Promise<FileSystemDirectoryHandle>;
 }

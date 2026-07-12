@@ -77,9 +77,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
   };
 
   test('営業収入・事業所得(控除後)・青色控除額を整数円で対映', () => {
-    const out = mapKoa020LeafValues(
-      ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
-    );
+    const out = mapKoa020LeafValues(ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' }));
     const values = Object.values(out);
     // 営業等収入=5000000 / 青色控除=650000 / 事業所得=4350000
     expect(values).toContain('5000000');
@@ -88,16 +86,14 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
   });
 
   test('事業の3項目のみ。合計所得・所得控除・税額の欄は出力しない', () => {
-    const out = mapKoa020LeafValues(
-      ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' })
-    );
+    const out = mapKoa020LeafValues(ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' }));
     // 営業収入・事業所得・青色控除額 の 3 件のみ（合計⑫は e-Tax 自動計算）
     expect(Object.keys(out)).toHaveLength(3);
   });
 
   test('簡易簿記(10万控除)なら事業所得=控除前−10万', () => {
     const out = mapKoa020LeafValues(
-      ctx({ pl: { ...plBase, netIncome: '2000000' }, aoiroDeductionKind: 'simple' })
+      ctx({ pl: { ...plBase, netIncome: '2000000' }, aoiroDeductionKind: 'simple' }),
     );
     const values = Object.values(out);
     expect(values).toContain('100000'); // 控除額10万
@@ -128,7 +124,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
         pl: { ...plBase, netIncome: '3000000' },
         aoiroDeductionKind: 'electronic',
         personalDeductions: emptyPersonalDeductions,
-      })
+      }),
     );
     // 336万円以下 → 基礎控除88万円
     expect(out.ABB00550).toBe('880000');
@@ -142,7 +138,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
 
   test('personalDeductions 未入力なら所得控除・税額の欄は出力しない', () => {
     const out = mapKoa020LeafValues(
-      ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' })
+      ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' }),
     );
     expect(out.ABB00550).toBeUndefined();
     expect(out.ABB00590).toBeUndefined();
@@ -158,7 +154,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           foreignTaxCreditAmount: D(1000),
           disasterExemptionAmount: D(2000),
         },
-      })
+      }),
     );
     const diffTax = Number(out.ABB00670);
     const saiSashihiki = Number(out.ABB01010);
@@ -176,7 +172,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           ...emptyPersonalDeductions,
           foreignTaxCreditAmount: D(10_000),
         },
-      })
+      }),
     );
     const taxAmount = Number(out.ABB00590);
     const foreignCredit = 10_000;
@@ -201,7 +197,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           ...emptyPersonalDeductions,
           salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
         },
-      })
+      }),
     );
     expect(out.ABB00080).toBe('1000000');
     // 1,000,000 - 740,000(令和8・9年分の給与所得控除) = 260,000
@@ -221,7 +217,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
             otherExpenses: D(50_000),
           },
         },
-      })
+      }),
     );
     expect(out.ABB00100).toBeUndefined();
     expect(out.ABB01060).toBe('300000');
@@ -239,7 +235,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(30_000) },
           otherWithholdingTax: D(5_000),
         },
-      })
+      }),
     );
     expect(out.ABB00710).toBe('35000');
     expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - 35000);
@@ -256,7 +252,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           ...emptyPersonalDeductions,
           salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(0) },
         },
-      })
+      }),
     );
     expect(out.ABB00550).toBe('680000');
   });
@@ -271,7 +267,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
           spouse: { totalIncome: D(400_000), age: 40 },
           miscIncome: { publicPensionAmount: D(300_000) },
         },
-      })
+      }),
     );
     expect(out.ABB00780).toBe('400000');
     // 事業所得235万+雑所得(年金)30万=265万。公的年金等以外=265万-30万=235万
@@ -398,7 +394,7 @@ describe('mapKoa020LeafValues（不動産所得ありの第一表・第二表欄
           ...emptyPersonalDeductions,
           realEstateIncome: { businessScale: false },
         },
-      })
+      }),
     );
     // ABB00300 営業等所得＝控除前104.43万−配分後控除32.5万＝71.93万
     expect(out.ABB00300).toBe('719300');
@@ -414,7 +410,7 @@ describe('mapKoa020LeafValues（不動産所得ありの第一表・第二表欄
 
   test('不動産なし：青色控除欄は事業単独・不動産欄は出力しない（回帰なし）', () => {
     const out = mapKoa020LeafValues(
-      ctx({ pl: { ...plBase, netIncome: '5000000' }, aoiroDeductionKind: 'electronic' })
+      ctx({ pl: { ...plBase, netIncome: '5000000' }, aoiroDeductionKind: 'electronic' }),
     );
     expect(out.ABB00800).toBe('650000');
     expect(out.ABB00050).toBeUndefined();
@@ -457,7 +453,7 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
         filingType: 'white',
         pl: { ...plBase, netIncome: '3000000' },
         personalDeductions: emptyPersonalDeductions,
-      })
+      }),
     );
     // 白色は青色申告特別控除が無いため事業所得＝控除前300万。合計所得300万→基礎控除88万
     expect(out.ABB00550).toBe('880000');
@@ -482,7 +478,7 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
           ...emptyPersonalDeductions,
           realEstateIncome: { businessScale: false },
         },
-      })
+      }),
     );
     expect(out.ABB00050).toBe('352000');
     // 白色は青色控除が無いため不動産所得は控除前のまま損益通算可能

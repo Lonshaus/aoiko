@@ -12,7 +12,7 @@ import type { Attachment } from '../db/types';
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
     super(
-      `バックアップ形式バージョン ${backupVersion} は現在の形式 ${PAYLOAD_VERSION} と互換性がありません`
+      `バックアップ形式バージョン ${backupVersion} は現在の形式 ${PAYLOAD_VERSION} と互換性がありません`,
     );
     this.name = 'IncompatibleBackupError';
   }
@@ -20,7 +20,7 @@ export class IncompatibleBackupError extends Error {
 // アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
 export async function parseBackupFile(
-  file: File
+  file: File,
 ): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Uint8Array> }> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (looksLikeZip(bytes)) {
@@ -34,7 +34,7 @@ export async function parseBackupFile(
 // 証憑写真の実体を復元しない（メタデータのみ残っていても blob は空になる）。
 export async function restoreFromPayload(
   payload: BackupPayload,
-  attachmentBlobs: Map<string, Uint8Array>
+  attachmentBlobs: Map<string, Uint8Array>,
 ): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
@@ -45,12 +45,10 @@ export async function restoreFromPayload(
   // バックアップに含まれていない場合は全消去で失わないよう、現在値を退避して復帰する。
   const settingRows = payload.tables['settings'];
   const restoredSettingKeys = new Set(
-    Array.isArray(settingRows)
-      ? settingRows.map((r) => (r as { key?: string }).key)
-      : []
+    Array.isArray(settingRows) ? settingRows.map((r) => (r as { key?: string }).key) : [],
   );
   const preservedFilerSettings = (await db.settings.toArray()).filter(
-    (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key)
+    (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key),
   );
   // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
   // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
@@ -92,7 +90,7 @@ export async function restoreFromPayload(
 }
 // 旧形式（証憑写真を含まない純 JSON payload）専用の互換ラッパー。
 export async function restoreFromJson(
-  payload: BackupPayload
+  payload: BackupPayload,
 ): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   return restoreFromPayload(payload, new Map());
 }
@@ -104,12 +102,7 @@ export function parseBackupJson(text: string): BackupPayload {
   } catch {
     throw new Error('JSON として読み込めませんでした');
   }
-  if (
-    !parsed ||
-    typeof parsed !== 'object' ||
-    !('version' in parsed) ||
-    !('tables' in parsed)
-  ) {
+  if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || !('tables' in parsed)) {
     throw new Error('バックアップ形式ではありません');
   }
   return parsed as BackupPayload;

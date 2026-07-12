@@ -46,9 +46,13 @@ describe('buildBackupZip / parseBackupZip', () => {
   test('payload.json が無い zip はエラー', () => {
     const zip = buildBackupZip({ version: 1, exportedAt: '', tables: {} }, new Map());
     // 壊れた zip（マジックナンバーのみ）で payload.json 欠落を模擬
-    expect(() => parseBackupZip(new Uint8Array([0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))).toThrow(
-      /payload\.json/
-    );
+    expect(() =>
+      parseBackupZip(
+        new Uint8Array([
+          0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]),
+      ),
+    ).toThrow(/payload\.json/);
   });
 
   test('zip として読めないバイト列はエラー', () => {

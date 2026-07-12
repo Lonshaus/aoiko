@@ -54,7 +54,7 @@ function buildBundle(
   filer: XtxFiler,
   procedureTag: string,
   procedureName: string,
-  shinkokuKbn: string
+  shinkokuKbn: string,
 ): string {
   const creatorName = businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   return buildXtxBundle(forms, {
@@ -126,7 +126,7 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     ctx.filer,
     PROCEDURE_TAG_SIMPLIFIED,
     PROCEDURE_NAME_SIMPLIFIED,
-    '1'
+    '1',
   );
 }
 
@@ -185,7 +185,7 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
     ctx.filer,
     PROCEDURE_TAG_SIMPLIFIED,
     PROCEDURE_NAME_SIMPLIFIED,
-    shinkokuKbnFor(ctx.interimPeriod)
+    shinkokuKbnFor(ctx.interimPeriod),
   );
 }
 
@@ -273,6 +273,6 @@ export function buildGeneralXtx(ctx: GeneralXtxContext): string {
     ctx.filer,
     PROCEDURE_TAG_GENERAL,
     PROCEDURE_NAME_GENERAL,
-    shinkokuKbnFor(ctx.interimPeriod)
+    shinkokuKbnFor(ctx.interimPeriod),
   );
 }

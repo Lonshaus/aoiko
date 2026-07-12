@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, it, expect } from 'vitest';
 import { db } from '../db/db';
-import { computeConvertedAssetBasis, generateOpeningEntries, oldStraightLineRate } from './business-opening';
+import {
+  computeConvertedAssetBasis,
+  generateOpeningEntries,
+  oldStraightLineRate,
+} from './business-opening';
 
 beforeEach(async () => {
   await db.delete();
@@ -106,7 +110,10 @@ describe('generateOpeningEntries', () => {
   it('開業費のみ：全額費用化で計上仕訳と償却仕訳の2本を生成', async () => {
     const result = await generateOpeningEntries({
       businessStartDate: '2026-07-01',
-      expenses: [{ name: '名刺', amount: '1000' }, { name: '広告費', amount: '9000' }],
+      expenses: [
+        { name: '名刺', amount: '1000' },
+        { name: '広告費', amount: '9000' },
+      ],
       expenseAmortization: 'immediate',
       convertedAssets: [],
       customItems: [],
