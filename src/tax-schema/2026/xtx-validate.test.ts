@@ -20,6 +20,7 @@ import { buildXtx2026 } from './xtx';
 import { buildFormFragment, type XtxLeafValues } from './xtx-document';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
 import { mapKoa210Values } from './xtx-mapping-koa210';
+import { mapKoa210RepeatedValues } from './xtx-mapping-koa210';
 import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
@@ -563,6 +564,89 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const r = spawnSync(
       'xmllint',
       ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA110.xsd'), xmlPath],
+      { encoding: 'utf8' },
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
+  maybe('KOA210 第3頁 減価償却費の計算（繰り返しブロック）が公式 xsd に適合する', () => {
+    const fixedAssets: FixedAsset[] = [
+      {
+        id: 'a1',
+        name: 'ノートPC',
+        acquisitionDate: '2024-06-01',
+        acquisitionCost: '300000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'straight-line',
+        accountCode: '1510',
+        disposedDate: '2026-06-30',
+        disposalType: 'scrap',
+      },
+      {
+        id: 'a2',
+        name: 'プリンター',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '150000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+      },
+    ];
+    const repeats = mapKoa210RepeatedValues({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'blue',
+      aoiroDeductionKind: 'electronic',
+      fixedAssets,
+    });
+    expect(repeats.AMF01600).toHaveLength(2);
+    const frag = buildFormFragment(
+      koa210 as XtxSchema,
+      {},
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      {},
+      repeats,
+    );
+    expect(frag.match(/<AMF01600>/g)).toHaveLength(2);
+    // AMF01670（耐用年数）は simpleContent+AutoCalc 型。schema 生成側でこれを
+    // 「子の無い branch」と誤判定すると renderNode() が値を握り潰す（KOA110 と同種の回帰）。
+    expect(frag.match(/<AMF01670>4<\/AMF01670>/g)).toHaveLength(2);
+    expect(frag).toContain('<AMF01760>100</AMF01760>');
+    expect(frag).toContain('<AMF01790>除却</AMF01790>');
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
       { encoding: 'utf8' },
     );
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
