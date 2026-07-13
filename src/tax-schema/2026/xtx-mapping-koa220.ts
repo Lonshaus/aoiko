@@ -225,9 +225,10 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
 // 第3頁「減価償却費の計算」（ANF00890）。incomeType: 'realEstate' の FixedAsset のみ、
 // 事業所得側（xtx-mapping-koa110.ts の mapKoa110RepeatedValues）と同じロジックを使う。
 function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
+  const detailYear = ctx.dataYear ?? ctx.year;
   return ctx.fixedAssets
     .filter((a) => a.incomeType === 'realEstate')
-    .map((asset) => ({ asset, result: computeDepreciation(asset, ctx.year) }))
+    .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
     .slice(0, MAX_DEPRECIATION_ROWS)
@@ -247,7 +248,7 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
       putRow(row, 'ANF01040', result.amount);
       putRow(row, 'ANF01060', result.amount);
       putRow(row, 'ANF01070', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === ctx.year) {
+      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
         row.ANF01080 = asset.disposalType === 'sale' ? '売却' : '除却';
       }
       return row;
