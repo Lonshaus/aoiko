@@ -125,6 +125,51 @@ describe('mapKoa210Values 青色申告特別控除の充当（一般用44欄）'
   });
 });
 
+describe('mapKoa210Values 売上原価（期首棚卸・仕入・期末棚卸）', () => {
+  test('該当科目は AMF00120/00130/00150 に出力され、経費行に二重計上されない', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [
+            {
+              accountCode: '5010',
+              accountName: '期首商品棚卸高',
+              category: 'expense' as const,
+              amount: '100000',
+              displayOrder: 10,
+            },
+            {
+              accountCode: '5020',
+              accountName: '仕入',
+              category: 'expense' as const,
+              amount: '2000000',
+              displayOrder: 20,
+            },
+            {
+              accountCode: '5030',
+              accountName: '期末商品棚卸高',
+              category: 'expense' as const,
+              amount: '150000',
+              displayOrder: 30,
+            },
+          ],
+          totalRevenue: '0',
+          totalExpense: '1950000',
+          netIncome: '0',
+          entryCount: 0,
+        },
+      }),
+    );
+    expect(out.AMF00120).toBe('100000'); // 期首商品（製品）棚卸高
+    expect(out.AMF00130).toBe('2000000'); // 仕入金額（製品製造原価）
+    expect(out.AMF00150).toBe('150000'); // 期末商品（製品）棚卸高
+    // KOA110 と同様に差引原価（AMF00160）は算出・出力しない
+    expect(out.AMF00160).toBeUndefined();
+  });
+});
+
 describe('mapKoa210Values 貸借対照表（期末列への出力）', () => {
   const out = mapKoa210Values(
     ctx({
