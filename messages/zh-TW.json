@@ -283,6 +283,8 @@
   "reports_unlock_button": "解除鎖定",
   "reports_lock_button": "標記為已申報並鎖定",
   "reports_overview_income": "所得",
+  "reports_net_income_scope_business": "（事業）",
+  "reports_net_income_scope_whole": "（含不動產等）",
   "reports_overview_entries": "傳票數",
   "reports_monthly_title": "月別銷貨",
   "reports_monthly_annual": "年合計 {amount}",
