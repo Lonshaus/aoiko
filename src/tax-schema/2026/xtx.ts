@@ -46,6 +46,8 @@ export type FilingType = 'blue' | 'white';
 
 export interface XtxContext {
   year: number;
+  /** 減価償却明細の計算に使う帳簿データの実年。未指定は year（testReiwa7 の年分ラベル差替時のみ相違） */
+  dataYear?: number;
   businessName: string;
   invoiceNumber: string;
   monthly: MonthlyReport;

@@ -192,9 +192,10 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
 }
 
 function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
+  const detailYear = ctx.dataYear ?? ctx.year;
   return ctx.fixedAssets
     .filter((a) => a.incomeType === 'realEstate')
-    .map((asset) => ({ asset, result: computeDepreciation(asset, ctx.year) }))
+    .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
     .slice(0, MAX_DEPRECIATION_ROWS)
@@ -214,7 +215,7 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
       putRow(row, 'AKK00170', result.amount);
       putRow(row, 'AKK00190', result.amount);
       putRow(row, 'AKK00200', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === ctx.year) {
+      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
         row.AKK00210 = asset.disposalType === 'sale' ? '売却' : '除却';
       }
       return row;
