@@ -502,6 +502,7 @@
       : undefined;
     const xml = buildXtx2026({
       year: exportYear,
+      dataYear: filingYear,
       businessName,
       invoiceNumber,
       monthly,
