@@ -8,10 +8,12 @@
 
 import koa210 from './xtx-schema-koa210.generated.json';
 import { D } from '../../lib/decimal';
+import { computeDepreciation } from '../../domain/depreciation';
 import { computeCombinedBusinessRealEstateIncome } from './real-estate-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
-import type { XtxLeafValues } from './xtx-document';
+import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
+import type { DepreciationMethod } from '../../db/types';
 
 const SCHEMA = koa210 as XtxSchema;
 
@@ -148,4 +150,61 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   }
 
   return out;
+}
+// 第3頁「減価償却費の計算」（AMF01590 → 明細 AMF01600、公式 xsd で maxOccurs=7）。
+// KOA110（白色・AIM00010）/ KOA220（不動産・ANF00890）と同じく FixedAsset +
+// computeDepreciation() から生成する。KOA210 は事業所得用のため incomeType が
+// 'realEstate' の資産（KOA220 で出力済み）を除外する（未指定は 'business' 扱い）。
+const MAX_DEPRECIATION_ROWS = 7;
+const ASSET_NAME_MAX_LENGTH = 16;
+const USEFUL_LIFE_MIN = 2;
+const USEFUL_LIFE_MAX = 100;
+// 事業専用割合（AMF01760）。aoiko は資産ごとの家事按分データを持たないため、
+// 事業用資産は 100%（＝必要経費算入額 = 償却費）として出力する。
+const BUSINESS_USE_RATIO = '100';
+const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
+  'straight-line': '定額法',
+  'declining-balance': '定率法',
+  'small-asset-special': '少額特例',
+  'lump-sum': '一括償却',
+};
+
+function putRow(row: XtxLeafValues, tag: string, amount: string): void {
+  const v = toKingaku(amount);
+  if (v !== '') {
+    row[tag] = v;
+  }
+}
+
+export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const rows = ctx.fixedAssets
+    .filter((a) => a.incomeType !== 'realEstate')
+    .map((asset) => ({ asset, result: computeDepreciation(asset, ctx.year) }))
+    .filter(({ result }) => !D(result.amount).isZero())
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
+    .slice(0, MAX_DEPRECIATION_ROWS)
+    .map(({ asset, result }) => {
+      const row: XtxLeafValues = {};
+      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+      if (name) {
+        row.AMF01610 = name;
+      }
+      // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
+      // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
+      putRow(row, 'AMF01640', asset.acquisitionCost);
+      row.AMF01660 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+        row.AMF01670 = String(asset.usefulLifeYears);
+      }
+      putRow(row, 'AMF01730', result.amount);
+      putRow(row, 'AMF01750', result.amount);
+      row.AMF01760 = BUSINESS_USE_RATIO;
+      putRow(row, 'AMF01770', result.amount);
+      putRow(row, 'AMF01780', result.bookValueEnd);
+      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === ctx.year) {
+        row.AMF01790 = asset.disposalType === 'sale' ? '売却' : '除却';
+      }
+      return row;
+    });
+  return rows.length > 0 ? { AMF01600: rows } : {};
 }
