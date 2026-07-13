@@ -19,12 +19,16 @@
   } from '../domain/invoice';
   import { m } from '../paraglide/messages';
   import type { Invoice, InvoiceDocumentType } from '../db/types';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
 
   let tab = $state<InvoiceDocumentType>('invoice');
   let invoices = $state<Invoice[]>([]);
   let editing = $state<Invoice | null>(null);
   let printingId = $state<string | null>(null);
   let errorMessage = $state('');
+  let confirmingDelete = $state(false);
+  let pendingDeleteId = $state<string | null>(null);
+  let pendingDeleteName = $state('');
   // 変換元の見積書 id。保存/発行が成功した時点で見積書側に convertedToInvoiceId を書き戻す
   // （下書きのまま破棄された場合は書き戻さない＝再変換できる）。
   let convertingFromQuoteId = $state<string | null>(null);
@@ -154,6 +158,20 @@
     await db.invoices.delete(id);
   }
 
+  function askDeleteDraft(inv: Invoice) {
+    pendingDeleteId = inv.id;
+    pendingDeleteName = inv.number || m.invoices_status_draft();
+    confirmingDelete = true;
+  }
+
+  async function runPendingDelete() {
+    confirmingDelete = false;
+    if (pendingDeleteId) {
+      await deleteDraft(pendingDeleteId);
+    }
+    pendingDeleteId = null;
+  }
+
   async function onVoid(id: string) {
     errorMessage = '';
     try {
@@ -240,7 +258,7 @@
                 </button>
                 <button
                   type="button"
-                  onclick={() => deleteDraft(inv.id)}
+                  onclick={() => askDeleteDraft(inv)}
                   class="text-xs text-muted-foreground hover:text-destructive"
                 >
                   {m.settings_action_delete()}
@@ -478,3 +496,23 @@
     {/if}
   </div>
 {/if}
+
+<AlertDialog.Root bind:open={confirmingDelete}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>{m.settings_delete_confirm_title()}</AlertDialog.Title>
+      <AlertDialog.Description>
+        {m.settings_delete_confirm_desc({ name: pendingDeleteName })}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action
+        onclick={runPendingDelete}
+        class="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      >
+        {m.settings_action_delete()}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
