@@ -466,6 +466,7 @@
   "settings_carryover_preview_button": "Preview",
   "settings_carryover_apply_button": "Create opening transfer entry",
   "settings_carryover_delete_button": "Delete existing carryover entry",
+  "settings_carryover_name": "the {year} carryover entry",
   "settings_carryover_applied": "✓ Opening transfer entry created",
   "settings_carryover_already_exists": "A carryover entry already exists. Delete it first.",
   "settings_carryover_no_prior": "No journal entries in the previous year — nothing to carry over",
