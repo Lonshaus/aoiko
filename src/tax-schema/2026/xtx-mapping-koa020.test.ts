@@ -136,6 +136,19 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     expect(out.ABB01030).toBeDefined();
   });
 
+  test('課税される所得金額は千円未満切捨てで出力する（issue #211）', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000300' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: emptyPersonalDeductions,
+      }),
+    );
+    // 235万300−128万=1,070,300 → (30)欄は千円未満切捨てで 1,070,000
+    expect(out.ABB00580).toBe('1070000');
+    expect(out.ABB00590).toBe('53500'); // 107万×5%
+  });
+
   test('personalDeductions 未入力なら所得控除・税額の欄は出力しない', () => {
     const out = mapKoa020LeafValues(
       ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' }),
