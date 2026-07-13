@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { BackupValidationError, validateBackupPayload } from './restore-validate';
+import { BackupValidationError, PRIMARY_KEY, validateBackupPayload } from './restore-validate';
+import { db } from '../db';
 import type { BackupPayload } from '../backup';
 
 function payload(tables: Record<string, unknown[]>): BackupPayload {
@@ -107,5 +108,15 @@ describe('validateBackupPayload', () => {
     expect(() =>
       validateBackupPayload(payload({ invoices: [{ id: 'inv-1', documentType: 'invoice' }] })),
     ).not.toThrow();
+  });
+});
+
+describe('PRIMARY_KEY と db スキーマの同期', () => {
+  test('db.tables の全テーブルが PRIMARY_KEY に登録されている', () => {
+    const missing = db.tables.map((t) => t.name).filter((name) => !(name in PRIMARY_KEY));
+    expect(
+      missing,
+      'db に新テーブルを追加したら restore-validate.ts の PRIMARY_KEY にも追加すること（未登録テーブルは復元時に黙って無視され、利用者データが復元されない）',
+    ).toEqual([]);
   });
 });

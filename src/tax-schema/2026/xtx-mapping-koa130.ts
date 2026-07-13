@@ -95,10 +95,18 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
     tagByJa(PAGE1, '賃貸料'),
     pl.revenue.find((r) => r.accountName === '賃貸料（不動産）')?.amount ?? '0',
   );
+  put(
+    out,
+    tagByJa(PAGE1, '礼金・権利金・更新料'),
+    pl.revenue.find((r) => r.accountName === '礼金・権利金等（不動産）')?.amount ?? '0',
+  );
+  // 賃貸料・礼金以外の不動産収入（雑収入（不動産）等）は「名義書換料その他」欄へ集約する
   const otherRevenue = pl.revenue
-    .filter((r) => r.accountName !== '賃貸料（不動産）')
+    .filter(
+      (r) => r.accountName !== '賃貸料（不動産）' && r.accountName !== '礼金・権利金等（不動産）',
+    )
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
-  put(out, tagByJa(PAGE1, '礼金・権利金・更新料'), otherRevenue.toString());
+  put(out, tagByJa(PAGE1, '名義書換料その他'), otherRevenue.toString());
   for (const row of pl.expense) {
     const ja = EXPENSE_ALIAS[row.accountName];
     if (!ja) {

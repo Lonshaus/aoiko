@@ -266,6 +266,11 @@
     const yr = year;
     selectedInstallmentIndex = 0;
     getConsumptionTaxSnapshot(yr - 1).then((snap) => {
+      // 年度を素早く切り替えると古い年度の Promise が後着しうる。callback 時点の
+      // 最新 year と読込元 yr が食い違うなら破棄する（後着ガード）
+      if (yr !== year) {
+        return;
+      }
       priorYearAmountInput = snap?.netTaxNational ?? '';
     });
   });
