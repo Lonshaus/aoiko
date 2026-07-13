@@ -1346,7 +1346,7 @@
       </button>
       <button
         type="button"
-        onclick={deleteCarryover}
+        onclick={() => askDelete(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
         {m.settings_carryover_delete_button()}
