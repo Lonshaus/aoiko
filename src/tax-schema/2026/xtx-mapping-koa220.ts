@@ -106,10 +106,21 @@ export function mapKoa220Values(ctx: XtxContext): XtxLeafValues {
     tagByJa(PAGE1, '賃貸料'),
     pl.revenue.find((r) => r.accountName === '賃貸料（不動産）')?.amount ?? '0',
   );
-  const otherRevenue = pl.revenue
-    .filter((r) => r.accountName !== '賃貸料（不動産）')
-    .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
-  put(out, tagByJa(PAGE1, '礼金・権利金・更新料'), otherRevenue.toString());
+  put(
+    out,
+    tagByJa(PAGE1, '礼金・権利金・更新料'),
+    pl.revenue.find((r) => r.accountName === '礼金・権利金等（不動産）')?.amount ?? '0',
+  );
+  // 賃貸料・礼金以外の不動産収入（雑収入（不動産）等）は追加科目欄（科目名 ANF00050・
+  // 金額 ANF00100）へ集約する。第1頁の収入欄は追加科目が1行のため合算する
+  const customRevenue = pl.revenue.filter(
+    (r) => r.accountName !== '賃貸料（不動産）' && r.accountName !== '礼金・権利金等（不動産）',
+  );
+  if (customRevenue.length > 0) {
+    const customAmount = customRevenue.reduce((sum, r) => sum.plus(D(r.amount)), D(0));
+    out.ANF00050 = customRevenue[0]!.accountName.replace('（不動産）', '').slice(0, 10);
+    put(out, tagByJa(PAGE1, '追加科目の金額'), customAmount.toString());
+  }
   for (const row of pl.expense) {
     const ja = EXPENSE_ALIAS[row.accountName];
     if (!ja) {
