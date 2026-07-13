@@ -210,8 +210,16 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     // 2026年分定額法：300000 × 0.250 = 75000
     expect(row.AIM00150).toBe('75000');
     expect(row.AIM00170).toBe('75000');
+    expect(row.AIM00180).toBe('100'); // 事業専用割合
     expect(row.AIM00190).toBe('75000');
     expect(row.AIM00200).toBe('225000');
+  });
+
+  test('専用割合は常に 100%（必要経費算入額 = 償却費）', () => {
+    const out = mapKoa110RepeatedValues(ctx({}, [asset()]));
+    const row = out.AIM00010![0]!;
+    expect(row.AIM00180).toBe('100');
+    expect(row.AIM00190).toBe(row.AIM00170);
   });
 
   test('資産名は16文字を超えたら切り詰める', () => {
