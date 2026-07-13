@@ -91,6 +91,42 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(mapKoa130Values(ctx())).toEqual({});
   });
 
+  test('礼金・権利金等（不動産）と雑収入（不動産）は別欄に分かれる', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          revenue: [
+            {
+              accountCode: '4100',
+              accountName: '賃貸料（不動産）',
+              category: 'revenue',
+              amount: '1200000',
+              displayOrder: 100,
+            },
+            {
+              accountCode: '4110',
+              accountName: '礼金・権利金等（不動産）',
+              category: 'revenue',
+              amount: '200000',
+              displayOrder: 110,
+            },
+            {
+              accountCode: '4120',
+              accountName: '雑収入（不動産）',
+              category: 'revenue',
+              amount: '30000',
+              displayOrder: 120,
+            },
+          ],
+        }),
+      }),
+    );
+    // 賃貸料 AKG00030・礼金 AKG00050・名義書換料その他 AKG00060
+    expect(out.AKG00030).toBe('1200000');
+    expect(out.AKG00050).toBe('200000');
+    expect(out.AKG00060).toBe('30000');
+  });
+
   test('専従者給与（不動産）は businessScale に関わらず全額不算入で加算し戻す', () => {
     const out = mapKoa130Values(
       ctx({
