@@ -286,4 +286,13 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     );
     expect(out.AIM00010![0]!.AIM00210).toBeUndefined();
   });
+
+  test('testReiwa7（year は令和7年ラベルだが帳簿データは令和8年）は dataYear で計算する', () => {
+    const out = mapKoa110RepeatedValues({
+      ...ctx({}, [asset({ acquisitionDate: '2026-04-01' })]),
+      year: 2025,
+      dataYear: 2026,
+    });
+    expect(out.AIM00010).toHaveLength(1);
+  });
 });

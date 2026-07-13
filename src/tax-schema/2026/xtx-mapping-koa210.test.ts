@@ -272,4 +272,17 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
   test('資産が無ければ空（ブランチ自体を出力しない）', () => {
     expect(mapKoa210RepeatedValues(ctx({ fixedAssets: [] }))).toEqual({});
   });
+
+  test('testReiwa7（year は令和7年ラベルだが帳簿データは令和8年）は dataYear で計算する', () => {
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        year: 2025,
+        dataYear: 2026,
+        fixedAssets: [asset({ id: 'a1', name: '新規備品', acquisitionDate: '2026-04-01' })],
+      }),
+    );
+    const rows = out.AMF01600;
+    expect(rows).toHaveLength(1);
+    expect(rows![0]!.AMF01610).toBe('新規備品');
+  });
 });

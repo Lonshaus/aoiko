@@ -130,8 +130,9 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
 }
 
 export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const detailYear = ctx.dataYear ?? ctx.year;
   const rows = ctx.fixedAssets
-    .map((asset) => ({ asset, result: computeDepreciation(asset, ctx.year) }))
+    .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
     .slice(0, MAX_DEPRECIATION_ROWS)
@@ -151,7 +152,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       putRow(row, 'AIM00170', result.amount);
       putRow(row, 'AIM00190', result.amount);
       putRow(row, 'AIM00200', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === ctx.year) {
+      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
         row.AIM00210 = asset.disposalType === 'sale' ? '売却' : '除却';
       }
       return row;
