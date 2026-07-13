@@ -44,6 +44,8 @@ For expenses that split between business and personal at your home office:
 2. Enter a ratio (e.g. `0.30` = 30% business; the remaining 70% goes to owner's draws automatically)
 3. On submit, the line expands into 2 lines (business expense + 1610 Owner's draws)
 
+> Per-account default ratios can be registered in **Settings → Home-office allocation default ratios**. Picking a registered account pre-fills the ratio (overridable per line).
+
 ### 1-4. Clearing the form
 
 Use **"Clear"** to reset everything mid-entry.
