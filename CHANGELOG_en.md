@@ -18,7 +18,7 @@ Initial release.
 - Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, business opening setup (Opening Wizard)
 - Consumption tax estimation with 4-method comparison (general / simplified / 20% special / 30% special), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns
-- Invoice and quotation creation
+- Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)
 - Amended filing guide (diff between filed snapshot and current values)
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
 - PWA offline operation, trilingual UI (日本語 / English / 繁體中文)
