@@ -218,11 +218,19 @@ class LedgerStore {
     // 年度依存の購読は currentYear 設定を読んでから（既定値で先に張り、設定値が違えば張り直す）
     this.subscribeYearScoped();
     void getSetting('currentYear').then((y) => {
-      if (typeof y === 'number' && y !== this.currentYear) {
-        this.currentYear = y;
-        this.subscribeYearScoped();
+      if (typeof y === 'number') {
+        this.switchYear(y);
       }
     });
+  }
+  // 処理年度を切り替え、年度スコープの購読を張り直す（Settings 保存時に呼ぶ）。
+  // 永続化は呼び出し元が setSetting で行う。同一年度なら何もしない（冪等）。
+  switchYear(year: number): void {
+    if (year === this.currentYear) {
+      return;
+    }
+    this.currentYear = year;
+    this.subscribeYearScoped();
   }
   // liveQuery を購読し、エラーを lastError に集約する共通ラッパー。
   private sub<T>(query: () => T | Promise<T>, next: (v: T) => void): Subscription {
