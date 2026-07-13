@@ -28,7 +28,7 @@ import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
-import { mapKoa210Values } from './xtx-mapping-koa210';
+import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
@@ -225,7 +225,12 @@ export function buildXtx2026(ctx: XtxContext): string {
           leafValues: mapKoa110Values(ctx),
           repeats: mapKoa110RepeatedValues(ctx),
         }
-      : { schema: KOA210_SCHEMA, values: {}, leafValues: mapKoa210Values(ctx) };
+      : {
+          schema: KOA210_SCHEMA,
+          values: {},
+          leafValues: mapKoa210Values(ctx),
+          repeats: mapKoa210RepeatedValues(ctx),
+        };
   const realEstateStatementForm: XtxFormInput | undefined = !ctx.realEstatePl
     ? undefined
     : ctx.filingType === 'white'
