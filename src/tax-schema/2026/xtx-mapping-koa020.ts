@@ -9,7 +9,7 @@
 // 専従者給与・貸倒引当金繰入額を補正した値を使う（詳細は同ファイル参照）。
 
 import koa020 from './xtx-schema-koa020.generated.json';
-import { D, type Decimal } from '../../lib/decimal';
+import { D, Decimal } from '../../lib/decimal';
 import { whiteReturnAdjustedNetIncome } from './white-return-income';
 import {
   computeIncomeDeductions,
@@ -258,7 +258,11 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(out, 'ABB00548', deductions.specificRelativeSpecialDeduction.toString());
   putTag(out, 'ABB00550', deductions.basicDeduction.toString());
   putTag(out, 'ABB00560', deductions.total.toString());
-  const taxableIncome = maxZero(totalIncome.minus(deductions.total));
+  // 課税される所得金額は千円未満切捨て（第一表(30)欄。progressiveIncomeTax の内部切捨てと同一基準）
+  const taxableIncome = maxZero(totalIncome.minus(deductions.total))
+    .dividedBy(1_000)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN)
+    .times(1_000);
   const taxAmount = progressiveIncomeTax(taxableIncome);
   putTag(out, 'ABB00580', taxableIncome.toString());
   putTag(out, 'ABB00590', taxAmount.toString());
