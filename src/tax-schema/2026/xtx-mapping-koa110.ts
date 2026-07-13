@@ -121,6 +121,9 @@ const ASSET_NAME_MAX_LENGTH = 16;
 // AIM00090（耐用年数）は xsd で 2〜100 年の範囲制限。範囲外は出力しない。
 const USEFUL_LIFE_MIN = 2;
 const USEFUL_LIFE_MAX = 100;
+// 事業専用割合（AIM00180）。aoiko は資産ごとの家事按分データを持たないため、
+// 事業用資産は 100%（＝必要経費算入額 = 償却費）として出力する（KOA210 と同じ扱い）。
+const BUSINESS_USE_RATIO = '100';
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
   const v = toKingaku(amount);
@@ -150,6 +153,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       }
       putRow(row, 'AIM00150', result.amount);
       putRow(row, 'AIM00170', result.amount);
+      row.AIM00180 = BUSINESS_USE_RATIO;
       putRow(row, 'AIM00190', result.amount);
       putRow(row, 'AIM00200', result.bookValueEnd);
       if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
