@@ -465,6 +465,7 @@
   "settings_carryover_preview_button": "プレビュー",
   "settings_carryover_apply_button": "期首振替仕訳を作成",
   "settings_carryover_delete_button": "既存の繰越仕訳を削除",
+  "settings_carryover_name": "{year}年度の前期繰越仕訳",
   "settings_carryover_applied": "✓ 期首振替仕訳を作成しました",
   "settings_carryover_already_exists": "すでに前期繰越仕訳が存在します。先に削除してください。",
   "settings_carryover_no_prior": "前年に仕訳がないため繰越できません",
