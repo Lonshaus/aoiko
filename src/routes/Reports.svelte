@@ -86,7 +86,8 @@
   }
 
   const now = new Date();
-  let year = $state(now.getFullYear());
+  // 処理年度に追従（writable derived：セレクタ選択で override、Settings 変更で追従に戻る）。
+  let year = $derived(ledger.currentYear);
 
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
