@@ -282,6 +282,8 @@
   "reports_unlock_button": "ロック解除",
   "reports_lock_button": "申告済みとしてロック",
   "reports_overview_income": "所得",
+  "reports_net_income_scope_business": "（事業）",
+  "reports_net_income_scope_whole": "（不動産等を含む）",
   "reports_overview_entries": "仕訳数",
   "reports_monthly_title": "月別売上",
   "reports_monthly_annual": "年計 {amount}",

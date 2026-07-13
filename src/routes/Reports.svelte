@@ -91,6 +91,8 @@
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
   let bs = $state<BSReport | null>(null);
+  // 不動産所得等の科目が存在する年度のみ、PL(事業)とBS(全帳簿合算)の口径差を注記する
+  let hasRealEstate = $state(false);
   let inventoryValuation = $state<InventoryValuation | null>(null);
   let monthlyPL = $state<MonthlyPLReport | null>(null);
   let breakdown = $state<BreakdownReport | null>(null);
@@ -285,6 +287,8 @@
         ? await computeInventoryValuation(`${yr}-12-31`)
         : null;
       const budget = await computeBudgetVsActual(yr);
+      const yearAccounts = await db.accounts.where({ year: yr }).toArray();
+      const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
       const salesRatio = computeTaxableSalesRatio(
         processed.taxableBase10,
         processed.taxableBase8,
@@ -303,11 +307,13 @@
         taxableSalesRatioFullDeduction: isFullDeductionEligible(salesRatio),
         inventory,
         budget,
+        hasRealEstate,
       };
     }).subscribe((v) => {
       monthly = v.monthly;
       pl = v.pl;
       bs = v.bs;
+      hasRealEstate = v.hasRealEstate;
       inventoryValuation = v.inventory;
       monthlyPL = v.monthlyPL;
       breakdown = v.breakdown;
@@ -714,7 +720,11 @@
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalExpense)}</div>
         </div>
         <div>
-          <div class="text-xs text-muted-foreground mb-1">{m.reports_overview_income()}</div>
+          <div class="text-xs text-muted-foreground mb-1">
+            {m.reports_overview_income()}{hasRealEstate
+              ? m.reports_net_income_scope_business()
+              : ''}
+          </div>
           <div
             class="text-2xl font-bold tabular-nums"
             class:text-destructive={D(pl.netIncome).isNegative()}
@@ -818,7 +828,11 @@
       {/if}
 
       <div class="pt-4 border-t border-border flex justify-between items-baseline">
-        <span class="text-base font-semibold">{m.reports_pl_net_income_label()}</span>
+        <span class="text-base font-semibold"
+          >{m.reports_pl_net_income_label()}{hasRealEstate
+            ? m.reports_net_income_scope_business()
+            : ''}</span
+        >
         <span
           class="text-2xl font-bold tabular-nums"
           class:text-destructive={D(pl.netIncome).isNegative()}
@@ -892,7 +906,11 @@
               {/each}
               <li class="grid grid-cols-[auto_1fr_auto] gap-3 items-baseline">
                 <span class="font-mono text-xs text-muted-foreground">—</span>
-                <span>{m.reports_bs_net_income_row()}</span>
+                <span
+                  >{m.reports_bs_net_income_row()}{hasRealEstate
+                    ? m.reports_net_income_scope_whole()
+                    : ''}</span
+                >
                 <span
                   class="tabular-nums whitespace-nowrap"
                   class:text-destructive={D(bs.netIncome).isNegative()}
@@ -1207,7 +1225,11 @@
               {/each}
             </tr>
             <tr class="border-t-2 border-border font-semibold">
-              <td class="px-3 py-1">{m.reports_pl_net_income_label()}</td>
+              <td class="px-3 py-1"
+                >{m.reports_pl_net_income_label()}{hasRealEstate
+                  ? m.reports_net_income_scope_business()
+                  : ''}</td
+              >
               {#each multiYearPL.yearlyNetIncome as v, i (i)}
                 <td
                   class="px-3 py-1 text-right tabular-nums"
