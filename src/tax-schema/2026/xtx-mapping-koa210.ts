@@ -73,6 +73,13 @@ const BS_ALIAS: Record<string, string> = {
   普通預金: 'その他の預金',
   工具器具備品: '工具　器具　備品',
 };
+// 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対映。
+// 差引原価（AMF00160）は KOA110 も算出していないため、揃えて出力しない。
+const EXPENSE_ALIAS: Record<string, string> = {
+  期首商品棚卸高: '期首商品（製品）棚卸高',
+  仕入: '仕入金額（製品製造原価）',
+  期末商品棚卸高: '期末商品（製品）棚卸高',
+};
 // gen:kingaku は xsd:long（整数・小数不可・先頭マイナス可）。
 // Decimal 文字列を整数円へ（小数部切捨て、カンマ除去）
 function toKingaku(s: string): string {
@@ -105,7 +112,8 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   // 損益計算書（ページ1）
   put(out, PAGE1[0]?.tag, pl.totalRevenue); // 売上（収入）金額（先頭）
   for (const row of pl.expense) {
-    put(out, tagByJa(PAGE1, row.accountName), row.amount);
+    const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
+    put(out, tagByJa(PAGE1, ja), row.amount);
   }
   // 青色申告特別控除：控除前所得・控除額・控除後所得
   const preIncome = D(pl.netIncome);
