@@ -283,6 +283,8 @@
   "reports_unlock_button": "Unlock",
   "reports_lock_button": "Lock as filed",
   "reports_overview_income": "Income",
+  "reports_net_income_scope_business": " (business)",
+  "reports_net_income_scope_whole": " (incl. real estate)",
   "reports_overview_entries": "Entries",
   "reports_monthly_title": "Monthly sales",
   "reports_monthly_annual": "Annual total {amount}",
