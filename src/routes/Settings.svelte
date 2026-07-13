@@ -377,6 +377,8 @@
   async function saveBasic(e: Event) {
     e.preventDefault();
     await setSetting('currentYear', currentYear);
+    // 保存した処理年度を全画面（概況・仕訳一覧・帳票）へ即時反映する
+    ledger.switchYear(currentYear);
     await setSetting('userBusinessName', userBusinessName);
     await setSetting('userInvoiceNumber', userInvoiceNumber);
     await setSetting('invoiceNumberPrefix', invoiceNumberPrefix);
