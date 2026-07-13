@@ -7,7 +7,7 @@
   import { buildAttachmentRecord } from '../domain/attachments';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { getSetting, setSetting } from '../lib/settings';
-  import { buildLedgerRows, type LedgerRow } from '../stores/ledger.svelte';
+  import { buildLedgerRows, ledger, type LedgerRow } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -16,7 +16,9 @@
   const PAGE_SIZE = 50;
   const now = new Date();
 
-  let year = $state(now.getFullYear());
+  // 処理年度に追従（ユーザーがセレクタで別年度を選ぶと override、Settings で年度が
+  // 変わると再計算されて追従に戻る writable derived）。
+  let year = $derived(ledger.currentYear);
   let month = $state<number | null>(now.getMonth() + 1);
   let descInput = $state('');
   let descQuery = $state('');
@@ -222,7 +224,7 @@
   }
 
   function resetFilters() {
-    year = now.getFullYear();
+    year = ledger.currentYear;
     month = now.getMonth() + 1;
     descInput = '';
     descQuery = '';
