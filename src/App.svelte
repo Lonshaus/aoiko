@@ -83,68 +83,76 @@
     </div>
   {/if}
   <header class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground">
-    <div class="container mx-auto max-w-3xl px-8 py-4 flex items-center justify-between">
-      <a href="/" use:link class="hover:opacity-80">
+    <div class="container mx-auto max-w-5xl px-8 py-4 flex items-center justify-between gap-6">
+      <a href="/" use:link class="shrink-0 hover:opacity-80">
         <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
       </a>
-      <nav class="flex gap-6 text-sm">
-        <a href="/" use:link class="text-muted-foreground hover:text-foreground transition-colors"
+      <nav class="flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
+        <a
+          href="/"
+          use:link
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_home()}</a
         >
         <a
           href="/journal"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_journal()}</a
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_journal()}</a
         >
         <a
           href="/reports"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_reports()}</a
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_reports()}</a
         >
         <a
           href="/income-deductions"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors"
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_income_deductions()}</a
         >
         <a
           href="/import"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_import()}</a
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_import()}</a
         >
         <a
           href="/order-import"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors"
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_order_import()}</a
         >
         <a
           href="/receipt"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_receipt()}</a
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_receipt()}</a
         >
         <a
           href="/invoices"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors"
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_invoices()}</a
         >
         <a
           href="/import-history"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors"
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_import_history()}</a
         >
         <a
           href="/settings"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors"
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
           >{m.nav_settings()}</a
         >
         <a
           href="/manual"
           use:link
-          class="text-muted-foreground hover:text-foreground transition-colors">{m.nav_manual()}</a
+          class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+          >{m.nav_manual()}</a
         >
       </nav>
     </div>
