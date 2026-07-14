@@ -106,12 +106,13 @@ export function stripLanguageNav(markdown: string): string {
 }
 // GitHub 互換の見出し slug。既存の章間 `#アンカー` リンクと一致させる必要があるため
 // 小文字化・記号除去・空白→ハイフン・CJK 保持で揃える。
+// 空白は 1 個ずつ '-' に置換（GitHub anchor と同形にするため、記号除去で生じた連続空白を潰さない）。
 export function slugifyHeading(text: string): string {
   return text
     .toLowerCase()
     .trim()
     .replace(/[^\p{L}\p{N} -]/gu, '')
-    .replace(/ +/g, '-');
+    .replace(/ /g, '-');
 }
 
 export interface Heading {
