@@ -36,6 +36,7 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **e-Tax `.xtx` export**: bundles the tax return (KOA020) with the matching financial statement (blue-return statements KOA210, or the income/expense breakdown statement KOA110 — switchable via filing type) into one file per the NTA's official XSD, verified against a real e-Tax software import
 - **Reports**: monthly sales, P/L, balance sheet, monthly P/L (account × month), vendor / sub-account breakdowns, consumption-tax 4-way comparison
 - **Composite search (qualified electronic ledger compliance)**: in the journal list, combine year / month / description / amount range / vendor (satisfies the Electronic Books Storage Act's "two or more arbitrary combination" requirement)
+- **Invoices & quotations**: create and print documents with line items and per-rate tax breakdowns (includes the invoice-system registration number and per-rate consumption tax amounts), auto-generates the accounts-receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion
 - **Amended filing guide**: diff between filed snapshot and current values + submission steps
 - **Backup**: File System Access API (Chromium) with OPFS (Safari/Firefox) automatic fallback
 - **PWA**: offline operation
@@ -61,6 +62,7 @@ src/
 ├── domain/                      # Domain logic (framework-agnostic, Vitest-tested)
 │   ├── journal.ts               # Journal entry creation / confirmation
 │   ├── reverse.ts               # Correcting entries
+│   ├── invoice.ts               # Invoices & quotations (receivable entry on issue)
 │   ├── reports.ts               # P/L / BS / monthly / vendor breakdowns
 │   ├── depreciation.ts          # Straight-line / declining-balance depreciation
 │   ├── carryover.ts             # Prior-period carryover (opening journal)
