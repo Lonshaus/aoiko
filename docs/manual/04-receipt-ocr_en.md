@@ -54,9 +54,9 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 
 - **"Send"** to proceed
 - **"Cancel"** to abort
-- Checking "Don't ask again" before "Send" skips this dialog for all future cloud sends
+- Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import LLM sends)
 
-> **Think twice before checking**: this is stored as IndexedDB `skipExternalSendConfirm: true` (a single flag across engines). It can't be undone via a UI toggle — to revert, go to "Settings → Data management" and reset that key (or manually edit the IndexedDB row).
+> **Think twice before checking**: this is stored as IndexedDB `skipExternalSendConfirm: true` (a single flag across engines) and there is no settings UI to undo it. If you checked it by mistake, delete that key with your browser's developer tools (IndexedDB → `aoiko` database → `settings` table). "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
 
 #### Tesseract: no dialog
 
