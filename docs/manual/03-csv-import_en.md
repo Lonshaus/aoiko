@@ -69,7 +69,7 @@ aoiko records a **file hash** (fingerprint of file contents). If you try to impo
 
 This prevents accidental duplicate imports.
 
-> A re-downloaded CSV for the same period has the same hash and is caught. CSVs with partially overlapping date ranges (e.g. last month-end to this month-end vs. this month) have different hashes and won't be detected — check for overlapping rows manually.
+> A re-downloaded CSV for the same period has the same hash and is caught by this check. CSVs with partially overlapping date ranges (e.g. last month-end to this month-end vs. this month) have different hashes, so instead each row is matched against existing CSV-derived entries by (date, account, debit/credit side, amount), and likely duplicates are auto-marked as "excluded" (a notice at the top shows the count). A genuine separate transaction with the same date and amount can be flagged by mistake — review excluded rows and un-exclude any that are real.
 
 ### 3-3. Step 3: choose the counterpart account for each row
 
