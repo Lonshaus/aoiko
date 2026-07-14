@@ -2530,6 +2530,9 @@
       </button>
     </div>
   </section>
+  <p class="text-center text-xs text-muted-foreground">
+    aoiko v{__APP_VERSION__} ({__APP_COMMIT__})
+  </p>
 </div>
 
 <AlertDialog.Root bind:open={confirmingFilingType}>
