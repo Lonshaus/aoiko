@@ -39,7 +39,7 @@
   let expandedId = $state<string | null>(null);
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
-  // 証憑写真（C7）。展開中の分錄の添付一覧と、事後添付の確認フロー。
+  // 証憑写真（C7）。展開中の仕訳の添付一覧と、事後添付の確認フロー。
   let expandedAttachments = $state<Attachment[]>([]);
   let attachmentUrls = $state<Map<string, string>>(new Map());
   let attachmentError = $state('');
