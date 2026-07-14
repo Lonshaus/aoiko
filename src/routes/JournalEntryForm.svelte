@@ -168,8 +168,13 @@
       credits = credits.filter((l) => l.id !== id);
     }
   }
-  function onAccountChange(line: DraftLine) {
+  async function onAccountChange(line: DraftLine, side: 'debit' | 'credit') {
     line.subAccountId = '';
+    // 借方は科目別の家事按分既定比率を自動入力（行ごとに変更可）。登録が無い科目は未適用に戻す
+    if (side === 'debit') {
+      const ratios = (await getSetting('homeOfficeAccountRatios')) ?? {};
+      line.homeOfficeRatio = ratios[line.accountCode] ?? '';
+    }
   }
   // 借方・貸方ともに 1 行のみ、かつ貸方が空のときに借方金額を貸方へ初期コピー
   function onDebitAmountInput(line: DraftLine, value: string) {
@@ -469,7 +474,7 @@
         <div class="space-y-2">
           <select
             bind:value={line.accountCode}
-            onchange={() => onAccountChange(line)}
+            onchange={() => onAccountChange(line, 'debit')}
             required
             class="w-full px-3 py-2 bg-background border rounded text-foreground"
           >
@@ -616,7 +621,7 @@
         <div class="space-y-2">
           <select
             bind:value={line.accountCode}
-            onchange={() => onAccountChange(line)}
+            onchange={() => onAccountChange(line, 'credit')}
             required
             class="w-full px-3 py-2 bg-background border rounded text-foreground"
           >

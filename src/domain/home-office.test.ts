@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { expandHomeOffice, HomeOfficeRatioError, type SplittableLine } from './home-office';
+import {
+  expandHomeOffice,
+  isValidDefaultRatio,
+  HomeOfficeRatioError,
+  type SplittableLine,
+} from './home-office';
 
 function line(overrides: Partial<SplittableLine> = {}): SplittableLine {
   return {
@@ -108,5 +113,24 @@ describe('expandHomeOffice', () => {
     const r = expandHomeOffice([line({ amount: '10000', homeOfficeRatio: '0.50', taxRate: 0.1 })]);
     const drawing = r.find((x) => x.accountCode === '1610');
     expect(drawing?.taxRate).toBe(0);
+  });
+});
+
+describe('isValidDefaultRatio', () => {
+  test('0 < 比率 < 1 のみ有効', () => {
+    expect(isValidDefaultRatio('0.30')).toBe(true);
+    expect(isValidDefaultRatio('0.01')).toBe(true);
+    expect(isValidDefaultRatio('0.99')).toBe(true);
+  });
+
+  test('空文字・1（適用しない）・0・範囲外・非数値は無効', () => {
+    expect(isValidDefaultRatio('')).toBe(false);
+    expect(isValidDefaultRatio('1')).toBe(false);
+    expect(isValidDefaultRatio('1.0')).toBe(false);
+    expect(isValidDefaultRatio('1.000')).toBe(false);
+    expect(isValidDefaultRatio('0')).toBe(false);
+    expect(isValidDefaultRatio('-0.3')).toBe(false);
+    expect(isValidDefaultRatio('1.5')).toBe(false);
+    expect(isValidDefaultRatio('abc')).toBe(false);
   });
 });
