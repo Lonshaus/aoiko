@@ -48,7 +48,7 @@ The **"Monthly sales"** section: each month's sales total as a bar-chart-like ta
 
 ### 3-1. Home-office allocation reflected
 
-If you used home-office allocation ([02. § 1-2](02-journal_en.md#1-2-use-the-home-office-mixed-use-allocation)), the expense side shows only the business portion. The rest goes to `1610 Owner's draws` on the balance sheet.
+If you used home-office allocation ([02. § 1-3](02-journal_en.md#1-3-use-the-home-office-mixed-use-allocation)), the expense side shows only the business portion. The rest goes to `1610 Owner's draws` on the balance sheet.
 
 ### 3-2. Depreciation reflected
 

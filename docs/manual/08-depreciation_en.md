@@ -105,7 +105,7 @@ Once **Settings → Use real estate income** is turned on, the registration form
 At year-end (or any time within), select the **"Target year"** and click **"Generate depreciation entries"**:
 
 - Calculates the year's depreciation for every registered fixed asset
-- Creates one entry per asset (Debit `5210 Depreciation` / Credit the asset account)
+- Creates one entry per asset (Debit `5210 Depreciation` / Credit `1520 Accumulated depreciation` — indirect method; the asset account itself is not reduced)
 - Skips assets whose year's depreciation entry already exists
 - Warns and skips assets exceeding the small-asset annual ¥3M cap
 
