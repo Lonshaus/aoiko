@@ -44,8 +44,6 @@ For expenses that split between business and personal at your home office:
 2. Enter a ratio (e.g. `0.30` = 30% business; the remaining 70% goes to owner's draws automatically)
 3. On submit, the line expands into 2 lines (business expense + 1610 Owner's draws)
 
-> A default ratio can be registered in **Settings → Home-office default ratio** (overridable per line).
-
 ### 1-4. Clearing the form
 
 Use **"Clear"** to reset everything mid-entry.
@@ -154,7 +152,7 @@ Original:
 
 Click "Reverse" → today-dated reversing entry is auto-generated:
 ```
-2026-05-26  Reversal: Electricity bill
+2026-05-26  [訂正] Electricity bill
   Debit   1130 Ordinary deposit   8,000
   Credit  5130 Utilities          8,000
 ```

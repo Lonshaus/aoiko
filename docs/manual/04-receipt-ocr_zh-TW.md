@@ -144,5 +144,5 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 
 ## 6. 下一步
 
-- Amazon / 楽天 等的品項層級取込 → [05. 注文取込](05-order-import_zh-TW.md)
+- Amazon / 楽天 等的品項層級取込 → [05. 訂單取込](05-order-import_zh-TW.md)
 - 取込的傳票確認・修正 → [02. 建立傳票 § 2-3](02-journal_zh-TW.md)
