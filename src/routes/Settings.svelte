@@ -1782,285 +1782,289 @@
     {/if}
 
     {#if ledger.fixedAssets.length > 0}
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-xs text-muted-foreground">
-            <th class="text-left font-normal py-1">{m.settings_asset_th_name()}</th>
-            <th class="text-left font-normal py-1">{m.settings_asset_th_date()}</th>
-            <th class="text-right font-normal py-1">{m.settings_asset_th_cost()}</th>
-            <th class="text-right font-normal py-1">{m.settings_asset_th_life()}</th>
-            <th class="text-right font-normal py-1">{m.settings_asset_th_year_depreciation()}</th>
-            <th class="text-right font-normal py-1">{m.settings_asset_th_book_value()}</th>
-            <th class="py-1"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each ledger.fixedAssets as a (a.id)}
-            {@const d = assetCurrentDepreciation(a)}
-            {@const estimate = estimateTransferIncome(a)}
-            <tr class="border-t border-border/50">
-              <td class="py-2">
-                {a.name}
-                {#if a.disposedDate}
-                  <span class="ml-1 text-xs text-muted-foreground">
-                    ({a.disposalType === 'sale'
-                      ? m.settings_asset_disposal_type_sale()
-                      : m.settings_asset_disposal_type_scrap()}
-                    {a.disposedDate})
-                  </span>
-                {/if}
-              </td>
-              <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
-              <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
-              <td class="py-2 text-right tabular-nums"
-                >{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td
-              >
-              <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
-              <td class="py-2 text-right tabular-nums text-muted-foreground">{formatJPY(d.book)}</td
-              >
-              <td class="py-2 text-right whitespace-nowrap">
-                {#if a.incomeType === 'realEstate'}
-                  <button
-                    type="button"
-                    onclick={() => startEditProperty(a)}
-                    class="text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    {m.settings_asset_property_button()}
-                  </button>
-                {/if}
-                <button
-                  type="button"
-                  onclick={() => startEditDisposal(a)}
-                  class="ml-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {a.disposedDate ? m.settings_action_edit() : m.settings_asset_disposal_button()}
-                </button>
-                <button
-                  type="button"
-                  onclick={() => askDelete(a.name, () => deleteAsset(a.id))}
-                  class="ml-2 text-xs text-muted-foreground hover:text-destructive"
-                >
-                  {m.settings_action_delete()}
-                </button>
-              </td>
+      <!-- 列数が多く狭幅で溢れるため、ページ全体ではなく表だけ横スクロールさせる -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-xs text-muted-foreground">
+              <th class="text-left font-normal py-1">{m.settings_asset_th_name()}</th>
+              <th class="text-left font-normal py-1">{m.settings_asset_th_date()}</th>
+              <th class="text-right font-normal py-1">{m.settings_asset_th_cost()}</th>
+              <th class="text-right font-normal py-1">{m.settings_asset_th_life()}</th>
+              <th class="text-right font-normal py-1">{m.settings_asset_th_year_depreciation()}</th>
+              <th class="text-right font-normal py-1">{m.settings_asset_th_book_value()}</th>
+              <th class="py-1"></th>
             </tr>
-            {#if propertyEditId === a.id}
-              <tr class="border-t border-border/50 bg-muted/30">
-                <td colspan="7" class="py-3">
-                  <div class="space-y-2">
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <input
-                        type="text"
-                        bind:value={propertyType}
-                        placeholder={m.settings_asset_property_type_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-                      />
-                      <input
-                        type="text"
-                        bind:value={propertyAddress}
-                        placeholder={m.settings_asset_property_address_placeholder()}
-                        class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
-                      />
-                      <label class="flex items-center gap-1 text-sm">
-                        <input type="checkbox" bind:checked={propertyIsResidential} />
-                        {m.settings_asset_property_residential()}
-                      </label>
-                      <input
-                        type="text"
-                        bind:value={propertyTenantName}
-                        placeholder={m.settings_asset_property_tenant_name_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-                      />
-                      <input
-                        type="text"
-                        bind:value={propertyTenantAddress}
-                        placeholder={m.settings_asset_property_tenant_address_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-                      />
-                      <input
-                        type="date"
-                        bind:value={propertyRentalStart}
-                        title={m.settings_asset_property_rental_start_title()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
-                      />
-                      <input
-                        type="date"
-                        bind:value={propertyRentalEnd}
-                        title={m.settings_asset_property_rental_end_title()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
-                      />
-                      <input
-                        type="number"
-                        bind:value={propertyAreaSqm}
-                        min="0"
-                        placeholder={m.settings_asset_property_area_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                      />
-                      <input
-                        type="number"
-                        bind:value={propertyAnnualRent}
-                        min="0"
-                        step="1"
-                        required
-                        placeholder={m.settings_asset_property_annual_rent_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                      />
-                      <input
-                        type="number"
-                        bind:value={propertyKeyMoneyEtc}
-                        min="0"
-                        step="1"
-                        placeholder={m.settings_asset_property_key_money_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                      />
-                      <input
-                        type="number"
-                        bind:value={propertyOtherIncome}
-                        min="0"
-                        step="1"
-                        placeholder={m.settings_asset_property_other_income_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                      />
-                      <input
-                        type="number"
-                        bind:value={propertyDepositBalance}
-                        min="0"
-                        step="1"
-                        placeholder={m.settings_asset_property_deposit_placeholder()}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                      />
-                    </div>
-                    {#if propertyError}
-                      <div class="text-xs text-destructive">{propertyError}</div>
-                    {/if}
-                    <div class="flex gap-2">
-                      <button
-                        type="button"
-                        onclick={saveProperty}
-                        class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
-                      >
-                        {m.settings_action_save()}
-                      </button>
-                      <button
-                        type="button"
-                        onclick={cancelEditProperty}
-                        class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
-                      >
-                        {m.settings_action_cancel()}
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            {/if}
-            {#if disposeEditId === a.id}
-              <tr class="border-t border-border/50 bg-muted/30">
-                <td colspan="7" class="py-3">
-                  <div class="space-y-2">
-                    <div class="flex flex-wrap items-center gap-2">
-                      <input
-                        type="date"
-                        bind:value={disposeDate}
-                        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
-                      />
-                      <label class="flex items-center gap-1 text-sm">
-                        <input type="radio" bind:group={disposeType} value="scrap" />
-                        {m.settings_asset_disposal_type_scrap()}
-                      </label>
-                      <label class="flex items-center gap-1 text-sm">
-                        <input type="radio" bind:group={disposeType} value="sale" />
-                        {m.settings_asset_disposal_type_sale()}
-                      </label>
-                      {#if disposeType === 'sale'}
-                        <input
-                          type="number"
-                          bind:value={disposeSalePrice}
-                          min="0"
-                          step="1"
-                          placeholder={m.settings_asset_disposal_sale_price_placeholder()}
-                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <input
-                          type="number"
-                          bind:value={disposeSaleExpenses}
-                          min="0"
-                          step="1"
-                          placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
-                          class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <select
-                          bind:value={disposeCashAccount}
-                          title={m.settings_asset_disposal_cash_account_title()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
-                        >
-                          <option value="1110">1110 現金</option>
-                          <option value="1130">1130 普通預金</option>
-                        </select>
-                      {/if}
-                    </div>
-                    {#if disposeError}
-                      <div class="text-xs text-destructive">{disposeError}</div>
-                    {/if}
-                    <div class="flex gap-2">
-                      <button
-                        type="button"
-                        onclick={saveDisposal}
-                        class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
-                      >
-                        {m.settings_action_save()}
-                      </button>
-                      <button
-                        type="button"
-                        onclick={cancelEditDisposal}
-                        class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
-                      >
-                        {m.settings_action_cancel()}
-                      </button>
-                      {#if a.disposedDate}
-                        <button
-                          type="button"
-                          onclick={() => askClearDisposal(a.name, () => clearDisposal(a.id))}
-                          class="px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive"
-                        >
-                          {m.settings_asset_disposal_clear()}
-                        </button>
-                      {/if}
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            {/if}
-            {#if a.disposedDate && disposeEditId !== a.id}
-              <tr class="border-t border-border/50 bg-muted/10">
-                <td colspan="7" class="py-2 text-xs text-muted-foreground space-y-1">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onclick={() => runDisposalEntry(a.id)}
-                      class="px-3 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
-                    >
-                      {m.settings_asset_disposal_run_button()}
-                    </button>
-                    {#if disposeStatus[a.id]}
-                      <span>{disposeStatus[a.id]}</span>
-                    {/if}
-                  </div>
-                  {#if estimate}
-                    <p>
-                      {m.settings_asset_disposal_transfer_estimate({
-                        proceeds: formatJPY(estimate.proceeds),
-                        acquisitionExpense: formatJPY(estimate.acquisitionExpense),
-                        estimate: formatJPY(estimate.estimate),
-                        years: estimate.holdingYears,
-                      })}
-                    </p>
+          </thead>
+          <tbody>
+            {#each ledger.fixedAssets as a (a.id)}
+              {@const d = assetCurrentDepreciation(a)}
+              {@const estimate = estimateTransferIncome(a)}
+              <tr class="border-t border-border/50">
+                <td class="py-2">
+                  {a.name}
+                  {#if a.disposedDate}
+                    <span class="ml-1 text-xs text-muted-foreground">
+                      ({a.disposalType === 'sale'
+                        ? m.settings_asset_disposal_type_sale()
+                        : m.settings_asset_disposal_type_scrap()}
+                      {a.disposedDate})
+                    </span>
                   {/if}
                 </td>
+                <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
+                <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
+                <td class="py-2 text-right tabular-nums"
+                  >{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td
+                >
+                <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
+                <td class="py-2 text-right tabular-nums text-muted-foreground"
+                  >{formatJPY(d.book)}</td
+                >
+                <td class="py-2 text-right whitespace-nowrap">
+                  {#if a.incomeType === 'realEstate'}
+                    <button
+                      type="button"
+                      onclick={() => startEditProperty(a)}
+                      class="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {m.settings_asset_property_button()}
+                    </button>
+                  {/if}
+                  <button
+                    type="button"
+                    onclick={() => startEditDisposal(a)}
+                    class="ml-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {a.disposedDate ? m.settings_action_edit() : m.settings_asset_disposal_button()}
+                  </button>
+                  <button
+                    type="button"
+                    onclick={() => askDelete(a.name, () => deleteAsset(a.id))}
+                    class="ml-2 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    {m.settings_action_delete()}
+                  </button>
+                </td>
               </tr>
-            {/if}
-          {/each}
-        </tbody>
-      </table>
+              {#if propertyEditId === a.id}
+                <tr class="border-t border-border/50 bg-muted/30">
+                  <td colspan="7" class="py-3">
+                    <div class="space-y-2">
+                      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <input
+                          type="text"
+                          bind:value={propertyType}
+                          placeholder={m.settings_asset_property_type_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        />
+                        <input
+                          type="text"
+                          bind:value={propertyAddress}
+                          placeholder={m.settings_asset_property_address_placeholder()}
+                          class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        />
+                        <label class="flex items-center gap-1 text-sm">
+                          <input type="checkbox" bind:checked={propertyIsResidential} />
+                          {m.settings_asset_property_residential()}
+                        </label>
+                        <input
+                          type="text"
+                          bind:value={propertyTenantName}
+                          placeholder={m.settings_asset_property_tenant_name_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        />
+                        <input
+                          type="text"
+                          bind:value={propertyTenantAddress}
+                          placeholder={m.settings_asset_property_tenant_address_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                        />
+                        <input
+                          type="date"
+                          bind:value={propertyRentalStart}
+                          title={m.settings_asset_property_rental_start_title()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                        />
+                        <input
+                          type="date"
+                          bind:value={propertyRentalEnd}
+                          title={m.settings_asset_property_rental_end_title()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                        />
+                        <input
+                          type="number"
+                          bind:value={propertyAreaSqm}
+                          min="0"
+                          placeholder={m.settings_asset_property_area_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={propertyAnnualRent}
+                          min="0"
+                          step="1"
+                          required
+                          placeholder={m.settings_asset_property_annual_rent_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={propertyKeyMoneyEtc}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_property_key_money_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={propertyOtherIncome}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_property_other_income_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                        <input
+                          type="number"
+                          bind:value={propertyDepositBalance}
+                          min="0"
+                          step="1"
+                          placeholder={m.settings_asset_property_deposit_placeholder()}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                        />
+                      </div>
+                      {#if propertyError}
+                        <div class="text-xs text-destructive">{propertyError}</div>
+                      {/if}
+                      <div class="flex gap-2">
+                        <button
+                          type="button"
+                          onclick={saveProperty}
+                          class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+                        >
+                          {m.settings_action_save()}
+                        </button>
+                        <button
+                          type="button"
+                          onclick={cancelEditProperty}
+                          class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
+                        >
+                          {m.settings_action_cancel()}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {/if}
+              {#if disposeEditId === a.id}
+                <tr class="border-t border-border/50 bg-muted/30">
+                  <td colspan="7" class="py-3">
+                    <div class="space-y-2">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <input
+                          type="date"
+                          bind:value={disposeDate}
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                        />
+                        <label class="flex items-center gap-1 text-sm">
+                          <input type="radio" bind:group={disposeType} value="scrap" />
+                          {m.settings_asset_disposal_type_scrap()}
+                        </label>
+                        <label class="flex items-center gap-1 text-sm">
+                          <input type="radio" bind:group={disposeType} value="sale" />
+                          {m.settings_asset_disposal_type_sale()}
+                        </label>
+                        {#if disposeType === 'sale'}
+                          <input
+                            type="number"
+                            bind:value={disposeSalePrice}
+                            min="0"
+                            step="1"
+                            placeholder={m.settings_asset_disposal_sale_price_placeholder()}
+                            class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          <input
+                            type="number"
+                            bind:value={disposeSaleExpenses}
+                            min="0"
+                            step="1"
+                            placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
+                            class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          <select
+                            bind:value={disposeCashAccount}
+                            title={m.settings_asset_disposal_cash_account_title()}
+                            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+                          >
+                            <option value="1110">1110 現金</option>
+                            <option value="1130">1130 普通預金</option>
+                          </select>
+                        {/if}
+                      </div>
+                      {#if disposeError}
+                        <div class="text-xs text-destructive">{disposeError}</div>
+                      {/if}
+                      <div class="flex gap-2">
+                        <button
+                          type="button"
+                          onclick={saveDisposal}
+                          class="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+                        >
+                          {m.settings_action_save()}
+                        </button>
+                        <button
+                          type="button"
+                          onclick={cancelEditDisposal}
+                          class="px-3 py-1.5 border rounded text-sm hover:bg-muted"
+                        >
+                          {m.settings_action_cancel()}
+                        </button>
+                        {#if a.disposedDate}
+                          <button
+                            type="button"
+                            onclick={() => askClearDisposal(a.name, () => clearDisposal(a.id))}
+                            class="px-3 py-1.5 text-sm text-muted-foreground hover:text-destructive"
+                          >
+                            {m.settings_asset_disposal_clear()}
+                          </button>
+                        {/if}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {/if}
+              {#if a.disposedDate && disposeEditId !== a.id}
+                <tr class="border-t border-border/50 bg-muted/10">
+                  <td colspan="7" class="py-2 text-xs text-muted-foreground space-y-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onclick={() => runDisposalEntry(a.id)}
+                        class="px-3 py-1 bg-primary text-primary-foreground rounded hover:opacity-90"
+                      >
+                        {m.settings_asset_disposal_run_button()}
+                      </button>
+                      {#if disposeStatus[a.id]}
+                        <span>{disposeStatus[a.id]}</span>
+                      {/if}
+                    </div>
+                    {#if estimate}
+                      <p>
+                        {m.settings_asset_disposal_transfer_estimate({
+                          proceeds: formatJPY(estimate.proceeds),
+                          acquisitionExpense: formatJPY(estimate.acquisitionExpense),
+                          estimate: formatJPY(estimate.estimate),
+                          years: estimate.holdingYears,
+                        })}
+                      </p>
+                    {/if}
+                  </td>
+                </tr>
+              {/if}
+            {/each}
+          </tbody>
+        </table>
+      </div>
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
