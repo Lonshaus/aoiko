@@ -9,7 +9,9 @@ export type SettingsMap = {
   backupFolderHandle: FileSystemDirectoryHandle | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
-  homeOfficeDefaultRatio: string;
+  // 家事按分の科目別既定比率（accountCode → '0.30' 等の 0〜1 Decimal 文字列）。
+  // 記帳フォームで該当科目を選ぶと自動入力される（行ごとに変更可）。
+  homeOfficeAccountRatios: Record<string, string>;
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
