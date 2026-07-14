@@ -67,7 +67,7 @@ Then choose **Filing Type** — **blue return or white return** — via the radi
 
 ## 4. Choose a consumption tax method
 
-In the **"Consumption tax"** section, pick a method (this tool only provides **estimates and comparisons**; the actual tax return form is out of scope).
+In the **"Consumption tax"** section, pick a method (`.xtx` output of the actual return is supported for **general taxation, the 20% special rule, and simplified taxation with a single business category**; multi-category simplified taxation and the 30% special rule are estimate/comparison only. See [07. Consumption tax](07-consumption-tax_en.md)).
 
 ### 4-1. Tax obligation
 
