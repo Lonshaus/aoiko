@@ -41,7 +41,7 @@ For an asset with a period of private use, you must NOT use the original purchas
 
 Enter the asset name, purchase date, purchase price, useful life, and account, and the following are computed automatically:
 
-- **Private-use period depreciation**: computed using the old straight-line rate for a useful life of 1.5× the original, over the private-use period (rounded down under 6 months, rounded up to a full year at 6 months or more)
+- **Private-use period depreciation**: acquisition cost × 0.9 × the old straight-line rate for a useful life of 1.5× the original, over the private-use period (rounded down under 6 months, rounded up to a full year at 6 months or more)
 - **Opening book value**: the purchase price minus this depreciation. This is registered as the fixed asset's acquisition cost (with the acquisition date set to your business start date)
 
 ### 4-2. About the small-asset special provision (please note)

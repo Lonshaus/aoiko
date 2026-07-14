@@ -19,14 +19,14 @@ aoiko keeps double-entry books regardless of filing type (Blue or White Return),
 - Prior year-end **liability balances** become the new year's credits
 - Prior year's **net income** and **owner's draws/contributions** are absorbed into **Owner's Capital**
 
-This opening journal entry is what aoiko's **"Settings → Prior-period carryover (opening balances)"** auto-generates.
+This opening journal entry is what aoiko's **"Settings → Prior-period carryover (opening balance)"** auto-generates.
 
 ## 2. The opening entry's structure
 
 Example: 2026 fiscal year opening entry (prior 2025 year-end values)
 
 ```
-2026-01-01  Prior-period carryover (opening balances)
+2026-01-01  前期繰越（2025年から）
   Debit   1110 Cash                 500,000
   Debit   1130 Ordinary deposit   1,200,000
   Debit   1310 Accounts receivable  300,000
@@ -54,7 +54,7 @@ Settings → **"Current fiscal year"** → set to the new year (e.g. 2026) → *
 
 ### 3-2. Preview
 
-In Settings → **"Prior-period carryover (opening balances)"** → click **"Preview"**:
+In Settings → **"Prior-period carryover (opening balance)"** → click **"Preview"**:
 
 - Shows the debit (assets) and credit (liabilities + capital) breakdown
 - Shows the capital calculation basis:
@@ -118,7 +118,7 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 
 - The carryover entry is dated `2026-01-01` (year-start)
 - You cannot create it twice in the same year; recreate via delete-then-create
-- The entry's `description` is "Prior-period carryover (opening balances)"
+- The entry's `description` is「前期繰越（○○年から）」(fixed Japanese text that includes the prior year)
 - Internally tagged as `source: 'carryover'` (filterable via [02. § 2-1](02-journal_en.md#2-1-filters))
 
 ## 7. Next steps
