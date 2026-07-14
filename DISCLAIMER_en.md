@@ -52,3 +52,14 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 ## 7. License
 
 This software is distributed under the **GNU Affero General Public License v3.0** (AGPL-3.0). See [LICENSE](LICENSE) for details.
+
+## Revision history
+
+Corresponds to the version number shown in the consent status.
+
+| version | Date | Changes |
+| --- | --- | --- |
+| 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
+| 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |
+| 2 | 2026-06-28 | `.xtx` revised from "provisional — do not use for actual filing" to "covers the business portion; loadable into e-Tax Software (download edition)" |
+| 1 | 2026-05-11 | Initial version |
