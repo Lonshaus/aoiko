@@ -185,6 +185,7 @@
 | 前期繰越（期首殘高）| [09. 前期繰越](09-carryover_zh-TW.md) |
 | 自動分類規則 | [03. CSV 匯入](03-csv-import_zh-TW.md) |
 | 勘定科目 | 只是看標準科目表，沒有新增 UI（[seed.ts](../../src/tax-schema/2026/accounts.ts) 是來源）|
+| 家事按分預設比例 | [02. 建立傳票](02-journal_zh-TW.md#1-3-使用家事分攤) |
 | 優良な電子帳簿 | 検索機能要件的自我檢查顯示 |
 | 還原 | [11. 備份與還原](11-backup_zh-TW.md) |
 | 資料管理 | [11. 備份與還原](11-backup_zh-TW.md)（JSON 匯出／全部刪除）|
