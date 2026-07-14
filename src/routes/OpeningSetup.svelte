@@ -96,6 +96,14 @@
       return null;
     }
   }
+  // 少額特例の 30/40 万円閾値切替（令和8年改正、2026-04-01）は事業供用日ではなく取得日で判定する（措法 28 の 2）
+  function smallAssetEligibleByAcquisition(row: ConvertedAssetRow): boolean {
+    const basis = assetBasis(row);
+    if (!basis) {
+      return false;
+    }
+    return isSmallAssetEligible(row.acquisitionDate, basis.businessStartBasis.toString());
+  }
   function toggleSmallAssetSpecial(row: ConvertedAssetRow) {
     row.applySmallAssetSpecial = !row.applySmallAssetSpecial;
     row.depreciationMethod = row.applySmallAssetSpecial ? 'small-asset-special' : 'straight-line';
@@ -161,7 +169,11 @@
           acquisitionCost: a.acquisitionCost,
           usefulLifeYears: a.usefulLifeYears,
           accountCode: a.accountCode,
-          depreciationMethod: a.depreciationMethod,
+          // チェック後に取得日等を書き換えて不適格になった行の取りこぼし防止
+          depreciationMethod:
+            a.depreciationMethod === 'small-asset-special' && !smallAssetEligibleByAcquisition(a)
+              ? 'straight-line'
+              : a.depreciationMethod,
         })),
         customItems: items,
       });
@@ -338,21 +350,21 @@
                   })}
                 </p>
                 {#if filingType === 'blue'}
+                  {@const eligible = smallAssetEligibleByAcquisition(row)}
                   <label class="flex items-start gap-2 text-xs">
                     <input
                       type="checkbox"
-                      checked={row.applySmallAssetSpecial}
+                      checked={row.applySmallAssetSpecial && eligible}
+                      disabled={!eligible}
                       onchange={() => toggleSmallAssetSpecial(row)}
                     />
                     <span>
                       {m.opening_small_asset_apply_label()}
-                      {#if isSmallAssetEligible(businessStartDate, basis.businessStartBasis.toString())}
-                        <span class="text-muted-foreground">
-                          {m.opening_small_asset_threshold_note({
-                            threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))),
-                          })}
-                        </span>
-                      {/if}
+                      <span class="text-muted-foreground">
+                        {m.opening_small_asset_threshold_note({
+                          threshold: formatJPY(String(smallAssetThreshold(row.acquisitionDate))),
+                        })}
+                      </span>
                     </span>
                   </label>
                   <p class="text-xs text-amber-600">{m.opening_gray_area_warning()}</p>
