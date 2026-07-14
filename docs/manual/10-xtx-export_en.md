@@ -8,7 +8,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 > - Export the tax return (KOA020) + the matching statement — blue-return financial statements (KOA210) or, for white return, the income/expense breakdown statement (KOA110) — into one `.xtx`
 > - If real estate income is entered, the real-estate financial statements (KOA220 for blue, KOA130 for white) are attached to the same `.xtx` too (see [14. Income & tax deductions](14-income-deductions_en.md))
 > - Load the exported `.xtx` into e-Tax software (download edition)
-> - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax, the white-return family-employee deduction)
+> - Understand what aoiko fills (the business part, plus income deductions and tax if [14. Income & tax deductions](14-income-deductions_en.md) is filled in) vs. what you complete in e-Tax
 >
 > **Prerequisites**: Basic info and filer info from [01. Setup](01-setup_en.md), opening transfers from [09. Carryover](09-carryover_en.md), year-end depreciation from [08. Depreciation](08-depreciation_en.md), and confirmed journal entries for the year.
 
@@ -55,19 +55,19 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 |---|---|
 | Breakdown statement p.1: revenue, expense by category, pre-family-deduction income | PL |
 
-> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and bad-debt-reserve entries have no matching field on the breakdown statement and are excluded from the income calculation too (see "Excluded" below).
+> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and bad-debt-reserve entries have no matching field on the breakdown statement and are excluded from the income calculation too (see "Completed in e-Tax" below).
 
-### Excluded (completed in e-Tax)
+### Completed in e-Tax
 
 | Item | How to complete |
 |---|---|
-| **Income deductions** (basic, spouse, social insurance, medical, etc.) | Enter in e-Tax |
-| **Total income, taxable income, tax calculation** | Auto-computed in e-Tax |
+| **Income deductions** (basic, spouse, social insurance, medical, etc.) | Output automatically if entered in [14. Income & tax deductions](14-income-deductions_en.md); otherwise enter in e-Tax |
+| **Total income, taxable income, tax calculation** | Same as above (computed and output by aoiko when deductions are entered; otherwise auto-computed in e-Tax) |
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
 | **Consumption tax return** (multi-category simplified taxation, 30% special) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and single-category simplified taxation have `.xtx` export: [§ 6](#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption Tax](07-consumption-tax_en.md)) |
 | **White-return family-employee deduction** (flat ¥860,000 for a spouse, ¥500,000 per other relative) and the post-deduction income | Enter in e-Tax (aoiko does not compute it — it depends on relationship data aoiko doesn't track) |
 
-> This division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the personal deductions and tax are completed by the filer in e-Tax at filing time.
+> The baseline division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the rest is completed by the filer in e-Tax at filing time. aoiko additionally outputs income deductions and tax when [14. Income & tax deductions](14-income-deductions_en.md) is filled in.
 
 ## 3. Export steps
 
@@ -101,7 +101,7 @@ aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
    - Blue return: P&L, monthly, and balance sheet match aoiko's reports
    - White return: the breakdown statement's revenue, expense categories, and pre-family-deduction income match aoiko's reports
    - Tax return p.1: business revenue, business income (blue return only: the blue-return deduction), name, address, tax office are correct
-6. Enter remaining items (income deductions, tax, and for white return the family-employee deduction) in e-Tax
+6. Enter remaining items in e-Tax (if [14. Income & tax deductions](14-income-deductions_en.md) is filled in, deductions and tax are already output; what remains is unentered deductions and, for white return, the family-employee deduction)
 7. **If loading errors out**: the export may have a problem — please report via GitHub Issue.
 
 ## 5. Internal spec (reference)

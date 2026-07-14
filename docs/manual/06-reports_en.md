@@ -117,7 +117,7 @@ For taxable businesses, **"Consumption-tax 4-method comparison"** runs the year'
 
 Lined up like this, the **lowest-payable method** is easy to spot.
 
-> **Important**: aoiko provides **estimates and comparison only**. The actual consumption-tax return form (and supporting tables 2-3 etc.) is out of scope. Use the online preparation corner ("作成コーナー") or a tax accountant for actual filing. Details in [07. Consumption tax](07-consumption-tax_en.md).
+> **Important**: this screen provides **estimates and comparison**. `.xtx` output of the actual return is supported for **general taxation, the 20% special provision, and simplified taxation (single business category only)** ([10. `.xtx` export § 6](10-xtx-export_en.md#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). Multi-category simplified taxation and the 30% special provision are out of scope for form generation — use the online preparation corner ("作成コーナー") or a tax accountant for those. Details in [07. Consumption tax](07-consumption-tax_en.md).
 
 ## 8. Year lock (Filed)
 
