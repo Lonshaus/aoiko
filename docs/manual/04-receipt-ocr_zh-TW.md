@@ -54,9 +54,9 @@
 
 - 確認後按「**送出**」執行
 - 「**取消**」中止
-- 勾「下次起不問」後送出、之後同一引擎不再跳對話框
+- 勾「下次起不問」後送出，之後**所有引擎**（OCR・CSV・訂單取込的 LLM 送出共通）都不再跳對話框
 
-> **勾之前請三思**：這會存到 IndexedDB `skipExternalSendConfirm: true`（全引擎共通旗標）。沒有獨立 UI 開關可解除。誤勾的話請從「設定 → 資料管理」重置該 key（或手動編輯 IndexedDB）。
+> **勾之前請三思**：這會存到 IndexedDB `skipExternalSendConfirm: true`（全引擎共通旗標），設定畫面沒有解除手段。誤勾的話請用瀏覽器開發者工具刪掉該 key（IndexedDB → `aoiko` 資料庫 → `settings` 表）。「設定 → 資料管理」的全資料刪除連帳簿一起消失，是最後手段。
 
 #### Tesseract：不跳對話框
 
