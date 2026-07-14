@@ -10,7 +10,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 > - Load the exported `.xtx` into e-Tax software (download edition)
 > - Understand what aoiko fills (the business part) vs. what you complete in e-Tax (deductions, tax, the white-return family-employee deduction)
 >
-> **Prerequisites**: Basic info and filer info from [01. Setup](01-setup.md), opening transfers from [09. Carryover](09-carryover.md), year-end depreciation from [08. Depreciation](08-depreciation.md), and confirmed journal entries for the year.
+> **Prerequisites**: Basic info and filer info from [01. Setup](01-setup_en.md), opening transfers from [09. Carryover](09-carryover_en.md), year-end depreciation from [08. Depreciation](08-depreciation_en.md), and confirmed journal entries for the year.
 
 ## 1. What `.xtx` is
 
@@ -77,8 +77,8 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 2. **Settings ＞ Filing Type** matches your actual filing (blue or white return)
 3. For blue return, **Settings ＞ Blue-return special deduction** type (650k/550k/100k) is correct
 4. All journal entries for the year are **confirmed**
-5. **Opening transfers** ([09. Carryover](09-carryover.md)) exist dated `2026-01-01`
-6. **Depreciation entries** generated at year end ([08. § 3](08-depreciation.md#3-年末に減価償却仕訳を生成))
+5. **Opening transfers** ([09. Carryover](09-carryover_en.md)) exist dated `2026-01-01`
+6. **Depreciation entries** generated at year end ([08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation))
 7. For blue return, Reports ＞ BS shows **assets = liabilities + equity** (no imbalance warning). White return's breakdown statement has no balance sheet, so this check doesn't apply
 
 ### 3-2. File name
@@ -161,6 +161,6 @@ Separately from income tax, install the **consumption tax year module** first, t
 
 ## 8. Next steps
 
-- Lock the year after filing → [06. Reports § 8](06-reports.md#8-年度ロック申告済み)
-- Found a mistake after filing → [12. Amended Return](12-amended.md)
-- Take a backup → [11. Backup & Restore](11-backup.md)
+- Lock the year after filing → [06. Reports § 8](06-reports_en.md#8-year-lock-filed)
+- Found a mistake after filing → [12. Amended Return](12-amended_en.md)
+- Take a backup → [11. Backup & Restore](11-backup_en.md)
