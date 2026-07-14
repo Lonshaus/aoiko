@@ -33,6 +33,12 @@ describe('slugifyHeading', () => {
       '1-2-use-the-home-office-mixed-use-allocation',
     );
   });
+  it('記号除去で生じた連続空白は潰さない（GitHub anchor 互換）', () => {
+    expect(slugifyHeading('7. Prepare OCR / LLM (if needed)')).toBe('7-prepare-ocr--llm-if-needed');
+    expect(slugifyHeading('1. 手動で仕訳を作る — ホーム画面')).toBe(
+      '1-手動で仕訳を作る--ホーム画面',
+    );
+  });
 });
 
 describe('extractHeadings', () => {
