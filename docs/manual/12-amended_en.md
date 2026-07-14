@@ -126,13 +126,13 @@ Discovered: MacBook was depreciated over 4 years which is correct under tax law,
 5. File amended return
 6. Re-lock
 
-### Case D: deduction correction (outside aoiko's scope)
+### Case D: deduction correction (no journal correction needed)
 
 ```
 Discovered: forgot to claim medical-expense deduction
 ```
 
-aoiko doesn't handle deductions. File a **request for correction** directly on the e-Tax side. No aoiko-side change needed (no business-income change).
+File a **request for correction** directly on the e-Tax side. There is no business-income change, so no journal correction or unlock is needed. If you use aoiko's [income-deductions screen](14-income-deductions_en.md) (estimation and `.xtx` prefill; not covered by the year lock), update its values too to keep your records current.
 
 ## 5. Deadlines and notes
 
