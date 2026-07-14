@@ -9,6 +9,7 @@
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
+  import { isValidDefaultRatio } from '../domain/home-office';
   import { parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
     exportCorrectionHistoryCsv,
@@ -86,6 +87,10 @@
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
+  let homeOfficeRatios = $state<Record<string, string>>({});
+  let hoRatioAccount = $state('');
+  let hoRatioValue = $state('');
+  let hoRatioError = $state('');
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let confirmingRestore = $state(false);
@@ -315,7 +320,31 @@
     filingType = (await getSetting('filingType')) ?? 'blue';
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
+    homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
   });
+
+  const expenseAccounts = $derived(ledger.accounts.filter((a) => a.category === 'expense'));
+  function accountLabel(code: string): string {
+    const a = ledger.accounts.find((x) => x.code === code);
+    return a ? `${a.code} ${a.name}` : code;
+  }
+  async function addHomeOfficeRatio() {
+    hoRatioError = '';
+    if (!hoRatioAccount || !isValidDefaultRatio(hoRatioValue)) {
+      hoRatioError = m.settings_home_office_ratio_invalid();
+      return;
+    }
+    homeOfficeRatios = { ...homeOfficeRatios, [hoRatioAccount]: hoRatioValue };
+    await setSetting('homeOfficeAccountRatios', $state.snapshot(homeOfficeRatios));
+    hoRatioAccount = '';
+    hoRatioValue = '';
+  }
+  async function removeHomeOfficeRatio(code: string) {
+    const next = { ...homeOfficeRatios };
+    delete next[code];
+    homeOfficeRatios = next;
+    await setSetting('homeOfficeAccountRatios', $state.snapshot(homeOfficeRatios));
+  }
 
   async function saveConsumptionTax() {
     await setSetting('taxRegistration', taxRegistration);
@@ -2512,6 +2541,68 @@
       </div>
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_disclaimer_not_accepted()}</p>
+    {/if}
+  </section>
+
+  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+    <h3 class="text-lg font-semibold">{m.settings_home_office_title()}</h3>
+    <p class="text-xs text-muted-foreground">{m.settings_home_office_intro()}</p>
+    {#if Object.keys(homeOfficeRatios).length === 0}
+      <p class="text-sm text-muted-foreground">{m.settings_home_office_empty()}</p>
+    {:else}
+      <ul class="space-y-1 text-sm">
+        {#each Object.entries(homeOfficeRatios) as [code, ratio] (code)}
+          <li class="flex items-center gap-3">
+            <span>{accountLabel(code)}</span>
+            <span class="tabular-nums text-muted-foreground">{ratio}</span>
+            <button
+              type="button"
+              onclick={() => removeHomeOfficeRatio(code)}
+              class="text-xs text-destructive hover:underline"
+            >
+              {m.settings_action_delete()}
+            </button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        addHomeOfficeRatio();
+      }}
+      class="flex flex-wrap gap-2 items-center"
+    >
+      <select
+        bind:value={hoRatioAccount}
+        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+      >
+        <option value="">{m.journal_form_account_select()}</option>
+        {#each expenseAccounts as a (a.code)}
+          <option value={a.code}>{a.code} {a.name}</option>
+        {/each}
+      </select>
+      <input
+        type="number"
+        value={hoRatioValue}
+        oninput={(e) => {
+          hoRatioValue = (e.target as HTMLInputElement).value;
+        }}
+        min="0.01"
+        max="0.99"
+        step="0.01"
+        placeholder="0.30"
+        class="w-24 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+      />
+      <button
+        type="submit"
+        class="px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+      >
+        {m.settings_action_add()}
+      </button>
+    </form>
+    {#if hoRatioError}
+      <p class="text-xs text-destructive">{hoRatioError}</p>
     {/if}
   </section>
 

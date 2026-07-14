@@ -185,6 +185,7 @@ The following Settings sections have their own dedicated chapters and are covere
 | Prior-period carryover (opening balances) | [09. Prior-period carryover](09-carryover_en.md) |
 | Auto-classification rules | [03. CSV import](03-csv-import_en.md) |
 | Accounts | Read-only view of the standard chart of accounts. No add UI ([seed.ts](../../src/tax-schema/2026/accounts.ts) is the source) |
+| Home-office allocation default ratios | [02. Creating journal entries](02-journal_en.md#1-3-use-the-home-office-mixed-use-allocation) |
 | Qualified electronic ledger | Self-check display for the search-capability requirements |
 | Restore | [11. Backup and restore](11-backup_en.md) |
 | Data management | [11. Backup and restore](11-backup_en.md) (JSON export / wipe everything) |

@@ -48,6 +48,16 @@ function parseRatio(ratio: string): { apply: boolean; value: ReturnType<typeof D
   }
   return { apply: true, value: d };
 }
+// 設定「家事按分の既定比率」用の検証。分割が意味を持つ 0 < 比率 < 1 のみ許可
+// （'' と '1' は「適用しない」の意味のため既定比率としては不可）。
+export function isValidDefaultRatio(ratio: string): boolean {
+  try {
+    const { apply, value } = parseRatio(ratio);
+    return apply && value.lessThan(1);
+  } catch {
+    return false;
+  }
+}
 // 借方明細群を受け取り、家事按分のあるものを分解した新しい配列を返す。
 // 個人使用分（事業主貸）は合算され、必要なら 1 行追加される。
 export function expandHomeOffice(debits: SplittableLine[]): SplittableLine[] {
