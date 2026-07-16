@@ -159,7 +159,7 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 4. Click **"Fetch model list"** → select an OCR model and a classification model
 5. **"Save"** → **"Test connection"**
 
-> - OCR requires a **vision-capable model** (llama3.2-vision / ministral-3 / moondream etc.)
+> - OCR requires a **vision-capable model** (gemma4 / ministral-3 / llama3.2-vision etc.)
 > - To use localhost, aoiko must also run **locally** (`npm run preview`); aoiko served over HTTPS cannot reach `http://localhost`
 > - Set `OLLAMA_ORIGINS` on the Ollama side to allow aoiko's URL
 
