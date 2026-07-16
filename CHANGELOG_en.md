@@ -4,6 +4,18 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.1] - 2026-07-16
+
+### Fixed
+
+- Mobile width (~400px) support: the header collapses into a hamburger menu on narrow screens, and the journal list, recent entries on Home, and import history tables scroll horizontally (the amount column used to be cut off). Also fixed the fixed-asset form select overflowing the screen and the monthly summary numbers being clipped on narrow widths
+- Added a revision history section to the disclaimer (mapping the version number shown in the consent status to its changes)
+- Updated manual pages, UI strings, and disclaimer statements that were left stale after the income-deduction and consumption-tax `.xtx` features landed (triggers a one-time disclaimer re-consent)
+
+### Changed
+
+- Refreshed README screenshots; each language's README now shows the UI in that language
+
 ## [1.0.0] - 2026-07-13
 
 Initial release.
@@ -23,4 +35,5 @@ Initial release.
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
 - PWA offline operation, trilingual UI (日本語 / English / 繁體中文)
 
+[1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0

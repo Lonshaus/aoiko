@@ -1675,38 +1675,40 @@
         <summary class="cursor-pointer"
           >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
         >
-        <table class="w-full text-xs tabular-nums mt-2">
-          <thead>
-            <tr class="text-muted-foreground border-b">
-              <th class="text-left font-normal py-1 pr-2"
-                >{m.reports_consumption_tax_th_method()}</th
-              >
-              <th class="text-right font-normal px-2"
-                >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th
-              >
-              <th class="text-right font-normal px-2"
-                >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th
-              >
-              <th class="text-right font-normal px-2"
-                >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th
-              >
-              <th class="text-right font-normal px-2"
-                >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th
-              >
-            </tr>
-          </thead>
-          <tbody>
-            {#each ct as r (`bd-${r.method}`)}
-              <tr class="border-b border-border/30">
-                <td class="py-1 pr-2">{consumptionTaxMethodLabel(r, cat)}</td>
-                <td class="text-right px-2">{formatJPY(r.netTax.national)}</td>
-                <td class="text-right px-2">{formatJPY(r.netTax.local)}</td>
-                <td class="text-right px-2">{formatJPY(r.filingRounded.national)}</td>
-                <td class="text-right px-2">{formatJPY(r.filingRounded.local)}</td>
+        <div class="overflow-x-auto mt-2">
+          <table class="w-full text-xs tabular-nums">
+            <thead>
+              <tr class="text-muted-foreground border-b">
+                <th class="text-left font-normal py-1 pr-2"
+                  >{m.reports_consumption_tax_th_method()}</th
+                >
+                <th class="text-right font-normal px-2"
+                  >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th
+                >
+                <th class="text-right font-normal px-2"
+                  >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th
+                >
+                <th class="text-right font-normal px-2"
+                  >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th
+                >
+                <th class="text-right font-normal px-2"
+                  >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th
+                >
               </tr>
-            {/each}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {#each ct as r (`bd-${r.method}`)}
+                <tr class="border-b border-border/30">
+                  <td class="py-1 pr-2">{consumptionTaxMethodLabel(r, cat)}</td>
+                  <td class="text-right px-2">{formatJPY(r.netTax.national)}</td>
+                  <td class="text-right px-2">{formatJPY(r.netTax.local)}</td>
+                  <td class="text-right px-2">{formatJPY(r.filingRounded.national)}</td>
+                  <td class="text-right px-2">{formatJPY(r.filingRounded.local)}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
       </details>
       <p class="text-xs text-muted-foreground border-t pt-2">
         {m.reports_consumption_tax_caveat()}

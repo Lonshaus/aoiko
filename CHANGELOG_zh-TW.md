@@ -4,6 +4,18 @@
 
 本檔案格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版號遵循 [Semantic Versioning](https://semver.org/)。對 aoiko 而言，「破壞相容性的變更（major）」指讓既有備份 JSON 或瀏覽器內資料（IndexedDB）無法被新版讀取的變更。
 
+## [1.0.1] - 2026-07-16
+
+### 修正
+
+- 手機寬度（400px 級）支援：窄畫面時 header 收合為漢堡選單，傳票列表・首頁最近傳票・匯入紀錄的表格可橫向捲動（原本金額欄會被切掉看不到）。同時修正固定資產表單的下拉選單超出畫面、首頁「本月概況」數字在窄幅被截斷的問題
+- 免責事項新增修訂紀錄小節（同意狀態顯示的 version 號碼與變更內容的對應表）
+- 全面更新所得控除・消費稅申告書 `.xtx` 支援後未同步的手冊・UI 文字・免責事項記述（會觸發一次免責事項重新同意）
+
+### 變更
+
+- 更新 README 截圖；三個語言的 README 各自顯示該語言的 UI 畫面
+
 ## [1.0.0] - 2026-07-13
 
 初版發佈。
@@ -23,4 +35,5 @@
 - JSON 備份與還原（File System Access API，自動 fallback 到 OPFS）
 - PWA 離線運作、三語 UI（日本語／English／繁體中文）
 
+[1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0
