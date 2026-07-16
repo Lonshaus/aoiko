@@ -24,7 +24,7 @@
         {m.home_overview_entry_count({ count: overview.entryCount })}
       </div>
     </header>
-    <div class="grid grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-8">
       <div>
         <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
         <div class="text-3xl font-bold tabular-nums">{formatJPY(overview.revenue)}</div>
@@ -55,7 +55,7 @@
     </header>
 
     {#if ledger.recentLedgerRows.length > 0}
-      <div class="bg-card text-card-foreground rounded-xl overflow-hidden shadow-sm">
+      <div class="bg-card text-card-foreground rounded-xl overflow-x-auto shadow-sm">
         <table class="w-full text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">

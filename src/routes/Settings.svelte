@@ -1714,7 +1714,7 @@
         <select
           bind:value={newAssetAccount}
           title={m.settings_asset_account_title()}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="1510">1510 工具器具備品</option>
           <option value="1511">1511 建物</option>
@@ -1724,7 +1724,7 @@
         <select
           bind:value={newAssetMethod}
           title={m.settings_asset_method_title()}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="straight-line">{m.settings_asset_method_straight()}</option>
           <option value="declining-balance">{m.settings_asset_method_declining()}</option>
@@ -1737,7 +1737,7 @@
           <select
             bind:value={newAssetIncomeType}
             title={m.journal_form_income_type_label()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+            class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
           >
             <option value="business">{m.journal_form_income_type_business()}</option>
             <option value="realEstate">{m.journal_form_income_type_real_estate()}</option>
