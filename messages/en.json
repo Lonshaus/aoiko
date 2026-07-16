@@ -611,7 +611,7 @@
   "settings_tesseract_intro_html": "<strong class=\"text-foreground\">Images never leave your device.</strong> No LLM used. Tesseract (WASM) OCR text is parsed by deterministic rules for T+13-digit invoice registration numbers, dates, and totals. Vendor and items are not guessed; always verify the total and date manually.<br />On first use, <code>jpn.traineddata</code> / <code>eng.traineddata</code> are fetched from the default CDN (cached afterwards). For fully offline use, set langPath below to your self-hosted URL.",
   "settings_tesseract_langpath_label": "traineddata source (optional; blank = tesseract.js default CDN)",
   "settings_tesseract_langpath_placeholder": "https://example.com/tessdata (no trailing slash)",
-  "settings_openai_intro_html": "Use local AI such as Ollama / LM Studio / llama.cpp. <strong class=\"text-foreground\">OCR requires a vision-capable model</strong> (llama3.2-vision, ministral-3, moondream, etc.); LLM classification works with a text model. Ollama works only with the locally-run build (an HTTPS-hosted build cannot reach localhost) and requires setting `OLLAMA_ORIGINS`.",
+  "settings_openai_intro_html": "Use local AI such as Ollama / LM Studio / llama.cpp. <strong class=\"text-foreground\">OCR requires a vision-capable model</strong> (gemma4, ministral-3, llama3.2-vision, etc.); LLM classification works with a text model. Ollama works only with the locally-run build (an HTTPS-hosted build cannot reach localhost) and requires setting `OLLAMA_ORIGINS`.",
   "settings_openai_baseurl_label": "Endpoint (baseURL)",
   "settings_openai_apikey_label": "API key (optional)",
   "settings_openai_fetch_models": "Fetch model list",
