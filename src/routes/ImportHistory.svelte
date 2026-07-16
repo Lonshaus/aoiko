@@ -113,7 +113,7 @@
       <p class="text-sm text-muted-foreground">{m.import_history_empty()}</p>
     </div>
   {:else}
-    <div class="bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden">
+    <div class="bg-card text-card-foreground rounded-xl shadow-sm overflow-x-auto">
       <table class="w-full text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
