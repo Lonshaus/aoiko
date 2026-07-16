@@ -23,7 +23,7 @@ describe('createReceiptExtractor', () => {
   test('openai-compatible：ホスト・モデル設定で external 判定はホスト依存', async () => {
     await setSetting('ocrEngine', 'openai-compatible');
     await setSetting('openaiBaseUrl', 'http://localhost:11434/v1');
-    await setSetting('openaiOcrModel', 'moondream');
+    await setSetting('openaiOcrModel', 'llama3.2-vision');
     const ex = await createReceiptExtractor();
     expect(ex.engine).toBe('openai-compatible');
     expect(ex.external).toBe(false);

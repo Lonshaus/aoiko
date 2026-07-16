@@ -35,7 +35,7 @@ describe('hostOf / isLocalHost', () => {
 
 describe('OpenAICompatibleAdapter', () => {
   test('localhost は external=false（送信前確認スキップ対象）', () => {
-    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'ministral-3');
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'gemma3');
     expect(a.external).toBe(false);
     expect(a.destinationHost).toBe('localhost:11434');
   });
@@ -53,7 +53,7 @@ describe('OpenAICompatibleAdapter', () => {
         choices: [{ message: { content: '{"totalAmount":"1500"}' } }],
       };
     });
-    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1/', 'moondream', 'sk-x');
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1/', 'llama3.2-vision', 'sk-x');
     const out = await a.generateJson('読み取れ', {
       base64: 'QUJD',
       mimeType: 'image/png',
@@ -61,7 +61,7 @@ describe('OpenAICompatibleAdapter', () => {
     expect(out).toEqual({ totalAmount: '1500' });
     expect(captured!.url).toBe('http://localhost:11434/v1/chat/completions');
     const body = JSON.parse(captured!.body);
-    expect(body.model).toBe('moondream');
+    expect(body.model).toBe('llama3.2-vision');
     expect(body.messages[0].content[1].image_url.url).toBe('data:image/png;base64,QUJD');
   });
 
@@ -83,8 +83,8 @@ describe('listOpenAiModels', () => {
   test('/models の id 一覧をソートして返す', async () => {
     mockFetch((url) => {
       expect(url).toBe('http://localhost:11434/v1/models');
-      return { data: [{ id: 'ministral-3' }, { id: 'llama3' }, {}] };
+      return { data: [{ id: 'mistral' }, { id: 'llama3' }, {}] };
     });
-    expect(await listOpenAiModels('http://localhost:11434/v1/')).toEqual(['llama3', 'ministral-3']);
+    expect(await listOpenAiModels('http://localhost:11434/v1/')).toEqual(['llama3', 'mistral']);
   });
 });

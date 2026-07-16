@@ -159,7 +159,7 @@
 4. 按「**取得模型清單**」 → 分別選 OCR 用模型 / 分類用模型
 5. 「**儲存**」 → 「**連線測試**」
 
-> - OCR 必須選 **vision 對應模型**（llama3.2-vision / ministral-3 / moondream 等）
+> - OCR 必須選 **vision 對應模型**（gemma4 / ministral-3 / llama3.2-vision 等）
 > - 指向 localhost 的話、aoiko 本身也要**本機執行**（`npm run preview`）。HTTPS 配信版的 aoiko 連不到 localhost
 > - Ollama 那邊要設 `OLLAMA_ORIGINS` 把 aoiko 的 URL 加進白名單
 
