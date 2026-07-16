@@ -4,6 +4,18 @@
 
 本ファイルの形式は [Keep a Changelog](https://keepachangelog.com/ja/1.1.0/) に、バージョン番号は [Semantic Versioning](https://semver.org/lang/ja/) に従う。aoiko における「互換性を壊す変更（major）」は、既存のバックアップ JSON またはブラウザ内データ（IndexedDB）が新バージョンで読めなくなる変更を指す。
 
+## [1.0.1] - 2026-07-16
+
+### 修正
+
+- モバイル幅（400px 級）対応：ヘッダーを狭い画面でハンバーガーメニュー化し、仕訳一覧・ホーム直近仕訳・取込履歴の表を横スクロール可能に（金額列が切れて読めなかった問題）。固定資産フォームの select のはみ出し、ホーム「今月の概況」の狭幅での数値切れも修正
+- 免責事項に改訂履歴セクションを追加（同意状態に表示される version 番号との対応表）
+- 所得控除・消費税申告書 `.xtx` 対応後に未更新だったマニュアル・UI 文言・免責事項の記述を全面更新（免責事項の再同意が 1 回発生します）
+
+### 変更
+
+- README のスクリーンショットを更新し、3 言語の README にそれぞれの言語の UI 画面を掲載
+
 ## [1.0.0] - 2026-07-13
 
 初版リリース。
@@ -23,4 +35,5 @@
 - JSON バックアップ・復元（File System Access API／OPFS 自動フォールバック）
 - PWA オフライン動作・三言語 UI（日本語・English・繁體中文）
 
+[1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0

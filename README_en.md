@@ -13,8 +13,8 @@
 A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥750,000 Blue Return (青色申告) deduction** for Reiwa 9 (2027) and later filings (requires on-time e-Tax submission + qualified electronic ledger storage; the older ¥650,000 deduction is still supported). Covers CSV/OCR/EC order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export — all in a single web app. White Return (income/expense breakdown statement) is also supported. No backend, BYOK (you bring your own API key).
 
 <p align="center">
-  <img src="docs/images/screenshot-home.png" alt="Home: monthly summary, journal entry form, and recent entries" width="49%" />
-  <img src="docs/images/screenshot-reports.png" alt="Reports: yearly summary and monthly sales" width="49%" />
+  <img src="docs/images/screenshot-home-en.png" alt="Home: monthly summary, journal entry form, and recent entries" width="49%" />
+  <img src="docs/images/screenshot-reports-en.png" alt="Reports: yearly summary and monthly sales" width="49%" />
 </p>
 
 
