@@ -114,7 +114,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 ### OpenAI-compatible (Ollama / LM Studio etc.)
 
 - **Vision-capable model required** (text-only models fail on image input)
-- Recommended: `llama3.2-vision`, `ministral-3`, `moondream` family
+- Recommended: `gemma4`, `ministral-3`, `llama3.2-vision`
 - On the Ollama side: add aoiko's URL (e.g. `http://localhost:31527`) to `OLLAMA_ORIGINS`
 - aoiko itself must run locally too (`npm run preview`); HTTPS-served aoiko can't reach localhost
 

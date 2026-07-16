@@ -114,7 +114,7 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 ### OpenAI 相容（Ollama / LM Studio 等）
 
 - **必須選 vision 模型**（純文字模型遇到圖片輸入會掛）
-- 推薦：`llama3.2-vision`、`ministral-3`、`moondream` 系
+- 推薦：`gemma4`、`ministral-3`、`llama3.2-vision` 等
 - Ollama 那邊：`OLLAMA_ORIGINS` 一定要把 aoiko 的 URL（例 `http://localhost:31527`）加進來
 - aoiko 自己也要本機起（`npm run preview`）。HTTPS 配信版連不到 localhost
 

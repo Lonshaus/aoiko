@@ -23,7 +23,7 @@ describe('createLlmAdapter', () => {
   test('openai-compatible：用途別モデルで OpenAICompatibleAdapter', async () => {
     await setSetting('ocrEngine', 'openai-compatible');
     await setSetting('openaiBaseUrl', 'http://localhost:11434/v1');
-    await setSetting('openaiOcrModel', 'moondream');
+    await setSetting('openaiOcrModel', 'llama3.2-vision');
     await setSetting('openaiClassifyModel', 'llama3');
     const ocr = await createLlmAdapter('ocr');
     const cls = await createLlmAdapter('classify');
