@@ -13,8 +13,8 @@
 給日本個人事業主用的純前端記帳工具。目標是青色申告 **75 萬日圓**特別控除（令和 9 年分以後、需 e-Tax 期限內提交＋優良な電子帳簿保存／改正前的 65 萬日圓控除也持續支援），把 CSV／OCR／EC 訂單頁取込、複式簿記、減價償卻、資產負債表、`.xtx`（e-Tax 申報檔）輸出全部在單一 Web App 中完成。也支援白色申告(収支内訳書)。無後端、BYOK（API 金鑰使用者自備）。
 
 <p align="center">
-  <img src="docs/images/screenshot-home.png" alt="首頁：本月概況、新增仕訳表單與最近的仕訳" width="49%" />
-  <img src="docs/images/screenshot-reports.png" alt="報表：年度概況與月別銷售額" width="49%" />
+  <img src="docs/images/screenshot-home-zh-TW.png" alt="首頁：本月概況、新增仕訳表單與最近的仕訳" width="49%" />
+  <img src="docs/images/screenshot-reports-zh-TW.png" alt="報表：年度概況與月別銷售額" width="49%" />
 </p>
 
 
