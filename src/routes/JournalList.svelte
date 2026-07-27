@@ -253,7 +253,7 @@
       await reverseEntry(target);
       expandedId = null;
     } catch (e) {
-      reverseError = e instanceof Error ? e.message : String(e);
+      reverseError = describeStorageError(e);
     }
   }
 

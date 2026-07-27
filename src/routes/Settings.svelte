@@ -6,6 +6,7 @@
   import { toISODateLocal, todayISO } from '../lib/date';
   import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
+  import { describeLlmError } from '../domain/llm';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
@@ -433,7 +434,7 @@
     try {
       carryoverPreview = await computeCarryover(currentYear);
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
     }
   }
 
@@ -451,7 +452,7 @@
         carryoverError = m.settings_carryover_no_prior();
       }
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
     }
   }
 
@@ -464,7 +465,7 @@
         ? m.settings_carryover_deleted()
         : m.settings_carryover_no_target();
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
     }
   }
 
@@ -817,9 +818,7 @@
       );
       geminiTestStatus = m.settings_llm_test_success();
     } catch (e) {
-      geminiTestStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      geminiTestStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 
@@ -845,9 +844,7 @@
         count: openaiModels.length,
       });
     } catch (e) {
-      openaiStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 
@@ -865,9 +862,7 @@
       );
       openaiStatus = m.settings_llm_test_success();
     } catch (e) {
-      openaiStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 

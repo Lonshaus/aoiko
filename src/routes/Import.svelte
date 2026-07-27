@@ -9,7 +9,7 @@
     type ImportRow,
   } from '../domain/import';
   import { findMatchingRule, recordRuleHit } from '../domain/rules';
-  import type { LlmAdapter } from '../domain/llm';
+  import { describeLlmError, type LlmAdapter } from '../domain/llm';
   import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { createLlmAdapter } from '../lib/llm-adapter';
@@ -176,7 +176,7 @@
     try {
       adapter = await createLlmAdapter('classify');
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       return;
     }
     const skip = await getSetting('skipExternalSendConfirm');
@@ -249,7 +249,7 @@
             })
           : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       llmClassifying = false;
     }

@@ -6,7 +6,9 @@
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { createOrderExtractor, type OrderExtractor } from '../lib/order-extractor';
+  import { describeLlmError } from '../domain/llm';
   import { getSetting, setSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
@@ -75,7 +77,7 @@
       }
       await runExtract(extractor, pastedText);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       processing = false;
     }
   }
@@ -87,7 +89,7 @@
       const def = defaultExpenseAccount();
       reviewItems = result.items.map((it) => ({ ...it, accountCode: def }));
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       processing = false;
     }
@@ -223,7 +225,7 @@
       });
       reset();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     }
   }
 
