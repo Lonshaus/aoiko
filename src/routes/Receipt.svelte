@@ -4,11 +4,12 @@
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
@@ -207,6 +208,9 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
+      // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+      // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
+      const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
           id: entryId,
@@ -219,10 +223,8 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
-        // 書き込み、孤児画像・空参照を防ぐ。
-        if (file) {
-          await db.attachments.add(buildAttachmentRecord(entryId, file, now));
+        if (attachmentRecord) {
+          await db.attachments.add(attachmentRecord);
         }
       });
 
@@ -234,7 +236,10 @@
         preview = null;
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     }
   }
 
