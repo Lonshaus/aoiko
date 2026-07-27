@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { selectExpiredBackups, shouldBackupNow } from './schedule';
+import { needsOffsiteBackupWarning, selectExpiredBackups, shouldBackupNow } from './schedule';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -105,5 +105,33 @@ describe('selectExpiredBackups', () => {
       'aoiko-ledger-2026-01-01.zip',
       'aoiko-ledger-2026-02-01.zip',
     ]);
+  });
+});
+
+describe('needsOffsiteBackupWarning', () => {
+  test('フォルダ保存が動いていれば警告しない', () => {
+    expect(needsOffsiteBackupWarning('fsa', 'idle', null)).toBe(false);
+    expect(needsOffsiteBackupWarning('fsa', 'writing', 999)).toBe(false);
+  });
+
+  test('フォルダ未設定・許可切れ・エラーはダウンロードが無ければ警告する', () => {
+    expect(needsOffsiteBackupWarning('fsa', 'unconfigured', null)).toBe(true);
+    expect(needsOffsiteBackupWarning('fsa', 'permission-required', null)).toBe(true);
+    expect(needsOffsiteBackupWarning('fsa', 'error', null)).toBe(true);
+  });
+
+  test('OPFS とブラウザ非対応は従来どおり警告対象', () => {
+    expect(needsOffsiteBackupWarning('opfs', 'idle', null)).toBe(true);
+    expect(needsOffsiteBackupWarning('none', 'unsupported', null)).toBe(true);
+  });
+
+  test('直近にダウンロードしていれば警告しない', () => {
+    expect(needsOffsiteBackupWarning('opfs', 'idle', 0)).toBe(false);
+    expect(needsOffsiteBackupWarning('opfs', 'idle', 6)).toBe(false);
+    expect(needsOffsiteBackupWarning('opfs', 'idle', 7)).toBe(true);
+  });
+
+  test('初期化中は判定を保留する', () => {
+    expect(needsOffsiteBackupWarning('none', 'initializing', null)).toBe(false);
   });
 });
