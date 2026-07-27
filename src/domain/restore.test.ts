@@ -307,7 +307,7 @@ describe('証憑写真（C7）の zip 往復', () => {
       exportedAt: '2026-05-10',
       tables: { vendors: [{ id: 'v1', name: '業者' }] },
     };
-    const zipBytes = buildBackupZip(payload, new Map([['a1', new Uint8Array([9, 9])]]));
+    const zipBytes = await buildBackupZip(payload, new Map([['a1', new Uint8Array([9, 9])]]));
     const zipFile = new File([zipBytes.slice()], 'backup.zip', { type: 'application/zip' });
     const zipParsed = await parseBackupFile(zipFile);
     expect(zipParsed.payload.tables['vendors']).toHaveLength(1);
