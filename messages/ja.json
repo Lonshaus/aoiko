@@ -70,6 +70,7 @@
   "disclaimer_bullet_storage_html": "データは <strong>ブラウザ IndexedDB</strong> に保存されます。ブラウザのキャッシュクリアで消失するため、バックアップは利用者の責任で運用してください。",
   "disclaimer_bullet_liability_html": "確定申告・修正申告・税務調査対応で発生した <strong>いかなる損害</strong> についても開発者は責任を負いません。",
   "disclaimer_docs_prefix": "全文：",
+  "policy_doc_loading": "読み込み中…",
   "disclaimer_accept_button": "上記を理解し、同意して開始する",
   "disclaimer_accept_button_saving": "保存中…",
   "backup_panel_title": "バックアップ",
