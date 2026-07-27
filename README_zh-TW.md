@@ -26,7 +26,7 @@
 - **OCR**：收據 → 仕訳候補。引擎可選：Gemini Vision（預設）／OpenAI 相容・Ollama 等本地 vision LLM／**Tesseract（純本地 WASM OCR、精度有限、必須人工確認）**
 - **訂單取込（貼上 → LLM 抽取）**：把 Amazon・楽天 等的訂單頁全文貼進來，由 LLM 抽出品項明細 → 確認 → 轉成仕訳。不依賴 DOM 解析，網站改版不怕
 - **LLM 分類**：CSV 行 → 勘定科目（規則優先、LLM 後援）。引擎可選 Gemini 或本地 AI
-- **OCR/LLM 隱私**：對外送出前會跳確認對話框。把 Ollama 等指向 localhost、或選 Tesseract 時，影像不會離開本機（Ollama 限本地執行版＋需設 `OLLAMA_ORIGINS`；Tesseract 僅首次從 CDN 下載 traineddata，可自架做到完全離線）
+- **OCR/LLM 隱私**：對外送出前會跳確認對話框。把 Ollama 等指向 localhost、或選 Tesseract 時，影像不會離開本機（Ollama 限本地執行版＋需設 `OLLAMA_ORIGINS`；Tesseract 連語言資料都內附，完全不會有對外連線）
 - **家事按分**：把家庭兼事務所的經費自動拆成事業用與事業主貸
 - **減價償卻**：定額法、200% 定率法（耐用年數 2〜20 年）、月分攤、留 1 円殘存
 - **少額減價償卻資產特例**：措法 28 之 2（30→40 萬日圓、2026-04-01 起），年合計 300 萬日圓上限管理
