@@ -12,6 +12,7 @@ import { getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
 import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
+import { saveFile } from '../lib/save-file';
 
 async function buildBackupZipBytes(options: {
   includeApiKeys: boolean;
@@ -290,15 +291,7 @@ class BackupManager {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
       const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
-      const blob = new Blob([bytes.slice()], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `aoiko-ledger-${todayISO()}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      saveFile(bytes, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
       this.lastDownloadAt = Date.now();
       await setSetting('lastDownloadAt', this.lastDownloadAt);
     } catch (e: unknown) {
