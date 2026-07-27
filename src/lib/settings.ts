@@ -3,12 +3,18 @@ import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
 import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
+import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
 
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
+  // 自動バックアップの実行間隔（時間）。0 = 変更のたび（既定・従来動作）。
+  // 証憑写真を含む全量 zip を毎回作り直すコストを抑えるための設定。
+  backupIntervalHours: BackupIntervalHours;
+  // 日付入りバックアップの保持件数。0 = 削除しない（既定・従来動作）。
+  backupRetentionCount: BackupRetentionCount;
   // 家事按分の科目別既定比率（accountCode → '0.30' 等の 0〜1 Decimal 文字列）。
   // 記帳フォームで該当科目を選ぶと自動入力される（行ごとに変更可）。
   homeOfficeAccountRatios: Record<string, string>;

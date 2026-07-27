@@ -3,13 +3,19 @@
   import { backup } from '../stores/backup.svelte';
   import { getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import { BACKUP_INTERVAL_HOURS, BACKUP_RETENTION_COUNTS } from '../backup/schedule';
+  import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
 
   let includeApiKeys = $state(false);
   let includeFilerInfo = $state(false);
+  let intervalHours = $state<BackupIntervalHours>(0);
+  let retentionCount = $state<BackupRetentionCount>(0);
 
   onMount(async () => {
     includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
     includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+    intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
+    retentionCount = (await getSetting('backupRetentionCount')) ?? 0;
   });
 
   async function onToggleIncludeApiKeys(e: Event) {
@@ -20,6 +26,37 @@
   async function onToggleIncludeFilerInfo(e: Event) {
     includeFilerInfo = (e.target as HTMLInputElement).checked;
     await setSetting('backupIncludeFilerInfo', includeFilerInfo);
+  }
+
+  async function onChangeIntervalHours(e: Event) {
+    intervalHours = Number((e.target as HTMLSelectElement).value) as BackupIntervalHours;
+    await setSetting('backupIntervalHours', intervalHours);
+  }
+
+  async function onChangeRetentionCount(e: Event) {
+    retentionCount = Number((e.target as HTMLSelectElement).value) as BackupRetentionCount;
+    await setSetting('backupRetentionCount', retentionCount);
+  }
+
+  function intervalOptionLabel(hours: BackupIntervalHours): string {
+    if (hours === 0) {
+      return m.backup_panel_interval_option_change();
+    }
+    if (hours === 24) {
+      return m.backup_panel_interval_option_daily();
+    }
+    // 英語の複数形が崩れるため 1 時間だけ別文言にする
+    if (hours === 1) {
+      return m.backup_panel_interval_option_hourly();
+    }
+    return m.backup_panel_interval_option_hours({ hours: String(hours) });
+  }
+
+  function retentionOptionLabel(count: BackupRetentionCount): string {
+    if (count === 0) {
+      return m.backup_panel_retention_option_never();
+    }
+    return m.backup_panel_retention_option_keep({ count: String(count) });
   }
 
   function formatTime(ts: number | null): string {
@@ -209,4 +246,38 @@
     />
     <span>{m.backup_include_filer_info()}</span>
   </label>
+
+  <div class="text-sm border-t pt-4">
+    <label class="flex items-center justify-between gap-2" for="backup-interval-hours">
+      <span>{m.backup_panel_interval_label()}</span>
+      <select
+        id="backup-interval-hours"
+        value={intervalHours}
+        onchange={onChangeIntervalHours}
+        class="border rounded px-2 py-1 bg-background"
+      >
+        {#each BACKUP_INTERVAL_HOURS as hours (hours)}
+          <option value={hours}>{intervalOptionLabel(hours)}</option>
+        {/each}
+      </select>
+    </label>
+    <span class="block text-xs text-muted-foreground mt-1">{m.backup_panel_interval_hint()}</span>
+  </div>
+
+  <div class="text-sm">
+    <label class="flex items-center justify-between gap-2" for="backup-retention-count">
+      <span>{m.backup_panel_retention_label()}</span>
+      <select
+        id="backup-retention-count"
+        value={retentionCount}
+        onchange={onChangeRetentionCount}
+        class="border rounded px-2 py-1 bg-background"
+      >
+        {#each BACKUP_RETENTION_COUNTS as count (count)}
+          <option value={count}>{retentionOptionLabel(count)}</option>
+        {/each}
+      </select>
+    </label>
+    <span class="block text-xs text-muted-foreground mt-1">{m.backup_panel_retention_hint()}</span>
+  </div>
 </section>
