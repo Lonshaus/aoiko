@@ -50,7 +50,7 @@ export default defineConfig({
         theme_color: '#15374a',
         background_color: '#15374a',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         scope: '/',
         start_url: '/',
         icons: [
