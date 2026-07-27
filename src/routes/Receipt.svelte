@@ -208,6 +208,9 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
+      // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+      // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
+      const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
           id: entryId,
@@ -220,10 +223,8 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
-        // 書き込み、孤児画像・空参照を防ぐ。
-        if (file) {
-          await db.attachments.add(buildAttachmentRecord(entryId, file, now));
+        if (attachmentRecord) {
+          await db.attachments.add(attachmentRecord);
         }
       });
 

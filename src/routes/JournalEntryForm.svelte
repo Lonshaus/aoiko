@@ -328,6 +328,10 @@
       const lines = [...buildLines(expandedDebits, 'debit'), ...buildLines(credits, 'credit')];
       validateLines(lines);
 
+      const attachmentRecords = await Promise.all(
+        attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
+      );
+
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
           id: entryId,
@@ -341,10 +345,8 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        if (attachments.length > 0) {
-          await db.attachments.bulkAdd(
-            attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
-          );
+        if (attachmentRecords.length > 0) {
+          await db.attachments.bulkAdd(attachmentRecords);
         }
       });
 

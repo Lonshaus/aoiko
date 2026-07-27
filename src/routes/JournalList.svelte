@@ -289,7 +289,8 @@
       return;
     }
     try {
-      await db.attachments.add(buildAttachmentRecord(id, f, Date.now()));
+      const record = await buildAttachmentRecord(id, f, Date.now());
+      await db.attachments.add(record);
     } catch (e) {
       attachmentError = describeStorageError(e);
     }
