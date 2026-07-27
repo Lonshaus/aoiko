@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { router, link } from '../router.svelte';
+  import { router, link, clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
@@ -148,6 +148,23 @@
   const hasAnyItem = $derived(
     expenses.length > 0 || convertedAssets.length > 0 || customItems.length > 0,
   );
+  // 仕訳を生成する前に画面を離れると、入力した開業費・転用資産が全て消える。
+  // 入力途中の行（追加ボタンを押していないもの）も対象に含める。
+  const isDirty = $derived(
+    step !== 'done' &&
+      (hasAnyItem ||
+        expenseName !== '' ||
+        expenseAmount !== '' ||
+        newAssetName !== '' ||
+        newAssetCost !== '' ||
+        customName !== '' ||
+        customAmount !== ''),
+  );
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
 
   async function handleGenerate() {
     generating = true;
