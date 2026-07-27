@@ -9,6 +9,7 @@ import {
   adjacentChapters,
   rewriteLinks,
   rewriteImagePaths,
+  resolveManualLink,
   stripLanguageNav,
   stripInline,
   slugifyHeading,
@@ -220,6 +221,40 @@ describe('rewriteLinks', () => {
   it('外部 URL は書き換えない', () => {
     const src = '[issues](https://github.com/Lonshaus/aoiko/issues)';
     expect(rewriteLinks(src)).toBe(src);
+  });
+});
+
+describe('resolveManualLink', () => {
+  it('章間リンク（rewriteLinks 済みの /manual/...）はそのまま', () => {
+    expect(resolveManualLink('/manual/02-journal')).toEqual({
+      href: '/manual/02-journal',
+      external: false,
+    });
+  });
+
+  it('ページ内アンカーはそのまま', () => {
+    expect(resolveManualLink('#4-選擇消費税方式')).toEqual({
+      href: '#4-選擇消費税方式',
+      external: false,
+    });
+  });
+
+  it('repo 相対リンクは GitHub の絶対 URL へ書き換え、外部扱いにする', () => {
+    expect(resolveManualLink('../../PRIVACY.md')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/PRIVACY.md',
+      external: true,
+    });
+    expect(resolveManualLink('../../docs/xtx-spec/README.md')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/docs/xtx-spec/README.md',
+      external: true,
+    });
+  });
+
+  it('外部 URL は書き換えず外部扱いにする', () => {
+    expect(resolveManualLink('https://github.com/Lonshaus/aoiko/issues')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/issues',
+      external: true,
+    });
   });
 });
 
