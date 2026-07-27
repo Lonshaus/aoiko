@@ -883,5 +883,9 @@
   "invoices_print_date": "發行日",
   "invoices_print_registration_number": "登錄號碼",
   "invoices_print_rate": "稅率",
-  "invoices_print_tax_at_rate": "稅率{rate}%消費稅額"
+  "invoices_print_tax_at_rate": "稅率{rate}%消費稅額",
+  "unsaved_confirm_title": "輸入的內容尚未儲存",
+  "unsaved_confirm_desc": "這個畫面還有沒儲存的輸入。離開的話輸入的內容會消失。",
+  "unsaved_confirm_stay": "留在這個畫面",
+  "unsaved_confirm_discard": "捨棄並離開"
 }
