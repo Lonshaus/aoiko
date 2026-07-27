@@ -61,7 +61,7 @@ Hosting 提供商（公開時預定 GitHub Pages / Vercel / Cloudflare Pages 等
 | 方法 | 送出目的地 |
 |---|---|
 | File System Access API（Chromium） | 利用者選的**本機**資料夾 |
-| OPFS（Safari / Firefox） | 瀏覽器管理的**本機**儲存 |
+| OPFS（Firefox / Safari 26 以後） | 瀏覽器管理的**本機**儲存 |
 | 手動 JSON 下載 | 利用者的「下載」資料夾 |
 | Google Drive 同步（未來實裝） | 利用者的 Google Drive |
 

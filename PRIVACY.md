@@ -61,7 +61,7 @@ aoiko は **サーバを持たない** 純フロントエンドアプリです�
 | 方法 | 送信先 |
 |------|--------|
 | File System Access API（Chromium） | 利用者が選択した **ローカル** フォルダ |
-| OPFS（Safari / Firefox） | ブラウザ管理の **端末ローカル** ストレージ |
+| OPFS（Firefox / Safari 26 以降） | ブラウザ管理の **端末ローカル** ストレージ |
 | 手動 JSON ダウンロード | 利用者の「ダウンロード」フォルダ |
 | Google Drive 同期（将来実装） | 利用者の Google Drive |
 
