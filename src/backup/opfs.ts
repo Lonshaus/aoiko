@@ -60,4 +60,18 @@ export class OpfsBackupAdapter implements BackupAdapter {
 
     return { fileName };
   }
+
+  async list(): Promise<string[]> {
+    const root = await navigator.storage.getDirectory();
+    const names: string[] = [];
+    for await (const name of root.keys()) {
+      names.push(name);
+    }
+    return names;
+  }
+
+  async remove(fileName: string): Promise<void> {
+    const root = await navigator.storage.getDirectory();
+    await root.removeEntry(fileName);
+  }
 }
