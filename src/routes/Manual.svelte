@@ -1,12 +1,19 @@
 <script module lang="ts">
   import { marked } from 'marked';
-  import { slugifyHeading } from '../lib/manual';
+  import { slugifyHeading, resolveManualLink } from '../lib/manual';
   // 見出しに id を付与し、章間 `#アンカー` と章内目次のジャンプ先を一致させる。
+  // リンクは resolveManualLink で解決し、外部リンク（GitHub 書き換え分含む）は新規タブで開く。
   marked.use({
     renderer: {
       heading(token) {
         const inner = this.parser.parseInline(token.tokens);
         return `<h${token.depth} id="${slugifyHeading(token.text)}">${inner}</h${token.depth}>`;
+      },
+      link(token) {
+        const { href, external } = resolveManualLink(token.href);
+        const inner = this.parser.parseInline(token.tokens);
+        const attrs = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+        return `<a href="${href}"${attrs}>${inner}</a>`;
       },
     },
   });
