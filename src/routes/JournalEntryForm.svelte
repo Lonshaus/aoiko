@@ -8,6 +8,7 @@
   import { todayISO } from '../lib/date';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
@@ -350,7 +351,7 @@
       reset();
       date = today();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     } finally {
       saving = false;
     }

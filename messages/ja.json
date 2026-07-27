@@ -33,6 +33,7 @@
   "error_detail_summary": "エラー詳細（不具合報告用）",
   "error_banner_message": "エラーが発生しました。直前の操作が正しく完了していない可能性があります。",
   "common_file_too_large": "ファイルが大きすぎます（{size}、上限 {limit}）。ブラウザが固まるのを防ぐため処理を中止しました。",
+  "common_storage_full": "端末の保存容量が上限に達しています。バックアップをダウンロードしたうえで、不要な証憑写真や古いデータを削除して空き容量を確保してください。",
   "cloud_send_confirm_title": "外部 AI への送信確認",
   "cloud_send_confirm_desc_html": "このデータ（領収書画像 / CSV 行）を <strong class=\"text-foreground\">{host}</strong> に送信します。送信内容は送信先のプライバシーポリシーと利用者の API プラン契約に従って取り扱われます。<strong class=\"text-foreground\">無料枠は学習利用される場合があるため、機微な領収書には有料枠の API キーを推奨します。</strong>送信してよろしいですか？",
   "cloud_send_confirm_proceed": "送信する",

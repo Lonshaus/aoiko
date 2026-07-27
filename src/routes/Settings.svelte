@@ -5,6 +5,7 @@
   import { newId } from '../lib/id';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
@@ -924,7 +925,7 @@
       restoreAttachmentBlobs = new Map();
       restoreAttachmentCount = 0;
     } catch (err) {
-      restoreError = err instanceof Error ? err.message : String(err);
+      restoreError = describeStorageError(err);
     }
   }
 

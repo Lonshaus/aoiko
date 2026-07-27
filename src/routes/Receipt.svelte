@@ -9,6 +9,7 @@
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
@@ -234,7 +235,7 @@
         preview = null;
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     }
   }
 

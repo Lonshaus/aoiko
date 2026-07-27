@@ -6,6 +6,7 @@
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { buildAttachmentRecord } from '../domain/attachments';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { buildLedgerRows, ledger, type LedgerRow } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
@@ -290,7 +291,7 @@
     try {
       await db.attachments.add(buildAttachmentRecord(id, f, Date.now()));
     } catch (e) {
-      attachmentError = e instanceof Error ? e.message : String(e);
+      attachmentError = describeStorageError(e);
     }
   }
 
