@@ -24,7 +24,7 @@
         {m.home_overview_entry_count({ count: overview.entryCount })}
       </div>
     </header>
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-8">
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-8">
       <div>
         <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
         <div class="text-3xl font-bold tabular-nums">{formatJPY(overview.revenue)}</div>
