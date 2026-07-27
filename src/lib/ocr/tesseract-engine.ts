@@ -6,9 +6,8 @@
 //   2) 生テキストを receipt-text-extract に渡して構造化する
 //
 // 前処理（リサイズ・二値化等）は本最小版では未実装。精度が問題になれば後追い。
-// 画像は端末外に出ない。traineddata（jpn+eng）は初回のみ langPath（既定は
-// tesseract.js の CDN）から取得される。完全オフライン運用を求める場合は
-// 設定で langPath を自己ホスト URL に変更する。
+// 画像も traineddata も端末外に出ない。設定で langPath を指定した場合のみ、
+// その URL から traineddata を取得する。
 
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
@@ -20,6 +19,10 @@ import type { ReceiptExtractor } from '../receipt-extractor';
 const WORKER_PATH = '/tesseract/worker.min.js';
 // ディレクトリを渡すと worker 側が SIMD 対応状況を見てファイル名を連結する。
 const CORE_PATH = '/tesseract/core';
+// traineddata も同梱する（jpn+eng で 4.8MB）。既定のままだと jsDelivr へ取りに行き、
+// 「画像は端末外に出ない」「オフラインで使える」という説明と食い違う。
+// precache からは除外してあるため、Tesseract を選んだ利用者だけが取得する。
+const LANG_PATH = '/tesseract/lang';
 
 export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtractor {
   return {
@@ -32,10 +35,8 @@ export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtra
       const options: Record<string, unknown> = {
         workerPath: WORKER_PATH,
         corePath: CORE_PATH,
+        langPath: langPath || LANG_PATH,
       };
-      if (langPath) {
-        options.langPath = langPath;
-      }
       const { data } = await Tesseract.recognize(dataUrl, 'jpn+eng', options);
       return extractFromOcrText(data.text ?? '');
     },
