@@ -71,6 +71,7 @@
   "disclaimer_bullet_storage_html": "資料儲存於 <strong>瀏覽器 IndexedDB</strong>。清除瀏覽器快取會遺失，備份請使用者自行負責。",
   "disclaimer_bullet_liability_html": "因確定申告・修正申告・税務調査對應所生 <strong>任何損害</strong>，開發者一概不負責任。",
   "disclaimer_docs_prefix": "全文：",
+  "policy_doc_loading": "載入中…",
   "disclaimer_accept_button": "理解上述內容，同意並開始使用",
   "disclaimer_accept_button_saving": "儲存中…",
   "backup_panel_title": "備份",

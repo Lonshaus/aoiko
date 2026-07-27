@@ -1,6 +1,7 @@
 <script lang="ts">
   import { DISCLAIMER_VERSION, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import PolicyDocViewer from './PolicyDocViewer.svelte';
 
   type Props = {
     onaccept: () => void;
@@ -54,35 +55,18 @@
         <li>{@html m.disclaimer_bullet_liability_html()}</li>
       </ul>
 
-      <p class="text-xs text-muted-foreground pt-2 border-t">
-        {m.disclaimer_docs_prefix()}<a
-          href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">DISCLAIMER.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/PRIVACY.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">PRIVACY.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/SECURITY.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">SECURITY.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/LICENSE"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">LICENSE (AGPL-3.0)</a
-        >
-      </p>
+      <div class="text-xs text-muted-foreground pt-2 border-t space-y-1">
+        <p>
+          {m.disclaimer_docs_prefix()}
+          <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
+          ／
+          <PolicyDocViewer doc="PRIVACY" label="PRIVACY.md" />
+          ／
+          <PolicyDocViewer doc="SECURITY" label="SECURITY.md" />
+          ／
+          <PolicyDocViewer doc="LICENSE" label="LICENSE (AGPL-3.0)" />
+        </p>
+      </div>
     </section>
 
     <footer class="flex justify-end pt-2">

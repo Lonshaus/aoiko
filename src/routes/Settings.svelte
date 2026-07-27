@@ -36,6 +36,7 @@
   } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
   import BackupPanel from '../components/BackupPanel.svelte';
+  import PolicyDocViewer from '../components/PolicyDocViewer.svelte';
   import { DEFAULT_INVOICE_PREFIX, DEFAULT_QUOTE_PREFIX } from '../domain/invoice';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type {
@@ -2514,12 +2515,7 @@
       </p>
       <p class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">DISCLAIMER.md</a
-        >
+        <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
       </p>
       <div>
         <button
