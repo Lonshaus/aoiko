@@ -1787,7 +1787,7 @@
     {#if ledger.fixedAssets.length > 0}
       <!-- 列数が多く狭幅で溢れるため、ページ全体ではなく表だけ横スクロールさせる -->
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal py-1">{m.settings_asset_th_name()}</th>

@@ -437,7 +437,7 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[640px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.journal_th_date()}</th>

@@ -717,7 +717,7 @@
           {/if}
         </div>
       </header>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
         <div>
           <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalRevenue)}</div>
@@ -965,9 +965,9 @@
         </span>
       </header>
       <div class="overflow-x-auto">
-        <table class="w-full text-xs tabular-nums">
+        <table class="w-full min-w-[960px] text-xs tabular-nums border-separate border-spacing-0">
           <thead>
-            <tr class="text-muted-foreground border-b">
+            <tr class="text-muted-foreground [&>th]:border-b">
               <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card"
                 >{m.reports_monthly_pl_th_account()}</th
               >
@@ -987,7 +987,7 @@
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.revenue as row (row.accountCode)}
-                <tr class="border-b border-border/40">
+                <tr class="[&>td]:border-b [&>td]:border-border/40">
                   <td class="py-1 pr-2 sticky left-0 bg-card">{row.accountName}</td>
                   {#each row.monthly as v, i (i)}
                     <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
@@ -997,7 +997,7 @@
                   <td class="text-right px-2 font-medium">{formatJPY(row.total)}</td>
                 </tr>
               {/each}
-              <tr class="border-b font-medium">
+              <tr class="[&>td]:border-b font-medium">
                 <td class="py-1 pr-2 sticky left-0 bg-card"
                   >{m.reports_monthly_pl_revenue_total()}</td
                 >
@@ -1016,7 +1016,7 @@
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.expense as row (row.accountCode)}
-                <tr class="border-b border-border/40">
+                <tr class="[&>td]:border-b [&>td]:border-border/40">
                   <td class="py-1 pr-2 sticky left-0 bg-card">{row.accountName}</td>
                   {#each row.monthly as v, i (i)}
                     <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
@@ -1026,7 +1026,7 @@
                   <td class="text-right px-2 font-medium">{formatJPY(row.total)}</td>
                 </tr>
               {/each}
-              <tr class="border-b font-medium">
+              <tr class="[&>td]:border-b font-medium">
                 <td class="py-1 pr-2 sticky left-0 bg-card"
                   >{m.reports_monthly_pl_expense_total()}</td
                 >
@@ -1038,7 +1038,7 @@
                 <td class="text-right px-2">{formatJPY(monthlyPL.totalExpense)}</td>
               </tr>
             {/if}
-            <tr class="font-semibold border-t-2">
+            <tr class="font-semibold [&>td]:border-t-2">
               <td class="py-1 pr-2 sticky left-0 bg-card"
                 >{m.reports_monthly_pl_net_income_row()}</td
               >
@@ -1175,7 +1175,7 @@
 
     {#if multiYearPL}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
@@ -1251,7 +1251,7 @@
 
     {#if multiYearBS}
       <div class="overflow-x-auto pt-4 border-t border-border/50">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
@@ -1293,7 +1293,7 @@
   <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
     <h3 class="text-lg font-semibold">{m.reports_budget_title()}</h3>
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[840px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-3 py-2">{m.reports_budget_month()}</th>
@@ -1426,7 +1426,7 @@
 
     {#if arApEntries.length > 0}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_arap_type()}</th>
@@ -1519,7 +1519,7 @@
 
       {#if cashFlowForecastResult}
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full min-w-[480px] text-sm">
             <thead>
               <tr class="text-xs text-muted-foreground">
                 <th class="text-left font-normal px-3 py-2">{m.reports_cashflow_month()}</th>
@@ -1629,7 +1629,7 @@
         {/if}
       </p>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm tabular-nums">
+        <table class="w-full min-w-[720px] text-sm tabular-nums">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
               <th class="text-left font-normal py-2 pr-2"
@@ -1676,7 +1676,7 @@
           >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
         >
         <div class="overflow-x-auto mt-2">
-          <table class="w-full text-xs tabular-nums">
+          <table class="w-full min-w-[720px] text-xs tabular-nums">
             <thead>
               <tr class="text-muted-foreground border-b">
                 <th class="text-left font-normal py-1 pr-2"
