@@ -126,6 +126,16 @@
   }
 }
 
+/* 印刷時は prefers-color-scheme: dark が有効なままでも用紙上は常に明色にする（帳票印刷は print:block、他は print:hidden） */
+@media print {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --border: oklch(0.145 0 0);
+    --muted-foreground: oklch(0.145 0 0);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
