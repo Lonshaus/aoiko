@@ -102,9 +102,12 @@ export function hostOf(baseUrl: string): string {
   }
 }
 
+// 「この端末自身か」を判定する。端末から出ない宛先だけが送信前確認を省略できる。
+// `.local`（mDNS）は LAN 上の別のマシンであり、`192.168.x.x` と同じく端末外。
+// 自分で立てたサーバーであっても、証憑写真がどの機械へ渡るのかは利用者に示す。
 export function isLocalHost(host: string): boolean {
   const name = host.replace(/:\d+$/, '').toLowerCase();
-  return LOCAL_HOSTS.has(name) || name.endsWith('.local');
+  return LOCAL_HOSTS.has(name);
 }
 // ローカル LLM が ```json フェンス等で囲って返すケースに耐性を持たせて JSON 抽出
 function parseLooseJson(text: string): unknown {

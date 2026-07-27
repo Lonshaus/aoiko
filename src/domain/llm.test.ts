@@ -28,8 +28,15 @@ describe('hostOf / isLocalHost', () => {
   test('ローカル判定', () => {
     expect(isLocalHost('localhost:11434')).toBe(true);
     expect(isLocalHost('127.0.0.1:1234')).toBe(true);
-    expect(isLocalHost('mybox.local')).toBe(true);
+    expect(isLocalHost('[::1]:11434')).toBe(true);
     expect(isLocalHost('api.openai.com')).toBe(false);
+  });
+  // mDNS の .local は LAN 上の別マシン。192.168.x.x と同じく端末外なので
+  // 送信前確認を省略してはいけない。
+  test('.local は端末外として扱う', () => {
+    expect(isLocalHost('mybox.local')).toBe(false);
+    expect(isLocalHost('mybox.local:11434')).toBe(false);
+    expect(isLocalHost('192.168.1.5:11434')).toBe(false);
   });
 });
 
