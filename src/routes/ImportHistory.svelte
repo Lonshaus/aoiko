@@ -7,6 +7,7 @@
   import { findParser } from '../parsers';
   import { formatJPY } from '../lib/decimal';
   import { m } from '../paraglide/messages';
+  import { describeStorageError } from '../lib/storage-error';
 
   let batches = $state<ImportBatch[]>([]);
   let entriesByBatch = $state<Map<string, JournalEntry[]>>(new Map());
@@ -66,7 +67,7 @@
             })
           : m.import_history_reverse_success({ count: r.reversedCount });
     } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
+      lastError = describeStorageError(e);
     }
   }
 

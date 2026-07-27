@@ -85,7 +85,8 @@ export type SettingsMap = {
 // v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
-export const DISCLAIMER_VERSION = 4;
+// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・Safari の非訪問 7 日消去）を追記。
+export const DISCLAIMER_VERSION = 5;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,
