@@ -86,6 +86,10 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         // .html / .css / .js / 画像 / フォント を precache
         globPatterns: ['**/*.{html,css,js,svg,png,ico,webmanifest,woff,woff2}'],
+        // tesseract の worker とコアは合計 12MB 超。OCR エンジンに Tesseract を
+        // 選んだ利用者だけが必要とするため precache から除外する（選んだ時点で
+        // 通常のリクエストとして取得される）。
+        globIgnores: ['tesseract/**'],
       },
       devOptions: {
         // 開発時もサービスワーカーを動かして挙動確認できる（任意）

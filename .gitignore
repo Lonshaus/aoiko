@@ -13,6 +13,9 @@ coverage/
 # Paraglide compiled output（messages/ から自動生成）
 src/paraglide/
 
+# tesseract.js の worker / コア（node_modules から自動複製）
+public/tesseract/
+
 # 環境変数
 .env
 .env.*

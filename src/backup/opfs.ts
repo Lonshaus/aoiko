@@ -6,11 +6,17 @@ import type { BackupAdapter } from './types';
 export class OpfsBackupAdapter implements BackupAdapter {
   readonly name = 'opfs';
 
+  // getDirectory だけでは足りない。書き込みに使う createWritable は後から実装された
+  // API で、あるブラウザ は getDirectory が 15.2、createWritable が 26。判定を getDirectory
+  // だけにすると、書けない環境で status が idle のまま「動いているように見えて一度も
+  // 保存されない」状態になる。
   async isAvailable(): Promise<boolean> {
     return (
       typeof navigator !== 'undefined' &&
       'storage' in navigator &&
-      typeof navigator.storage.getDirectory === 'function'
+      typeof navigator.storage.getDirectory === 'function' &&
+      typeof FileSystemFileHandle !== 'undefined' &&
+      typeof FileSystemFileHandle.prototype.createWritable === 'function'
     );
   }
 
