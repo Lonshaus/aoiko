@@ -169,9 +169,9 @@
 
 1. 引擎選「**Tesseract**」
 2. 「**儲存**」
-3. （選填）`traineddata` 的自架 URL 填到 **langPath**（預設用 CDN）
+3. （選填）只有想換別的版本的 `traineddata` 時才需要把來源填到 **langPath**（預設用 aoiko 內附的）
 
-> - 影像不會離開本機（只有 `traineddata` 第一次從 CDN 抓）
+> - 影像和語言資料都不會離開本機（語言資料由 aoiko 自己提供）
 > - 只抽 T+13 登錄號碼・日期・合計、店名與品項不會推測
 > - 收據 OCR 專用、CSV 分類與訂單取込用不到
 
