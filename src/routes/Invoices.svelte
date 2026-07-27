@@ -52,9 +52,15 @@
     const handle = () => {
       printingId = null;
     };
+    // afterprint が発火しない経路（印刷ダイアログを閉じても発火しないブラウザ挙動）があるため、
+    // ウィンドウにフォーカスが戻った時点でも状態を戻す（印刷ダイアログを閉じると必ずフォーカスが戻る）
     window.addEventListener('afterprint', handle);
+    window.addEventListener('focus', handle);
     requestAnimationFrame(() => window.print());
-    return () => window.removeEventListener('afterprint', handle);
+    return () => {
+      window.removeEventListener('afterprint', handle);
+      window.removeEventListener('focus', handle);
+    };
   });
 
   async function loadIssuerInfo() {
