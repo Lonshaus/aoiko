@@ -28,7 +28,7 @@
   aria-labelledby="disclaimer-title"
 >
   <div
-    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-xl"
+    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto overscroll-contain p-8 space-y-6 shadow-xl"
   >
     <header class="space-y-2">
       <h2 id="disclaimer-title" class="text-2xl font-bold">{m.disclaimer_welcome_title()}</h2>
