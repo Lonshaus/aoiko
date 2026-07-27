@@ -12,6 +12,8 @@
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
+import { isOffline } from '../network-status';
+import { m } from '../../paraglide/messages';
 // worker とコアは自己ホストする。tesseract.js の既定値は jsDelivr CDN だが、
 // blob worker は生成元の CSP を継承するため、script-src に外部オリジンを
 // 持たない aoiko では worker 内の importScripts が必ずブロックされる。
@@ -37,7 +39,17 @@ export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtra
         corePath: CORE_PATH,
         langPath: langPath || LANG_PATH,
       };
-      const { data } = await Tesseract.recognize(dataUrl, 'jpn+eng', options);
+      // 初回は traineddata（4.8MB）を同一オリジンから取得する（precache 対象外のため）。
+      // ここでオフラインだと素の fetch 失敗が出るので、原因が分かる文言に変換する。
+      let data: { text?: string };
+      try {
+        ({ data } = await Tesseract.recognize(dataUrl, 'jpn+eng', options));
+      } catch (e) {
+        if (isOffline()) {
+          throw new Error(m.common_offline_error(), { cause: e });
+        }
+        throw e;
+      }
       return extractFromOcrText(data.text ?? '');
     },
   };
