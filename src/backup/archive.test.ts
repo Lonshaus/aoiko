@@ -15,7 +15,7 @@ describe('looksLikeZip', () => {
 });
 
 describe('buildBackupZip / parseBackupZip', () => {
-  test('payload と添付を往復できる', () => {
+  test('payload と添付を往復できる', async () => {
     const payload: BackupPayload = {
       version: 1,
       exportedAt: '2026-07-08T00:00:00.000Z',
@@ -25,37 +25,36 @@ describe('buildBackupZip / parseBackupZip', () => {
       ['a1', new Uint8Array([1, 2, 3])],
       ['a2', new Uint8Array([4, 5])],
     ]);
-    const zip = buildBackupZip(payload, blobs);
+    const zip = await buildBackupZip(payload, blobs);
     expect(looksLikeZip(zip)).toBe(true);
 
-    const parsed = parseBackupZip(zip);
+    const parsed = await parseBackupZip(zip);
     expect(parsed.payload).toEqual(payload);
     expect(parsed.attachmentBlobs.size).toBe(2);
     expect(parsed.attachmentBlobs.get('a1')).toEqual(new Uint8Array([1, 2, 3]));
     expect(parsed.attachmentBlobs.get('a2')).toEqual(new Uint8Array([4, 5]));
   });
 
-  test('添付が無くても往復できる', () => {
+  test('添付が無くても往復できる', async () => {
     const payload: BackupPayload = { version: 1, exportedAt: '2026-07-08', tables: {} };
-    const zip = buildBackupZip(payload, new Map());
-    const parsed = parseBackupZip(zip);
+    const zip = await buildBackupZip(payload, new Map());
+    const parsed = await parseBackupZip(zip);
     expect(parsed.payload).toEqual(payload);
     expect(parsed.attachmentBlobs.size).toBe(0);
   });
 
-  test('payload.json が無い zip はエラー', () => {
-    const zip = buildBackupZip({ version: 1, exportedAt: '', tables: {} }, new Map());
+  test('payload.json が無い zip はエラー', async () => {
     // 壊れた zip（マジックナンバーのみ）で payload.json 欠落を模擬
-    expect(() =>
+    await expect(
       parseBackupZip(
         new Uint8Array([
           0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]),
       ),
-    ).toThrow(/payload\.json/);
+    ).rejects.toThrow(/payload\.json/);
   });
 
-  test('zip として読めないバイト列はエラー', () => {
-    expect(() => parseBackupZip(new TextEncoder().encode('not a zip'))).toThrow();
+  test('zip として読めないバイト列はエラー', async () => {
+    await expect(parseBackupZip(new TextEncoder().encode('not a zip'))).rejects.toThrow();
   });
 });

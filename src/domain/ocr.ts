@@ -120,16 +120,18 @@ function sanitizeAmount(s: string): string {
   // 整数部のみ
   return cleaned.split('.')[0] ?? '';
 }
-// File / Blob を base64 文字列に変換（data URL prefix を除去）
+// File / Blob を base64 文字列に変換（data URL prefix を除去）。
+// 1 バイトずつ文字列連結すると 15MB の写真で 1500 万回のループと巨大な中間文字列に
+// なるため、ブラウザ側で一括変換する FileReader に任せる。
 export async function fileToBase64(file: Blob): Promise<{ base64: string; mimeType: string }> {
-  const buffer = await file.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i]!);
-  }
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('ファイルを読み込めませんでした'));
+    reader.readAsDataURL(file);
+  });
   return {
-    base64: btoa(binary),
+    base64: dataUrl.slice(dataUrl.indexOf(',') + 1),
     mimeType: file.type || 'image/jpeg',
   };
 }
