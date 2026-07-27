@@ -3,7 +3,11 @@
   import { backup } from '../stores/backup.svelte';
   import { getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
-  import { BACKUP_INTERVAL_HOURS, BACKUP_RETENTION_COUNTS } from '../backup/schedule';
+  import {
+    BACKUP_INTERVAL_HOURS,
+    BACKUP_RETENTION_COUNTS,
+    needsOffsiteBackupWarning,
+  } from '../backup/schedule';
   import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
 
   let includeApiKeys = $state(false);
@@ -77,7 +81,7 @@
   const lastDownloadLabel = $derived(formatTime(backup.lastDownloadAt));
   const downloadDays = $derived(daysSince(backup.lastDownloadAt));
   const downloadStale = $derived(
-    backup.adapterKind === 'opfs' && (downloadDays === null || downloadDays >= 7),
+    needsOffsiteBackupWarning(backup.adapterKind, backup.status, downloadDays),
   );
 
   const statusLabel = $derived(
@@ -122,6 +126,12 @@
   {:else if backup.adapterKind === 'none'}
     <p class="text-xs text-muted-foreground">
       {m.backup_panel_intro_none()}
+    </p>
+  {/if}
+
+  {#if backup.storagePersisted === false}
+    <p class="text-xs text-destructive">
+      {m.backup_panel_storage_evictable()}
     </p>
   {/if}
 
