@@ -1,5 +1,6 @@
 <script lang="ts">
   import { backup } from '../stores/backup.svelte';
+  import { needsOffsiteBackupWarning } from '../backup/schedule';
   import { link } from '../router.svelte';
   import { m } from '../paraglide/messages';
 
@@ -11,8 +12,8 @@
   }
 
   const downloadDays = $derived(daysSince(backup.lastDownloadAt));
-  const opfsStale = $derived(
-    backup.adapterKind === 'opfs' && (downloadDays === null || downloadDays >= 7),
+  const noOffsiteBackup = $derived(
+    needsOffsiteBackupWarning(backup.adapterKind, backup.status, downloadDays),
   );
 </script>
 
@@ -49,14 +50,16 @@
       >{m.backup_notice_action_settings()}</a
     >
   </div>
-{:else if opfsStale}
+{/if}
+
+{#if noOffsiteBackup}
   <div
     class="flex items-center justify-between gap-3 text-xs border border-destructive/50 rounded-lg px-3 py-2 bg-card"
   >
     <span class="text-destructive">
       {downloadDays === null
-        ? m.backup_notice_opfs_stale_never()
-        : m.backup_notice_opfs_stale_days({ days: downloadDays })}
+        ? m.backup_notice_no_offsite_never()
+        : m.backup_notice_no_offsite_days({ days: downloadDays })}
     </span>
     <a href="/settings" use:link class="text-primary hover:underline"
       >{m.backup_notice_action_operate()}</a

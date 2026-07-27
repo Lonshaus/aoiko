@@ -40,3 +40,22 @@ export function selectExpiredBackups(fileNames: readonly string[], keepCount: nu
   }
   return dated.slice(0, dated.length - keepCount);
 }
+
+export const OFFSITE_WARNING_DAYS = 7;
+// 端末外に控えがあると言えるのは、利用者が選んだフォルダへの自動保存が現に
+// 動いている場合だけ。OPFS はブラウザ管理領域でサイトデータ削除と運命を共にし、
+// フォルダ未設定・ブラウザ非対応はそもそも自動保存が無い。どの場合も手動
+// ダウンロードしか端末外へ出る経路がないため、同じ基準で警告する。
+export function needsOffsiteBackupWarning(
+  adapterKind: string,
+  status: string,
+  daysSinceDownload: number | null,
+): boolean {
+  if (status === 'initializing') {
+    return false;
+  }
+  if (adapterKind === 'fsa' && (status === 'idle' || status === 'writing')) {
+    return false;
+  }
+  return daysSinceDownload === null || daysSinceDownload >= OFFSITE_WARNING_DAYS;
+}

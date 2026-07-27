@@ -9,6 +9,7 @@
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
+  import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
   import { parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
@@ -420,6 +421,7 @@
 
   async function clearAll() {
     confirmingClear = false;
+    await backup.clearStoredBackups();
     await db.delete();
     location.reload();
   }
