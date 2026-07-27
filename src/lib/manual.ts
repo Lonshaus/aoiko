@@ -1,4 +1,5 @@
 import { baseLocale, locales, type Locale } from '../paraglide/runtime';
+import { getPolicyDoc, POLICY_DOC_NAMES, type PolicyDocName } from './policy-docs';
 
 const modules = import.meta.glob('../../docs/manual/*.md', {
   query: '?raw',
@@ -45,11 +46,21 @@ export function chapterSlugs(): string[] {
   return [...registry.keys()].filter((s) => s !== INDEX_SLUG).sort();
 }
 
+// 条文は章ではないので registry には入れない。chapterSlugs() は registry から
+// 導出されるため、サイドバーと前後章ナビゲーションには自動的に現れない
+// （「次の章：PRIVACY」のような並びにならない）。ルートとしてだけ解決できればよい。
+function isPolicySlug(slug: string): slug is PolicyDocName {
+  return POLICY_DOC_NAMES.includes(slug as PolicyDocName);
+}
+
 export function hasChapter(slug: string): boolean {
-  return registry.has(slug);
+  return registry.has(slug) || isPolicySlug(slug);
 }
 
 export function getManualContent(slug: string, locale: Locale): string | null {
+  if (isPolicySlug(slug)) {
+    return getPolicyDoc(slug, locale) || null;
+  }
   const byLocale = registry.get(slug);
   if (!byLocale) {
     return null;
@@ -106,9 +117,14 @@ export interface ResolvedManualLink {
   href: string;
   external: boolean;
 }
+// 利用者が同意した条文への相対リンク。オフラインでも読めるようアプリ内へ解決する。
+// 言語別ファイル（`_en` / `_zh-TW`）は同一 slug へ寄せる。表示言語は UI 設定に
+// 追従させるべきで、どのリンクを踏んだかで決まるべきではないため。
+const POLICY_DOC_LINK = /^(?:\.\.\/)+(DISCLAIMER|PRIVACY|SECURITY)(?:_(?:en|zh-TW))?\.md$/;
 // マニュアル内リンクの href を marked のレンダリング時に解決する。
 // `#アンカー`・`rewriteLinks` 済みの `/manual/...` はアプリ内遷移のためそのまま。
-// `http(s)://` は外部リンク。それ以外（`../../PRIVACY.md` 等、repo 内だが SPA ルートでないファイル）は
+// `http(s)://` は外部リンク。条文は上記のとおりアプリ内へ。
+// それ以外（`../../CONTRIBUTING.md`・原始碼等、開発者向けで同梱する意味がないもの）は
 // GitHub 上の実体を指す絶対 URL に書き換え、外部リンク扱いにする。
 export function resolveManualLink(href: string): ResolvedManualLink {
   if (href.startsWith('#') || href.startsWith('/manual')) {
@@ -116,6 +132,10 @@ export function resolveManualLink(href: string): ResolvedManualLink {
   }
   if (/^https?:\/\//.test(href)) {
     return { href, external: true };
+  }
+  const policy = POLICY_DOC_LINK.exec(href);
+  if (policy) {
+    return { href: `/manual/${policy[1]}`, external: false };
   }
   const repoPath = href.replace(/^(\.\.\/)+/, '');
   return { href: `${GITHUB_BLOB_BASE}${repoPath}`, external: true };
