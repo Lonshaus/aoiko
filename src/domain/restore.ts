@@ -73,10 +73,13 @@ export async function restoreFromPayload(
     writes.push({ name: table.name, rows });
   }
 
-  await db.delete();
-  await db.open();
-  // 全消去後の書き込みは全か無かにする。1 行でも失敗したら全ロールバックし半書き込みを残さない。
+  // 全消去と書き込みを 1 つのトランザクションに入れる。db.delete() でデータベースごと
+  // 消してから書き込むと、書き込みが失敗してもロールバック先が「空の状態」になり、
+  // 利用者の既存帳簿が復旧不能になる。clear() ならロールバックで元データが戻る。
   await db.transaction('rw', db.tables, async () => {
+    for (const table of db.tables) {
+      await table.clear();
+    }
     for (const w of writes) {
       await db.table(w.name).bulkPut(w.rows);
     }
