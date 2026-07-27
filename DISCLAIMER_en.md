@@ -39,7 +39,7 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 - The engine for LLM classification and OCR is selectable in Settings.
   - **Google Gemini (default, cloud)**: data sent (CSV rows, receipt images) is handled per **Google's privacy policy** and your API plan contract (the free tier may be used for training).
   - **OpenAI-compatible / Ollama etc. (local)**: when the endpoint is localhost, data does not leave your device. When a remote endpoint is specified, the policies of that service apply.
-  - **Tesseract (purely-local WASM OCR, OCR only)**: images never leave your device. No LLM is used; only T+13-digit registration number, date, and total are extracted from OCR text by deterministic rules. Vendor and items are not guessed. **Accuracy is significantly lower than the other engines** — manual verification and correction by the user are mandatory. On first use, `jpn.traineddata` / `eng.traineddata` are fetched from a CDN (self-host configurable, fully offline operation possible).
+  - **Tesseract (purely-local WASM OCR, OCR only)**: images never leave your device. No LLM is used; only T+13-digit registration number, date, and total are extracted from OCR text by deterministic rules. Vendor and items are not guessed. **Accuracy is significantly lower than the other engines** — manual verification and correction by the user are mandatory. `jpn.traineddata` / `eng.traineddata` are served by aoiko itself, so no external request is made (a different source can still be configured in Settings).
 - For cloud (external) engines, a confirmation dialog is shown right before sending. Always review the content beforehand if it may contain sensitive information or third-party personal information.
 - Local AI (Ollama etc.) requires **a vision-capable model for OCR**. aoiko must also run locally (HTTPS-served aoiko cannot reach localhost), and `OLLAMA_ORIGINS` must be configured on the Ollama side.
 - LLM output **may contain errors**. Always have a human verify before confirmation.
@@ -60,7 +60,7 @@ Corresponds to the version number shown in the consent status.
 
 | version | Date | Changes |
 | --- | --- | --- |
-| 5 | 2026-07-27 | Added a note that the browser itself can automatically delete data (storage-pressure eviction, Safari's 7-day-no-visit clearing) (§6) |
+| 5 | 2026-07-27 | Added a note that the browser itself can automatically delete data (storage-pressure eviction, Safari's 7-day-no-visit clearing) (§6). Revised the Tesseract entry to state that no external request is made, now that the language data ships with aoiko (§5) |
 | 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
 | 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |
 | 2 | 2026-06-28 | `.xtx` revised from "provisional — do not use for actual filing" to "covers the business portion; loadable into e-Tax Software (download edition)" |

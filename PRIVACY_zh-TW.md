@@ -41,14 +41,14 @@ Hosting 提供商（公開時預定 GitHub Pages / Vercel / Cloudflare Pages 等
 只在利用者**明確啟動** LLM 分類・收據 OCR 時，內容才會送到選中的引擎：
 
 - **vision LLM 路（Gemini / OpenAI 相容）**：LLM 分類＝CSV 行文字（金額・摘要等）＋ 勘定科目一覽／OCR＝收據圖片（Base64）＋ 抽取指示 prompt
-- **Tesseract 路（OCR 限定）**：不用 LLM。圖片在 WASM 內本機處理、不外送。只有 `jpn.traineddata` / `eng.traineddata` 首次從 CDN 取（圖片不送）
+- **Tesseract 路（OCR 限定）**：不用 LLM。圖片在 WASM 內本機處理、不外送。`jpn.traineddata` / `eng.traineddata` 也由 aoiko 自己提供，不會有對外連線
 
 | 引擎（設定中選擇） | 送出目的地 | 是否離開本機 |
 |---|---|---|
 | Google Gemini（預設） | `generativelanguage.googleapis.com` | 是（雲端） |
 | OpenAI 相容 / Ollama 等：指定 localhost 時 | 本機內（例 `http://localhost:11434`） | **否** |
 | OpenAI 相容 / Ollama 等：指定遠端時 | 利用者指定的 host | 是 |
-| Tesseract（純本地 WASM OCR） | 圖片不離開本機。只有 `jpn.traineddata` / `eng.traineddata` 首次從 CDN 取（自架可做到完全離線）| **圖片不送**（只 DL traineddata）|
+| Tesseract（純本地 WASM OCR） | 圖片不離開本機。`jpn.traineddata` / `eng.traineddata` 也內附 | **無**（不會有對外連線）|
 
 - 送出是利用者瀏覽器**直接**進行，不經由 aoiko 的管理伺服器（不存在）
 - **外部（雲端）送出引擎使用時送出前會跳確認對話框**
