@@ -69,6 +69,14 @@ describe('searchManual', () => {
   it('ヒット無しは空配列', () => {
     expect(searchManual('zzzznonexistentqueryzzz', 'ja')).toEqual([]);
   });
+  // 条文は章ではないので検索対象に含めない。含めると章の検索結果に条文が混ざり、
+  // 前後章ナビゲーションを持たないページへ利用者を放り出すことになる。
+  it('条文は検索対象に含めない', () => {
+    const hits = searchManual('プライバシーポリシー', 'ja');
+    expect(hits.map((h) => h.slug)).not.toContain('PRIVACY');
+    expect(hits.map((h) => h.slug)).not.toContain('DISCLAIMER');
+    expect(hits.map((h) => h.slug)).not.toContain('SECURITY');
+  });
 });
 
 describe('stripLanguageNav', () => {
