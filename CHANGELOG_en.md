@@ -4,6 +4,13 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.2] - 2026-07-27
+
+### Fixed
+
+- Receipt OCR always failed when Tesseract was selected as the OCR engine. The worker and WASM core are now served from the same origin instead of an external CDN (first use still needs a connection to fetch the language data)
+- Automatic backup reported "OK" while never actually saving on some environments. The capability check now covers the API used for writing; where it is unavailable the status says so and points to manual download (Safari below 26 and iOS are affected). **If you used v1.0.1 or earlier on such an environment, not a single automatic backup was saved — please download one manually from the settings screen**
+
 ## [1.0.1] - 2026-07-16
 
 ### Fixed
