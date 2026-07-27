@@ -23,17 +23,10 @@ export class OpfsBackupAdapter implements BackupAdapter {
   async isReady(): Promise<boolean> {
     return this.isAvailable();
   }
-  // OPFS は明示的なユーザー許可不要
+  // OPFS は明示的なユーザー許可不要。永続化ストレージの要求は
+  // アダプタ非依存の関心事なので BackupManager 側が一括で行う。
   async ensurePermission(): Promise<boolean> {
-    if (!(await this.isAvailable())) return false;
-    if (typeof navigator.storage.persist === 'function') {
-      try {
-        await navigator.storage.persist();
-      } catch {
-        // 既に persist 済 or 拒否された場合も処理続行
-      }
-    }
-    return true;
+    return this.isAvailable();
   }
 
   async configure(): Promise<void> {
