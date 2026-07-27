@@ -169,9 +169,9 @@ OCR that runs entirely in the browser, with no LLM. **Accuracy is limited**; man
 
 1. Choose **"Tesseract"**
 2. **"Save"**
-3. (Optional) Specify a **self-hosted langPath URL** for `traineddata` (defaults to a CDN)
+3. (Optional) Set **langPath** only if you want a different edition of `traineddata` (defaults to the copy bundled with aoiko)
 
-> - Images never leave your device (only `traineddata` is fetched once from the CDN)
+> - Neither images nor language data leave your device (the language data is served by aoiko itself)
 > - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
 > - OCR only — not usable for CSV classification or order import
 

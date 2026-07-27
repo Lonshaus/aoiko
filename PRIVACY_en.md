@@ -41,14 +41,14 @@ All of the above exists only locally on your device. **Clearing browser site dat
 Only when you **explicitly invoke** LLM classification or receipt OCR, content is sent to the selected engine:
 
 - **Vision LLM path (Gemini / OpenAI-compatible)**: LLM classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
-- **Tesseract path (OCR only)**: no LLM. The image is processed inside WASM on the device — never sent externally. Only `jpn.traineddata` / `eng.traineddata` are fetched once from the CDN (the image is not sent)
+- **Tesseract path (OCR only)**: no LLM. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` / `eng.traineddata` are served by aoiko itself, so no external request is made
 
 | Engine (selected in Settings) | Destination | Off-device transmission |
 |---|---|---|
 | Google Gemini (default) | `generativelanguage.googleapis.com` | Yes (cloud) |
 | OpenAI-compatible / Ollama etc. when localhost | On-device (e.g. `http://localhost:11434`) | **None** |
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
-| Tesseract (purely-local WASM OCR) | Image never leaves device. Only `jpn.traineddata` / `eng.traineddata` fetched once from CDN (self-host configurable, fully offline possible) | **None for images** (only traineddata DL) |
+| Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` / `eng.traineddata` are bundled too | **None** (no external request is made) |
 
 - Requests go **directly** from your browser to the destination — aoiko has no management server in the path
 - For **cloud (external) engines, a pre-send confirmation dialog** is shown
