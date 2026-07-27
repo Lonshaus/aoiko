@@ -42,5 +42,6 @@ Initial release.
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
 - PWA offline operation, trilingual UI (日本語 / English / 繁體中文)
 
+[1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0

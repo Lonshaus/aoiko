@@ -28,10 +28,12 @@ Regular backup is **the user's responsibility**. "I'll back up when I remember" 
 | Method | API | Browser support | Recommendation |
 |---|---|---|---|
 | **File System Access API (FSA)** | `showDirectoryPicker` | Chrome / Edge / Brave (Chromium) | ◎ Auto, choose any folder |
-| **OPFS (Origin Private File System)** | `navigator.storage.getDirectory` | Safari / Firefox + most | ◯ Auto but browser-managed |
+| **OPFS (Origin Private File System)** | `navigator.storage.getDirectory` + `createWritable` | Firefox / Safari 26 and later | ◯ Auto but browser-managed |
 | **Manual JSON download** | `<a download>` | All browsers | △ Only when you remember |
 
 aoiko auto-falls back: FSA when available, otherwise OPFS, otherwise manual download only.
+
+> **Safari below 26 and iOS do not support automatic backup.** They lack `createWritable`, the API required to write into OPFS, so the backup status in Settings reads "⚠ Browser not supported". Rely on manual JSON download instead.
 
 ## 3. Configure automatic backup (recommended)
 
@@ -51,7 +53,7 @@ From then on, on every entry add/edit, a file like `aoiko-ledger-{date}.zip` is 
 >
 > **Caution**: an iCloud Drive "Download On Demand" item as the FSA folder will trigger online sync on every backup write; for stability, choose a folder with ample local space.
 
-### 3-2. Safari / Firefox (OPFS only)
+### 3-2. Firefox / Safari 26 and later (OPFS only)
 
 On non-FSA browsers, the only option is **OPFS**. OPFS is **a private storage managed internally by the browser** — you cannot inspect it from Finder or Explorer.
 
@@ -60,9 +62,15 @@ OPFS backup:
 - Browser site-data clear **wipes OPFS** along with IndexedDB
 - The "device/browser-independent" purpose of a backup is **not fulfilled**
 
-> Safari / Firefox users: strongly combine with **manual JSON download**.
+> OPFS users: strongly combine with **manual JSON download**.
 
-### 3-3. Confirming last backup time
+### 3-3. Safari below 26 and iOS (manual only)
+
+Automatic backup does not run. Settings → "Backup" shows "⚠ Browser not supported" and offers no folder picker. Run [§ 4 Manual export](#4-manual-export) on a regular schedule.
+
+If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, quarterly — and download manually every time.
+
+### 3-4. Confirming last backup time
 
 Settings → "Backup" section shows **"Last backup: 2026-05-26 14:23"**. If it's stale for long, supplement with a manual export.
 
