@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import {
     commitImport,
@@ -57,6 +58,13 @@
     host: string;
   } | null>(null);
   let error = $state('');
+  // 解析済みの取込候補は確定するまで DB に無い。画面を離れると CSV の読み直しになる。
+  const isDirty = $derived(rows.length > 0 && !importing);
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   let success = $state('');
 
   const currentParser = $derived(findParser(selectedParserName));
