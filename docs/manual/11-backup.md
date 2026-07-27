@@ -28,10 +28,12 @@ aoiko のデータはブラウザの **IndexedDB**（端末ローカル）に保
 | 方式 | API | 対応ブラウザ | 推奨度 |
 |---|---|---|---|
 | **File System Access API（FSA）** | `showDirectoryPicker` | Chrome / Edge / Brave 等 Chromium 系 | ◎ 自動・任意フォルダ |
-| **OPFS（Origin Private File System）** | `navigator.storage.getDirectory` | Safari / Firefox 含む大半 | ◯ 自動だがブラウザ管理領域 |
+| **OPFS（Origin Private File System）** | `navigator.storage.getDirectory` + `createWritable` | Firefox / Safari 26 以降 | ◯ 自動だがブラウザ管理領域 |
 | **手動 JSON ダウンロード** | `<a download>` | 全ブラウザ | △ 思い出した時だけ |
 
 aoiko は FSA が使えるブラウザでは FSA、使えなければ OPFS、それも使えなければ手動 DL のみ、と自動 fallback します。
+
+> **Safari 26 未満・iOS は自動バックアップに対応しません。** OPFS への書込に必要な `createWritable` が実装されていないためで、設定画面のバックアップ状態は 「⚠ ブラウザ非対応」 と表示されます。手動 JSON ダウンロードのみで運用してください。
 
 ## 3. 自動バックアップを設定（推奨）
 
@@ -51,7 +53,7 @@ aoiko は FSA が使えるブラウザでは FSA、使えなければ OPFS、そ
 >
 > **注意**：iCloud Drive の Finder 「ダウンロードオンデマンド」アイテムを FSA フォルダにすると、バックアップ書込時に毎回オンライン同期が走るので、容量に余裕のあるローカル領域を選ぶ方が安定。
 
-### 3-2. Safari / Firefox（OPFS のみ）
+### 3-2. Firefox / Safari 26 以降（OPFS のみ）
 
 FSA に未対応のブラウザでは、選択肢が **OPFS** のみ。OPFS は **ブラウザが内部管理する非公開ストレージ**で、ファインダーや Explorer から直接見ることはできません。
 
@@ -60,9 +62,15 @@ OPFS のバックアップは：
 - ブラウザのサイトデータ削除で **OPFS も一緒に消える**（IndexedDB と同じ運命）
 - バックアップとしての本来の役割（端末/ブラウザ独立）は **果たさない**
 
-> Safari / Firefox 利用者には **手動 JSON ダウンロード**との併用を強く推奨。
+> OPFS 利用者には **手動 JSON ダウンロード**との併用を強く推奨。
 
-### 3-3. 最終バックアップ時刻の確認
+### 3-3. Safari 26 未満・iOS（手動のみ）
+
+自動バックアップは動きません。設定 → 「バックアップ」 は 「⚠ ブラウザ非対応」 と表示され、フォルダ選択も出ません。[§ 4 手動エクスポート](#4-手動エクスポート)を定期的に実行してください。
+
+iPhone / iPad で記帳するなら、月次・四半期等の区切りで必ず手動 DL する運用を決めておくのが安全です。
+
+### 3-4. 最終バックアップ時刻の確認
 
 設定 → 「バックアップ」セクションに 「**最終バックアップ：2026-05-26 14:23**」 等が表示されます。長期間更新されていない場合は手動エクスポートで補完を。
 
