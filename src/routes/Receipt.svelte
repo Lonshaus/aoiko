@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
@@ -26,6 +27,13 @@
   let knownAccount = $state('1110'); // 現金 デフォルト
   let processing = $state(false);
   let error = $state('');
+  // 読み込んだ画像と OCR 結果は確定するまで DB に無い。撮り直し・再解析になる。
+  const isDirty = $derived(file !== null || extracted !== null);
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   let success = $state('');
   let confirmOpen = $state(false);
   let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);

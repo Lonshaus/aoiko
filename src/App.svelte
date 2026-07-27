@@ -5,6 +5,7 @@
   import Home from './routes/Home.svelte';
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
+  import UnsavedChangesDialog from './components/UnsavedChangesDialog.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
   import { pathToChapter } from './lib/manual-routes';
   import { m } from './paraglide/messages';
@@ -209,6 +210,7 @@
 </div>
 
 <UpdatePrompt />
+<UnsavedChangesDialog />
 
 {#if consentState === 'required'}
   <DisclaimerConsent onaccept={onConsentAccepted} />
