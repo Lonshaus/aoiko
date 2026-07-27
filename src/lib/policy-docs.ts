@@ -1,7 +1,9 @@
 import type { Locale } from '../paraglide/runtime';
 import { baseLocale, locales } from '../paraglide/runtime';
 
-export type PolicyDocName = 'DISCLAIMER' | 'PRIVACY' | 'SECURITY';
+export const POLICY_DOC_NAMES = ['DISCLAIMER', 'PRIVACY', 'SECURITY'] as const;
+
+export type PolicyDocName = (typeof POLICY_DOC_NAMES)[number];
 
 // manual.ts の eager glob（全マニュアル章）とは切り離す。DisclaimerConsent は
 // 初回起動時に必ず描画されるため、そちらを import すると全章分がバンドルへ混入する。
