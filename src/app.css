@@ -99,7 +99,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  /* Inter Variable はラテン文字のみのため、和文・繁体中文は OS 同梱の CJK フォントに委ねる。
+     日本語読者向けの字形（直/骨 等）を優先し、Hiragino/游ゴシックを先に置く。
+     繁体中文ユーザーには PingFang TC / 微軟正黑體が後段フォールバックとして機能する。 */
+  --font-sans:
+    'Inter Variable', -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'PingFang TC', 'Microsoft JhengHei',
+    system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -158,8 +164,23 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* viewport-fit=cover + apple-mobile-web-app-status-bar-style=black-translucent で
+       コンテンツがノッチ／ステータスバー領域まで描画されるため、安全域分だけ余白を確保する */
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
   }
   html {
     @apply font-sans;
+    /* prefers-color-scheme に連動しているネイティブ UI（スクロールバー・フォームコントロール）を
+       ダークモードでも正しい配色にする */
+    color-scheme: light dark;
+    /* 長い仕訳一覧・帳票表のスクロール中に pull-to-refresh が誤発火しないようにする */
+    overscroll-behavior-y: contain;
+  }
+  [data-slot='alert-dialog-content'] {
+    /* ダイアログ内スクロールが背後のページへ連鎖しないようにする */
+    overscroll-behavior: contain;
   }
 }
