@@ -151,6 +151,40 @@ describe('restoreFromJson', () => {
     expect(vendors).toHaveLength(0);
   });
 
+  test('書き込みが失敗しても既存の帳簿データはロールバックで戻る', async () => {
+    const entryId = 'keep-entry';
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: entryId,
+      date: '2026-05-01',
+      year: 2026,
+      description: '復元前からある仕訳',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
+    await db.vendors.add({ id: 'keep-vendor', name: '残るべき業者' });
+
+    await expect(
+      restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        tables: {
+          vendors: [{ id: 'v1', name: '新業者' }],
+          invoices: [{ id: 'inv-1', notCloneable: () => {} }],
+        },
+      }),
+    ).rejects.toThrow();
+
+    const entries = await db.journalEntries.toArray();
+    const vendors = await db.vendors.toArray();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.description).toBe('復元前からある仕訳');
+    expect(vendors).toHaveLength(1);
+    expect(vendors[0]?.name).toBe('残るべき業者');
+  });
+
   test('clears existing data before restore', async () => {
     await db.vendors.add({ id: newId(), name: '消える業者' });
 
