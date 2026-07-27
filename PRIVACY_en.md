@@ -61,7 +61,7 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 | Method | Destination |
 |---|---|
 | File System Access API (Chromium) | The **local** folder you choose |
-| OPFS (Safari / Firefox) | Browser-managed **on-device** storage |
+| OPFS (Firefox / Safari 26 and later) | Browser-managed **on-device** storage |
 | Manual JSON download | Your "Downloads" folder |
 | Google Drive sync (future) | Your Google Drive |
 

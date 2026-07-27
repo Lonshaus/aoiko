@@ -28,10 +28,12 @@ aoiko 的資料存在瀏覽器的 **IndexedDB**（本機）。這代表：
 | 方式 | API | 對應瀏覽器 | 推薦度 |
 |---|---|---|---|
 | **File System Access API（FSA）** | `showDirectoryPicker` | Chrome / Edge / Brave 等 Chromium 系 | ◎ 自動・任意資料夾 |
-| **OPFS（Origin Private File System）** | `navigator.storage.getDirectory` | Safari / Firefox 含大部分 | ◯ 自動但是瀏覽器管理區 |
+| **OPFS（Origin Private File System）** | `navigator.storage.getDirectory` + `createWritable` | Firefox / Safari 26 以後 | ◯ 自動但是瀏覽器管理區 |
 | **手動 JSON 下載** | `<a download>` | 全瀏覽器 | △ 想到才備 |
 
 aoiko 自動 fallback：FSA 可用就用 FSA、不行 OPFS、再不行只剩手動下載。
+
+> **Safari 26 以前與 iOS 不支援自動備份。** 因為寫入 OPFS 需要的 `createWritable` 沒有實作，設定畫面的備份狀態會顯示「⚠ 瀏覽器不支援」。請改用手動 JSON 下載。
 
 ## 3. 設定自動備份（推薦）
 
@@ -51,7 +53,7 @@ aoiko 自動 fallback：FSA 可用就用 FSA、不行 OPFS、再不行只剩手�
 >
 > **注意**：iCloud Drive Finder「Download On Demand」項目當 FSA 資料夾、每次備份寫入都觸發線上同步、可能不穩。選本機有空間的地方比較好。
 
-### 3-2. Safari / Firefox（只能 OPFS）
+### 3-2. Firefox / Safari 26 以後（只能 OPFS）
 
 不支援 FSA 的瀏覽器只能用 **OPFS**。OPFS 是 **瀏覽器內部管理的私有 storage**、Finder 跟檔案總管直接看不到。
 
@@ -60,9 +62,15 @@ OPFS 備份：
 - 瀏覽器站點資料清除會把 **OPFS 一起清掉**（跟 IndexedDB 同命運）
 - 備份「裝置/瀏覽器獨立」的本來目的 **達不到**
 
-> Safari / Firefox 用戶強烈建議跟 **手動 JSON 下載** 併用。
+> OPFS 用戶強烈建議跟 **手動 JSON 下載** 併用。
 
-### 3-3. 最終備份時刻確認
+### 3-3. Safari 26 以前與 iOS（只能手動）
+
+自動備份不會運作。設定 →「備份」會顯示「⚠ 瀏覽器不支援」，也不會出現資料夾選擇。請定期執行[§ 4 手動匯出](#4-手動匯出)。
+
+如果你用 iPhone / iPad 記帳，建議先定好節奏（每月、每季），到了就一定手動下載一份。
+
+### 3-4. 最終備份時刻確認
 
 設定 →「備份」區塊顯示 「**最終備份：2026-05-26 14:23**」等。長時間沒更新就用手動匯出補。
 
