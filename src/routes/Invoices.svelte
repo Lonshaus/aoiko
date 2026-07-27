@@ -5,6 +5,7 @@
   import { todayISO } from '../lib/date';
   import { D, formatJPY } from '../lib/decimal';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import { ledger } from '../stores/ledger.svelte';
   import {
     convertQuoteToInvoiceDraft,
@@ -134,7 +135,7 @@
       editing = null;
       convertingFromQuoteId = null;
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     }
   }
 
@@ -156,7 +157,7 @@
       editing = null;
       convertingFromQuoteId = null;
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     }
   }
 
@@ -183,7 +184,7 @@
     try {
       await voidInvoice(id);
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     }
   }
 
