@@ -71,6 +71,7 @@
   "disclaimer_bullet_storage_html": "Data is stored in the <strong>browser's IndexedDB</strong>. It will be lost if the browser cache is cleared. Backup is the user's responsibility.",
   "disclaimer_bullet_liability_html": "The developer is not liable for <strong>any damages</strong> arising from final returns, amended returns, or tax audits.",
   "disclaimer_docs_prefix": "Full text: ",
+  "policy_doc_loading": "Loading…",
   "disclaimer_accept_button": "I understand and agree — let me start",
   "disclaimer_accept_button_saving": "Saving…",
   "backup_panel_title": "Backup",
