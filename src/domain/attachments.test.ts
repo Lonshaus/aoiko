@@ -1,15 +1,23 @@
 import { describe, expect, test } from 'vitest';
-import { AttachmentTooLargeError, buildAttachmentRecord } from './attachments';
+import {
+  AttachmentInvalidTypeError,
+  AttachmentTooLargeError,
+  buildAttachmentRecord,
+} from './attachments';
 import { MAX_IMAGE_BYTES } from '../lib/file-limit';
 
-function makeFile(name: string, size: number, type: string): File {
-  return new File([new Uint8Array(size)], name, { type });
+const JPEG_HEADER = [0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+function makeFile(name: string, size: number, type: string, header: number[] = []): File {
+  const bytes = new Uint8Array(size);
+  bytes.set(header);
+  return new File([bytes], name, { type });
 }
 
 describe('buildAttachmentRecord', () => {
-  test('通常のファイルからレコードを組み立てる', () => {
-    const file = makeFile('receipt.jpg', 1000, 'image/jpeg');
-    const r = buildAttachmentRecord('entry1', file, 123);
+  test('通常のファイルからレコードを組み立てる', async () => {
+    const file = makeFile('receipt.jpg', 1000, 'image/jpeg', JPEG_HEADER);
+    const r = await buildAttachmentRecord('entry1', file, 123);
     expect(r.entryId).toBe('entry1');
     expect(r.fileName).toBe('receipt.jpg');
     expect(r.mimeType).toBe('image/jpeg');
@@ -18,14 +26,30 @@ describe('buildAttachmentRecord', () => {
     expect(r.id).toBeTruthy();
   });
 
-  test('type が空なら application/octet-stream にフォールバック', () => {
-    const file = makeFile('scan', 10, '');
-    const r = buildAttachmentRecord('entry1', file, 1);
+  test('type が空でも実体が画像なら application/octet-stream にフォールバック', async () => {
+    // iOS Safari の HEIC 等、File.type が空になる実機挙動を想定
+    const file = makeFile('scan.jpg', JPEG_HEADER.length, '', JPEG_HEADER);
+    const r = await buildAttachmentRecord('entry1', file, 1);
     expect(r.mimeType).toBe('application/octet-stream');
   });
 
-  test('上限超過は AttachmentTooLargeError', () => {
-    const file = makeFile('huge.jpg', MAX_IMAGE_BYTES + 1, 'image/jpeg');
-    expect(() => buildAttachmentRecord('entry1', file, 1)).toThrow(AttachmentTooLargeError);
+  test('上限超過は AttachmentTooLargeError', async () => {
+    const file = makeFile('huge.jpg', MAX_IMAGE_BYTES + 1, 'image/jpeg', JPEG_HEADER);
+    await expect(buildAttachmentRecord('entry1', file, 1)).rejects.toThrow(AttachmentTooLargeError);
+  });
+
+  test('MIME を偽装した PDF は AttachmentInvalidTypeError', async () => {
+    const pdfHeader = [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31];
+    const file = makeFile('fake.jpg', 100, 'image/jpeg', pdfHeader);
+    await expect(buildAttachmentRecord('entry1', file, 1)).rejects.toThrow(
+      AttachmentInvalidTypeError,
+    );
+  });
+
+  test('画像の先頭バイトを持たないファイルは拒否する', async () => {
+    const file = makeFile('note.txt', 100, 'text/plain');
+    await expect(buildAttachmentRecord('entry1', file, 1)).rejects.toThrow(
+      AttachmentInvalidTypeError,
+    );
   });
 });
