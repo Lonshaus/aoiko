@@ -931,7 +931,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportYayoiCsv(currentYear);
-      saveFile(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -941,7 +941,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportGenericCsv(currentYear);
-      saveFile(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -951,7 +951,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportCorrectionHistoryCsv(currentYear);
-      saveFile(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
