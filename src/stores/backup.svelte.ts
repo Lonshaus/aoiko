@@ -291,7 +291,7 @@ class BackupManager {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
       const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
-      saveFile(bytes, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
+      await saveFile(bytes, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
       this.lastDownloadAt = Date.now();
       await setSetting('lastDownloadAt', this.lastDownloadAt);
     } catch (e: unknown) {

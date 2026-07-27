@@ -519,10 +519,10 @@
         ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
         : {}),
     });
-    saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
+    await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
   }
-  function downloadXml(xml: string, filename: string): void {
-    saveTextFile(xml, filename, 'application/xml');
+  async function downloadXml(xml: string, filename: string): Promise<void> {
+    await saveTextFile(xml, filename, 'application/xml');
   }
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
   // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。
@@ -552,7 +552,7 @@
       interimPaidNational: safeDecimal(interimPaidNationalInput),
       interimPaidLocal: safeDecimal(interimPaidLocalInput),
     });
-    downloadXml(xml, `aoiko-shohi-${year}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}.xtx`);
   }
   // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
@@ -583,7 +583,7 @@
             interimPaidLocal: safeDecimal(interimPaidLocalInput),
           }),
     });
-    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
   async function downloadGeneralXtx(period?: { start: string; end: string }) {
@@ -629,7 +629,7 @@
             interimPaidLocal: safeDecimal(interimPaidLocalInput),
           }),
     });
-    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 月別売上のバー高さ計算用、月内の最大売上を取る
   function maxSales(rep: MonthlyReport | null) {
