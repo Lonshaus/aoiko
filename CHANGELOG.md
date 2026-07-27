@@ -42,5 +42,6 @@
 - JSON バックアップ・復元（File System Access API／OPFS 自動フォールバック）
 - PWA オフライン動作・三言語 UI（日本語・English・繁體中文）
 
+[1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0
