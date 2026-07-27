@@ -3,7 +3,7 @@
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { newId } from '../lib/id';
@@ -353,7 +353,10 @@
       reset();
       date = today();
     } catch (e) {
-      error = describeStorageError(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     } finally {
       saving = false;
     }

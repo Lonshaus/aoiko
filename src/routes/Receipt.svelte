@@ -4,7 +4,7 @@
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
@@ -236,7 +236,10 @@
         preview = null;
       }
     } catch (e) {
-      error = describeStorageError(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     }
   }
 

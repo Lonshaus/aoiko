@@ -4,7 +4,7 @@
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
@@ -292,7 +292,10 @@
       const record = await buildAttachmentRecord(id, f, Date.now());
       await db.attachments.add(record);
     } catch (e) {
-      attachmentError = describeStorageError(e);
+      attachmentError =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     }
   }
 
