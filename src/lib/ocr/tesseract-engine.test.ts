@@ -35,12 +35,14 @@ describe('createTesseractReceiptExtractor', () => {
     expect(options.corePath).toBe('/tesseract/core');
   });
 
-  test('langPath 未指定なら渡さない（tesseract.js の既定に従う）', async () => {
+  // 既定のままだと traineddata を jsDelivr から取りに行き、オフライン運用も
+  // 「端末外に出ない」という説明も成立しなくなるため、同梱分を指す。
+  test('langPath 未指定なら同梱した traineddata を指す', async () => {
     const [, , options] = await runExtract();
-    expect('langPath' in options).toBe(false);
+    expect(options.langPath).toBe('/tesseract/lang');
   });
 
-  test('langPath 指定時はそのまま渡す（完全オフライン運用の自己ホスト先）', async () => {
+  test('langPath 指定時はそのまま渡す（別の取得元を使いたい場合）', async () => {
     const [, , options] = await runExtract('https://example.test/tessdata');
     expect(options.langPath).toBe('https://example.test/tessdata');
   });

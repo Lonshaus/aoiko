@@ -17,7 +17,7 @@ Generate journal candidates from photos or images of paper receipts.
 |---|---|---|---|
 | **Gemini Vision** (default) | ◎ | Yes | Gemini API key |
 | **OpenAI-compatible** (Ollama etc.) | ◯〜◎ | None for localhost / Yes for remote | Endpoint + vision model |
-| **Tesseract** | △ | None (only `traineddata` first-fetch from CDN) | Just select in Settings |
+| **Tesseract** | △ | None | Just select in Settings |
 
 > Detailed setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
 
@@ -60,7 +60,7 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 
 #### Tesseract: no dialog
 
-WASM-on-device, so no confirmation. The first run downloads `traineddata` (several MB) from CDN.
+WASM-on-device, so no confirmation. The language data (`jpn.traineddata` / `eng.traineddata`, about 4.8 MB together) is served by aoiko itself and fetched only on your first scan. The browser caches it afterwards, so no external request is ever made.
 
 ### 2-3. Review and edit the extracted result
 
@@ -124,7 +124,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - Accept that vendor and items will be empty; this is by design
 - T+13 invoice number is rock-solid (extracted by regex)
 - Date and total are best-effort. Always verify manually
-- For fully offline operation, set the `traineddata` URL to a self-hosted location in Settings
+- The language data ships with aoiko, so it works fully offline after the first fetch. Only set a `traineddata` source in Settings if you want a different edition (e.g. the higher-accuracy best models)
 
 ## 4. Troubleshooting
 
