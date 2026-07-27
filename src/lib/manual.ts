@@ -99,6 +99,27 @@ export function rewriteLinks(markdown: string): string {
 export function rewriteImagePaths(markdown: string): string {
   return markdown.replace(/\.\.\/\.\.\/src\/assets\/logo-wordmark\.png/g, '/logo-wordmark.png');
 }
+
+const GITHUB_BLOB_BASE = 'https://github.com/Lonshaus/aoiko/blob/master/';
+
+export interface ResolvedManualLink {
+  href: string;
+  external: boolean;
+}
+// マニュアル内リンクの href を marked のレンダリング時に解決する。
+// `#アンカー`・`rewriteLinks` 済みの `/manual/...` はアプリ内遷移のためそのまま。
+// `http(s)://` は外部リンク。それ以外（`../../PRIVACY.md` 等、repo 内だが SPA ルートでないファイル）は
+// GitHub 上の実体を指す絶対 URL に書き換え、外部リンク扱いにする。
+export function resolveManualLink(href: string): ResolvedManualLink {
+  if (href.startsWith('#') || href.startsWith('/manual')) {
+    return { href, external: false };
+  }
+  if (/^https?:\/\//.test(href)) {
+    return { href, external: true };
+  }
+  const repoPath = href.replace(/^(\.\.\/)+/, '');
+  return { href: `${GITHUB_BLOB_BASE}${repoPath}`, external: true };
+}
 // アプリ内では言語は UI 設定に追従するため、各 .md 冒頭の言語切替行（GitHub 閲覧用）は不要。
 // 行内のリンクが同一ルートへ収束して機能しないため、レンダリング前に取り除く。
 export function stripLanguageNav(markdown: string): string {
