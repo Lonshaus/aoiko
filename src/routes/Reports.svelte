@@ -717,7 +717,7 @@
           {/if}
         </div>
       </header>
-      <div class="grid grid-cols-4 gap-6 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
         <div>
           <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalRevenue)}</div>
