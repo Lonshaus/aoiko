@@ -505,7 +505,7 @@
 
   {#if rows.length > 0}
     <div class="bg-card text-card-foreground rounded-xl overflow-x-auto shadow-sm">
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[720px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-4 py-3 w-8"></th>

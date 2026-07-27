@@ -12,6 +12,7 @@
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
+  const isWide = $derived(isManual || router.path === '/reports');
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
@@ -85,7 +86,7 @@
 <div class="min-h-screen flex flex-col">
   {#if showErrorBanner}
     <div
-      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive"
+      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive pt-[calc(0.5rem+env(safe-area-inset-top))]"
     >
       <span>{m.error_banner_message()}</span>
       <button
@@ -97,7 +98,9 @@
       </button>
     </div>
   {/if}
-  <header class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground">
+  <header
+    class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground pt-[env(safe-area-inset-top)]"
+  >
     <div
       class="container mx-auto max-w-5xl px-4 md:px-8 py-4 flex items-center justify-between gap-6"
     >
@@ -152,7 +155,11 @@
       </nav>
     {/if}
   </header>
-  <main class="flex-1 container mx-auto px-4 md:px-8 py-8 {isManual ? 'max-w-5xl' : 'max-w-3xl'}">
+  <main
+    class="flex-1 container mx-auto px-4 md:px-8 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] {isWide
+      ? 'max-w-5xl'
+      : 'max-w-3xl'}"
+  >
     {#if helpChapter}
       <div class="print:hidden mb-4 flex justify-end">
         <a
