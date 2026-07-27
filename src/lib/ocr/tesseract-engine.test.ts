@@ -61,4 +61,26 @@ describe('createTesseractReceiptExtractor', () => {
     });
     expect(result.totalAmount).toBe('1500');
   });
+
+  // traineddata は precache 対象外のため、初回はオンラインでの取得が要る。
+  // オフライン時は「API キーが違う」等と誤読させない文言に変換する。
+  test('オフライン時の失敗はオフライン向けの文言に変換される', async () => {
+    recognize.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    vi.stubGlobal('navigator', { onLine: false });
+    const { createTesseractReceiptExtractor } = await import('./tesseract-engine');
+    await expect(
+      createTesseractReceiptExtractor().extract({ base64: 'QUJD', mimeType: 'image/png' }),
+    ).rejects.toThrow(/インターネット/);
+    vi.unstubAllGlobals();
+  });
+
+  test('オンライン時の失敗は元のエラーをそのまま伝える', async () => {
+    recognize.mockRejectedValueOnce(new Error('wasm init failed'));
+    vi.stubGlobal('navigator', { onLine: true });
+    const { createTesseractReceiptExtractor } = await import('./tesseract-engine');
+    await expect(
+      createTesseractReceiptExtractor().extract({ base64: 'QUJD', mimeType: 'image/png' }),
+    ).rejects.toThrow('wasm init failed');
+    vi.unstubAllGlobals();
+  });
 });

@@ -13,6 +13,7 @@
     type OpeningCustomItem,
   } from '../domain/business-opening';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import type { DepreciationMethod } from '../db/types';
   import type { FilingType } from '../tax-schema/2026/xtx';
 
@@ -196,7 +197,7 @@
       });
       step = 'done';
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     } finally {
       generating = false;
     }

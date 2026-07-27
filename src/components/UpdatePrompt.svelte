@@ -6,6 +6,8 @@
   let updateAvailable = $state(false);
   let offlineReady = $state(false);
   let dismissOffline = $state(false);
+  let registerFailed = $state(false);
+  let dismissRegisterFailed = $state(false);
   let updateFn: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
   onMount(() => {
@@ -15,6 +17,12 @@
       },
       onOfflineReady() {
         offlineReady = true;
+      },
+      // オフライン動作の要となる Service Worker が登録できない場合。今回のセッションは
+      // オンラインのまま使えるので警告どまりに留め、原因追跡用に console にも残す。
+      onRegisterError(error) {
+        console.error('[aoiko] Service Worker の登録に失敗しました', error);
+        registerFailed = true;
       },
     });
   });
@@ -61,6 +69,22 @@
     <button
       type="button"
       onclick={() => (dismissOffline = true)}
+      aria-label={m.common_close()}
+      class="text-muted-foreground hover:text-foreground"
+    >
+      ×
+    </button>
+  </div>
+{:else if registerFailed && !dismissRegisterFailed}
+  <div
+    class="fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
+  >
+    <span class="text-xs text-muted-foreground">
+      {m.update_register_error()}
+    </span>
+    <button
+      type="button"
+      onclick={() => (dismissRegisterFailed = true)}
       aria-label={m.common_close()}
       class="text-muted-foreground hover:text-foreground"
     >

@@ -36,6 +36,7 @@
   import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
   import { buildXtx2026, personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import {
     compareAll,
     computeTaxableSalesRatio,
@@ -225,7 +226,7 @@
       newArApDescription = '';
       newArApAmount = '';
     } catch (e) {
-      arApError = e instanceof Error ? e.message : String(e);
+      arApError = describeStorageError(e);
     }
   }
 
@@ -239,7 +240,7 @@
       await recordPayment(id, amount);
       paymentDrafts = { ...paymentDrafts, [id]: '' };
     } catch (e) {
-      arApError = e instanceof Error ? e.message : String(e);
+      arApError = describeStorageError(e);
     }
   }
 
@@ -442,7 +443,7 @@
         `${lockYearTarget}-12-31`,
       );
     } catch (e) {
-      lockError = e instanceof Error ? e.message : String(e);
+      lockError = describeStorageError(e);
     }
   }
 
@@ -452,7 +453,7 @@
     try {
       await unlockYear(year);
     } catch (e) {
-      lockError = e instanceof Error ? e.message : String(e);
+      lockError = describeStorageError(e);
     }
   }
 
