@@ -38,7 +38,7 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **Composite search (qualified electronic ledger compliance)**: in the journal list, combine year / month / description / amount range / vendor (satisfies the Electronic Books Storage Act's "two or more arbitrary combination" requirement)
 - **Invoices & quotations**: create and print documents with line items and per-rate tax breakdowns (includes the invoice-system registration number and per-rate consumption tax amounts), auto-generates the accounts-receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion
 - **Amended filing guide**: diff between filed snapshot and current values + submission steps
-- **Backup**: File System Access API (Chromium) with OPFS (Safari/Firefox) automatic fallback
+- **Backup**: File System Access API (Chromium) with OPFS (Firefox / Safari 26 and later) automatic fallback (manual download only when neither is available)
 - **PWA**: offline operation
 
 ## Tech stack
@@ -138,7 +138,7 @@ Click the "Install" button in the address bar of Chrome / Edge — aoiko launche
 ### Where data is stored
 
 - Journals, fixed assets, vendors, settings → IndexedDB in the browser (on-device, no server transmission)
-- "Settings" → "Backup" lets you pick a local folder for automatic JSON backups (File System Access API; OPFS fallback for unsupported browsers)
+- "Settings" → "Backup" lets you pick a local folder for automatic JSON backups (File System Access API; OPFS fallback for unsupported browsers. Safari below 26 and iOS have no automatic backup — manual download only)
 
 If you clear browser data, IndexedDB is wiped. Regularly export manually (in Settings) or configure a backup folder.
 

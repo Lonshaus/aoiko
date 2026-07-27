@@ -38,7 +38,7 @@
 - **複合検索（優良な電子帳簿要件）**：仕訳一覧可組合 年/月/摘要/金額範圍/取引先 搜尋（符合電子帳簿保存法「2 個以上任意組合」要件）
 - **請求書・見積書**：含明細行與稅率別內訳（記載インボイス制度的登録番号、各稅率消費稅額）的製作與列印、發行時自動產生売掛金傳票、以沖銷傳票訂正、見積書 → 請求書轉換
 - **修正申告引導**：申告済 snapshot 與目前值的差分顯示＋提交手順
-- **備份**：File System Access API（Chromium）→ OPFS（Safari/Firefox）自動 fallback
+- **備份**：File System Access API（Chromium）→ OPFS（Firefox / Safari 26 以後）自動 fallback（兩者都不支援時只剩手動下載）
 - **PWA**：離線運作
 
 ## 技術構成
@@ -138,7 +138,7 @@ Chrome / Edge 網址列右側的「安裝」按鈕點下去，aoiko 就會像桌
 ### 資料存放位置
 
 - 仕訳、固定資產、取引先、設定 → 瀏覽器 IndexedDB（本機、不送伺服器）
-- 「設定」→「備份」可指定本地資料夾、自動 JSON 備份（File System Access API、不支援的瀏覽器走 OPFS）
+- 「設定」→「備份」可指定本地資料夾、自動 JSON 備份（File System Access API、不支援的瀏覽器走 OPFS。Safari 26 以前與 iOS 不支援自動備份，只能手動下載）
 
 清掉瀏覽器資料 IndexedDB 也會消失，所以建議定期手動匯出（設定畫面）或指定備份資料夾。
 
