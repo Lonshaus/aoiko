@@ -3,6 +3,7 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
+  import { downscaleForUpload } from '../lib/image-downscale';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
@@ -123,8 +124,11 @@
     processing = true;
     error = '';
     try {
-      const image = await fileToBase64(file);
       const extractor = await createReceiptExtractor();
+      // クラウドへ送る場合だけ縮小する。Tesseract は端末内処理で通信量の問題が無く、
+      // 解像度を落としても得るものが無い。
+      const source = extractor.external ? await downscaleForUpload(file) : file;
+      const image = await fileToBase64(source);
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
