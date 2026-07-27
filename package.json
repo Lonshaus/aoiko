@@ -7,7 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "node scripts/copy-tesseract-assets.js",
     "dev": "vite",
+    "prebuild": "node scripts/copy-tesseract-assets.js",
     "build": "vite build",
     "preview": "vite preview",
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --silent",
