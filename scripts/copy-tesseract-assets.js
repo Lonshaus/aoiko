@@ -9,6 +9,10 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = join(root, 'public', 'tesseract');
 const coreOutDir = join(outDir, 'core');
+const langOutDir = join(outDir, 'lang');
+// recognize() に渡している言語。lstmOnly が真になるため 4.0.0_best_int 側を読む
+// （tesseract.js が既定 CDN として参照するのと同じ版）。合わせて 4.8MB。
+const LANGS = ['jpn', 'eng'];
 // aoiko は既定 OEM で recognize() を呼ぶため tesseract.js 側で lstmOnly が真になり、
 // 参照されるのは LSTM 版の 3 変種だけ（実行時に SIMD 対応状況で 1 つが選ばれる）。
 // 非 LSTM 版まで複製すると 40MB 超が無駄に配布物へ乗る。
@@ -26,6 +30,7 @@ function copy(from, to) {
 }
 
 mkdirSync(coreOutDir, { recursive: true });
+mkdirSync(langOutDir, { recursive: true });
 
 copy(
   join(root, 'node_modules', 'tesseract.js', 'dist', 'worker.min.js'),
@@ -39,4 +44,15 @@ for (const variant of CORE_VARIANTS) {
   // worker 側がディレクトリにファイル名を連結するため、ハッシュの付かない
   // public/ に原名のまま置く。
   copy(join(coreSrcDir, `${variant}.wasm.js`), join(coreOutDir, `${variant}.wasm.js`));
+}
+
+for (const lang of LANGS) {
+  // worker は langPath にファイル名を連結して取得する。gzip 既定のため名前は .gz。
+  // 展開は tesseract.js 側が gzip の magic number を見て判断するので、配信時に
+  // Content-Encoding が付いて自動展開されても動く。
+  const file = `${lang}.traineddata.gz`;
+  copy(
+    join(root, 'node_modules', '@tesseract.js-data', lang, '4.0.0_best_int', file),
+    join(langOutDir, file),
+  );
 }

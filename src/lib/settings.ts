@@ -32,9 +32,9 @@ export type SettingsMap = {
   openaiClassifyModel: string;
   // OpenAI 互換 API キー（ローカル Ollama 等では通常不要）
   openaiApiKey: string;
-  // Tesseract traineddata の取得元。空＝tesseract.js 既定の CDN を使用。
-  // 完全オフラインで運用したい場合は jpn.traineddata / eng.traineddata を
-  // 自己ホストした URL（末尾スラッシュ無し）を指定する。
+  // Tesseract traineddata の取得元。空＝aoiko が同梱するものを使用（既定でオフライン）。
+  // 別の版（精度重視の best 等）を使いたい場合に、jpn.traineddata / eng.traineddata を
+  // 置いた URL（末尾スラッシュ無し）を指定する。
   tesseractLangPath: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;

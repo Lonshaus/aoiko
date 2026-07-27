@@ -17,7 +17,7 @@
 |---|---|---|---|
 | **Gemini Vision**（預設）| ◎ | 是 | Gemini API 金鑰 |
 | **OpenAI 相容**（Ollama 等）| ◯〜◎ | localhost 否 / 遠端 是 | endpoint ＋ vision 模型 |
-| **Tesseract** | △ | 否（只首次 DL traineddata）| 設定中選擇即可 |
+| **Tesseract** | △ | 否 | 設定中選擇即可 |
 
 > 詳細設定步驟看 [01. § 7](01-setup_zh-TW.md#7-要用-ocrllm-才做的設定)。
 
@@ -60,7 +60,7 @@
 
 #### Tesseract：不跳對話框
 
-WASM 在本機處理、不需要確認。但解析時 `tesseract.js` 首次會從 CDN 抓 traineddata（數 MB）。
+WASM 在本機處理、不需要確認。語言資料（`jpn.traineddata` / `eng.traineddata`，合計約 4.8MB）由 aoiko 自己提供，只在第一次辨識時取得，之後由瀏覽器快取，完全不會有對外連線。
 
 ### 2-3. 抽取結果確認・修正
 
@@ -124,7 +124,7 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 - 預設店名・品項抽不到、心理上接受
 - T+13 登錄號碼相當穩（regex 抽出）
 - 日期・合計撈得到算運氣好。務必人工確認・修正
-- 想完全離線、設定中把 `traineddata` 換成自架 URL
+- 語言資料已內附，第一次取得後就能完全離線運作。只有想換別的版本（例如精度較高的 best）時才需要在設定中指定來源
 
 ## 4. 抽取不出來時的對策
 
