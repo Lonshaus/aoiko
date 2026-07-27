@@ -47,7 +47,8 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 ## 6. Data loss risk
 
 - Data is stored in your browser's IndexedDB and is **completely lost when you clear browser cache or site data**.
-- Backup (File System Access API / OPFS / manual JSON download) operates **at the user's responsibility**.
+- **The browser itself can delete your data without you doing anything.** Examples: automatic eviction by the browser when device storage runs low, and Safari's rule that script-writable storage is cleared after 7 days without a visit (ITP). Either can happen with no action from you.
+- As a result, **your data can disappear one day with no warning unless you keep backups**. Backup (File System Access API / OPFS / manual JSON download) operates **at the user's responsibility**.
 
 ## 7. License
 
@@ -59,6 +60,7 @@ Corresponds to the version number shown in the consent status.
 
 | version | Date | Changes |
 | --- | --- | --- |
+| 5 | 2026-07-27 | Added a note that the browser itself can automatically delete data (storage-pressure eviction, Safari's 7-day-no-visit clearing) (§6) |
 | 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
 | 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |
 | 2 | 2026-06-28 | `.xtx` revised from "provisional — do not use for actual filing" to "covers the business portion; loadable into e-Tax Software (download edition)" |
