@@ -38,7 +38,7 @@ afterEach(() => {
 
 describe('saveFile', () => {
   test('指定した名前と MIME で保存し、後始末をする', async () => {
-    saveFile(new Uint8Array([1, 2, 3]), 'aoiko-ledger-2026-07-27.zip', 'application/zip');
+    await saveFile(new Uint8Array([1, 2, 3]), 'aoiko-ledger-2026-07-27.zip', 'application/zip');
 
     expect(created).toHaveLength(1);
     expect(created[0]?.type).toBe('application/zip');
@@ -47,14 +47,14 @@ describe('saveFile', () => {
     expect(clicked[0]?.download).toBe('aoiko-ledger-2026-07-27.zip');
   });
 
-  test('click は DOM に追加された状態で行う', () => {
-    saveFile(new Uint8Array([0]), 'a.bin', 'application/octet-stream');
+  test('click は DOM に追加された状態で行う', async () => {
+    await saveFile(new Uint8Array([0]), 'a.bin', 'application/octet-stream');
     expect(clicked[0]?.inDocument).toBe(true);
   });
   // 一時要素と object URL を残すと、大きなバックアップを何度も書き出した際に
   // メモリを保持し続けてしまう。
-  test('一時要素と object URL を残さない', () => {
-    saveFile(new Uint8Array([0]), 'a.bin', 'application/octet-stream');
+  test('一時要素と object URL を残さない', async () => {
+    await saveFile(new Uint8Array([0]), 'a.bin', 'application/octet-stream');
     expect(document.querySelector('a[download]')).toBeNull();
     expect(revoked).toEqual(['blob:test/1']);
   });
@@ -62,7 +62,7 @@ describe('saveFile', () => {
 
 describe('saveTextFile', () => {
   test('UTF-8 で符号化する（日本語を含む .xtx / XML 用）', async () => {
-    saveTextFile('<?xml version="1.0"?><a>青色申告</a>', 'aoiko-2026.xtx', 'application/xml');
+    await saveTextFile('<?xml version="1.0"?><a>青色申告</a>', 'aoiko-2026.xtx', 'application/xml');
 
     expect(created[0]?.type).toBe('application/xml');
     expect(await created[0]!.text()).toBe('<?xml version="1.0"?><a>青色申告</a>');
