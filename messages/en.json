@@ -34,6 +34,8 @@
   "error_detail_summary": "Error details (for bug reports)",
   "error_banner_message": "An error occurred. Your last action may not have completed correctly.",
   "common_file_too_large": "File is too large ({size}, limit {limit}). Stopped to keep the browser from freezing.",
+  "common_file_not_image": "This is not an image file. Only JPEG, PNG, GIF, WebP, BMP and HEIC images can be attached as receipt photos.",
+  "common_storage_full": "Your device's storage is full. Download a backup, then delete unneeded receipt photos or old data to free up space.",
   "cloud_send_confirm_title": "Confirm send to external AI",
   "cloud_send_confirm_desc_html": "This data (receipt image / CSV rows) will be sent to <strong class=\"text-foreground\">{host}</strong>. It is handled per the destination's privacy policy and your API plan. <strong class=\"text-foreground\">Free tiers may be used for model training; a paid-tier API key is recommended for sensitive receipts.</strong> Proceed?",
   "cloud_send_confirm_proceed": "Send",

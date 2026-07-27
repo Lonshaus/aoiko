@@ -3,11 +3,12 @@
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
@@ -327,6 +328,10 @@
       const lines = [...buildLines(expandedDebits, 'debit'), ...buildLines(credits, 'credit')];
       validateLines(lines);
 
+      const attachmentRecords = await Promise.all(
+        attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
+      );
+
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
           id: entryId,
@@ -340,17 +345,18 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        if (attachments.length > 0) {
-          await db.attachments.bulkAdd(
-            attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
-          );
+        if (attachmentRecords.length > 0) {
+          await db.attachments.bulkAdd(attachmentRecords);
         }
       });
 
       reset();
       date = today();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     } finally {
       saving = false;
     }
