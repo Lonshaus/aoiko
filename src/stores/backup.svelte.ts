@@ -41,6 +41,9 @@ class BackupManager {
   lastBackupAt = $state<number | null>(null);
   lastDownloadAt = $state<number | null>(null);
   lastError = $state<string>('');
+  // navigator.storage.persist() の結果。false ならブラウザは storage 逼迫時に
+  // IndexedDB を勝手に破棄できる＝帳簿本体が消え得る。判定できない環境では null。
+  storagePersisted = $state<boolean | null>(null);
 
   private adapter: BackupAdapter | null = null;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -72,7 +75,30 @@ class BackupManager {
     );
   }
 
+  // 永続化ストレージはアダプタに関係なく要求する。IndexedDB（帳簿本体）が
+  // 破棄対象かどうかの話であり、FSA を使える環境でも同じく必要。
+  private async requestPersistentStorage(): Promise<void> {
+    if (typeof navigator === 'undefined' || !('storage' in navigator)) {
+      return;
+    }
+    try {
+      if (
+        typeof navigator.storage.persisted === 'function' &&
+        (await navigator.storage.persisted())
+      ) {
+        this.storagePersisted = true;
+        return;
+      }
+      if (typeof navigator.storage.persist === 'function') {
+        this.storagePersisted = await navigator.storage.persist();
+      }
+    } catch {
+      // 判定できない環境では null のままにし、警告も出さない
+    }
+  }
+
   private async initAdapter(): Promise<void> {
+    await this.requestPersistentStorage();
     const fsa = new FsaBackupAdapter(
       async () => (await getSetting('backupFolderHandle')) ?? null,
       async (h) => {
@@ -208,6 +234,19 @@ class BackupManager {
       }
     } catch (e: unknown) {
       this.lastError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  // 「全データ削除」から呼ぶ。OPFS のバックアップは帳簿と証憑写真の完全な複製で
+  // ありながら、利用者が Finder / エクスプローラーから見ることも消すこともできない。
+  // IndexedDB だけ消して放置すると、譲渡・廃棄した端末に帳簿が丸ごと残る。
+  // FSA の保存先は利用者自身のフォルダなので、こちらからは消さない。
+  async clearStoredBackups(): Promise<void> {
+    if (this.adapterKind !== 'opfs' || !this.adapter) {
+      return;
+    }
+    for (const fileName of await this.adapter.list()) {
+      await this.adapter.remove(fileName);
     }
   }
 
