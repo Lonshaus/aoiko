@@ -17,6 +17,7 @@
     type PLReport,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
+  import { saveTextFile } from '../lib/save-file';
   import {
     getConsumptionTaxSnapshot,
     isYearLocked,
@@ -518,26 +519,10 @@
         ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
         : {}),
     });
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aoiko-${exportYear}.xtx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
   }
   function downloadXml(xml: string, filename: string): void {
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveTextFile(xml, filename, 'application/xml');
   }
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
   // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。

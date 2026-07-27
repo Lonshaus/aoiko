@@ -11,6 +11,7 @@
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
+  import { saveFile } from '../lib/save-file';
   import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
   import { parseBackupFile, restoreFromPayload } from '../domain/restore';
@@ -926,23 +927,11 @@
     }
   }
 
-  function downloadBytes(bytes: Uint8Array, filename: string, mimeType: string): void {
-    const blob = new Blob([bytes.slice()], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
   async function downloadYayoiCsv() {
     accountantExportError = '';
     try {
       const bytes = await exportYayoiCsv(currentYear);
-      downloadBytes(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
+      saveFile(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -952,7 +941,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportGenericCsv(currentYear);
-      downloadBytes(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
+      saveFile(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -962,7 +951,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportCorrectionHistoryCsv(currentYear);
-      downloadBytes(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
+      saveFile(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
