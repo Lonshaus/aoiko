@@ -663,7 +663,7 @@
   }
 </script>
 
-<div class="space-y-8">
+<div id="reports-page" class="space-y-8">
   <header class="flex items-end justify-between">
     <div>
       <h2 class="text-2xl font-bold">{m.reports_title()}</h2>
@@ -1452,7 +1452,7 @@
                 <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
                 <td class="px-3 py-1">
                   {#if remaining.isPositive()}
-                    <div class="flex gap-1">
+                    <div class="flex gap-1 print:hidden">
                       <input
                         type="number"
                         value={paymentDrafts[e.id] ?? ''}
@@ -1488,7 +1488,7 @@
 
     <div class="pt-4 border-t border-border/50 space-y-3">
       <h4 class="text-sm font-semibold">{m.reports_cashflow_title()}</h4>
-      <div class="flex flex-wrap items-end gap-2 text-xs">
+      <div class="flex flex-wrap items-end gap-2 text-xs print:hidden">
         <label class="block">
           <span class="text-muted-foreground">{m.reports_cashflow_asof()}</span>
           <input
