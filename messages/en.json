@@ -880,5 +880,9 @@
   "invoices_print_date": "Date issued",
   "invoices_print_registration_number": "Registration number",
   "invoices_print_rate": "Rate",
-  "invoices_print_tax_at_rate": "Tax at {rate}%"
+  "invoices_print_tax_at_rate": "Tax at {rate}%",
+  "unsaved_confirm_title": "You have unsaved input",
+  "unsaved_confirm_desc": "This screen still has input you have not saved. Leaving will discard it.",
+  "unsaved_confirm_stay": "Stay on this screen",
+  "unsaved_confirm_discard": "Discard and leave"
 }
