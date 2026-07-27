@@ -16,7 +16,7 @@
   import { getSetting, setSetting } from '../lib/settings';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
-  import type { LlmImageInput } from '../domain/llm';
+  import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -142,7 +142,7 @@
       }
       await runExtract(extractor, image);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       processing = false;
     }
   }
@@ -152,7 +152,7 @@
       extracted = await extractor.extract(image);
       lastEngine = extractor.engine;
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       processing = false;
     }
