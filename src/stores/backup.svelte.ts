@@ -9,6 +9,7 @@ import {
   type BackupAdapter,
 } from '../backup';
 import { getSetting, setSetting } from '../lib/settings';
+import { describeStorageError } from '../lib/storage-error';
 import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 
@@ -276,7 +277,7 @@ class BackupManager {
       await this.pruneOldBackups();
       this.status = 'idle';
     } catch (e: unknown) {
-      this.lastError = e instanceof Error ? e.message : String(e);
+      this.lastError = describeStorageError(e);
       this.status = prev === 'permission-required' ? 'permission-required' : 'error';
     }
   }
