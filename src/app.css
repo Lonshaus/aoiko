@@ -134,6 +134,22 @@
     --border: oklch(0.145 0 0);
     --muted-foreground: oklch(0.145 0 0);
   }
+  /* 帳票側の p-8（2rem）が既に余白を持つため、@page の余白は控えめにして二重余白を避ける */
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  /* レポート画面の操作系 UI は用紙に出さない（帳票印刷は print:block、他は print:hidden の既存方針を踏襲） */
+  #reports-page > header,
+  #reports-page button,
+  #reports-page form,
+  #reports-page select {
+    display: none;
+  }
+  /* 横スクロール前提の表は用紙上では折り返さずそのまま流し込む（w-full が用紙幅に収まる） */
+  .overflow-x-auto {
+    overflow-x: visible;
+  }
 }
 
 @layer base {
