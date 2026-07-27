@@ -26,7 +26,7 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **OCR**: receipt → journal candidate. Engine selectable: Gemini Vision (default) / OpenAI-compatible / Ollama and other local vision LLMs / **Tesseract (purely-local WASM OCR — limited accuracy, manual verification required)**
 - **Order import (paste → LLM extract)**: paste a full Amazon / 楽天 order page; an LLM extracts the line items → review → save. Resilient to UI changes since no DOM scraping.
 - **LLM classification**: CSV line → account code (rule-first, LLM fallback). Engine selectable: Gemini or local AI.
-- **OCR/LLM privacy**: pre-send confirmation dialog before external transmission. With Ollama on localhost or with Tesseract selected, images never leave your device (Ollama requires local distribution + `OLLAMA_ORIGINS`; Tesseract only downloads traineddata once from CDN, self-hostable for fully offline use).
+- **OCR/LLM privacy**: pre-send confirmation dialog before external transmission. With Ollama on localhost or with Tesseract selected, images never leave your device (Ollama requires local distribution + `OLLAMA_ORIGINS`; Tesseract bundles its language data too, so it makes no external request at all).
 - **Home office allocation**: auto-split mixed business / personal expenses into business portion and owner's draws
 - **Depreciation**: straight-line and 200% declining-balance (useful lives 2–20 years), monthly proration, ¥1 residual
 - **Small-asset depreciation special rule**: Sochiho Article 28-2 (¥300k → ¥400k threshold from 2026-04-01), with ¥3M annual cap tracking

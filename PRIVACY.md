@@ -41,14 +41,14 @@ aoiko は **サーバを持たない** 純フロントエンドアプリです�
 利用者が LLM 分類・領収書 OCR を **明示的に起動** した場合のみ、選択中のエンジンへ送信されます。送信内容：
 
 - **vision LLM 路（Gemini / OpenAI 互換）**：LLM 分類＝CSV 行テキスト（金額・摘要等）＋勘定科目一覧／OCR＝領収書画像（Base64）＋抽出指示プロンプト
-- **Tesseract 路（OCR のみ）**：LLM 不使用。画像は WASM で端末内処理され外部送信なし。初回のみ `jpn.traineddata` / `eng.traineddata` を CDN から取得（画像は送らない）
+- **Tesseract 路（OCR のみ）**：LLM 不使用。画像は WASM で端末内処理され外部送信なし。`jpn.traineddata` / `eng.traineddata` も aoiko 自身が配信するため、外部への通信は発生しない
 
 | エンジン（設定で選択） | 送信先 | 端末外送信 |
 |------|------|------|
 | Google Gemini（既定） | `generativelanguage.googleapis.com` | あり（クラウド） |
 | OpenAI 互換 / Ollama 等：localhost 指定時 | 端末内（例 `http://localhost:11434`） | **なし** |
 | OpenAI 互換 / Ollama 等：リモート指定時 | 利用者が指定したホスト | あり |
-| Tesseract（純ローカル WASM OCR） | 画像は端末外に出ない。`jpn.traineddata` / `eng.traineddata` のみ初回 CDN から取得（自己ホスト可で完全オフライン） | **画像は無し**（traineddata DL のみ） |
+| Tesseract（純ローカル WASM OCR） | 画像は端末外に出ない。`jpn.traineddata` / `eng.traineddata` も同梱 | **無し**（外部への通信が発生しない） |
 
 - 送信は利用者のブラウザから **直接** 行われ、aoiko の管理サーバ（存在しない）は経由しません
 - **外部（クラウド）送信エンジン使用時は送信直前に確認ダイアログ** を表示します
