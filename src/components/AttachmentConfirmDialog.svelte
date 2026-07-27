@@ -21,7 +21,7 @@
     }
   }}
 >
-  <AlertDialog.Content>
+  <AlertDialog.Content class="max-h-[85vh] overflow-y-auto">
     <AlertDialog.Header>
       <AlertDialog.Title>{m.attachment_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
