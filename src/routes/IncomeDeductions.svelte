@@ -543,7 +543,7 @@
         </button>
       </div>
       {#each realEstateRentPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -601,7 +601,7 @@
         </button>
       </div>
       {#each realEstateLoanInterestPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -660,7 +660,7 @@
         </button>
       </div>
       {#each realEstateProfessionalFeesPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -749,7 +749,7 @@
       </button>
     </div>
     {#each dependents as dep (dep.id)}
-      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end border-t pt-3">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end border-t pt-3">
         <label class="block sm:col-span-2">
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_name()}</span>
           <input

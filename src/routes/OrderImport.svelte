@@ -328,7 +328,7 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[600px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
               <th class="text-left font-normal px-2 py-2">{m.order_th_description()}</th>
