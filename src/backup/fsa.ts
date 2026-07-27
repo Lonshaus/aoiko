@@ -61,4 +61,27 @@ export class FsaBackupAdapter implements BackupAdapter {
     await writable.close();
     return { fileName };
   }
+
+  async list(): Promise<string[]> {
+    const h = await this.getHandle();
+    if (!h) {
+      return [];
+    }
+    if (!(await this.ensurePermission())) {
+      return [];
+    }
+    const names: string[] = [];
+    for await (const name of h.keys()) {
+      names.push(name);
+    }
+    return names;
+  }
+
+  async remove(fileName: string): Promise<void> {
+    const h = await this.getHandle();
+    if (!h) {
+      return;
+    }
+    await h.removeEntry(fileName);
+  }
 }

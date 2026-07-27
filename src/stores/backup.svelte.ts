@@ -9,6 +9,7 @@ import {
   type BackupAdapter,
 } from '../backup';
 import { getSetting, setSetting } from '../lib/settings';
+import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 
 async function buildBackupZipBytes(options: {
@@ -110,6 +111,9 @@ class BackupManager {
     this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
     const perm = await handle.queryPermission({ mode: 'readwrite' });
     this.status = perm === 'granted' ? 'idle' : 'permission-required';
+    if (this.status === 'idle') {
+      void this.maybeStartupBackup();
+    }
   }
 
   private async initOpfs(adapter: OpfsBackupAdapter): Promise<void> {
@@ -117,6 +121,7 @@ class BackupManager {
     this.lastBackupAt = (await getSetting('lastBackupAt')) ?? null;
     this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
     this.status = 'idle';
+    void this.maybeStartupBackup();
   }
 
   async configure(): Promise<void> {
@@ -164,8 +169,46 @@ class BackupManager {
       clearTimeout(this.debounceTimer);
     }
     this.debounceTimer = setTimeout(() => {
-      void this.backup();
+      void this.maybeAutoBackup();
     }, DEBOUNCE_MS);
+  }
+  // データ変更による自動実行の入口。手動実行（backup()）は間隔設定に関係なく常に走らせる。
+  private async maybeAutoBackup(): Promise<void> {
+    const intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
+    if (!shouldBackupNow(this.lastBackupAt, Date.now(), intervalHours)) {
+      return;
+    }
+    await this.backup();
+  }
+  // 起動時の取りこぼし回収。間隔を空けていると、最後に記帳した分が未保存のまま
+  // アプリを閉じている場合があるため、経過していれば起動時に保存する。
+  // 「変更のたび」設定では従来どおり、起動しただけでは保存しない。
+  private async maybeStartupBackup(): Promise<void> {
+    const intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
+    if (intervalHours === 0) {
+      return;
+    }
+    if (!shouldBackupNow(this.lastBackupAt, Date.now(), intervalHours)) {
+      return;
+    }
+    await this.backup();
+  }
+  // 日付入りの古いバックアップを保持件数まで減らす。
+  // 呼ばれる時点でバックアップ本体は成功しているため、設定の読み取り失敗も含めて
+  // 例外を外へ出さない。ここで throw すると成功した保存が失敗として表示されてしまう。
+  private async pruneOldBackups(): Promise<void> {
+    try {
+      const keepCount = (await getSetting('backupRetentionCount')) ?? 0;
+      if (keepCount === 0 || !this.adapter) {
+        return;
+      }
+      const expired = selectExpiredBackups(await this.adapter.list(), keepCount);
+      for (const fileName of expired) {
+        await this.adapter.remove(fileName);
+      }
+    } catch (e: unknown) {
+      this.lastError = e instanceof Error ? e.message : String(e);
+    }
   }
 
   async backup(): Promise<void> {
@@ -189,6 +232,9 @@ class BackupManager {
       this.lastBackupAt = Date.now();
       await setSetting('lastBackupAt', this.lastBackupAt);
       this.lastError = '';
+      // 汰換が終わるまで status は 'writing' のままにする。先に 'idle' へ戻すと
+      // デバウンス経由の次のバックアップが再入ガードをすり抜けて並走する。
+      await this.pruneOldBackups();
       this.status = 'idle';
     } catch (e: unknown) {
       this.lastError = e instanceof Error ? e.message : String(e);
