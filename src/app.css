@@ -152,6 +152,11 @@
   #reports-page select {
     display: none;
   }
+  /* min-h-screen は画面用に 1 画面分の高さを確保する指定。用紙では帳票の内容と
+     無関係に 1 ページ分の高さが残り、その後ろに空白ページが 1 枚出る。 */
+  .min-h-screen {
+    min-height: 0;
+  }
   /* 横スクロール前提の表は用紙上では折り返さずそのまま流し込む */
   .overflow-x-auto {
     overflow-x: visible;
