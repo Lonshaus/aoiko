@@ -92,6 +92,7 @@
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
+  let skipExternalSendConfirm = $state(false);
   let homeOfficeRatios = $state<Record<string, string>>({});
   let hoRatioAccount = $state('');
   let hoRatioValue = $state('');
@@ -325,6 +326,7 @@
     filingType = (await getSetting('filingType')) ?? 'blue';
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
+    skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
   });
 
@@ -1105,6 +1107,17 @@
         }}
       />
       {m.settings_basic_skip_attachment_confirm()}
+    </label>
+    <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={skipExternalSendConfirm}
+        onchange={(e) => {
+          skipExternalSendConfirm = (e.target as HTMLInputElement).checked;
+          setSetting('skipExternalSendConfirm', skipExternalSendConfirm);
+        }}
+      />
+      {m.settings_basic_skip_external_send_confirm()}
     </label>
     <div class="flex justify-end">
       <button

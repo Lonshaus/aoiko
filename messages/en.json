@@ -479,6 +479,7 @@
   "settings_basic_real_estate_income_enabled": "Use real estate income (shows the business/real estate toggle on the journal form and real-estate fixed asset fields)",
   "settings_basic_inventory_auto_valuation_enabled": "Auto-calculate ending inventory (most-recent-purchase-cost method). Turn off if you've elected a different valuation method with the NTA",
   "settings_basic_skip_attachment_confirm": "Skip the confirmation before attaching receipt photos (you can re-enable it here later)",
+  "settings_basic_skip_external_send_confirm": "Skip the confirmation before sending data to an external AI (you can re-enable it here later)",
   "settings_carryover_title": "Prior-period carryover (opening balance)",
   "settings_carryover_intro_html": "Carries the prior year's asset and liability balances into this year as an opening transfer entry dated <strong>{year}-01-01</strong>. Owner withdrawals, owner contributions, and the prior net income are absorbed into the capital (元入金) account. Run once per fiscal year.",
   "settings_carryover_preview_button": "Preview",
