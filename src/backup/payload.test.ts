@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
-import { buildPayload, collectAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+
+// happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
+// 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
+// テストだけ Node 組込みの Blob を使う。
+function nodeBlob(bytes: Uint8Array<ArrayBuffer>): Blob {
+  return new NodeBlob([bytes]) as unknown as Blob;
+}
 
 interface SettingRow {
   key: string;
@@ -102,9 +110,40 @@ describe('buildPayload', () => {
   });
 });
 
-describe('collectAttachmentBlobs', () => {
-  test('添付が無ければ空 Map', async () => {
-    const m = await collectAttachmentBlobs();
-    expect(m.size).toBe(0);
+describe('iterateAttachmentBlobs', () => {
+  test('添付が無ければ何も yield しない', async () => {
+    const results: Array<readonly [string, Uint8Array]> = [];
+    for await (const entry of iterateAttachmentBlobs()) {
+      results.push(entry);
+    }
+    expect(results).toHaveLength(0);
+  });
+
+  test('全ての添付を id とバイト列付きで yield する', async () => {
+    await db.attachments.bulkAdd([
+      {
+        id: 'a1',
+        entryId: 'e1',
+        blob: nodeBlob(new Uint8Array([1, 2, 3])),
+        mimeType: 'image/jpeg',
+        fileName: 'a.jpg',
+        createdAt: Date.now(),
+      },
+      {
+        id: 'a2',
+        entryId: 'e2',
+        blob: nodeBlob(new Uint8Array([4, 5])),
+        mimeType: 'image/jpeg',
+        fileName: 'b.jpg',
+        createdAt: Date.now(),
+      },
+    ]);
+    const results = new Map<string, Uint8Array>();
+    for await (const [id, bytes] of iterateAttachmentBlobs()) {
+      results.set(id, bytes);
+    }
+    expect(results.size).toBe(2);
+    expect(results.get('a1')).toEqual(new Uint8Array([1, 2, 3]));
+    expect(results.get('a2')).toEqual(new Uint8Array([4, 5]));
   });
 });
