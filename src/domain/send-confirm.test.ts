@@ -1,5 +1,11 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test } from 'vitest';
+import { db } from '../db/db';
+import { getSetting, setSetting } from '../lib/settings';
 import { shouldConfirmExternalSend } from './send-confirm';
+
+afterEach(async () => {
+  await db.settings.clear();
+});
 
 describe('shouldConfirmExternalSend', () => {
   test('ローカルエンジンは常に確認不要', () => {
@@ -31,5 +37,17 @@ describe('shouldConfirmExternalSend', () => {
         true,
       ),
     ).toBe(false);
+  });
+
+  test('設定画面での skip 切り替えが Dexie 経由で往復反映される', async () => {
+    const target = { external: true, host: 'generativelanguage.googleapis.com' };
+    await setSetting('skipExternalSendConfirm', true);
+    expect(shouldConfirmExternalSend(target, await getSetting('skipExternalSendConfirm'))).toBe(
+      false,
+    );
+    await setSetting('skipExternalSendConfirm', false);
+    expect(shouldConfirmExternalSend(target, await getSetting('skipExternalSendConfirm'))).toBe(
+      true,
+    );
   });
 });
