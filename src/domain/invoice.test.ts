@@ -7,6 +7,7 @@ import {
   DEFAULT_INVOICE_PREFIX,
   DEFAULT_QUOTE_PREFIX,
   groupLineItemsByTaxRate,
+  hasReducedRateItems,
   invoiceTotal,
   issueInvoice,
   voidInvoice,
@@ -66,6 +67,25 @@ describe('groupLineItemsByTaxRate / invoiceTotal', () => {
     const groups = groupLineItemsByTaxRate(items);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.subtotalExcl.toString()).toBe('2000');
+  });
+});
+
+describe('hasReducedRateItems', () => {
+  test('8% の明細が 1 行でもあれば true', () => {
+    const items = [
+      lineItem({ quantity: '1', unitPrice: '1000', taxRate: 0.1 }),
+      lineItem({ quantity: '1', unitPrice: '500', taxRate: 0.08 }),
+    ];
+    expect(hasReducedRateItems(items)).toBe(true);
+  });
+
+  test('10% だけなら false', () => {
+    const items = [lineItem({ quantity: '2', unitPrice: '1000', taxRate: 0.1 })];
+    expect(hasReducedRateItems(items)).toBe(false);
+  });
+
+  test('明細が空なら false', () => {
+    expect(hasReducedRateItems([])).toBe(false);
   });
 });
 
