@@ -206,11 +206,13 @@
   const printingTotal = $derived(printingInvoice ? invoiceTotal(printingInvoice.lineItems) : D(0));
 </script>
 
-<div class="print:hidden space-y-6">
+<!-- 一覧を常に print:hidden にすると、この画面で印刷しても白紙が出るだけになる。
+     単票を印刷している間だけ隠し、それ以外は一覧をそのまま用紙に出す。 -->
+<div class="space-y-6 {printingId ? 'print:hidden' : ''}">
   <h2 class="text-xl font-semibold">{m.invoices_title()}</h2>
 
   {#if !editing}
-    <div class="flex gap-2 border-b">
+    <div class="flex gap-2 border-b print:hidden">
       <button
         type="button"
         onclick={() => (tab = 'invoice')}
@@ -234,7 +236,7 @@
     <button
       type="button"
       onclick={startNew}
-      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 print:hidden"
     >
       {m.invoices_action_new()}
     </button>
@@ -254,7 +256,7 @@
             <span class="text-xs text-muted-foreground">{inv.date}</span>
             <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
             <span class="text-xs px-2 py-0.5 rounded bg-muted">{statusLabel(inv.status)}</span>
-            <div class="ml-auto flex gap-2">
+            <div class="ml-auto flex gap-2 print:hidden">
               {#if inv.status === 'draft'}
                 <button
                   type="button"
