@@ -17,7 +17,7 @@ import { saveFile } from '../lib/save-file';
 async function buildBackupZipBytes(options: {
   includeApiKeys: boolean;
   includeFilerInfo: boolean;
-}): Promise<Uint8Array> {
+}): Promise<Uint8Array<ArrayBuffer>> {
   const payload = await buildPayload(options);
   const attachmentBlobs = await collectAttachmentBlobs();
   return buildBackupZip(payload, attachmentBlobs);

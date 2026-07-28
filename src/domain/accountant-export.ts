@@ -18,13 +18,13 @@ import type {
 } from '../db/types';
 import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 
-export function encodeShiftJis(text: string): Uint8Array {
+export function encodeShiftJis(text: string): Uint8Array<ArrayBuffer> {
   const unicodeArray = Encoding.stringToCode(text);
   const sjisArray = Encoding.convert(unicodeArray, 'SJIS', 'UNICODE');
   return new Uint8Array(sjisArray);
 }
 // UTF-8 出力。Excel で直接開いても文字化けしないよう BOM を付与する。
-function encodeUtf8WithBom(text: string): Uint8Array {
+function encodeUtf8WithBom(text: string): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode('﻿' + text);
 }
 
@@ -332,19 +332,19 @@ async function loadExportData(year: number): Promise<ExportData> {
   };
 }
 
-export async function exportYayoiCsv(year: number): Promise<Uint8Array> {
+export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   const rows = buildYayoiCsvRows(entries, lines, accounts, subAccounts, ctx);
   return encodeShiftJis(buildCsv(rows));
 }
 
-export async function exportGenericCsv(year: number): Promise<Uint8Array> {
+export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
   const { entries, lines, accounts, subAccounts } = await loadExportData(year);
   const rows = buildGenericCsvRows(entries, lines, accounts, subAccounts);
   return encodeUtf8WithBom(buildCsv([GENERIC_HEADER, ...rows]));
 }
 
-export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Array> {
+export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
   const entries = await db.journalEntries.where('year').equals(year).toArray();
   const lines =
     entries.length === 0
