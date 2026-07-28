@@ -58,6 +58,21 @@ describe('saveFile', () => {
     expect(document.querySelector('a[download]')).toBeNull();
     expect(revoked).toEqual(['blob:test/1']);
   });
+
+  test('ReadableStream も受け取り、MIME を付け直して保存する', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.enqueue(new Uint8Array([3]));
+        controller.close();
+      },
+    });
+    await saveFile(stream, 'aoiko-ledger-2026-07-27.zip', 'application/zip');
+
+    expect(created).toHaveLength(1);
+    expect(created[0]?.type).toBe('application/zip');
+    expect(new Uint8Array(await created[0]!.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+  });
 });
 
 describe('saveTextFile', () => {

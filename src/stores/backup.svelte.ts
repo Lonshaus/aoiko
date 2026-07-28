@@ -3,9 +3,9 @@ import { db } from '../db/db';
 import {
   FsaBackupAdapter,
   OpfsBackupAdapter,
-  buildBackupZip,
+  buildBackupZipStream,
   buildPayload,
-  collectAttachmentBlobs,
+  iterateAttachmentBlobs,
   type BackupAdapter,
 } from '../backup';
 import { getSetting, setSetting } from '../lib/settings';
@@ -14,13 +14,12 @@ import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
 
-async function buildBackupZipBytes(options: {
+async function backupZipStream(options: {
   includeApiKeys: boolean;
   includeFilerInfo: boolean;
-}): Promise<Uint8Array<ArrayBuffer>> {
+}): Promise<ReadableStream<Uint8Array>> {
   const payload = await buildPayload(options);
-  const attachmentBlobs = await collectAttachmentBlobs();
-  return buildBackupZip(payload, attachmentBlobs);
+  return buildBackupZipStream(payload, iterateAttachmentBlobs());
 }
 
 export type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
@@ -267,9 +266,9 @@ class BackupManager {
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
+      const stream = await backupZipStream({ includeApiKeys, includeFilerInfo });
       const fileName = `aoiko-ledger-${todayISO()}.zip`;
-      await this.adapter.backup(bytes, fileName);
+      await this.adapter.backup(stream, fileName);
       this.lastBackupAt = Date.now();
       await setSetting('lastBackupAt', this.lastBackupAt);
       this.lastError = '';
@@ -290,8 +289,8 @@ class BackupManager {
     try {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
-      await saveFile(bytes, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
+      const stream = await backupZipStream({ includeApiKeys, includeFilerInfo });
+      await saveFile(stream, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
       this.lastDownloadAt = Date.now();
       await setSetting('lastDownloadAt', this.lastDownloadAt);
     } catch (e: unknown) {
