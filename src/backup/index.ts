@@ -1,10 +1,15 @@
 export type { BackupAdapter, BackupPayload } from './types';
 export {
   buildPayload,
-  collectAttachmentBlobs,
+  iterateAttachmentBlobs,
   FILER_INFO_SETTING_KEYS,
   PAYLOAD_VERSION,
 } from './payload';
-export { buildBackupZip, looksLikeZip, parseBackupZip, type ParsedBackupZip } from './archive';
+export {
+  buildBackupZipStream,
+  looksLikeZip,
+  parseBackupZip,
+  type ParsedBackupZip,
+} from './archive';
 export { FsaBackupAdapter } from './fsa';
 export { OpfsBackupAdapter } from './opfs';

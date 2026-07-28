@@ -44,3 +44,106 @@ describe('OpfsBackupAdapter.isAvailable', () => {
     expect(await new OpfsBackupAdapter().isAvailable()).toBe(false);
   });
 });
+
+// OPFS の最小フェイク。happy-dom は OPFS を提供しないため、backup() が使う
+// getFileHandle / createWritable / getFile だけを実ディスクなしで再現する。
+class FakeFileHandle {
+  committed = new Uint8Array(0);
+
+  createWritable() {
+    const chunks: Uint8Array[] = [];
+    return new WritableStream<Uint8Array>({
+      write: (chunk) => {
+        chunks.push(chunk);
+      },
+      close: () => {
+        const total = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+        const merged = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          merged.set(chunk, offset);
+          offset += chunk.length;
+        }
+        this.committed = merged;
+      },
+    });
+  }
+
+  async getFile() {
+    return new Blob([this.committed]);
+  }
+}
+
+class FakeDirectoryHandle {
+  private handles = new Map<string, FakeFileHandle>();
+
+  async getFileHandle(name: string, _options?: { create?: boolean }) {
+    let handle = this.handles.get(name);
+    if (!handle) {
+      handle = new FakeFileHandle();
+      this.handles.set(name, handle);
+    }
+    return handle;
+  }
+}
+
+function streamOf(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
+  return new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(chunk);
+      }
+      controller.close();
+    },
+  });
+}
+
+describe('OpfsBackupAdapter.backup', () => {
+  test('複数チャンクのストリームが日付ファイルに順序通り結合される', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const chunks = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5]), new Uint8Array([6])];
+    await new OpfsBackupAdapter().backup(streamOf(chunks), 'aoiko-ledger-2026-07-28.zip');
+
+    const dailyHandle = await root.getFileHandle('aoiko-ledger-2026-07-28.zip');
+    const bytes = new Uint8Array(await (await dailyHandle.getFile()).arrayBuffer());
+    expect(Array.from(bytes)).toEqual([1, 2, 3, 4, 5, 6]);
+  });
+
+  test('aoiko-ledger-latest が日付ファイルとバイト単位で一致する', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const chunks = [new Uint8Array([10, 20]), new Uint8Array([30])];
+    await new OpfsBackupAdapter().backup(streamOf(chunks), 'aoiko-ledger-2026-07-28.zip');
+
+    const dailyHandle = await root.getFileHandle('aoiko-ledger-2026-07-28.zip');
+    const latestHandle = await root.getFileHandle('aoiko-ledger-latest.zip');
+    const dailyBytes = new Uint8Array(await (await dailyHandle.getFile()).arrayBuffer());
+    const latestBytes = new Uint8Array(await (await latestHandle.getFile()).arrayBuffer());
+    expect(Array.from(latestBytes)).toEqual(Array.from(dailyBytes));
+  });
+
+  test('拡張子はファイル名から導出され、ドットが無ければ latest にも拡張子が付かない', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    await new OpfsBackupAdapter().backup(streamOf([new Uint8Array([1])]), 'aoiko-ledger-noext');
+
+    const latestHandle = await root.getFileHandle('aoiko-ledger-latest');
+    const bytes = new Uint8Array(await (await latestHandle.getFile()).arrayBuffer());
+    expect(Array.from(bytes)).toEqual([1]);
+  });
+
+  test('backup の解決値は fileName をそのまま返す', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const result = await new OpfsBackupAdapter().backup(
+      streamOf([new Uint8Array([1])]),
+      'aoiko-ledger-2026-07-28.zip',
+    );
+    expect(result).toEqual({ fileName: 'aoiko-ledger-2026-07-28.zip' });
+  });
+});

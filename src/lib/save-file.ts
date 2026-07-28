@@ -4,11 +4,19 @@
 // 保存完了を待てるよう Promise を返す。「最終ダウンロード時刻」のように保存後の状態を
 // 記録する呼出側が、保存の実装方式に関係なく正しい順序で書けるようにするため。
 export async function saveFile(
-  bytes: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>,
   filename: string,
   mimeType: string,
 ): Promise<void> {
-  const blob = new Blob([bytes], { type: mimeType });
+  let blob: Blob;
+  if (data instanceof ReadableStream) {
+    const rawBlob = await new Response(data).blob();
+    // Response(stream).blob() は type が空になるため貼り直す。slice はコピーせず
+    // 同一バイト列への view を返すのでストリーミングで抑えたメモリ増を保つ。
+    blob = rawBlob.slice(0, rawBlob.size, mimeType);
+  } else {
+    blob = new Blob([data], { type: mimeType });
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

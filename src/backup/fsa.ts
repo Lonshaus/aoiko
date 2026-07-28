@@ -45,7 +45,10 @@ export class FsaBackupAdapter implements BackupAdapter {
     await this.setHandle(handle);
   }
 
-  async backup(bytes: Uint8Array<ArrayBuffer>, fileName: string): Promise<{ fileName: string }> {
+  async backup(
+    stream: ReadableStream<Uint8Array>,
+    fileName: string,
+  ): Promise<{ fileName: string }> {
     const h = await this.getHandle();
     if (!h) {
       throw new Error('バックアップフォルダが未設定です');
@@ -54,9 +57,8 @@ export class FsaBackupAdapter implements BackupAdapter {
       throw new Error('フォルダへのアクセス許可が拒否されました');
     }
     const fileHandle = await h.getFileHandle(fileName, { create: true });
-    const writable = await fileHandle.createWritable();
-    await writable.write(bytes);
-    await writable.close();
+    // pipeTo は成功時に書き込み先を close するため、明示的な close は不要。
+    await stream.pipeTo(await fileHandle.createWritable());
     return { fileName };
   }
 

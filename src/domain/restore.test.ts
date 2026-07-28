@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
-import { buildBackupZip, buildPayload, PAYLOAD_VERSION } from '../backup';
+import { buildBackupZipStream, buildPayload, PAYLOAD_VERSION } from '../backup';
 import { newId } from '../lib/id';
 import { toIndexable } from '../lib/decimal';
 import {
@@ -307,7 +307,11 @@ describe('証憑写真（C7）の zip 往復', () => {
       exportedAt: '2026-05-10',
       tables: { vendors: [{ id: 'v1', name: '業者' }] },
     };
-    const zipBytes = await buildBackupZip(payload, new Map([['a1', new Uint8Array([9, 9])]]));
+    async function* attachments(): AsyncGenerator<readonly [string, Uint8Array]> {
+      yield ['a1', new Uint8Array([9, 9])];
+    }
+    const stream = buildBackupZipStream(payload, attachments());
+    const zipBytes = new Uint8Array(await new Response(stream).arrayBuffer());
     const zipFile = new File([zipBytes.slice()], 'backup.zip', { type: 'application/zip' });
     const zipParsed = await parseBackupFile(zipFile);
     expect(zipParsed.payload.tables['vendors']).toHaveLength(1);
