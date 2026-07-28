@@ -269,7 +269,7 @@
   "receipt_local_engine_notice": "Result from purely-local OCR (Tesseract). Accuracy is limited; please verify and correct the total, date and vendor before saving. OCR raw text is shown on screen only, not stored.",
   "receipt_amount_required": "Please enter the total amount (positive integer).",
   "order_title": "Order import (paste → LLM extract)",
-  "order_subtitle": "Paste a full Amazon / 楽天 order page; an LLM extracts the line items → review → save as a journal entry. Resilient to site UI changes (no DOM scraping).",
+  "order_subtitle": "Paste a full Amazon / 楽天 order page; an LLM extracts the line items → review → save as a journal entry. Unlike a Chrome extension that scrapes the DOM, it is unaffected by site redesigns.",
   "order_step_paste": "1. Paste the order page text",
   "order_paste_placeholder": "Select all on the order page (Cmd+A), copy (Cmd+C), then paste. Headers and recommendation noise are OK; the LLM will ignore them.",
   "order_analyze_button": "Analyze",
