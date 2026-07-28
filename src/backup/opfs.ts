@@ -33,22 +33,20 @@ export class OpfsBackupAdapter implements BackupAdapter {
     await this.ensurePermission();
   }
 
-  async backup(bytes: Uint8Array, fileName: string): Promise<{ fileName: string }> {
+  async backup(bytes: Uint8Array<ArrayBuffer>, fileName: string): Promise<{ fileName: string }> {
     const root = await navigator.storage.getDirectory();
     const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
     // 当日分（複数回上書き可、無視で OK）
     const dailyHandle = await root.getFileHandle(fileName, { create: true });
     const dailyWritable = await dailyHandle.createWritable();
-    // TS の Uint8Array<ArrayBufferLike> vs FileSystemWriteChunkType の ArrayBuffer 限定の
-    // 型不一致を吸収する（fflate の出力は ArrayBufferLike 型のまま）。
-    await dailyWritable.write(bytes.slice());
+    await dailyWritable.write(bytes);
     await dailyWritable.close();
     // 復元時に参照しやすいよう「最新」固定名のコピーも保持
     const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
       create: true,
     });
     const latestWritable = await latestHandle.createWritable();
-    await latestWritable.write(bytes.slice());
+    await latestWritable.write(bytes);
     await latestWritable.close();
 
     return { fileName };

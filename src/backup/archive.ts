@@ -17,7 +17,7 @@ export function looksLikeZip(bytes: Uint8Array): boolean {
 export function buildBackupZip(
   payload: BackupPayload,
   attachmentBlobs: Map<string, Uint8Array>,
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const files: Record<string, Uint8Array> = {
     [PAYLOAD_ENTRY_NAME]: strToU8(JSON.stringify(payload)),
   };
