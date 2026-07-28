@@ -22,7 +22,9 @@ function gitCommitShort(): string {
 // https://vite.dev/config/
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    // 同じソースから作る別の配布形態は独立したバージョン体系を持つため、環境変数で
+    // 上書きできるようにする。未設定なら package.json の値。
+    __APP_VERSION__: JSON.stringify(process.env.AOIKO_VERSION ?? pkg.version),
     __APP_COMMIT__: JSON.stringify(gitCommitShort()),
   },
   plugins: [
