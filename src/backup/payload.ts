@@ -62,14 +62,15 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     tables,
   };
 }
-// 証憑写真（C7）の実体バイナリを id → bytes で収集する。zip 同梱用。
-export async function collectAttachmentBlobs(): Promise<Map<string, Uint8Array>> {
-  const rows = await db.attachments.toArray();
-  const entries = await Promise.all(
-    rows.map(async (r): Promise<[string, Uint8Array]> => [
-      r.id,
-      new Uint8Array(await r.blob.arrayBuffer()),
-    ]),
-  );
-  return new Map(entries);
+// 証憑写真（C7）の実体バイナリを id → bytes で1件ずつ生成する。zip 同梱用。
+// 主キーを先に取得してから1件ずつ get() することで、常に写真1枚分だけがメモリに乗る。
+export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string, Uint8Array]> {
+  const ids = await db.attachments.toCollection().primaryKeys();
+  for (const id of ids) {
+    const row = await db.attachments.get(id);
+    if (!row) {
+      continue;
+    }
+    yield [id, new Uint8Array(await row.blob.arrayBuffer())];
+  }
 }

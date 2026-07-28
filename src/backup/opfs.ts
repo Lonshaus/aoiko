@@ -33,21 +33,22 @@ export class OpfsBackupAdapter implements BackupAdapter {
     await this.ensurePermission();
   }
 
-  async backup(bytes: Uint8Array<ArrayBuffer>, fileName: string): Promise<{ fileName: string }> {
+  async backup(
+    stream: ReadableStream<Uint8Array>,
+    fileName: string,
+  ): Promise<{ fileName: string }> {
     const root = await navigator.storage.getDirectory();
     const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
     // 当日分（複数回上書き可、無視で OK）
     const dailyHandle = await root.getFileHandle(fileName, { create: true });
-    const dailyWritable = await dailyHandle.createWritable();
-    await dailyWritable.write(bytes);
-    await dailyWritable.close();
-    // 復元時に参照しやすいよう「最新」固定名のコピーも保持
+    await stream.pipeTo(await dailyHandle.createWritable());
+    // 復元時に参照しやすいよう「最新」固定名のコピーも保持する。ReadableStream は
+    // 一度しか読めず tee() は両者の読み出し速度差を吸収するため結局バッファするので、
+    // ディスク上の当日分ファイルから直接コピーする（メモリに全体を乗せない）。
     const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
       create: true,
     });
-    const latestWritable = await latestHandle.createWritable();
-    await latestWritable.write(bytes);
-    await latestWritable.close();
+    await (await dailyHandle.getFile()).stream().pipeTo(await latestHandle.createWritable());
 
     return { fileName };
   }
