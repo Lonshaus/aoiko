@@ -13,9 +13,11 @@
     DEFAULT_INVOICE_PREFIX,
     DEFAULT_QUOTE_PREFIX,
     groupLineItemsByTaxRate,
+    hasReducedRateItems,
     invoiceTotal,
     issueInvoice,
     newLineItem,
+    REDUCED_TAX_RATE,
     voidInvoice,
   } from '../domain/invoice';
   import { m } from '../paraglide/messages';
@@ -204,6 +206,9 @@
     printingInvoice ? groupLineItemsByTaxRate(printingInvoice.lineItems) : [],
   );
   const printingTotal = $derived(printingInvoice ? invoiceTotal(printingInvoice.lineItems) : D(0));
+  const printingHasReduced = $derived(
+    printingInvoice ? hasReducedRateItems(printingInvoice.lineItems) : false,
+  );
 </script>
 
 <div class="print:hidden space-y-6">
@@ -453,6 +458,9 @@
       <div class="text-right text-xs">
         <p>{m.invoices_print_number()}: {printingInvoice.number}</p>
         <p>{m.invoices_print_date()}: {printingInvoice.date}</p>
+        {#if printingInvoice.documentType === 'invoice' && printingInvoice.dueDate}
+          <p>{m.invoices_print_due_date()}: {printingInvoice.dueDate}</p>
+        {/if}
       </div>
     </div>
     <div class="border-t pt-2 text-right text-xs space-y-1">
@@ -474,7 +482,7 @@
       <tbody>
         {#each printingInvoice.lineItems as item (item.id)}
           <tr class="border-b">
-            <td class="py-1">{item.name}</td>
+            <td class="py-1">{item.name}{item.taxRate === REDUCED_TAX_RATE ? ' ※' : ''}</td>
             <td class="text-right py-1">{item.quantity}</td>
             <td class="text-right py-1 font-mono">{formatJPY(item.unitPrice)}</td>
             <td class="text-right py-1">{item.taxRate * 100}%</td>
@@ -482,6 +490,9 @@
         {/each}
       </tbody>
     </table>
+    {#if printingHasReduced}
+      <p class="text-xs">{m.invoices_print_reduced_note()}</p>
+    {/if}
     <div class="text-xs space-y-1">
       {#each printingGroups as g (g.taxRate)}
         <div class="flex justify-between">
