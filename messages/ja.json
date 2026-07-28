@@ -478,6 +478,7 @@
   "settings_basic_real_estate_income_enabled": "不動産所得を使う（記帳フォームの事業/不動産切替・不動産用固定資産欄を表示）",
   "settings_basic_inventory_auto_valuation_enabled": "簡易在庫管理の期末棚卸高自動計算を使う（最終仕入原価法。届出により他の評価方法を選んでいる場合はオフにしてください）",
   "settings_basic_skip_attachment_confirm": "証憑写真の添付前確認をスキップする（後からここで再度チェックを外せます）",
+  "settings_basic_skip_external_send_confirm": "外部 AI への送信前確認をスキップする（後からここで再度チェックを外せます）",
   "settings_carryover_title": "前期繰越（期首残高）",
   "settings_carryover_intro_html": "前年の資産・負債残高を <strong>{year}-01-01</strong> 付けの期首振替仕訳として今年度に持ち越します。 事業主貸・事業主借・前年純利益は元入金へ吸収されます。年度の最初に 1 回だけ実行してください。",
   "settings_carryover_preview_button": "プレビュー",
