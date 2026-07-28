@@ -4,13 +4,11 @@
 // 保存完了を待てるよう Promise を返す。「最終ダウンロード時刻」のように保存後の状態を
 // 記録する呼出側が、保存の実装方式に関係なく正しい順序で書けるようにするため。
 export async function saveFile(
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   filename: string,
   mimeType: string,
 ): Promise<void> {
-  // slice() でコピーを渡すのは、fflate 等が返す Uint8Array<ArrayBufferLike> と
-  // BlobPart が要求する ArrayBuffer 限定の型が一致しないため。
-  const blob = new Blob([bytes.slice()], { type: mimeType });
+  const blob = new Blob([bytes], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

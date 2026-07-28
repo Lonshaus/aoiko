@@ -45,7 +45,7 @@ export class FsaBackupAdapter implements BackupAdapter {
     await this.setHandle(handle);
   }
 
-  async backup(bytes: Uint8Array, fileName: string): Promise<{ fileName: string }> {
+  async backup(bytes: Uint8Array<ArrayBuffer>, fileName: string): Promise<{ fileName: string }> {
     const h = await this.getHandle();
     if (!h) {
       throw new Error('バックアップフォルダが未設定です');
@@ -55,9 +55,7 @@ export class FsaBackupAdapter implements BackupAdapter {
     }
     const fileHandle = await h.getFileHandle(fileName, { create: true });
     const writable = await fileHandle.createWritable();
-    // TS の Uint8Array<ArrayBufferLike> vs FileSystemWriteChunkType の ArrayBuffer 限定の
-    // 型不一致を吸収する（fflate の出力は ArrayBufferLike 型のまま）。
-    await writable.write(bytes.slice());
+    await writable.write(bytes);
     await writable.close();
     return { fileName };
   }
