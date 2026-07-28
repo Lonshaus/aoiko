@@ -10,9 +10,9 @@ export interface BackupAdapter {
   isReady(): Promise<boolean>;
   ensurePermission(): Promise<boolean>;
   configure(): Promise<void>;
-  // bytes は呼出元（backup.svelte.ts）が組み立て済みの zip バイナリ。
+  // stream は呼出元（backup.svelte.ts）が組み立て済みの zip をストリームで渡す。
   // アダプタ側はフォーマットを問わずファイルとして書き込むだけの役割にする。
-  backup(bytes: Uint8Array<ArrayBuffer>, fileName: string): Promise<{ fileName: string }>;
+  backup(stream: ReadableStream<Uint8Array>, fileName: string): Promise<{ fileName: string }>;
   // 保存先にある既存バックアップのファイル名一覧（古いものの汰換判定に使う）
   list(): Promise<string[]>;
   // 指定ファイル名のバックアップを削除する
