@@ -47,6 +47,14 @@ export interface InvoiceTaxGroup {
   grossAmount: Decimal;
 }
 
+// 適格請求書の記載事項には「軽減対象課税資産の譲渡等である旨」が含まれる。
+// 8% の明細が 1 行でもあれば、どの行が対象かを書面上で示す必要がある。
+export const REDUCED_TAX_RATE = 0.08;
+
+export function hasReducedRateItems(lineItems: InvoiceLineItem[]): boolean {
+  return lineItems.some((item) => item.taxRate === REDUCED_TAX_RATE);
+}
+
 export function groupLineItemsByTaxRate(lineItems: InvoiceLineItem[]): InvoiceTaxGroup[] {
   const groups = new Map<0.1 | 0.08, Decimal>();
   for (const item of lineItems) {
