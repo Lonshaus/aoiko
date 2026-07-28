@@ -28,8 +28,6 @@ public/tesseract/
 *.local
 
 # Playwright（Phase 4）
-test-results/
-playwright-report/
 playwright/.cache/
 
 # Editor
