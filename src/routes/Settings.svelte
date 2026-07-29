@@ -4,7 +4,7 @@
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { toISODateLocal, todayISO } from '../lib/date';
-  import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
+  import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
@@ -14,7 +14,7 @@
   import { saveFile } from '../lib/save-file';
   import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
-  import { parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -882,14 +882,6 @@
     if (!file) {
       return;
     }
-    if (exceedsLimit(file.size, MAX_BACKUP_BYTES)) {
-      restoreError = m.common_file_too_large({
-        size: formatBytes(file.size),
-        limit: formatBytes(MAX_BACKUP_BYTES),
-      });
-      input.value = '';
-      return;
-    }
     restoreFileName = file.name;
     try {
       // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む（C7-4）。
@@ -898,7 +890,15 @@
       restoreAttachmentBlobs = parsed.attachmentBlobs;
       restoreAttachmentCount = parsed.attachmentBlobs.size;
     } catch (err) {
-      restoreError = err instanceof Error ? err.message : String(err);
+      if (err instanceof BackupTooLargeError) {
+        restoreError = m.common_file_too_large({
+          size: formatBytes(err.fileSize),
+          limit: formatBytes(err.limit),
+        });
+        input.value = '';
+      } else {
+        restoreError = err instanceof Error ? err.message : String(err);
+      }
     }
   }
 
