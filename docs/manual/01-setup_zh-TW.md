@@ -10,7 +10,7 @@
 > - 登記輔助科目（例如各銀行帳戶分開）和交易對象
 > - 設定 OCR/LLM 的 API 金鑰／endpoint（要用到才需要）
 >
-> **前提**：照[主 README](../../README_zh-TW.md) 的步驟把 aoiko 跑起來、瀏覽器打開了。
+> **前提**：照 GitHub 上 README 的步驟把 aoiko 跑起來、瀏覽器打開了。
 
 ## 1. 同意免責事項
 

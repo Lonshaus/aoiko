@@ -10,7 +10,7 @@ What to do from launching aoiko to being ready to book transactions.
 > - Register sub-accounts (e.g. per bank account) and vendors
 > - Configure an API key / endpoint for OCR/LLM, if you want to use those
 >
-> **Prerequisites**: aoiko is started per the [main README](../../README_en.md) and open in your browser.
+> **Prerequisites**: aoiko is started per the README on GitHub and open in your browser.
 
 ## 1. Accept the disclaimer
 
