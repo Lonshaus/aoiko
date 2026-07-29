@@ -1,9 +1,12 @@
 import { db } from '../db/db';
 import type { ParserRule } from '../db/types';
-// 取引内容（CSV 行の description）と既存ルールをマッチング、最初にヒットしたルールを返す。
-// ルールは priority 降順で評価される。
-export async function findMatchingRule(description: string): Promise<ParserRule | null> {
-  const rules = await db.parserRules.orderBy('priority').reverse().toArray();
+// priority 降順で全ルールを読み込む。行ごとに呼ばず、ファイル処理の開始時に一度だけ読む。
+export async function loadRules(): Promise<ParserRule[]> {
+  return db.parserRules.orderBy('priority').reverse().toArray();
+}
+
+// 読み込み済みルールから、取引内容（CSV 行の description）に最初にヒットしたルールを返す。
+export function findMatchingRule(rules: ParserRule[], description: string): ParserRule | null {
   for (const rule of rules) {
     if (matchRule(rule, description)) {
       return rule;
