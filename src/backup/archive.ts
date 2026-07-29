@@ -1,4 +1,5 @@
-import { strFromU8, strToU8, unzip, Zip, ZipPassThrough } from 'fflate';
+import { strFromU8, strToU8, Unzip, UnzipInflate, Zip, ZipPassThrough } from 'fflate';
+import type { UnzipFile } from 'fflate';
 import type { BackupPayload } from './types';
 
 const PAYLOAD_ENTRY_NAME = 'payload.json';
@@ -78,39 +79,89 @@ export function buildBackupZipStream(
 
 export interface ParsedBackupZip {
   payload: BackupPayload;
-  attachmentBlobs: Map<string, Uint8Array>;
+  attachmentBlobs: Map<string, Blob>;
 }
 
-export async function parseBackupZip(bytes: Uint8Array): Promise<ParsedBackupZip> {
-  let files: Record<string, Uint8Array>;
-  try {
-    files = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-      unzip(bytes, (err, data) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        resolve(data);
-      });
-    });
-  } catch {
+function concatChunks(chunks: Uint8Array<ArrayBuffer>[]): Uint8Array {
+  const total = chunks.reduce((n, chunk) => n + chunk.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return out;
+}
+// zip を丸ごとメモリに展開せず、fflate の Unzip をエントリ単位のストリームとして消費する。
+// 添付写真は1件分のバイト列だけが JS ヒープに乗り、完了した端から Blob 化してヒープを離れる。
+// UnzipInflate を登録するのは、aoiko 自身は無圧縮（store）で書くが、他ツールで再圧縮された
+// zip も読めるようにするため（保存側の圧縮方式に読み込み側を依存させない）。
+export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (!looksLikeZip(head)) {
     throw new Error('zip として読み込めませんでした');
   }
-  const payloadFile = files[PAYLOAD_ENTRY_NAME];
-  if (!payloadFile) {
-    throw new Error(`zip 内に ${PAYLOAD_ENTRY_NAME} が見つかりません`);
-  }
-  let payload: BackupPayload;
-  try {
-    payload = JSON.parse(strFromU8(payloadFile)) as BackupPayload;
-  } catch {
-    throw new Error(`zip 内の ${PAYLOAD_ENTRY_NAME} が JSON として読み込めませんでした`);
-  }
-  const attachmentBlobs = new Map<string, Uint8Array>();
-  for (const [path, data] of Object.entries(files)) {
-    if (path.startsWith(ATTACHMENT_PREFIX) && path.length > ATTACHMENT_PREFIX.length) {
-      attachmentBlobs.set(path.slice(ATTACHMENT_PREFIX.length), data);
+
+  let payload: BackupPayload | undefined;
+  let entryError: Error | undefined;
+  const attachmentBlobs = new Map<string, Blob>();
+
+  const unzipper = new Unzip();
+  unzipper.register(UnzipInflate);
+  unzipper.onfile = (entry: UnzipFile) => {
+    const isPayload = entry.name === PAYLOAD_ENTRY_NAME;
+    const isAttachment =
+      entry.name.startsWith(ATTACHMENT_PREFIX) && entry.name.length > ATTACHMENT_PREFIX.length;
+    if (!isPayload && !isAttachment) {
+      return;
     }
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
+    entry.ondata = (err, chunk, final) => {
+      if (err) {
+        entryError = err instanceof Error ? err : new Error(String(err));
+        return;
+      }
+      chunks.push(chunk);
+      if (!final) {
+        return;
+      }
+      if (isPayload) {
+        try {
+          payload = JSON.parse(strFromU8(concatChunks(chunks))) as BackupPayload;
+        } catch {
+          entryError = new Error(
+            `zip 内の ${PAYLOAD_ENTRY_NAME} が JSON として読み込めませんでした`,
+          );
+        }
+      } else {
+        attachmentBlobs.set(entry.name.slice(ATTACHMENT_PREFIX.length), new Blob(chunks));
+      }
+    };
+    entry.start();
+  };
+
+  try {
+    const reader = file.stream().getReader();
+    let current = await reader.read();
+    while (!current.done) {
+      const next = await reader.read();
+      unzipper.push(current.value, next.done);
+      if (entryError) {
+        throw entryError;
+      }
+      current = next;
+    }
+  } catch (err) {
+    if (err === entryError) {
+      throw err;
+    }
+    throw new Error('zip として読み込めませんでした');
+  }
+  if (entryError) {
+    throw entryError;
+  }
+  if (!payload) {
+    throw new Error(`zip 内に ${PAYLOAD_ENTRY_NAME} が見つかりません`);
   }
   return { payload, attachmentBlobs };
 }
