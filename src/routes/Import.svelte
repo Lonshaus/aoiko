@@ -8,7 +8,7 @@
     findOverlappingRows,
     type ImportRow,
   } from '../domain/import';
-  import { findMatchingRule, recordRuleHit } from '../domain/rules';
+  import { findMatchingRule, loadRules, recordRuleHit } from '../domain/rules';
   import { describeLlmError, type LlmAdapter } from '../domain/llm';
   import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
@@ -114,23 +114,22 @@
       const txs = currentParser.parse(text);
       // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
       const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
-      rows = await Promise.all(
-        txs.map(async (t, i): Promise<RowState> => {
-          const rule = await findMatchingRule(t.description);
-          const code = rule?.accountCode ?? '';
-          return {
-            transaction: t,
-            counterpartAccountCode: code,
-            counterpartSubAccountId: '',
-            description: t.description,
-            skip: overlapping.has(i),
-            matchedRuleId: rule?.id ?? '',
-            llmConfidence: '',
-            taxRate: defaultTaxRateFor(code),
-            invoiceCompliant: false,
-          };
-        }),
-      );
+      const rules = await loadRules();
+      rows = txs.map((t, i): RowState => {
+        const rule = findMatchingRule(rules, t.description);
+        const code = rule?.accountCode ?? '';
+        return {
+          transaction: t,
+          counterpartAccountCode: code,
+          counterpartSubAccountId: '',
+          description: t.description,
+          skip: overlapping.has(i),
+          matchedRuleId: rule?.id ?? '',
+          llmConfidence: '',
+          taxRate: defaultTaxRateFor(code),
+          invoiceCompliant: false,
+        };
+      });
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
     } catch (e) {
