@@ -21,20 +21,19 @@ export class IncompatibleBackupError extends Error {
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
 export async function parseBackupFile(
   file: File,
-): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Uint8Array> }> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (looksLikeZip(bytes)) {
-    return parseBackupZip(bytes);
+): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Blob> }> {
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  if (looksLikeZip(head)) {
+    return parseBackupZip(file);
   }
-  const text = new TextDecoder('utf-8').decode(bytes);
-  return { payload: parseBackupJson(text), attachmentBlobs: new Map() };
+  return { payload: parseBackupJson(await file.text()), attachmentBlobs: new Map() };
 }
 // バックアップの内容で IndexedDB を完全置換する。既存データはすべて削除されるため、
 // UI 側で必ず確認ダイアログを挟むこと。attachmentBlobs が空の場合（旧形式 JSON 等）は
 // 証憑写真の実体を復元しない（メタデータのみ残っていても blob は空になる）。
 export async function restoreFromPayload(
   payload: BackupPayload,
-  attachmentBlobs: Map<string, Uint8Array>,
+  attachmentBlobs: Map<string, Blob>,
 ): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
@@ -62,12 +61,18 @@ export async function restoreFromPayload(
     if (table.name === 'attachments') {
       rows = rows.map((r) => {
         const meta = r as Omit<Attachment, 'blob'>;
-        const bytes = attachmentBlobs.get(meta.id);
-        // メタデータはあるが二進位が無い＝旧 JSON 形式や不完全な zip。空 Blob で復元し件数を記録。
-        if (!bytes) {
+        const blob = attachmentBlobs.get(meta.id);
+        // メタデータはあるが実体が無い＝旧 JSON 形式や不完全な zip。空 Blob で復元し件数を記録。
+        if (!blob) {
           missingBlobCount++;
         }
-        return { ...meta, blob: new Blob(bytes ? [bytes.slice()] : [], { type: meta.mimeType }) };
+        // Blob.slice は既存バイトのビューを返すだけでコピーしない。mimeType だけ張り替える。
+        return {
+          ...meta,
+          blob: blob
+            ? blob.slice(0, blob.size, meta.mimeType)
+            : new Blob([], { type: meta.mimeType }),
+        };
       });
     }
     writes.push({ name: table.name, rows });
