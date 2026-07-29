@@ -102,7 +102,7 @@
   let confirmingRestore = $state(false);
   let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
   let restoreAttachmentCount = $state(0);
-  let restoreAttachmentBlobs: Map<string, Uint8Array> = new Map();
+  let restoreAttachmentBlobs: Map<string, Blob> = new Map();
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
