@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
 import { buildBackupZipStream, buildPayload, PAYLOAD_VERSION } from '../backup';
 import { newId } from '../lib/id';
@@ -10,6 +11,13 @@ import {
   restoreFromJson,
   restoreFromPayload,
 } from './restore';
+
+// happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
+// 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
+// テストだけ Node 組込みの Blob を使う。
+function nodeBlob(bytes: Uint8Array<ArrayBuffer>): Blob {
+  return new NodeBlob([bytes]) as unknown as Blob;
+}
 
 beforeEach(async () => {
   await db.delete();
@@ -250,7 +258,7 @@ describe('証憑写真（C7）の zip 往復', () => {
     });
 
     const payload = await buildPayload();
-    const attachmentBlobs = new Map([['att-1', new Uint8Array([1, 2, 3])]]);
+    const attachmentBlobs = new Map([['att-1', nodeBlob(new Uint8Array([1, 2, 3]))]]);
     payload.tables['attachments'] = [
       { id: 'att-1', entryId, mimeType: 'image/jpeg', fileName: 'r.jpg', createdAt: now },
     ];
@@ -262,6 +270,38 @@ describe('証憑写真（C7）の zip 往復', () => {
     expect(restored[0]!.entryId).toBe(entryId);
     expect(restored[0]!.fileName).toBe('r.jpg');
     expect(restored[0]!.mimeType).toBe('image/jpeg');
+  });
+
+  test('復元した添付の blob.type はメタデータの mimeType と一致し、バイト列も保たれる', async () => {
+    const entryId = newId();
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: entryId,
+      date: '2026-05-01',
+      year: 2026,
+      description: 'テスト',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
+
+    const payload = await buildPayload();
+    // 元の Blob 自体は mimeType を持たない状態で渡し、restoreFromPayload が
+    // メタデータの mimeType で張り替えることを検証する。
+    const attachmentBlobs = new Map([['att-1', nodeBlob(new Uint8Array([1, 2, 3]))]]);
+    payload.tables['attachments'] = [
+      { id: 'att-1', entryId, mimeType: 'image/png', fileName: 'r.png', createdAt: now },
+    ];
+
+    await restoreFromPayload(payload, attachmentBlobs);
+
+    const restored = await db.attachments.toArray();
+    expect(restored).toHaveLength(1);
+    expect(restored[0]!.blob.type).toBe('image/png');
+    expect(new Uint8Array(await restored[0]!.blob.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
   });
 
   test('実体の無い添付は missingBlobCount に計上される', async () => {
@@ -282,9 +322,20 @@ describe('証憑写真（C7）の zip 往復', () => {
         ],
       },
     };
-    const blobs = new Map([['has', new Uint8Array([1, 2, 3])]]);
-    const result = await restoreFromPayload(payload, blobs);
-    expect(result.missingBlobCount).toBe(1);
+    const blobs = new Map([['has', nodeBlob(new Uint8Array([1, 2, 3]))]]);
+    // 実体が無い行の Blob 組み立て（new Blob(...)）自体は Dexie の書き込み前なので、
+    // happy-dom の structuredClone 制限を経由せずに直接検証できるよう global Blob を差し替える。
+    vi.stubGlobal('Blob', NodeBlob);
+    try {
+      const result = await restoreFromPayload(payload, blobs);
+      expect(result.missingBlobCount).toBe(1);
+      const restored = await db.attachments.toArray();
+      const missing = restored.find((r) => r.id === 'missing');
+      expect(missing!.blob.size).toBe(0);
+      expect(missing!.blob.type).toBe('image/jpeg');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test('旧 JSON 形式（attachmentBlobs 空）でも欠損を計上する', async () => {
@@ -315,7 +366,9 @@ describe('証憑写真（C7）の zip 往復', () => {
     const zipFile = new File([zipBytes.slice()], 'backup.zip', { type: 'application/zip' });
     const zipParsed = await parseBackupFile(zipFile);
     expect(zipParsed.payload.tables['vendors']).toHaveLength(1);
-    expect(zipParsed.attachmentBlobs.get('a1')).toEqual(new Uint8Array([9, 9]));
+    expect(new Uint8Array(await zipParsed.attachmentBlobs.get('a1')!.arrayBuffer())).toEqual(
+      new Uint8Array([9, 9]),
+    );
 
     const jsonFile = new File([JSON.stringify(payload)], 'backup.json', {
       type: 'application/json',
