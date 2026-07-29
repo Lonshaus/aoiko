@@ -5,12 +5,15 @@ import { buildBackupZipStream, buildPayload, PAYLOAD_VERSION } from '../backup';
 import { newId } from '../lib/id';
 import { toIndexable } from '../lib/decimal';
 import {
+  BackupTooLargeError,
   IncompatibleBackupError,
+  isBackupTooLarge,
   parseBackupFile,
   parseBackupJson,
   restoreFromJson,
   restoreFromPayload,
 } from './restore';
+import { MAX_BACKUP_BYTES } from '../lib/file-limit';
 
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
@@ -376,5 +379,34 @@ describe('証憑写真（C7）の zip 往復', () => {
     const jsonParsed = await parseBackupFile(jsonFile);
     expect(jsonParsed.payload.tables['vendors']).toHaveLength(1);
     expect(jsonParsed.attachmentBlobs.size).toBe(0);
+  });
+
+  test('旧 JSON 形式で上限超過なら BackupTooLargeError（内容は読まずに弾く）', async () => {
+    const jsonFile = new File(['{"version":1,"tables":{}}'], 'backup.json', {
+      type: 'application/json',
+    });
+    // 実際に 100MB のファイルは作らず、size だけ上限超過を装う。
+    Object.defineProperty(jsonFile, 'size', { value: MAX_BACKUP_BYTES + 1 });
+    await expect(parseBackupFile(jsonFile)).rejects.toThrow(BackupTooLargeError);
+  });
+});
+
+describe('isBackupTooLarge', () => {
+  test('zip は上限を超えても許容する', () => {
+    expect(isBackupTooLarge(true, MAX_BACKUP_BYTES + 1)).toBe(false);
+  });
+
+  test('旧 JSON は上限超過で弾く', () => {
+    expect(isBackupTooLarge(false, MAX_BACKUP_BYTES + 1)).toBe(true);
+  });
+
+  test('境界値（ちょうど上限）は許容する', () => {
+    expect(isBackupTooLarge(false, MAX_BACKUP_BYTES)).toBe(false);
+    expect(isBackupTooLarge(true, MAX_BACKUP_BYTES)).toBe(false);
+  });
+
+  test('上限未満はどちらも許容する', () => {
+    expect(isBackupTooLarge(false, 100)).toBe(false);
+    expect(isBackupTooLarge(true, 100)).toBe(false);
   });
 });
