@@ -128,6 +128,10 @@ export function mapKoa220Values(ctx: XtxContext): XtxLeafValues {
     }
     put(out, tagByJa(PAGE1, ja), row.amount);
   }
+  // buildXtx2026 は realEstatePl があるのに realEstateIncome が無ければ
+  // RealEstateIncomeInputMissingError を投げるため、実際の出力経路では
+  // realEstateInput は必ず存在する。ここでの ?? false は、この関数を
+  // 単独で呼ぶ場合（テスト等）向けの型レベルのフォールバックに過ぎない。
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   const businessScale = realEstateInput?.businessScale ?? false;
   const preDeductionIncome = realEstatePreDeductionIncome(pl, businessScale);
