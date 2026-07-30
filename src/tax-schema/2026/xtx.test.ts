@@ -1,7 +1,39 @@
 import { describe, expect, test } from 'vitest';
-import { buildXtx2026, personalDeductionsToCtx, type XtxContext } from './xtx';
+import {
+  buildXtx2026,
+  personalDeductionsToCtx,
+  RealEstateIncomeInputMissingError,
+  type XtxContext,
+} from './xtx';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { PersonalDeductionInput } from '../../db/types';
+import { D } from '../../lib/decimal';
+import type { RealEstateIncomeCtx } from './real-estate-income';
+
+// personalDeductions は各種 IncomeDeductionInput 系の必須項目を含む交差型のため、
+// realEstateIncome だけの部分オブジェクトは型を満たさない（xtx-mapping-koa220.test.ts と同じ事情）。
+function withRealEstate(
+  realEstateIncome: RealEstateIncomeCtx,
+): NonNullable<XtxContext['personalDeductions']> {
+  return {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+    realEstateIncome,
+  };
+}
 
 function makeCtx(): XtxContext {
   const monthly: MonthlyReport = {
@@ -189,6 +221,72 @@ describe('buildXtx2026（filingType: white → KOA020+KOA110 併載）', () => {
     // 事業所得（控除無し）＝400万。青色申告特別控除額（65万）は出ない
     expect(x).toContain('>4000000<');
     expect(x).not.toContain('>650000<');
+  });
+});
+
+describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否）', () => {
+  function realEstatePl(overrides: Partial<PLReport> = {}): PLReport {
+    return {
+      year: 2026,
+      revenue: [],
+      expense: [],
+      totalRevenue: '0',
+      totalExpense: '0',
+      netIncome: '0',
+      entryCount: 0,
+      ...overrides,
+    };
+  }
+
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（青色）', () => {
+    const ctx = makeCtx();
+    ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
+    expect(() => buildXtx2026(ctx)).toThrow(RealEstateIncomeInputMissingError);
+  });
+
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（白色 KOA130）', () => {
+    const ctx = makeCtx();
+    ctx.filingType = 'white';
+    ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
+    expect(() => buildXtx2026(ctx)).toThrow(RealEstateIncomeInputMissingError);
+  });
+
+  test('両方揃っていれば共有枠で配分した控除額を出力する（賃貸料300万・租税公課20万・事業所得100万の回帰確認）', () => {
+    const ctx = makeCtx();
+    ctx.pl = { ...ctx.pl, totalRevenue: '1000000', netIncome: '1000000' };
+    ctx.realEstatePl = realEstatePl({
+      revenue: [
+        {
+          accountCode: '4210',
+          accountName: '賃貸料（不動産）',
+          category: 'revenue',
+          amount: '3000000',
+          displayOrder: 210,
+        },
+      ],
+      expense: [
+        {
+          accountCode: '5310',
+          accountName: '租税公課（不動産）',
+          category: 'expense',
+          amount: '200000',
+          displayOrder: 1310,
+        },
+      ],
+      totalRevenue: '3000000',
+      totalExpense: '200000',
+      netIncome: '2800000',
+    });
+    ctx.personalDeductions = withRealEstate({ businessScale: false });
+    const x = buildXtx2026(ctx);
+    // 共有枠65万を不動産所得から優先配分すると控除額は65万（不動産所得280万の全額ではない）
+    expect(x).toContain('<ANF00260>650000</ANF00260>');
+    expect(x).not.toContain('<ANF00260>2800000</ANF00260>');
+  });
+
+  test('realEstatePl が無ければ従来どおり throw せず出力する', () => {
+    const ctx = makeCtx();
+    expect(() => buildXtx2026(ctx)).not.toThrow();
   });
 });
 
