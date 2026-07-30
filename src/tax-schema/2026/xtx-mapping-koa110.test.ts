@@ -108,11 +108,12 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             amount: '200000',
             displayOrder: 20,
           },
+          // 期末棚卸の標準仕訳は貸方のため buildPL の出力はマイナスになる
           {
             accountCode: '5030',
             accountName: '期末商品棚卸高',
             category: 'expense',
-            amount: '5000',
+            amount: '-5000',
             displayOrder: 30,
           },
         ],
@@ -120,6 +121,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     );
     expect(out.AIG00080).toBe('10000');
     expect(out.AIG00090).toBe('200000');
+    // 様式の期末棚卸欄は売上原価から差し引かれる欄なので符号を戻して出力する
     expect(out.AIG00110).toBe('5000');
   });
 
