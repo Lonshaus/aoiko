@@ -100,17 +100,27 @@ export function computeCombinedBusinessRealEstateIncome(
   };
 }
 
+export const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
 // 事業的規模でない場合、専従者給与（不動産）は全額不算入（控除前所得に戻す）。
-// pl.netIncome は通常の経費として控除済みのため、その分だけ加算し直す。
-export function realEstatePreDeductionIncome(pl: PLReport, businessScale: boolean): Decimal {
-  const netIncome = D(pl.netIncome);
-  if (businessScale) {
-    return netIncome;
+// 白色申告ではさらに貸倒引当金繰入額（不動産）も不算入（事業所得側の
+// whiteReturnAdjustedNetIncome と同じ扱い。収支内訳書に対応欄が無く転記もされない）。
+// pl.netIncome は通常の経費として控除済みのため、いずれもその分だけ加算し直す。
+export function realEstatePreDeductionIncome(
+  pl: PLReport,
+  businessScale: boolean,
+  filingType: 'blue' | 'white' = 'blue',
+): Decimal {
+  const disallowedAccounts = new Set<string>();
+  if (!businessScale) {
+    disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
+  }
+  if (filingType === 'white') {
+    disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
   }
   const disallowed = pl.expense
-    .filter((r) => r.accountName === REAL_ESTATE_SENJUSHA_ACCOUNT_NAME)
+    .filter((r) => disallowedAccounts.has(r.accountName))
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
-  return netIncome.plus(disallowed);
+  return D(pl.netIncome).plus(disallowed);
 }
 
 // 事業所得・不動産所得を合算した場合の青色申告特別控除に使う実効区分。

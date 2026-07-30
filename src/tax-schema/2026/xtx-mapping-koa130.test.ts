@@ -169,23 +169,46 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00120).toBe('40000');
   });
 
-  test('貸倒引当金繰入額（不動産）は白色に引当金制度が無いため出力しない', () => {
+  test('貸倒引当金繰入額（不動産）は転記せず、所得金額へ加算し直す', () => {
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({
+          revenue: [
+            {
+              accountCode: '4210',
+              accountName: '賃貸料（不動産）',
+              category: 'revenue',
+              amount: '3000000',
+              displayOrder: 210,
+            },
+          ],
           expense: [
+            {
+              accountCode: '5310',
+              accountName: '租税公課（不動産）',
+              category: 'expense',
+              amount: '200000',
+              displayOrder: 1310,
+            },
             {
               accountCode: '5410',
               accountName: '貸倒引当金繰入額（不動産）',
               category: 'expense',
-              amount: '10000',
+              amount: '100000',
               displayOrder: 1395,
             },
           ],
+          totalRevenue: '3000000',
+          totalExpense: '300000',
+          netIncome: '2700000',
         }),
       }),
     );
-    expect(Object.values(out)).not.toContain('10000');
+    expect(out.AKG00160).toBe('200000');
+    // 対応欄が無いので転記しない
+    expect(Object.values(out)).not.toContain('100000');
+    // 転記していない分は所得へ戻す：2,700,000 + 100,000
+    expect(out.AKG00230).toBe('2800000');
   });
 
   test('土地等取得の負債利子額を確定額のまま出力する', () => {
