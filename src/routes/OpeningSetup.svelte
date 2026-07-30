@@ -5,6 +5,7 @@
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
   import { todayISO } from '../lib/date';
+  import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
   import {
     computeConvertedAssetBasis,
@@ -223,7 +224,8 @@
         />
         <input
           type="number"
-          bind:value={expenseAmount}
+          value={expenseAmount}
+          oninput={assignInputString((v) => (expenseAmount = v))}
           min="0"
           step="1"
           placeholder={m.opening_amount_placeholder()}
@@ -295,7 +297,8 @@
           />
           <input
             type="number"
-            bind:value={newAssetCost}
+            value={newAssetCost}
+            oninput={assignInputString((v) => (newAssetCost = v))}
             min="0"
             step="1"
             placeholder={m.settings_asset_cost_placeholder()}
@@ -303,7 +306,8 @@
           />
           <input
             type="number"
-            bind:value={newAssetLife}
+            value={newAssetLife}
+            oninput={assignInputNumber((v) => (newAssetLife = v))}
             min="1"
             max="50"
             step="1"
@@ -437,7 +441,8 @@
         </select>
         <input
           type="number"
-          bind:value={customAmount}
+          value={customAmount}
+          oninput={assignInputString((v) => (customAmount = v))}
           min="0"
           step="1"
           placeholder={m.opening_amount_placeholder()}
