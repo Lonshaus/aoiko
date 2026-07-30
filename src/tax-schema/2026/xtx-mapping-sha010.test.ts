@@ -213,6 +213,30 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.shb033.DTE00260).toBe('50000');
   });
 
+  test('課税売上割合95%未満：付表1-3(4)の税率別内訳は按分後の値で、合計＝申告書④＝控除税額小計と一致する（issue #303）', () => {
+    const result = mapGeneral({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      input10: D('500000'),
+      input8: D('120000'),
+      ...zeroExtras(),
+      nonTaxableSalesBase: D('200000'),
+    });
+    // 課税売上割合 = 1,000,000/1,200,000 = 83.33...% → 95%未満（一括比例配分方式）
+    // rate78 = floor(500,000 × 1,000,000/1,200,000) = floor(416,666.66...) = 416,666
+    // rate624 = floor(120,000 × 1,000,000/1,200,000) = 100,000（割り切れる）
+    expect(result.shb033.DTD00000).toBe('83.33');
+    expect(result.shb017.DSF00020).toBe('100000');
+    expect(result.shb017.DSF00030).toBe('416666');
+    expect(result.shb017.DSF00040).toBe('516666');
+    expect(result.shb017.DSF00040).toBe(
+      (Number(result.shb017.DSF00020) + Number(result.shb017.DSF00030)).toString(),
+    );
+    // 申告書④ 控除対象仕入税額・控除税額小計（貸倒れ税額0）も同じ値
+    expect(result.sha010.AAJ00050).toBe('516666');
+    expect(result.shb017.DSF00240).toBe('516666');
+  });
+
   test('interimPeriod を指定すると AAI00160 に中間申告の対象期間が raw で立つ', () => {
     const result = mapGeneral({
       taxableBase10: D('1000000'),
