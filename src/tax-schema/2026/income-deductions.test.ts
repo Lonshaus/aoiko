@@ -19,25 +19,50 @@ import {
 } from './income-deductions';
 
 describe('basicDeduction', () => {
-  test('令和8年分：132万円以下は95万円', () => {
-    expect(basicDeduction(2026, D(1_320_000)).toString()).toBe('950000');
+  test('令和7年分：132万円以下は95万円', () => {
+    expect(basicDeduction(2025, D(1_320_000)).toString()).toBe('950000');
   });
 
-  test('令和8年分：336万円超489万円以下は68万円', () => {
-    expect(basicDeduction(2026, D(4_000_000)).toString()).toBe('680000');
+  test('令和7年分：336万円超489万円以下は68万円', () => {
+    expect(basicDeduction(2025, D(4_000_000)).toString()).toBe('680000');
   });
 
-  test('令和8年分：655万円超2,350万円以下は58万円', () => {
-    expect(basicDeduction(2026, D(10_000_000)).toString()).toBe('580000');
+  test('令和7年分：655万円超2,350万円以下は58万円', () => {
+    expect(basicDeduction(2025, D(10_000_000)).toString()).toBe('580000');
   });
 
-  test('2,350万円超は高所得者逓減表（改正無関係）', () => {
-    expect(basicDeduction(2026, D(24_200_000)).toString()).toBe('320000');
-    expect(basicDeduction(2026, D(25_100_000)).toString()).toBe('0');
+  test('令和7年分：2,350万円超は高所得者逓減表', () => {
+    expect(basicDeduction(2025, D(24_200_000)).toString()).toBe('320000');
+    expect(basicDeduction(2025, D(25_100_000)).toString()).toBe('0');
   });
 
-  test('令和9年分以後：2,350万円以下は一律58万円（暫定加算終了）', () => {
-    expect(basicDeduction(2027, D(1_320_000)).toString()).toBe('580000');
+  test('令和8年分：489万円ちょうどは104万円、489万円超は67万円', () => {
+    expect(basicDeduction(2026, D(4_890_000)).toString()).toBe('1040000');
+    expect(basicDeduction(2026, D(4_890_001)).toString()).toBe('670000');
+  });
+
+  test('令和8年分：655万円ちょうどは67万円、655万円超は62万円', () => {
+    expect(basicDeduction(2026, D(6_550_000)).toString()).toBe('670000');
+    expect(basicDeduction(2026, D(6_550_001)).toString()).toBe('620000');
+  });
+
+  test('令和8年分：2,350万円ちょうどは62万円、超は高所得者逓減表', () => {
+    expect(basicDeduction(2026, D(23_500_000)).toString()).toBe('620000');
+    expect(basicDeduction(2026, D(23_500_001)).toString()).toBe('480000');
+  });
+
+  test('令和9年分も令和8年分と同じ表', () => {
+    expect(basicDeduction(2027, D(4_890_000)).toString()).toBe('1040000');
+  });
+
+  test('令和10年分以後：132万円ちょうどは99万円、132万円超は62万円', () => {
+    expect(basicDeduction(2028, D(1_320_000)).toString()).toBe('990000');
+    expect(basicDeduction(2028, D(1_320_001)).toString()).toBe('620000');
+  });
+
+  test('令和10年分以後：2,350万円ちょうどは62万円、超は高所得者逓減表', () => {
+    expect(basicDeduction(2028, D(23_500_000)).toString()).toBe('620000');
+    expect(basicDeduction(2028, D(23_500_001)).toString()).toBe('480000');
   });
 });
 
@@ -99,55 +124,83 @@ describe('donationDeduction', () => {
 
 describe('spouseDeduction', () => {
   test('配偶者所得58万円以下・納税者900万円以下は38万円（一般）', () => {
-    expect(spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 40 }).toString()).toBe(
-      '380000',
-    );
+    expect(
+      spouseDeduction(2026, D(5_000_000), { totalIncome: D(500_000), age: 40 }).toString(),
+    ).toBe('380000');
   });
 
   test('老人控除対象配偶者（70歳以上）は48万円', () => {
-    expect(spouseDeduction(D(5_000_000), { totalIncome: D(500_000), age: 72 }).toString()).toBe(
-      '480000',
-    );
+    expect(
+      spouseDeduction(2026, D(5_000_000), { totalIncome: D(500_000), age: 72 }).toString(),
+    ).toBe('480000');
   });
 
   test('配偶者特別控除：所得95万円以下は38万円', () => {
-    expect(spouseDeduction(D(5_000_000), { totalIncome: D(900_000), age: 40 }).toString()).toBe(
-      '380000',
-    );
+    expect(
+      spouseDeduction(2026, D(5_000_000), { totalIncome: D(900_000), age: 40 }).toString(),
+    ).toBe('380000');
   });
 
   test('配偶者特別控除：所得133万円超は控除なし', () => {
-    expect(spouseDeduction(D(5_000_000), { totalIncome: D(1_400_000), age: 40 }).toString()).toBe(
-      '0',
-    );
+    expect(
+      spouseDeduction(2026, D(5_000_000), { totalIncome: D(1_400_000), age: 40 }).toString(),
+    ).toBe('0');
   });
 
   test('納税者本人の合計所得金額1,000万円超は控除なし', () => {
-    expect(spouseDeduction(D(10_100_000), { totalIncome: D(500_000), age: 40 }).toString()).toBe(
-      '0',
-    );
+    expect(
+      spouseDeduction(2026, D(10_100_000), { totalIncome: D(500_000), age: 40 }).toString(),
+    ).toBe('0');
   });
 
   test('配偶者なしは0', () => {
-    expect(spouseDeduction(D(5_000_000), undefined).toString()).toBe('0');
+    expect(spouseDeduction(2026, D(5_000_000), undefined).toString()).toBe('0');
+  });
+
+  // 所得58万円超62万円以下の配偶者は、令和7年分では配偶者特別控除、令和8年分では
+  // 配偶者控除の対象になる。適用される条文は変わるが、この帯では控除額はどちらも38万円。
+  test('扶養親族等の所得要件の境界：所得58万円超62万円以下の配偶者は年分を問わず38万円', () => {
+    expect(
+      spouseDeduction(2025, D(5_000_000), { totalIncome: D(600_000), age: 40 }).toString(),
+    ).toBe('380000');
+    expect(
+      spouseDeduction(2026, D(5_000_000), { totalIncome: D(600_000), age: 40 }).toString(),
+    ).toBe('380000');
   });
 });
 
 describe('dependentDeductions', () => {
   test('一般扶養親族（16〜18歳・23〜69歳）は38万円', () => {
-    const { dependentDeduction } = dependentDeductions([{ id: '1', age: 17, totalIncome: D(0) }]);
+    const { dependentDeduction } = dependentDeductions(2026, [
+      { id: '1', age: 17, totalIncome: D(0) },
+    ]);
     expect(dependentDeduction.toString()).toBe('380000');
   });
 
-  test('特定扶養親族（19〜22歳、所得58万円以下）は63万円', () => {
-    const { dependentDeduction } = dependentDeductions([
+  // 配偶者と違い扶養親族には所得要件を超えた場合の特別控除が無いため、この帯では
+  // 令和7年分は控除ゼロ、令和8年分は満額になる。所得要件引上げの実質的な効果はここに出る。
+  test('扶養親族等の所得要件の境界：所得58万円超62万円以下は令和8年分のみ扶養控除の対象', () => {
+    expect(
+      dependentDeductions(2025, [
+        { id: '1', age: 17, totalIncome: D(600_000) },
+      ]).dependentDeduction.toString(),
+    ).toBe('0');
+    expect(
+      dependentDeductions(2026, [
+        { id: '1', age: 17, totalIncome: D(600_000) },
+      ]).dependentDeduction.toString(),
+    ).toBe('380000');
+  });
+
+  test('特定扶養親族（19〜22歳、扶養親族等の所得要件以下）は63万円', () => {
+    const { dependentDeduction } = dependentDeductions(2026, [
       { id: '1', age: 20, totalIncome: D(300_000) },
     ]);
     expect(dependentDeduction.toString()).toBe('630000');
   });
 
   test('老人扶養親族：同居老親等は58万円、一般は48万円', () => {
-    const { dependentDeduction } = dependentDeductions([
+    const { dependentDeduction } = dependentDeductions(2026, [
       { id: '1', age: 75, totalIncome: D(0), livesWithLinealAscendant: true },
       { id: '2', age: 75, totalIncome: D(0) },
     ]);
@@ -155,12 +208,14 @@ describe('dependentDeductions', () => {
   });
 
   test('16歳未満（年少扶養親族）は控除なし', () => {
-    const { dependentDeduction } = dependentDeductions([{ id: '1', age: 10, totalIncome: D(0) }]);
+    const { dependentDeduction } = dependentDeductions(2026, [
+      { id: '1', age: 10, totalIncome: D(0) },
+    ]);
     expect(dependentDeduction.toString()).toBe('0');
   });
 
-  test('19〜22歳で所得58万円超123万円以下は扶養控除ではなく特定親族特別控除', () => {
-    const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions([
+  test('19〜22歳で所得要件超123万円以下は扶養控除ではなく特定親族特別控除', () => {
+    const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions(2026, [
       { id: '1', age: 20, totalIncome: D(900_000) },
     ]);
     expect(dependentDeduction.toString()).toBe('0');
@@ -168,11 +223,18 @@ describe('dependentDeductions', () => {
   });
 
   test('19〜22歳で所得123万円超は控除なし', () => {
-    const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions([
+    const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions(2026, [
       { id: '1', age: 20, totalIncome: D(1_300_000) },
     ]);
     expect(dependentDeduction.toString()).toBe('0');
     expect(specificRelativeSpecialDeduction.toString()).toBe('0');
+  });
+
+  test('扶養親族等の所得要件の境界：所得58万円超62万円以下は令和8年分のみ扶養控除の対象', () => {
+    const reiwa7 = dependentDeductions(2025, [{ id: '1', age: 30, totalIncome: D(600_000) }]);
+    expect(reiwa7.dependentDeduction.toString()).toBe('0');
+    const reiwa8 = dependentDeductions(2026, [{ id: '1', age: 30, totalIncome: D(600_000) }]);
+    expect(reiwa8.dependentDeduction.toString()).toBe('380000');
   });
 });
 
@@ -219,8 +281,8 @@ describe('computeIncomeDeductions', () => {
       dependents: [],
     };
     const result = computeIncomeDeductions(2026, input);
-    // 基礎控除88万円（336万円以下） + 社会保険料控除40万円
-    expect(result.total.toString()).toBe('1280000');
+    // 基礎控除104万円（489万円以下） + 社会保険料控除40万円
+    expect(result.total.toString()).toBe('1440000');
   });
 });
 
