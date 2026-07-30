@@ -149,7 +149,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
         row.AIM00020 = name;
       }
       putRow(row, 'AIM00060', asset.acquisitionCost);
-      putRow(row, 'AIM00070', asset.acquisitionCost);
+      putRow(row, 'AIM00070', result.depreciationBase);
       row.AIM00080 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AIM00090 = String(asset.usefulLifeYears);
