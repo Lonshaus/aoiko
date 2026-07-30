@@ -72,6 +72,12 @@ export interface DepreciationResult {
   bookValueEnd: string;
   /** 完全に償却済み（残存簿価 = 1 円） */
   fullyDepreciated: boolean;
+  /**
+   * 償却の基礎になる金額（青色申告決算書・収支内訳書の減価償却費の計算欄）。
+   * 定額法は常に取得価額。定率法は①取得年は取得価額②翌年以降は前年末未償却残高
+   * ③改定償却率切替後は改定取得価額（切替年の期首未償却残高）で固定。
+   */
+  depreciationBase: string;
 }
 
 export function computeDepreciation(asset: FixedAsset, year: number): DepreciationResult {
@@ -85,6 +91,7 @@ export function computeDepreciation(asset: FixedAsset, year: number): Depreciati
       accumulatedEnd: '0',
       bookValueEnd: cost.toString(),
       fullyDepreciated: false,
+      depreciationBase: cost.toString(),
     };
   }
 
@@ -101,6 +108,7 @@ export function computeDepreciation(asset: FixedAsset, year: number): Depreciati
         accumulatedEnd: finalState.accumulatedEnd,
         bookValueEnd: finalState.bookValueEnd,
         fullyDepreciated: finalState.fullyDepreciated,
+        depreciationBase: finalState.depreciationBase,
       };
     }
   }
@@ -132,6 +140,7 @@ function computeLumpSum(
       accumulatedEnd: cost.toString(),
       bookValueEnd: '0',
       fullyDepreciated: true,
+      depreciationBase: cost.toString(),
     };
   }
   let accumulated = D(0);
@@ -145,6 +154,7 @@ function computeLumpSum(
         accumulatedEnd: accumulated.toString(),
         bookValueEnd: cost.minus(accumulated).toString(),
         fullyDepreciated: isFinalYear,
+        depreciationBase: cost.toString(),
       };
     }
   }
@@ -165,6 +175,7 @@ function computeSmallAssetSpecial(
       accumulatedEnd: cost.toString(),
       bookValueEnd: '0',
       fullyDepreciated: true,
+      depreciationBase: cost.toString(),
     };
   }
   return {
@@ -172,6 +183,7 @@ function computeSmallAssetSpecial(
     accumulatedEnd: cost.toString(),
     bookValueEnd: '0',
     fullyDepreciated: true,
+    depreciationBase: cost.toString(),
   };
 }
 
@@ -209,6 +221,7 @@ function computeStraightLine(
         accumulatedEnd: accumulatedEnd.toString(),
         bookValueEnd: bookValueEnd.toString(),
         fullyDepreciated: bookValueEnd.equals(RESIDUAL_VALUE),
+        depreciationBase: cost.toString(),
       };
     }
     accumulated = accumulated.plus(yearAmount);
@@ -219,6 +232,7 @@ function computeStraightLine(
     accumulatedEnd: accumulated.toString(),
     bookValueEnd: cost.minus(accumulated).toString(),
     fullyDepreciated: false,
+    depreciationBase: cost.toString(),
   };
 }
 
@@ -260,6 +274,9 @@ function computeDecliningBalance(
         yearAmount = standard;
       }
     }
+    // 償却の基礎になる金額：取得年は取得価額（bookValue = cost の初期値）、
+    // 翌年以降は前年末未償却残高（bookValue）、改定モード切替後は改定取得価額（revisedBase）で固定。
+    const depreciationBase = revisedBase ?? bookValue;
     // 取得年・処分年は月按分
     const monthsThisYear = activeMonths(y, acqYear, acqMonth, disposedYear, disposedMonth);
     if (monthsThisYear < 12) {
@@ -282,6 +299,7 @@ function computeDecliningBalance(
         accumulatedEnd: accumulatedEnd.toString(),
         bookValueEnd: bookValueEnd.toString(),
         fullyDepreciated: bookValueEnd.equals(RESIDUAL_VALUE),
+        depreciationBase: depreciationBase.toString(),
       };
     }
 
@@ -294,6 +312,7 @@ function computeDecliningBalance(
     accumulatedEnd: accumulated.toString(),
     bookValueEnd: cost.minus(accumulated).toString(),
     fullyDepreciated: false,
+    depreciationBase: (revisedBase ?? bookValue).toString(),
   };
 }
 export interface YearEndDepreciationResult {
