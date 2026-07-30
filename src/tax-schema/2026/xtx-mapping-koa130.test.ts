@@ -249,6 +249,27 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
     expect(repeats.AKK00010?.[0]?.AKK00020).toBe('賃貸アパート');
   });
 
+  test('定率法：AKK00070（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    const repeats = mapKoa130RepeatedValues(
+      ctx({
+        fixedAssets: [
+          realEstateAsset({
+            acquisitionDate: '2025-01-01',
+            acquisitionCost: '1000000',
+            usefulLifeYears: 5,
+            depreciationMethod: 'declining-balance',
+          }),
+        ],
+      }),
+    );
+    const row = repeats.AKK00010![0]!;
+    expect(row.AKK00060).toBe('1000000');
+    expect(row.AKK00070).toBe('600000');
+    expect(row.AKK00150).toBe('240000');
+  });
+
   test('借入金利子の内訳（AKL00000）は公式上限2件で切り詰める', () => {
     const repeats = mapKoa130RepeatedValues(
       ctx({
