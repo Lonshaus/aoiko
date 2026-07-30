@@ -1,4 +1,5 @@
 import { inflateSync, strToU8, Zip, ZipPassThrough } from 'fflate';
+import { createCrc32, crc32 } from './crc32';
 import type { BackupPayload } from './types';
 
 const PAYLOAD_ENTRY_NAME = 'payload.json';
@@ -96,11 +97,23 @@ const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 const LOCAL_FILE_HEADER_FIXED_SIZE = 30;
 const SENTINEL_16 = 0xffff;
 const SENTINEL_32 = 0xffffffff;
+// 1回の読みで JS ヒープに載る上限。無圧縮の添付はこの単位で読み捨てながら CRC を回す。
+const VERIFY_CHUNK_SIZE = 1024 * 1024;
+
+export class BackupCorruptError extends Error {
+  constructor(public readonly entryNames: string[]) {
+    super(
+      `バックアップファイルが壊れています（${entryNames.length} 件のデータが検証に失敗しました）`,
+    );
+    this.name = 'BackupCorruptError';
+  }
+}
 
 interface CentralDirectoryRecord {
   name: string;
   method: number;
   compressedSize: number;
+  crc32: number;
   localHeaderOffset: number;
 }
 // EOCD（末尾の目録）は末尾から最大 65557 バイト以内にある（コメント長の上限が 65535）。
@@ -252,6 +265,7 @@ function parseCentralDirectory(bytes: Uint8Array, recordCount: number): CentralD
       throw new Error(ZIP_READ_ERROR);
     }
     const method = view.getUint16(pos + 10, true);
+    const recordCrc32 = view.getUint32(pos + 16, true);
     const compressedSizeRaw = view.getUint32(pos + 20, true);
     const uncompressedSizeRaw = view.getUint32(pos + 24, true);
     const nameLen = view.getUint16(pos + 28, true);
@@ -271,7 +285,7 @@ function parseCentralDirectory(bytes: Uint8Array, recordCount: number): CentralD
       uncompressedSizeRaw,
       localHeaderOffsetRaw,
     );
-    records.push({ name, method, compressedSize, localHeaderOffset });
+    records.push({ name, method, compressedSize, crc32: recordCrc32, localHeaderOffset });
     pos = extraStart + extraLen + commentLen;
   }
   if (pos !== bytes.length) {
@@ -281,7 +295,10 @@ function parseCentralDirectory(bytes: Uint8Array, recordCount: number): CentralD
 }
 // ローカルヘッダの名前長・extra 長は中央目録のものと食い違うことがある（spec 上どちらも
 // 正当なので、実データの開始位置は必ずローカルヘッダ側の値から計算する）。
-async function readEntryBlob(file: Blob, record: CentralDirectoryRecord): Promise<Blob> {
+async function readEntryBlob(
+  file: Blob,
+  record: CentralDirectoryRecord,
+): Promise<{ blob: Blob; inflated: Uint8Array | undefined }> {
   const header = new Uint8Array(
     await file
       .slice(record.localHeaderOffset, record.localHeaderOffset + LOCAL_FILE_HEADER_FIXED_SIZE)
@@ -304,13 +321,26 @@ async function readEntryBlob(file: Blob, record: CentralDirectoryRecord): Promis
     throw new Error(ZIP_READ_ERROR);
   }
   if (record.method === 0) {
-    return file.slice(dataStart, dataEnd);
+    return { blob: file.slice(dataStart, dataEnd), inflated: undefined };
   }
   if (record.method === 8) {
     const compressed = new Uint8Array(await file.slice(dataStart, dataEnd).arrayBuffer());
-    return new Blob([inflateSync(compressed)]);
+    const inflated = inflateSync(compressed);
+    return { blob: new Blob([inflated]), inflated };
   }
   throw new Error(ZIP_READ_ERROR);
+}
+// zip の CRC32 は非圧縮バイト列に対する値。deflate はどうせ展開済みの実体が手元にあるので
+// それを使い、無圧縮（store）はヒープに載せない設計を崩さないよう分割して読み捨てながら回す。
+async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): Promise<number> {
+  if (inflated) {
+    return crc32(inflated);
+  }
+  const hash = createCrc32();
+  for (let pos = 0; pos < blob.size; pos += VERIFY_CHUNK_SIZE) {
+    hash.update(new Uint8Array(await blob.slice(pos, pos + VERIFY_CHUNK_SIZE).arrayBuffer()));
+  }
+  return hash.digest();
 }
 // バックアップ zip は data descriptor 付き（サイズをローカルヘッダに持たない）で書かれるため、
 // ストリーミングでの逐次読みはサイズもCRCも分からないまま次の PK\x07\x08 シグネチャを探す
@@ -330,6 +360,8 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
 
   let payload: BackupPayload | undefined;
   const attachmentBlobs = new Map<string, Blob>();
+  // 1件目で打ち切らず全件見る。何件壊れているか分かる方が利用者の判断材料になる。
+  const corruptNames: string[] = [];
   for (const record of records) {
     const isPayload = record.name === PAYLOAD_ENTRY_NAME;
     const isAttachment =
@@ -337,7 +369,11 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
     if (!isPayload && !isAttachment) {
       continue;
     }
-    const blob = await readEntryBlob(file, record);
+    const { blob, inflated } = await readEntryBlob(file, record);
+    if ((await computeEntryCrc32(blob, inflated)) !== record.crc32) {
+      corruptNames.push(record.name);
+      continue;
+    }
     if (isPayload) {
       try {
         payload = JSON.parse(await blob.text()) as BackupPayload;
@@ -347,6 +383,9 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
     } else {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
     }
+  }
+  if (corruptNames.length > 0) {
+    throw new BackupCorruptError(corruptNames);
   }
   if (!payload) {
     throw new Error(`zip 内に ${PAYLOAD_ENTRY_NAME} が見つかりません`);
