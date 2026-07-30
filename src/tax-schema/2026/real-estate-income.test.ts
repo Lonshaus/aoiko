@@ -32,6 +32,26 @@ function plWith(netIncome: string, senjushaAmount?: string): PLReport {
   };
 }
 
+function plWithBadDebtReserve(netIncome: string, amount: string): PLReport {
+  return {
+    year: 2026,
+    revenue: [],
+    expense: [
+      {
+        accountCode: '5410',
+        accountName: '貸倒引当金繰入額（不動産）',
+        category: 'expense',
+        amount,
+        displayOrder: 1410,
+      },
+    ],
+    totalRevenue: '0',
+    totalExpense: amount,
+    netIncome,
+    entryCount: 0,
+  };
+}
+
 describe('realEstatePreDeductionIncome', () => {
   test('事業的規模なら専従者給与（不動産）はそのまま控除済みで返す', () => {
     const pl = plWith('300000', '200000');
@@ -46,6 +66,16 @@ describe('realEstatePreDeductionIncome', () => {
   test('専従者給与（不動産）が無ければ businessScale に関わらず変わらない', () => {
     const pl = plWith('300000');
     expect(realEstatePreDeductionIncome(pl, false).toString()).toBe('300000');
+  });
+
+  test('白色申告は貸倒引当金繰入額（不動産）も加算し直す（事業所得側と同じ扱い）', () => {
+    const pl = plWithBadDebtReserve('2700000', '100000');
+    expect(realEstatePreDeductionIncome(pl, false, 'white').toString()).toBe('2800000');
+  });
+
+  test('青色申告は貸倒引当金繰入額（不動産）を必要経費のまま扱う', () => {
+    const pl = plWithBadDebtReserve('2700000', '100000');
+    expect(realEstatePreDeductionIncome(pl, true).toString()).toBe('2700000');
   });
 });
 
