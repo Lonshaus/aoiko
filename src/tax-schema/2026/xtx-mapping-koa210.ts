@@ -243,6 +243,7 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
       // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
       putRow(row, 'AMF01640', asset.acquisitionCost);
+      putRow(row, 'AMF01650', result.depreciationBase);
       row.AMF01660 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AMF01670 = String(asset.usefulLifeYears);
