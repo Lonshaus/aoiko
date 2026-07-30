@@ -34,7 +34,12 @@
     type CashFlowForecast,
   } from '../domain/cash-flow';
   import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
-  import { buildXtx2026, personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
+  import {
+    buildXtx2026,
+    personalDeductionsToCtx,
+    RealEstateIncomeInputMissingError,
+    type FilingType,
+  } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
   import {
     compareAll,
@@ -500,23 +505,32 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
-    const xml = buildXtx2026({
-      year: exportYear,
-      dataYear: filingYear,
-      businessName,
-      invoiceNumber,
-      monthly,
-      pl,
-      bs,
-      filer,
-      fixedAssets,
-      filingType,
-      aoiroDeductionKind,
-      ...(realEstatePl ? { realEstatePl } : {}),
-      ...(storedDeductions
-        ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
-        : {}),
-    });
+    let xml: string;
+    try {
+      xml = buildXtx2026({
+        year: exportYear,
+        dataYear: filingYear,
+        businessName,
+        invoiceNumber,
+        monthly,
+        pl,
+        bs,
+        filer,
+        fixedAssets,
+        filingType,
+        aoiroDeductionKind,
+        ...(realEstatePl ? { realEstatePl } : {}),
+        ...(storedDeductions
+          ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
+          : {}),
+      });
+    } catch (e) {
+      if (e instanceof RealEstateIncomeInputMissingError) {
+        lockError = m.reports_xtx_real_estate_input_missing();
+        return;
+      }
+      throw e;
+    }
     const blob = new Blob([xml], { type: 'application/xml' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

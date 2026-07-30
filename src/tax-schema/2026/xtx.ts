@@ -32,6 +32,17 @@ import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
+// 不動産所得の損益（realEstatePl）はあるのに、青色申告特別控除の上限
+// （10万/65万）を決める businessScale 等の入力（personalDeductions.realEstateIncome）が
+// 無い状態。上限を推測すると誤った金額の申告書を作ってしまうため、出力を拒否する。
+export class RealEstateIncomeInputMissingError extends Error {
+  constructor() {
+    super(
+      '不動産所得の損益があるのに、所得控除画面の不動産所得欄が未入力です。所得控除画面で不動産所得のセクションを入力・保存してください。',
+    );
+    this.name = 'RealEstateIncomeInputMissingError';
+  }
+}
 // 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
@@ -233,6 +244,9 @@ export function buildXtx2026(ctx: XtxContext): string {
           leafValues: mapKoa210Values(ctx),
           repeats: mapKoa210RepeatedValues(ctx),
         };
+  if (ctx.realEstatePl && !ctx.personalDeductions?.realEstateIncome) {
+    throw new RealEstateIncomeInputMissingError();
+  }
   const realEstateStatementForm: XtxFormInput | undefined = !ctx.realEstatePl
     ? undefined
     : ctx.filingType === 'white'
