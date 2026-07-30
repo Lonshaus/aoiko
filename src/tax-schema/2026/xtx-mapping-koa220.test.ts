@@ -260,6 +260,28 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     expect(repeats.ANF00890?.[0]?.ANF00900).toBe('賃貸マンション');
   });
 
+  test('定率法：ANF00940（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // issue#302 の例：PC 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    // 2年目(2026): 償却の基礎 = 600,000、償却費 = 600,000 × 0.4 = 240,000
+    const repeats = mapKoa220RepeatedValues(
+      ctx({
+        fixedAssets: [
+          realEstateAsset({
+            acquisitionDate: '2025-01-01',
+            acquisitionCost: '1000000',
+            usefulLifeYears: 5,
+            depreciationMethod: 'declining-balance',
+          }),
+        ],
+      }),
+    );
+    const row = repeats.ANF00890?.[0];
+    expect(row?.ANF00930).toBe('1000000');
+    expect(row?.ANF00940).toBe('600000');
+    expect(row?.ANF01020).toBe('240000');
+  });
+
   test('地代家賃の内訳（ANF01160）は公式上限2件で切り詰める', () => {
     const rentPaid: RealEstateIncomeCtx['rentPaid'] = [
       { amount: '1000', payeeName: 'A' },
