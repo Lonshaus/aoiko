@@ -487,24 +487,68 @@ export function reverseChargeApplies(salesRatio: TaxableSalesRatio): boolean {
   return salesRatio.ratio.lessThan('0.95');
 }
 export type ConsumptionTaxAttributionMethod = 'individual' | 'proportional';
-// 課税売上高5億円超・課税売上割合95%未満の場合の控除対象仕入税額を算定。
-// 個別対応方式：課税対応分は全額＋共通対応分×課税売上割合（非課税対応分は控除不可）。
-// 一括比例配分方式：課税仕入れ等の税額の合計額×課税売上割合。
-function computeDeductibleInput(
-  processed: ProcessedYearLines,
+
+export interface DeductibleInputTax {
+  /** 控除対象仕入税額（税率7.8%適用分。特定課税仕入れ分を含む）、1円未満切捨て済 */
+  rate78: Decimal;
+  /** 控除対象仕入税額（税率6.24%適用分）、1円未満切捨て済 */
+  rate624: Decimal;
+  /** 合計 = rate78 + rate624（申告書④・付表1-3(4)・付表2-3⑯いずれもこの値を使う） */
+  total: Decimal;
+}
+
+// 控除対象仕入税額の算定に必要な税率別の生の内訳（経過措置適用後、切捨て前）。
+// processYear の結果（本則の通常申告）・GeneralMappingInput（.xtx マッピング）の
+// 双方が同じフィールド名を持つため、どちらからもそのまま渡せる。
+export interface DeductibleInputTaxInputs {
+  input10: Decimal;
+  input8: Decimal;
+  inputCommon10: Decimal;
+  inputCommon8: Decimal;
+  inputNonTaxableOnly10: Decimal;
+  inputNonTaxableOnly8: Decimal;
+  /** 特定課税仕入れ（リバースチャージ）の消費税額。常に7.8%側へ合算。非適用時は 0 を渡す */
+  reverseChargeTax: Decimal;
+  reverseChargeCommonTax: Decimal;
+  reverseChargeNonTaxableOnlyTax: Decimal;
+}
+// 控除対象仕入税額を税率別に算定する唯一の実装（画面表示・.xtx 出力共通）。
+// 付表2-3 の列構成（6.24%適用分／7.8%適用分／合計）に対応し、各税率で 1 円未満切捨てを
+// 行ってから合算する（先に合算してから丸めると .xtx の付表と一致しなくなる）。
+// 課税売上高5億円超・課税売上割合95%未満の場合のみ attributionMethod を参照する：
+//   個別対応方式：課税対応分は全額＋共通対応分×課税売上割合（非課税対応分は控除不可）
+//   一括比例配分方式：課税仕入れ等の税額の合計額×課税売上割合
+export function computeDeductibleInputTax(
+  inputs: DeductibleInputTaxInputs,
   salesRatio: TaxableSalesRatio,
   attributionMethod: ConsumptionTaxAttributionMethod,
-): Decimal {
+): DeductibleInputTax {
+  const raw78 = inputs.input10.plus(inputs.reverseChargeTax).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const raw624 = inputs.input8.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+
   if (isFullDeductionEligible(salesRatio)) {
-    return processed.input;
+    return { rate78: raw78, rate624: raw624, total: raw78.plus(raw624) };
   }
   if (attributionMethod === 'proportional') {
-    return processed.input.times(salesRatio.ratio);
+    const rate78 = raw78.times(salesRatio.ratio).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+    const rate624 = raw624.times(salesRatio.ratio).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+    return { rate78, rate624, total: rate78.plus(rate624) };
   }
-  const common = processed.inputCommon10.plus(processed.inputCommon8);
-  const nonTaxableOnly = processed.inputNonTaxableOnly10.plus(processed.inputNonTaxableOnly8);
-  const taxableOnly = processed.input.minus(common).minus(nonTaxableOnly);
-  return taxableOnly.plus(common.times(salesRatio.ratio));
+  const common78 = inputs.inputCommon10.plus(inputs.reverseChargeCommonTax);
+  const nonTaxableOnly78 = inputs.inputNonTaxableOnly10.plus(inputs.reverseChargeNonTaxableOnlyTax);
+  const taxableOnly78 = raw78.minus(common78).minus(nonTaxableOnly78);
+  const rate78 = taxableOnly78
+    .plus(common78.times(salesRatio.ratio))
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+
+  const common624 = inputs.inputCommon8;
+  const nonTaxableOnly624 = inputs.inputNonTaxableOnly8;
+  const taxableOnly624 = raw624.minus(common624).minus(nonTaxableOnly624);
+  const rate624 = taxableOnly624
+    .plus(common624.times(salesRatio.ratio))
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+
+  return { rate78, rate624, total: rate78.plus(rate624) };
 }
 // 貸倒れ税額控除・貸倒回収の合計（税率横断）。消費税法39条は本則・簡易・2割・3割特例の
 // いずれにも適用されるため、4方式共通のヘルパーとして分離する。
@@ -536,30 +580,38 @@ export async function computeGeneral(
   const rcApplies = reverseChargeApplies(salesRatio);
   const rcTax = rcApplies ? processed.reverseChargeTax : D(0);
   const rcBase = rcApplies ? processed.reverseChargeBase : D(0);
-  const effectiveProcessed: ProcessedYearLines = rcApplies
-    ? {
-        ...processed,
-        inputRaw: inputRaw.plus(rcTax),
-        input: processed.input.plus(rcTax),
-        input10: processed.input10.plus(rcTax),
-        inputCommon10: processed.inputCommon10.plus(processed.reverseChargeCommonTax),
-        inputNonTaxableOnly10: processed.inputNonTaxableOnly10.plus(
-          processed.reverseChargeNonTaxableOnlyTax,
-        ),
-      }
-    : processed;
-  const input = computeDeductibleInput(effectiveProcessed, salesRatio, attributionMethod);
+  const rcCommon = rcApplies ? processed.reverseChargeCommonTax : D(0);
+  const rcNonTaxableOnly = rcApplies ? processed.reverseChargeNonTaxableOnlyTax : D(0);
+  const deductible = computeDeductibleInputTax(
+    {
+      input10: processed.input10,
+      input8: processed.input8,
+      inputCommon10: processed.inputCommon10,
+      inputCommon8: processed.inputCommon8,
+      inputNonTaxableOnly10: processed.inputNonTaxableOnly10,
+      inputNonTaxableOnly8: processed.inputNonTaxableOnly8,
+      reverseChargeTax: rcTax,
+      reverseChargeCommonTax: rcCommon,
+      reverseChargeNonTaxableOnlyTax: rcNonTaxableOnly,
+    },
+    salesRatio,
+    attributionMethod,
+  );
   const effectiveOutput = output.plus(rcTax);
-  const net = effectiveOutput.plus(badDebtRecovery).minus(input).minus(badDebtTax);
+  const effectiveInputRaw = inputRaw.plus(rcTax);
+  const net = effectiveOutput.plus(badDebtRecovery).minus(deductible.total).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10.plus(rcBase), taxableBase8);
-  // input は既に１円未満切り捨て済（既存の控除対象仕入税額）を官庁側の売上税額から控除
-  const filingNet = official.outputTax.plus(badDebtRecovery).minus(input).minus(badDebtTax);
+  // 控除対象仕入税額は税率ごとに1円未満切捨て済（deductible.total）を官庁側の売上税額から控除
+  const filingNet = official.outputTax
+    .plus(badDebtRecovery)
+    .minus(deductible.total)
+    .minus(badDebtTax);
   return {
     year,
     method: 'general',
     outputTax: asBreakdown(effectiveOutput),
-    inputTaxRaw: asBreakdown(effectiveProcessed.inputRaw),
-    inputTax: asBreakdown(input),
+    inputTaxRaw: asBreakdown(effectiveInputRaw),
+    inputTax: asBreakdown(deductible.total),
     netTax: asBreakdown(net),
     taxableBase: official.taxableBase.toString(),
     filingRounded: filingBreakdown(filingNet),
@@ -617,7 +669,11 @@ async function computeWariException(
   const net = basicBase.times(netRate).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
   const officialBasicBase = official.outputTax.plus(badDebtRecovery);
-  const filingNet = officialBasicBase.times(netRate).minus(badDebtTax);
+  // 特別控除税額は1円未満切捨てしてから差し引く（computeSimplified のみなし仕入控除と同じ扱い）
+  const specialDeductionOfficial = officialBasicBase
+    .times(inputDeductionRate)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const filingNet = officialBasicBase.minus(specialDeductionOfficial).minus(badDebtTax);
   return {
     year,
     method,
