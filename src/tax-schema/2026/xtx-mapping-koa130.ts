@@ -10,8 +10,8 @@
 //  - 給料賃金の内訳・事業専従者の氏名等：事業所得側と同じ方針で出力しない
 //  - 修繕費の内訳（AKM00000）：aoiko のデータモデルに払込先の内訳を持たないため対象外
 //  - 貸付不動産の保有状況（AKN00000、住宅用/非住宅用/駐車場の棟数集計）：対応不可分
-//  - 貸倒引当金繰入額（不動産）：白色申告に引当金の制度は無いため、この科目を
-//    使っても様式には反映されない（KOA110 の白色版と同じ扱い）。貸倒金（不動産）は
+//  - 貸倒引当金繰入額（不動産）：白色申告に対応欄が無いため転記しない。転記しない分は
+//    専従者控除前の所得金額へ加算し直す（KOA110 の白色版と同じ扱い）。貸倒金（不動産）は
 //    実際の貸倒損失として AKG00120「貸倒金」へ出力する
 
 import koa130 from './xtx-schema-koa130.generated.json';
@@ -117,7 +117,7 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   // 専従者控除前の所得金額。白色申告は事業的規模に関わらず専従者給与の実額を
   // 使えないため、businessScale=false 固定で全額不算入と同じ計算式を使う
   // （KOA110 の white-return-income.ts と同じ考え方）。
-  const preDeductionIncome = realEstatePreDeductionIncome(pl, false);
+  const preDeductionIncome = realEstatePreDeductionIncome(pl, false, 'white');
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (realEstateInput?.landLoanInterestAmount) {
