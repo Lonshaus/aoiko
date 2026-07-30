@@ -141,7 +141,7 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
     return D(0);
   }
   if (ctx.filingType === 'white') {
-    const realEstateIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false);
+    const realEstateIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false, 'white');
     return offsettableRealEstateLoss(
       realEstateIncome,
       realEstateInput.landLoanInterestAmount ?? D(0),
