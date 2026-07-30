@@ -45,19 +45,26 @@ describe('interimFilingObligation（中間申告義務判定）', () => {
     expect(q1.amount.national).toBe('2000000');
   });
 
-  test('4800万円超：年11回、前年額の1/12、毎月・期限は各月末の2ヶ月後', () => {
+  test('4800万円超：年11回、前年額の1/12、1〜3月分は5月31日・4月分以降は各月末の2ヶ月後', () => {
     const result = interimFilingObligation(2026, D('96000000'));
     expect(result.installmentCount).toBe(11);
     expect(result.installments).toHaveLength(11);
+    // 個人事業者は1月分〜3月分が揃って5月31日（措令46条の2第1項の読み替え）
     const jan = result.installments[0]!;
     expect(jan.start).toBe('2026-01-01');
     expect(jan.end).toBe('2026-01-31');
-    expect(jan.dueDate).toBe('2026-03-31');
+    expect(jan.dueDate).toBe('2026-05-31');
     // 2月（28日、2026年は平年）
     const feb = result.installments[1]!;
     expect(feb.start).toBe('2026-02-01');
     expect(feb.end).toBe('2026-02-28');
-    expect(feb.dueDate).toBe('2026-04-30');
+    expect(feb.dueDate).toBe('2026-05-31');
+    const mar = result.installments[2]!;
+    expect(mar.dueDate).toBe('2026-05-31');
+    // 4月分から通常の「末日の翌日から2ヶ月以内」に戻る
+    const apr = result.installments[3]!;
+    expect(apr.start).toBe('2026-04-01');
+    expect(apr.dueDate).toBe('2026-06-30');
     const nov = result.installments[10]!;
     expect(nov.start).toBe('2026-11-01');
     expect(nov.end).toBe('2026-11-30');
