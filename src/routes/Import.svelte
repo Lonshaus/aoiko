@@ -15,6 +15,7 @@
   import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
   import { formatJPY } from '../lib/decimal';
+  import AccountSelect from '../components/AccountSelect.svelte';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
@@ -436,15 +437,15 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[640px] text-sm">
+        <table class="w-full min-w-[820px] table-fixed text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
-              <th class="text-left font-normal px-3 py-2">{m.journal_th_date()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[6.5rem]">{m.journal_th_date()}</th>
               <th class="text-left font-normal px-3 py-2">{m.journal_th_description()}</th>
-              <th class="text-right font-normal px-3 py-2">{m.journal_th_amount()}</th>
-              <th class="text-left font-normal px-3 py-2">{m.import_th_counterpart()}</th>
-              <th class="text-left font-normal px-3 py-2">{m.import_th_tax()}</th>
-              <th class="text-center font-normal px-3 py-2">{m.import_th_skip()}</th>
+              <th class="text-right font-normal px-3 py-2 w-[7.5rem]">{m.journal_th_amount()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[13rem]">{m.import_th_counterpart()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[6rem]">{m.import_th_tax()}</th>
+              <th class="text-center font-normal px-3 py-2 w-[3.5rem]">{m.import_th_skip()}</th>
             </tr>
           </thead>
           <tbody>
@@ -472,21 +473,14 @@
                 </td>
                 <td class="px-3 py-2 space-y-1">
                   <div class="flex items-center gap-1">
-                    <select
+                    <AccountSelect
                       bind:value={row.counterpartAccountCode}
+                      groups={accountGroups}
+                      placeholder={m.journal_form_account_select()}
                       onchange={() => onCounterpartAccountChange(row)}
                       disabled={row.skip}
                       class="flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
-                    >
-                      <option value="">{m.journal_form_account_select()}</option>
-                      {#each accountGroups as group (group.category)}
-                        <optgroup label={group.label}>
-                          {#each group.items as a (a.code)}
-                            <option value={a.code}>{a.code} {a.name}</option>
-                          {/each}
-                        </optgroup>
-                      {/each}
-                    </select>
+                    />
                     {#if row.matchedRuleId}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
