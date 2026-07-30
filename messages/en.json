@@ -678,7 +678,7 @@
   "settings_restore_selected": "Selected: {name}",
   "settings_restore_success": "Restored {tables} tables / {rows} rows. Press the \"Reload\" button below to apply the changes.",
   "settings_restore_missing_blobs": "{count} receipt photo(s) had no image data, so they were restored empty.",
-  "settings_restore_corrupt": "This backup file is damaged ({count} entries failed verification). Nothing was restored — please choose a different backup file.",
+  "settings_restore_corrupt": "This backup file is damaged (verification failed for {count} of its entries). Nothing was restored — please choose a different backup file.",
   "settings_restore_reload": "Reload",
   "settings_restore_summary": "version {version} ・ {tables} tables ・ {rows} rows",
   "settings_restore_summary_attachments": "Includes {count} receipt photo(s)",
