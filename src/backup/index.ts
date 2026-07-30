@@ -6,6 +6,7 @@ export {
   PAYLOAD_VERSION,
 } from './payload';
 export {
+  BackupCorruptError,
   buildBackupZipStream,
   looksLikeZip,
   parseBackupZip,

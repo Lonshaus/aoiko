@@ -678,6 +678,7 @@
   "settings_restore_selected": "已選擇：{name}",
   "settings_restore_success": "已還原 {tables} 個表格 / {rows} 列。請按下方的「重新整理」按鈕以套用變更。",
   "settings_restore_missing_blobs": "有 {count} 筆憑證照片找不到實體資料，已還原為空白。",
+  "settings_restore_corrupt": "這個備份檔案已損毀（{count} 筆資料驗證失敗）。沒有還原任何資料，請改用其他備份檔案。",
   "settings_restore_reload": "重新整理",
   "settings_restore_summary": "version {version} ・ {tables} 個表 ・ {rows} 列",
   "settings_restore_summary_attachments": "包含 {count} 張憑證照片",
