@@ -3,9 +3,11 @@ import { D } from '../../lib/decimal';
 import {
   combinedTotalIncomeAmount,
   mapKoa020LeafValues,
+  mapKoa020RepeatedValues,
   mapKoa020Values,
   totalIncomeAmount,
 } from './xtx-mapping-koa020';
+import { personalDeductionsToCtx } from './xtx';
 import type { XtxContext } from './xtx';
 import type { IncomeDeductionInput } from './income-deductions';
 import type { PLReport } from '../../domain/reports';
@@ -498,5 +500,95 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
     expect(out.ABB00340).toBe('325000');
     expect(out.ABB00800).toBeUndefined();
     expect(out.ABI00170).toBeUndefined();
+  });
+});
+
+describe('mapKoa020LeafValues / mapKoa020RepeatedValues（白色・事業専従者控除、issue #307）', () => {
+  // issue #307 の実例：売上500万・消耗品費100万・専従者給与100万・専従者は配偶者1人。
+  function makeCtx(): XtxContext {
+    const pl: PLReport = {
+      year: 2026,
+      revenue: [
+        {
+          accountCode: '4000',
+          accountName: '売上',
+          category: 'revenue',
+          amount: '5000000',
+          displayOrder: 0,
+        },
+      ],
+      expense: [
+        {
+          accountCode: '5310',
+          accountName: '消耗品費',
+          category: 'expense',
+          amount: '1000000',
+          displayOrder: 310,
+        },
+        {
+          accountCode: '5250',
+          accountName: '専従者給与',
+          category: 'expense',
+          amount: '1000000',
+          displayOrder: 250,
+        },
+      ],
+      totalRevenue: '5000000',
+      totalExpense: '2000000',
+      netIncome: '3000000',
+      entryCount: 2,
+    };
+    const personalDeductions = personalDeductionsToCtx({
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: { totalIncome: '0', age: 40 },
+      dependents: [],
+      familyEmployees: [
+        { id: 'f1', name: '配偶者花子', relation: 'spouse', age: 40, monthsWorked: 12 },
+      ],
+    });
+    return ctx({ filingType: 'white', pl, personalDeductions });
+  }
+
+  test('事業所得は専従者控除後の値、配偶者控除は専従者のため0になる', () => {
+    const out = mapKoa020LeafValues(makeCtx());
+    // 専従者控除前所得金額＝300万(pl.netIncome)＋100万(専従者給与を足し戻し)＝400万。
+    // 専従者控除＝配偶者の定額86万 と 400万÷(1+1)=200万 のいずれか低い方＝86万。
+    // 事業所得＝400万−86万＝314万
+    expect(out.ABB00300).toBe('3140000');
+    expect(out.ABB00790).toBe('860000');
+    expect(out.ABB00520).toBe('0'); // 配偶者は事業専従者のため配偶者控除は無し
+    // 合計所得金額314万円は336万円以下 → 基礎控除104万円（62万＋暫定加算42万）
+    expect(out.ABB00550).toBe('1040000');
+    // 所得控除合計＝基礎控除104万円のみ（社保等は全て0、配偶者控除は0）
+    expect(out.ABB00560).toBe('1040000');
+    // 課税される所得金額＝314万−104万＝210万（千円未満の端数無し）
+    expect(out.ABB00580).toBe('2100000');
+    // 税額＝210万×10%−97,500円＝112,500円（195万円超330万円以下の令和8年分速算表）
+    expect(out.ABB00590).toBe('112500');
+  });
+
+  test('ABE00010 事業専従者明細に配偶者の1行を出力する', () => {
+    const repeats = mapKoa020RepeatedValues(makeCtx());
+    expect(repeats.ABE00010).toHaveLength(1);
+    const row = repeats.ABE00010?.[0];
+    expect(row?.ABE00020).toBe('配偶者花子');
+    expect(row?.ABE00040).toBe('配偶者');
+    expect(row?.ABE00060).toBe('従事月数12か月');
+    expect(row?.ABE00070).toBe('860000');
+    expect(row?.ABE00025).toBeUndefined(); // 個人番号は収集しない
+    expect(row?.ABE00030).toBeUndefined(); // 生年月日は収集しない
   });
 });
