@@ -12,6 +12,7 @@
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
+  import AccountSelect from '../components/AccountSelect.svelte';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
@@ -359,18 +360,11 @@
                   />
                 </td>
                 <td class="px-2 py-2">
-                  <select
+                  <AccountSelect
                     bind:value={item.accountCode}
+                    groups={accountGroups}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs"
-                  >
-                    {#each accountGroups as group (group.category)}
-                      <optgroup label={group.label}>
-                        {#each group.items as a (a.code)}
-                          <option value={a.code}>{a.code} {a.name}</option>
-                        {/each}
-                      </optgroup>
-                    {/each}
-                  </select>
+                  />
                 </td>
                 <td class="px-2 py-2">
                   <button
