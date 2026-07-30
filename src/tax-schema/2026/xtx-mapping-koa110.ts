@@ -134,7 +134,10 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
 
 export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const detailYear = ctx.dataYear ?? ctx.year;
+  // 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
+  // KOA210（青色・一般用）と同じ扱い。
   const rows = ctx.fixedAssets
+    .filter((a) => a.incomeType !== 'realEstate')
     .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
