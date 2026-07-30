@@ -259,6 +259,7 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
     const row = rows![0]!;
     expect(row.AMF01610).toBe('ノートPC');
     expect(row.AMF01640).toBe('300000');
+    expect(row.AMF01650).toBe('300000'); // 定額法の償却の基礎は常に取得価額
     expect(row.AMF01660).toBe('定額法');
     expect(row.AMF01670).toBe('4');
     expect(row.AMF01730).toBe('75000'); // 300000 × 0.250（定額法・全年）
@@ -268,6 +269,29 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
     expect(row.AMF01780).toBe('106250'); // 未償却残高
     // gen:yymm 複合型は繰り返しブロックで表現できないため取得年月は出力しない
     expect(row.AMF01630).toBeUndefined();
+  });
+
+  test('定率法：AMF01650（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // PC 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    // 2年目(2026): 償却の基礎 = 600,000、償却費 = 600,000 × 0.4 = 240,000
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        fixedAssets: [
+          asset({
+            id: 'a1',
+            acquisitionDate: '2025-01-01',
+            acquisitionCost: '1000000',
+            usefulLifeYears: 5,
+            depreciationMethod: 'declining-balance',
+          }),
+        ],
+      }),
+    );
+    const row = out.AMF01600![0]!;
+    expect(row.AMF01640).toBe('1000000');
+    expect(row.AMF01650).toBe('600000');
+    expect(row.AMF01730).toBe('240000');
   });
 
   test('専用割合は常に 100%（必要経費算入額 = 償却費）', () => {

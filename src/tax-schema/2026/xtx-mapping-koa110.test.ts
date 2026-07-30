@@ -295,6 +295,26 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     expect(out.AIM00010![0]!.AIM00210).toBeUndefined();
   });
 
+  test('定率法：AIM00070（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // issue#302 の例：PC 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    // 2年目(2026): 償却の基礎 = 600,000、償却費 = 600,000 × 0.4 = 240,000
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [
+        asset({
+          acquisitionDate: '2025-01-01',
+          acquisitionCost: '1000000',
+          usefulLifeYears: 5,
+          depreciationMethod: 'declining-balance',
+        }),
+      ]),
+    );
+    const row = out.AIM00010![0]!;
+    expect(row.AIM00060).toBe('1000000');
+    expect(row.AIM00070).toBe('600000');
+    expect(row.AIM00150).toBe('240000');
+  });
+
   test('testReiwa7（year は令和7年ラベルだが帳簿データは令和8年）は dataYear で計算する', () => {
     const out = mapKoa110RepeatedValues({
       ...ctx({}, [asset({ acquisitionDate: '2026-04-01' })]),
