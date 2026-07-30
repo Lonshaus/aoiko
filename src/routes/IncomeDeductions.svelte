@@ -2,6 +2,7 @@
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
+  import { assignInputNumber } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
   import { buildPL } from '../domain/reports';
   import {
@@ -486,7 +487,8 @@
       <span class="text-xs text-muted-foreground">{m.income_deductions_year_label()}</span>
       <input
         type="number"
-        bind:value={year}
+        value={year}
+        oninput={assignInputNumber((v) => (year = v))}
         min="2020"
         max="2099"
         step="1"
@@ -819,7 +821,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_age()}</span>
           <input
             type="number"
-            bind:value={spouseAge}
+            value={spouseAge}
+            oninput={assignInputNumber((v) => (spouseAge = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -857,7 +860,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_age()}</span>
           <input
             type="number"
-            bind:value={dep.age}
+            value={dep.age}
+            oninput={assignInputNumber((v) => (dep.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -934,7 +938,8 @@
           >
           <input
             type="number"
-            bind:value={employee.age}
+            value={employee.age}
+            oninput={assignInputNumber((v) => (employee.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -946,7 +951,8 @@
           >
           <input
             type="number"
-            bind:value={employee.monthsWorked}
+            value={employee.monthsWorked}
+            oninput={assignInputNumber((v) => (employee.monthsWorked = v))}
             min="0"
             max="12"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
