@@ -12,11 +12,16 @@
   } from '../tax-schema/2026/income-deductions';
   import { totalWithholdingTax } from '../tax-schema/2026/other-income';
   import {
+    businessFamilyEmployeeDeductionResult,
     combinedTotalIncomeAmount,
+    realEstateFamilyEmployeeDeductionResult,
     totalIncomeAmount,
   } from '../tax-schema/2026/xtx-mapping-koa020';
+  import { familyEmployeeExclusion } from '../tax-schema/2026/family-employee-deduction';
   import type {
+    FamilyEmployeeRelation,
     PersonalDeductionDependent,
+    PersonalDeductionFamilyEmployee,
     PersonalDeductionInput,
     RealEstateLoanInterestPaidDetail,
     RealEstateProfessionalFeeDetail,
@@ -66,6 +71,16 @@
       age: number;
       totalIncome: string;
       livesWithLinealAscendant: boolean;
+    }>
+  >([]);
+  let familyEmployees = $state<
+    Array<{
+      id: string;
+      name: string;
+      relation: FamilyEmployeeRelation;
+      age: number;
+      monthsWorked: number;
+      incomeType: 'business' | 'realEstate';
     }>
   >([]);
   let dividendDeductionAmount = $state('0');
@@ -150,6 +165,7 @@
     spouseIncome = '0';
     spouseAge = 40;
     dependents = [];
+    familyEmployees = [];
     dividendDeductionAmount = '0';
     mortgageDeductionAmount = '0';
     politicalDonationCreditAmount = '0';
@@ -199,6 +215,14 @@
       age: d.age,
       totalIncome: d.totalIncome,
       livesWithLinealAscendant: d.livesWithLinealAscendant ?? false,
+    }));
+    familyEmployees = (stored.familyEmployees ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      relation: f.relation,
+      age: f.age,
+      monthsWorked: f.monthsWorked,
+      incomeType: f.incomeType ?? 'business',
     }));
     dividendDeductionAmount = stored.dividendDeductionAmount ?? '0';
     mortgageDeductionAmount = stored.mortgageDeductionAmount ?? '0';
@@ -276,6 +300,24 @@
     dependents = dependents.filter((d) => d.id !== id);
   }
 
+  function addFamilyEmployee() {
+    familyEmployees = [
+      ...familyEmployees,
+      {
+        id: newId(),
+        name: '',
+        relation: 'other',
+        age: 18,
+        monthsWorked: 12,
+        incomeType: 'business',
+      },
+    ];
+  }
+
+  function removeFamilyEmployee(id: string) {
+    familyEmployees = familyEmployees.filter((f) => f.id !== id);
+  }
+
   // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
   // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
   // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
@@ -308,6 +350,18 @@
       totalIncome: d.totalIncome,
       livesWithLinealAscendant: d.livesWithLinealAscendant,
     })),
+    ...(familyEmployees.length > 0
+      ? {
+          familyEmployees: familyEmployees.map((f): PersonalDeductionFamilyEmployee => ({
+            id: f.id,
+            name: f.name,
+            relation: f.relation,
+            age: f.age,
+            monthsWorked: f.monthsWorked,
+            incomeType: f.incomeType,
+          })),
+        }
+      : {}),
     dividendDeductionAmount,
     mortgageDeductionAmount,
     politicalDonationCreditAmount,
@@ -367,6 +421,35 @@
         })
       : D(0),
   );
+  // 事業専従者控除（白色申告のみ、続柄で決まる定額）。事業所得側・不動産所得側の合計を表示する。
+  const familyEmployeeDeductionTotal = $derived.by(() => {
+    if (!plCache) {
+      return D(0);
+    }
+    const incomeCtx = {
+      year,
+      pl: plCache,
+      filingType: filingTypeCache,
+      aoiroDeductionKind: aoiroDeductionKindCache,
+      ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
+      personalDeductions: ctx,
+    };
+    return businessFamilyEmployeeDeductionResult(incomeCtx).total.plus(
+      realEstateFamilyEmployeeDeductionResult(incomeCtx).total,
+    );
+  });
+  // 事業専従者との相互排他（issue #307）。ctx 側は既に personalDeductionsToCtx で
+  // 除外済みだが、UI 上で「なぜ配偶者控除・扶養控除が消えたか」を示すため、同じ判定を
+  // ローカルの入力値（配偶者チェック・扶養親族一覧）に対して再度行う。
+  const familyEmployeeExclusionResult = $derived(
+    familyEmployeeExclusion(
+      familyEmployees,
+      dependents.map((d) => ({ id: d.id, name: d.name })),
+    ),
+  );
+  const spouseExcludedByFamilyEmployee = $derived(
+    hasSpouse && familyEmployeeExclusionResult.spouseExcluded,
+  );
   const result = $derived(
     computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome }),
   );
@@ -420,6 +503,13 @@
         >{formatJPY(combinedTotalIncome)}</span
       >
     </p>
+    {#if filingTypeCache === 'white' && familyEmployeeDeductionTotal.greaterThan(0)}
+      <p class="text-sm">
+        {m.income_deductions_result_family_employee()}：<span class="font-mono"
+          >{formatJPY(familyEmployeeDeductionTotal)}</span
+        >
+      </p>
+    {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
@@ -737,6 +827,11 @@
         </label>
       </div>
     {/if}
+    {#if spouseExcludedByFamilyEmployee}
+      <p class="pl-6 text-xs text-amber-600">
+        {m.income_deductions_family_employee_spouse_excluded_note()}
+      </p>
+    {/if}
 
     <div class="flex items-center justify-between">
       <h4 class="text-sm font-semibold">{m.income_deductions_dependents_title()}</h4>
@@ -791,6 +886,97 @@
             {m.income_deductions_dependent_remove()}
           </button>
         </div>
+        {#if familyEmployeeExclusionResult.excludedDependentIds.has(dep.id)}
+          <p class="md:col-span-5 text-xs text-amber-600">
+            {m.income_deductions_family_employee_dependent_excluded_note()}
+          </p>
+        {/if}
+      </div>
+    {/each}
+
+    <div class="flex items-center justify-between pt-2 border-t">
+      <h4 class="text-sm font-semibold">{m.income_deductions_family_employees_title()}</h4>
+      <button
+        type="button"
+        onclick={addFamilyEmployee}
+        class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+      >
+        {m.income_deductions_family_employee_add()}
+      </button>
+    </div>
+    {#each familyEmployees as employee (employee.id)}
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border-t pt-3">
+        <label class="block sm:col-span-2">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_family_employee_name()}</span
+          >
+          <input
+            type="text"
+            bind:value={employee.name}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_family_employee_relation()}</span
+          >
+          <select
+            bind:value={employee.relation}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            <option value="spouse">{m.income_deductions_family_employee_relation_spouse()}</option>
+            <option value="other">{m.income_deductions_family_employee_relation_other()}</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_family_employee_age()}</span
+          >
+          <input
+            type="number"
+            bind:value={employee.age}
+            min="0"
+            max="120"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_family_employee_months_worked()}</span
+          >
+          <input
+            type="number"
+            bind:value={employee.monthsWorked}
+            min="0"
+            max="12"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          />
+        </label>
+        {#if ledger.realEstateIncomeEnabled}
+          <label class="block">
+            <span class="text-xs text-muted-foreground"
+              >{m.income_deductions_family_employee_income_type()}</span
+            >
+            <select
+              bind:value={employee.incomeType}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            >
+              <option value="business"
+                >{m.income_deductions_family_employee_income_type_business()}</option
+              >
+              <option value="realEstate"
+                >{m.income_deductions_family_employee_income_type_real_estate()}</option
+              >
+            </select>
+          </label>
+        {/if}
+        <button
+          type="button"
+          onclick={() => removeFamilyEmployee(employee.id)}
+          class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90"
+        >
+          {m.income_deductions_family_employee_remove()}
+        </button>
       </div>
     {/each}
   </section>

@@ -13,7 +13,12 @@
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
-import type { FixedAsset, PersonalDeductionInput } from '../../db/types';
+import type {
+  FixedAsset,
+  PersonalDeductionFamilyEmployee,
+  PersonalDeductionInput,
+} from '../../db/types';
+import { familyEmployeeExclusion } from './family-employee-deduction';
 import { D, type Decimal } from '../../lib/decimal';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
@@ -27,7 +32,11 @@ import type { AoiroDeductionKind } from './aoiro-deduction';
 import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
+import {
+  mapKoa020LeafValues,
+  mapKoa020RepeatedValues,
+  mapKoa020Values,
+} from './xtx-mapping-koa020';
 import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
@@ -76,6 +85,7 @@ export interface XtxContext {
     TaxCreditInput &
     OtherIncomeInput & {
       realEstateIncome?: RealEstateIncomeCtx;
+      familyEmployees?: PersonalDeductionFamilyEmployee[];
     };
 }
 
@@ -104,6 +114,8 @@ function toDec(s: string): Decimal {
 export function personalDeductionsToCtx(
   stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>,
 ): NonNullable<XtxContext['personalDeductions']> {
+  const familyEmployees = stored.familyEmployees ?? [];
+  const exclusion = familyEmployeeExclusion(familyEmployees, stored.dependents);
   return {
     socialInsurancePaid: toDec(stored.socialInsurancePaid),
     smallBusinessMutualAidPaid: toDec(stored.smallBusinessMutualAidPaid),
@@ -135,17 +147,19 @@ export function personalDeductionsToCtx(
     isSingleParent: stored.isSingleParent,
     isWidow: stored.isWidow,
     isWorkingStudent: stored.isWorkingStudent,
-    ...(stored.spouse
+    ...(stored.spouse && !exclusion.spouseExcluded
       ? { spouse: { totalIncome: toDec(stored.spouse.totalIncome), age: stored.spouse.age } }
       : {}),
-    dependents: stored.dependents.map((d) => ({
-      id: d.id,
-      age: d.age,
-      totalIncome: toDec(d.totalIncome),
-      ...(d.livesWithLinealAscendant !== undefined
-        ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
-        : {}),
-    })),
+    dependents: stored.dependents
+      .filter((d) => !exclusion.excludedDependentIds.has(d.id))
+      .map((d) => ({
+        id: d.id,
+        age: d.age,
+        totalIncome: toDec(d.totalIncome),
+        ...(d.livesWithLinealAscendant !== undefined
+          ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
+          : {}),
+      })),
     ...(stored.dividendDeductionAmount !== undefined
       ? { dividendDeductionAmount: toDec(stored.dividendDeductionAmount) }
       : {}),
@@ -212,6 +226,7 @@ export function personalDeductionsToCtx(
           },
         }
       : {}),
+    ...(familyEmployees.length > 0 ? { familyEmployees } : {}),
   };
 }
 
@@ -268,6 +283,7 @@ export function buildXtx2026(ctx: XtxContext): string {
         schema: KOA020_SCHEMA,
         values: mapKoa020Values(ctx),
         leafValues: mapKoa020LeafValues(ctx),
+        repeats: mapKoa020RepeatedValues(ctx),
       },
       businessStatementForm,
       ...(realEstateStatementForm ? [realEstateStatementForm] : []),

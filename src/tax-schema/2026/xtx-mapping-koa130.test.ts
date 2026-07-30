@@ -3,7 +3,7 @@ import { D } from '../../lib/decimal';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
 import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-import type { FixedAsset } from '../../db/types';
+import type { FixedAsset, PersonalDeductionFamilyEmployee } from '../../db/types';
 import type { PLReport } from '../../domain/reports';
 
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
@@ -11,6 +11,7 @@ import type { PLReport } from '../../domain/reports';
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
 function withRealEstate(
   realEstateIncome: RealEstateIncomeCtx,
+  familyEmployees: PersonalDeductionFamilyEmployee[] = [],
 ): NonNullable<XtxContext['personalDeductions']> {
   return {
     socialInsurancePaid: D(0),
@@ -29,6 +30,7 @@ function withRealEstate(
     isWorkingStudent: false,
     dependents: [],
     realEstateIncome,
+    ...(familyEmployees.length > 0 ? { familyEmployees } : {}),
   };
 }
 
@@ -222,6 +224,92 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
       }),
     );
     expect(out.AKG00260).toBe('20000');
+  });
+
+  test('事業的規模なら専従者控除（AKG00240）・控除後所得（AKG00250）を出力する（issue #307）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    // 専従者控除前所得金額400万→配偶者の定額86万 と 400万÷2=200万 のいずれか低い方＝86万
+    expect(out.AKG00240).toBe('860000');
+    expect(out.AKG00250).toBe('3140000');
+  });
+
+  test('事業的規模でなければ専従者がいても専従者控除・控除後所得は出力しない', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: false }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKG00240).toBeUndefined();
+    expect(out.AKG00250).toBeUndefined();
+  });
+});
+
+describe('mapKoa130RepeatedValues（AKJ00010 事業専従者明細、issue #307）', () => {
+  test('事業的規模なら事業専従者の明細行を出力する', () => {
+    const out = mapKoa130RepeatedValues(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKJ00010).toHaveLength(1);
+    const row = out.AKJ00010![0]!;
+    expect(row.AKJ00020).toBe('配偶者花子');
+    expect(row.AKJ00030).toBe('40');
+    expect(row.AKJ00040).toBe('配偶者');
+    expect(row.AKJ00050).toBe('12');
+  });
+
+  test('事業的規模でなければ専従者がいても明細行を出力しない', () => {
+    const out = mapKoa130RepeatedValues(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: false }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKJ00010).toBeUndefined();
   });
 });
 

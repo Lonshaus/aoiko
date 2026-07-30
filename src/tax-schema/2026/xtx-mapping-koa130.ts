@@ -1,13 +1,14 @@
 // aoiko 業務データ（不動産所得PL・FixedAsset・personalDeductions.realEstateIncome）
 // → KOA130（収支内訳書・不動産所得用・白色申告用）参照側 直接値 leaf への対映。
 //
-// KOA110（事業所得・白色）と同じく、専従者給与は実額を使わず定額の専従者控除に
-// 置き換わるため出力しない（専従者控除前の所得金額のみ出力し、控除額・控除後所得は
-// 利用者が e-Tax 上で補完する）。白色申告に青色申告特別控除は無いため、土地等取得の
-// 負債利子額による損益通算制限のみ適用する。
+// KOA110（事業所得・白色）と同じく、給料賃金の実額ではなく続柄で決まる定額の専従者控除
+// （AKG00240）を出力する。ただし不動産所得の専従者控除は事業的規模の場合のみ認められる
+// （国税庁タックスアンサー No.1373）ため、realEstateIncome.businessScale が false の間は
+// AKG00240・事業専従者明細（AKJ00010）とも空欄のまま（利用者が e-Tax 上で補完）。
+// 白色申告に青色申告特別控除は無いため、土地等取得の負債利子額による損益通算制限のみ適用する。
 //
 // 対応しない項目（対応不可分・低優先度、e-Tax 上で利用者が補完）：
-//  - 給料賃金の内訳・事業専従者の氏名等：事業所得側と同じ方針で出力しない
+//  - 給料賃金の内訳：aoiko のデータモデルに払込先の内訳を持たないため対象外
 //  - 修繕費の内訳（AKM00000）：aoiko のデータモデルに払込先の内訳を持たないため対象外
 //  - 貸付不動産の保有状況（AKN00000、住宅用/非住宅用/駐車場の棟数集計）：対応不可分
 //  - 貸倒引当金繰入額（不動産）：白色申告に対応欄が無いため転記しない。転記しない分は
@@ -19,9 +20,14 @@ import { D } from '../../lib/decimal';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
-import type { DepreciationMethod } from '../../db/types';
+import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types';
 import { computeDepreciation } from '../../domain/depreciation';
 import { realEstatePreDeductionIncome } from './real-estate-income';
+import {
+  familyEmployeeDeduction,
+  realEstateFamilyEmployees,
+  type FamilyEmployeeDeductionResult,
+} from './family-employee-deduction';
 
 const SCHEMA = koa130 as XtxSchema;
 
@@ -83,6 +89,18 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string): void 
     out[tag] = v;
   }
 }
+// 事業的規模でなければ専従者控除は認められない（ファイル冒頭コメント参照）ため、
+// mapKoa130Values（AKG00240/AKG00250）・mapKoa130RepeatedValues（AKJ00010）で共有する。
+function realEstateFamilyEmployeeDeductionResult(ctx: XtxContext): FamilyEmployeeDeductionResult {
+  const pl = ctx.realEstatePl;
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  if (!pl || !realEstateInput?.businessScale) {
+    return { total: D(0), entries: [] };
+  }
+  const preDeductionIncome = realEstatePreDeductionIncome(pl, false);
+  const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+}
 
 export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
@@ -119,6 +137,17 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   // （KOA110 の white-return-income.ts と同じ考え方）。
   const preDeductionIncome = realEstatePreDeductionIncome(pl, false, 'white');
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
+  // 事業的規模でなければ専従者控除は認められないため、その場合は控除額・控除後所得とも
+  // 空欄のまま（利用者が e-Tax 上で補完する、従来どおりの挙動）。
+  if (ctx.personalDeductions?.realEstateIncome?.businessScale) {
+    const deduction = realEstateFamilyEmployeeDeductionResult(ctx);
+    put(out, tagByJa(PAGE1, '専従者控除'), deduction.total.toString());
+    put(
+      out,
+      tagByJa(PAGE1, '所得金額（上段）'),
+      preDeductionIncome.minus(deduction.total).toString(),
+    );
+  }
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (realEstateInput?.landLoanInterestAmount) {
     put(
@@ -309,5 +338,39 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   if (professionalFeesPaid.length > 0) {
     out.AKP00000 = professionalFeesPaid;
   }
+  const familyEmployeeRows = mapFamilyEmployeeRows(ctx);
+  if (familyEmployeeRows.length > 0) {
+    out.AKJ00010 = familyEmployeeRows;
+  }
   return out;
+}
+// 改行・タブを除去（nametype/zokugaratype の pattern [^\n\r\t]* に適合させる）
+function sanitizeLine(s: string): string {
+  return s.replace(/[\n\r\t]+/g, ' ').trim();
+}
+// AKJ00010 事業専従者明細は公式 xsd で maxOccurs=2。
+const MAX_FAMILY_EMPLOYEE_ROWS = 2;
+const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<FamilyEmployeeRelation, string> = {
+  spouse: '配偶者',
+  other: '親族',
+};
+
+function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
+  const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  const ageById = new Map(employees.map((e) => [e.id, e.age]));
+  const deduction = realEstateFamilyEmployeeDeductionResult(ctx);
+  return deduction.entries.slice(0, MAX_FAMILY_EMPLOYEE_ROWS).map((entry) => {
+    const row: XtxLeafValues = {};
+    const name = sanitizeLine(entry.name);
+    if (name) {
+      row.AKJ00020 = name;
+    }
+    const age = ageById.get(entry.id);
+    if (age !== undefined) {
+      row.AKJ00030 = String(age);
+    }
+    row.AKJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+    row.AKJ00050 = String(entry.monthsWorked);
+    return row;
+  });
 }
