@@ -206,7 +206,7 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
         row.AKK00020 = name;
       }
       putRow(row, 'AKK00060', asset.acquisitionCost);
-      putRow(row, 'AKK00070', asset.acquisitionCost);
+      putRow(row, 'AKK00070', result.depreciationBase);
       row.AKK00080 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AKK00090 = String(asset.usefulLifeYears);
