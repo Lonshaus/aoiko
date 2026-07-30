@@ -327,3 +327,83 @@ describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が thro
     expect(ctx.realEstateIncome?.landLoanInterestAmount?.toString()).toBe('0');
   });
 });
+
+describe('personalDeductionsToCtx（issue #307: 事業専従者との相互排他）', () => {
+  test('配偶者を事業専従者にすると spouse が構造的に落ちる（配偶者控除が0になる）', () => {
+    const ctx = personalDeductionsToCtx({
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: { totalIncome: '0', age: 40 },
+      dependents: [],
+      familyEmployees: [
+        { id: 'f1', name: '配偶者花子', relation: 'spouse', age: 40, monthsWorked: 12 },
+      ],
+    });
+    expect(ctx.spouse).toBeUndefined();
+    expect(ctx.familyEmployees).toHaveLength(1);
+  });
+
+  test('氏名が一致する扶養親族は dependents から除外される', () => {
+    const ctx = personalDeductionsToCtx({
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [
+        { id: 'd1', name: '山田花子', age: 20, totalIncome: '0' },
+        { id: 'd2', name: '山田次郎', age: 18, totalIncome: '0' },
+      ],
+      familyEmployees: [
+        { id: 'f1', name: '山田花子', relation: 'other', age: 20, monthsWorked: 12 },
+      ],
+    });
+    expect(ctx.dependents.map((d) => d.id)).toEqual(['d2']);
+  });
+
+  test('要件を満たさない事業専従者（従事月数6か月）は除外を発生させない', () => {
+    const ctx = personalDeductionsToCtx({
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: { totalIncome: '0', age: 40 },
+      dependents: [],
+      familyEmployees: [
+        { id: 'f1', name: '配偶者花子', relation: 'spouse', age: 40, monthsWorked: 6 },
+      ],
+    });
+    expect(ctx.spouse).toBeDefined();
+  });
+});
