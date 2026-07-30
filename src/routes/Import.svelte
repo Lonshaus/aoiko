@@ -23,8 +23,11 @@
   import { taxRateForCategory } from '../lib/tax-category';
   import { exceedsLimit, formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
   import { decodeCsv } from '../lib/encoding';
+  import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
+
+  const PAGE_SIZE = 500;
 
   type RowState = {
     transaction: ParsedTransaction;
@@ -47,6 +50,7 @@
   let fileName = $state('');
   let fileHash = $state('');
   let rows = $state<RowState[]>([]);
+  let page = $state(0);
   let knownSubAccountId = $state('');
   let duplicateNotice = $state('');
   let importing = $state(false);
@@ -79,11 +83,23 @@
   const validCount = $derived(
     rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length,
   );
+  const unclassifiedCount = $derived(
+    rows.filter((r) => !r.skip && r.counterpartAccountCode.length === 0).length,
+  );
+  const totalPages = $derived(pageCount(rows.length, PAGE_SIZE));
+  const currentPage = $derived(clampPage(page, rows.length, PAGE_SIZE));
+  const pageRange = $derived(pageBounds(rows.length, PAGE_SIZE, currentPage));
+  const pageRows = $derived(
+    rows
+      .slice(pageRange.start, pageRange.end)
+      .map((row, i) => ({ row, index: pageRange.start + i })),
+  );
 
   async function handleFile(e: Event) {
     error = '';
     success = '';
     rows = [];
+    page = 0;
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file || !currentParser) {
@@ -275,6 +291,7 @@
 
   function reset() {
     rows = [];
+    page = 0;
     fileName = '';
     fileHash = '';
     knownSubAccountId = '';
@@ -449,7 +466,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each rows as row, i (i)}
+            {#each pageRows as { row, index } (index)}
               {@const subs = row.counterpartAccountCode
                 ? ledger.subAccountsFor(row.counterpartAccountCode)
                 : []}
@@ -544,7 +561,42 @@
         </table>
       </div>
 
-      <div class="flex justify-end gap-2 p-4 border-t border-border/50">
+      {#if totalPages > 1}
+        <div
+          class="flex items-center justify-center gap-3 px-4 py-2 border-t border-border/50 text-xs"
+        >
+          <button
+            type="button"
+            onclick={() => (page = currentPage - 1)}
+            disabled={currentPage === 0}
+            class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.import_pager_prev()}
+          </button>
+          <span class="text-muted-foreground tabular-nums">
+            {m.import_pager_range({
+              start: pageRange.start + 1,
+              end: pageRange.end,
+              total: rows.length,
+            })}
+          </span>
+          <button
+            type="button"
+            onclick={() => (page = currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
+            class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.import_pager_next()}
+          </button>
+        </div>
+      {/if}
+
+      <div class="flex items-center justify-end gap-3 p-4 border-t border-border/50">
+        {#if unclassifiedCount > 0}
+          <span class="text-xs text-amber-600 dark:text-amber-500">
+            {m.import_unclassified_notice({ count: unclassifiedCount })}
+          </span>
+        {/if}
         <button
           type="button"
           onclick={reset}
