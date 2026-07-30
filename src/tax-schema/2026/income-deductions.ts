@@ -87,17 +87,28 @@ export interface TaxCreditInput {
 function sum(...values: Decimal[]): Decimal {
   return values.reduce((acc, v) => acc.plus(v), D(0));
 }
-// 令和7年・8年分限定の基礎控除の暫定加算（措法41条の16の2）。令和9年分以後は
-// 2,350万円以下が一律58万円に統一される（下表の655万円超2,350万円以下の欄と同額）。
-// 2,350万円超の逓減・消失表（所得税法86条）はこの暫定加算と無関係で変更なし。
-const BASIC_DEDUCTION_TEMPORARY_TIERS: Array<[number, number]> = [
+// 令和7年分限定の基礎控除の暫定加算（改正前の措法41条の16の2）。令和8年分以後は
+// 加算額・区切りとも再編され別表となる（令和八年法律第十二号）。
+const BASIC_DEDUCTION_TIERS_2025: Array<[number, number]> = [
   [1_320_000, 950_000],
   [3_360_000, 880_000],
   [4_890_000, 680_000],
   [6_550_000, 630_000],
   [23_500_000, 580_000],
 ];
-const BASIC_DEDUCTION_PERMANENT_TIERS: Array<[number, number]> = [[23_500_000, 580_000]];
+// 令和8年分・令和9年分の基礎控除（所得税法86条62万円＋措法41条の16の2の加算42万円/5万円）。
+const BASIC_DEDUCTION_TIERS_2026_2027: Array<[number, number]> = [
+  [4_890_000, 1_040_000],
+  [6_550_000, 670_000],
+  [23_500_000, 620_000],
+];
+// 令和10年分以後の基礎控除。措法41条の16の2の加算は終了するが、132万円以下は所得税法86条の
+// 加算（99万円）が残る。この額は2年ごとに全国消費者物価指数で見直されるため恒久値ではない。
+const BASIC_DEDUCTION_TIERS_2028_ONWARD: Array<[number, number]> = [
+  [1_320_000, 990_000],
+  [23_500_000, 620_000],
+];
+// 2,350万円超の逓減・消失表（所得税法86条）は上記いずれの年分とも無関係で変更なし。
 const BASIC_DEDUCTION_HIGH_INCOME_TIERS: Array<[number, number]> = [
   [24_000_000, 480_000],
   [24_500_000, 320_000],
@@ -105,7 +116,12 @@ const BASIC_DEDUCTION_HIGH_INCOME_TIERS: Array<[number, number]> = [
 ];
 
 export function basicDeduction(year: number, totalIncome: Decimal): Decimal {
-  const tiers = year <= 2026 ? BASIC_DEDUCTION_TEMPORARY_TIERS : BASIC_DEDUCTION_PERMANENT_TIERS;
+  const tiers =
+    year <= 2025
+      ? BASIC_DEDUCTION_TIERS_2025
+      : year <= 2027
+        ? BASIC_DEDUCTION_TIERS_2026_2027
+        : BASIC_DEDUCTION_TIERS_2028_ONWARD;
   for (const [ceiling, amount] of tiers) {
     if (totalIncome.lessThanOrEqualTo(ceiling)) {
       return D(amount);
@@ -246,8 +262,11 @@ function isElderly(age: number): boolean {
 }
 // 配偶者の合計所得金額の上限（このラインを超えると配偶者控除・配偶者特別控除とも対象外）。
 const SPOUSE_INCOME_CEILING = 1_330_000;
-// 配偶者控除の対象となる配偶者の合計所得金額上限。
-const SPOUSE_DEDUCTION_INCOME_CEILING = 580_000;
+// 扶養親族等の所得要件（配偶者控除・配偶者特別控除の下限・扶養控除・特定親族特別控除の下限）。
+// 令和8年分より58万円→62万円（所得税法86条の改正、令和八年法律第十二号）。
+function dependentIncomeCeiling(year: number): number {
+  return year <= 2025 ? 580_000 : 620_000;
+}
 // 配偶者特別控除：[配偶者所得の上限, 納税者900万以下, 900万超950万以下, 950万超1000万以下]
 const SPOUSE_SPECIAL_TABLE: Array<[number, number, number, number]> = [
   [950_000, 380_000, 260_000, 130_000],
@@ -261,7 +280,11 @@ const SPOUSE_SPECIAL_TABLE: Array<[number, number, number, number]> = [
   [1_330_000, 30_000, 20_000, 10_000],
 ];
 
-export function spouseDeduction(taxpayerIncome: Decimal, spouse: SpouseInput | undefined): Decimal {
+export function spouseDeduction(
+  year: number,
+  taxpayerIncome: Decimal,
+  spouse: SpouseInput | undefined,
+): Decimal {
   if (!spouse) {
     return D(0);
   }
@@ -276,7 +299,7 @@ export function spouseDeduction(taxpayerIncome: Decimal, spouse: SpouseInput | u
     : taxpayerIncome.lessThanOrEqualTo(9_500_000)
       ? 2
       : 3;
-  if (spouse.totalIncome.lessThanOrEqualTo(SPOUSE_DEDUCTION_INCOME_CEILING)) {
+  if (spouse.totalIncome.lessThanOrEqualTo(dependentIncomeCeiling(year))) {
     const elderly = isElderly(spouse.age);
     const amounts: Record<number, [number, number]> = {
       1: [380_000, 480_000],
@@ -293,7 +316,8 @@ export function spouseDeduction(taxpayerIncome: Decimal, spouse: SpouseInput | u
   }
   return D(0);
 }
-// 特定親族特別控除（19歳以上23歳未満、合計所得金額58万円超123万円以下）の控除額表。
+// 特定親族特別控除（19歳以上23歳未満、扶養親族等の所得要件超123万円以下）の控除額表。
+// 各行の額は改正の影響を受けない（動いたのは入口の所得要件のみ）。
 const SPECIFIC_RELATIVE_SPECIAL_TABLE: Array<[number, number]> = [
   [850_000, 630_000],
   [900_000, 610_000],
@@ -306,9 +330,9 @@ const SPECIFIC_RELATIVE_SPECIAL_TABLE: Array<[number, number]> = [
   [1_230_000, 30_000],
 ];
 
-function specificRelativeSpecialDeductionAmount(totalIncome: Decimal): Decimal {
+function specificRelativeSpecialDeductionAmount(year: number, totalIncome: Decimal): Decimal {
   if (
-    totalIncome.lessThanOrEqualTo(SPOUSE_DEDUCTION_INCOME_CEILING) ||
+    totalIncome.lessThanOrEqualTo(dependentIncomeCeiling(year)) ||
     totalIncome.greaterThan(1_230_000)
   ) {
     return D(0);
@@ -320,26 +344,26 @@ function specificRelativeSpecialDeductionAmount(totalIncome: Decimal): Decimal {
   }
   return D(0);
 }
-// 扶養控除の対象となるのは合計所得金額58万円以下の親族のみ。19〜22歳で58万円超123万円以下の
+// 扶養控除の対象となるのは扶養親族等の所得要件以下の親族のみ。19〜22歳で所得要件超123万円以下の
 // 親族は扶養控除の対象外となる代わりに特定親族特別控除（別枠）の対象となる。
-export function dependentDeductions(dependents: DependentInput[]): {
+export function dependentDeductions(
+  year: number,
+  dependents: DependentInput[],
+): {
   dependentDeduction: Decimal;
   specificRelativeSpecialDeduction: Decimal;
 } {
   let dependentDeduction = D(0);
   let specificRelativeSpecialDeduction = D(0);
+  const ceiling = dependentIncomeCeiling(year);
   for (const dep of dependents) {
-    if (
-      dep.age >= 19 &&
-      dep.age <= 22 &&
-      dep.totalIncome.greaterThan(SPOUSE_DEDUCTION_INCOME_CEILING)
-    ) {
+    if (dep.age >= 19 && dep.age <= 22 && dep.totalIncome.greaterThan(ceiling)) {
       specificRelativeSpecialDeduction = specificRelativeSpecialDeduction.plus(
-        specificRelativeSpecialDeductionAmount(dep.totalIncome),
+        specificRelativeSpecialDeductionAmount(year, dep.totalIncome),
       );
       continue;
     }
-    if (dep.totalIncome.greaterThan(SPOUSE_DEDUCTION_INCOME_CEILING) || dep.age < 16) {
+    if (dep.totalIncome.greaterThan(ceiling) || dep.age < 16) {
       continue;
     }
     if (dep.age >= 19 && dep.age <= 22) {
@@ -360,6 +384,7 @@ export function computeIncomeDeductions(
   input: IncomeDeductionInput,
 ): IncomeDeductionResult {
   const { dependentDeduction, specificRelativeSpecialDeduction } = dependentDeductions(
+    year,
     input.dependents,
   );
   const result: IncomeDeductionResult = {
@@ -381,7 +406,7 @@ export function computeIncomeDeductions(
     disabilityDeduction: disabilityDeduction(input),
     singleParentOrWidowDeduction: singleParentOrWidowDeduction(input.isSingleParent, input.isWidow),
     workingStudentDeduction: workingStudentDeduction(input.isWorkingStudent),
-    spouseDeduction: spouseDeduction(input.totalIncome, input.spouse),
+    spouseDeduction: spouseDeduction(year, input.totalIncome, input.spouse),
     dependentDeduction,
     specificRelativeSpecialDeduction,
     total: D(0),
