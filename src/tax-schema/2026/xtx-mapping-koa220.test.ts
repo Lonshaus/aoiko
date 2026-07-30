@@ -126,6 +126,77 @@ describe('mapKoa220Values（青色申告決算書・不動産所得用 第1頁�
     expect(values).toContain('1150000'); // 差引金額
   });
 
+  function senjushaPl(): PLReport {
+    return realEstatePl({
+      revenue: [
+        {
+          accountCode: '4210',
+          accountName: '賃貸料（不動産）',
+          category: 'revenue',
+          amount: '3000000',
+          displayOrder: 210,
+        },
+      ],
+      expense: [
+        {
+          accountCode: '5310',
+          accountName: '租税公課（不動産）',
+          category: 'expense',
+          amount: '200000',
+          displayOrder: 1310,
+        },
+        {
+          accountCode: '5350',
+          accountName: '専従者給与（不動産）',
+          category: 'expense',
+          amount: '800000',
+          displayOrder: 1350,
+        },
+      ],
+      totalRevenue: '3000000',
+      totalExpense: '1000000',
+      netIncome: '2000000',
+    });
+  }
+
+  test('事業的規模：専従者給与は差引金額の次の専用欄へ入り、差引金額は控除前の額', () => {
+    const out = mapKoa220Values(
+      ctx({
+        realEstatePl: senjushaPl(),
+        personalDeductions: withRealEstate({ businessScale: true }),
+        aoiroDeductionKind: 'none',
+      }),
+    );
+    // 収入 300万 − 租税公課 20万 = 280万（専従者給与を引く前）
+    expect(out.ANF00230).toBe('2800000');
+    expect(out.ANF00240).toBe('800000');
+    // 280万 − 80万 = 200万。様式の行どおりに算術が成立する
+    expect(out.ANF00250).toBe('2000000');
+  });
+
+  test('非事業的規模：専従者給与は必要経費に算入できないため専用欄も空欄', () => {
+    const out = mapKoa220Values(
+      ctx({
+        realEstatePl: senjushaPl(),
+        personalDeductions: withRealEstate({ businessScale: false }),
+        aoiroDeductionKind: 'none',
+      }),
+    );
+    expect(out.ANF00230).toBe('2800000');
+    expect(out.ANF00240).toBeUndefined();
+    expect(out.ANF00250).toBe('2800000');
+  });
+
+  test('専従者給与（不動産）は追加科目の繰り返しブロックへ出さない', () => {
+    const repeats = mapKoa220RepeatedValues(
+      ctx({
+        realEstatePl: senjushaPl(),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    expect(repeats.ANF00195).toBeUndefined();
+  });
+
   test('礼金・権利金等（不動産）は礼金欄、雑収入（不動産）は追加科目欄に分かれる', () => {
     const out = mapKoa220Values(
       ctx({

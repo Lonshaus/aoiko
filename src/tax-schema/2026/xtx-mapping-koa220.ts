@@ -15,7 +15,7 @@
 //    雇うのは稀なケースのため対象外
 //  - 専従者給与の内訳（ANF00780、氏名・続柄等）：aoiko は続柄データを持たないため
 //    事業所得側と同じ方針で出力しない。専従者給与の「金額」自体は第1頁の
-//    必要経費（専従者給与）に含まれる
+//    専用欄（ANF00240、差引金額の次の欄）へ出力する
 //  - 貸借対照表（ANG00000、第4頁）：不動産所得単独の貸借対照表は現状 aoiko の
 //    BS 計算対象外（事業所得の BS と分離した集計が必要なため）。将来対応
 
@@ -29,6 +29,7 @@ import { computeDepreciation } from '../../domain/depreciation';
 import {
   computeCombinedBusinessRealEstateIncome,
   realEstatePreDeductionIncome,
+  REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
 } from './real-estate-income';
 
 const SCHEMA = koa220 as XtxSchema;
@@ -131,7 +132,17 @@ export function mapKoa220Values(ctx: XtxContext): XtxLeafValues {
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   const businessScale = realEstateInput?.businessScale ?? false;
   const preDeductionIncome = realEstatePreDeductionIncome(pl, businessScale);
-  put(out, tagByJa(PAGE1, '差引金額'), preDeductionIncome.toString());
+  // 様式は「差引金額 −（専従者給与）＝ 青色申告特別控除前の所得金額」の順で並ぶ。
+  // 差引金額には専従者給与を差し引く前の金額を入れ、専従者給与は専用欄へ分けて出す
+  // （必要経費の追加科目へ混ぜると差引金額の時点で二重に引かれる）。
+  const senjushaSalary = pl.expense
+    .filter((r) => r.accountName === REAL_ESTATE_SENJUSHA_ACCOUNT_NAME)
+    .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
+  put(out, tagByJa(PAGE1, '差引金額'), D(pl.netIncome).plus(senjushaSalary).toString());
+  // 非事業的規模の専従者給与は必要経費に算入できないため専用欄も空欄にする。
+  if (businessScale) {
+    put(out, tagByJa(PAGE1, '専従者給与'), senjushaSalary.toString());
+  }
   const businessPreIncome = D(ctx.pl.netIncome);
   const combined = computeCombinedBusinessRealEstateIncome(
     ctx.year,
@@ -297,7 +308,11 @@ function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
     return [];
   }
   return pl.expense
-    .filter((row) => !(row.accountName in EXPENSE_ALIAS))
+    .filter(
+      (row) =>
+        !(row.accountName in EXPENSE_ALIAS) &&
+        row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
+    )
     .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
     .map((row) => {
       const name = row.accountName
