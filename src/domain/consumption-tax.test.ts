@@ -5,6 +5,7 @@ import { newId } from '../lib/id';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
 import {
   compareAll,
+  computeDeductibleInputTax,
   computeGeneral,
   computeSimplified,
   computeTaxableSalesRatio,
@@ -815,8 +816,8 @@ describe('個別対応方式・一括比例配分方式（課税売上割合95%�
     const r = await computeGeneral(2026, 'proportional');
     // inputTotal 46,800 × 10/11 = 42,545.4545... → 円未満切捨て 42,545
     expect(r.inputTax.national).toBe('42545');
-    // netTax = 78,000 − 42,545.4545... = 35,454.5454... → 切捨て 35,454
-    expect(r.netTax.national).toBe('35454');
+    // netTax = 78,000 − 42,545（inputTax は税率別に1円未満切捨て済のため、ここでも42,545を使う）= 35,455
+    expect(r.netTax.national).toBe('35455');
   });
 
   test('個別対応方式：課税対応分は全額控除＋共通対応分 × 課税売上割合', async () => {
@@ -824,7 +825,8 @@ describe('個別対応方式・一括比例配分方式（課税売上割合95%�
     const r = await computeGeneral(2026, 'individual');
     // 39,000（課税対応、全額）＋ 7,800 × 10/11 = 39,000 + 7,090.909... = 46,090.909... → 切捨て 46,090
     expect(r.inputTax.national).toBe('46090');
-    expect(r.netTax.national).toBe('31909');
+    // netTax = 78,000 − 46,090（inputTax は税率別に1円未満切捨て済のため、ここでも46,090を使う）= 31,910
+    expect(r.netTax.national).toBe('31910');
   });
 
   test('個別対応方式の方が一括比例配分方式より控除額が大きい（一般的な傾向どおり）', async () => {
@@ -972,5 +974,147 @@ describe('period 指定（仮決算・中間申告用の期間限定集計）', 
       end: '2026-06-30',
     });
     expect(r.netTax.national).toBe('78000');
+  });
+});
+
+describe('computeDeductibleInputTax - 控除対象仕入税額（税率別・issue #303）', () => {
+  test('issue #303 の例：課税売上 税抜20,000/税込22,000(10%)・課税仕入 税込3,670(適格) → 合計1,600', async () => {
+    // 売上：税抜20,000 → 国税1,560。非課税・免税売上が無いため課税売上割合100% → 全額控除
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '22000' },
+        { side: 'credit', accountCode: '4110', amount: '20000', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    // 仕入：税込3,670・適格 → 国税 = 3,670/1.1×7.8% = 260.2363... → 1円未満切捨て260
+    await seedEntry({
+      date: '2026-04-02',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5200',
+          amount: '3670',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '3670' },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    // 差引 = 1,560 − 260 = 1,300（百円未満切捨て後も1,300）、地方 = floor(1,300×22/78,100) = 300
+    expect(r.filingRounded.national).toBe('1300');
+    expect(r.filingRounded.local).toBe('300');
+    expect(r.filingRounded.total).toBe('1600');
+  });
+
+  test('全額控除：税率ごとに1円未満切捨てしてから合算する', () => {
+    const salesRatio = computeTaxableSalesRatio(D(1000000), D(0), D(0), D(0));
+    const result = computeDeductibleInputTax(
+      {
+        input10: D('260.6'),
+        input8: D('124.9'),
+        inputCommon10: D(0),
+        inputCommon8: D(0),
+        inputNonTaxableOnly10: D(0),
+        inputNonTaxableOnly8: D(0),
+        reverseChargeTax: D(0),
+        reverseChargeCommonTax: D(0),
+        reverseChargeNonTaxableOnlyTax: D(0),
+      },
+      salesRatio,
+      'proportional',
+    );
+    expect(result.rate78.toString()).toBe('260');
+    expect(result.rate624.toString()).toBe('124');
+    expect(result.total.toString()).toBe('384');
+    expect(result.total.toString()).toBe(result.rate78.plus(result.rate624).toString());
+  });
+
+  test('一括比例配分方式：税率ごとに按分後1円未満切捨て', () => {
+    // 課税売上割合90%未満の状況を作る（分母が分子より大きい）
+    const salesRatio = computeTaxableSalesRatio(D(900000), D(0), D(0), D(100000));
+    const result = computeDeductibleInputTax(
+      {
+        input10: D(1000),
+        input8: D(500),
+        inputCommon10: D(0),
+        inputCommon8: D(0),
+        inputNonTaxableOnly10: D(0),
+        inputNonTaxableOnly8: D(0),
+        reverseChargeTax: D(0),
+        reverseChargeCommonTax: D(0),
+        reverseChargeNonTaxableOnlyTax: D(0),
+      },
+      salesRatio,
+      'proportional',
+    );
+    // 割合 = 900,000/1,000,000 = 0.9
+    // rate78 = floor(1000×0.9) = 900、rate624 = floor(500×0.9) = 450
+    expect(result.rate78.toString()).toBe('900');
+    expect(result.rate624.toString()).toBe('450');
+    expect(result.total.toString()).toBe(result.rate78.plus(result.rate624).toString());
+  });
+
+  test('個別対応方式：税率ごとに課税対応分＋共通対応分×割合を1円未満切捨て', () => {
+    const salesRatio = computeTaxableSalesRatio(D(900000), D(0), D(0), D(100000));
+    const result = computeDeductibleInputTax(
+      {
+        // 7.8%側：課税対応700＋共通300 = input10 1000
+        input10: D(1000),
+        inputCommon10: D(300),
+        inputNonTaxableOnly10: D(0),
+        // 6.24%側：課税対応400＋共通100 = input8 500
+        input8: D(500),
+        inputCommon8: D(100),
+        inputNonTaxableOnly8: D(0),
+        reverseChargeTax: D(0),
+        reverseChargeCommonTax: D(0),
+        reverseChargeNonTaxableOnlyTax: D(0),
+      },
+      salesRatio,
+      'individual',
+    );
+    // 割合0.9。rate78 = 700 + floor(300×0.9) = 700+270 = 970
+    // rate624 = 400 + floor(100×0.9) = 400+90 = 490
+    expect(result.rate78.toString()).toBe('970');
+    expect(result.rate624.toString()).toBe('490');
+    expect(result.total.toString()).toBe(result.rate78.plus(result.rate624).toString());
+  });
+});
+
+describe('2割特例・3割特例：特別控除税額の1円未満切捨て（issue #303）', () => {
+  test('2割特例：特別控除税額を1円未満切捨てしてから差し引く', async () => {
+    // 税抜32,000円(10%) → official.outputTax = floor(32,000×7.8%) = 2,496
+    // 特別控除 = floor(2,496×0.8) = floor(1,996.8) = 1,996（切捨てしないと1,996.8のまま）
+    // 差引 = 2,496 − 1,996 = 500（百円未満切捨て後も500。切捨てしない場合は499.2→400になり不一致）
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '35200' },
+        { side: 'credit', accountCode: '4110', amount: '32000', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    const r = await computeTwoWari(2026);
+    expect(r.filingRounded.national).toBe('500');
+    expect(r.filingRounded.local).toBe('100');
+    expect(r.filingRounded.total).toBe('600');
+  });
+
+  test('3割特例：特別控除税額を1円未満切捨てしてから差し引く', async () => {
+    await seedAccounts(2027);
+    // 税抜47,000円(10%) → official.outputTax = floor(47,000×7.8%) = 3,666
+    // 特別控除 = floor(3,666×0.7) = floor(2,566.2) = 2,566
+    // 差引 = 3,666 − 2,566 = 1,100（切捨てしない場合は1,099.8→百円未満切捨てで1,000になり不一致）
+    await seedEntry({
+      date: '2027-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '51700' },
+        { side: 'credit', accountCode: '4110', amount: '47000', taxRate: 0.1, taxIncluded: false },
+      ],
+    });
+    const r = await computeThreeWari(2027);
+    expect(r.filingRounded.national).toBe('1100');
   });
 });
