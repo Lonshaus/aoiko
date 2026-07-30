@@ -423,6 +423,7 @@
   "reports_xtx_intro_html": "將本年度資料輸出為 <code class=\"text-foreground\">.xtx</code>，可載入 e-Tax 軟體(下載版)。確定申告書與青色申告決算書依國稅廳官方 XSD 併載於同一檔。 <strong class=\"text-foreground\">⚠ 需先在「設定 ＞ 申報者資訊」填入 稅務署・利用者識別號碼・姓名・地址。申告書會帶入事業的 收入・所得・青色申告特別控除（「所得控除」畫面有輸入的話所得控除・稅額也會輸出；未輸入則在 e-Tax 上補完）。</strong>",
   "reports_xtx_unsupported_year": "{year} 年度的 .xtx 輸出尚未支援（目前僅 2026 年度）",
   "reports_xtx_filer_incomplete": "申報者資訊尚未填寫。請在「設定 ＞ 申報者資訊」填入 稅務署・利用者識別號碼・姓名・地址。",
+  "reports_xtx_real_estate_input_missing": "有不動產所得的損益，但「所得扣除」畫面的不動產所得欄位尚未填寫，因此無法輸出 .xtx。請在「所得扣除」畫面填寫並儲存不動產所得的區塊。",
   "reports_xtx_download": "下載 .xtx",
   "reports_xtx_download_reiwa7": "測試：以令和7年分輸出",
   "reports_xtx_download_reiwa7_hint": "令和8年分的 e-Tax 模組尚未釋出，為了實機載入測試，以 NENBUN=7（令和7年分）輸出（封包結構與年分無關）。",
