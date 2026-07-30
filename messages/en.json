@@ -423,6 +423,7 @@
   "reports_xtx_intro_html": "Export this year's data as <code class=\"text-foreground\">.xtx</code> to load into e-Tax software (download edition). The tax return and blue-return financial statements are bundled in one file per the NTA official XSD. <strong class=\"text-foreground\">⚠ Requires entering tax office, user ID, name, and address under Settings ＞ Filer Info first. The return carries the business income, profit, and blue-return special deduction (income deductions and tax are also output if entered on the Deductions screen; otherwise complete them in e-Tax).</strong>",
   "reports_xtx_unsupported_year": ".xtx output for fiscal year {year} is not supported (only 2026 for now)",
   "reports_xtx_filer_incomplete": "Filer info is missing. Please enter tax office, user ID, name, and address under Settings ＞ Filer Info.",
+  "reports_xtx_real_estate_input_missing": "Cannot export .xtx: there is real-estate profit/loss but the real-estate income section on the Deductions screen has not been entered. Please fill in and save the real-estate income section on the Deductions screen.",
   "reports_xtx_download": "Download .xtx",
   "reports_xtx_download_reiwa7": "Test: export as Reiwa 7",
   "reports_xtx_download_reiwa7_hint": "The Reiwa 8 e-Tax module is not yet available, so this exports with NENBUN=7 (Reiwa 7) for real-device import testing (the envelope structure is year-independent).",
