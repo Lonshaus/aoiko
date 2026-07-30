@@ -126,12 +126,12 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
         personalDeductions: emptyPersonalDeductions,
       }),
     );
-    // 336万円以下 → 基礎控除88万円
-    expect(out.ABB00550).toBe('880000');
+    // 489万円以下 → 基礎控除104万円（令和8年分）
+    expect(out.ABB00550).toBe('1040000');
     expect(out.ABB00450).toBe('400000');
-    // 事業所得=控除前300万−青色控除65万=235万、所得控除計=88万(基礎)+40万(社保)=128万
-    expect(out.ABB00560).toBe('1280000');
-    expect(out.ABB00580).toBe('1070000'); // 235万-128万
+    // 事業所得=控除前300万−青色控除65万=235万、所得控除計=104万(基礎)+40万(社保)=144万
+    expect(out.ABB00560).toBe('1440000');
+    expect(out.ABB00580).toBe('910000'); // 235万-144万
     expect(out.ABB00590).toBeDefined();
     expect(out.ABB01030).toBeDefined();
   });
@@ -144,9 +144,9 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
         personalDeductions: emptyPersonalDeductions,
       }),
     );
-    // 235万300−128万=1,070,300 → (30)欄は千円未満切捨てで 1,070,000
-    expect(out.ABB00580).toBe('1070000');
-    expect(out.ABB00590).toBe('53500'); // 107万×5%
+    // 235万300−144万=910,300 → (30)欄は千円未満切捨てで 910,000
+    expect(out.ABB00580).toBe('910000');
+    expect(out.ABB00590).toBe('45500'); // 91万×5%
   });
 
   test('personalDeductions 未入力なら所得控除・税額の欄は出力しない', () => {
@@ -267,7 +267,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
         },
       }),
     );
-    expect(out.ABB00550).toBe('680000');
+    expect(out.ABB00550).toBe('1040000');
   });
 
   test('配偶者の合計所得金額(ABB00780)・公的年金等以外の合計所得金額(ABB00775)を出力する', () => {
@@ -468,11 +468,11 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
         personalDeductions: emptyPersonalDeductions,
       }),
     );
-    // 白色は青色申告特別控除が無いため事業所得＝控除前300万。合計所得300万→基礎控除88万
-    expect(out.ABB00550).toBe('880000');
-    expect(out.ABB00560).toBe('1280000'); // 88万(基礎)+40万(社保)
-    expect(out.ABB00580).toBe('1720000'); // 300万-128万
-    expect(out.ABB00590).toBe('86000'); // 172万×5%
+    // 白色は青色申告特別控除が無いため事業所得＝控除前300万。合計所得300万→基礎控除104万
+    expect(out.ABB00550).toBe('1040000');
+    expect(out.ABB00560).toBe('1440000'); // 104万(基礎)+40万(社保)
+    expect(out.ABB00580).toBe('1560000'); // 300万-144万
+    expect(out.ABB00590).toBe('78000'); // 156万×5%
     expect(out.ABB01020).toBeDefined(); // 復興特別所得税
     // 青色申告特別控除欄は白色では出さない
     expect(out.ABB00800).toBeUndefined();
