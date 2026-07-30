@@ -14,6 +14,7 @@
   import { saveFile } from '../lib/save-file';
   import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
+  import { BackupCorruptError } from '../backup';
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
   import {
     exportCorrectionHistoryCsv,
@@ -895,6 +896,9 @@
           size: formatBytes(err.fileSize),
           limit: formatBytes(err.limit),
         });
+        input.value = '';
+      } else if (err instanceof BackupCorruptError) {
+        restoreError = m.settings_restore_corrupt({ count: err.entryNames.length });
         input.value = '';
       } else {
         restoreError = err instanceof Error ? err.message : String(err);
