@@ -147,11 +147,12 @@ describe('mapKoa210Values 売上原価（期首棚卸・仕入・期末棚卸）
               amount: '2000000',
               displayOrder: 20,
             },
+            // 期末棚卸の標準仕訳は貸方のため buildPL の出力はマイナスになる
             {
               accountCode: '5030',
               accountName: '期末商品棚卸高',
               category: 'expense' as const,
-              amount: '150000',
+              amount: '-150000',
               displayOrder: 30,
             },
           ],
@@ -164,6 +165,7 @@ describe('mapKoa210Values 売上原価（期首棚卸・仕入・期末棚卸）
     );
     expect(out.AMF00120).toBe('100000'); // 期首商品（製品）棚卸高
     expect(out.AMF00130).toBe('2000000'); // 仕入金額（製品製造原価）
+    // 様式の期末棚卸欄は売上原価から差し引かれる欄なので符号を戻して出力する
     expect(out.AMF00150).toBe('150000'); // 期末商品（製品）棚卸高
     // KOA110 と同様に差引原価（AMF00160）は算出・出力しない
     expect(out.AMF00160).toBeUndefined();

@@ -65,6 +65,14 @@ const EXPENSE_ALIAS: Record<string, string> = {
   仕入: '仕入金額（製品製造原価）',
   期末商品棚卸高: '期末商品（製品）棚卸高',
 };
+// 期末商品棚卸高の標準的な決算仕訳は貸方（商品／期末商品棚卸高）。費用科目の貸方は
+// plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
+// 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
+const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
+
+function formAmount(accountName: string, amount: string): string {
+  return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
+}
 // gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
 function toKingaku(s: string): string {
   const t = s.replace(/,/g, '').trim();
@@ -99,7 +107,7 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
       continue;
     }
     const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
-    put(out, tagByJa(PAGE1, ja), row.amount);
+    put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
   }
   // 専従者控除前の所得金額。専従者控除・控除後所得は続柄情報が必要なため
   // 利用者が e-Tax 上で補完する。
