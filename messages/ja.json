@@ -677,6 +677,7 @@
   "settings_restore_selected": "選択中：{name}",
   "settings_restore_success": "{tables} テーブル / {rows} 行 を復元しました。反映するには下の「再読み込み」ボタンを押してください。",
   "settings_restore_missing_blobs": "証憑写真 {count} 件の実体データが見つからなかったため、空のまま復元しました。",
+  "settings_restore_corrupt": "このバックアップファイルは壊れています（{count} 件のデータが検証に失敗しました）。復元は行っていません。別のバックアップファイルを選んでください。",
   "settings_restore_reload": "再読み込み",
   "settings_restore_summary": "version {version} ・ {tables} テーブル ・ {rows} 行",
   "settings_restore_summary_attachments": "証憑写真 {count} 枚を含む",

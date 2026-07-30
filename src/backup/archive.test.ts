@@ -1,6 +1,6 @@
 import { zipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
-import { buildBackupZipStream, looksLikeZip, parseBackupZip } from './archive';
+import { BackupCorruptError, buildBackupZipStream, looksLikeZip, parseBackupZip } from './archive';
 import type { BackupPayload } from './types';
 
 async function* asyncAttachments(
@@ -346,5 +346,181 @@ describe('parseBackupZip（目録が実体より大きいサイズを主張し�
     await expect(parseBackupZip(new Blob([tampered]))).rejects.toThrow(
       'zip として読み込めませんでした',
     );
+  });
+});
+// 中央目録の CRC32 と実体から計算した CRC32 の照合（#281）。ビット単位の破損は
+// サイズも目録も無傷なまま起きるため、照合しない限り壊れたまま復元されてしまう。
+describe('parseBackupZip（CRC32 照合）', () => {
+  const payload: BackupPayload = {
+    version: 1,
+    exportedAt: '2026-07-08T00:00:00.000Z',
+    tables: { journalEntries: [{ id: 'e1' }] },
+  };
+
+  function eocdOffsetOf(zip: Uint8Array): number {
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    for (let i = zip.length - 22; i >= 0; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) {
+        return i;
+      }
+    }
+    throw new Error('EOCD が見つかりません');
+  }
+  // 実体の開始位置は中央目録のローカルヘッダオフセットから引く（実装と同じ経路をたどる）。
+  function entryDataOffset(zip: Uint8Array, name: string): number {
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    const eocd = eocdOffsetOf(zip);
+    const count = view.getUint16(eocd + 10, true);
+    const decoder = new TextDecoder();
+    let pos = view.getUint32(eocd + 16, true);
+    for (let i = 0; i < count; i++) {
+      const nameLen = view.getUint16(pos + 28, true);
+      const extraLen = view.getUint16(pos + 30, true);
+      const commentLen = view.getUint16(pos + 32, true);
+      const localOffset = view.getUint32(pos + 42, true);
+      if (decoder.decode(zip.subarray(pos + 46, pos + 46 + nameLen)) === name) {
+        const localNameLen = view.getUint16(localOffset + 26, true);
+        const localExtraLen = view.getUint16(localOffset + 28, true);
+        return localOffset + 30 + localNameLen + localExtraLen;
+      }
+      pos = pos + 46 + nameLen + extraLen + commentLen;
+    }
+    throw new Error(`${name} が目録に見つかりません`);
+  }
+
+  function flipBits(zip: Uint8Array, offsets: readonly number[]): Uint8Array<ArrayBuffer> {
+    const copy = new Uint8Array(zip);
+    for (const offset of offsets) {
+      copy[offset] = copy[offset]! ^ 0x01;
+    }
+    return copy;
+  }
+
+  async function expectCorrupt(zip: Uint8Array<ArrayBuffer>): Promise<BackupCorruptError> {
+    try {
+      await parseBackupZip(new Blob([zip]));
+    } catch (err) {
+      expect(err).toBeInstanceOf(BackupCorruptError);
+      return err as BackupCorruptError;
+    }
+    throw new Error('BackupCorruptError が投げられませんでした');
+  }
+
+  test('無傷なら照合を入れても復元できる（deflate の payload.json + 無圧縮の添付）', async () => {
+    const original = new Uint8Array(3000);
+    for (let i = 0; i < original.length; i++) {
+      original[i] = (i * 13) % 256;
+    }
+    const zip = zipSync({
+      'payload.json': [new TextEncoder().encode(JSON.stringify(payload)), { level: 6 }],
+      'attachments/a1': [original, { level: 0 }],
+    });
+    const parsed = await parseBackupZip(new Blob([zip]));
+    expect(parsed.payload).toEqual(payload);
+    expect(await blobBytes(parsed.attachmentBlobs.get('a1')!)).toEqual(original);
+  });
+
+  test('無圧縮の添付の 1 ビットが反転していれば拒否し、その添付名を返す', async () => {
+    const zip = await drain(
+      buildBackupZipStream(
+        payload,
+        asyncAttachments([
+          ['a1', new Uint8Array(500).fill(7)],
+          ['a2', new Uint8Array(500).fill(9)],
+        ]),
+      ),
+    );
+    const tampered = flipBits(zip, [entryDataOffset(zip, 'attachments/a1') + 123]);
+    const err = await expectCorrupt(tampered);
+    expect(err.entryNames).toEqual(['attachments/a1']);
+    expect(err.message).toContain('1 件');
+  });
+
+  test('payload.json が化けていれば拒否する', async () => {
+    const zip = await drain(
+      buildBackupZipStream(payload, asyncAttachments([['a1', new Uint8Array(100).fill(1)]])),
+    );
+    const tampered = flipBits(zip, [entryDataOffset(zip, 'payload.json') + 5]);
+    const err = await expectCorrupt(tampered);
+    expect(err.entryNames).toEqual(['payload.json']);
+  });
+
+  test('壊れた添付が 2 件あれば 1 件目で打ち切らず両方を返す', async () => {
+    const zip = await drain(
+      buildBackupZipStream(
+        payload,
+        asyncAttachments([
+          ['a1', new Uint8Array(500).fill(7)],
+          ['a2', new Uint8Array(500).fill(9)],
+          ['a3', new Uint8Array(500).fill(11)],
+        ]),
+      ),
+    );
+    const tampered = flipBits(zip, [
+      entryDataOffset(zip, 'attachments/a1') + 10,
+      entryDataOffset(zip, 'attachments/a3') + 400,
+    ]);
+    const err = await expectCorrupt(tampered);
+    expect(err.entryNames).toEqual(['attachments/a1', 'attachments/a3']);
+    expect(err.message).toContain('2 件');
+  });
+  // 目録が実体より小さいサイズを主張していると Blob.slice は素直に短い実体を返す。
+  // サイズ検査だけでは通ってしまうが、切り詰められた実体は CRC が合わない（#281）。
+  test('目録のサイズが実体より小さく書き換わっていれば拒否する', async () => {
+    const zip = await drain(
+      buildBackupZipStream(payload, asyncAttachments([['a1', new Uint8Array(500).fill(7)]])),
+    );
+    const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+    const eocd = eocdOffsetOf(zip);
+    const cdStart = view.getUint32(eocd + 16, true);
+    const decoder = new TextDecoder();
+    let pos = cdStart;
+    for (let i = 0; i < view.getUint16(eocd + 10, true); i++) {
+      const nameLen = view.getUint16(pos + 28, true);
+      if (decoder.decode(zip.subarray(pos + 46, pos + 46 + nameLen)) === 'attachments/a1') {
+        break;
+      }
+      pos = pos + 46 + nameLen + view.getUint16(pos + 30, true) + view.getUint16(pos + 32, true);
+    }
+    const tampered = new Uint8Array(zip);
+    new DataView(tampered.buffer).setUint32(pos + 20, 400, true);
+    const err = await expectCorrupt(tampered);
+    expect(err.entryNames).toEqual(['attachments/a1']);
+  });
+  // 分割読みの単位（1 MiB）をまたぐ添付。境界の取り違えは大きなファイルでしか出ない。
+  describe('分割読みの境界', () => {
+    const chunkSize = 1024 * 1024;
+
+    function bigBytes(size: number): Uint8Array {
+      const bytes = new Uint8Array(size);
+      for (let i = 0; i < size; i++) {
+        bytes[i] = (i * 31 + 7) % 256;
+      }
+      return bytes;
+    }
+    // toEqual は 1 MiB の型付き配列だと差分生成に 1 秒近くかかるので、全要素一致だけ見る。
+    async function expectSameBytes(blob: Blob, expected: Uint8Array): Promise<void> {
+      const bytes = await blobBytes(blob);
+      expect(bytes.length).toBe(expected.length);
+      expect(bytes.every((b, i) => b === expected[i])).toBe(true);
+    }
+
+    test('ちょうど 1 MiB の添付を復元できる', async () => {
+      const original = bigBytes(chunkSize);
+      const zip = await drain(buildBackupZipStream(payload, asyncAttachments([['big', original]])));
+      const parsed = await parseBackupZip(new Blob([zip]));
+      await expectSameBytes(parsed.attachmentBlobs.get('big')!, original);
+    });
+
+    test('1 MiB を超える添付を復元でき、2 番目のかたまり内の破損も検出する', async () => {
+      const original = bigBytes(chunkSize + 12345);
+      const zip = await drain(buildBackupZipStream(payload, asyncAttachments([['big', original]])));
+      const parsed = await parseBackupZip(new Blob([zip]));
+      await expectSameBytes(parsed.attachmentBlobs.get('big')!, original);
+
+      const tampered = flipBits(zip, [entryDataOffset(zip, 'attachments/big') + chunkSize + 9000]);
+      const err = await expectCorrupt(tampered);
+      expect(err.entryNames).toEqual(['attachments/big']);
+    });
   });
 });
