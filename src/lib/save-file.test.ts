@@ -84,3 +84,45 @@ describe('saveTextFile', () => {
     expect(clicked[0]?.download).toBe('aoiko-2026.xtx');
   });
 });
+
+describe('保存の完了判定', () => {
+  const w = window as unknown as { showSaveFilePicker?: unknown };
+  const original = w.showSaveFilePicker;
+  afterEach(() => {
+    if (original === undefined) {
+      delete w.showSaveFilePicker;
+    } else {
+      w.showSaveFilePicker = original;
+    }
+  });
+
+  test('保存先の選択を取り消したら false（時刻を刻ませない）', async () => {
+    w.showSaveFilePicker = () => Promise.reject(new DOMException('cancel', 'AbortError'));
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    expect(ok).toBe(false);
+  });
+
+  test('保存先が確定して書き込めたら true', async () => {
+    const written: unknown[] = [];
+    w.showSaveFilePicker = () =>
+      Promise.resolve({
+        createWritable: () =>
+          Promise.resolve({
+            write: (b: unknown) => {
+              written.push(b);
+              return Promise.resolve();
+            },
+            close: () => Promise.resolve(),
+          }),
+      });
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    expect(ok).toBe(true);
+    expect(written).toHaveLength(1);
+  });
+
+  test('picker が無い環境（<a> ダウンロード）は true', async () => {
+    delete w.showSaveFilePicker;
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    expect(ok).toBe(true);
+  });
+});

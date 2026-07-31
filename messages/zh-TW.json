@@ -924,5 +924,7 @@
   "settings_restore_corrupt": "這個備份檔案已損毀（{count} 筆資料驗證失敗）。沒有還原任何資料，請改用其他備份檔案。",
   "invoices_print_due_date": "付款期限",
   "invoices_print_reduced_note": "※ 為適用輕減稅率（8%）的品項",
-  "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。"
+  "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。",
+  "settings_asset_disposal_run_error_needs_depreciation": "請先執行「產生折舊仕訳」。除却・売却的仕訳要與當年度的折舊仕訳成對才會平衡。",
+  "reports_no_data_for_year": "{year} 年度沒有可彙總的仕訳。請先登錄仕訳。"
 }

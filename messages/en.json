@@ -924,5 +924,7 @@
   "settings_restore_corrupt": "This backup file is damaged (verification failed for {count} of its entries). Nothing was restored — please choose a different backup file.",
   "invoices_print_due_date": "Due date",
   "invoices_print_reduced_note": "※ marks items subject to the reduced tax rate (8%)",
-  "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored."
+  "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored.",
+  "settings_asset_disposal_run_error_needs_depreciation": "Run \"Generate depreciation entries\" first. The disposal entry only balances together with this year's depreciation entry.",
+  "reports_no_data_for_year": "There are no journal entries to aggregate for {year}. Enter journal entries first."
 }

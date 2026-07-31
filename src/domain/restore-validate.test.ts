@@ -120,3 +120,17 @@ describe('PRIMARY_KEY と db スキーマの同期', () => {
     ).toEqual([]);
   });
 });
+
+describe('journalLines の金額検証', () => {
+  test('負の金額は拒否する（validateLines・toIndexable と揃える）', () => {
+    expect(() =>
+      validateBackupPayload(payload({ journalLines: [{ ...validLine, amount: '-100' }] })),
+    ).toThrow(/amount/);
+  });
+
+  test('amountIndexed の形式が壊れていれば拒否する', () => {
+    expect(() =>
+      validateBackupPayload(payload({ journalLines: [{ ...validLine, amountIndexed: 'abc' }] })),
+    ).toThrow(/amountIndexed/);
+  });
+});
