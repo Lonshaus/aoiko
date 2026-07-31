@@ -152,7 +152,10 @@ export async function applyCarryover(
   const existing = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter((e) => e.source === 'carryover' && e.status === 'confirmed')
+    .filter(
+      (e) =>
+        e.source === 'carryover' && e.status === 'confirmed' && e.originalEntryId === undefined,
+    )
     .first();
   if (existing) {
     return { reason: 'already-exists' };
@@ -219,19 +222,49 @@ export async function applyCarryover(
   return { entryId: entry.id };
 }
 
+// 期首振替のやり直し。確定仕訳は物理削除せず、打消し仕訳で相殺する（reverse.ts と同じ方式。
+// CLAUDE.md「確定仕訳は不変・訂正は反対仕訳・完全な監査履歴を保持」＝電子帳簿保存法）。
+// 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。
 export async function removeCarryover(year: number): Promise<{ removed: boolean }> {
   const existing = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter((e) => e.source === 'carryover')
+    .filter(
+      (e) =>
+        e.source === 'carryover' && e.status === 'confirmed' && e.originalEntryId === undefined,
+    )
     .toArray();
   if (existing.length === 0) {
     return { removed: false };
   }
+  const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
-    for (const e of existing) {
-      await db.journalLines.where('entryId').equals(e.id).delete();
-      await db.journalEntries.delete(e.id);
+    for (const orig of existing) {
+      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+      const reversalId = newId();
+      await db.journalEntries.add({
+        id: reversalId,
+        date: orig.date,
+        year: orig.year,
+        description: `[訂正] ${orig.description}`,
+        status: 'confirmed',
+        originalEntryId: orig.id,
+        source: 'carryover',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      for (const line of lines) {
+        await db.journalLines.add({
+          ...line,
+          id: newId(),
+          entryId: reversalId,
+          side: line.side === 'debit' ? 'credit' : 'debit',
+        });
+      }
+      await db.journalEntries.update(orig.id, {
+        status: 'reversed',
+        reversedByEntryId: reversalId,
+      });
     }
   });
   return { removed: true };
