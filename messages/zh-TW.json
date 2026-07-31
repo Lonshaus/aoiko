@@ -204,6 +204,7 @@
   "import_th_counterpart": "對應科目",
   "import_th_skip": "排除",
   "import_overlap_notice": "已自動排除 {count} 筆可能與先前匯入重複的資料。請確認內容，必要時取消「排除」。",
+  "import_parser_changed_notice": "因為變更了匯入來源，已清除已讀取的表格。請重新選擇檔案。",
   "import_th_tax": "稅別",
   "import_invoice_compliant": "適格",
   "import_invoice_compliant_title": "持有適格請求書（發票）。本則課稅下可 100% 抵扣進項稅額。",
