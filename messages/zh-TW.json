@@ -889,5 +889,9 @@
   "invoices_print_tax_at_rate": "稅率{rate}%消費稅額",
   "import_encoding_error": "這個檔案無法用目前選擇的匯入來源（{parser}）的字元編碼讀取。請確認來源選擇是否正確。",
   "receipt_date_required": "請以 YYYY-MM-DD 格式輸入日期。",
-  "settings_filer_zeimusho_unresolved": "尚未選擇稅務署。請從候選清單選擇,或把欄位清空(維持現狀儲存會清掉設定)。"
+  "settings_filer_zeimusho_unresolved": "尚未選擇稅務署。請從候選清單選擇,或把欄位清空(維持現狀儲存會清掉設定)。",
+  "unsaved_confirm_title": "輸入的內容尚未儲存",
+  "unsaved_confirm_desc": "這個畫面還有沒儲存的輸入。離開的話輸入的內容會消失。",
+  "unsaved_confirm_stay": "留在這個畫面",
+  "unsaved_confirm_discard": "捨棄並離開"
 }
