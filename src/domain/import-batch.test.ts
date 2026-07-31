@@ -1,8 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { commitImport } from './import';
-import { reverseImportBatch } from './import-batch';
+import { importBatchYears, reverseImportBatch } from './import-batch';
+import { markYearFiled } from './snapshots';
 import type { ParsedTransaction } from '../parsers/types';
+import type { ReportSnapshotData } from '../db/types';
+
+const monthlySales: ReportSnapshotData & { type: 'monthly-sales' } = {
+  type: 'monthly-sales',
+  data: { months: [] },
+};
+const pl: ReportSnapshotData & { type: 'pl' } = {
+  type: 'pl',
+  data: { rows: [], totalRevenue: '0', totalExpense: '0', netIncome: '0' },
+};
 
 const KNOWN = {
   parserName: 'sbi-hybrid',
@@ -58,5 +69,36 @@ describe('reverseImportBatch', () => {
     const r = await reverseImportBatch(result.batchId);
     expect(r.reversedCount).toBe(0);
     expect(r.alreadyReversedCount).toBe(2);
+  });
+
+  test('原仕訳年度が申告済みだと既定では失敗する', async () => {
+    const result = await commitImport(KNOWN, [
+      { transaction: tx({ date: '2026-04-15' }), counterpartAccountCode: '4110' },
+    ]);
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+
+    await expect(reverseImportBatch(result.batchId)).rejects.toThrow(/申告済み.*ロック/);
+  });
+
+  test('allowFiledYear:true なら申告済み年度でも成功する', async () => {
+    const result = await commitImport(KNOWN, [
+      { transaction: tx({ date: '2026-04-15' }), counterpartAccountCode: '4110' },
+    ]);
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+
+    const r = await reverseImportBatch(result.batchId, { allowFiledYear: true });
+    expect(r).toEqual({ reversedCount: 1, alreadyReversedCount: 0 });
+  });
+});
+
+describe('importBatchYears', () => {
+  test('重複を排除し昇順で返す', async () => {
+    const result = await commitImport(KNOWN, [
+      { transaction: tx({ date: '2026-04-15' }), counterpartAccountCode: '4110' },
+      { transaction: tx({ date: '2025-04-15' }), counterpartAccountCode: '4110' },
+      { transaction: tx({ date: '2026-05-01' }), counterpartAccountCode: '4110' },
+    ]);
+
+    expect(await importBatchYears(result.batchId)).toEqual([2025, 2026]);
   });
 });
