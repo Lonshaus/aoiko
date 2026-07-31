@@ -204,6 +204,7 @@
   "import_th_counterpart": "Counterpart account",
   "import_th_skip": "Skip",
   "import_overlap_notice": "Auto-excluded {count} row(s) that may duplicate a previous import. Review and uncheck Skip if needed.",
+  "import_parser_changed_notice": "The loaded table was discarded because the import source changed. Please select the file again.",
   "import_th_tax": "Tax",
   "import_invoice_compliant": "Qualified",
   "import_invoice_compliant_title": "A qualified invoice is on file. Eligible for 100% input tax credit under the standard method.",

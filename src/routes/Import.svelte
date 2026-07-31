@@ -53,6 +53,7 @@
   let page = $state(0);
   let knownSubAccountId = $state('');
   let duplicateNotice = $state('');
+  let parserChangedNotice = $state('');
   let importing = $state(false);
   // 解析済みの行は取込を押すまで DB に無い。画面を離れると読み直しになる。
   const isDirty = $derived(rows.length > 0 && !importing);
@@ -95,9 +96,21 @@
       .map((row, i) => ({ row, index: pageRange.start + i })),
   );
 
+  // 取込元の下拉が変わったら、読み込み済みの表を parser 不一致のまま残さない。
+  // 再解析ではなく破棄：computeFileHash / 重複チェック / findOverlappingRows / ルール適用を
+  // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
+  function handleParserChange(newName: string) {
+    if (rows.length > 0 && newName !== selectedParserName) {
+      reset();
+      parserChangedNotice = m.import_parser_changed_notice();
+    }
+    selectedParserName = newName;
+  }
+
   async function handleFile(e: Event) {
     error = '';
     success = '';
+    parserChangedNotice = '';
     rows = [];
     page = 0;
     const input = e.target as HTMLInputElement;
@@ -149,6 +162,8 @@
       });
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
+      // 同じファイルを選び直しても change が発火するように、成功時も input をクリアする
+      input.value = '';
     } catch (e) {
       if (e instanceof CsvEncodingError) {
         error = m.import_encoding_error({ parser: currentParser.displayName });
@@ -302,6 +317,7 @@
     fileHash = '';
     knownSubAccountId = '';
     duplicateNotice = '';
+    parserChangedNotice = '';
     error = '';
   }
 
@@ -370,7 +386,8 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_parser()}</span>
         <select
-          bind:value={selectedParserName}
+          value={selectedParserName}
+          onchange={(e) => handleParserChange((e.target as HTMLSelectElement).value)}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         >
           {#each PARSERS as p (p.name)}
@@ -432,6 +449,13 @@
         class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
       >
         ⚠ {duplicateNotice}
+      </div>
+    {/if}
+    {#if parserChangedNotice}
+      <div
+        class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
+      >
+        ⚠ {parserChangedNotice}
       </div>
     {/if}
   </section>
