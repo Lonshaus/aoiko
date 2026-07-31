@@ -26,6 +26,7 @@
   let editing = $state<Invoice | null>(null);
   let printingId = $state<string | null>(null);
   let errorMessage = $state('');
+  let submitting = $state(false);
   let confirmingDelete = $state(false);
   let pendingDeleteId = $state<string | null>(null);
   let pendingDeleteName = $state('');
@@ -115,10 +116,11 @@
   }
 
   async function saveDraft() {
-    if (!editing) {
+    if (!editing || submitting) {
       return;
     }
     errorMessage = '';
+    submitting = true;
     try {
       const snapshot = $state.snapshot(editing);
       await db.invoices.put(snapshot);
@@ -129,14 +131,17 @@
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
     }
   }
 
   async function issue() {
-    if (!editing) {
+    if (!editing || submitting) {
       return;
     }
     errorMessage = '';
+    submitting = true;
     try {
       const snapshot = $state.snapshot(editing);
       const prefix =
@@ -151,6 +156,8 @@
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
     }
   }
 
@@ -404,13 +411,19 @@
       {/if}
 
       <div class="flex gap-2">
-        <button type="button" onclick={saveDraft} class="px-4 py-2 border rounded hover:bg-muted">
+        <button
+          type="button"
+          onclick={saveDraft}
+          disabled={submitting}
+          class="px-4 py-2 border rounded hover:bg-muted disabled:opacity-50"
+        >
           {m.invoices_action_save_draft()}
         </button>
         <button
           type="button"
           onclick={issue}
-          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          disabled={submitting}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.invoices_action_issue()}
         </button>
