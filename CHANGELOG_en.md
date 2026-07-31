@@ -4,6 +4,49 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.3] - 2026-07-31
+
+Fixes wrong figures on tax filings, plus a set of defects that lost ledger data or corrupted backups in ways a later update cannot undo. **If any of these apply to you, see "What to check" below.**
+
+### Fixed (figures on tax filings)
+
+- Real-estate income was treated in full as the blue-return special deduction, and disappeared from the main form. Exporting `.xtx` now stops and prompts you when the real-estate section of the deductions screen has not been filled in
+- The balance sheet on the financial statement did not balance: accumulated depreciation was dropped (so fixed assets were reported at acquisition cost) and "income before the blue-return special deduction" was never written. A balance sheet is required for the ¥650,000 / ¥750,000 deduction
+- The basic deduction for 令和8年分 (2026) is now the post-reform amount (¥620,000 plus the income-based addition). The dependant income threshold is updated from ¥580,000 to ¥620,000
+- The white-return family employee deduction was never subtracted anywhere. Family employee entry (name, relationship, age, months worked) has been added and now flows into both the statement of earnings and the main form. A spouse or relative registered as a family employee is automatically excluded from the spouse and dependant deductions
+- The declining-balance method wrote acquisition cost into the "base amount for depreciation" column (it should be the prior year-end book value, or the revised acquisition cost after the switch to the revised rate). On the general blue-return statement the column was left blank entirely
+- Closing inventory was written as a negative number, overstating cost of sales by twice the closing inventory
+- Deductible consumption-tax input was computed separately on screen and in the `.xtx`, differing by up to ¥100. The per-rate breakdowns on appendix tables 1-3 and 2-3 are also fixed
+- Rental properties appeared in the depreciation schedule of the general statement of earnings
+- On the real-estate blue-return statement, family employee salary went into the "additional item" expense rows instead of its own field
+- Bad-debt reserve (real estate) was not added back to income on white returns
+- The due dates for the first three monthly instalments of consumption-tax interim filing (11-instalment case) were wrong
+
+### Fixed (ledger and backups)
+
+- **Fixed-asset disposal/sale and rental property details could not be saved.** Saving failed as soon as an amount was entered, with no error shown, so the input was lost on leaving the screen
+- **Backup snapshots were not atomic.** A backup taken while you were entering data could contain journal lines whose parent entry was missing, and restore accepted them
+- **A backup requested while another was being written was discarded and never retried.** Entries made while a backup was compressing could end up in no backup at all
+- Invoices dated 31 December received duplicate numbers (duplicate qualified-invoice numbers), and double-clicking Issue created duplicate journal entries and receivables
+- A CSV decoded with the wrong character encoding did not raise an error; every description was imported as mojibake. The app now tells you the selected source is wrong
+- Cancellation and refund rows on SMBC card statements (`-1,110`, `▲732`) made the whole import fail
+- Receipt OCR could create a journal entry that appeared on no screen at all when the date could not be read
+- Inventory valuation counted returns in the wrong direction, shifting closing inventory and cost of sales
+- The business-opening wizard always failed for converted assets with a useful life of 21 years or more (such as a 22-year wooden or 47-year reinforced-concrete building), and long-held assets produced a negative book value that aborted the whole operation
+- The tax office setting could be silently overwritten with an empty value on save after editing the field
+- The submit buttons on receipt OCR and order import stayed active during processing, creating duplicate entries
+
+### Changed
+
+- Leaving a screen with unsaved input now asks for confirmation (journal entry, deductions, invoices, receipt OCR, order import, CSV import, business-opening wizard), covering in-app navigation, the browser back button and closing the tab
+
+### What to check
+
+- **If you registered a fixed-asset disposal or rental property details**: it may not have been saved. Check the settings screen
+- **If you use automatic backup**: take a fresh manual backup on this version
+- **If you issued invoices dated 31 December**: two or more on the same day share a number
+- **If you have already exported `.xtx`**: regenerating on this version may change the figures
+
 ## [1.0.2] - 2026-07-27
 
 ### Fixed

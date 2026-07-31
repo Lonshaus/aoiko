@@ -102,6 +102,55 @@ describe('computeInventoryValuation', () => {
     expect(result.totalValue.toString()).toBe('7000');
   });
 
+  test('売上返品（借方 売上高）は在庫を戻す', async () => {
+    await addEntry({
+      date: '2026-03-01',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '10000', itemId: 'item-a', quantity: '10' },
+        { side: 'credit', accountCode: '1130', amount: '10000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '3000' },
+        { side: 'credit', accountCode: '4110', amount: '3000', itemId: 'item-a', quantity: '3' },
+      ],
+    });
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '4110', amount: '1000', itemId: 'item-a', quantity: '1' },
+        { side: 'credit', accountCode: '1130', amount: '1000' },
+      ],
+    });
+    // 仕入10 − 販売3 + 返品1 = 8
+    const result = await computeInventoryValuation('2026-12-31');
+    expect(result.items[0]?.quantity.toString()).toBe('8');
+    expect(result.totalValue.toString()).toBe('8000');
+  });
+
+  test('仕入返品（貸方 仕入）は在庫を減らし、直近仕入単価を上書きしない', async () => {
+    await addEntry({
+      date: '2026-03-01',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '10000', itemId: 'item-a', quantity: '10' },
+        { side: 'credit', accountCode: '1130', amount: '10000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '2000' },
+        { side: 'credit', accountCode: '5020', amount: '2000', itemId: 'item-a', quantity: '2' },
+      ],
+    });
+    const result = await computeInventoryValuation('2026-12-31');
+    expect(result.items[0]?.quantity.toString()).toBe('8');
+    expect(result.items[0]?.unitCost.toString()).toBe('1000');
+    expect(result.totalValue.toString()).toBe('8000');
+  });
+
   test('最終仕入原価法：直近の仕入単価を使う（過去の単価は無視）', async () => {
     await addEntry({
       date: '2026-01-01',

@@ -287,6 +287,23 @@ export interface PersonalDeductionDependent {
   livesWithLinealAscendant?: boolean;
 }
 
+export type FamilyEmployeeRelation = 'spouse' | 'other';
+
+// 白色申告の事業専従者控除（所法57条3項）の対象者。青色事業専従者給与（実額）とは
+// 別制度のため、給与額は持たない（続柄で決まる定額を family-employee-deduction.ts で算定）。
+export interface PersonalDeductionFamilyEmployee {
+  id: string;
+  name: string;
+  /** 続柄。配偶者は86万円・その他の親族は50万円が定額の上限 */
+  relation: FamilyEmployeeRelation;
+  /** 年末時点の満年齢 */
+  age: number;
+  /** その年に専ら従事した月数 */
+  monthsWorked: number;
+  /** 従事している事業。未指定は事業所得 */
+  incomeType?: 'business' | 'realEstate';
+}
+
 export interface PersonalDeductionLifeInsurance {
   newGeneral?: string;
   oldGeneral?: string;
@@ -378,6 +395,7 @@ export interface PersonalDeductionInput {
   /** 事業所得側の源泉徴収税額（確定額を直接入力、取引単位の追跡は対象外） */
   otherWithholdingTax?: string;
   realEstateIncome?: RealEstateIncomeInput;
+  familyEmployees?: PersonalDeductionFamilyEmployee[];
   updatedAt: number;
 }
 

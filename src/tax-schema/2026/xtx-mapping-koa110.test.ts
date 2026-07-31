@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
-import type { XtxContext } from './xtx';
+import { personalDeductionsToCtx, type XtxContext } from './xtx';
 import type { FixedAsset } from '../../db/types';
 
 function ctx(
   overrides: Partial<XtxContext['pl']> = {},
   fixedAssets: FixedAsset[] = [],
+  personalDeductions?: XtxContext['personalDeductions'],
 ): XtxContext {
   return {
     year: 2026,
@@ -44,7 +45,35 @@ function ctx(
     filingType: 'white',
     aoiroDeductionKind: 'none',
     fixedAssets,
+    ...(personalDeductions ? { personalDeductions } : {}),
   };
+}
+// 事業専従者1人分の personalDeductions（issue #307）。
+function withFamilyEmployee(employee: {
+  id: string;
+  name: string;
+  relation: 'spouse' | 'other';
+  age: number;
+  monthsWorked: number;
+}): XtxContext['personalDeductions'] {
+  return personalDeductionsToCtx({
+    socialInsurancePaid: '0',
+    smallBusinessMutualAidPaid: '0',
+    lifeInsurance: {},
+    earthquakeInsurancePaid: '0',
+    oldLongTermInsurancePaid: '0',
+    medicalExpensePaid: '0',
+    medicalInsuranceReimbursement: '0',
+    donationAmount: '0',
+    casualtyLossDeduction: '0',
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+    familyEmployees: [employee],
+  });
 }
 
 describe('mapKoa110Values（収支内訳書 一般用）', () => {
@@ -108,11 +137,12 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
             amount: '200000',
             displayOrder: 20,
           },
+          // 期末棚卸の標準仕訳は貸方のため buildPL の出力はマイナスになる
           {
             accountCode: '5030',
             accountName: '期末商品棚卸高',
             category: 'expense',
-            amount: '5000',
+            amount: '-5000',
             displayOrder: 30,
           },
         ],
@@ -120,6 +150,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     );
     expect(out.AIG00080).toBe('10000');
     expect(out.AIG00090).toBe('200000');
+    // 様式の期末棚卸欄は売上原価から差し引かれる欄なので符号を戻して出力する
     expect(out.AIG00110).toBe('5000');
   });
 
@@ -182,6 +213,28 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     // 専従者給与・貸倒引当金繰入額の分を所得へ加算し直す：3990000+860000+30000=4880000
     expect(out.AIG00370).toBe('4880000');
   });
+
+  test('事業専従者控除（AIG00380）・控除後所得（AIG00400）を出力する（issue #307）', () => {
+    const personalDeductions = withFamilyEmployee({
+      id: 'f1',
+      name: '配偶者花子',
+      relation: 'spouse',
+      age: 40,
+      monthsWorked: 12,
+    });
+    const out = mapKoa110Values(
+      ctx({ totalRevenue: '5000000', netIncome: '4000000' }, [], personalDeductions),
+    );
+    // 専従者控除前所得金額400万→配偶者の定額86万 と 400万÷2=200万 のいずれか低い方＝86万
+    expect(out.AIG00380).toBe('860000');
+    expect(out.AIG00400).toBe('3140000');
+  });
+
+  test('事業専従者がいなければ専従者控除は0・控除後所得＝控除前所得と同額', () => {
+    const out = mapKoa110Values(ctx({ totalRevenue: '5000000', netIncome: '4000000' }));
+    expect(out.AIG00380).toBe('0');
+    expect(out.AIG00400).toBe('4000000');
+  });
 });
 
 function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
@@ -226,6 +279,19 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     const longName = 'あ'.repeat(20);
     const out = mapKoa110RepeatedValues(ctx({}, [asset({ name: longName })]));
     expect(out.AIM00010![0]!.AIM00020).toBe('あ'.repeat(16));
+  });
+
+  // 賃貸物件は収支内訳書(不動産所得用) KOA130 側で出力される。両方に出すと
+  // 明細の合計が本表の減価償却費と合わなくなる。
+  test('不動産所得の資産は明細に含めない（KOA130 側で出力する）', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [
+        asset({ name: '事業用PC' }),
+        asset({ name: '賃貸アパート', incomeType: 'realEstate' }),
+      ]),
+    );
+    expect(out.AIM00010).toHaveLength(1);
+    expect(out.AIM00010![0]!.AIM00020).toBe('事業用PC');
   });
 
   test('当年の償却額が0の資産（まだ取得前）は行を作らない', () => {
@@ -295,6 +361,26 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     expect(out.AIM00010![0]!.AIM00210).toBeUndefined();
   });
 
+  test('定率法：AIM00070（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // issue#302 の例：PC 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    // 2年目(2026): 償却の基礎 = 600,000、償却費 = 600,000 × 0.4 = 240,000
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [
+        asset({
+          acquisitionDate: '2025-01-01',
+          acquisitionCost: '1000000',
+          usefulLifeYears: 5,
+          depreciationMethod: 'declining-balance',
+        }),
+      ]),
+    );
+    const row = out.AIM00010![0]!;
+    expect(row.AIM00060).toBe('1000000');
+    expect(row.AIM00070).toBe('600000');
+    expect(row.AIM00150).toBe('240000');
+  });
+
   test('testReiwa7（year は令和7年ラベルだが帳簿データは令和8年）は dataYear で計算する', () => {
     const out = mapKoa110RepeatedValues({
       ...ctx({}, [asset({ acquisitionDate: '2026-04-01' })]),
@@ -302,5 +388,45 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
       dataYear: 2026,
     });
     expect(out.AIM00010).toHaveLength(1);
+  });
+});
+
+describe('mapKoa110RepeatedValues（AIJ00010 事業専従者明細、issue #307）', () => {
+  test('事業専従者1人分の明細行を出力する', () => {
+    const personalDeductions = withFamilyEmployee({
+      id: 'f1',
+      name: '配偶者花子',
+      relation: 'spouse',
+      age: 40,
+      monthsWorked: 12,
+    });
+    const out = mapKoa110RepeatedValues(
+      ctx({ totalRevenue: '5000000', netIncome: '4000000' }, [], personalDeductions),
+    );
+    expect(out.AIJ00010).toHaveLength(1);
+    const row = out.AIJ00010![0]!;
+    expect(row.AIJ00020).toBe('配偶者花子');
+    expect(row.AIJ00030).toBe('40');
+    expect(row.AIJ00040).toBe('配偶者');
+    expect(row.AIJ00050).toBe('12');
+  });
+
+  test('事業専従者がいなければ AIJ00010 自体を出力しない', () => {
+    const out = mapKoa110RepeatedValues(ctx({ totalRevenue: '5000000', netIncome: '4000000' }));
+    expect(out.AIJ00010).toBeUndefined();
+  });
+
+  test('要件を満たさない専従者（14歳）は明細に出力しない', () => {
+    const personalDeductions = withFamilyEmployee({
+      id: 'f1',
+      name: '子太郎',
+      relation: 'other',
+      age: 14,
+      monthsWorked: 12,
+    });
+    const out = mapKoa110RepeatedValues(
+      ctx({ totalRevenue: '5000000', netIncome: '4000000' }, [], personalDeductions),
+    );
+    expect(out.AIJ00010).toBeUndefined();
   });
 });

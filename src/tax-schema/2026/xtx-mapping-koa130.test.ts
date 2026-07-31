@@ -3,7 +3,7 @@ import { D } from '../../lib/decimal';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
 import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-import type { FixedAsset } from '../../db/types';
+import type { FixedAsset, PersonalDeductionFamilyEmployee } from '../../db/types';
 import type { PLReport } from '../../domain/reports';
 
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
@@ -11,6 +11,7 @@ import type { PLReport } from '../../domain/reports';
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
 function withRealEstate(
   realEstateIncome: RealEstateIncomeCtx,
+  familyEmployees: PersonalDeductionFamilyEmployee[] = [],
 ): NonNullable<XtxContext['personalDeductions']> {
   return {
     socialInsurancePaid: D(0),
@@ -29,6 +30,7 @@ function withRealEstate(
     isWorkingStudent: false,
     dependents: [],
     realEstateIncome,
+    ...(familyEmployees.length > 0 ? { familyEmployees } : {}),
   };
 }
 
@@ -169,23 +171,46 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00120).toBe('40000');
   });
 
-  test('貸倒引当金繰入額（不動産）は白色に引当金制度が無いため出力しない', () => {
+  test('貸倒引当金繰入額（不動産）は転記せず、所得金額へ加算し直す', () => {
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({
+          revenue: [
+            {
+              accountCode: '4210',
+              accountName: '賃貸料（不動産）',
+              category: 'revenue',
+              amount: '3000000',
+              displayOrder: 210,
+            },
+          ],
           expense: [
+            {
+              accountCode: '5310',
+              accountName: '租税公課（不動産）',
+              category: 'expense',
+              amount: '200000',
+              displayOrder: 1310,
+            },
             {
               accountCode: '5410',
               accountName: '貸倒引当金繰入額（不動産）',
               category: 'expense',
-              amount: '10000',
+              amount: '100000',
               displayOrder: 1395,
             },
           ],
+          totalRevenue: '3000000',
+          totalExpense: '300000',
+          netIncome: '2700000',
         }),
       }),
     );
-    expect(Object.values(out)).not.toContain('10000');
+    expect(out.AKG00160).toBe('200000');
+    // 対応欄が無いので転記しない
+    expect(Object.values(out)).not.toContain('100000');
+    // 転記していない分は所得へ戻す：2,700,000 + 100,000
+    expect(out.AKG00230).toBe('2800000');
   });
 
   test('土地等取得の負債利子額を確定額のまま出力する', () => {
@@ -199,6 +224,92 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
       }),
     );
     expect(out.AKG00260).toBe('20000');
+  });
+
+  test('事業的規模なら専従者控除（AKG00240）・控除後所得（AKG00250）を出力する（issue #307）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    // 専従者控除前所得金額400万→配偶者の定額86万 と 400万÷2=200万 のいずれか低い方＝86万
+    expect(out.AKG00240).toBe('860000');
+    expect(out.AKG00250).toBe('3140000');
+  });
+
+  test('事業的規模でなければ専従者がいても専従者控除・控除後所得は出力しない', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: false }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKG00240).toBeUndefined();
+    expect(out.AKG00250).toBeUndefined();
+  });
+});
+
+describe('mapKoa130RepeatedValues（AKJ00010 事業専従者明細、issue #307）', () => {
+  test('事業的規模なら事業専従者の明細行を出力する', () => {
+    const out = mapKoa130RepeatedValues(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKJ00010).toHaveLength(1);
+    const row = out.AKJ00010![0]!;
+    expect(row.AKJ00020).toBe('配偶者花子');
+    expect(row.AKJ00030).toBe('40');
+    expect(row.AKJ00040).toBe('配偶者');
+    expect(row.AKJ00050).toBe('12');
+  });
+
+  test('事業的規模でなければ専従者がいても明細行を出力しない', () => {
+    const out = mapKoa130RepeatedValues(
+      ctx({
+        realEstatePl: realEstatePl({ netIncome: '4000000' }),
+        personalDeductions: withRealEstate({ businessScale: false }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    expect(out.AKJ00010).toBeUndefined();
   });
 });
 
@@ -247,6 +358,27 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
     );
     expect(repeats.AKK00010).toHaveLength(1);
     expect(repeats.AKK00010?.[0]?.AKK00020).toBe('賃貸アパート');
+  });
+
+  test('定率法：AKK00070（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    const repeats = mapKoa130RepeatedValues(
+      ctx({
+        fixedAssets: [
+          realEstateAsset({
+            acquisitionDate: '2025-01-01',
+            acquisitionCost: '1000000',
+            usefulLifeYears: 5,
+            depreciationMethod: 'declining-balance',
+          }),
+        ],
+      }),
+    );
+    const row = repeats.AKK00010![0]!;
+    expect(row.AKK00060).toBe('1000000');
+    expect(row.AKK00070).toBe('600000');
+    expect(row.AKK00150).toBe('240000');
   });
 
   test('借入金利子の内訳（AKL00000）は公式上限2件で切り詰める', () => {
