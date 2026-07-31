@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { liveQuery } from 'dexie';
   import { db } from '../db/db';
   import { newId } from '../lib/id';
@@ -89,19 +90,11 @@
   const isDirty = $derived(
     editing !== null && editingSnapshot !== null && JSON.stringify(editing) !== editingSnapshot,
   );
+  // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
+  const unsavedToken = {};
   $effect(() => {
-    if (!isDirty) {
-      return;
-    }
-    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
-    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload);
-    };
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
   });
 
   function startNew() {
