@@ -886,5 +886,7 @@
   "invoices_print_date": "Date issued",
   "invoices_print_registration_number": "Registration number",
   "invoices_print_rate": "Rate",
-  "invoices_print_tax_at_rate": "Tax at {rate}%"
+  "invoices_print_tax_at_rate": "Tax at {rate}%",
+  "import_encoding_error": "This file cannot be decoded with the character encoding of the selected source ({parser}). Check that the correct source is selected.",
+  "receipt_date_required": "Enter the date in YYYY-MM-DD format."
 }

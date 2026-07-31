@@ -18,6 +18,8 @@
   let processing = $state(false);
   let error = $state('');
   let success = $state('');
+  // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
+  let committing = $state(false);
 
   let extracted = $state<OrderExtracted | null>(null);
   let reviewItems = $state<ReviewItem[]>([]);
@@ -117,7 +119,7 @@
   }
 
   async function commit() {
-    if (!extracted) {
+    if (!extracted || committing) {
       return;
     }
     const data = extracted;
@@ -153,6 +155,7 @@
       }
     }
 
+    committing = true;
     try {
       const entryId = newId();
       const now = Date.now();
@@ -216,6 +219,8 @@
       reset();
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+    } finally {
+      committing = false;
     }
   }
 
@@ -410,7 +415,8 @@
         <button
           type="button"
           onclick={commit}
-          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          disabled={committing}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.order_submit()}
         </button>
