@@ -154,6 +154,35 @@ describe('issueInvoice', () => {
     expect(qi1.number).toBe(`${DEFAULT_QUOTE_PREFIX}-2026-0001`);
   });
 
+  test('12/31 付の文書も件数に入り、番号が重複しない', async () => {
+    const vendorId = await seedVendor();
+    const d1 = createDraftInvoice('invoice', vendorId, '2026-12-31');
+    d1.lineItems = [lineItem({})];
+    const i1 = await issueInvoice(d1, DEFAULT_INVOICE_PREFIX);
+    expect(i1.number).toBe(`${DEFAULT_INVOICE_PREFIX}-2026-0001`);
+
+    const d2 = createDraftInvoice('invoice', vendorId, '2026-12-31');
+    d2.lineItems = [lineItem({})];
+    const i2 = await issueInvoice(d2, DEFAULT_INVOICE_PREFIX);
+    expect(i2.number).toBe(`${DEFAULT_INVOICE_PREFIX}-2026-0002`);
+  });
+
+  test('同じ下書きを二度発行しても仕訳・売掛金は1件ずつしか作られない', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({})];
+    // ボタン二度押し相当：どちらも同じローカルスナップショット（status='draft'）を渡す
+    const results = await Promise.allSettled([
+      issueInvoice(draft, DEFAULT_INVOICE_PREFIX),
+      issueInvoice(draft, DEFAULT_INVOICE_PREFIX),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+    expect(await db.journalEntries.count()).toBe(1);
+    expect(await db.arApEntries.count()).toBe(1);
+    expect(await db.invoices.count()).toBe(1);
+  });
+
   test('下書き以外は発行できない', async () => {
     const vendorId = await seedVendor();
     const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');

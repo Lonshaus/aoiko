@@ -2,6 +2,7 @@
   import { liveQuery } from 'dexie';
   import { D, formatJPY } from '../lib/decimal';
   import { toISODateLocal } from '../lib/date';
+  import { assignInputNumber, assignInputString } from '../lib/number-input';
   import {
     buildAll,
     buildMultiYearBS,
@@ -673,7 +674,8 @@
       <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
       <input
         type="number"
-        bind:value={year}
+        value={year}
+        oninput={assignInputNumber((v) => (year = v))}
         min="2020"
         max="2099"
         step="1"
@@ -1136,7 +1138,8 @@
           <span class="text-muted-foreground">{m.reports_trend_from()}</span>
           <input
             type="number"
-            bind:value={trendStartYear}
+            value={trendStartYear}
+            oninput={assignInputNumber((v) => (trendStartYear = v))}
             min="2020"
             max="2099"
             step="1"
@@ -1147,7 +1150,8 @@
           <span class="text-muted-foreground">{m.reports_trend_to()}</span>
           <input
             type="number"
-            bind:value={trendEndYear}
+            value={trendEndYear}
+            oninput={assignInputNumber((v) => (trendEndYear = v))}
             min="2020"
             max="2099"
             step="1"
@@ -1315,7 +1319,8 @@
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
-                  bind:value={d.revenueBudget}
+                  value={d.revenueBudget}
+                  oninput={assignInputString((v) => (d.revenueBudget = v))}
                   min="0"
                   step="1"
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
@@ -1333,7 +1338,8 @@
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
-                  bind:value={d.expenseBudget}
+                  value={d.expenseBudget}
+                  oninput={assignInputString((v) => (d.expenseBudget = v))}
                   min="0"
                   step="1"
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
@@ -1401,7 +1407,8 @@
         <span class="text-muted-foreground">{m.reports_arap_amount()}</span>
         <input
           type="number"
-          bind:value={newArApAmount}
+          value={newArApAmount}
+          oninput={assignInputString((v) => (newArApAmount = v))}
           min="0"
           step="1"
           required
@@ -1501,7 +1508,8 @@
           <span class="text-muted-foreground">{m.reports_cashflow_horizon()}</span>
           <input
             type="number"
-            bind:value={cashFlowHorizon}
+            value={cashFlowHorizon}
+            oninput={assignInputNumber((v) => (cashFlowHorizon = v))}
             min="1"
             max="24"
             step="1"
