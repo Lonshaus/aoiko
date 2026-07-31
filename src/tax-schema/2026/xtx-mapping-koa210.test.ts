@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
-import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
+import {
+  BsExtraAccountOverflowError,
+  mapKoa210RepeatedValues,
+  mapKoa210Values,
+} from './xtx-mapping-koa210';
 import type { XtxContext } from './xtx';
 import type { IncomeDeductionInput } from './income-deductions';
-import type { PLReport } from '../../domain/reports';
+import type { BSRow, PLReport } from '../../domain/reports';
 import type { FixedAsset } from '../../db/types';
 
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
@@ -147,11 +151,12 @@ describe('mapKoa210Values 売上原価（期首棚卸・仕入・期末棚卸）
               amount: '2000000',
               displayOrder: 20,
             },
+            // 期末棚卸の標準仕訳は貸方のため buildPL の出力はマイナスになる
             {
               accountCode: '5030',
               accountName: '期末商品棚卸高',
               category: 'expense' as const,
-              amount: '150000',
+              amount: '-150000',
               displayOrder: 30,
             },
           ],
@@ -164,6 +169,7 @@ describe('mapKoa210Values 売上原価（期首棚卸・仕入・期末棚卸）
     );
     expect(out.AMF00120).toBe('100000'); // 期首商品（製品）棚卸高
     expect(out.AMF00130).toBe('2000000'); // 仕入金額（製品製造原価）
+    // 様式の期末棚卸欄は売上原価から差し引かれる欄なので符号を戻して出力する
     expect(out.AMF00150).toBe('150000'); // 期末商品（製品）棚卸高
     // KOA110 と同様に差引原価（AMF00160）は算出・出力しない
     expect(out.AMF00160).toBeUndefined();
@@ -237,6 +243,179 @@ describe('mapKoa210Values 貸借対照表（期末列への出力）', () => {
   });
 });
 
+function bsRow(
+  overrides: Partial<BSRow> & Pick<BSRow, 'accountName' | 'category' | 'balance'>,
+): BSRow {
+  return { accountCode: '0000', ...overrides };
+}
+
+describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所得金額転記・貸借一致', () => {
+  test('issue の数値：減価償却累計額（間接法）は資産の追加科目枠へマイナスで入り、AMG00750 に所得金額が入り、両側が一致する', () => {
+    // issue #294 の元入金 500,000・工具器具備品 1,000,000・減価償却累計額 -400,000 はそのまま採用。
+    // 所得金額は issue 記載の 3,050,000 のままだと（事業主貸/借 抜きの）この最小構成では
+    // 貸借が一致しないため、貸借一致の性質を検証できるよう 100,000 に変更している。
+    const values = mapKoa210Values(
+      ctx({
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [
+            bsRow({ accountName: '工具器具備品', category: 'asset', balance: '1000000' }),
+            bsRow({ accountName: '減価償却累計額', category: 'asset', balance: '-400000' }),
+          ],
+          liabilities: [],
+          equity: [bsRow({ accountName: '元入金', category: 'equity', balance: '500000' })],
+          netIncome: '100000',
+          totalAssets: '600000',
+          totalLiabilitiesAndEquity: '600000',
+          balanced: true,
+        },
+      }),
+    );
+    const repeated = mapKoa210RepeatedValues(
+      ctx({
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [
+            bsRow({ accountName: '工具器具備品', category: 'asset', balance: '1000000' }),
+            bsRow({ accountName: '減価償却累計額', category: 'asset', balance: '-400000' }),
+          ],
+          liabilities: [],
+          equity: [bsRow({ accountName: '元入金', category: 'equity', balance: '500000' })],
+          netIncome: '100000',
+          totalAssets: '600000',
+          totalLiabilitiesAndEquity: '600000',
+          balanced: true,
+        },
+      }),
+    );
+    expect(values.AMG00400).toBe('1000000'); // 工具器具備品（期末）
+    expect(values.AMG00740).toBe('500000'); // 元入金（期末）
+    expect(values.AMG00750).toBe('100000'); // 青色申告特別控除前の所得金額
+    const extraAssetRows = repeated.AMG00025!;
+    expect(extraAssetRows).toHaveLength(1);
+    expect(extraAssetRows[0]!.AMG00030).toBe('減価償却累計額');
+    expect(extraAssetRows[0]!.AMG00420).toBe('-400000'); // 契約通り先頭マイナスを維持
+    const assetSide = D(values.AMG00400!).plus(extraAssetRows[0]!.AMG00420!);
+    const liabilityEquitySide = D(values.AMG00740!).plus(values.AMG00750!);
+    expect(assetSide.toString()).toBe('600000');
+    expect(liabilityEquitySide.toString()).toBe('600000');
+    expect(assetSide.equals(liabilityEquitySide)).toBe(true);
+  });
+
+  test('利用者独自科目（様式に欄が無い）も追加科目枠に入り、消えない', () => {
+    const repeated = mapKoa210RepeatedValues(
+      ctx({
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [bsRow({ accountName: '暗号資産', category: 'asset', balance: '50000' })],
+          liabilities: [],
+          equity: [],
+          netIncome: '0',
+          totalAssets: '50000',
+          totalLiabilitiesAndEquity: '0',
+          balanced: false,
+        },
+      }),
+    );
+    expect(repeated.AMG00025).toEqual([{ AMG00030: '暗号資産', AMG00420: '50000' }]);
+  });
+
+  test('資産の追加科目枠（maxOccurs 7）を超えると、超過科目名を含むエラーで例外を投げる', () => {
+    const assets = Array.from({ length: 8 }, (_, i) =>
+      bsRow({ accountName: `独自科目${i}`, category: 'asset' as const, balance: '1000' }),
+    );
+    expect(() =>
+      mapKoa210RepeatedValues(
+        ctx({
+          bs: {
+            year: 2026,
+            asOf: '2026-12-31',
+            assets,
+            liabilities: [],
+            equity: [],
+            netIncome: '0',
+            totalAssets: '8000',
+            totalLiabilitiesAndEquity: '0',
+            balanced: false,
+          },
+        }),
+      ),
+    ).toThrowError(/独自科目0.*独自科目7|独自科目7.*独自科目0/s);
+  });
+
+  test('負債・資本の追加科目枠（AMG00465＋AMG00475、計 14）を超えると例外を投げる', () => {
+    const liabilities = Array.from({ length: 15 }, (_, i) =>
+      bsRow({ accountName: `負債独自${i}`, category: 'liability' as const, balance: '1000' }),
+    );
+    expect(() =>
+      mapKoa210RepeatedValues(
+        ctx({
+          bs: {
+            year: 2026,
+            asOf: '2026-12-31',
+            assets: [],
+            liabilities,
+            equity: [],
+            netIncome: '0',
+            totalAssets: '0',
+            totalLiabilitiesAndEquity: '15000',
+            balanced: false,
+          },
+        }),
+      ),
+    ).toThrow(BsExtraAccountOverflowError);
+  });
+
+  test('全科目が様式の欄に一致する場合、追加科目の繰り返しブロックは出力しない（回帰防止）', () => {
+    const repeated = mapKoa210RepeatedValues(
+      ctx({
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [
+            bsRow({
+              accountCode: '1110',
+              accountName: '現金',
+              category: 'asset',
+              balance: '100000',
+            }),
+            bsRow({
+              accountCode: '1510',
+              accountName: '工具器具備品',
+              category: 'asset',
+              balance: '300000',
+            }),
+          ],
+          liabilities: [
+            bsRow({
+              accountCode: '2110',
+              accountName: '買掛金',
+              category: 'liability',
+              balance: '80000',
+            }),
+          ],
+          equity: [
+            bsRow({
+              accountCode: '3110',
+              accountName: '元入金',
+              category: 'equity',
+              balance: '320000',
+            }),
+          ],
+          netIncome: '0',
+          totalAssets: '400000',
+          totalLiabilitiesAndEquity: '400000',
+          balanced: true,
+        },
+      }),
+    );
+    expect(repeated).toEqual({});
+  });
+});
+
 function asset(overrides: Partial<FixedAsset> & { id: string }): FixedAsset {
   return {
     name: '備品',
@@ -259,6 +438,7 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
     const row = rows![0]!;
     expect(row.AMF01610).toBe('ノートPC');
     expect(row.AMF01640).toBe('300000');
+    expect(row.AMF01650).toBe('300000'); // 定額法の償却の基礎は常に取得価額
     expect(row.AMF01660).toBe('定額法');
     expect(row.AMF01670).toBe('4');
     expect(row.AMF01730).toBe('75000'); // 300000 × 0.250（定額法・全年）
@@ -268,6 +448,29 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
     expect(row.AMF01780).toBe('106250'); // 未償却残高
     // gen:yymm 複合型は繰り返しブロックで表現できないため取得年月は出力しない
     expect(row.AMF01630).toBeUndefined();
+  });
+
+  test('定率法：AMF01650（償却の基礎になる金額）は取得価額ではなく前年末未償却残高', () => {
+    // PC 100万円・耐用5年・定率法・2025-01 取得、2026年分を出力
+    // 1年目(2025): 1,000,000 × 0.4 = 400,000 → 期末簿価 600,000
+    // 2年目(2026): 償却の基礎 = 600,000、償却費 = 600,000 × 0.4 = 240,000
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        fixedAssets: [
+          asset({
+            id: 'a1',
+            acquisitionDate: '2025-01-01',
+            acquisitionCost: '1000000',
+            usefulLifeYears: 5,
+            depreciationMethod: 'declining-balance',
+          }),
+        ],
+      }),
+    );
+    const row = out.AMF01600![0]!;
+    expect(row.AMF01640).toBe('1000000');
+    expect(row.AMF01650).toBe('600000');
+    expect(row.AMF01730).toBe('240000');
   });
 
   test('専用割合は常に 100%（必要経費算入額 = 償却費）', () => {

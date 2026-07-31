@@ -53,7 +53,7 @@ function installmentAmount(
 //  48万円以下：義務なし
 //  48万円超 400万円以下：年1回（前年額×6/12、対象期間1/1-6/30、期限8/31）
 //  400万円超 4800万円以下：年3回（前年額×3/12、各四半期、期限は各四半期末+2月）
-//  4800万円超：年11回（前年額×1/12、毎月、期限は各月末+2月）
+//  4800万円超：年11回（前年額×1/12、毎月、1〜3月分は5/31・4月分以降は各月末+2月）
 export function interimFilingObligation(
   year: number,
   priorYearNationalTax: Decimal,
@@ -94,10 +94,14 @@ export function interimFilingObligation(
   const amount = installmentAmount(priorYearNationalTax, 12);
   const installments: InterimInstallment[] = [];
   for (let month = 1; month <= 11; month++) {
+    // 個人事業者は課税期間開始直後の分の期限が繰り下がる。消費税法42条1項が
+    // 1か月目を「開始の日から二月を経過した日から二月以内」とし、措令46条の2
+    // 第1項がその「二月」を「三月」と読み替えるため、1月分〜3月分は揃って5月31日。
+    const dueDate = month <= 3 ? ymd(year, 5, 31) : monthEndAfter(year, month, 2);
     installments.push({
       start: ymd(year, month, 1),
       end: ymd(year, month, lastDayOfMonth(year, month)),
-      dueDate: monthEndAfter(year, month, 2),
+      dueDate,
       amount,
     });
   }
