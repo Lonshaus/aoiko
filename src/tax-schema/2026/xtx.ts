@@ -13,7 +13,12 @@
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
-import type { FixedAsset, PersonalDeductionInput } from '../../db/types';
+import type {
+  FixedAsset,
+  PersonalDeductionFamilyEmployee,
+  PersonalDeductionInput,
+} from '../../db/types';
+import { familyEmployeeExclusion } from './family-employee-deduction';
 import { D, type Decimal } from '../../lib/decimal';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
@@ -27,11 +32,26 @@ import type { AoiroDeductionKind } from './aoiro-deduction';
 import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
+import {
+  mapKoa020LeafValues,
+  mapKoa020RepeatedValues,
+  mapKoa020Values,
+} from './xtx-mapping-koa020';
 import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
+// 不動産所得の損益（realEstatePl）はあるのに、青色申告特別控除の上限
+// （10万/65万）を決める businessScale 等の入力（personalDeductions.realEstateIncome）が
+// 無い状態。上限を推測すると誤った金額の申告書を作ってしまうため、出力を拒否する。
+export class RealEstateIncomeInputMissingError extends Error {
+  constructor() {
+    super(
+      '不動産所得の損益があるのに、所得控除画面の不動産所得欄が未入力です。所得控除画面で不動産所得のセクションを入力・保存してください。',
+    );
+    this.name = 'RealEstateIncomeInputMissingError';
+  }
+}
 // 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
@@ -65,6 +85,7 @@ export interface XtxContext {
     TaxCreditInput &
     OtherIncomeInput & {
       realEstateIncome?: RealEstateIncomeCtx;
+      familyEmployees?: PersonalDeductionFamilyEmployee[];
     };
 }
 
@@ -93,6 +114,8 @@ function toDec(s: string): Decimal {
 export function personalDeductionsToCtx(
   stored: Omit<PersonalDeductionInput, 'year' | 'updatedAt'>,
 ): NonNullable<XtxContext['personalDeductions']> {
+  const familyEmployees = stored.familyEmployees ?? [];
+  const exclusion = familyEmployeeExclusion(familyEmployees, stored.dependents);
   return {
     socialInsurancePaid: toDec(stored.socialInsurancePaid),
     smallBusinessMutualAidPaid: toDec(stored.smallBusinessMutualAidPaid),
@@ -124,17 +147,19 @@ export function personalDeductionsToCtx(
     isSingleParent: stored.isSingleParent,
     isWidow: stored.isWidow,
     isWorkingStudent: stored.isWorkingStudent,
-    ...(stored.spouse
+    ...(stored.spouse && !exclusion.spouseExcluded
       ? { spouse: { totalIncome: toDec(stored.spouse.totalIncome), age: stored.spouse.age } }
       : {}),
-    dependents: stored.dependents.map((d) => ({
-      id: d.id,
-      age: d.age,
-      totalIncome: toDec(d.totalIncome),
-      ...(d.livesWithLinealAscendant !== undefined
-        ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
-        : {}),
-    })),
+    dependents: stored.dependents
+      .filter((d) => !exclusion.excludedDependentIds.has(d.id))
+      .map((d) => ({
+        id: d.id,
+        age: d.age,
+        totalIncome: toDec(d.totalIncome),
+        ...(d.livesWithLinealAscendant !== undefined
+          ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
+          : {}),
+      })),
     ...(stored.dividendDeductionAmount !== undefined
       ? { dividendDeductionAmount: toDec(stored.dividendDeductionAmount) }
       : {}),
@@ -201,6 +226,7 @@ export function personalDeductionsToCtx(
           },
         }
       : {}),
+    ...(familyEmployees.length > 0 ? { familyEmployees } : {}),
   };
 }
 
@@ -233,6 +259,9 @@ export function buildXtx2026(ctx: XtxContext): string {
           leafValues: mapKoa210Values(ctx),
           repeats: mapKoa210RepeatedValues(ctx),
         };
+  if (ctx.realEstatePl && !ctx.personalDeductions?.realEstateIncome) {
+    throw new RealEstateIncomeInputMissingError();
+  }
   const realEstateStatementForm: XtxFormInput | undefined = !ctx.realEstatePl
     ? undefined
     : ctx.filingType === 'white'
@@ -254,6 +283,7 @@ export function buildXtx2026(ctx: XtxContext): string {
         schema: KOA020_SCHEMA,
         values: mapKoa020Values(ctx),
         leafValues: mapKoa020LeafValues(ctx),
+        repeats: mapKoa020RepeatedValues(ctx),
       },
       businessStatementForm,
       ...(realEstateStatementForm ? [realEstateStatementForm] : []),

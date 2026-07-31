@@ -89,6 +89,7 @@ describe('computeDepreciation - straight-line', () => {
     const r = computeDepreciation(asset({ acquisitionDate: '2026-04-15' }), 2025);
     expect(r.amount).toBe('0');
     expect(r.bookValueEnd).toBe('300000');
+    expect(r.depreciationBase).toBe('300000');
   });
 
   test('残存簿価 1 円残し：最終年度は端数を上限', () => {
@@ -126,6 +127,8 @@ describe('computeDepreciation - straight-line', () => {
     });
     const r = computeDepreciation(a, 2028);
     expect(r.amount).toBe('0');
+    // 除却年（2027）時点の償却の基礎（定額法＝取得価額）をそのまま引き継ぐ
+    expect(r.depreciationBase).toBe('300000');
   });
 
   test('処分年度は処分月まで月割（定額法）', () => {
@@ -154,6 +157,8 @@ describe('computeDepreciation - declining-balance (200%)', () => {
     // 1,000,000 × 0.400 × 12/12 = 400,000
     expect(r.amount).toBe('400000');
     expect(r.bookValueEnd).toBe('600000');
+    // 取得年の償却の基礎になる金額は取得価額そのもの
+    expect(r.depreciationBase).toBe('1000000');
   });
 
   test('耐用年数 5 年・1月取得・2年目', () => {
@@ -167,6 +172,21 @@ describe('computeDepreciation - declining-balance (200%)', () => {
     // 期首簿価 600,000 × 0.400 = 240,000
     expect(r.amount).toBe('240000');
     expect(r.bookValueEnd).toBe('360000');
+    // 前年以前取得：償却の基礎は前年末未償却残高（600,000）
+    expect(r.depreciationBase).toBe('600000');
+  });
+
+  test('耐用年数 5 年・1月取得・3年目', () => {
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '1000000',
+      usefulLifeYears: 5,
+      depreciationMethod: 'declining-balance',
+    });
+    const r = computeDepreciation(a, 2028);
+    // 期首簿価 360,000 × 0.400 = 144,000
+    expect(r.amount).toBe('144000');
+    expect(r.depreciationBase).toBe('360000');
   });
 
   test('耐用年数 5 年・1月取得・最終年で残存簿価 1 円に収束', () => {
@@ -218,6 +238,27 @@ describe('computeDepreciation - declining-balance (200%)', () => {
     });
     const r4 = computeDepreciation(a, 2029);
     expect(r4.amount).toBe('108000');
+  });
+
+  test('改定償却率切替年以後は改定取得価額（期首未償却残高）で償却の基礎が凍結される', () => {
+    // 上のケースの続き：4年目（2029）に改定モードへ切替、改定取得価額 = 216,000 で以後固定。
+    // 5年目（2030）は残存簿価調整で償却費は 107,999 になるが、償却の基礎は 216,000 のまま。
+    // 6年目（2031）は完全償却後で償却費 0 だが、償却の基礎は依然 216,000。
+    const a = asset({
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '1000000',
+      usefulLifeYears: 5,
+      depreciationMethod: 'declining-balance',
+    });
+    const switchYear = computeDepreciation(a, 2029);
+    const nextYear = computeDepreciation(a, 2030);
+    const yearAfter = computeDepreciation(a, 2031);
+    expect(switchYear.depreciationBase).toBe('216000');
+    expect(nextYear.depreciationBase).toBe('216000');
+    expect(yearAfter.depreciationBase).toBe('216000');
+    expect(nextYear.amount).toBe('107999');
+    expect(nextYear.fullyDepreciated).toBe(true);
+    expect(yearAfter.amount).toBe('0');
   });
 });
 

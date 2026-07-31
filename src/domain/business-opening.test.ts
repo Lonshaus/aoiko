@@ -47,6 +47,26 @@ describe('computeConvertedAssetBasis', () => {
     const result = computeConvertedAssetBasis('2026-07-01', '2026-07-15', '100000', 5);
     expect(result.businessStartBasis.toString()).toBe('100000');
   });
+
+  it('長期保有でも減価の額は取得価額の95%が上限（未償却残高は負にならない）', () => {
+    // 耐用5年→1.5倍で7年→0.142。1年あたり 300000×0.9×0.142＝38340。
+    // 2016-06 取得・2026-01 供用は9年（6ヶ月以上で切上げ）→ 上限が無ければ 345,060 で
+    // 未償却残高が −45,060 になる。上限 300000×0.95＝285,000 で頭打ちにする。
+    const result = computeConvertedAssetBasis('2016-06-01', '2026-01-01', '300000', 5);
+    expect(result.nonBusinessDepreciation.toString()).toBe('285000');
+    expect(result.businessStartBasis.toString()).toBe('15000');
+  });
+
+  it('自宅兼事務所（木造22年・鉄筋47年）でも算定できる', () => {
+    // 木造22年→1.5倍で33年→0.031。1年あたり 20,000,000×0.9×0.031＝558,000。
+    const wooden = computeConvertedAssetBasis('2021-01-01', '2026-01-01', '20000000', 22);
+    expect(wooden.nonBusinessDepreciation.toString()).toBe('2790000');
+    expect(wooden.businessStartBasis.toString()).toBe('17210000');
+    // 鉄筋47年→1.5倍で70年→0.015。1年あたり 30,000,000×0.9×0.015＝405,000。
+    const rc = computeConvertedAssetBasis('2021-01-01', '2026-01-01', '30000000', 47);
+    expect(rc.nonBusinessDepreciation.toString()).toBe('2025000');
+    expect(rc.businessStartBasis.toString()).toBe('27975000');
+  });
 });
 
 describe('非業務期間の月数計算（応当日ベース）', () => {
