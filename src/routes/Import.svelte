@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import {
     commitImport,
@@ -48,6 +49,13 @@
   let knownSubAccountId = $state('');
   let duplicateNotice = $state('');
   let importing = $state(false);
+  // 解析済みの行は取込を押すまで DB に無い。画面を離れると読み直しになる。
+  const isDirty = $derived(rows.length > 0 && !importing);
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   let llmClassifying = $state(false);
   let llmStatus = $state('');
   let llmConfirmOpen = $state(false);
