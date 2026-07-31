@@ -886,5 +886,7 @@
   "invoices_print_date": "發行日",
   "invoices_print_registration_number": "登錄號碼",
   "invoices_print_rate": "稅率",
-  "invoices_print_tax_at_rate": "稅率{rate}%消費稅額"
+  "invoices_print_tax_at_rate": "稅率{rate}%消費稅額",
+  "import_encoding_error": "這個檔案無法用目前選擇的匯入來源（{parser}）的字元編碼讀取。請確認來源選擇是否正確。",
+  "receipt_date_required": "請以 YYYY-MM-DD 格式輸入日期。"
 }

@@ -20,7 +20,7 @@
   import { ledger } from '../stores/ledger.svelte';
   import { taxRateForCategory } from '../lib/tax-category';
   import { exceedsLimit, formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
-  import { decodeCsv } from '../lib/encoding';
+  import { CsvEncodingError, decodeCsv } from '../lib/encoding';
   import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
 
@@ -126,7 +126,13 @@
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      if (e instanceof CsvEncodingError) {
+        error = m.import_encoding_error({ parser: currentParser.displayName });
+        // 取込元を選び直して同じファイルを再選択できるようにする
+        input.value = '';
+      } else {
+        error = e instanceof Error ? e.message : String(e);
+      }
     }
   }
 
