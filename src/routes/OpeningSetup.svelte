@@ -188,7 +188,7 @@
       if (!(await filedYearGuard.confirm([year], { detail }))) {
         return;
       }
-      await generateOpeningEntries({
+      const result = await generateOpeningEntries({
         businessStartDate,
         expenses,
         expenseAmortization,
@@ -206,6 +206,10 @@
         })),
         customItems: items,
       });
+      if ('reason' in result) {
+        error = m.opening_already_exists();
+        return;
+      }
       step = 'done';
     } catch (e) {
       error = describeStorageError(e);
