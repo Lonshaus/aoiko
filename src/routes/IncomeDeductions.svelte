@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
@@ -132,6 +133,8 @@
   }
 
   let saved = $state(false);
+  // 最後に保存した内容の署名。null の間は読み込み前なので未保存扱いにしない。
+  let savedSnapshot = $state<string | null>(null);
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
   // 抱えたままなので保存を禁じる（新年度キーへの誤書き込み防止）。
   let loadedYear = $state<number | null>(null);
@@ -287,6 +290,8 @@
       aoiroDeductionKindCache = aoiroDeductionKind;
       realEstatePlCache = realEstatePl;
       loadedYear = yr;
+      // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
+      savedSnapshot = untrack(() => draftSignature);
     })();
   });
 
@@ -392,6 +397,23 @@
       : {}),
   });
 
+  const draftSignature = $derived(JSON.stringify(recordDraft));
+  // 保存済みの内容と一致しなくなったら未保存。約40項目あり、失うと打ち直しになる。
+  const isDirty = $derived(savedSnapshot !== null && draftSignature !== savedSnapshot);
+  $effect(() => {
+    if (!isDirty) {
+      return;
+    }
+    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
+    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  });
   const ctx = $derived(personalDeductionsToCtx(recordDraft));
   // 事業所得（青色控除は不動産所得との共有枠配分後）。ledger 由来の pl はキャッシュから、
   // businessScale・土地利子額は現在編集中の ctx から読むため、両方の変更に反応する。
@@ -474,6 +496,7 @@
       return;
     }
     await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    savedSnapshot = draftSignature;
     saved = true;
   }
 </script>
@@ -1313,7 +1336,7 @@
   </section>
 
   <div class="flex items-center gap-3 justify-end">
-    {#if saved}
+    {#if saved && !isDirty}
       <span class="text-xs text-green-600">{m.income_deductions_saved()}</span>
     {/if}
     <button
