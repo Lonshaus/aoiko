@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { decodeCsv } from './encoding';
+import { CsvEncodingError, decodeCsv } from './encoding';
 import { mufgCardParser } from '../parsers/mufg-card';
 
 describe('decodeCsv - shift_jis (CP932)', () => {
@@ -42,5 +42,17 @@ describe('decodeCsv - utf-8', () => {
     const body = new TextEncoder().encode('日付,金額');
     const bytes = Uint8Array.from([...bom, ...body]);
     expect(decodeCsv(bytes, 'utf-8')).toBe('日付,金額');
+  });
+});
+
+describe('文字コードの取り違え検出', () => {
+  test('UTF-8 のバイト列を shift_jis として読むと CsvEncodingError', () => {
+    const utf8 = new TextEncoder().encode('日付,摘要,金額\n2026-07-01,セブンイレブン,1200');
+    expect(() => decodeCsv(utf8, 'shift_jis')).toThrow(CsvEncodingError);
+  });
+
+  test('正しい文字コードならそのまま復号する', () => {
+    const utf8 = new TextEncoder().encode('日付,摘要,金額');
+    expect(decodeCsv(utf8, 'utf-8')).toBe('日付,摘要,金額');
   });
 });

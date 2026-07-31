@@ -78,9 +78,11 @@ async function nextDocumentNumber(
   year: number,
   prefix: string,
 ): Promise<string> {
+  // Dexie の between は既定で上界を含まない。含めないと 12/31 付の文書が件数に入らず、
+  // 同じ日に2枚発行すると番号が重複する（適格請求書番号の重複）。
   const issued = await db.invoices
     .where('[documentType+date]')
-    .between([documentType, `${year}-01-01`], [documentType, `${year}-12-31`])
+    .between([documentType, `${year}-01-01`], [documentType, `${year}-12-31`], true, true)
     .and((inv) => inv.status !== 'draft')
     .count();
   return `${prefix}-${year}-${String(issued + 1).padStart(4, '0')}`;
@@ -125,45 +127,15 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
     throw new InvoiceError(`${year} 年は申告済みのためロックされています。発行できません。`);
   }
 
-  const number = await nextDocumentNumber(invoice.documentType, year, prefix);
-
-  if (invoice.documentType === 'quote') {
-    const updated: Invoice = { ...invoice, status: 'issued', number, issuedAt: Date.now() };
-    await db.invoices.put(updated);
-    return updated;
-  }
-
   const groups = groupLineItemsByTaxRate(invoice.lineItems);
   const total = groups.reduce((sum, g) => sum.plus(g.grossAmount), D(0));
-  const entryId = newId();
   const arApEntryId = newId();
   const now = Date.now();
-
-  const entry: JournalEntry = {
-    id: entryId,
-    date: invoice.date,
-    year,
-    description: `${number} ${invoice.memo ?? ''}`.trim(),
-    status: 'confirmed',
-    source: 'manual',
-    createdAt: now,
-    confirmedAt: now,
-  };
-  const lines: JournalLine[] = [
-    newJournalLine(entryId, 'debit', RECEIVABLE_ACCOUNT_CODE, total, 0, false, invoice.vendorId),
-    ...groups.map((g) =>
-      newJournalLine(
-        entryId,
-        'credit',
-        SALES_ACCOUNT_CODE,
-        g.grossAmount,
-        g.taxRate,
-        true,
-        invoice.vendorId,
-      ),
-    ),
-  ];
-
+  // 採番と「まだ下書きか」の判定を書き込みと同じトランザクションに入れる。外に出すと
+  // 発行ボタンの二度押しで、どちらの呼び出しも古い状態を見て同じ番号を採り、
+  // 請求書1件に対して仕訳と売掛金が2件ずつ作られる（voidInvoice は片方しか打ち消せない）。
+  // IndexedDB は同一オブジェクトストアのトランザクションを直列化するため、
+  // 2度目はここで発行済みの現在値を見て弾かれる。
   await db.transaction(
     'rw',
     db.journalEntries,
@@ -171,6 +143,49 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
     db.arApEntries,
     db.invoices,
     async () => {
+      // 未保存の新規下書きは DB に無い。存在する場合だけ現在値で判定する。
+      const current = await db.invoices.get(invoice.id);
+      if (current && current.status !== 'draft') {
+        throw new InvoiceError('下書きの文書のみ発行できます');
+      }
+      const number = await nextDocumentNumber(invoice.documentType, year, prefix);
+      if (invoice.documentType === 'quote') {
+        await db.invoices.put({ ...invoice, status: 'issued', number, issuedAt: now });
+        return;
+      }
+      const entryId = newId();
+      const entry: JournalEntry = {
+        id: entryId,
+        date: invoice.date,
+        year,
+        description: `${number} ${invoice.memo ?? ''}`.trim(),
+        status: 'confirmed',
+        source: 'manual',
+        createdAt: now,
+        confirmedAt: now,
+      };
+      const lines: JournalLine[] = [
+        newJournalLine(
+          entryId,
+          'debit',
+          RECEIVABLE_ACCOUNT_CODE,
+          total,
+          0,
+          false,
+          invoice.vendorId,
+        ),
+        ...groups.map((g) =>
+          newJournalLine(
+            entryId,
+            'credit',
+            SALES_ACCOUNT_CODE,
+            g.grossAmount,
+            g.taxRate,
+            true,
+            invoice.vendorId,
+          ),
+        ),
+      ];
       await db.journalEntries.add(entry);
       await db.journalLines.bulkAdd(lines);
       await db.arApEntries.add({

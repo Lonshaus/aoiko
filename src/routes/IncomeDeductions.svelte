@@ -1,7 +1,10 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
+  import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
+  import { assignInputNumber } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
   import { buildPL } from '../domain/reports';
   import {
@@ -131,6 +134,8 @@
   }
 
   let saved = $state(false);
+  // 最後に保存した内容の署名。null の間は読み込み前なので未保存扱いにしない。
+  let savedSnapshot = $state<string | null>(null);
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
   // 抱えたままなので保存を禁じる（新年度キーへの誤書き込み防止）。
   let loadedYear = $state<number | null>(null);
@@ -286,6 +291,8 @@
       aoiroDeductionKindCache = aoiroDeductionKind;
       realEstatePlCache = realEstatePl;
       loadedYear = yr;
+      // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
+      savedSnapshot = untrack(() => draftSignature);
     })();
   });
 
@@ -391,6 +398,15 @@
       : {}),
   });
 
+  const draftSignature = $derived(JSON.stringify(recordDraft));
+  // 保存済みの内容と一致しなくなったら未保存。約40項目あり、失うと打ち直しになる。
+  const isDirty = $derived(savedSnapshot !== null && draftSignature !== savedSnapshot);
+  // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   const ctx = $derived(personalDeductionsToCtx(recordDraft));
   // 事業所得（青色控除は不動産所得との共有枠配分後）。ledger 由来の pl はキャッシュから、
   // businessScale・土地利子額は現在編集中の ctx から読むため、両方の変更に反応する。
@@ -473,6 +489,7 @@
       return;
     }
     await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    savedSnapshot = draftSignature;
     saved = true;
   }
 </script>
@@ -486,7 +503,8 @@
       <span class="text-xs text-muted-foreground">{m.income_deductions_year_label()}</span>
       <input
         type="number"
-        bind:value={year}
+        value={year}
+        oninput={assignInputNumber((v) => (year = v))}
         min="2020"
         max="2099"
         step="1"
@@ -819,7 +837,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_age()}</span>
           <input
             type="number"
-            bind:value={spouseAge}
+            value={spouseAge}
+            oninput={assignInputNumber((v) => (spouseAge = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -857,7 +876,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_age()}</span>
           <input
             type="number"
-            bind:value={dep.age}
+            value={dep.age}
+            oninput={assignInputNumber((v) => (dep.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -934,7 +954,8 @@
           >
           <input
             type="number"
-            bind:value={employee.age}
+            value={employee.age}
+            oninput={assignInputNumber((v) => (employee.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -946,7 +967,8 @@
           >
           <input
             type="number"
-            bind:value={employee.monthsWorked}
+            value={employee.monthsWorked}
+            oninput={assignInputNumber((v) => (employee.monthsWorked = v))}
             min="0"
             max="12"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -1307,7 +1329,7 @@
   </section>
 
   <div class="flex items-center gap-3 justify-end">
-    {#if saved}
+    {#if saved && !isDirty}
       <span class="text-xs text-green-600">{m.income_deductions_saved()}</span>
     {/if}
     <button

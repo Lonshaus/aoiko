@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
+import { toIndexable } from '../lib/decimal';
 import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
 
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
@@ -145,5 +146,66 @@ describe('iterateAttachmentBlobs', () => {
     expect(results.size).toBe(2);
     expect(results.get('a1')).toEqual(new Uint8Array([1, 2, 3]));
     expect(results.get('a2')).toEqual(new Uint8Array([4, 5]));
+  });
+});
+
+describe('buildPayload（スナップショットの原子性 #316）', () => {
+  test('読み取り中に書き込みが割り込んでも、親仕訳の無い明細を含まない', async () => {
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: 'e1',
+      date: '2026-03-01',
+      year: 2026,
+      description: '既存',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
+    await db.journalLines.add({
+      id: 'l1',
+      entryId: 'e1',
+      side: 'debit',
+      accountCode: '5130',
+      amount: '1000',
+      amountIndexed: toIndexable('1000'),
+      taxRate: 0,
+      taxIncluded: true,
+      invoiceCompliant: false,
+    });
+    // buildPayload の完了を待たずに別の仕訳を書き込む
+    const writing = db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      await db.journalEntries.add({
+        id: 'e2',
+        date: '2026-03-02',
+        year: 2026,
+        description: '割り込み',
+        status: 'confirmed',
+        source: 'manual',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      await db.journalLines.add({
+        id: 'l2',
+        entryId: 'e2',
+        side: 'debit',
+        accountCode: '5130',
+        amount: '2000',
+        amountIndexed: toIndexable('2000'),
+        taxRate: 0,
+        taxIncluded: true,
+        invoiceCompliant: false,
+      });
+    });
+    const payload = await buildPayload();
+    await writing;
+
+    const entryIds = new Set(
+      (payload.tables.journalEntries as Array<{ id: string }>).map((e) => e.id),
+    );
+    const lines = payload.tables.journalLines as Array<{ entryId: string }>;
+    for (const line of lines) {
+      expect(entryIds.has(line.entryId)).toBe(true);
+    }
   });
 });

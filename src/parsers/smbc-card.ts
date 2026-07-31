@@ -1,5 +1,5 @@
 import { parseCsv } from '../lib/csv';
-import { buildRawRow, isDateLike, normalizeDate, stripComma } from './_helpers';
+import { applySign, buildRawRow, isDateLike, normalizeDate, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
 // 三井住友カード（NL / Olive 含む）Vpass の利用明細 CSV（実データ確認済）。
 // この CSV には表頭行が無く、1 行目はカード会員情報（氏名 / 番号 / 種別）。
@@ -60,14 +60,12 @@ const smbcCardParser: CsvParser = {
 
       let amount: string;
       let side: 'debit' | 'credit';
+      // 取消・返金行はマイナス（- のほか ▲ △ 全角マイナスも使われる）。符号を
+      // 処理しないと Decimal に負値がそのまま渡り、取込全体がロールバックする。
       if (useRaw) {
-        amount = stripComma(useRaw);
-        side = 'credit';
+        ({ amount, side } = applySign(stripComma(useRaw), 'credit'));
       } else if (settledRaw) {
-        const cleaned = stripComma(settledRaw);
-        const negative = cleaned.startsWith('-');
-        amount = cleaned.replace(/^[-+]/, '');
-        side = negative ? 'debit' : 'credit';
+        ({ amount, side } = applySign(stripComma(settledRaw), 'credit'));
       } else {
         continue;
       }
