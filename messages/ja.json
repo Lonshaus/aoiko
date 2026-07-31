@@ -366,6 +366,7 @@
   "reports_amendment_filed_at": "申告日：{date}",
   "reports_amendment_no_change": "申告時のスナップショットと現在の集計に差分はありません。修正申告は不要です。",
   "reports_amendment_has_change": "⚠ 申告後に仕訳が変更されています。修正申告（amended return）の対象です。",
+  "reports_stale_carryover_warning": "⚠ {year} 年の期首繰越が最新の前年度残高と一致していません。繰越を再生成してください。",
   "reports_amendment_revenue": "収益",
   "reports_amendment_expense": "経費",
   "reports_amendment_net_income": "所得（純利益）",

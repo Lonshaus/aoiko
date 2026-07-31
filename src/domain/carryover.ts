@@ -219,6 +219,69 @@ export async function applyCarryover(
   return { entryId: entry.id };
 }
 
+export interface StaleCarryover {
+  year: number;
+  differences: Array<{ accountCode: string; carried: string; current: string }>;
+}
+// applyCarryover はその場限りのスナップショットで、前年度の訂正仕訳があっても自動では
+// 再計算されない。既存の期首振替仕訳（source='carryover'）に記帳された金額と、
+// computeCarryover(year) で前年度残高から改めて算出した金額を突き合わせ、
+// ズレている科目を返す。振替仕訳が存在しない、または一致していれば null。
+// #332 以降 removeCarryover は反対仕訳方式のため、集計対象の判定は countsTowardTotals に委ねる
+// （反転済みの原仕訳・反転仕訳自体は対象外、現に有効な 1 件だけを比較する）。
+export async function detectStaleCarryover(year: number): Promise<StaleCarryover | null> {
+  const entry = await db.journalEntries
+    .where('year')
+    .equals(year)
+    .filter((e) => e.source === 'carryover' && countsTowardTotals(e))
+    .first();
+  if (!entry) {
+    return null;
+  }
+
+  const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
+  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const accountMap = new Map(accounts.map((a) => [a.code, a]));
+
+  const carried = new Map<string, Decimal>();
+  for (const line of lines) {
+    const acc = accountMap.get(line.accountCode);
+    if (!acc) {
+      continue;
+    }
+    const amount = D(line.amount);
+    const positiveSide = acc.category === 'asset' ? 'debit' : 'credit';
+    carried.set(line.accountCode, line.side === positiveSide ? amount : amount.negated());
+  }
+
+  const preview = await computeCarryover(year);
+  const current = new Map<string, Decimal>();
+  for (const a of preview.assets) {
+    current.set(a.accountCode, D(a.amount));
+  }
+  for (const l of preview.liabilities) {
+    current.set(l.accountCode, D(l.amount));
+  }
+  current.set(preview.capitalCode, D(preview.capitalAmount));
+
+  const codes = new Set([...carried.keys(), ...current.keys()]);
+  const differences: StaleCarryover['differences'] = [];
+  for (const code of codes) {
+    const carriedAmount = carried.get(code) ?? D(0);
+    const currentAmount = current.get(code) ?? D(0);
+    if (!carriedAmount.equals(currentAmount)) {
+      differences.push({
+        accountCode: code,
+        carried: carriedAmount.toString(),
+        current: currentAmount.toString(),
+      });
+    }
+  }
+  differences.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+
+  return differences.length === 0 ? null : { year, differences };
+}
+
 export async function removeCarryover(year: number): Promise<{ removed: boolean }> {
   const existing = await db.journalEntries
     .where('year')

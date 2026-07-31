@@ -36,6 +36,7 @@
     type CashFlowForecast,
   } from '../domain/cash-flow';
   import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
+  import { detectStaleCarryover, type StaleCarryover } from '../domain/carryover';
   import {
     buildXtx2026,
     personalDeductionsToCtx,
@@ -107,6 +108,7 @@
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
   let amendment = $state<AmendmentDiff | null>(null);
+  let staleCarryover = $state<StaleCarryover | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
   let taxableSalesRatioPercent = $state('100.00');
   let taxableSalesRatioFullDeduction = $state(true);
@@ -312,6 +314,7 @@
       return {
         ...reports,
         amendment: await getAmendmentDiff(yr),
+        staleCarryover: await detectStaleCarryover(yr),
         consumptionTax: await compareAll(yr, cat, attributionMethod),
         taxRegistration: reg,
         simplifiedCategory: cat,
@@ -332,6 +335,7 @@
       monthlyPL = v.monthlyPL;
       breakdown = v.breakdown;
       amendment = v.amendment;
+      staleCarryover = v.staleCarryover;
       consumptionTax = v.consumptionTax;
       taxRegistration = v.taxRegistration;
       simplifiedCategory = v.simplifiedCategory;
@@ -1613,6 +1617,16 @@
           {/each}
         </ol>
       {/if}
+    </section>
+  {/if}
+
+  {#if staleCarryover}
+    <section
+      class="bg-card text-card-foreground rounded-2xl p-6 space-y-2 shadow-sm border-2 border-amber-500"
+    >
+      <p class="text-sm text-amber-600">
+        {m.reports_stale_carryover_warning({ year })}
+      </p>
     </section>
   {/if}
 
