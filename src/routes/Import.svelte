@@ -14,6 +14,7 @@
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { formatJPY } from '../lib/decimal';
   import AccountSelect from '../components/AccountSelect.svelte';
   import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
@@ -340,6 +341,10 @@
         counterpartTaxRate: r.taxRate,
         counterpartInvoiceCompliant: r.invoiceCompliant,
       }));
+      const years = new Set(importRows.map((r) => Number(r.transaction.date.slice(0, 4))));
+      if (!(await filedYearGuard.confirm(years))) {
+        return;
+      }
       const result = await commitImport(
         {
           parserName: currentParser.name,

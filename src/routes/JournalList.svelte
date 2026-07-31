@@ -4,6 +4,7 @@
   import { assignInputNumber } from '../lib/number-input';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
@@ -264,8 +265,14 @@
     const target = confirmingReverseId;
     confirmingReverseId = null;
     reverseError = '';
+    const targetYear = rows.find((r) => r.entry.id === target)?.entry.year;
+    // 通常は展開中の行から確定した id なので必ず見つかる。念のための fallback は
+    // ガードを経ずに reverseEntry 自身のロック判定に委ねる（既存の安全側の挙動を維持）。
+    if (targetYear !== undefined && !(await filedYearGuard.confirm([targetYear]))) {
+      return;
+    }
     try {
-      await reverseEntry(target);
+      await reverseEntry(target, targetYear !== undefined ? { allowFiledYear: true } : undefined);
       expandedId = null;
     } catch (e) {
       reverseError = describeStorageError(e);
