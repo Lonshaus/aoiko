@@ -251,12 +251,28 @@ function newEntry(date: string, description: string): JournalEntry {
 // 未償却残高を計上する開業仕訳のみを作る。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
-): Promise<OpeningSetupResult> {
+): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
   const date = input.businessStartDate;
+  const year = Number(date.slice(0, 4));
+  let alreadyExists = false;
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
+    // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
+    const existing = await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter(
+        (e) =>
+          e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
+      )
+      .first();
+    if (existing) {
+      alreadyExists = true;
+      return;
+    }
     // 開業費（繰延資産）
     const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
     if (!expenseTotal.isZero()) {
@@ -344,6 +360,9 @@ export async function generateOpeningEntries(
       entryIds.push(entry.id);
     }
   });
+  if (alreadyExists) {
+    return { reason: 'already-exists' };
+  }
 
   return { entryIds, assetIds };
 }
