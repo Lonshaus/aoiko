@@ -243,9 +243,20 @@ export function disabilityDeduction(
   return D(0);
 }
 // 寡婦控除（27万円）・ひとり親控除（35万円、令和8年分。令和9年分以後38万円）はいずれか一方のみ適用。
-export function singleParentOrWidowDeduction(isSingleParent: boolean, isWidow: boolean): Decimal {
+// ひとり親控除は令和9年分以後 35万円→38万円（令和8年度税制改正の大綱(3)、国税庁 Q&A Q3-2。
+// 令和8年分には適用されない）。寡婦控除27万円は据え置き。どちらも本人の合計所得金額
+// 500万円以下が要件だが、その判定は入力側（isSingleParent / isWidow）に委ねる。
+function singleParentAmount(year: number): number {
+  return year <= 2026 ? 350_000 : 380_000;
+}
+
+export function singleParentOrWidowDeduction(
+  year: number,
+  isSingleParent: boolean,
+  isWidow: boolean,
+): Decimal {
   if (isSingleParent) {
-    return D(350_000);
+    return D(singleParentAmount(year));
   }
   if (isWidow) {
     return D(270_000);
@@ -404,7 +415,11 @@ export function computeIncomeDeductions(
     donationDeduction: donationDeduction(input.donationAmount, input.totalIncome),
     casualtyLossDeduction: input.casualtyLossDeduction,
     disabilityDeduction: disabilityDeduction(input),
-    singleParentOrWidowDeduction: singleParentOrWidowDeduction(input.isSingleParent, input.isWidow),
+    singleParentOrWidowDeduction: singleParentOrWidowDeduction(
+      year,
+      input.isSingleParent,
+      input.isWidow,
+    ),
     workingStudentDeduction: workingStudentDeduction(input.isWorkingStudent),
     spouseDeduction: spouseDeduction(year, input.totalIncome, input.spouse),
     dependentDeduction,
