@@ -229,6 +229,9 @@
   // 税務署サジェスト（署名・コードで検索 → コード+署名を確定）
   let zeimushoQuery = $state('');
   let zeimushoOpen = $state(false);
+  // 入力欄に文字が残っているのに確定した署が無い状態。ここで保存を通すと、設定済みの
+  // 利用者が一文字消しただけで提出先税務署が空文字で上書きされ、次の .xtx から消える。
+  const zeimushoUnresolved = $derived(zeimushoQuery.trim() !== '' && userZeimushoCode === '');
   const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
   function displayZeimusho(code: string, name: string): string {
     if (!code) {
@@ -1301,6 +1304,8 @@
         {/if}
         {#if zeimushoCodeInvalid}
           <span class="text-xs text-red-600">{m.settings_filer_zeimusho_invalid()}</span>
+        {:else if zeimushoUnresolved}
+          <span class="text-xs text-red-600">{m.settings_filer_zeimusho_unresolved()}</span>
         {/if}
       </label>
       <div class="block sm:col-span-2">
@@ -1347,7 +1352,7 @@
       {/if}
       <button
         type="submit"
-        disabled={zeimushoCodeInvalid}
+        disabled={zeimushoCodeInvalid || zeimushoUnresolved}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_basic_save()}
