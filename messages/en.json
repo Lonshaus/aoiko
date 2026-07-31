@@ -731,6 +731,7 @@
   "opening_preview_custom": "Custom items: {count}",
   "opening_action_back": "Back",
   "opening_action_confirm": "Create",
+  "opening_already_exists": "This year already has entries created by the business-opening wizard. Nothing was created, to avoid double-counting. To redo it, reverse the existing opening entries from the journal list first.",
   "opening_done_message": "Opening entries and fixed assets have been created.",
   "opening_entry_title": "Business opening setup",
   "opening_entry_intro": "Register pre-opening expenses, converted assets, and more, all in one place.",

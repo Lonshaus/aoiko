@@ -731,6 +731,7 @@
   "opening_action_back": "戻る",
   "opening_action_confirm": "作成する",
   "opening_done_message": "開業時の仕訳・固定資産を作成しました。",
+  "opening_already_exists": "この年度にはすでに開業精霊で作成した仕訳があります。二重計上になるため作成しませんでした。作り直す場合は、仕訳一覧で既存の開業仕訳を訂正（打消し）してから実行してください。",
   "opening_entry_title": "開業時の設定",
   "opening_entry_intro": "開業費・転用資産などをまとめて登録できます。",
   "opening_entry_action": "開業精霊を開く",
