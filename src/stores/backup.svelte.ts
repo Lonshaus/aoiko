@@ -45,6 +45,8 @@ class BackupManager {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private subs: Subscription[] = [];
   private skipFirstAutoBackup = true;
+  // writing 中に来た要求を1件だけ覚えておき、書込完了後に追い掛けて再実行する
+  private backupPending = false;
 
   constructor() {
     void this.initAdapter();
@@ -176,24 +178,34 @@ class BackupManager {
       return;
     }
     if (this.status === 'writing') {
+      // 進行中の書込みが終わったら1回だけ追い掛ける。複数件来ても1回に合流させる。
+      // scheduleBackup は間隔判定を挟まずここへ来るため、これが無いと圧縮中の
+      // 保存はどのバックアップにも入らないまま捨てられる。
+      this.backupPending = true;
       return;
     }
     const prev = this.status;
-    this.status = 'writing';
-    try {
-      const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-      const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
-      const fileName = `aoiko-ledger-${todayISO()}.zip`;
-      await this.adapter.backup(bytes, fileName);
-      this.lastBackupAt = Date.now();
-      await setSetting('lastBackupAt', this.lastBackupAt);
-      this.lastError = '';
-      this.status = 'idle';
-    } catch (e: unknown) {
-      this.lastError = e instanceof Error ? e.message : String(e);
-      this.status = prev === 'permission-required' ? 'permission-required' : 'error';
-    }
+    // ループで追い掛ける（再帰だと高速な保存の連打でスタックが伸びる）。
+    // 失敗時はループを抜ける ＝ 失敗中のアダプタへ再突入して空回りしない。
+    do {
+      this.backupPending = false;
+      this.status = 'writing';
+      try {
+        const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+        const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+        const bytes = await buildBackupZipBytes({ includeApiKeys, includeFilerInfo });
+        const fileName = `aoiko-ledger-${todayISO()}.zip`;
+        await this.adapter.backup(bytes, fileName);
+        this.lastBackupAt = Date.now();
+        await setSetting('lastBackupAt', this.lastBackupAt);
+        this.lastError = '';
+        this.status = 'idle';
+      } catch (e: unknown) {
+        this.lastError = e instanceof Error ? e.message : String(e);
+        this.status = prev === 'permission-required' ? 'permission-required' : 'error';
+        return;
+      }
+    } while (this.backupPending);
   }
   // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ zip を書き出す
   // （帳簿データ + 証憑写真原本を同梱）。全環境で動作。
