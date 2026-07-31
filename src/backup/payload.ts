@@ -29,33 +29,40 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
   const includeApiKeys = options.includeApiKeys ?? false;
   const includeFilerInfo = options.includeFilerInfo ?? false;
   const tables: Record<string, unknown[]> = {};
-  for (const t of db.tables) {
-    let rows = await t.toArray();
-    if (t.name === 'settings') {
-      rows = rows.filter((r) => {
-        const key = (r as { key: string }).key;
-        if (SKIP_SETTING_KEYS.has(key)) {
-          return false;
-        }
-        if (!includeApiKeys && SENSITIVE_SETTING_KEYS.has(key)) {
-          return false;
-        }
-        if (!includeFilerInfo && FILER_INFO_SETTING_KEYS.has(key)) {
-          return false;
-        }
-        return true;
-      });
+  // 全テーブルを1つの読み取りトランザクションで揃える。table ごとに await t.toArray()
+  // すると Dexie がその都度独立トランザクションを開き、間に書き込みが割り込んで
+  // 参照整合性が壊れたスナップショットになる（#316）。写真バイナリの読み出しは
+  // iterateAttachmentBlobs で zip ストリーミング中に別途行うため、ここには含めない
+  // （ストリームの背圧待ちで await すると Dexie トランザクションが中断する）。
+  await db.transaction('r', db.tables, async () => {
+    for (const t of db.tables) {
+      let rows = await t.toArray();
+      if (t.name === 'settings') {
+        rows = rows.filter((r) => {
+          const key = (r as { key: string }).key;
+          if (SKIP_SETTING_KEYS.has(key)) {
+            return false;
+          }
+          if (!includeApiKeys && SENSITIVE_SETTING_KEYS.has(key)) {
+            return false;
+          }
+          if (!includeFilerInfo && FILER_INFO_SETTING_KEYS.has(key)) {
+            return false;
+          }
+          return true;
+        });
+      }
+      if (t.name === 'attachments') {
+        // Blob は JSON.stringify 不可。メタデータのみ tables に残し、実体バイナリは
+        // zip の attachments/<id> に別途同梱する（buildBackupZip / collectAttachmentBlobs）。
+        rows = rows.map((r) => {
+          const { blob: _blob, ...meta } = r as Attachment;
+          return meta;
+        });
+      }
+      tables[t.name] = rows;
     }
-    if (t.name === 'attachments') {
-      // Blob は JSON.stringify 不可。メタデータのみ tables に残し、実体バイナリは
-      // zip の attachments/<id> に別途同梱する（buildBackupZip / collectAttachmentBlobs）。
-      rows = rows.map((r) => {
-        const { blob: _blob, ...meta } = r as Attachment;
-        return meta;
-      });
-    }
-    tables[t.name] = rows;
-  }
+  });
   return {
     version: PAYLOAD_VERSION,
     exportedAt: new Date().toISOString(),

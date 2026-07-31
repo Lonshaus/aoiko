@@ -110,6 +110,54 @@ describe('buildPayload', () => {
   });
 });
 
+describe('buildPayload（スナップショットの原子性 #316）', () => {
+  test('全テーブルの読み取り中に割り込んだ書き込みがあっても参照整合性が保たれる', async () => {
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: 'e1',
+      date: '2026-07-01',
+      year: 2026,
+      status: 'confirmed',
+      description: '既存分',
+      createdAt: now,
+      updatedAt: now,
+    } as never);
+
+    const buildPromise = buildPayload();
+    // await せずに、ビルド中の読み取り区間へ割り込ませるつもりで w トランザクションを発火する。
+    // db.transaction('r', ...) で全テーブルを1つの読み取りトランザクションに包んでいれば、
+    // journalEntries を読み終えた後にこの書き込みが入っても journalLines の読み取り結果は
+    // 元のスナップショットのままになり、参照整合性が壊れない。
+    const writePromise = db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      await db.journalEntries.add({
+        id: 'e2',
+        date: '2026-07-02',
+        year: 2026,
+        status: 'confirmed',
+        description: '割り込み分',
+        createdAt: now,
+        updatedAt: now,
+      } as never);
+      await db.journalLines.add({
+        id: 'l2',
+        entryId: 'e2',
+        lineNumber: 1,
+        accountCode: '',
+        side: 'debit',
+        amount: '100',
+      } as never);
+    });
+
+    const [payload] = await Promise.all([buildPromise, writePromise]);
+
+    const entryIds = new Set((payload.tables.journalEntries as { id: string }[]).map((r) => r.id));
+    const lines = payload.tables.journalLines as { entryId: string }[];
+    for (const line of lines) {
+      expect(entryIds.has(line.entryId)).toBe(true);
+    }
+  });
+});
+
 describe('iterateAttachmentBlobs', () => {
   test('添付が無ければ何も yield しない', async () => {
     const results: Array<readonly [string, Uint8Array]> = [];
