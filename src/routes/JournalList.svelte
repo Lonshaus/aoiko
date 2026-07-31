@@ -1,6 +1,7 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { db } from '../db';
+  import { assignInputNumber } from '../lib/number-input';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
   import { shouldConfirmAttachment } from '../domain/attachment-confirm';
@@ -361,7 +362,8 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
         <input
           type="number"
-          bind:value={year}
+          value={year}
+          oninput={assignInputNumber((v) => (year = v))}
           onchange={onYearChange}
           min="2020"
           max="2099"

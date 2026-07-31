@@ -7,6 +7,7 @@
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
+  import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
@@ -587,7 +588,8 @@
             {#if line.itemId}
               <input
                 type="number"
-                bind:value={line.quantity}
+                value={line.quantity}
+                oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"
                 step="1"
                 placeholder={m.journal_form_inventory_quantity_placeholder()}
@@ -736,7 +738,8 @@
             {#if line.itemId}
               <input
                 type="number"
-                bind:value={line.quantity}
+                value={line.quantity}
+                oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"
                 step="1"
                 placeholder={m.journal_form_inventory_quantity_placeholder()}
