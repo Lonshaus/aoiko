@@ -10,7 +10,9 @@ const DEPRECIATION_EXPENSE_CODE = '5210'; // 減価償却費（繰延資産の�
 // 国税庁タックスアンサー No.2108「中古資産を非業務用から業務用に転用した場合の減価償却」に基づく。
 // 手順：①耐用年数×1.5 の年数で旧定額法償却率を引く ②非業務期間（6ヶ月未満切り捨て・6ヶ月以上は1年）
 // に応じた減価の額を計算 ③取得価額から控除した額が転用時点の未償却残高。
-// 旧定額法償却率表（耐用年数 2〜50 年、国税庁「減価償却資産の償却率等表」より）。
+// 旧定額法償却率表（耐用年数 2〜100 年）。減価償却資産の耐用年数等に関する省令
+// （昭和40年大蔵省令第15号）別表第七「旧定額法の償却率」。引くときのキーは
+// 耐用年数×1.5 なので、木造22年→33・鉄筋47年→70 まで必要になる。
 const OLD_STRAIGHT_LINE_RATE: Record<number, string> = {
   2: '0.500',
   3: '0.333',
@@ -41,6 +43,76 @@ const OLD_STRAIGHT_LINE_RATE: Record<number, string> = {
   28: '0.036',
   29: '0.035',
   30: '0.034',
+  31: '0.033',
+  32: '0.032',
+  33: '0.031',
+  34: '0.030',
+  35: '0.029',
+  36: '0.028',
+  37: '0.027',
+  38: '0.027',
+  39: '0.026',
+  40: '0.025',
+  41: '0.025',
+  42: '0.024',
+  43: '0.024',
+  44: '0.023',
+  45: '0.023',
+  46: '0.022',
+  47: '0.022',
+  48: '0.021',
+  49: '0.021',
+  50: '0.020',
+  51: '0.020',
+  52: '0.020',
+  53: '0.019',
+  54: '0.019',
+  55: '0.019',
+  56: '0.018',
+  57: '0.018',
+  58: '0.018',
+  59: '0.017',
+  60: '0.017',
+  61: '0.017',
+  62: '0.017',
+  63: '0.016',
+  64: '0.016',
+  65: '0.016',
+  66: '0.016',
+  67: '0.015',
+  68: '0.015',
+  69: '0.015',
+  70: '0.015',
+  71: '0.014',
+  72: '0.014',
+  73: '0.014',
+  74: '0.014',
+  75: '0.014',
+  76: '0.014',
+  77: '0.013',
+  78: '0.013',
+  79: '0.013',
+  80: '0.013',
+  81: '0.013',
+  82: '0.013',
+  83: '0.012',
+  84: '0.012',
+  85: '0.012',
+  86: '0.012',
+  87: '0.012',
+  88: '0.012',
+  89: '0.012',
+  90: '0.012',
+  91: '0.011',
+  92: '0.011',
+  93: '0.011',
+  94: '0.011',
+  95: '0.011',
+  96: '0.011',
+  97: '0.011',
+  98: '0.011',
+  99: '0.011',
+  100: '0.010',
 };
 // 耐用年数×1.5 は 1 年未満切り捨て（国税庁の年数の丸め方に準拠）。
 function extendedUsefulLife(usefulLifeYears: number): number {
@@ -85,6 +157,9 @@ export interface ConvertedAssetBasis {
   nonBusinessDepreciation: Decimal;
   businessStartBasis: Decimal;
 }
+// 非業務用期間の減価の額の上限（所令85条1項の第2文が所令134条1項1号イ「償却累積額による
+// 償却費の特例」を参照）。国税庁タックスアンサー No.2108 も同じ閾値を書いている。
+const NON_BUSINESS_DEPRECIATION_LIMIT_RATE = '0.95';
 // 私用資産を事業供用日時点の未償却残高に変換する。
 export function computeConvertedAssetBasis(
   acquisitionDate: string,
@@ -96,11 +171,12 @@ export function computeConvertedAssetBasis(
   const rate = oldStraightLineRate(extendedLife);
   const years = nonBusinessPeriodYears(acquisitionDate, businessStartDate);
   const cost = D(acquisitionCost);
-  const nonBusinessDepreciation = cost
-    .times('0.9')
-    .times(rate)
-    .times(years)
+  const raw = cost.times('0.9').times(rate).times(years).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  // 上限が無いと保有期間が長い資産で控除額が取得価額を超え、未償却残高が負になる。
+  const limit = cost
+    .times(NON_BUSINESS_DEPRECIATION_LIMIT_RATE)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const nonBusinessDepreciation = Decimal.min(raw, limit);
   const businessStartBasis = cost.minus(nonBusinessDepreciation);
   return { nonBusinessDepreciation, businessStartBasis };
 }
