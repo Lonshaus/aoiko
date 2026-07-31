@@ -245,9 +245,14 @@ describe('その他の単純控除', () => {
   });
 
   test('寡婦控除27万円・ひとり親控除35万円（令和8年分）はいずれか一方', () => {
-    expect(singleParentOrWidowDeduction(true, true).toString()).toBe('350000');
-    expect(singleParentOrWidowDeduction(false, true).toString()).toBe('270000');
-    expect(singleParentOrWidowDeduction(false, false).toString()).toBe('0');
+    expect(singleParentOrWidowDeduction(2026, true, true).toString()).toBe('350000');
+    expect(singleParentOrWidowDeduction(2026, false, true).toString()).toBe('270000');
+    expect(singleParentOrWidowDeduction(2026, false, false).toString()).toBe('0');
+  });
+
+  test('ひとり親控除は令和9年分以後38万円、寡婦控除は据え置き', () => {
+    expect(singleParentOrWidowDeduction(2027, true, false).toString()).toBe('380000');
+    expect(singleParentOrWidowDeduction(2027, false, true).toString()).toBe('270000');
   });
 
   test('障害者控除27万円・特別障害者控除40万円', () => {
