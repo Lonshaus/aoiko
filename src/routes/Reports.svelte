@@ -420,7 +420,10 @@
     // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
     const lockYearTarget = year;
     const { monthly, pl, bs } = await buildAll(lockYearTarget, breakdownAxis);
+    // 裸で return すると確認ダイアログだけ閉じて、バッジもエラーも出ないまま
+    // 利用者はロックされたと思い込む。
     if (!monthly || !pl) {
+      lockError = m.reports_no_data_for_year({ year: lockYearTarget });
       return;
     }
     try {
@@ -509,6 +512,7 @@
     const filingYear = year;
     const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
+      lockError = m.reports_no_data_for_year({ year: filingYear });
       return;
     }
     if (filingYear !== 2026) {
