@@ -31,6 +31,21 @@ describe('smbcCardParser', () => {
     });
   });
 
+  test('利用金額欄のマイナス（取消行）は debit・絶対値', () => {
+    // 取消行は「ご利用金額」側に -1,110 で現れる。従来は符号を処理せず
+    // amount が '-1110' のまま渡り、取込全体がロールバックしていた。
+    const csv = '山田太郎,****-1234,一般\n2026/04/05,コンビニ店,"-1,110",1,,\n';
+    const r = smbcCardParser.parse(csv);
+    expect(r).toHaveLength(1);
+    expect(r[0]).toMatchObject({ amount: '1110', side: 'debit' });
+  });
+
+  test('▲ 表記のマイナスも debit・絶対値', () => {
+    const csv = '山田太郎,****-1234,一般\n2026/04/06,ポイント充当,▲732,1,,\n';
+    const r = smbcCardParser.parse(csv);
+    expect(r[0]).toMatchObject({ amount: '732', side: 'debit' });
+  });
+
   test('日付の無い行のみの入力は空配列', () => {
     expect(smbcCardParser.parse(',,,,,100,\n,,,,,200,')).toEqual([]);
   });
