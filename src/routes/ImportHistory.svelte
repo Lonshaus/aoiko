@@ -19,8 +19,13 @@
   $effect(() => {
     const sub1 = liveQuery(() =>
       db.importBatches.orderBy('importedAt').reverse().toArray(),
-    ).subscribe((v) => {
-      batches = v;
+    ).subscribe({
+      next: (v) => {
+        batches = v;
+      },
+      error: (e: unknown) => {
+        lastError = describeStorageError(e);
+      },
     });
     const sub2 = liveQuery(async () => {
       // sourceImportId 索引で走査（undefined キーの行はインデックスに載らないため、
@@ -36,8 +41,13 @@
         map.set(e.sourceImportId, arr);
       }
       return map;
-    }).subscribe((v) => {
-      entriesByBatch = v;
+    }).subscribe({
+      next: (v) => {
+        entriesByBatch = v;
+      },
+      error: (e: unknown) => {
+        lastError = describeStorageError(e);
+      },
     });
     return () => {
       sub1.unsubscribe();

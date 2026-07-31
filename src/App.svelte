@@ -8,6 +8,7 @@
   import UnsavedChangesDialog from './components/UnsavedChangesDialog.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
   import { pathToChapter } from './lib/manual-routes';
+  import { ledger } from './stores/ledger.svelte';
   import { m } from './paraglide/messages';
 
   const helpChapter = $derived(pathToChapter(router.path));
@@ -44,6 +45,12 @@
       window.removeEventListener('error', onError);
       window.removeEventListener('unhandledrejection', onError);
     };
+  });
+  // liveQuery 購読の失敗（ledger ストア集約）も同じバナーで知らせる。
+  $effect(() => {
+    if (ledger.lastError !== null) {
+      showErrorBanner = true;
+    }
   });
   // 初回ロードを軽くするため、ホーム以外の画面は遅延読み込みする。
   // memo で同一 promise を返し、画面遷移のたびに再 import されないようにする。
