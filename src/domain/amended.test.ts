@@ -7,6 +7,7 @@ import { markYearFiled, unlockYear } from './snapshots';
 import type { Account, LineSide } from '../db/types';
 
 const TEST_ACCOUNTS: Account[] = [
+  { code: '1110', year: 2026, name: '現金', category: 'asset', displayOrder: 110 },
   { code: '1130', year: 2026, name: '普通預金', category: 'asset', displayOrder: 130 },
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
   { code: '5150', year: 2026, name: '通信費', category: 'expense', displayOrder: 150 },
@@ -170,6 +171,92 @@ describe('getAmendmentDiff', () => {
     expect(r!.filedNetIncome).toBe('100000');
     expect(r!.currentNetIncome).toBe('80000');
     expect(r!.netIncomeDelta).toBe('-20000');
+  });
+
+  test('bs baseline がない年度は bsChanges=null（旧仕様で申告済み）', async () => {
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: {
+            rows: [{ accountCode: '4110', amount: '100000' }],
+            totalRevenue: '100000',
+            totalExpense: '0',
+            netIncome: '100000',
+          },
+        },
+      },
+      '2026-12-31',
+    );
+    const r = await getAmendmentDiff(2026);
+    expect(r!.bsChanges).toBeNull();
+    expect(r!.hasChange).toBe(false);
+  });
+
+  test('PL に現れない資産↔資産の付け替えを bsChanges で検出する', async () => {
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: {
+            rows: [{ accountCode: '4110', amount: '100000' }],
+            totalRevenue: '100000',
+            totalExpense: '0',
+            netIncome: '100000',
+          },
+        },
+        bs: {
+          type: 'bs',
+          data: {
+            assets: [{ accountCode: '1130', amount: '100000' }],
+            liabilities: [],
+            equity: [],
+          },
+        },
+      },
+      '2026-12-31',
+    );
+    // 申告後に普通預金から現金へ資金移動（PL には一切影響しない）
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '1110', amount: '30000' },
+        { side: 'credit', accountCode: '1130', amount: '30000' },
+      ],
+    });
+    const r = await getAmendmentDiff(2026);
+    expect(r!.netIncomeDelta).toBe('0');
+    expect(r!.hasChange).toBe(true);
+    expect(r!.bsChanges).not.toBeNull();
+    const byCode = new Map(r!.bsChanges!.map((c) => [c.accountCode, c]));
+    expect(byCode.get('1110')).toEqual({
+      accountCode: '1110',
+      filedAmount: '0',
+      currentAmount: '30000',
+    });
+    expect(byCode.get('1130')).toEqual({
+      accountCode: '1130',
+      filedAmount: '100000',
+      currentAmount: '70000',
+    });
   });
 });
 
