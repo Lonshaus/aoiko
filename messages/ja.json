@@ -922,5 +922,6 @@
   "common_offline_error": "インターネットに接続されていないようです。接続を確認してから再試行してください。",
   "settings_restore_corrupt": "このバックアップファイルは壊れています（{count} 件のデータが検証に失敗しました）。復元は行っていません。別のバックアップファイルを選んでください。",
   "invoices_print_due_date": "支払期限",
-  "invoices_print_reduced_note": "※は軽減税率（8%）の対象品目"
+  "invoices_print_reduced_note": "※は軽減税率（8%）の対象品目",
+  "settings_restore_corrupt_attachments": "証憑写真 {count} 件がバックアップ内で壊れています。帳簿データは復元できますが、これらの写真は復元されません。"
 }

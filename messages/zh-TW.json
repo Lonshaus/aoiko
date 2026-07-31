@@ -923,5 +923,6 @@
   "common_offline_error": "目前似乎沒有連上網路，請確認連線狀態後再試一次。",
   "settings_restore_corrupt": "這個備份檔案已損毀（{count} 筆資料驗證失敗）。沒有還原任何資料，請改用其他備份檔案。",
   "invoices_print_due_date": "付款期限",
-  "invoices_print_reduced_note": "※ 為適用輕減稅率（8%）的品項"
+  "invoices_print_reduced_note": "※ 為適用輕減稅率（8%）的品項",
+  "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。"
 }
