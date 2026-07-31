@@ -65,6 +65,17 @@ describe('extractReceipt', () => {
     expect(r.date).toBe(todayISO());
   });
 
+  test('uses today when date is not YYYY-MM-DD', async () => {
+    const adapter = fakeAdapter({
+      date: '2026年5月8日',
+      vendorName: 'X',
+      totalAmount: '100',
+      items: [],
+    });
+    const r = await extractReceipt(adapter, { base64: 'x', mimeType: 'image/jpeg' });
+    expect(r.date).toBe(todayISO());
+  });
+
   test('skips items with invalid amounts', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',

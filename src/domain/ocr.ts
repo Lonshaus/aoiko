@@ -66,7 +66,10 @@ function parseOcrResponse(raw: unknown): ReceiptExtracted {
   }
   const r = raw as Record<string, unknown>;
 
-  const date = typeof r.date === 'string' && r.date ? r.date : todayISO();
+  // 形式まで見る。YYYY-MM-DD でない値は <input type="date"> が空表示にするため、
+  // 利用者は「日付が読めなかった」ことに気付けないまま保存へ進んでしまう。
+  const date =
+    typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : todayISO();
   const vendorName = typeof r.vendorName === 'string' ? r.vendorName : '';
   const totalAmount = typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
   if (!totalAmount) {
