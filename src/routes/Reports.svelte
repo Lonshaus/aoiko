@@ -117,6 +117,7 @@
   let confirmingLock = $state(false);
   let confirmingUnlock = $state(false);
   let lockError = $state('');
+  let reportsError = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
   // 無ければ利用者が手入力する（fabricate しない——CLAUDE.md の監査履歴不変原則）
@@ -211,8 +212,13 @@
   }
 
   $effect(() => {
-    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe((v) => {
-      arApEntries = v;
+    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe({
+      next: (v) => {
+        arApEntries = v;
+      },
+      error: (e: unknown) => {
+        arApError = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -323,30 +329,47 @@
         budget,
         hasRealEstate,
       };
-    }).subscribe((v) => {
-      monthly = v.monthly;
-      pl = v.pl;
-      bs = v.bs;
-      hasRealEstate = v.hasRealEstate;
-      inventoryValuation = v.inventory;
-      monthlyPL = v.monthlyPL;
-      breakdown = v.breakdown;
-      amendment = v.amendment;
-      consumptionTax = v.consumptionTax;
-      taxRegistration = v.taxRegistration;
-      simplifiedCategory = v.simplifiedCategory;
-      taxableSalesRatioPercent = v.taxableSalesRatioPercent;
-      taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
-      filingType = v.filingType;
-      locked = v.locked;
-      budgetVsActual = v.budget;
-      // 予算編集欄（budgetDrafts）は年度切替時のみ同期する。ここは liveQuery の
-      // 全再発火（無関係な仕訳変更等でも起きる）を拾うため、編集中の入力を
-      // 上書きしないよう年度が変わった時だけ同期する。
-      if (lastBudgetDraftYear !== yr) {
-        lastBudgetDraftYear = yr;
-        syncBudgetDrafts(v.budget);
-      }
+    }).subscribe({
+      next: (v) => {
+        reportsError = '';
+        monthly = v.monthly;
+        pl = v.pl;
+        bs = v.bs;
+        hasRealEstate = v.hasRealEstate;
+        inventoryValuation = v.inventory;
+        monthlyPL = v.monthlyPL;
+        breakdown = v.breakdown;
+        amendment = v.amendment;
+        consumptionTax = v.consumptionTax;
+        taxRegistration = v.taxRegistration;
+        simplifiedCategory = v.simplifiedCategory;
+        taxableSalesRatioPercent = v.taxableSalesRatioPercent;
+        taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
+        filingType = v.filingType;
+        locked = v.locked;
+        budgetVsActual = v.budget;
+        // 予算編集欄（budgetDrafts）は年度切替時のみ同期する。ここは liveQuery の
+        // 全再発火（無関係な仕訳変更等でも起きる）を拾うため、編集中の入力を
+        // 上書きしないよう年度が変わった時だけ同期する。
+        if (lastBudgetDraftYear !== yr) {
+          lastBudgetDraftYear = yr;
+          syncBudgetDrafts(v.budget);
+        }
+      },
+      // 申告に使う画面のため、失敗時は前年度の数字を残さず全部クリアする
+      // （見出しの年度だけ進んで数字が古いまま、という誤表示を避ける）。
+      error: (e: unknown) => {
+        reportsError = describeStorageError(e);
+        monthly = null;
+        pl = null;
+        bs = null;
+        inventoryValuation = null;
+        monthlyPL = null;
+        breakdown = null;
+        amendment = null;
+        consumptionTax = null;
+        budgetVsActual = null;
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -689,6 +712,14 @@
       class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
       {lockError}
+    </div>
+  {/if}
+
+  {#if reportsError}
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
+      {m.reports_load_error({ message: reportsError })}
     </div>
   {/if}
 
