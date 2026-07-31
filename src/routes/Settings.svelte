@@ -894,6 +894,12 @@
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
       restoreAttachmentCount = parsed.attachmentBlobs.size;
+      // 帳簿自体は復元可能。選択時点で「写真だけ失う」ことを警告として先に見せる。
+      if (parsed.corruptAttachmentNames.length > 0) {
+        restoreWarning = m.settings_restore_corrupt_attachments({
+          count: parsed.corruptAttachmentNames.length,
+        });
+      }
     } catch (err) {
       if (err instanceof BackupTooLargeError) {
         restoreError = m.common_file_too_large({
