@@ -75,6 +75,9 @@ export type SettingsMap = {
   // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
+  // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
+  // 設定画面の「非表示にした確認を元に戻す」で戻せる（suppressed-confirms.ts）。
+  skipFiledYearWarning: boolean;
   // 請求書・見積書（C1）の番号プレフィックス。未設定時は既定値（invoice.ts の
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;

@@ -9,6 +9,7 @@
   import { describeLlmError } from '../domain/llm';
   import { getSetting, setSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
@@ -207,6 +208,12 @@
           ? `${data.vendor} ${data.orderNumber}`
           : data.vendor
         : m.order_default_description();
+
+      if (
+        !(await filedYearGuard.confirm([Number(data.date.slice(0, 4))], { suppressible: true }))
+      ) {
+        return;
+      }
 
       await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
         await db.journalEntries.add({

@@ -37,6 +37,8 @@
     smallAssetThreshold,
   } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { countSuppressedConfirms, resetSuppressedConfirms } from '../lib/suppressed-confirms';
   import BackupPanel from '../components/BackupPanel.svelte';
   import PolicyDocViewer from '../components/PolicyDocViewer.svelte';
   import { DEFAULT_INVOICE_PREFIX, DEFAULT_QUOTE_PREFIX } from '../domain/invoice';
@@ -95,6 +97,7 @@
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
   let skipExternalSendConfirm = $state(false);
+  let resetSuppressedConfirmsStatus = $state('');
   let homeOfficeRatios = $state<Record<string, string>>({});
   let hoRatioAccount = $state('');
   let hoRatioValue = $state('');
@@ -430,6 +433,17 @@
     }, 2000);
   }
 
+  async function resetSuppressedConfirmsClick() {
+    const count = await countSuppressedConfirms();
+    await resetSuppressedConfirms();
+    skipAttachmentConfirm = false;
+    skipExternalSendConfirm = false;
+    resetSuppressedConfirmsStatus =
+      count > 0
+        ? m.settings_basic_reset_suppressed_confirms_done({ count })
+        : m.settings_basic_reset_suppressed_confirms_none();
+  }
+
   async function clearAll() {
     confirmingClear = false;
     await backup.clearStoredBackups();
@@ -450,6 +464,9 @@
   async function runCarryover() {
     carryoverError = '';
     carryoverStatus = '';
+    if (!(await filedYearGuard.confirm([currentYear]))) {
+      return;
+    }
     try {
       const r = await applyCarryover(currentYear);
       if ('entryId' in r) {
@@ -468,6 +485,13 @@
   async function deleteCarryover() {
     carryoverError = '';
     carryoverStatus = '';
+    if (
+      !(await filedYearGuard.confirm([currentYear], {
+        detail: m.filed_year_warning_detail_carryover({ year: currentYear }),
+      }))
+    ) {
+      return;
+    }
     try {
       const r = await removeCarryover(currentYear);
       carryoverStatus = r.removed
@@ -763,6 +787,21 @@
   }
 
   async function runDisposalEntry(id: string) {
+    const asset = await db.fixedAssets.get(id);
+    if (asset?.disposedDate) {
+      const year = Number(asset.disposedDate.slice(0, 4));
+      if (
+        !(await filedYearGuard.confirm([year], {
+          detail: m.filed_year_warning_detail_disposal({
+            name: asset.name,
+            cost: formatJPY(asset.acquisitionCost),
+            date: asset.disposedDate,
+          }),
+        }))
+      ) {
+        return;
+      }
+    }
     const result = await generateDisposalEntry(id, disposeCashAccount);
     if (result.created) {
       disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
@@ -1135,6 +1174,21 @@
       />
       {m.settings_basic_skip_external_send_confirm()}
     </label>
+    <div>
+      <button
+        type="button"
+        onclick={resetSuppressedConfirmsClick}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_basic_reset_suppressed_confirms()}
+      </button>
+      <p class="mt-1 text-xs text-muted-foreground">
+        {m.settings_basic_reset_suppressed_confirms_hint()}
+      </p>
+      {#if resetSuppressedConfirmsStatus}
+        <p class="mt-1 text-xs text-green-600">{resetSuppressedConfirmsStatus}</p>
+      {/if}
+    </div>
     <div class="flex justify-end">
       <button
         type="submit"

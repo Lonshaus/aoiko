@@ -14,6 +14,7 @@
   import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
@@ -235,6 +236,9 @@
       // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
+      if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
+        return;
+      }
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
           id: entryId,
