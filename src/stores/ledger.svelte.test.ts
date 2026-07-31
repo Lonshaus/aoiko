@@ -7,11 +7,14 @@ function acc(code: string, year: number, name: string): Account {
   return { code, year, name, category: 'expense', displayOrder: Number(code) };
 }
 // liveQuery は非同期に反映されるため、条件成立までポーリングで待つ。
-async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
+// 上限は CI の負荷を見込んで広めに取る（2 秒では import に数十秒かかる runner で
+// 偽陽性が出た）。条件が成立しないケースは待っても成立しないので、広げても
+// 壊れたときの検出力は落ちない。
+async function waitFor(predicate: () => boolean, label: string, timeoutMs = 10_000): Promise<void> {
   const start = Date.now();
   while (!predicate()) {
     if (Date.now() - start > timeoutMs) {
-      throw new Error('waitFor タイムアウト');
+      throw new Error(`waitFor タイムアウト（${label}）`);
     }
     await new Promise((r) => setTimeout(r, 10));
   }
@@ -23,7 +26,7 @@ beforeEach(async () => {
   await db.accounts.bulkAdd([acc('5130', 2026, '水道光熱費'), acc('5140', 2027, '通信費')]);
   // 各テストの1回目の switchYear が確実に再購読するよう、対象と異なる年度を基準に置く
   ledger.switchYear(1900);
-  await waitFor(() => ledger.accounts.length === 0);
+  await waitFor(() => ledger.accounts.length === 0, '初期化');
 });
 
 afterEach(async () => {
@@ -35,16 +38,16 @@ describe('ledger.switchYear', () => {
   test('年度を切り替えると currentYear と年度スコープの科目が張り替わる', async () => {
     ledger.switchYear(2026);
     expect(ledger.currentYear).toBe(2026);
-    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5130');
+    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5130', '2026 の科目');
 
     ledger.switchYear(2027);
     expect(ledger.currentYear).toBe(2027);
-    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5140');
+    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5140', '2027 の科目');
   });
 
   test('同一年度への切替は冪等（currentYear もデータも変わらない）', async () => {
     ledger.switchYear(2027);
-    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5140');
+    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5140', '2027 の科目');
     ledger.switchYear(2027);
     expect(ledger.currentYear).toBe(2027);
     expect(ledger.accounts.map((a) => a.code)).toEqual(['5140']);
@@ -87,7 +90,7 @@ describe('liveQuery 購読の失敗', () => {
     const spies = makeYearScopedSubsThrow('boom-accounts');
     try {
       ledger.switchYear(2026);
-      await waitFor(() => ledger.lastError !== null);
+      await waitFor(() => ledger.lastError !== null, 'lastError が設定される');
       expect(ledger.lastError).toContain('boom-accounts');
     } finally {
       for (const spy of spies) {
@@ -99,12 +102,12 @@ describe('liveQuery 購読の失敗', () => {
   test('失敗後に成功すると lastError はクリアされる', async () => {
     const spies = makeYearScopedSubsThrow('boom-accounts-2');
     ledger.switchYear(2026);
-    await waitFor(() => ledger.lastError !== null);
+    await waitFor(() => ledger.lastError !== null, 'lastError が設定される');
     for (const spy of spies) {
       spy.mockRestore();
     }
     ledger.switchYear(2027);
-    await waitFor(() => ledger.lastError === null);
+    await waitFor(() => ledger.lastError === null, 'lastError がクリアされる');
     expect(ledger.lastError).toBeNull();
   });
 });

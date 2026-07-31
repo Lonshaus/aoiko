@@ -1,7 +1,13 @@
 import { db } from '../db/db';
 import { D } from '../lib/decimal';
 import { buildBS, buildPL } from './reports';
-import type { PLData } from '../db/types';
+import type { BSData, PLData } from '../db/types';
+
+export interface AmendmentBSAccountChange {
+  accountCode: string;
+  filedAmount: string;
+  currentAmount: string;
+}
 
 export interface AmendmentDiff {
   year: number;
@@ -13,7 +19,18 @@ export interface AmendmentDiff {
   currentTotalRevenue: string;
   filedTotalExpense: string;
   currentTotalExpense: string;
+  // null = 当該年度の filed 時点で bs スナップショットが保存されていない（旧仕様で申告した年度）。
+  // 空配列 = baseline はあるが差分なし。
+  bsChanges: AmendmentBSAccountChange[] | null;
   hasChange: boolean;
+}
+// filed/superseded の bs スナップショットを資産・負債・純資産の科目コード→金額へまとめる。
+function flattenBS(data: BSData): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const row of [...data.assets, ...data.liabilities, ...data.equity]) {
+    map.set(row.accountCode, row.amount);
+  }
+  return map;
 }
 // 申告済み年度の filed スナップショットと現在の集計結果を比較し、
 // 訂正仕訳によってどれだけ数値が変わったかを返す。
@@ -40,6 +57,41 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
   const revDelta = D(current.totalRevenue).minus(filed.totalRevenue);
   const expDelta = D(current.totalExpense).minus(filed.totalExpense);
 
+  // BS は PL と別スナップショット（旧仕様で申告した年度には保存されていない）。
+  // 同じ filed/superseded 選定ロジックを bs 型に対して繰り返す。
+  const bsCandidates = await db.reportSnapshots
+    .where('year')
+    .equals(year)
+    .filter((s) => s.type === 'bs' && (s.status === 'filed' || s.status === 'superseded'))
+    .toArray();
+  const bsSnap = bsCandidates.sort(
+    (a, b) => (b.filedAt ?? b.generatedAt) - (a.filedAt ?? a.generatedAt),
+  )[0];
+
+  let bsChanges: AmendmentBSAccountChange[] | null = null;
+  if (bsSnap && bsSnap.payload.type === 'bs') {
+    const filedBS = flattenBS(bsSnap.payload.data);
+    const bsReport = await buildBS(year);
+    const currentBS = flattenBS({
+      assets: bsReport.assets.map((r) => ({ accountCode: r.accountCode, amount: r.balance })),
+      liabilities: bsReport.liabilities.map((r) => ({
+        accountCode: r.accountCode,
+        amount: r.balance,
+      })),
+      equity: bsReport.equity.map((r) => ({ accountCode: r.accountCode, amount: r.balance })),
+    });
+    const codes = new Set([...filedBS.keys(), ...currentBS.keys()]);
+    bsChanges = [];
+    for (const code of codes) {
+      const filedAmount = filedBS.get(code) ?? '0';
+      const currentAmount = currentBS.get(code) ?? '0';
+      if (!D(filedAmount).equals(currentAmount)) {
+        bsChanges.push({ accountCode: code, filedAmount, currentAmount });
+      }
+    }
+    bsChanges.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+  }
+
   return {
     year,
     filedAt: snap.filedAt ?? snap.generatedAt,
@@ -50,7 +102,9 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
     currentTotalRevenue: current.totalRevenue,
     filedTotalExpense: filed.totalExpense,
     currentTotalExpense: current.totalExpense,
-    hasChange: !delta.isZero() || !revDelta.isZero() || !expDelta.isZero(),
+    bsChanges,
+    hasChange:
+      !delta.isZero() || !revDelta.isZero() || !expDelta.isZero() || (bsChanges?.length ?? 0) > 0,
   };
 }
 
