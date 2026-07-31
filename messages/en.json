@@ -923,5 +923,6 @@
   "common_offline_error": "You appear to be offline. Check your connection and try again.",
   "settings_restore_corrupt": "This backup file is damaged (verification failed for {count} of its entries). Nothing was restored — please choose a different backup file.",
   "invoices_print_due_date": "Due date",
-  "invoices_print_reduced_note": "※ marks items subject to the reduced tax rate (8%)"
+  "invoices_print_reduced_note": "※ marks items subject to the reduced tax rate (8%)",
+  "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored."
 }

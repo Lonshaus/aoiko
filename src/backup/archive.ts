@@ -80,6 +80,9 @@ export function buildBackupZipStream(
 export interface ParsedBackupZip {
   payload: BackupPayload;
   attachmentBlobs: Map<string, Blob>;
+  // CRC32 が壊れていた添付ファイル名。payload.json 自体が壊れている場合は
+  // BackupCorruptError を投げるため、ここに payload は含まれない。
+  corruptAttachmentNames: string[];
 }
 
 const ZIP_READ_ERROR = 'zip として読み込めませんでした';
@@ -384,11 +387,14 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
     }
   }
-  if (corruptNames.length > 0) {
+  // payload.json 自体が壊れている（または見つからない）場合だけ硬く止める。帳簿の
+  // 検証を通ったデータまで一緒に捨てないよう、添付だけ壊れている場合は続行し、
+  // 何枚壊れていたかを呼び出し元へ返す（#316。missingBlobCount と同型の警告経路）。
+  if (corruptNames.includes(PAYLOAD_ENTRY_NAME)) {
     throw new BackupCorruptError(corruptNames);
   }
   if (!payload) {
     throw new Error(`zip 内に ${PAYLOAD_ENTRY_NAME} が見つかりません`);
   }
-  return { payload, attachmentBlobs };
+  return { payload, attachmentBlobs, corruptAttachmentNames: corruptNames };
 }

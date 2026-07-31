@@ -35,9 +35,11 @@ export function isBackupTooLarge(isZip: boolean, size: number): boolean {
 }
 // アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
-export async function parseBackupFile(
-  file: File,
-): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Blob> }> {
+export async function parseBackupFile(file: File): Promise<{
+  payload: BackupPayload;
+  attachmentBlobs: Map<string, Blob>;
+  corruptAttachmentNames: string[];
+}> {
   const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
   const isZip = looksLikeZip(head);
   if (isBackupTooLarge(isZip, file.size)) {
@@ -46,7 +48,11 @@ export async function parseBackupFile(
   if (isZip) {
     return parseBackupZip(file);
   }
-  return { payload: parseBackupJson(await file.text()), attachmentBlobs: new Map() };
+  return {
+    payload: parseBackupJson(await file.text()),
+    attachmentBlobs: new Map(),
+    corruptAttachmentNames: [],
+  };
 }
 // バックアップの内容で IndexedDB を完全置換する。既存データはすべて削除されるため、
 // UI 側で必ず確認ダイアログを挟むこと。attachmentBlobs が空の場合（旧形式 JSON 等）は
