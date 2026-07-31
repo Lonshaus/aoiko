@@ -98,7 +98,9 @@ describe('保存の完了判定', () => {
 
   test('保存先の選択を取り消したら false（時刻を刻ませない）', async () => {
     w.showSaveFilePicker = () => Promise.reject(new DOMException('cancel', 'AbortError'));
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+      confirmCompletion: true,
+    });
     expect(ok).toBe(false);
   });
 
@@ -115,14 +117,30 @@ describe('保存の完了判定', () => {
             close: () => Promise.resolve(),
           }),
       });
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+      confirmCompletion: true,
+    });
     expect(ok).toBe(true);
     expect(written).toHaveLength(1);
   });
 
   test('picker が無い環境（<a> ダウンロード）は true', async () => {
     delete w.showSaveFilePicker;
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip');
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+      confirmCompletion: true,
+    });
+    expect(ok).toBe(true);
+  });
+
+  test('confirmCompletion を指定しなければ picker があっても <a> のまま', async () => {
+    let pickerCalled = false;
+    w.showSaveFilePicker = () => {
+      pickerCalled = true;
+      return Promise.reject(new DOMException('cancel', 'AbortError'));
+    };
+    // .xtx・CSV の書き出しはこちら。picker を挟むと e2e の download イベントが来なくなる。
+    const ok = await saveFile(new TextEncoder().encode('x'), 'a.xtx', 'application/xml');
+    expect(pickerCalled).toBe(false);
     expect(ok).toBe(true);
   });
 });

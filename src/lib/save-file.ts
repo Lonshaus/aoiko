@@ -1,14 +1,18 @@
 // ファイルを保存する。バックアップ zip・.xtx・XML・弥生 CSV の 4 箇所に同じ実装が
 // 複製されていたため 1 箇所へ集約する。呼出側はファイルの中身と名前だけを渡す。
 //
-// 戻り値は「利用者が保存を完了したことを観測できたか」。File System Access が使える
-// 環境では保存先の確定まで待てるため、取消を取消として区別できる。<a> のダウンロードは
-// 完了も取消も観測できないため true を返す（従来どおりの近似）。「最終ダウンロード時刻」の
-// ように保存済みを主張する記録は、この戻り値を見てから書くこと。
+// 戻り値は「利用者が保存を完了したことを観測できたか」。既定は <a> のダウンロードで、
+// 完了も取消も観測できないため常に true を返す（従来どおりの近似）。
+//
+// confirmCompletion を指定した場合だけ、File System Access が使える環境で保存先の確定まで
+// 待ち、取消を取消として区別する。保存済みを主張する記録（バックアップの最終ダウンロード
+// 時刻）を残す呼出側のためのオプションで、既定にはしない：picker を挟むと保存ダイアログの
+// 挙動が変わり、.xtx や CSV の書き出しまで UX が変わってしまうため。
 export async function saveFile(
   data: Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>,
   filename: string,
   mimeType: string,
+  options?: { confirmCompletion?: boolean },
 ): Promise<boolean> {
   let blob: Blob;
   if (data instanceof ReadableStream) {
@@ -27,7 +31,7 @@ export async function saveFile(
       }) => Promise<FileSystemFileHandle>;
     }
   ).showSaveFilePicker;
-  if (typeof picker === 'function') {
+  if (options?.confirmCompletion && typeof picker === 'function') {
     const ext = filename.slice(filename.lastIndexOf('.'));
     try {
       const handle = await picker({

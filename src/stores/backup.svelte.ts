@@ -302,7 +302,9 @@ class BackupManager {
       const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
       const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
       const stream = await backupZipStream({ includeApiKeys, includeFilerInfo });
-      const saved = await saveFile(stream, `aoiko-ledger-${todayISO()}.zip`, 'application/zip');
+      const saved = await saveFile(stream, `aoiko-ledger-${todayISO()}.zip`, 'application/zip', {
+        confirmCompletion: true,
+      });
       // 保存を取り消した場合に時刻を刻むと、書き出されていないバックアップのために
       // 「端末外バックアップがありません」の警告が抑止されてしまう。
       if (saved) {
