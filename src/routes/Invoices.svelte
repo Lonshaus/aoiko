@@ -46,8 +46,13 @@
   let taxRegistration = $state('taxable');
 
   $effect(() => {
-    const sub = liveQuery(() => db.invoices.toArray()).subscribe((v) => {
-      invoices = v;
+    const sub = liveQuery(() => db.invoices.toArray()).subscribe({
+      next: (v) => {
+        invoices = v;
+      },
+      error: (e: unknown) => {
+        errorMessage = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
