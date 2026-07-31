@@ -369,6 +369,7 @@
   "reports_amendment_filed_at": "申告日：{date}",
   "reports_amendment_no_change": "申告時的快照與當前彙總無差異，無需修正申告。",
   "reports_amendment_has_change": "⚠ 申告後傳票有異動，屬修正申告（amended return）對象。",
+  "reports_stale_carryover_warning": "⚠ {year} 年度的期首結轉與目前的上年度餘額不一致，請重新產生結轉。",
   "reports_amendment_revenue": "收益",
   "reports_amendment_expense": "費用",
   "reports_amendment_net_income": "所得（淨利）",

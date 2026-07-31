@@ -7,8 +7,14 @@ import { isYearLocked } from './snapshots';
 // 集計は成対排除方式（countsTowardTotals 参照）：原仕訳・訂正仕訳とも集計から除外され、
 // 正味の効果はゼロになる。訂正仕訳はあくまで訂正履歴の記録として帳簿に残る。
 // 戻り値は新しく作られた訂正仕訳の id。
-// 原仕訳の年度、および訂正仕訳が記帳される年度（今日）がロック済みの場合は訂正不可。
-export async function reverseEntry(entryId: string): Promise<string> {
+// 原仕訳の年度がロック済みの場合は既定で訂正不可。allowFiledYear は呼び出し側が警告を
+// 表示した上で明示的にオプトインするための抜け道（#339 の修正申告フロー向け）。
+// 訂正仕訳が記帳される年度（今日）自体のロックは判定しない：訂正仕訳は originalEntryId を
+// 持ち countsTowardTotals から除外されるため、今日の年度の集計には一切影響しないため。
+export async function reverseEntry(
+  entryId: string,
+  options?: { allowFiledYear?: boolean },
+): Promise<string> {
   const orig = await db.journalEntries.get(entryId);
   if (!orig) {
     throw new Error('対象の仕訳が見つかりません');
@@ -22,7 +28,7 @@ export async function reverseEntry(entryId: string): Promise<string> {
     );
   }
 
-  if (await isYearLocked(orig.year)) {
+  if (!options?.allowFiledYear && (await isYearLocked(orig.year))) {
     throw new Error(
       `${orig.year} 年は申告済みのためロックされています。訂正は新しい年度内の仕訳で対応してください。`,
     );
@@ -30,11 +36,6 @@ export async function reverseEntry(entryId: string): Promise<string> {
 
   const today = todayISO();
   const todayYear = Number(today.slice(0, 4));
-  if (todayYear !== orig.year && (await isYearLocked(todayYear))) {
-    throw new Error(
-      `${todayYear} 年は申告済みのためロックされています。訂正仕訳を記帳できません。`,
-    );
-  }
 
   const lines = await db.journalLines.where('entryId').equals(entryId).toArray();
   if (lines.length === 0) {
