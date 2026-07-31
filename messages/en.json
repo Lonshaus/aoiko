@@ -369,6 +369,7 @@
   "reports_amendment_filed_at": "Filed on: {date}",
   "reports_amendment_no_change": "No difference between the filed snapshot and the current data. An amended return is not required.",
   "reports_amendment_has_change": "⚠ Journal entries have changed since filing. This is subject to an amended return.",
+  "reports_stale_carryover_warning": "⚠ The opening carryover for {year} no longer matches the current prior-year balances. Regenerate the carryover.",
   "reports_amendment_revenue": "Revenue",
   "reports_amendment_expense": "Expenses",
   "reports_amendment_net_income": "Income (net)",
