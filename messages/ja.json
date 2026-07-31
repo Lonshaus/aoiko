@@ -203,6 +203,7 @@
   "import_th_counterpart": "対方科目",
   "import_th_skip": "除外",
   "import_overlap_notice": "過去のインポートと重複する可能性のある {count} 件を自動で除外しました。内容を確認し、必要なら「除外」を外してください。",
+  "import_parser_changed_notice": "取込元を変更したため、読み込み済みの表を破棄しました。もう一度ファイルを選んでください。",
   "import_th_tax": "税区分",
   "import_invoice_compliant": "適格",
   "import_invoice_compliant_title": "適格請求書（インボイス）あり。本則課税で仕入税額控除 100% の対象になります。",
@@ -279,6 +280,7 @@
   "reports_title": "レポート",
   "reports_subtitle": "月別売上・損益計算書（年度ごと）",
   "reports_overview_title": "{year} 年 概況",
+  "reports_load_error": "レポートの読み込みに失敗しました（{message}）。表示中の数字は消去しています。再読み込みしてください。",
   "reports_filed_badge": "🔒 申告済み",
   "reports_unlock_button": "ロック解除",
   "reports_lock_button": "申告済みとしてロック",
@@ -924,5 +926,7 @@
   "settings_restore_corrupt": "このバックアップファイルは壊れています（{count} 件のデータが検証に失敗しました）。復元は行っていません。別のバックアップファイルを選んでください。",
   "invoices_print_due_date": "支払期限",
   "invoices_print_reduced_note": "※は軽減税率（8%）の対象品目",
-  "settings_restore_corrupt_attachments": "証憑写真 {count} 件がバックアップ内で壊れています。帳簿データは復元できますが、これらの写真は復元されません。"
+  "settings_restore_corrupt_attachments": "証憑写真 {count} 件がバックアップ内で壊れています。帳簿データは復元できますが、これらの写真は復元されません。",
+  "settings_asset_disposal_run_error_needs_depreciation": "先に「減価償却仕訳を生成」を実行してください。除却・売却の仕訳は当年分の償却仕訳と対で釣り合います。",
+  "reports_no_data_for_year": "{year} 年度に集計できる仕訳がありません。先に仕訳を登録してください。"
 }

@@ -41,6 +41,7 @@
   let expandedId = $state<string | null>(null);
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
+  let filterError = $state('');
   // 証憑写真（C7）。展開中の仕訳の添付一覧と、事後添付の確認フロー。
   let expandedAttachments = $state<Attachment[]>([]);
   let attachmentUrls = $state<Map<string, string>>(new Map());
@@ -56,11 +57,14 @@
       expandedAttachments = [];
       return;
     }
-    const sub = liveQuery(() => db.attachments.where('entryId').equals(id).toArray()).subscribe(
-      (v) => {
+    const sub = liveQuery(() => db.attachments.where('entryId').equals(id).toArray()).subscribe({
+      next: (v) => {
         expandedAttachments = v;
       },
-    );
+      error: (e: unknown) => {
+        attachmentError = describeStorageError(e);
+      },
+    });
     return () => sub.unsubscribe();
   });
 
@@ -159,8 +163,13 @@
   }
 
   $effect(() => {
-    const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe((v) => {
-      vendors = v;
+    const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe({
+      next: (v) => {
+        vendors = v;
+      },
+      error: (e: unknown) => {
+        filterError = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -173,13 +182,18 @@
     const aMax = amountMaxQuery;
     const vid = vendorIdQuery;
     const off = pageOffset;
-    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, vid, off)).subscribe(
-      (result) => {
+    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, vid, off)).subscribe({
+      next: (result) => {
+        filterError = '';
         rows = result.rows;
         totalCount = result.total;
         loading = false;
       },
-    );
+      error: (e: unknown) => {
+        filterError = describeStorageError(e);
+        loading = false;
+      },
+    });
     return () => sub.unsubscribe();
   });
 
@@ -502,6 +516,14 @@
       class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
       {reverseError}
+    </div>
+  {/if}
+
+  {#if filterError}
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
+      {filterError}
     </div>
   {/if}
 

@@ -72,6 +72,12 @@ export async function reverseEntry(
         invoiceCompliant: line.invoiceCompliant,
         ...(line.homeOfficeRatio ? { homeOfficeRatio: line.homeOfficeRatio } : {}),
         ...(line.memo ? { memo: line.memo } : {}),
+        // 金額には影響しない（原仕訳と訂正仕訳は成対で集計から除外される）が、
+        // 転記しないと帳簿上の訂正仕訳が原仕訳と違う税区分・数量に見える。
+        ...(line.taxCategory ? { taxCategory: line.taxCategory } : {}),
+        ...(line.inputUsageCategory ? { inputUsageCategory: line.inputUsageCategory } : {}),
+        ...(line.itemId ? { itemId: line.itemId } : {}),
+        ...(line.quantity ? { quantity: line.quantity } : {}),
       });
     }
 

@@ -71,8 +71,15 @@ function validateJournalLine(r: unknown, i: number): void {
   if (typeof r.accountCode !== 'string' || r.accountCode.length === 0) {
     fail('journalLines', i, 'accountCode が不正');
   }
-  if (typeof r.amount !== 'string' || !/^-?\d+(\.\d+)?$/.test(r.amount)) {
-    fail('journalLines', i, `amount が数値文字列ではありません：${String(r.amount)}`);
+  // 負の金額は validateLines も toIndexable も禁じている。ここだけ通すと、改竄または
+  // 破損したバックアップ経由でしか作れない負金額の明細が DB に入る。
+  if (typeof r.amount !== 'string' || !/^\d+(\.\d+)?$/.test(r.amount)) {
+    fail('journalLines', i, `amount が非負の数値文字列ではありません：${String(r.amount)}`);
+  }
+  // toIndexable の出力形式（整数部ゼロ詰め + 小数部固定長）。索引の並びが壊れると
+  // 金額範囲検索が黙って誤った結果を返すため、形式まで見る。
+  if (typeof r.amountIndexed !== 'string' || !/^\d+\.\d+$/.test(r.amountIndexed)) {
+    fail('journalLines', i, `amountIndexed が不正：${String(r.amountIndexed)}`);
   }
   if (typeof r.taxRate !== 'number') {
     fail('journalLines', i, 'taxRate が数値ではありません');

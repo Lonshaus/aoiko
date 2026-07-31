@@ -204,6 +204,7 @@
   "import_th_counterpart": "對應科目",
   "import_th_skip": "排除",
   "import_overlap_notice": "已自動排除 {count} 筆可能與先前匯入重複的資料。請確認內容，必要時取消「排除」。",
+  "import_parser_changed_notice": "因為變更了匯入來源，已清除已讀取的表格。請重新選擇檔案。",
   "import_th_tax": "稅別",
   "import_invoice_compliant": "適格",
   "import_invoice_compliant_title": "持有適格請求書（發票）。本則課稅下可 100% 抵扣進項稅額。",
@@ -280,6 +281,7 @@
   "reports_title": "報表",
   "reports_subtitle": "月別銷貨・損益計算書（依年度）",
   "reports_overview_title": "{year} 年 概況",
+  "reports_load_error": "報表讀取失敗（{message}）。畫面上的數字已清除，請重新整理。",
   "reports_filed_badge": "🔒 已申報",
   "reports_unlock_button": "解除鎖定",
   "reports_lock_button": "標記為已申報並鎖定",
@@ -925,5 +927,7 @@
   "settings_restore_corrupt": "這個備份檔案已損毀（{count} 筆資料驗證失敗）。沒有還原任何資料，請改用其他備份檔案。",
   "invoices_print_due_date": "付款期限",
   "invoices_print_reduced_note": "※ 為適用輕減稅率（8%）的品項",
-  "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。"
+  "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。",
+  "settings_asset_disposal_run_error_needs_depreciation": "請先執行「產生折舊仕訳」。除却・売却的仕訳要與當年度的折舊仕訳成對才會平衡。",
+  "reports_no_data_for_year": "{year} 年度沒有可彙總的仕訳。請先登錄仕訳。"
 }

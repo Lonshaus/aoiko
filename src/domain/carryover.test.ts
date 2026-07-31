@@ -10,6 +10,7 @@ import {
   removeCarryover,
 } from './carryover';
 import { reverseEntry } from './reverse';
+import { buildBS } from './reports';
 import { todayISO } from '../lib/date';
 import type { Account, EntrySource, LineSide } from '../db/types';
 
@@ -317,7 +318,7 @@ describe('applyCarryover', () => {
 });
 
 describe('removeCarryover', () => {
-  test('carryover 仕訳とその明細を削除', async () => {
+  async function seedPriorYear(): Promise<void> {
     await seedAccounts(2025);
     await seedAccounts(2026);
     await seedEntry({
@@ -328,14 +329,63 @@ describe('removeCarryover', () => {
         { side: 'credit', accountCode: '3110', amount: '100000' },
       ],
     });
-    await applyCarryover(2026);
+  }
+
+  test('確定仕訳は削除せず、打消し仕訳で相殺する', async () => {
+    await seedPriorYear();
+    const applied = await applyCarryover(2026);
+    const originalId = 'entryId' in applied ? applied.entryId : '';
+    expect(originalId).not.toBe('');
+
     const r = await removeCarryover(2026);
     expect(r.removed).toBe(true);
-    const left = await db.journalEntries.where('year').equals(2026).count();
-    expect(left).toBe(0);
-    const lines = await db.journalLines.count();
-    // 元の 2025 仕訳 2 行 + 削除した carryover 0 行
-    expect(lines).toBe(2);
+
+    // 原仕訳は残り、reversed になる
+    const orig = await db.journalEntries.get(originalId);
+    expect(orig?.status).toBe('reversed');
+    expect(orig?.reversedByEntryId).toBeDefined();
+
+    // 打消し仕訳は同じ期首日・同じ年度に、原仕訳を指して作られる
+    const reversal = await db.journalEntries.get(orig!.reversedByEntryId!);
+    expect(reversal?.originalEntryId).toBe(originalId);
+    expect(reversal?.date).toBe(orig?.date);
+    expect(reversal?.year).toBe(2026);
+
+    // 明細は貸借が反転している
+    const origLines = await db.journalLines.where('entryId').equals(originalId).toArray();
+    const revLines = await db.journalLines.where('entryId').equals(reversal!.id).toArray();
+    expect(revLines).toHaveLength(origLines.length);
+    for (const ol of origLines) {
+      const match = revLines.find(
+        (rl) => rl.accountCode === ol.accountCode && rl.amount === ol.amount,
+      );
+      expect(match?.side).toBe(ol.side === 'debit' ? 'credit' : 'debit');
+    }
+  });
+
+  test('打消し後は繰越をやり直せる（already-exists にならない）', async () => {
+    await seedPriorYear();
+    await applyCarryover(2026);
+    await removeCarryover(2026);
+    const redo = await applyCarryover(2026);
+    expect('entryId' in redo).toBe(true);
+  });
+
+  test('対象が無ければ removed=false', async () => {
+    await seedPriorYear();
+    const r = await removeCarryover(2026);
+    expect(r.removed).toBe(false);
+  });
+
+  test('やり直しても B/S は繰越 1 回分と同じ（成対排除が効く）', async () => {
+    await seedPriorYear();
+    await applyCarryover(2026);
+    const once = await buildBS(2026);
+    await removeCarryover(2026);
+    await applyCarryover(2026);
+    const twice = await buildBS(2026);
+    expect(twice.totalAssets).toBe(once.totalAssets);
+    expect(twice.totalLiabilitiesAndEquity).toBe(once.totalLiabilitiesAndEquity);
   });
 });
 

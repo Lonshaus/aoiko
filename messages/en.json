@@ -204,6 +204,7 @@
   "import_th_counterpart": "Counterpart account",
   "import_th_skip": "Skip",
   "import_overlap_notice": "Auto-excluded {count} row(s) that may duplicate a previous import. Review and uncheck Skip if needed.",
+  "import_parser_changed_notice": "The loaded table was discarded because the import source changed. Please select the file again.",
   "import_th_tax": "Tax",
   "import_invoice_compliant": "Qualified",
   "import_invoice_compliant_title": "A qualified invoice is on file. Eligible for 100% input tax credit under the standard method.",
@@ -280,6 +281,7 @@
   "reports_title": "Reports",
   "reports_subtitle": "Monthly sales and P/L (per fiscal year)",
   "reports_overview_title": "{year} overview",
+  "reports_load_error": "Failed to load reports ({message}). The figures on screen have been cleared. Please reload.",
   "reports_filed_badge": "🔒 Filed",
   "reports_unlock_button": "Unlock",
   "reports_lock_button": "Lock as filed",
@@ -925,5 +927,7 @@
   "settings_restore_corrupt": "This backup file is damaged (verification failed for {count} of its entries). Nothing was restored — please choose a different backup file.",
   "invoices_print_due_date": "Due date",
   "invoices_print_reduced_note": "※ marks items subject to the reduced tax rate (8%)",
-  "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored."
+  "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored.",
+  "settings_asset_disposal_run_error_needs_depreciation": "Run \"Generate depreciation entries\" first. The disposal entry only balances together with this year's depreciation entry.",
+  "reports_no_data_for_year": "There are no journal entries to aggregate for {year}. Enter journal entries first."
 }
