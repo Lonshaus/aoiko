@@ -887,5 +887,6 @@
   "invoices_print_rate": "税率",
   "invoices_print_tax_at_rate": "税率{rate}%消費税額",
   "import_encoding_error": "このファイルは選択中の取込元（{parser}）の文字コードでは読み込めません。取込元の選択が正しいか確認してください。",
-  "receipt_date_required": "日付を YYYY-MM-DD 形式で入力してください。"
+  "receipt_date_required": "日付を YYYY-MM-DD 形式で入力してください。",
+  "settings_filer_zeimusho_unresolved": "税務署が選択されていません。候補から選ぶか、入力欄を空にしてください（このままでは保存時に設定が消えます）。"
 }
