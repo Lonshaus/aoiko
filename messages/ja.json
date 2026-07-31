@@ -203,6 +203,7 @@
   "import_th_counterpart": "対方科目",
   "import_th_skip": "除外",
   "import_overlap_notice": "過去のインポートと重複する可能性のある {count} 件を自動で除外しました。内容を確認し、必要なら「除外」を外してください。",
+  "import_parser_changed_notice": "取込元を変更したため、読み込み済みの表を破棄しました。もう一度ファイルを選んでください。",
   "import_th_tax": "税区分",
   "import_invoice_compliant": "適格",
   "import_invoice_compliant_title": "適格請求書（インボイス）あり。本則課税で仕入税額控除 100% の対象になります。",
