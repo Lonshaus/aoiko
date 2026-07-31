@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
@@ -22,6 +23,13 @@
   let committing = $state(false);
 
   let extracted = $state<OrderExtracted | null>(null);
+  // 貼り付けたテキストと解析結果は確定するまで DB に無い。
+  const isDirty = $derived(pastedText !== '' || extracted !== null);
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   let reviewItems = $state<ReviewItem[]>([]);
   let paymentAccount = $state('2120'); // 未払金（クレカ既定）
 

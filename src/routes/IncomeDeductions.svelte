@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
@@ -400,19 +401,11 @@
   const draftSignature = $derived(JSON.stringify(recordDraft));
   // 保存済みの内容と一致しなくなったら未保存。約40項目あり、失うと打ち直しになる。
   const isDirty = $derived(savedSnapshot !== null && draftSignature !== savedSnapshot);
+  // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
+  const unsavedToken = {};
   $effect(() => {
-    if (!isDirty) {
-      return;
-    }
-    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
-    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload);
-    };
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
   });
   const ctx = $derived(personalDeductionsToCtx(recordDraft));
   // 事業所得（青色控除は不動産所得との共有枠配分後）。ledger 由来の pl はキャッシュから、
