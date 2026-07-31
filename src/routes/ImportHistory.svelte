@@ -1,7 +1,8 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { db } from '../db';
-  import { reverseImportBatch } from '../domain/import-batch';
+  import { importBatchYears, reverseImportBatch } from '../domain/import-batch';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type { ImportBatch, JournalEntry } from '../db/types';
   import { findParser } from '../parsers';
@@ -67,8 +68,12 @@
     confirmingReverseId = null;
     lastError = '';
     lastSuccess = '';
+    const years = await importBatchYears(id);
+    if (!(await filedYearGuard.confirm(years))) {
+      return;
+    }
     try {
-      const r = await reverseImportBatch(id);
+      const r = await reverseImportBatch(id, { allowFiledYear: true });
       lastSuccess =
         r.alreadyReversedCount > 0
           ? m.import_history_reverse_success_with_skipped({

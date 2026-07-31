@@ -15,6 +15,7 @@
   } from '../domain/business-opening';
   import { getSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import type { DepreciationMethod } from '../db/types';
   import type { FilingType } from '../tax-schema/2026/xtx';
 
@@ -178,6 +179,15 @@
         accountCode: c.accountCode,
         side: c.side,
       }));
+      const year = Number(businessStartDate.slice(0, 4));
+      const detail = m.filed_year_warning_detail_opening({
+        expenses: expenses.length,
+        assets: convertedAssets.length,
+        custom: customItems.length,
+      });
+      if (!(await filedYearGuard.confirm([year], { detail }))) {
+        return;
+      }
       await generateOpeningEntries({
         businessStartDate,
         expenses,

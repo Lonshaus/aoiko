@@ -12,6 +12,7 @@
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -325,6 +326,10 @@
       const attachmentRecords = await Promise.all(
         attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
       );
+
+      if (!(await filedYearGuard.confirm([Number(date.slice(0, 4))]))) {
+        return;
+      }
 
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
         await db.journalEntries.add({
