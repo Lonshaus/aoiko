@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { liveQuery } from 'dexie';
   import { db } from '../db/db';
   import { newId } from '../lib/id';
@@ -26,6 +27,9 @@
   let editing = $state<Invoice | null>(null);
   let printingId = $state<string | null>(null);
   let errorMessage = $state('');
+  let submitting = $state(false);
+  // 編集を開いた時点の内容。下書き（明細行を含む）を丸ごと失うのを防ぐ。
+  let editingSnapshot = $state<string | null>(null);
   let confirmingDelete = $state(false);
   let pendingDeleteId = $state<string | null>(null);
   let pendingDeleteName = $state('');
@@ -83,20 +87,33 @@
     return m.invoices_status_voided();
   }
 
+  const isDirty = $derived(
+    editing !== null && editingSnapshot !== null && JSON.stringify(editing) !== editingSnapshot,
+  );
+  // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
+
   function startNew() {
     errorMessage = '';
     convertingFromQuoteId = null;
     editing = createDraftInvoice(tab, ledger.vendors[0]?.id ?? '', todayISO());
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function openEdit(inv: Invoice) {
     errorMessage = '';
     convertingFromQuoteId = null;
     editing = structuredClone(inv);
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function closeForm() {
     editing = null;
+    editingSnapshot = null;
     convertingFromQuoteId = null;
   }
 
@@ -115,10 +132,11 @@
   }
 
   async function saveDraft() {
-    if (!editing) {
+    if (!editing || submitting) {
       return;
     }
     errorMessage = '';
+    submitting = true;
     try {
       const snapshot = $state.snapshot(editing);
       await db.invoices.put(snapshot);
@@ -126,17 +144,21 @@
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
       }
       editing = null;
+      editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
     }
   }
 
   async function issue() {
-    if (!editing) {
+    if (!editing || submitting) {
       return;
     }
     errorMessage = '';
+    submitting = true;
     try {
       const snapshot = $state.snapshot(editing);
       const prefix =
@@ -148,9 +170,12 @@
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
       }
       editing = null;
+      editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
+    } finally {
+      submitting = false;
     }
   }
 
@@ -186,6 +211,7 @@
     tab = 'invoice';
     convertingFromQuoteId = quote.id;
     editing = convertQuoteToInvoiceDraft(quote, todayISO());
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function print(id: string) {
@@ -404,13 +430,19 @@
       {/if}
 
       <div class="flex gap-2">
-        <button type="button" onclick={saveDraft} class="px-4 py-2 border rounded hover:bg-muted">
+        <button
+          type="button"
+          onclick={saveDraft}
+          disabled={submitting}
+          class="px-4 py-2 border rounded hover:bg-muted disabled:opacity-50"
+        >
           {m.invoices_action_save_draft()}
         </button>
         <button
           type="button"
           onclick={issue}
-          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          disabled={submitting}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.invoices_action_issue()}
         </button>
