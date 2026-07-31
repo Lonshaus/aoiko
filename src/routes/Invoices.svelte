@@ -27,6 +27,8 @@
   let printingId = $state<string | null>(null);
   let errorMessage = $state('');
   let submitting = $state(false);
+  // 編集を開いた時点の内容。下書き（明細行を含む）を丸ごと失うのを防ぐ。
+  let editingSnapshot = $state<string | null>(null);
   let confirmingDelete = $state(false);
   let pendingDeleteId = $state<string | null>(null);
   let pendingDeleteName = $state('');
@@ -84,20 +86,41 @@
     return m.invoices_status_voided();
   }
 
+  const isDirty = $derived(
+    editing !== null && editingSnapshot !== null && JSON.stringify(editing) !== editingSnapshot,
+  );
+  $effect(() => {
+    if (!isDirty) {
+      return;
+    }
+    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
+    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  });
+
   function startNew() {
     errorMessage = '';
     convertingFromQuoteId = null;
     editing = createDraftInvoice(tab, ledger.vendors[0]?.id ?? '', todayISO());
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function openEdit(inv: Invoice) {
     errorMessage = '';
     convertingFromQuoteId = null;
     editing = structuredClone(inv);
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function closeForm() {
     editing = null;
+    editingSnapshot = null;
     convertingFromQuoteId = null;
   }
 
@@ -128,6 +151,7 @@
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
       }
       editing = null;
+      editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
@@ -153,6 +177,7 @@
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
       }
       editing = null;
+      editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
       errorMessage = e instanceof Error ? e.message : String(e);
@@ -193,6 +218,7 @@
     tab = 'invoice';
     convertingFromQuoteId = quote.id;
     editing = convertQuoteToInvoiceDraft(quote, todayISO());
+    editingSnapshot = JSON.stringify(editing);
   }
 
   function print(id: string) {

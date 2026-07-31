@@ -888,5 +888,6 @@
   "invoices_print_rate": "Rate",
   "invoices_print_tax_at_rate": "Tax at {rate}%",
   "import_encoding_error": "This file cannot be decoded with the character encoding of the selected source ({parser}). Check that the correct source is selected.",
-  "receipt_date_required": "Enter the date in YYYY-MM-DD format."
+  "receipt_date_required": "Enter the date in YYYY-MM-DD format.",
+  "settings_filer_zeimusho_unresolved": "No tax office is selected. Pick one from the list, or clear the field (saving as-is would wipe the setting)."
 }
