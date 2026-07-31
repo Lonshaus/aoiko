@@ -8,6 +8,7 @@ import {
   estimateTransferIncome,
   generateDisposalEntry,
 } from './asset-disposal';
+import { generateYearEndDepreciation } from './depreciation';
 import type { FixedAsset } from '../db/types';
 
 function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
@@ -133,12 +134,24 @@ describe('buildDisposalLines（売却）', () => {
 });
 
 describe('generateDisposalEntry', () => {
-  test('除却仕訳を作成し、貸借が一致する', async () => {
+  test('当年分の償却仕訳が無ければ needs-year-end-depreciation', async () => {
     const a = asset({ disposedDate: '2023-06-30', disposalType: 'scrap' });
     await db.fixedAssets.add(a);
     const result = await generateDisposalEntry(a.id);
+    expect(result).toEqual({ created: false, reason: 'needs-year-end-depreciation' });
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('除却仕訳を作成し、貸借が一致する', async () => {
+    const a = asset({ disposedDate: '2023-06-30', disposalType: 'scrap' });
+    await db.fixedAssets.add(a);
+    await generateYearEndDepreciation(2023);
+    const result = await generateDisposalEntry(a.id);
     expect(result.created).toBe(true);
-    const entries = await db.journalEntries.where({ year: 2023 }).toArray();
+    const entries = await db.journalEntries
+      .where({ year: 2023 })
+      .filter((e) => e.description.includes('除却'))
+      .toArray();
     expect(entries).toHaveLength(1);
     const lines = await db.journalLines.where('entryId').equals(entries[0]!.id).toArray();
     const debit = lines.filter((l) => l.side === 'debit').reduce((s, l) => s.plus(l.amount), D(0));
@@ -151,11 +164,29 @@ describe('generateDisposalEntry', () => {
   test('2回目は重複としてスキップする', async () => {
     const a = asset({ disposedDate: '2023-06-30', disposalType: 'scrap' });
     await db.fixedAssets.add(a);
+    await generateYearEndDepreciation(2023);
     await generateDisposalEntry(a.id);
     const second = await generateDisposalEntry(a.id);
     expect(second).toEqual({ created: false, reason: 'already-exists' });
-    const entries = await db.journalEntries.where({ year: 2023 }).toArray();
-    expect(entries).toHaveLength(1);
+    const disposals = await db.journalEntries
+      .where({ year: 2023 })
+      .filter((e) => e.description.includes('除却'))
+      .toArray();
+    expect(disposals).toHaveLength(1);
+  });
+
+  test('償却額ゼロの年（既に償却済み）は年末仕訳が無くても作れる', async () => {
+    // 少額特例は取得年に全額償却済み。翌年以降は当年分の償却額がゼロ。
+    const a = asset({
+      depreciationMethod: 'small-asset-special',
+      acquisitionCost: '200000',
+      acquisitionDate: '2022-04-01',
+      disposedDate: '2023-06-30',
+      disposalType: 'scrap',
+    });
+    await db.fixedAssets.add(a);
+    const result = await generateDisposalEntry(a.id);
+    expect(result.created).toBe(true);
   });
 
   test('disposedDate 未設定なら no-disposal', async () => {
