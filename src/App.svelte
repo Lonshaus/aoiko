@@ -6,6 +6,7 @@
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
   import UnsavedChangesDialog from './components/UnsavedChangesDialog.svelte';
+  import FiledYearWarningDialog from './components/FiledYearWarningDialog.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
   import { pathToChapter } from './lib/manual-routes';
   import { ledger } from './stores/ledger.svelte';
@@ -225,6 +226,7 @@
 
 <UpdatePrompt />
 <UnsavedChangesDialog />
+<FiledYearWarningDialog />
 
 {#if consentState === 'required'}
   <DisclaimerConsent onaccept={onConsentAccepted} />
