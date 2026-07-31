@@ -773,6 +773,7 @@
       'already-exists': m.settings_asset_disposal_run_error_exists(),
       'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
       'lump-sum-unsupported': m.settings_asset_disposal_run_error_lump_sum(),
+      'needs-year-end-depreciation': m.settings_asset_disposal_run_error_needs_depreciation(),
     };
     disposeStatus = { ...disposeStatus, [id]: messages[result.reason!] };
   }
