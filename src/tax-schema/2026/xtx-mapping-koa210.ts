@@ -4,7 +4,9 @@
 // KOA210 は KOA020 と異なり、決算書の金額は IT部 IDREF ではなく要素テキストで
 // 直接保持する（leaf.idref 無し）。本モジュールは schema（refTree）を走査して
 // 「ページ × 日本語名 → leaf tag」を解決し、aoiko の勘定科目名で対応付ける。
-// 対応する leaf が無い項目は出力しない（buildXtxDocument が整形式・整合を保証）。
+// 貸借対照表（第4頁）に対応する固定 leaf が無い科目は、追加科目 繰り返し枠（AMG00025 /
+// AMG00465・AMG00475）へ回す。それ以外のページで対応する leaf が無い項目は出力しない
+// （buildXtxDocument が整形式・整合を保証）。
 
 import koa210 from './xtx-schema-koa210.generated.json';
 import { D } from '../../lib/decimal';
@@ -14,6 +16,7 @@ import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod } from '../../db/types';
+import type { BSRow } from '../../domain/reports';
 
 const SCHEMA = koa210 as XtxSchema;
 
@@ -73,6 +76,44 @@ const BS_ALIAS: Record<string, string> = {
   普通預金: 'その他の預金',
   工具器具備品: '工具　器具　備品',
 };
+// 貸借対照表の欄に無い科目（減価償却累計額・利用者独自科目）を収める追加科目 繰り返し枠。
+// 資産の部は AMG00025（maxOccurs 7）の 1 枠のみ。
+// 負債・資本の部は用紙の 2 列分 AMG00465・AMG00475（各 maxOccurs 7）が並び、
+// 1 枠目が埋まったら 2 枠目へ続ける（計 14 件）。
+const BS_EXTRA_BLOCK_MAX = 7;
+const BS_LIABILITY_EQUITY_EXTRA_MAX = BS_EXTRA_BLOCK_MAX * 2;
+
+export class BsExtraAccountOverflowError extends Error {
+  constructor(accountNames: string[]) {
+    super(
+      `貸借対照表の追加科目欄（資産または負債・資本）に入りきらない科目があります: ${accountNames.join('、')}`,
+    );
+    this.name = 'BsExtraAccountOverflowError';
+  }
+}
+function bsTag(accountName: string): string | undefined {
+  const ja = BS_ALIAS[accountName] ?? accountName;
+  return tagByJa(PAGE4_END, ja);
+}
+function unmatchedBsRows(rows: BSRow[]): BSRow[] {
+  return rows.filter((r) => bsTag(r.accountName) === undefined);
+}
+function extraAccountRows(
+  rows: BSRow[],
+  nameTag: string,
+  amountTag: string,
+  max: number,
+): XtxLeafValues[] {
+  if (rows.length > max) {
+    throw new BsExtraAccountOverflowError(rows.map((r) => r.accountName));
+  }
+  return rows.map((r) => {
+    const row: XtxLeafValues = {};
+    row[nameTag] = r.accountName;
+    putRow(row, amountTag, r.balance);
+    return row;
+  });
+}
 // 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対映。
 // 差引原価（AMF00160）は KOA110 も算出していないため、揃えて出力しない。
 const EXPENSE_ALIAS: Record<string, string> = {
@@ -80,6 +121,14 @@ const EXPENSE_ALIAS: Record<string, string> = {
   仕入: '仕入金額（製品製造原価）',
   期末商品棚卸高: '期末商品（製品）棚卸高',
 };
+// 期末商品棚卸高の標準的な決算仕訳は貸方（商品／期末商品棚卸高）。費用科目の貸方は
+// plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
+// 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
+const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
+
+function formAmount(accountName: string, amount: string): string {
+  return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
+}
 // gen:kingaku は xsd:long（整数・小数不可・先頭マイナス可）。
 // Decimal 文字列を整数円へ（小数部切捨て、カンマ除去）
 function toKingaku(s: string): string {
@@ -113,7 +162,7 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   put(out, PAGE1[0]?.tag, pl.totalRevenue); // 売上（収入）金額（先頭）
   for (const row of pl.expense) {
     const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
-    put(out, tagByJa(PAGE1, ja), row.amount);
+    put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
   }
   // 青色申告特別控除：控除前所得・控除額・控除後所得
   const preIncome = D(pl.netIncome);
@@ -156,6 +205,7 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   for (const r of bs.equity) {
     bsLine(r.accountName, r.balance);
   }
+  put(out, tagByJa(PAGE4_END, '青色申告特別控除前の所得金額'), bs.netIncome);
 
   return out;
 }
@@ -201,6 +251,7 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
       // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
       putRow(row, 'AMF01640', asset.acquisitionCost);
+      putRow(row, 'AMF01650', result.depreciationBase);
       row.AMF01660 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AMF01670 = String(asset.usefulLifeYears);
@@ -215,5 +266,26 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       }
       return row;
     });
-  return rows.length > 0 ? { AMF01600: rows } : {};
+  const repeats: XtxRepeatedValues = rows.length > 0 ? { AMF01600: rows } : {};
+  const { bs } = ctx;
+  const extraAssets = unmatchedBsRows(bs.assets);
+  if (extraAssets.length > 0) {
+    repeats.AMG00025 = extraAccountRows(extraAssets, 'AMG00030', 'AMG00420', BS_EXTRA_BLOCK_MAX);
+  }
+  const extraLiabilitiesAndEquity = [
+    ...unmatchedBsRows(bs.liabilities),
+    ...unmatchedBsRows(bs.equity),
+  ];
+  if (extraLiabilitiesAndEquity.length > BS_LIABILITY_EQUITY_EXTRA_MAX) {
+    throw new BsExtraAccountOverflowError(extraLiabilitiesAndEquity.map((r) => r.accountName));
+  }
+  if (extraLiabilitiesAndEquity.length > 0) {
+    const firstBlock = extraLiabilitiesAndEquity.slice(0, BS_EXTRA_BLOCK_MAX);
+    const secondBlock = extraLiabilitiesAndEquity.slice(BS_EXTRA_BLOCK_MAX);
+    repeats.AMG00465 = extraAccountRows(firstBlock, 'AMG00470', 'AMG00700', BS_EXTRA_BLOCK_MAX);
+    if (secondBlock.length > 0) {
+      repeats.AMG00475 = extraAccountRows(secondBlock, 'AMG00480', 'AMG00720', BS_EXTRA_BLOCK_MAX);
+    }
+  }
+  return repeats;
 }

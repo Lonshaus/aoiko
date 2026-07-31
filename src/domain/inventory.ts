@@ -52,13 +52,19 @@ export async function computeInventoryValuation(asOfDate: string): Promise<Inven
         continue;
       }
       const qty = D(line.quantity);
+      // 両建ては side で正味集計する（plContribution と同じ考え方）。仕入の貸方は
+      // 仕入返品・返金で在庫が減り、売上の借方は売上返品で在庫が戻る。
       if (line.accountCode === PURCHASE_ACCOUNT_CODE) {
-        quantity.set(line.itemId, (quantity.get(line.itemId) ?? D(0)).plus(qty));
-        if (qty.greaterThan(0)) {
+        const isPurchase = line.side === 'debit';
+        const delta = isPurchase ? qty : qty.negated();
+        quantity.set(line.itemId, (quantity.get(line.itemId) ?? D(0)).plus(delta));
+        // 返品・返金の金額で直近仕入単価を上書きしない。
+        if (isPurchase && qty.greaterThan(0)) {
           unitCost.set(line.itemId, D(line.amount).dividedBy(qty));
         }
       } else if (line.accountCode === SALES_ACCOUNT_CODE) {
-        quantity.set(line.itemId, (quantity.get(line.itemId) ?? D(0)).minus(qty));
+        const delta = line.side === 'credit' ? qty.negated() : qty;
+        quantity.set(line.itemId, (quantity.get(line.itemId) ?? D(0)).plus(delta));
       }
     }
   }

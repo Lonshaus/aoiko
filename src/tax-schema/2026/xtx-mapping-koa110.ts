@@ -3,11 +3,11 @@
 //
 // KOA110 は KOA210 と同じく決算書の金額を要素テキストで直接保持する（leaf.idref 無し）。
 //
+// 専従者控除（AIG00380）は続柄で決まる定額（配偶者86万円・その他親族50万円）を
+// family-employee-deduction.ts で算定する（personalDeductions.familyEmployees のうち
+// incomeType が 'realEstate' でないもののみ対象）。
+//
 // 対応できない項目（e-Tax 上で利用者が補完すべき、または白色申告に存在しない）：
-//  - 専従者給与：白色申告の「専従者控除」は実際の給与額ではなく続柄で決まる定額
-//    （配偶者86万円・その他親族50万円）であり、aoiko は続柄データを持たないため
-//    自動算定しない。専従者控除前の所得金額のみ出力し、控除額・控除後所得は
-//    利用者が e-Tax 上で補完する
 //  - 貸倒引当金繰入額：収支内訳書（一般用）に対応欄が無いため出力しない
 //
 // ⚠ 専従者控除前の所得金額は pl.netIncome をそのまま使わない。netIncome は
@@ -16,7 +16,8 @@
 // （事業所得）とも共通のため white-return-income.ts に切り出している。
 //
 // mapKoa110RepeatedValues() は第2頁「減価償却費の計算」の明細行（AIM00010、
-// 公式 xsd で maxOccurs=6）を FixedAsset + computeDepreciation() から生成する。
+// 公式 xsd で maxOccurs=6）と、事業専従者明細（AIJ00010、公式 xsd で maxOccurs=3）を
+// それぞれ FixedAsset/personalDeductions.familyEmployees から生成する。
 // xtx-document.ts の繰り返しブロック機構（XtxRepeatedValues）を利用。
 
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -25,7 +26,8 @@ import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import { computeDepreciation } from '../../domain/depreciation';
 import { D } from '../../lib/decimal';
-import type { DepreciationMethod } from '../../db/types';
+import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types';
+import { businessFamilyEmployees, familyEmployeeDeduction } from './family-employee-deduction';
 import {
   WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS,
   whiteReturnAdjustedNetIncome,
@@ -65,6 +67,14 @@ const EXPENSE_ALIAS: Record<string, string> = {
   仕入: '仕入金額（製品製造原価）',
   期末商品棚卸高: '期末商品（製品）棚卸高',
 };
+// 期末商品棚卸高の標準的な決算仕訳は貸方（商品／期末商品棚卸高）。費用科目の貸方は
+// plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
+// 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
+const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
+
+function formAmount(accountName: string, amount: string): string {
+  return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
+}
 // gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
 function toKingaku(s: string): string {
   const t = s.replace(/,/g, '').trim();
@@ -99,11 +109,22 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
       continue;
     }
     const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
-    put(out, tagByJa(PAGE1, ja), row.amount);
+    put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
   }
-  // 専従者控除前の所得金額。専従者控除・控除後所得は続柄情報が必要なため
-  // 利用者が e-Tax 上で補完する。
-  put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), whiteReturnAdjustedNetIncome(pl).toString());
+  const preDeductionIncome = whiteReturnAdjustedNetIncome(pl);
+  put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
+  const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+  put(out, tagByJa(PAGE1, '専従者控除'), deduction.total.toString());
+  put(
+    out,
+    tagByJa(PAGE1, '所得金額（上段）'),
+    preDeductionIncome.minus(deduction.total).toString(),
+  );
+  const totalMonths = deduction.entries.reduce((sum, e) => sum + e.monthsWorked, 0);
+  if (totalMonths > 0) {
+    out.AIJ00060 = String(totalMonths);
+  }
   return out;
 }
 // 第2頁「減価償却費の計算」の明細行（AIM00010）は公式 xsd で maxOccurs=6。
@@ -134,7 +155,10 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
 
 export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const detailYear = ctx.dataYear ?? ctx.year;
+  // 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
+  // KOA210（青色・一般用）と同じ扱い。
   const rows = ctx.fixedAssets
+    .filter((a) => a.incomeType !== 'realEstate')
     .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
@@ -146,7 +170,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
         row.AIM00020 = name;
       }
       putRow(row, 'AIM00060', asset.acquisitionCost);
-      putRow(row, 'AIM00070', asset.acquisitionCost);
+      putRow(row, 'AIM00070', result.depreciationBase);
       row.AIM00080 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AIM00090 = String(asset.usefulLifeYears);
@@ -161,5 +185,41 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       }
       return row;
     });
-  return rows.length > 0 ? { AIM00010: rows } : {};
+  const familyEmployeeRows = mapFamilyEmployeeRows(ctx);
+  return {
+    ...(rows.length > 0 ? { AIM00010: rows } : {}),
+    ...(familyEmployeeRows.length > 0 ? { AIJ00010: familyEmployeeRows } : {}),
+  };
+}
+// 改行・タブを除去（nametype/zokugaratype の pattern [^\n\r\t]* に適合させる）
+function sanitizeLine(s: string): string {
+  return s.replace(/[\n\r\t]+/g, ' ').trim();
+}
+// AIJ00010 事業専従者明細は公式 xsd で maxOccurs=3。
+const MAX_FAMILY_EMPLOYEE_ROWS = 3;
+const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<FamilyEmployeeRelation, string> = {
+  spouse: '配偶者',
+  other: '親族',
+};
+
+function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
+  const { pl } = ctx;
+  const preDeductionIncome = whiteReturnAdjustedNetIncome(pl);
+  const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  const ageById = new Map(employees.map((e) => [e.id, e.age]));
+  const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+  return deduction.entries.slice(0, MAX_FAMILY_EMPLOYEE_ROWS).map((entry) => {
+    const row: XtxLeafValues = {};
+    const name = sanitizeLine(entry.name);
+    if (name) {
+      row.AIJ00020 = name;
+    }
+    const age = ageById.get(entry.id);
+    if (age !== undefined) {
+      row.AIJ00030 = String(age);
+    }
+    row.AIJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+    row.AIJ00050 = String(entry.monthsWorked);
+    return row;
+  });
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
@@ -6,6 +7,7 @@
   import { buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
+  import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
   import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { getSetting, setSetting } from '../lib/settings';
@@ -134,19 +136,11 @@
       !linesPristine(debits) ||
       !linesPristine(credits),
   );
+  // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
+  const unsavedToken = {};
   $effect(() => {
-    if (!isDirty) {
-      return;
-    }
-    // beforeunload の既定動作を防ぐとブラウザが離脱確認ダイアログを出す。
-    // 文言はブラウザ固定で自作不可のため独自メッセージは設定しない
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload);
-    };
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
   });
 
   function addDebit() {
@@ -588,7 +582,8 @@
             {#if line.itemId}
               <input
                 type="number"
-                bind:value={line.quantity}
+                value={line.quantity}
+                oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"
                 step="1"
                 placeholder={m.journal_form_inventory_quantity_placeholder()}
@@ -737,7 +732,8 @@
             {#if line.itemId}
               <input
                 type="number"
-                bind:value={line.quantity}
+                value={line.quantity}
+                oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"
                 step="1"
                 placeholder={m.journal_form_inventory_quantity_placeholder()}

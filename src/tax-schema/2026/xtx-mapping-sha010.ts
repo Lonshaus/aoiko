@@ -17,12 +17,14 @@
 
 import { D, Decimal } from '../../lib/decimal';
 import {
+  computeDeductibleInputTax,
   computeOfficialOutputTax,
   computeTaxableSalesRatio,
   filingBreakdown,
   isFullDeductionEligible,
   reverseChargeApplies,
   type ConsumptionTaxAttributionMethod,
+  type DeductibleInputTax,
   type OfficialOutputTax,
   type TaxableSalesRatio,
 } from '../../domain/consumption-tax';
@@ -131,23 +133,30 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
   const rcNonTaxableOnly = rcApplies ? input.reverseChargeNonTaxableOnlyTax : D(0);
   // 課税標準額は特定課税仕入れの対価を7.8%欄に合算してから千円未満切捨て（国税庁の手引き）。
   const official = computeOfficialOutputTax(input.taxableBase10.plus(rcBase), input.taxableBase8);
-  const input10Rounded = input.input10.toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  const input8Rounded = input.input8.toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  // 控除対象仕入税額の7.8%側には特定課税仕入れの消費税額を織り込む（付表1-3・第一表用）。
-  const input10Eff = input10Rounded.plus(rcTax);
-  const inputTotalEff = input10Eff.plus(input8Rounded);
   const fullDeduction = isFullDeductionEligible(salesRatio);
-  const deductibleInput = fullDeduction
-    ? inputTotalEff
-    : computeAttributedDeduction(input, salesRatio, rcTax, rcCommon, rcNonTaxableOnly);
+  // 控除対象仕入税額は税率ごとに1円未満切捨てして算定する唯一の実装（domain/consumption-tax.ts）を使う。
+  // 画面表示（computeGeneral）と .xtx 出力とで別々に計算すると丸め方が食い違うため、ここでは重複実装しない。
+  const deductible = computeDeductibleInputTax(
+    {
+      input10: input.input10,
+      input8: input.input8,
+      inputCommon10: input.inputCommon10,
+      inputCommon8: input.inputCommon8,
+      inputNonTaxableOnly10: input.inputNonTaxableOnly10,
+      inputNonTaxableOnly8: input.inputNonTaxableOnly8,
+      reverseChargeTax: rcTax,
+      reverseChargeCommonTax: rcCommon,
+      reverseChargeNonTaxableOnlyTax: rcNonTaxableOnly,
+    },
+    salesRatio,
+    input.attributionMethod,
+  );
   const badDebtTaxTotal = input.badDebtTax10.plus(input.badDebtTax8);
   const badDebtRecoveryTaxTotal = input.badDebtRecoveryTax10.plus(input.badDebtRecoveryTax8);
 
   const shb017 = buildShb017(
     official,
-    input10Eff,
-    input8Rounded,
-    deductibleInput,
+    deductible,
     input.badDebtTax10,
     input.badDebtTax8,
     input.badDebtRecoveryTax10,
@@ -160,11 +169,9 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
   const shb033 = buildShb033(
     input,
     official,
-    input10Rounded,
-    input8Rounded,
     salesRatio,
     fullDeduction,
-    deductibleInput,
+    deductible,
     rcTax,
     rcBase,
     rcCommon,
@@ -172,7 +179,7 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
   );
   const sha010 = buildSha010(
     official,
-    deductibleInput,
+    deductible.total,
     salesRatio.taxableSalesTotal,
     badDebtTaxTotal,
     badDebtRecoveryTaxTotal,
@@ -193,35 +200,9 @@ export function mapGeneral(input: GeneralMappingInput): GeneralMapping {
   return { sha010, sha010Raw, shb017, shb033 };
 }
 
-function computeAttributedDeduction(
-  input: GeneralMappingInput,
-  salesRatio: TaxableSalesRatio,
-  rcTax: Decimal,
-  rcCommon: Decimal,
-  rcNonTaxableOnly: Decimal,
-): Decimal {
-  // 特定課税仕入れの消費税額（常に7.8%）を課税仕入れ等の税額の合計へ織り込む。
-  // 用途区分は共通対応分に rcCommon・非課税のみ対応分に rcNonTaxableOnly、残りは課税売上のみ対応分。
-  const inputTotal = input.input10
-    .plus(input.input8)
-    .plus(rcTax)
-    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  if (input.attributionMethod === 'proportional') {
-    return inputTotal.times(salesRatio.ratio).toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  }
-  const common = input.inputCommon10.plus(input.inputCommon8).plus(rcCommon);
-  const nonTaxableOnly = input.inputNonTaxableOnly10
-    .plus(input.inputNonTaxableOnly8)
-    .plus(rcNonTaxableOnly);
-  const taxableOnly = inputTotal.minus(common).minus(nonTaxableOnly);
-  return taxableOnly.plus(common.times(salesRatio.ratio)).toDecimalPlaces(0, Decimal.ROUND_DOWN);
-}
-
 function buildShb017(
   official: OfficialOutputTax,
-  input10: Decimal,
-  input8: Decimal,
-  deductibleInput: Decimal,
+  deductible: DeductibleInputTax,
   badDebtTax10: Decimal,
   badDebtTax8: Decimal,
   badDebtRecoveryTax10: Decimal,
@@ -251,22 +232,23 @@ function buildShb017(
   put(shb017, 'DSE00010', badDebtRecoveryTax8);
   put(shb017, 'DSE00020', badDebtRecoveryTax10);
   put(shb017, 'DSE00030', badDebtRecoveryTax8.plus(badDebtRecoveryTax10));
-  put(shb017, 'DSF00020', input8);
-  put(shb017, 'DSF00030', input10);
-  put(shb017, 'DSF00040', input8.plus(input10));
+  // (4)控除対象仕入税額：按分後（全額控除・個別対応・一括比例配分いずれも同じ deductible）
+  put(shb017, 'DSF00020', deductible.rate624);
+  put(shb017, 'DSF00030', deductible.rate78);
+  put(shb017, 'DSF00040', deductible.total);
   // 貸倒れに係る税額
   put(shb017, 'DSF00180', badDebtTax8);
   put(shb017, 'DSF00190', badDebtTax10);
   put(shb017, 'DSF00200', badDebtTax8.plus(badDebtTax10));
-  put(shb017, 'DSF00220', input8.plus(badDebtTax8));
-  put(shb017, 'DSF00230', input10.plus(badDebtTax10));
-  put(shb017, 'DSF00240', deductibleInput.plus(badDebtTax8).plus(badDebtTax10));
+  put(shb017, 'DSF00220', deductible.rate624.plus(badDebtTax8));
+  put(shb017, 'DSF00230', deductible.rate78.plus(badDebtTax10));
+  put(shb017, 'DSF00240', deductible.total.plus(badDebtTax8).plus(badDebtTax10));
 
   const badDebtRecoveryTotal = badDebtRecoveryTax8.plus(badDebtRecoveryTax10);
   const badDebtTaxTotal = badDebtTax8.plus(badDebtTax10);
   const nationalNetRaw = official.outputTax
     .plus(badDebtRecoveryTotal)
-    .minus(deductibleInput)
+    .minus(deductible.total)
     .minus(badDebtTaxTotal);
   const filing = filingBreakdown(nationalNetRaw);
   putSigned(shb017, 'DSH00000', 'DSG00000', D(filing.national));
@@ -278,11 +260,9 @@ function buildShb017(
 function buildShb033(
   input: GeneralMappingInput,
   official: OfficialOutputTax,
-  input10: Decimal,
-  input8: Decimal,
   salesRatio: TaxableSalesRatio,
   fullDeduction: boolean,
-  deductibleInput: Decimal,
+  deductible: DeductibleInputTax,
   rcTax: Decimal,
   rcBase: Decimal,
   rcCommon: Decimal,
@@ -300,9 +280,12 @@ function buildShb033(
   shb033.DTD00000 = salesRatio.ratioPercent;
 
   // ⑧ 課税仕入れに係る消費税額：国内分のみ（輸入消費税は⑪、特定課税仕入れは⑩で別掲するため
-  // 課税仕入れ由来の input8/input10 から輸入消費税分を控除する）
-  const domestic8 = input8.minus(input.importTax8);
-  const domestic10 = input10.minus(input.importTax10);
+  // 課税仕入れ由来の input8/input10 から輸入消費税分を控除する）。按分前の税率別内訳のため
+  // deductible（按分後）とは別に、生の input8/input10 を1円未満切捨てして使う。
+  const input8Floored = input.input8.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const input10Floored = input.input10.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const domestic8 = input8Floored.minus(input.importTax8);
+  const domestic10 = input10Floored.minus(input.importTax10);
   put(shb033, 'DTE00060', domestic8);
   put(shb033, 'DTE00070', domestic10);
   put(shb033, 'DTE00080', domestic8.plus(domestic10));
@@ -326,27 +309,33 @@ function buildShb033(
   put(shb033, 'DTE00250', total10);
   put(shb033, 'DTE00260', total8.plus(total10));
 
-  // 控除対象仕入税額の税率別内訳。特定課税仕入れ（常に7.8%）は10%側に織り込む
-  const input10Eff = input10.plus(rcTax);
+  // ⑯ 控除対象仕入税額の税率別内訳は domain 側で算定済みの deductible をそのまま使う
+  // （按分前と按分後の値が食い違うと、この付表自身の合計が申告書④と一致しなくなる）。
   if (fullDeduction) {
-    put(shb033, 'DTF00010', input8);
-    put(shb033, 'DTF00020', input10Eff);
-    put(shb033, 'DTF00030', input8.plus(input10Eff));
+    put(shb033, 'DTF00010', deductible.rate624);
+    put(shb033, 'DTF00020', deductible.rate78);
+    put(shb033, 'DTF00030', deductible.total);
   } else if (input.attributionMethod === 'proportional') {
-    // 一括比例配分方式は税率別の内訳欄を持たず、合計欄のみ
-    shb033.DTG00170 = toKingaku(deductibleInput);
+    put(shb033, 'DTG00150', deductible.rate624);
+    put(shb033, 'DTG00160', deductible.rate78);
+    shb033.DTG00170 = toKingaku(deductible.total);
   } else {
     const common10 = input.inputCommon10.plus(rcCommon);
     const nonTaxableOnly10 = input.inputNonTaxableOnly10.plus(rcNonTaxableOnly);
-    const taxableOnly8 = input8.minus(input.inputCommon8).minus(input.inputNonTaxableOnly8);
-    const taxableOnly10 = input10Eff.minus(common10).minus(nonTaxableOnly10);
+    // computeDeductibleInputTax の 7.8% 側と同じ順序で丸める（先に input10 を丸めてから
+    // rcTax を足すと端数の扱いが 1 円ずれ、⑯の内訳と合計が食い違う）。
+    const raw78 = input.input10.plus(rcTax).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+    const taxableOnly8 = input8Floored.minus(input.inputCommon8).minus(input.inputNonTaxableOnly8);
+    const taxableOnly10 = raw78.minus(common10).minus(nonTaxableOnly10);
     put(shb033, 'DTG00030', taxableOnly8);
     put(shb033, 'DTG00040', taxableOnly10);
     put(shb033, 'DTG00050', taxableOnly8.plus(taxableOnly10));
     put(shb033, 'DTG00070', input.inputCommon8);
     put(shb033, 'DTG00080', common10);
     put(shb033, 'DTG00090', input.inputCommon8.plus(common10));
-    shb033.DTG00130 = toKingaku(deductibleInput);
+    put(shb033, 'DTG00110', deductible.rate624);
+    put(shb033, 'DTG00120', deductible.rate78);
+    shb033.DTG00130 = toKingaku(deductible.total);
   }
   return shb033;
 }
