@@ -112,7 +112,12 @@ export function buildDisposalLines(
 
 export interface DisposalEntryResult {
   created: boolean;
-  reason?: 'no-disposal' | 'already-exists' | 'missing-sale-price' | 'lump-sum-unsupported';
+  reason?:
+    | 'no-disposal'
+    | 'already-exists'
+    | 'missing-sale-price'
+    | 'lump-sum-unsupported'
+    | 'needs-year-end-depreciation';
 }
 // 除却/売却の仕訳を実際に作成する。既に同じ資産・同マーカーの仕訳がある場合はスキップ
 // （generateYearEndDepreciation と同じ重複防止パターン）。
@@ -146,6 +151,25 @@ export async function generateDisposalEntry(
     .first();
   if (existing) {
     return { created: false, reason: 'already-exists' };
+  }
+  // 除却仕訳は当年の月按分を含む累計償却額を貸方で落とすが、その当年分は 12/31 の
+  // 年末一括償却仕訳の借方があって初めて釣り合う。順序が逆だと累計償却額が負残高になり、
+  // 費用も同額少なくなる。両者は設定画面の独立したボタンなので、ここで順序を担保する。
+  const currentYearDepreciation = computeDepreciation(asset, year);
+  if (!D(currentYearDepreciation.amount).isZero()) {
+    const yearEnd = await db.journalEntries
+      .where('[year+date]')
+      .equals([year, `${year}-12-31`])
+      .filter(
+        (e) =>
+          countsTowardTotals(e) &&
+          e.description.includes(tag) &&
+          e.description.includes('減価償却'),
+      )
+      .first();
+    if (!yearEnd) {
+      return { created: false, reason: 'needs-year-end-depreciation' };
+    }
   }
 
   const lines = buildDisposalLines(asset, cashAccountCode);
