@@ -280,6 +280,7 @@
   "reports_title": "レポート",
   "reports_subtitle": "月別売上・損益計算書（年度ごと）",
   "reports_overview_title": "{year} 年 概況",
+  "reports_load_error": "レポートの読み込みに失敗しました（{message}）。表示中の数字は消去しています。再読み込みしてください。",
   "reports_filed_badge": "🔒 申告済み",
   "reports_unlock_button": "ロック解除",
   "reports_lock_button": "申告済みとしてロック",

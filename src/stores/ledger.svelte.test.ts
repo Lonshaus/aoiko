@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
 import { ledger } from './ledger.svelte';
 import type { Account } from '../db/types';
@@ -48,5 +48,63 @@ describe('ledger.switchYear', () => {
     ledger.switchYear(2027);
     expect(ledger.currentYear).toBe(2027);
     expect(ledger.accounts.map((a) => a.code)).toEqual(['5140']);
+  });
+});
+
+describe('liveQuery 購読の失敗', () => {
+  // switchYear は年度スコープの購読を3本（allAccounts/recentRows/monthlyOverview）
+  // 同時に張り直す。1本だけ失敗させても残り2本が成功して lastError を null に上書きして
+  // しまうため、テストでは3本すべての起点となるクエリを reject させて確実に失敗させる。
+  // 年度非依存の購読（constructor 時点で張られる）は beforeEach の db.delete()/open() より
+  // 前に生成されており、テスト用に再オープンした db には追従しないため対象にできない。
+  function fakeRejectingChain(message: string): () => unknown {
+    const reject = () => Promise.reject(new Error(message));
+    const handler: ProxyHandler<object> = {
+      get(_target, prop) {
+        return prop === 'toArray' || prop === 'sortBy' ? reject : () => proxy;
+      },
+    };
+    const proxy = new Proxy({}, handler);
+    return () => proxy;
+  }
+
+  function makeYearScopedSubsThrow(message: string) {
+    return [
+      vi
+        .spyOn(db.accounts, 'where')
+        .mockImplementation(fakeRejectingChain(message) as typeof db.accounts.where),
+      vi
+        .spyOn(db.journalEntries, 'orderBy')
+        .mockImplementation(fakeRejectingChain(message) as typeof db.journalEntries.orderBy),
+      vi
+        .spyOn(db.journalEntries, 'where')
+        .mockImplementation(fakeRejectingChain(message) as typeof db.journalEntries.where),
+    ];
+  }
+
+  test('購読が失敗すると ledger.lastError に記録される', async () => {
+    expect(ledger.lastError).toBeNull();
+    const spies = makeYearScopedSubsThrow('boom-accounts');
+    try {
+      ledger.switchYear(2026);
+      await waitFor(() => ledger.lastError !== null);
+      expect(ledger.lastError).toContain('boom-accounts');
+    } finally {
+      for (const spy of spies) {
+        spy.mockRestore();
+      }
+    }
+  });
+
+  test('失敗後に成功すると lastError はクリアされる', async () => {
+    const spies = makeYearScopedSubsThrow('boom-accounts-2');
+    ledger.switchYear(2026);
+    await waitFor(() => ledger.lastError !== null);
+    for (const spy of spies) {
+      spy.mockRestore();
+    }
+    ledger.switchYear(2027);
+    await waitFor(() => ledger.lastError === null);
+    expect(ledger.lastError).toBeNull();
   });
 });
