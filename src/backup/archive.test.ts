@@ -418,9 +418,11 @@ describe('parseBackupZip（CRC32 照合）', () => {
     const parsed = await parseBackupZip(new Blob([zip]));
     expect(parsed.payload).toEqual(payload);
     expect(await blobBytes(parsed.attachmentBlobs.get('a1')!)).toEqual(original);
+    expect(parsed.corruptAttachmentNames).toEqual([]);
   });
 
-  test('無圧縮の添付の 1 ビットが反転していれば拒否し、その添付名を返す', async () => {
+  // #316: 添付だけが壊れている場合は payload.json を捨てず、帳簿の復元を続行する。
+  test('無圧縮の添付の 1 ビットが反転していれば payload は復元し、壊れた添付名だけ返す', async () => {
     const zip = await drain(
       buildBackupZipStream(
         payload,
@@ -431,9 +433,11 @@ describe('parseBackupZip（CRC32 照合）', () => {
       ),
     );
     const tampered = flipBits(zip, [entryDataOffset(zip, 'attachments/a1') + 123]);
-    const err = await expectCorrupt(tampered);
-    expect(err.entryNames).toEqual(['attachments/a1']);
-    expect(err.message).toContain('1 件');
+    const parsed = await parseBackupZip(new Blob([tampered]));
+    expect(parsed.payload).toEqual(payload);
+    expect(parsed.corruptAttachmentNames).toEqual(['attachments/a1']);
+    expect(parsed.attachmentBlobs.has('a1')).toBe(false);
+    expect(await blobBytes(parsed.attachmentBlobs.get('a2')!)).toEqual(new Uint8Array(500).fill(9));
   });
 
   test('payload.json が化けていれば拒否する', async () => {
@@ -445,7 +449,7 @@ describe('parseBackupZip（CRC32 照合）', () => {
     expect(err.entryNames).toEqual(['payload.json']);
   });
 
-  test('壊れた添付が 2 件あれば 1 件目で打ち切らず両方を返す', async () => {
+  test('壊れた添付が 2 件あれば 1 件目で打ち切らず両方を報告する', async () => {
     const zip = await drain(
       buildBackupZipStream(
         payload,
@@ -460,13 +464,13 @@ describe('parseBackupZip（CRC32 照合）', () => {
       entryDataOffset(zip, 'attachments/a1') + 10,
       entryDataOffset(zip, 'attachments/a3') + 400,
     ]);
-    const err = await expectCorrupt(tampered);
-    expect(err.entryNames).toEqual(['attachments/a1', 'attachments/a3']);
-    expect(err.message).toContain('2 件');
+    const parsed = await parseBackupZip(new Blob([tampered]));
+    expect(parsed.payload).toEqual(payload);
+    expect(parsed.corruptAttachmentNames).toEqual(['attachments/a1', 'attachments/a3']);
   });
   // 目録が実体より小さいサイズを主張していると Blob.slice は素直に短い実体を返す。
   // サイズ検査だけでは通ってしまうが、切り詰められた実体は CRC が合わない（#281）。
-  test('目録のサイズが実体より小さく書き換わっていれば拒否する', async () => {
+  test('目録のサイズが実体より小さく書き換わっていれば添付として報告する', async () => {
     const zip = await drain(
       buildBackupZipStream(payload, asyncAttachments([['a1', new Uint8Array(500).fill(7)]])),
     );
@@ -484,8 +488,9 @@ describe('parseBackupZip（CRC32 照合）', () => {
     }
     const tampered = new Uint8Array(zip);
     new DataView(tampered.buffer).setUint32(pos + 20, 400, true);
-    const err = await expectCorrupt(tampered);
-    expect(err.entryNames).toEqual(['attachments/a1']);
+    const parsed = await parseBackupZip(new Blob([tampered]));
+    expect(parsed.payload).toEqual(payload);
+    expect(parsed.corruptAttachmentNames).toEqual(['attachments/a1']);
   });
   // 分割読みの単位（1 MiB）をまたぐ添付。境界の取り違えは大きなファイルでしか出ない。
   describe('分割読みの境界', () => {
@@ -519,8 +524,8 @@ describe('parseBackupZip（CRC32 照合）', () => {
       await expectSameBytes(parsed.attachmentBlobs.get('big')!, original);
 
       const tampered = flipBits(zip, [entryDataOffset(zip, 'attachments/big') + chunkSize + 9000]);
-      const err = await expectCorrupt(tampered);
-      expect(err.entryNames).toEqual(['attachments/big']);
+      const parsedTampered = await parseBackupZip(new Blob([tampered]));
+      expect(parsedTampered.corruptAttachmentNames).toEqual(['attachments/big']);
     });
   });
 });
