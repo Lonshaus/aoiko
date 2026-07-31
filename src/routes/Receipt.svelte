@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
@@ -26,6 +27,15 @@
   let processing = $state(false);
   let error = $state('');
   let success = $state('');
+  // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
+  let committing = $state(false);
+  // 読み込んだ画像と OCR 結果は確定するまで DB に無い。撮り直し・再解析になる。
+  const isDirty = $derived(file !== null || extracted !== null);
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
   let confirmOpen = $state(false);
   let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
   let pending = $state<{
@@ -169,14 +179,24 @@
     if (!extracted) {
       return;
     }
+    if (committing) {
+      return;
+    }
     const data = extracted; // 以降のクロージャ内でも narrowed 保証
     error = '';
     success = '';
+    // 日付が空・不正でも IndexedDB は受け付けてしまい、year が 0 の仕訳として
+    // どの画面にも出てこなくなる（訂正の入口すら無い）。金額と同じく必須検証する。
+    if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
+      error = m.receipt_date_required();
+      return;
+    }
     // ローカル OCR は totalAmount が空のまま戻ることがあるため、ここで必須検証
     if (!data.totalAmount || !/^\d+$/.test(data.totalAmount)) {
       error = m.receipt_amount_required();
       return;
     }
+    committing = true;
     try {
       const entryId = newId();
       const now = Date.now();
@@ -235,6 +255,8 @@
       }
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
+    } finally {
+      committing = false;
     }
   }
 
@@ -411,7 +433,8 @@
         <button
           type="button"
           onclick={commit}
-          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          disabled={committing}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.receipt_submit()}
         </button>

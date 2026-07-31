@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { router, link } from '../router.svelte';
+  import { clearUnsavedGuard, link, router, setUnsavedGuard } from '../router.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
   import { todayISO } from '../lib/date';
+  import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
   import {
     computeConvertedAssetBasis,
@@ -148,6 +149,23 @@
   const hasAnyItem = $derived(
     expenses.length > 0 || convertedAssets.length > 0 || customItems.length > 0,
   );
+  // 仕訳を生成する前に画面を離れると、入力した開業費・転用資産が全て消える。
+  // 入力途中の行（追加ボタンを押していないもの）も対象に含める。
+  const isDirty = $derived(
+    step !== 'done' &&
+      (hasAnyItem ||
+        expenseName !== '' ||
+        expenseAmount !== '' ||
+        newAssetName !== '' ||
+        newAssetCost !== '' ||
+        customName !== '' ||
+        customAmount !== ''),
+  );
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, isDirty);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
 
   async function handleGenerate() {
     generating = true;
@@ -223,7 +241,8 @@
         />
         <input
           type="number"
-          bind:value={expenseAmount}
+          value={expenseAmount}
+          oninput={assignInputString((v) => (expenseAmount = v))}
           min="0"
           step="1"
           placeholder={m.opening_amount_placeholder()}
@@ -295,7 +314,8 @@
           />
           <input
             type="number"
-            bind:value={newAssetCost}
+            value={newAssetCost}
+            oninput={assignInputString((v) => (newAssetCost = v))}
             min="0"
             step="1"
             placeholder={m.settings_asset_cost_placeholder()}
@@ -303,7 +323,8 @@
           />
           <input
             type="number"
-            bind:value={newAssetLife}
+            value={newAssetLife}
+            oninput={assignInputNumber((v) => (newAssetLife = v))}
             min="1"
             max="50"
             step="1"
@@ -437,7 +458,8 @@
         </select>
         <input
           type="number"
-          bind:value={customAmount}
+          value={customAmount}
+          oninput={assignInputString((v) => (customAmount = v))}
           min="0"
           step="1"
           placeholder={m.opening_amount_placeholder()}

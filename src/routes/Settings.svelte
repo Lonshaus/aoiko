@@ -3,6 +3,7 @@
   import { link } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
+  import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
@@ -228,6 +229,9 @@
   // 税務署サジェスト（署名・コードで検索 → コード+署名を確定）
   let zeimushoQuery = $state('');
   let zeimushoOpen = $state(false);
+  // 入力欄に文字が残っているのに確定した署が無い状態。ここで保存を通すと、設定済みの
+  // 利用者が一文字消しただけで提出先税務署が空文字で上書きされ、次の .xtx から消える。
+  const zeimushoUnresolved = $derived(zeimushoQuery.trim() !== '' && userZeimushoCode === '');
   const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
   function displayZeimusho(code: string, name: string): string {
     if (!code) {
@@ -1063,7 +1067,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_basic_year()}</span>
         <input
           type="number"
-          bind:value={currentYear}
+          value={currentYear}
+          oninput={assignInputNumber((v) => (currentYear = v))}
           min="2020"
           max="2099"
           step="1"
@@ -1299,6 +1304,8 @@
         {/if}
         {#if zeimushoCodeInvalid}
           <span class="text-xs text-red-600">{m.settings_filer_zeimusho_invalid()}</span>
+        {:else if zeimushoUnresolved}
+          <span class="text-xs text-red-600">{m.settings_filer_zeimusho_unresolved()}</span>
         {/if}
       </label>
       <div class="block sm:col-span-2">
@@ -1345,7 +1352,7 @@
       {/if}
       <button
         type="submit"
-        disabled={zeimushoCodeInvalid}
+        disabled={zeimushoCodeInvalid || zeimushoUnresolved}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_basic_save()}
@@ -1692,9 +1699,7 @@
         <input
           type="number"
           value={newAssetCost}
-          oninput={(e) => {
-            newAssetCost = (e.target as HTMLInputElement).value;
-          }}
+          oninput={assignInputString((v) => (newAssetCost = v))}
           required
           min="0"
           step="1"
@@ -1703,7 +1708,8 @@
         />
         <input
           type="number"
-          bind:value={newAssetLife}
+          value={newAssetLife}
+          oninput={assignInputNumber((v) => (newAssetLife = v))}
           required
           min="1"
           max="50"
@@ -1894,14 +1900,16 @@
                         />
                         <input
                           type="number"
-                          bind:value={propertyAreaSqm}
+                          value={propertyAreaSqm}
+                          oninput={assignInputString((v) => (propertyAreaSqm = v))}
                           min="0"
                           placeholder={m.settings_asset_property_area_placeholder()}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
                         />
                         <input
                           type="number"
-                          bind:value={propertyAnnualRent}
+                          value={propertyAnnualRent}
+                          oninput={assignInputString((v) => (propertyAnnualRent = v))}
                           min="0"
                           step="1"
                           required
@@ -1910,7 +1918,8 @@
                         />
                         <input
                           type="number"
-                          bind:value={propertyKeyMoneyEtc}
+                          value={propertyKeyMoneyEtc}
+                          oninput={assignInputString((v) => (propertyKeyMoneyEtc = v))}
                           min="0"
                           step="1"
                           placeholder={m.settings_asset_property_key_money_placeholder()}
@@ -1918,7 +1927,8 @@
                         />
                         <input
                           type="number"
-                          bind:value={propertyOtherIncome}
+                          value={propertyOtherIncome}
+                          oninput={assignInputString((v) => (propertyOtherIncome = v))}
                           min="0"
                           step="1"
                           placeholder={m.settings_asset_property_other_income_placeholder()}
@@ -1926,7 +1936,8 @@
                         />
                         <input
                           type="number"
-                          bind:value={propertyDepositBalance}
+                          value={propertyDepositBalance}
+                          oninput={assignInputString((v) => (propertyDepositBalance = v))}
                           min="0"
                           step="1"
                           placeholder={m.settings_asset_property_deposit_placeholder()}
@@ -1977,7 +1988,8 @@
                         {#if disposeType === 'sale'}
                           <input
                             type="number"
-                            bind:value={disposeSalePrice}
+                            value={disposeSalePrice}
+                            oninput={assignInputString((v) => (disposeSalePrice = v))}
                             min="0"
                             step="1"
                             placeholder={m.settings_asset_disposal_sale_price_placeholder()}
@@ -1985,7 +1997,8 @@
                           />
                           <input
                             type="number"
-                            bind:value={disposeSaleExpenses}
+                            value={disposeSaleExpenses}
+                            oninput={assignInputString((v) => (disposeSaleExpenses = v))}
                             min="0"
                             step="1"
                             placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
@@ -2074,7 +2087,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_asset_target_year()}</span>
         <input
           type="number"
-          bind:value={depreciationYear}
+          value={depreciationYear}
+          oninput={assignInputNumber((v) => (depreciationYear = v))}
           min="2020"
           max="2099"
           step="1"
@@ -2132,7 +2146,8 @@
       </select>
       <input
         type="number"
-        bind:value={newRulePriority}
+        value={newRulePriority}
+        oninput={assignInputNumber((v) => (newRulePriority = v))}
         min="0"
         step="1"
         title={m.settings_rule_priority_title()}

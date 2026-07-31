@@ -6,11 +6,18 @@
 // 各種所得控除・税額計算（ABB00420〜ABB01040）は、利用者が個人情報を入力した場合
 // （ctx.personalDeductions）のみ出力する。未入力の場合は従来どおり利用者が e-Tax 上で
 // 補完する。白色申告時は青色申告特別控除を出力せず、事業所得は white-return-income.ts で
-// 専従者給与・貸倒引当金繰入額を補正した値を使う（詳細は同ファイル参照）。
+// 専従者給与・貸倒引当金繰入額を補正した値から、さらに事業専従者控除
+// （family-employee-deduction.ts、続柄で決まる定額）を差し引いた値を使う。
 
 import koa020 from './xtx-schema-koa020.generated.json';
 import { D, Decimal } from '../../lib/decimal';
 import { whiteReturnAdjustedNetIncome } from './white-return-income';
+import {
+  businessFamilyEmployees,
+  familyEmployeeDeduction,
+  realEstateFamilyEmployees,
+  type FamilyEmployeeDeductionResult,
+} from './family-employee-deduction';
 import {
   computeIncomeDeductions,
   progressiveIncomeTax,
@@ -30,7 +37,7 @@ import {
 } from './real-estate-income';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
-import type { XtxValues, XtxLeafValues } from './xtx-document';
+import type { XtxValues, XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 
 const SCHEMA = koa020 as XtxSchema;
 // 西暦 → 令和年（令和1年=2019）。NENBUN は gen:yy（非負整数）
@@ -110,6 +117,32 @@ type IncomeCtx = Pick<
   'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'realEstatePl' | 'personalDeductions'
 >;
 
+// 事業所得側の事業専従者控除（白色申告のみ）。ABB00790・ABE00010 明細ブロックとも
+// この結果を共有する（totalIncomeAmount とは別々に算定して整合が崩れるのを防ぐ）。
+// IncomeDeductions.svelte の試算プレビュー（事業専従者控除の表示）からも直接呼ぶため export する。
+export function businessFamilyEmployeeDeductionResult(
+  ctx: IncomeCtx,
+): FamilyEmployeeDeductionResult {
+  if (ctx.filingType !== 'white') {
+    return { total: D(0), entries: [] };
+  }
+  const preDeductionIncome = whiteReturnAdjustedNetIncome(ctx.pl);
+  const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+}
+// 不動産所得側の事業専従者控除（白色申告・事業的規模の場合のみ、国税庁タックスアンサー No.1373）。
+export function realEstateFamilyEmployeeDeductionResult(
+  ctx: IncomeCtx,
+): FamilyEmployeeDeductionResult {
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  if (ctx.filingType !== 'white' || !ctx.realEstatePl || !realEstateInput?.businessScale) {
+    return { total: D(0), entries: [] };
+  }
+  const preDeductionIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false, 'white');
+  const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+}
+
 // 事業所得（青色申告特別控除後）。不動産所得（B7 part2）があれば、共有枠での
 // 配分後の実際の控除額を使う（単独計算だと不動産所得と共有する分を考慮せず過小控除になる）。
 // 所得控除・税額控除の計算（income-deductions.ts）にもそのまま使う（IncomeDeductions.svelte 参照）。
@@ -118,7 +151,8 @@ export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
     // 専従者給与・貸倒引当金繰入額は白色申告では通常の経費として扱えないため、
     // pl.netIncome をそのまま使うと過小になる（詳細は white-return-income.ts）。
     // 白色申告に青色申告特別控除は無いため、不動産所得の有無はこの値に影響しない。
-    return whiteReturnAdjustedNetIncome(ctx.pl);
+    const preDeductionIncome = whiteReturnAdjustedNetIncome(ctx.pl);
+    return preDeductionIncome.minus(businessFamilyEmployeeDeductionResult(ctx).total);
   }
   const preIncome = D(ctx.pl.netIncome);
   const hasBusinessIncome = preIncome.greaterThan(0);
@@ -141,9 +175,9 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
     return D(0);
   }
   if (ctx.filingType === 'white') {
-    const realEstateIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false);
+    const preDeductionIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false, 'white');
     return offsettableRealEstateLoss(
-      realEstateIncome,
+      preDeductionIncome.minus(realEstateFamilyEmployeeDeductionResult(ctx).total),
       realEstateInput.landLoanInterestAmount ?? D(0),
     );
   }
@@ -240,6 +274,13 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
     ...pd,
     totalIncome,
   });
+  putTag(
+    out,
+    'ABB00790',
+    businessFamilyEmployeeDeductionResult(ctx)
+      .total.plus(realEstateFamilyEmployeeDeductionResult(ctx).total)
+      .toString(),
+  );
   putTag(out, 'ABB00430', deductions.casualtyLossDeduction.toString());
   putTag(out, 'ABB00440', deductions.medicalExpenseDeduction.toString());
   putTag(out, 'ABB00450', deductions.socialInsuranceDeduction.toString());
@@ -321,4 +362,34 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
 
 function maxZero(v: Decimal): Decimal {
   return v.greaterThan(0) ? v : D(0);
+}
+// ABE00010 事業専従者の明細（公式 xsd で maxOccurs=2）。個人番号（ABE00025）・生年月日
+// （ABE00030）は aoiko が収集していないため出力しない。続柄は 'spouse'/'other' の
+// 2区分しか持たないため「配偶者」「親族」の簡略表記にする。
+const MAX_KOA020_FAMILY_EMPLOYEE_ROWS = 2;
+const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<'spouse' | 'other', string> = {
+  spouse: '配偶者',
+  other: '親族',
+};
+
+export function mapKoa020RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const entries = [
+    ...businessFamilyEmployeeDeductionResult(ctx).entries,
+    ...realEstateFamilyEmployeeDeductionResult(ctx).entries,
+  ].slice(0, MAX_KOA020_FAMILY_EMPLOYEE_ROWS);
+  if (entries.length === 0) {
+    return {};
+  }
+  const rows = entries.map((entry) => {
+    const row: XtxLeafValues = {};
+    const name = sanitizeLine(entry.name);
+    if (name) {
+      row.ABE00020 = name;
+    }
+    row.ABE00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+    row.ABE00060 = sanitizeLine(`従事月数${entry.monthsWorked}か月`).slice(0, 40);
+    putTag(row, 'ABE00070', entry.amount.toString());
+    return row;
+  });
+  return { ABE00010: rows };
 }
