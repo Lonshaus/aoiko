@@ -1,5 +1,14 @@
-import { baseLocale, locales, type Locale } from '../paraglide/runtime';
-import { getPolicyDoc, POLICY_DOC_NAMES, type PolicyDocName } from './policy-docs';
+import { baseLocale, type Locale } from '../paraglide/runtime';
+import {
+  buildLocaleRegistry,
+  getPolicyDoc,
+  isExternalLink,
+  POLICY_DOC_NAMES,
+  stripLanguageNav,
+  type PolicyDocName,
+} from './policy-docs';
+
+export { stripLanguageNav };
 
 const modules = import.meta.glob('../../docs/manual/*.md', {
   query: '?raw',
@@ -17,30 +26,7 @@ export function slugFromPath(path: string): string {
   return decodeURIComponent(clean.slice('/manual/'.length).replace(/\/$/, ''));
 }
 
-function parseFilename(path: string): { slug: string; locale: Locale } {
-  const base = (path.split('/').pop() ?? '').replace(/\.md$/, '');
-  for (const loc of locales) {
-    if (loc === baseLocale) {
-      continue;
-    }
-    const suffix = `_${loc}`;
-    if (base.endsWith(suffix)) {
-      return { slug: base.slice(0, -suffix.length), locale: loc };
-    }
-  }
-  return { slug: base, locale: baseLocale };
-}
-
-const registry = new Map<string, Map<Locale, string>>();
-for (const [path, content] of Object.entries(modules)) {
-  const { slug, locale } = parseFilename(path);
-  let byLocale = registry.get(slug);
-  if (!byLocale) {
-    byLocale = new Map();
-    registry.set(slug, byLocale);
-  }
-  byLocale.set(locale, content);
-}
+const registry = buildLocaleRegistry(modules);
 
 export function chapterSlugs(): string[] {
   return [...registry.keys()].filter((s) => s !== INDEX_SLUG).sort();
@@ -130,7 +116,7 @@ export function resolveManualLink(href: string): ResolvedManualLink {
   if (href.startsWith('#') || href.startsWith('/manual')) {
     return { href, external: false };
   }
-  if (/^https?:\/\//.test(href)) {
+  if (isExternalLink(href)) {
     return { href, external: true };
   }
   const policy = POLICY_DOC_LINK.exec(href);
@@ -139,11 +125,6 @@ export function resolveManualLink(href: string): ResolvedManualLink {
   }
   const repoPath = href.replace(/^(\.\.\/)+/, '');
   return { href: `${GITHUB_BLOB_BASE}${repoPath}`, external: true };
-}
-// アプリ内では言語は UI 設定に追従するため、各 .md 冒頭の言語切替行（GitHub 閲覧用）は不要。
-// 行内のリンクが同一ルートへ収束して機能しないため、レンダリング前に取り除く。
-export function stripLanguageNav(markdown: string): string {
-  return markdown.replace(/^\*\*Language\*\*:.*$\n?/m, '');
 }
 // GitHub 互換の見出し slug。既存の章間 `#アンカー` リンクと一致させる必要があるため
 // 小文字化・記号除去・空白→ハイフン・CJK 保持で揃える。

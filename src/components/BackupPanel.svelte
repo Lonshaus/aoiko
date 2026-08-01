@@ -6,6 +6,7 @@
   import {
     BACKUP_INTERVAL_HOURS,
     BACKUP_RETENTION_COUNTS,
+    daysSince,
     needsOffsiteBackupWarning,
   } from '../backup/schedule';
   import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
@@ -68,13 +69,6 @@
       return '—';
     }
     return new Date(ts).toLocaleString('ja-JP');
-  }
-
-  function daysSince(ts: number | null): number | null {
-    if (!ts) {
-      return null;
-    }
-    return Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
   }
 
   const lastBackupLabel = $derived(formatTime(backup.lastBackupAt));
