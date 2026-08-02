@@ -3,7 +3,7 @@ import { D } from '../lib/decimal';
 import { buildMonthly } from './reports';
 import type { Budget } from '../db/types';
 
-export interface MonthlyBudgetRow {
+interface MonthlyBudgetRow {
   month: number;
   revenueBudget: string;
   revenueActual: string;

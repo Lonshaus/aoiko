@@ -3,7 +3,7 @@ import { D } from '../lib/decimal';
 import { buildBS, buildPL } from './reports';
 import type { BSData, PLData } from '../db/types';
 
-export interface AmendmentBSAccountChange {
+interface AmendmentBSAccountChange {
   accountCode: string;
   filedAmount: string;
   currentAmount: string;

@@ -100,7 +100,7 @@ export function computeCombinedBusinessRealEstateIncome(
   };
 }
 
-export const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
+const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
 // 事業的規模でない場合、専従者給与（不動産）は全額不算入（控除前所得に戻す）。
 // 白色申告ではさらに貸倒引当金繰入額（不動産）も不算入（事業所得側の
 // whiteReturnAdjustedNetIncome と同じ扱い。収支内訳書に対応欄が無く転記もされない）。
