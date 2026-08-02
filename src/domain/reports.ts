@@ -6,7 +6,7 @@ import type { Account, AccountCategory, IncomeType, JournalEntry, JournalLine } 
 // 期首/期末商品棚卸高（5010/5030）は年末調整項目のため月別仕入には含めない。
 const PURCHASES_ACCOUNT_CODE = '5020';
 
-export interface MonthlyTotal {
+interface MonthlyTotal {
   month: number;
   sales: string;
   expense: string;
@@ -22,7 +22,7 @@ export interface MonthlyReport {
   totalExpense: string;
 }
 
-export interface PLRow {
+interface PLRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
@@ -43,14 +43,14 @@ export interface PLReport {
 // 各勘定科目内の取引を分解する。経費分析・実績把握に使う。
 export type BreakdownAxis = 'vendor' | 'subAccount' | 'department';
 
-export interface BreakdownEntry {
+interface BreakdownEntry {
   key: string; // vendorId / subAccountId / '' (未分類)
   label: string; // 表示名
   amount: string;
   count: number; // 含まれる仕訳行数
 }
 
-export interface BreakdownGroup {
+interface BreakdownGroup {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
@@ -163,7 +163,7 @@ export async function buildBreakdown(
   return { year, axis, groups };
 }
 // 月別 PL：勘定科目 × 月（12 ヶ月）のマトリックス。
-export interface MonthlyPLRow {
+interface MonthlyPLRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
@@ -532,7 +532,7 @@ export async function buildPL(
 // 複数年度トレンド分析（C8）。PL/BS のみ対応（方案A、AOIKO_FUTURE_IDEAS.md 参照）。
 // 各年度の buildPL/buildBS をそのまま呼び出し、科目単位でピボットするだけ
 // （既存の単年度計算ロジックをそのまま再利用、按分等の新規計算は行わない）。
-export interface MultiYearPLRow {
+interface MultiYearPLRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;
@@ -592,7 +592,7 @@ export async function buildMultiYearPL(years: number[]): Promise<MultiYearPLRepo
   };
 }
 
-export interface MultiYearBSRow {
+interface MultiYearBSRow {
   accountCode: string;
   accountName: string;
   category: AccountCategory;

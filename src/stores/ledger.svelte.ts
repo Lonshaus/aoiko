@@ -33,7 +33,7 @@ export interface AccountGroup {
   items: Account[];
 }
 
-export interface LedgerRowSide {
+interface LedgerRowSide {
   code: string;
   name: string;
   subAccountName?: string;
@@ -49,7 +49,7 @@ export interface LedgerRow {
   totalAmount: string;
 }
 
-export interface MonthlyOverview {
+interface MonthlyOverview {
   year: number;
   month: number;
   revenue: string;
