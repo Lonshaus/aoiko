@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { needsOffsiteBackupWarning, selectExpiredBackups, shouldBackupNow } from './schedule';
+import {
+  daysSince,
+  needsOffsiteBackupWarning,
+  selectExpiredBackups,
+  shouldBackupNow,
+} from './schedule';
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -105,6 +110,19 @@ describe('selectExpiredBackups', () => {
       'aoiko-ledger-2026-01-01.zip',
       'aoiko-ledger-2026-02-01.zip',
     ]);
+  });
+});
+
+describe('daysSince', () => {
+  test('null / 0 は null を返す', () => {
+    expect(daysSince(null)).toBeNull();
+    expect(daysSince(0)).toBeNull();
+  });
+
+  test('経過日数を切り捨てで返す', () => {
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    expect(daysSince(Date.now() - oneDayMs * 3)).toBe(3);
+    expect(daysSince(Date.now() - oneDayMs * 3 - 1000)).toBe(3);
   });
 });
 

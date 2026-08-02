@@ -3,18 +3,17 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
-  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
-  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { ledger } from '../stores/ledger.svelte';
-  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
 
@@ -200,7 +199,7 @@
     if (!f) {
       return;
     }
-    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+    if (f.size > MAX_IMAGE_BYTES) {
       attachmentError = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
@@ -208,7 +207,7 @@
       input.value = '';
       return;
     }
-    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+    if ((await getSetting('skipAttachmentConfirm')) !== true) {
       pendingAttachmentFile = f;
       pendingAttachmentInput = input;
       attachmentPreview = URL.createObjectURL(f);
@@ -797,9 +796,20 @@
   </div>
 </form>
 
-<AttachmentConfirmDialog
+{#snippet attachmentPreviewImage()}
+  {#if attachmentPreview}
+    <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+      <img src={attachmentPreview} alt={m.receipt_preview_alt()} class="max-h-64 object-contain" />
+    </div>
+  {/if}
+{/snippet}
+<ConfirmDialog
   open={attachmentConfirmOpen}
-  previewUrl={attachmentPreview}
+  title={m.attachment_confirm_title()}
+  description={m.attachment_confirm_desc()}
+  proceedLabel={m.attachment_confirm_proceed()}
+  dontAskLabel={m.attachment_confirm_dont_ask()}
+  preview={attachmentPreviewImage}
   onconfirm={onAttachmentConfirm}
   oncancel={onAttachmentCancel}
 />

@@ -5,12 +5,11 @@
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
   import { downscaleForUpload } from '../lib/image-downscale';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
-  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
@@ -18,8 +17,7 @@
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
-  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
   let file = $state<File | null>(null);
@@ -71,7 +69,7 @@
     if (!f) {
       return;
     }
-    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+    if (f.size > MAX_IMAGE_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
@@ -79,7 +77,7 @@
       input.value = '';
       return;
     }
-    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+    if ((await getSetting('skipAttachmentConfirm')) !== true) {
       pendingAttachmentFile = f;
       pendingInput = input;
       attachmentPreview = URL.createObjectURL(f);
@@ -456,15 +454,29 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={confirmOpen}
-  host={pending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
 />
-<AttachmentConfirmDialog
+{#snippet attachmentPreviewImage()}
+  {#if attachmentPreview}
+    <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+      <img src={attachmentPreview} alt={m.receipt_preview_alt()} class="max-h-64 object-contain" />
+    </div>
+  {/if}
+{/snippet}
+<ConfirmDialog
   open={attachmentConfirmOpen}
-  previewUrl={attachmentPreview}
+  title={m.attachment_confirm_title()}
+  description={m.attachment_confirm_desc()}
+  proceedLabel={m.attachment_confirm_proceed()}
+  dontAskLabel={m.attachment_confirm_dont_ask()}
+  preview={attachmentPreviewImage}
   onconfirm={onAttachmentConfirm}
   oncancel={onAttachmentCancel}
 />

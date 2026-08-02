@@ -41,6 +41,13 @@ export function selectExpiredBackups(fileNames: readonly string[], keepCount: nu
   return dated.slice(0, dated.length - keepCount);
 }
 
+export function daysSince(ts: number | null): number | null {
+  if (!ts) {
+    return null;
+  }
+  return Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
+}
+
 export const OFFSITE_WARNING_DAYS = 7;
 // 端末外に控えがあると言えるのは、利用者が選んだフォルダへの自動保存が現に
 // 動いている場合だけ。OPFS はブラウザ管理領域でサイトデータ削除と運命を共にし、
