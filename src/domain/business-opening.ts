@@ -182,12 +182,12 @@ export function computeConvertedAssetBasis(
   return { nonBusinessDepreciation, businessStartBasis };
 }
 
-export interface OpeningExpenseItem {
+interface OpeningExpenseItem {
   name: string;
   amount: string;
 }
 export type ExpenseAmortization = 'immediate' | 'five-year';
-export interface OpeningConvertedAsset {
+interface OpeningConvertedAsset {
   name: string;
   acquisitionDate: string;
   acquisitionCost: string;

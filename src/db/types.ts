@@ -1,6 +1,6 @@
 export type EntrySource =
   'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste' | 'opening';
-export type EntryStatus = 'confirmed' | 'reversed';
+type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
 // 'exempt'＝非課税（住宅家賃・利子収入等、課税売上割合の分母のみに算入）
@@ -27,10 +27,10 @@ export type InputUsageCategory = 'taxableOnly' | 'common' | 'nonTaxableOnly';
 // 'lump-sum' は一括償却資産（施行令139条、青色/白色問わず）。取得価額を3年均等償却、除却後も償却継続。
 export type DepreciationMethod =
   'straight-line' | 'declining-balance' | 'small-asset-special' | 'lump-sum';
-export type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
+type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 // 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
-export type ReportStatus = 'draft' | 'filed' | 'superseded';
+type ReportStatus = 'draft' | 'filed' | 'superseded';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
 // 所得区分。未指定（undefined）は 'business' 扱い（既存データ互換）。
 // freee/MF と同じく科目層級で持つ（同じ費用性質でも所得区分ごとに科目を複製する）。
@@ -235,7 +235,7 @@ export interface ImportBatch {
   rowCount: number;
 }
 
-export interface MonthlySalesData {
+interface MonthlySalesData {
   months: Array<{ month: number; sales: string }>;
 }
 
@@ -277,7 +277,7 @@ export interface ReportSnapshot {
   generatedFromEntriesUpTo: string;
 }
 
-export interface PersonalDeductionSpouse {
+interface PersonalDeductionSpouse {
   totalIncome: string;
   age: number;
 }
@@ -309,7 +309,7 @@ export interface PersonalDeductionFamilyEmployee {
   incomeType?: 'business' | 'realEstate';
 }
 
-export interface PersonalDeductionLifeInsurance {
+interface PersonalDeductionLifeInsurance {
   newGeneral?: string;
   oldGeneral?: string;
   newMedical?: string;
@@ -317,19 +317,19 @@ export interface PersonalDeductionLifeInsurance {
   oldPension?: string;
 }
 // 給与所得（源泉徴収票の記載内容を転記）。給与所得控除は other-income.ts が計算する。
-export interface PersonalDeductionSalaryIncome {
+interface PersonalDeductionSalaryIncome {
   paidAmount: string;
   withholdingTax: string;
 }
 // 雑所得。公的年金等は3軸の速算表で複雑なため確定額を直接入力（other-income.ts 冒頭コメント参照）、
 // その他雑所得（副業収入等）は収入−必要経費を aoiko が計算する。
-export interface PersonalDeductionMiscIncome {
+interface PersonalDeductionMiscIncome {
   publicPensionAmount?: string;
   otherIncome?: string;
   otherExpenses?: string;
 }
 // KOA220/KOA130 の「支払先の住所・氏名」明細行に共通する形。
-export interface RealEstatePayeeDetail {
+interface RealEstatePayeeDetail {
   payeeAddress?: string;
   payeeName?: string;
   amount: string;
@@ -414,7 +414,7 @@ export interface Setting<T = unknown> {
 // journalEntryId/arApEntryId を持たない）。請求書は発行時に仕訳＋ArApEntry を自動生成する。
 // 発行済み文書の訂正は削除して作り直すのではなく、journal.ts と同じ打消し仕訳方式（voidInvoice）。
 export type InvoiceDocumentType = 'invoice' | 'quote';
-export type InvoiceStatus = 'draft' | 'issued' | 'voided';
+type InvoiceStatus = 'draft' | 'issued' | 'voided';
 
 export interface InvoiceLineItem {
   id: string;

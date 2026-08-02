@@ -60,7 +60,7 @@ export function parseCsv(text: string): string[][] {
 }
 // CSV 出力用のフィールドエスケープ（RFC 4180）。カンマ・ダブルクォート・改行を
 // 含む場合のみ "" でクォートし、内部の " は "" にエスケープする。
-export function csvField(value: string): string {
+function csvField(value: string): string {
   if (/[",\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
