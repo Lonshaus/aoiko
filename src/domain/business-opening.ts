@@ -1,6 +1,7 @@
 import { D, Decimal, toIndexable } from '../lib/decimal';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
+import { countsTowardTotals } from './journal';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
@@ -323,6 +324,7 @@ export async function generateOpeningEntries(
         usefulLifeYears: asset.usefulLifeYears,
         depreciationMethod: asset.depreciationMethod,
         accountCode: asset.accountCode,
+        source: 'opening',
       };
       await db.fixedAssets.add(fixedAsset);
       assetIds.push(fixedAsset.id);
@@ -365,4 +367,91 @@ export async function generateOpeningEntries(
   }
 
   return { entryIds, assetIds };
+}
+
+export interface OpeningRemovalBlocked {
+  reason: 'has-depreciation';
+  assetNames: string[];
+}
+// 開業精霊のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
+// 保存法。removeCarryover と同じ方式）、精霊が登録した固定資産は取り除く。
+//
+// 固定資産は仕訳ではないので打ち消せず、削除するしかない。ところが減価償却・除却の仕訳は
+// description の資産タグ（#<id 先頭 8 文字>）でしか資産と結び付いておらず、外部キーが無い。
+// 参照が残っている資産を消すと、存在しない資産を指す仕訳が帳簿に残るため、その場合は
+// 仕訳も資産も触らずに中止して、先にそちらを訂正してもらう。
+//
+// 印（source: 'opening'）が付くのはこの仕組みを入れて以降に作られた資産だけ。それ以前の
+// 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
+export async function removeOpeningEntries(
+  year: number,
+): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
+  let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
+
+  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    const originals = await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+      .toArray();
+    if (originals.length === 0) {
+      return;
+    }
+    // 精霊が登録した資産は取得日＝開業日なので、年度で対象を絞れる。
+    const targets = await db.fixedAssets
+      .filter((a) => a.source === 'opening' && Number(a.acquisitionDate.slice(0, 4)) === year)
+      .toArray();
+    if (targets.length > 0) {
+      const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
+      const referenced = new Set<string>();
+      await db.journalEntries.each((e) => {
+        if (!countsTowardTotals(e)) {
+          return;
+        }
+        for (const [tag, name] of byTag) {
+          if (e.description.includes(tag)) {
+            referenced.add(name);
+          }
+        }
+      });
+      if (referenced.size > 0) {
+        result = { reason: 'has-depreciation', assetNames: [...referenced] };
+        return;
+      }
+    }
+
+    const now = Date.now();
+    for (const orig of originals) {
+      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+      const reversalId = newId();
+      await db.journalEntries.add({
+        id: reversalId,
+        // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
+        date: orig.date,
+        year: orig.year,
+        description: `[訂正] ${orig.description}`,
+        status: 'confirmed',
+        originalEntryId: orig.id,
+        source: 'opening',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      for (const line of lines) {
+        await db.journalLines.add({
+          ...line,
+          id: newId(),
+          entryId: reversalId,
+          side: line.side === 'debit' ? 'credit' : 'debit',
+        });
+      }
+      await db.journalEntries.update(orig.id, {
+        status: 'reversed',
+        reversedByEntryId: reversalId,
+      });
+    }
+    await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
+    result = { removed: true };
+  });
+
+  return result;
 }

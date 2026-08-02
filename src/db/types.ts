@@ -217,6 +217,11 @@ export interface FixedAsset {
   saleExpenses?: string;
   /** 未指定は 'business'（既存データ互換） */
   incomeType?: IncomeType;
+  /**
+   * 開業精霊が登録した資産の印。やり直し（removeOpeningEntries）で取り除ける対象を
+   * 判別するためだけに使う。手で登録した資産は未指定。
+   */
+  source?: 'opening';
   /** incomeType === 'realEstate' のときのみ使用 */
   realEstateDetail?: RealEstatePropertyDetail;
 }
