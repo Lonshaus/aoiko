@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import type { SettingsMap } from './settings';
 // 「次回から確認しない」で非表示にできる確認の一覧。設定画面の「非表示にした確認を
 // 元に戻す」はここに載っているものをまとめて戻す。確認を増やしたらこの配列に足す。
-export const SUPPRESSIBLE_CONFIRM_KEYS = [
+const SUPPRESSIBLE_CONFIRM_KEYS = [
   'skipExternalSendConfirm',
   'skipAttachmentConfirm',
   'skipFiledYearWarning',

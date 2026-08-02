@@ -22,9 +22,9 @@ async function backupZipStream(options: {
   return buildBackupZipStream(payload, iterateAttachmentBlobs());
 }
 
-export type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
+type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
 
-export type BackupStatus =
+type BackupStatus =
   | 'initializing'
   | 'unsupported'
   | 'unconfigured'
