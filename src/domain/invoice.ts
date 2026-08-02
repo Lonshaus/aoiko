@@ -17,7 +17,7 @@ const SALES_ACCOUNT_CODE = '4110'; // 売上高
 export const DEFAULT_INVOICE_PREFIX = 'INV';
 export const DEFAULT_QUOTE_PREFIX = 'QUO';
 
-export class InvoiceError extends Error {}
+class InvoiceError extends Error {}
 
 export function newLineItem(): InvoiceLineItem {
   return { id: newId(), name: '', quantity: '1', unitPrice: '0', taxRate: 0.1 };

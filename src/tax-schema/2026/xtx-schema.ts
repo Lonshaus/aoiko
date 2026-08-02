@@ -11,7 +11,7 @@
 //    IDREF 属性により定義側の ID を指す空要素
 // refTree が参照側ツリー、definitions が定義側カタログ。
 
-export interface XtxFormMeta {
+interface XtxFormMeta {
   /** 様式 ID（例：KOA020=確定申告書 / KOA210=青色申告決算書一般用） */
   formId: string;
   /** 帳票名称（xsd:documentation の様式名） */
@@ -26,7 +26,7 @@ export interface XtxFormMeta {
   fetchedAt: string;
 }
 /** 参照側ツリーの 1 要素（様式 xsd を level でフラット化） */
-export interface XtxRefElement {
+interface XtxRefElement {
   /** 出現順（1 始まり、xsd:sequence 順） */
   no: number;
   /** ネスト深さ（ルート様式要素 = 0） */
@@ -50,7 +50,7 @@ export interface XtxRefElement {
   maxOccurs: number | 'unbounded';
 }
 /** 定義側（IT部）のデータ項目カタログ（ITdefinition.xsd / ITtype より） */
-export interface XtxDefinition {
+interface XtxDefinition {
   /** データ名（参照側 idref と対応。例：NENBUN, ZEIMUSHO） */
   name: string;
   /** 日本語名（xsd:appinfo） */

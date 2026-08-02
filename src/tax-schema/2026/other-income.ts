@@ -43,12 +43,12 @@ export function otherMiscIncome(income: Decimal, expenses: Decimal): Decimal {
   return amount.lessThan(0) ? D(0) : amount;
 }
 
-export interface SalaryIncomeInput {
+interface SalaryIncomeInput {
   paidAmount: Decimal;
   withholdingTax: Decimal;
 }
 
-export interface MiscIncomeInput {
+interface MiscIncomeInput {
   publicPensionAmount?: Decimal;
   otherIncome?: Decimal;
   otherExpenses?: Decimal;
