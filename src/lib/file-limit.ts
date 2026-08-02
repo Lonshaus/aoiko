@@ -13,7 +13,3 @@ export function formatBytes(bytes: number): string {
   }
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
-// 上限超過なら true。呼出元はエラー表示して処理を中断する。
-export function exceedsLimit(size: number, limit: number): boolean {
-  return size > limit;
-}

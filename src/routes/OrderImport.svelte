@@ -14,7 +14,7 @@
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
   type ReviewItem = OrderItem & { accountCode: string };
@@ -436,9 +436,12 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={confirmOpen}
-  host={pending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
 />

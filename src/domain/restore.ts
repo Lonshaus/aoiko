@@ -8,7 +8,7 @@ import {
 } from '../backup';
 import { validateBackupPayload } from './restore-validate';
 import type { Attachment } from '../db/types';
-import { MAX_BACKUP_BYTES, exceedsLimit } from '../lib/file-limit';
+import { MAX_BACKUP_BYTES } from '../lib/file-limit';
 
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
@@ -31,7 +31,7 @@ export class BackupTooLargeError extends Error {
 // 済ませるため写真枚数に関わらず軽い。旧 JSON 形式は file.text() でファイル全体を
 // メモリに読むため、そちらだけサイズ上限を適用する。
 export function isBackupTooLarge(isZip: boolean, size: number): boolean {
-  return !isZip && exceedsLimit(size, MAX_BACKUP_BYTES);
+  return !isZip && size > MAX_BACKUP_BYTES;
 }
 // アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。

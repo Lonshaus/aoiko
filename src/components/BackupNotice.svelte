@@ -1,15 +1,8 @@
 <script lang="ts">
   import { backup } from '../stores/backup.svelte';
-  import { needsOffsiteBackupWarning } from '../backup/schedule';
+  import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
   import { link } from '../router.svelte';
   import { m } from '../paraglide/messages';
-
-  function daysSince(ts: number | null): number | null {
-    if (!ts) {
-      return null;
-    }
-    return Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
-  }
 
   const downloadDays = $derived(daysSince(backup.lastDownloadAt));
   const noOffsiteBackup = $derived(
