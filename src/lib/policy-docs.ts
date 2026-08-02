@@ -12,29 +12,39 @@ const modules = import.meta.glob(
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
 
-function parseFilename(path: string): { doc: PolicyDocName; locale: Locale } {
+// ロケール接尾辞付きファイル名（例 `PRIVACY_en.md`）から slug と locale を切り出す。
+// manual.ts の章ファイルとも共通の命名規則のため、ここに置いて両者から使う。
+function parseFilename(path: string): { slug: string; locale: Locale } {
   const base = (path.split('/').pop() ?? '').replace(/\.md$/, '');
   for (const loc of locales) {
     if (loc === baseLocale) {
       continue;
     }
-    if (base.endsWith(`_${loc}`)) {
-      return { doc: base.slice(0, -(loc.length + 1)) as PolicyDocName, locale: loc };
+    const suffix = `_${loc}`;
+    if (base.endsWith(suffix)) {
+      return { slug: base.slice(0, -suffix.length), locale: loc };
     }
   }
-  return { doc: base as PolicyDocName, locale: baseLocale };
+  return { slug: base, locale: baseLocale };
+}
+// import.meta.glob の結果を slug → locale → 本文 のレジストリへ組み立てる。
+export function buildLocaleRegistry<K extends string = string>(
+  modules: Record<string, string>,
+): Map<K, Map<Locale, string>> {
+  const registry = new Map<K, Map<Locale, string>>();
+  for (const [path, content] of Object.entries(modules)) {
+    const { slug, locale } = parseFilename(path);
+    let byLocale = registry.get(slug as K);
+    if (!byLocale) {
+      byLocale = new Map();
+      registry.set(slug as K, byLocale);
+    }
+    byLocale.set(locale, content);
+  }
+  return registry;
 }
 
-const registry = new Map<PolicyDocName, Map<Locale, string>>();
-for (const [path, content] of Object.entries(modules)) {
-  const { doc, locale } = parseFilename(path);
-  let byLocale = registry.get(doc);
-  if (!byLocale) {
-    byLocale = new Map();
-    registry.set(doc, byLocale);
-  }
-  byLocale.set(locale, content);
-}
+const registry = buildLocaleRegistry<PolicyDocName>(modules);
 // 各文書冒頭の言語切替行（GitHub 閲覧用）はアプリ内では言語設定に追従するため不要。
 export function stripLanguageNav(markdown: string): string {
   return markdown.replace(/^\*\*Language\*\*:.*$\n?/m, '');
@@ -46,6 +56,11 @@ export function getPolicyDoc(doc: PolicyDocName, locale: Locale): string {
   return stripLanguageNav(content);
 }
 
+// manual.ts の resolveManualLink とも共通の外部リンク判定。
+export function isExternalLink(href: string): boolean {
+  return /^https?:\/\//.test(href);
+}
+
 export interface ResolvedPolicyLink {
   href: string;
   external: boolean;
@@ -55,7 +70,7 @@ export interface ResolvedPolicyLink {
 // スコープ外の文書を指すため、リンクを解決できない旨を external: false で伝える
 // （呼出側はリンクを外してテキストのみ残す）。
 export function resolvePolicyLink(href: string): ResolvedPolicyLink {
-  if (/^https?:\/\//.test(href)) {
+  if (isExternalLink(href)) {
     return { href, external: true };
   }
   return { href, external: false };
