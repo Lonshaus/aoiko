@@ -1,6 +1,6 @@
 import type { Attachment } from '../db/types';
 import { newId } from '../lib/id';
-import { exceedsLimit, MAX_IMAGE_BYTES } from '../lib/file-limit';
+import { MAX_IMAGE_BYTES } from '../lib/file-limit';
 import { readImageSignature } from '../lib/image-signature';
 
 export class AttachmentTooLargeError extends Error {
@@ -28,7 +28,7 @@ export async function buildAttachmentRecord(
   file: File,
   now: number,
 ): Promise<Attachment> {
-  if (exceedsLimit(file.size, MAX_IMAGE_BYTES)) {
+  if (file.size > MAX_IMAGE_BYTES) {
     throw new AttachmentTooLargeError(file.size, MAX_IMAGE_BYTES);
   }
   if (!(await readImageSignature(file))) {

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { D, formatJPY } from '../lib/decimal';
-  import { toISODateLocal } from '../lib/date';
+  import { toISODateLocal, todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import {
     buildAll,
@@ -201,17 +201,13 @@
   let arApEntries = $state<ArApEntry[]>([]);
   let newArApType = $state<ArApType>('receivable');
   let newArApDescription = $state('');
-  let newArApDueDate = $state(todayISOForArAp());
+  let newArApDueDate = $state(todayISO());
   let newArApAmount = $state('');
   let arApError = $state('');
   let paymentDrafts = $state<Record<string, string>>({});
-  let cashFlowAsOfDate = $state(todayISOForArAp());
+  let cashFlowAsOfDate = $state(todayISO());
   let cashFlowHorizon = $state(6);
   let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
-
-  function todayISOForArAp(): string {
-    return toISODateLocal(new Date());
-  }
 
   $effect(() => {
     const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe({

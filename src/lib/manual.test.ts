@@ -10,7 +10,6 @@ import {
   rewriteLinks,
   rewriteImagePaths,
   resolveManualLink,
-  stripLanguageNav,
   stripInline,
   slugifyHeading,
   extractHeadings,
@@ -76,22 +75,6 @@ describe('searchManual', () => {
     expect(hits.map((h) => h.slug)).not.toContain('PRIVACY');
     expect(hits.map((h) => h.slug)).not.toContain('DISCLAIMER');
     expect(hits.map((h) => h.slug)).not.toContain('SECURITY');
-  });
-});
-
-describe('stripLanguageNav', () => {
-  it('言語切替行を取り除く', () => {
-    const src =
-      '# 01. 初次設定\n\n本文\n\n**Language**: [日本語](01-setup.md) | **繁體中文**\n\n続き';
-    const out = stripLanguageNav(src);
-    expect(out).not.toContain('**Language**');
-    expect(out).toContain('# 01. 初次設定');
-    expect(out).toContain('続き');
-  });
-
-  it('言語行が無ければそのまま', () => {
-    const src = '# 見出し\n\n本文';
-    expect(stripLanguageNav(src)).toBe(src);
   });
 });
 

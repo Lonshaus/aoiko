@@ -1,15 +1,31 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
 
   interface Props {
     open: boolean;
-    host: string;
+    title: string;
+    description?: string;
+    descriptionHtml?: string;
+    proceedLabel: string;
+    dontAskLabel: string;
+    preview?: Snippet;
     onconfirm: (dontAskAgain: boolean) => void;
     oncancel: () => void;
   }
 
-  let { open, host, onconfirm, oncancel }: Props = $props();
+  let {
+    open,
+    title,
+    description,
+    descriptionHtml,
+    proceedLabel,
+    dontAskLabel,
+    preview,
+    onconfirm,
+    oncancel,
+  }: Props = $props();
   let dontAskAgain = $state(false);
 </script>
 
@@ -21,21 +37,28 @@
     }
   }}
 >
-  <AlertDialog.Content>
+  <AlertDialog.Content class={preview ? 'max-h-[85vh] overflow-y-auto' : undefined}>
     <AlertDialog.Header>
-      <AlertDialog.Title>{m.cloud_send_confirm_title()}</AlertDialog.Title>
+      <AlertDialog.Title>{title}</AlertDialog.Title>
       <AlertDialog.Description>
-        {@html m.cloud_send_confirm_desc_html({ host })}
+        {#if descriptionHtml}
+          {@html descriptionHtml}
+        {:else}
+          {description}
+        {/if}
       </AlertDialog.Description>
     </AlertDialog.Header>
+    {#if preview}
+      {@render preview()}
+    {/if}
     <label class="flex items-center gap-2 text-sm text-muted-foreground">
       <input type="checkbox" bind:checked={dontAskAgain} />
-      {m.cloud_send_confirm_dont_ask()}
+      {dontAskLabel}
     </label>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action onclick={() => onconfirm(dontAskAgain)}>
-        {m.cloud_send_confirm_proceed()}
+        {proceedLabel}
       </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
