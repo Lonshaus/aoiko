@@ -17,12 +17,12 @@
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { formatJPY } from '../lib/decimal';
   import AccountSelect from '../components/AccountSelect.svelte';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
   import { taxRateForCategory } from '../lib/tax-category';
-  import { exceedsLimit, formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
   import { CsvEncodingError, decodeCsv } from '../lib/encoding';
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import type { Account } from '../db/types';
@@ -119,7 +119,7 @@
     if (!file || !currentParser) {
       return;
     }
-    if (exceedsLimit(file.size, MAX_CSV_BYTES)) {
+    if (file.size > MAX_CSV_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(file.size),
         limit: formatBytes(MAX_CSV_BYTES),
@@ -653,9 +653,12 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={llmConfirmOpen}
-  host={llmPending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: llmPending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onLlmConfirm}
   oncancel={onLlmCancel}
 />
