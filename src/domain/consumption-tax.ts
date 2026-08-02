@@ -95,7 +95,7 @@ function asBreakdown(national: Decimal): ConsumptionTaxBreakdown {
 }
 // value を unit（1000 や 100）未満切り捨て。マイナスは 0 方向へ切り捨て
 // （既存 asBreakdown と同じ ROUND_DOWN 規約に合わせる）。
-export function floorToUnit(value: Decimal, unit: number): Decimal {
+function floorToUnit(value: Decimal, unit: number): Decimal {
   return value.dividedBy(unit).toDecimalPlaces(0, Decimal.ROUND_DOWN).times(unit);
 }
 // 申告書ベースの端数処理手順（国税庁タックスアンサー No.6371・No.6383）：
@@ -702,7 +702,7 @@ export function isTwoWariEligibleYear(year: number): boolean {
   return year <= 2026;
 }
 // 3 割特例の適用年度：令和9・10年分（2027・2028）限定。
-export function isThreeWariEligibleYear(year: number): boolean {
+function isThreeWariEligibleYear(year: number): boolean {
   return year === 2027 || year === 2028;
 }
 // 各方式を一括計算して比較できる形で返す。本則・簡易は常に対象、

@@ -18,7 +18,7 @@ import type {
   Vendor,
 } from './types';
 
-export class AoikoDB extends Dexie {
+class AoikoDB extends Dexie {
   journalEntries!: Table<JournalEntry, string>;
   journalLines!: Table<JournalLine, string>;
   accounts!: Table<Account, [string, number]>;

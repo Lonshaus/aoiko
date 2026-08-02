@@ -48,7 +48,7 @@ export function daysSince(ts: number | null): number | null {
   return Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
 }
 
-export const OFFSITE_WARNING_DAYS = 7;
+const OFFSITE_WARNING_DAYS = 7;
 // 端末外に控えがあると言えるのは、利用者が選んだフォルダへの自動保存が現に
 // 動いている場合だけ。OPFS はブラウザ管理領域でサイトデータ削除と運命を共にし、
 // フォルダ未設定・ブラウザ非対応はそもそも自動保存が無い。どの場合も手動
