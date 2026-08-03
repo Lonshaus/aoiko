@@ -324,7 +324,6 @@
   function removeFamilyEmployee(id: string) {
     familyEmployees = familyEmployees.filter((f) => f.id !== id);
   }
-
   // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
   // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
   // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。

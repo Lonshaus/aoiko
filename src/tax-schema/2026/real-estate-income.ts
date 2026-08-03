@@ -29,7 +29,6 @@ import {
 } from './aoiro-deduction';
 
 export const REAL_ESTATE_SENJUSHA_ACCOUNT_NAME = '専従者給与（不動産）';
-
 // XtxContext 側で使う不動産所得の入力形状。支払先明細（地代家賃・借入金利子・
 // 税理士等報酬）は KOA220/KOA130 へそのまま転記するだけの確定額のため、計算対象の
 // landLoanInterestAmount 以外は DB 保存形状（文字列）のまま持つ（putRow 側で直接使う、
@@ -52,7 +51,6 @@ export interface CombinedBusinessRealEstateIncome {
   /** 事業所得 + 損益通算できる不動産所得（合計所得金額の算定に使う） */
   combinedIncome: Decimal;
 }
-
 // 事業所得と不動産所得（あれば）を合わせた所得金額。青色申告特別控除の共有枠配分・
 // 土地等負債利子額による損益通算制限まで含めて算定する。realEstatePl/realEstateInput が
 // 無ければ不動産所得ゼロ扱い（既存の単一事業所得の計算結果と完全に一致する）。
@@ -122,7 +120,6 @@ export function realEstatePreDeductionIncome(
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
   return D(pl.netIncome).plus(disallowed);
 }
-
 // 事業所得・不動産所得を合算した場合の青色申告特別控除に使う実効区分。
 // 事業所得が無く（またはゼロ以下）、かつ不動産所得が事業的規模でない場合、
 // 65万/55万は使えず 10万（simple）が上限になる。
@@ -142,7 +139,6 @@ export interface CombinedAoiroDeductionResult {
   businessDeduction: Decimal;
   totalDeduction: Decimal;
 }
-
 // 単一の共有枠を、不動産所得から先に・残りを事業所得から控除する形で配分する。
 // 基準額は両所得の黒字分の合計（赤字は0扱い）。
 export function allocateAoiroDeduction(
@@ -169,7 +165,6 @@ export function allocateAoiroDeduction(
   const businessDeduction = totalDeduction.minus(realEstateDeduction);
   return { realEstateDeduction, businessDeduction, totalDeduction };
 }
-
 // 不動産所得が赤字のとき、土地等取得に係る負債の利子の額に相当する部分は
 // 他の所得と損益通算できない。損益通算可能な金額（0以下）を返す。
 export function offsettableRealEstateLoss(

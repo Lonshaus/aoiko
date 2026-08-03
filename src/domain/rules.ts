@@ -4,7 +4,6 @@ import type { ParserRule } from '../db/types';
 export async function loadRules(): Promise<ParserRule[]> {
   return db.parserRules.orderBy('priority').reverse().toArray();
 }
-
 // 読み込み済みルールから、取引内容（CSV 行の description）に最初にヒットしたルールを返す。
 export function findMatchingRule(rules: ParserRule[], description: string): ParserRule | null {
   for (const rule of rules) {
