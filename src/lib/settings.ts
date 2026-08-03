@@ -4,10 +4,14 @@ import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
 import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
+import type { NativeBackupFolder } from '../backup/native';
 
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
+  // wrapper 版（Windows / macOS / iPadOS / iOS）で選んだバックアップ先。token は端末固有の
+  // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
+  nativeBackupFolder: NativeBackupFolder | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
   // 自動バックアップの実行間隔（時間）。0 = 変更のたび（既定・従来動作）。
