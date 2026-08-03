@@ -1,9 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import {
   daysSince,
+  isFolderBackupActive,
   needsOffsiteBackupWarning,
   selectExpiredBackups,
   shouldBackupNow,
+  shouldShowHomeScreenHint,
 } from './schedule';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -131,6 +133,18 @@ describe('needsOffsiteBackupWarning', () => {
     expect(needsOffsiteBackupWarning('fsa', 'idle', null)).toBe(false);
     expect(needsOffsiteBackupWarning('fsa', 'writing', 999)).toBe(false);
   });
+  // ネイティブ層でフォルダを選ぶ wrapper 版。利用者から見て fsa と同じ機能なので、
+  // 同じ扱いにしないと 4 プラットフォームすべてで警告が出たままになる。
+  test('ネイティブのフォルダ保存も警告しない', () => {
+    expect(needsOffsiteBackupWarning('native', 'idle', null)).toBe(false);
+    expect(needsOffsiteBackupWarning('native', 'writing', 999)).toBe(false);
+  });
+
+  test('ネイティブでも再選択待ち・エラーは警告する', () => {
+    expect(needsOffsiteBackupWarning('native', 'unconfigured', null)).toBe(true);
+    expect(needsOffsiteBackupWarning('native', 'reconfigure-required', null)).toBe(true);
+    expect(needsOffsiteBackupWarning('native', 'error', null)).toBe(true);
+  });
 
   test('フォルダ未設定・許可切れ・エラーはダウンロードが無ければ警告する', () => {
     expect(needsOffsiteBackupWarning('fsa', 'unconfigured', null)).toBe(true);
@@ -151,5 +165,42 @@ describe('needsOffsiteBackupWarning', () => {
 
   test('初期化中は判定を保留する', () => {
     expect(needsOffsiteBackupWarning('none', 'initializing', null)).toBe(false);
+  });
+});
+
+describe('shouldShowHomeScreenHint', () => {
+  test('OPFS・非対応はホーム画面案内を出す', () => {
+    expect(shouldShowHomeScreenHint('opfs', false)).toBe(true);
+    expect(shouldShowHomeScreenHint('none', false)).toBe(true);
+  });
+
+  test('フォルダ保存が動いていれば案内不要', () => {
+    expect(shouldShowHomeScreenHint('fsa', false)).toBe(false);
+    expect(shouldShowHomeScreenHint('native', false)).toBe(false);
+  });
+
+  test('すでにホーム画面起動済みなら案内不要', () => {
+    expect(shouldShowHomeScreenHint('opfs', true)).toBe(false);
+    expect(shouldShowHomeScreenHint('none', true)).toBe(false);
+  });
+});
+
+describe('isFolderBackupActive', () => {
+  test('フォルダ保存が現に動いていれば true', () => {
+    expect(isFolderBackupActive('native', 'idle')).toBe(true);
+    expect(isFolderBackupActive('fsa', 'writing')).toBe(true);
+  });
+  // 種類だけで判定すると、一件も書けていない状態を「動いている」と誤認して
+  // 退避の注意書きまで黙らせてしまう。
+  test('種類が fsa/native でも未設定・再選択待ち・エラーなら false', () => {
+    expect(isFolderBackupActive('native', 'unconfigured')).toBe(false);
+    expect(isFolderBackupActive('native', 'reconfigure-required')).toBe(false);
+    expect(isFolderBackupActive('fsa', 'permission-required')).toBe(false);
+    expect(isFolderBackupActive('fsa', 'error')).toBe(false);
+  });
+
+  test('OPFS と非対応は常に false', () => {
+    expect(isFolderBackupActive('opfs', 'idle')).toBe(false);
+    expect(isFolderBackupActive('none', 'unsupported')).toBe(false);
   });
 });
