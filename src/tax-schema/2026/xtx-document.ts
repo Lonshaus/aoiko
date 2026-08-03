@@ -353,7 +353,6 @@ function pageNumberOf(tag: string): string {
   const m = /-(\d+)$/.exec(tag);
   return m ? m[1]! : '1';
 }
-
 // ページが「実質データ（直接値 leaf）」を持つか。年分・申告区分・屋号等のヘッダは
 // IT部 IDREF で全ページに現れるため、それだけのページは出力対象外とする
 // （例：KOA020 第三表＝分離課税・第四表＝損失申告は該当データが無ければ出力しない）。

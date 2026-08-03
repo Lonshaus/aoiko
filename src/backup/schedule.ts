@@ -10,7 +10,6 @@ const HOUR_MS = 60 * 60 * 1000;
 // 日付入りの名前だけを汰換対象にする。OPFS が併置する固定名
 // （aoiko-ledger-latest.zip）は復元の起点なので決して削除しない。
 const DATED_BACKUP_PATTERN = /^aoiko-ledger-\d{4}-\d{2}-\d{2}\.zip$/;
-
 // intervalHours = 0 は「変更のたび」（既定・従来動作）。
 // 引数は number で受ける。UI が出す選択肢が変わってもこの判定は変えなくてよい。
 export function shouldBackupNow(
@@ -27,7 +26,6 @@ export function shouldBackupNow(
   }
   return now - lastBackupAt >= intervalHours * HOUR_MS;
 }
-
 // keepCount = 0 は「削除しない」（既定・従来動作）。戻り値は削除すべきファイル名。
 export function selectExpiredBackups(fileNames: readonly string[], keepCount: number): string[] {
   if (keepCount === 0) {
@@ -74,7 +72,6 @@ export function needsOffsiteBackupWarning(
   }
   return daysSinceDownload === null || daysSinceDownload >= OFFSITE_WARNING_DAYS;
 }
-
 // 一部の環境で永続化ストレージが得られる唯一の一般経路はホーム画面への追加。
 // フォルダ保存が動いている環境やすでにホーム画面起動済みの環境では案内不要。
 export function shouldShowHomeScreenHint(adapterKind: string, isStandalone: boolean): boolean {
