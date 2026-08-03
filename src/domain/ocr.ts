@@ -65,7 +65,6 @@ function parseOcrResponse(raw: unknown): ReceiptExtracted {
     throw new LlmError('OCR レスポンスが想定外の形式');
   }
   const r = raw as Record<string, unknown>;
-
   // 形式まで見る。YYYY-MM-DD でない値は <input type="date"> が空表示にするため、
   // 利用者は「日付が読めなかった」ことに気付けないまま保存へ進んでしまう。
   const date =

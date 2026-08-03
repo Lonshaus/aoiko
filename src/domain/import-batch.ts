@@ -20,7 +20,6 @@ export async function reverseImportBatch(
   }
   return { reversedCount, alreadyReversedCount };
 }
-
 // バッチに紐付く仕訳の対象年度一覧（重複排除・昇順）。呼び出し側が申告済み年度への
 // 警告を出す前に確認するために使う。
 export async function importBatchYears(batchId: string): Promise<number[]> {

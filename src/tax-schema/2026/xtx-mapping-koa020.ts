@@ -116,7 +116,6 @@ type IncomeCtx = Pick<
   XtxContext,
   'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'realEstatePl' | 'personalDeductions'
 >;
-
 // 事業所得側の事業専従者控除（白色申告のみ）。ABB00790・ABE00010 明細ブロックとも
 // この結果を共有する（totalIncomeAmount とは別々に算定して整合が崩れるのを防ぐ）。
 // IncomeDeductions.svelte の試算プレビュー（事業専従者控除の表示）からも直接呼ぶため export する。
@@ -142,7 +141,6 @@ export function realEstateFamilyEmployeeDeductionResult(
   const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
-
 // 事業所得（青色申告特別控除後）。不動産所得（B7 part2）があれば、共有枠での
 // 配分後の実際の控除額を使う（単独計算だと不動産所得と共有する分を考慮せず過小控除になる）。
 // 所得控除・税額控除の計算（income-deductions.ts）にもそのまま使う（IncomeDeductions.svelte 参照）。
