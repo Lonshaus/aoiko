@@ -33,7 +33,6 @@ export class LlmError extends Error {
     this.name = 'LlmError';
   }
 }
-
 // HTTP ステータスから既知の失敗パターン（キー誤り・エンドポイント誤り・レート制限・サーバ障害）を
 // 判定し、利用者向けの文言に変換する。生のレスポンス本文は詳細として残す（storage-error.ts と同じ方針）。
 export function describeLlmError(e: unknown): string {
@@ -55,7 +54,6 @@ export function describeLlmError(e: unknown): string {
   }
   return detail;
 }
-
 // fetch 自体が失敗した場合、まず「オフラインだから」を疑わせる。
 // キー設定ミスと誤認させてユーザーに無駄なデバッグをさせないための一次判定。
 function connectionErrorMessage(fallback: string): string {
@@ -138,7 +136,6 @@ export function hostOf(baseUrl: string): string {
     return baseUrl;
   }
 }
-
 // 「この端末自身か」を判定する。端末から出ない宛先だけが送信前確認を省略できる。
 // `.local`（mDNS）は LAN 上の別のマシンであり、`192.168.x.x` と同じく端末外。
 // 自分で立てたサーバーであっても、証憑写真がどの機械へ渡るのかは利用者に示す。

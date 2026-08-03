@@ -477,7 +477,6 @@ export async function buildMonthlyPL(year: number, data?: YearData): Promise<Mon
     netIncome,
   };
 }
-
 // incomeType 未指定は 'business' 扱い（既存データ互換、db/types.ts の Account.incomeType 参照）。
 export async function buildPL(
   year: number,

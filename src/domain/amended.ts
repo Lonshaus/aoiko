@@ -56,7 +56,6 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
   const delta = D(current.netIncome).minus(filed.netIncome);
   const revDelta = D(current.totalRevenue).minus(filed.totalRevenue);
   const expDelta = D(current.totalExpense).minus(filed.totalExpense);
-
   // BS は PL と別スナップショット（旧仕様で申告した年度には保存されていない）。
   // 同じ filed/superseded 選定ロジックを bs 型に対して繰り返す。
   const bsCandidates = await db.reportSnapshots
