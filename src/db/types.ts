@@ -133,7 +133,6 @@ export interface Attachment {
   fileName: string;
   createdAt: number;
 }
-
 // 予算管理（C10）。月次総額（収入予算・支出予算）のみ、科目別には分解しない
 // （個人事業主想定では科目別入力の設定コストが見合わないとユーザーと合意——AOIKO_FUTURE_IDEAS.md 参照）。
 export interface Budget {
@@ -169,13 +168,11 @@ export interface ParserRule {
   hitCount: number;
   lastHitAt?: number;
 }
-
 // 'scrap'＝除却（廃棄、対価なし）。帳簿価額全額を必要経費（固定資産除却損）に計上。
 // 'sale'＝売却（対価あり）。個人事業主の事業用資産売却は譲渡所得（分離課税）に該当し
 // 事業所得に含められないため、売却対価と帳簿価額の差額は事業主貸/事業主借で結転し
 // 損益計算書には影響させない（freee 方式、詳細は asset-disposal.ts 冒頭コメント参照）。
 export type DisposalType = 'scrap' | 'sale';
-
 // KOA220（青色申告決算書・不動産所得用）第2頁「貸家等の状況」相当。
 // 月額家賃の期中改定（上段/下段）は追跡せず、年額を確定額で直接入力する
 // （雑損控除等と同じ「複雑な個別事情は確定額直接入力」の方針、real-estate-income.ts 冒頭コメント参照）。
@@ -293,7 +290,6 @@ export interface PersonalDeductionDependent {
 }
 
 export type FamilyEmployeeRelation = 'spouse' | 'other';
-
 // 白色申告の事業専従者控除（所法57条3項）の対象者。青色事業専従者給与（実額）とは
 // 別制度のため、給与額は持たない（続柄で決まる定額を family-employee-deduction.ts で算定）。
 export interface PersonalDeductionFamilyEmployee {
@@ -352,7 +348,6 @@ export interface RealEstateLoanInterestPaidDetail extends RealEstatePayeeDetail 
 export interface RealEstateProfessionalFeeDetail extends RealEstatePayeeDetail {
   withholdingTax?: string;
 }
-
 // 不動産所得の入力（年度ごと）。損益自体は incomeType: 'realEstate' の仕訳から導出するため
 // ここには保存しない。事業的規模は「5棟10室」等の非正式基準で機械判定できないため
 // 利用者の自己申告とする（real-estate-income.ts 冒頭コメント参照）。
@@ -365,7 +360,6 @@ export interface RealEstateIncomeInput {
   loanInterestPaid?: RealEstateLoanInterestPaidDetail[];
   professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
 }
-
 // 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
 // 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
 // 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する

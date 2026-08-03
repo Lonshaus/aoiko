@@ -194,7 +194,6 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
-
 // 第2頁「貸家等の状況」（ANF00340）。incomeType: 'realEstate' の FixedAsset の
 // realEstateDetail から生成する（物件＝資産という1:1の単純化、複数棟をまたぐ
 // 按分等は対象外）。
@@ -236,7 +235,6 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
       return row;
     });
 }
-
 // 第3頁「減価償却費の計算」（ANF00890）。incomeType: 'realEstate' の FixedAsset のみ、
 // 事業所得側（xtx-mapping-koa110.ts の mapKoa110RepeatedValues）と同じロジックを使う。
 function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
@@ -302,7 +300,6 @@ function payeeRows<
     return row;
   });
 }
-
 // KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
 // 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
 // へ出力する。5件を超える分は出力しない（超過時は e-Tax 上で利用者が手動補完）。

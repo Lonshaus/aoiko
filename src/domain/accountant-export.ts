@@ -84,7 +84,6 @@ function yayoiTaxInfo(
       taxAmount: computeTaxAmount(line),
     };
   }
-
   // 以下、費用・資産（仕入側）
   if (effectiveTaxCategory === 'importTax10' || effectiveTaxCategory === 'importTax8') {
     // 輸入消費税：金額そのものが税額として扱われる（db/types.ts のコメント参照）

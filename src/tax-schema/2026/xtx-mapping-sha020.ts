@@ -26,7 +26,6 @@ import {
 } from '../../domain/consumption-tax';
 import type { SimplifiedTaxCategory } from './simplified-tax';
 import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
-
 // gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
 function toKingaku(value: Decimal): string {
   const rounded = value.toDecimalPlaces(0, Decimal.ROUND_DOWN);
@@ -42,7 +41,6 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
     out[tag] = v;
   }
 }
-
 // 差引が正なら差引欄（dueTag）、負なら還付欄（refundTag）へ絶対値を書き込む。
 // 消費税申告書は控除超過による還付を差引税額の負値ではなく、専用の控除不足還付税額欄に
 // 正値で記載する（簡易課税では貸倒れ税額が控除税額小計を超えると差引が負になり得る）。
@@ -53,14 +51,12 @@ function putSigned(out: XtxLeafValues, dueTag: string, refundTag: string, value:
     put(out, dueTag, value);
   }
 }
-
 // 差引税額（base）から本年中の中間納付額（paid）を充当した結果を返す。
 // paid が base を超える場合は還付（ABI00130/ABJ00090 系）扱いとする。
 function applyInterimCredit(base: Decimal, paid: Decimal): { due: Decimal; refund: Decimal } {
   const diff = base.minus(paid);
   return diff.isNegative() ? { due: D(0), refund: diff.negated() } : { due: diff, refund: D(0) };
 }
-
 // SHA020 第一表・第二表は 2 割特例・簡易課税で同じ構造（控除対象仕入税額の
 // 算定方法だけが異なる）。控除額が決まった後の転記部分を共通化する。
 // 貸倒れ税額・貸倒回収は消費税法39条によりどちらの方式でも同じ扱い：
@@ -89,7 +85,6 @@ function buildSha020Common(
   putSigned(sha020, 'ABI00100', 'ABI00090', filingNational);
   putSigned(sha020, 'ABJ00030', 'ABJ00020', filingNational);
   putSigned(sha020, 'ABJ00060', 'ABJ00050', filingLocal);
-
   // 中間納付の充当は差引税額（納付側）に対してのみ行う。控除不足還付（差引が負）の
   // 場合は差引税額が無く、中間納付額はその全額が中間納付還付税額となる。
   const nationalDue = filingNational.isNegative() ? D(0) : filingNational;
@@ -135,7 +130,6 @@ function buildSha020Common(
   put(sha020, 'ABV00040', filingNational);
   return sha020;
 }
-
 // 中間申告（仮決算方式）の対象期間を ABH00160 の raw XML に変換する（未指定なら undefined）。
 function buildInterimPeriodRaw(period?: { start: string; end: string }): string | undefined {
   if (!period) {
