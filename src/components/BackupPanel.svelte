@@ -7,7 +7,9 @@
     BACKUP_INTERVAL_HOURS,
     BACKUP_RETENTION_COUNTS,
     daysSince,
+    isFolderBackupActive,
     needsOffsiteBackupWarning,
+    shouldShowHomeScreenHint,
   } from '../backup/schedule';
   import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
 
@@ -15,6 +17,12 @@
   let includeFilerInfo = $state(false);
   let intervalHours = $state<BackupIntervalHours>(0);
   let retentionCount = $state<BackupRetentionCount>(0);
+
+  // 起動後に変わらないので non-reactive でよい
+  const isStandalone =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(display-mode: standalone)').matches === true ||
+      (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
   onMount(async () => {
     includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
@@ -85,22 +93,32 @@
         ? m.backup_panel_status_unsupported()
         : backup.status === 'unconfigured'
           ? m.backup_panel_status_unconfigured()
-          : backup.status === 'permission-required'
-            ? m.backup_panel_status_permission_required()
-            : backup.status === 'writing'
-              ? m.backup_panel_status_writing()
-              : backup.status === 'error'
-                ? m.backup_panel_status_error()
-                : m.backup_panel_status_ok(),
+          : backup.status === 'reconfigure-required'
+            ? m.backup_panel_status_reconfigure_required()
+            : backup.status === 'permission-required'
+              ? m.backup_panel_status_permission_required()
+              : backup.status === 'writing'
+                ? m.backup_panel_status_writing()
+                : backup.status === 'error'
+                  ? m.backup_panel_status_error()
+                  : m.backup_panel_status_ok(),
   );
+  // fsa（ブラウザの File System Access）と native（wrapper のネイティブ層）は
+  // 利用者から見て同じ機能。表示も操作も分けない。
+  const folderBased = $derived(backup.adapterKind === 'fsa' || backup.adapterKind === 'native');
+  // 退避の注意書きを黙らせてよいのは、フォルダへの書き出しが現に動いているときだけ。
+  // 種類だけで判定すると、未設定・再選択待ちで一件も書けていない状態まで黙る。
+  const folderBackupActive = $derived(isFolderBackupActive(backup.adapterKind, backup.status));
 
   const adapterLabel = $derived(
-    backup.adapterKind === 'fsa'
-      ? m.backup_panel_adapter_fsa()
+    folderBased
+      ? m.backup_panel_adapter_folder()
       : backup.adapterKind === 'opfs'
         ? m.backup_panel_adapter_opfs()
         : m.backup_panel_adapter_none(),
   );
+
+  const showHomeScreenHint = $derived(shouldShowHomeScreenHint(backup.adapterKind, isStandalone));
 </script>
 
 <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
@@ -109,9 +127,9 @@
     <span class="text-xs text-muted-foreground">{adapterLabel}</span>
   </header>
 
-  {#if backup.adapterKind === 'fsa'}
+  {#if folderBased}
     <p class="text-xs text-muted-foreground">
-      {@html m.backup_panel_intro_fsa_html()}
+      {@html m.backup_panel_intro_folder_html()}
     </p>
   {:else if backup.adapterKind === 'opfs'}
     <p class="text-xs text-muted-foreground">
@@ -123,9 +141,21 @@
     </p>
   {/if}
 
-  {#if backup.storagePersisted === false}
+  {#if backup.status === 'reconfigure-required'}
     <p class="text-xs text-destructive">
+      {m.backup_panel_reconfigure_notice({ folderName: backup.folderName ?? '' })}
+    </p>
+  {/if}
+
+  {#if backup.storagePersisted === false && !folderBackupActive}
+    <p class="text-xs text-muted-foreground">
       {m.backup_panel_storage_evictable()}
+    </p>
+  {/if}
+
+  {#if showHomeScreenHint}
+    <p class="text-xs text-muted-foreground">
+      {m.backup_panel_home_screen_hint()}
     </p>
   {/if}
 
@@ -134,7 +164,7 @@
       <div class="text-xs text-muted-foreground">{m.backup_panel_label_status()}</div>
       <div>{statusLabel}</div>
     </div>
-    {#if backup.adapterKind === 'fsa'}
+    {#if folderBased}
       <div>
         <div class="text-xs text-muted-foreground">{m.backup_panel_label_folder()}</div>
         <div class="font-mono text-xs break-all">{backup.folderName ?? '—'}</div>
@@ -162,7 +192,7 @@
   </div>
 
   <div class="flex flex-wrap gap-2">
-    {#if backup.adapterKind === 'fsa'}
+    {#if folderBased}
       {#if backup.status === 'unconfigured'}
         <button
           type="button"
@@ -170,6 +200,14 @@
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
           {m.backup_panel_action_choose_folder()}
+        </button>
+      {:else if backup.status === 'reconfigure-required'}
+        <button
+          type="button"
+          onclick={() => backup.configure()}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.backup_panel_action_reselect_folder()}
         </button>
       {:else if backup.status === 'permission-required'}
         <button

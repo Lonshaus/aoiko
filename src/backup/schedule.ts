@@ -49,6 +49,14 @@ export function daysSince(ts: number | null): number | null {
 }
 
 const OFFSITE_WARNING_DAYS = 7;
+// フォルダへの自動保存が「現に動いている」か。アダプタの種類だけでは足りない：
+// 未設定・再選択待ちのときは種類が fsa/native でも一件も書き出されていない。
+export function isFolderBackupActive(adapterKind: string, status: string): boolean {
+  return (
+    (adapterKind === 'fsa' || adapterKind === 'native') &&
+    (status === 'idle' || status === 'writing')
+  );
+}
 // 端末外に控えがあると言えるのは、利用者が選んだフォルダへの自動保存が現に
 // 動いている場合だけ。OPFS はブラウザ管理領域でサイトデータ削除と運命を共にし、
 // フォルダ未設定・ブラウザ非対応はそもそも自動保存が無い。どの場合も手動
@@ -61,8 +69,17 @@ export function needsOffsiteBackupWarning(
   if (status === 'initializing') {
     return false;
   }
-  if (adapterKind === 'fsa' && (status === 'idle' || status === 'writing')) {
+  if (isFolderBackupActive(adapterKind, status)) {
     return false;
   }
   return daysSinceDownload === null || daysSinceDownload >= OFFSITE_WARNING_DAYS;
+}
+
+// 一部の環境で永続化ストレージが得られる唯一の一般経路はホーム画面への追加。
+// フォルダ保存が動いている環境やすでにホーム画面起動済みの環境では案内不要。
+export function shouldShowHomeScreenHint(adapterKind: string, isStandalone: boolean): boolean {
+  if (isStandalone) {
+    return false;
+  }
+  return adapterKind !== 'fsa' && adapterKind !== 'native';
 }

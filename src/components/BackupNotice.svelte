@@ -19,6 +19,17 @@
       >{m.backup_notice_action_configure()}</a
     >
   </div>
+{:else if backup.status === 'reconfigure-required'}
+  <div
+    class="flex items-center justify-between gap-3 text-xs border border-destructive rounded-lg px-3 py-2 bg-card"
+  >
+    <span class="text-destructive"
+      >{m.backup_notice_reconfigure_required({ folderName: backup.folderName ?? '' })}</span
+    >
+    <a href="/settings" use:link class="text-primary hover:underline"
+      >{m.backup_notice_action_reconfigure()}</a
+    >
+  </div>
 {:else if backup.status === 'permission-required'}
   <div
     class="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2 bg-card text-card-foreground"

@@ -13,4 +13,10 @@ export {
   type ParsedBackupZip,
 } from './archive';
 export { FsaBackupAdapter } from './fsa';
+export {
+  NativeFolderBackupAdapter,
+  decideNativeState,
+  type NativeBackupFolder,
+  type NativeBackupState,
+} from './native';
 export { OpfsBackupAdapter } from './opfs';
