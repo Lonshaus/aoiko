@@ -1,8 +1,11 @@
 import { db } from '../db/db';
 import type { Attachment } from '../db/types';
 import type { BackupPayload } from './types';
-// シリアライズ不可能な settings キー（常にバックアップ対象外）
-const SKIP_SETTING_KEYS = new Set(['backupFolderHandle']);
+// 常にバックアップ対象外の settings キー。除外理由は 2 種類ある。
+// - backupFolderHandle：FileSystemDirectoryHandle でシリアライズできない
+// - nativeBackupFolder：シリアライズはできるが端末固有（パス / security-scoped bookmark）で、
+//   別端末へ復元すると存在しない場所や他人のフォルダを指し得る
+const SKIP_SETTING_KEYS = new Set(['backupFolderHandle', 'nativeBackupFolder']);
 // API キー（平文）。既定では除外し、利用者が明示的に含めると選択した場合のみ書き出す。
 const SENSITIVE_SETTING_KEYS = new Set(['geminiApiKey', 'openaiApiKey']);
 // 申告者情報（利用者識別番号・氏名・住所・税務署）。個人情報のため既定で除外し、

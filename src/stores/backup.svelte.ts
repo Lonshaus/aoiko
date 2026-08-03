@@ -2,13 +2,15 @@ import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
 import {
   FsaBackupAdapter,
+  NativeFolderBackupAdapter,
   OpfsBackupAdapter,
+  decideNativeState,
   buildBackupZipStream,
   buildPayload,
   iterateAttachmentBlobs,
   type BackupAdapter,
 } from '../backup';
-import { getSetting, setSetting } from '../lib/settings';
+import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
 import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
@@ -22,12 +24,15 @@ async function backupZipStream(options: {
   return buildBackupZipStream(payload, iterateAttachmentBlobs());
 }
 
-type BackupAdapterKind = 'fsa' | 'opfs' | 'none';
+type BackupAdapterKind = 'native' | 'fsa' | 'opfs' | 'none';
 
 type BackupStatus =
   | 'initializing'
   | 'unsupported'
   | 'unconfigured'
+  // 保存先が失われ、選び直す以外に回復手段が無い状態。FSA 時代の handle しか無い
+  // wrapper 版と、ある環境 の bookmark が失効した場合の両方で使う（回復動線が同じため）。
+  | 'reconfigure-required'
   | 'permission-required'
   | 'idle'
   | 'writing'
@@ -54,7 +59,14 @@ class BackupManager {
   private backupPending = false;
 
   constructor() {
-    void this.initAdapter();
+    // 初期化が落ちたまま 'initializing' に留まると、表示は「初期化中…」のままなのに
+    // scheduleBackup / backup() はその状態を弾かないため、保存要求だけが走り続けて
+    // 毎回失敗する。アダプタ側の不調（ネイティブ層の IPC 失敗・権限拒否等）を
+    // 利用者に見える形へ落とす。
+    void this.initAdapter().catch((e: unknown) => {
+      this.lastError = describeStorageError(e);
+      this.status = 'error';
+    });
     // 仕訳・明細・取引先・固定資産の変更を購読し、デバウンスでバックアップ
     this.subs.push(
       liveQuery(async () => ({
@@ -102,6 +114,26 @@ class BackupManager {
 
   private async initAdapter(): Promise<void> {
     await this.requestPersistentStorage();
+    // web view に showDirectoryPicker は無いため、wrapper 版はネイティブ層を先に見る。
+    // これが無いと ある環境 / ある環境 / ある環境 の app は opfs 止まりになり、同期フォルダへの
+    // 自動書き出しに到達できない。
+    const native = new NativeFolderBackupAdapter(
+      async () => (await getSetting('nativeBackupFolder')) ?? null,
+      async (folder) => {
+        await setSetting('nativeBackupFolder', folder);
+        this.folderName = folder.name;
+        // FSA 時代の handle は用済み。残すと次回起動でも再選択を促し続ける。
+        await deleteSetting('backupFolderHandle');
+      },
+    );
+
+    if (await native.isAvailable()) {
+      this.adapter = native;
+      this.adapterKind = 'native';
+      await this.initNative(native);
+      return;
+    }
+
     const fsa = new FsaBackupAdapter(
       async () => (await getSetting('backupFolderHandle')) ?? null,
       async (h) => {
@@ -126,6 +158,26 @@ class BackupManager {
     }
 
     this.status = 'unsupported';
+  }
+
+  private async initNative(adapter: NativeFolderBackupAdapter): Promise<void> {
+    const folder = await getSetting('nativeBackupFolder');
+    // FSA 時代の handle は名前しか使えない（ネイティブ層からは読めない）。どのフォルダ
+    // だったかを名指しして選び直しを促すためだけに拾う。
+    const legacy = folder ? null : ((await getSetting('backupFolderHandle')) ?? null);
+    this.lastBackupAt = (await getSetting('lastBackupAt')) ?? null;
+    this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
+    this.folderName = folder?.name ?? legacy?.name ?? null;
+    // token が解決できない場合（ある環境 の bookmark 失効・フォルダの削除や移動）も、ネイティブ層に
+    // 権限を取り直す手段は無く回復は選び直しだけ。permission-required には倒さない。
+    this.status = decideNativeState({
+      hasFolder: folder !== null && folder !== undefined,
+      hasLegacyHandle: legacy !== null,
+      ready: await adapter.isReady(),
+    });
+    if (this.status === 'idle') {
+      void this.maybeStartupBackup();
+    }
   }
 
   private async initFsa(adapter: FsaBackupAdapter): Promise<void> {
@@ -154,7 +206,7 @@ class BackupManager {
   }
 
   async configure(): Promise<void> {
-    if (this.adapterKind !== 'fsa' || !this.adapter) {
+    if ((this.adapterKind !== 'fsa' && this.adapterKind !== 'native') || !this.adapter) {
       return;
     }
     this.lastError = '';
@@ -191,7 +243,11 @@ class BackupManager {
   }
 
   scheduleBackup(): void {
-    if (this.status === 'unsupported' || this.status === 'unconfigured') {
+    if (
+      this.status === 'unsupported' ||
+      this.status === 'unconfigured' ||
+      this.status === 'reconfigure-required'
+    ) {
       return;
     }
     if (this.debounceTimer) {
@@ -243,7 +299,7 @@ class BackupManager {
   // 「全データ削除」から呼ぶ。OPFS のバックアップは帳簿と証憑写真の完全な複製で
   // ありながら、利用者が ファイル管理 / ファイル管理から見ることも消すこともできない。
   // IndexedDB だけ消して放置すると、譲渡・廃棄した端末に帳簿が丸ごと残る。
-  // FSA の保存先は利用者自身のフォルダなので、こちらからは消さない。
+  // FSA・ネイティブの保存先は利用者自身が選んだフォルダなので、こちらからは消さない。
   async clearStoredBackups(): Promise<void> {
     if (this.adapterKind !== 'opfs' || !this.adapter) {
       return;
@@ -257,7 +313,11 @@ class BackupManager {
     if (!this.adapter) {
       return;
     }
-    if (this.status === 'unsupported' || this.status === 'unconfigured') {
+    if (
+      this.status === 'unsupported' ||
+      this.status === 'unconfigured' ||
+      this.status === 'reconfigure-required'
+    ) {
       return;
     }
     if (this.status === 'writing') {
