@@ -33,6 +33,11 @@ beforeEach(async () => {
     { key: 'userFilerAddress', value: '東京都〇〇1-2-3', updatedAt: now },
     { key: 'userZeimushoCode', value: '01101', updatedAt: now },
     { key: 'backupFolderHandle', value: { not: 'serializable' }, updatedAt: now },
+    {
+      key: 'nativeBackupFolder',
+      value: { token: '/Users/someone/Dropbox/aoiko', name: 'aoiko' },
+      updatedAt: now,
+    },
   ]);
 });
 
@@ -50,6 +55,12 @@ describe('buildPayload', () => {
   test('backupFolderHandle は常に除外（シリアライズ不可）', async () => {
     const p = await buildPayload({ includeApiKeys: true });
     expect(settingKeys(p.tables)).not.toContain('backupFolderHandle');
+  });
+  // シリアライズはできてしまうため、除外を外すと端末固有のパスや bookmark が
+  // バックアップに混ざり、別端末で復元したときに存在しない場所や他人のフォルダを指す。
+  test('nativeBackupFolder は常に除外（端末固有）', async () => {
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(settingKeys(p.tables)).not.toContain('nativeBackupFolder');
   });
 
   test('既定では API キーを除外する', async () => {
