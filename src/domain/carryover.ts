@@ -172,7 +172,6 @@ export async function applyCarryover(
     createdAt: now,
     confirmedAt: now,
   };
-
   // amount の符号に応じて positiveSide／その逆側へ振り分けた JournalLine を積む。
   const pushSignedLine = (
     lines: JournalLine[],
@@ -284,7 +283,6 @@ export async function detectStaleCarryover(year: number): Promise<StaleCarryover
 
   return differences.length === 0 ? null : { year, differences };
 }
-
 // 期首振替のやり直し。確定仕訳は物理削除せず、打消し仕訳で相殺する（reverse.ts と同じ方式。
 // CLAUDE.md「確定仕訳は不変・訂正は反対仕訳・完全な監査履歴を保持」＝電子帳簿保存法）。
 // 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。

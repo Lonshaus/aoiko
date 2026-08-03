@@ -17,7 +17,6 @@
   let includeFilerInfo = $state(false);
   let intervalHours = $state<BackupIntervalHours>(0);
   let retentionCount = $state<BackupRetentionCount>(0);
-
   // 起動後に変わらないので non-reactive でよい
   const isStandalone =
     typeof window !== 'undefined' &&

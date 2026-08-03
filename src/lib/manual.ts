@@ -31,7 +31,6 @@ const registry = buildLocaleRegistry(modules);
 export function chapterSlugs(): string[] {
   return [...registry.keys()].filter((s) => s !== INDEX_SLUG).sort();
 }
-
 // 条文は章ではないので registry には入れない。chapterSlugs() は registry から
 // 導出されるため、サイドバーと前後章ナビゲーションには自動的に現れない
 // （「次の章：PRIVACY」のような並びにならない）。ルートとしてだけ解決できればよい。

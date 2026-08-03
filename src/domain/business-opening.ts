@@ -301,7 +301,6 @@ export async function generateOpeningEntries(
         entryIds.push(amortEntry.id);
       }
     }
-
     // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
     const assetLines: Array<{
       side: 'debit' | 'credit';

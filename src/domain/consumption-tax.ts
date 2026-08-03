@@ -219,7 +219,6 @@ function emptyProcessedYearLines(): ProcessedYearLines {
     badDebtRecoveryTax8: D(0),
   };
 }
-
 // period 指定時は仮決算（中間申告）用：年内の一部期間（start〜end、両端含む ISO 日付）
 // のみを集計する。未指定（既定）は年間全体（確定申告）。
 export interface ConsumptionTaxPeriod {
@@ -269,7 +268,6 @@ export async function processYear(
     badDebtRecoveryTax10,
     badDebtRecoveryTax8,
   } = acc0;
-
   // 個別対応方式の用途区分別に控除対象仕入税額を積み上げる（taxableOnly は input からの差分で導出するため個別集計不要）
   function accumulateUsage(
     line: (typeof lines)[number],
@@ -298,7 +296,6 @@ export async function processYear(
       continue;
     }
     const effectiveTaxCategory = line.taxCategory ?? acc.taxCategory;
-
     // 貸倒回収：過去に貸倒控除した売掛金等の回収。新たな売上ではないため課税標準額・
     // 課税売上割合には算入せず、その行の taxRate で税込金額から税額のみ逆算する
     if (effectiveTaxCategory === 'badDebtRecovery') {
@@ -311,7 +308,6 @@ export async function processYear(
       }
       continue;
     }
-
     // 売上：revenue は両建てネット（debit ＝ 売上値引・返品は課税標準から控除）
     if (acc.category === 'revenue') {
       if (line.taxRate === 0) {
@@ -338,7 +334,6 @@ export async function processYear(
       }
       continue;
     }
-
     // 輸入消費税：金額そのものが税額（税込価格から逆算しない）
     if (effectiveTaxCategory === 'importTax10' || effectiveTaxCategory === 'importTax8') {
       const amt = D(line.amount);
@@ -356,7 +351,6 @@ export async function processYear(
       accumulateUsage(line, signed, rate);
       continue;
     }
-
     // 特定課税仕入れ（リバースチャージ）：常に標準税率。経過措置の適用判定
     // （本則課税・課税売上割合95%未満のみ申告義務。95%以上・簡易・2割/3割特例は
     // 当分の間「なかったもの」）は集計後に行うため、ここでは独立集計のみ行う。
@@ -376,7 +370,6 @@ export async function processYear(
       }
       continue;
     }
-
     // 貸倒れ：税込の貸倒金額から、その行の taxRate で税額を逆算する。仕入税額控除とは
     // 別枠の控除項目のため isInput 判定・個別対応方式の用途区分には算入しない
     if (effectiveTaxCategory === 'badDebt') {
@@ -496,7 +489,6 @@ export interface DeductibleInputTax {
   /** 合計 = rate78 + rate624（申告書④・付表1-3(4)・付表2-3⑯いずれもこの値を使う） */
   total: Decimal;
 }
-
 // 控除対象仕入税額の算定に必要な税率別の生の内訳（経過措置適用後、切捨て前）。
 // processYear の結果（本則の通常申告）・GeneralMappingInput（.xtx マッピング）の
 // 双方が同じフィールド名を持つため、どちらからもそのまま渡せる。

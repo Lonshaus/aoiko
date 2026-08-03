@@ -94,7 +94,6 @@ export function computeDepreciation(asset: FixedAsset, year: number): Depreciati
       depreciationBase: cost.toString(),
     };
   }
-
   // 一括償却資産は除却後も 3 年均等償却を継続する（未償却残高の一時損金算入は不可）ため、
   // 除却による打ち切りの対象外とする。
   if (asset.disposedDate && asset.depreciationMethod !== 'lump-sum') {

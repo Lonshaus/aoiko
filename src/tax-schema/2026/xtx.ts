@@ -94,7 +94,6 @@ const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
-
 // フォーム入力の生文字列（空・空白・全角数字など）が流入するため、throw させず 0 扱いにする。
 function toDec(s: string): Decimal {
   const trimmed = s.trim();
@@ -107,7 +106,6 @@ function toDec(s: string): Decimal {
     return D(0);
   }
 }
-
 // db.personalDeductions（年度ごとに保存された確定額、文字列）を XtxContext.personalDeductions
 // （計算用の Decimal 形状）へ変換する。IncomeDeductions.svelte の試算プレビューと
 // Reports.svelte の .xtx 出力の両方から、この1関数だけを共通で使う（値の食い違いを防ぐ）。

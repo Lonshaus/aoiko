@@ -17,7 +17,6 @@
 
   const PAGE_SIZE = 50;
   const now = new Date();
-
   // 処理年度に追従（ユーザーがセレクタで別年度を選ぶと override、Settings で年度が
   // 変わると再計算されて追従に戻る writable derived）。
   let year = $derived(ledger.currentYear);

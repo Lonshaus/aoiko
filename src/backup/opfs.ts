@@ -5,7 +5,6 @@ import type { BackupAdapter } from './types';
 // 定期的な JSON ダウンロードでユーザーが iCloud 等に手動コピーする運用前提。
 export class OpfsBackupAdapter implements BackupAdapter {
   readonly name = 'opfs';
-
   // getDirectory だけでは足りない。書き込みに使う createWritable は後から実装された
   // API で、Safari は getDirectory が 15.2、createWritable が 26。判定を getDirectory
   // だけにすると、書けない環境で status が idle のまま「動いているように見えて一度も
