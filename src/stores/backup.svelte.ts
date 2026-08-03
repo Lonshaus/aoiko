@@ -89,7 +89,6 @@ class BackupManager {
       }),
     );
   }
-
   // 永続化ストレージはアダプタに関係なく要求する。IndexedDB（帳簿本体）が
   // 破棄対象かどうかの話であり、FSA を使える環境でも同じく必要。
   private async requestPersistentStorage(): Promise<void> {
@@ -295,7 +294,6 @@ class BackupManager {
       this.lastError = e instanceof Error ? e.message : String(e);
     }
   }
-
   // 「全データ削除」から呼ぶ。OPFS のバックアップは帳簿と証憑写真の完全な複製で
   // ありながら、利用者が ファイル管理 / ファイル管理から見ることも消すこともできない。
   // IndexedDB だけ消して放置すると、譲渡・廃棄した端末に帳簿が丸ごと残る。

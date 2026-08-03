@@ -103,7 +103,6 @@ export async function restoreFromPayload(
     }
     writes.push({ name: table.name, rows });
   }
-
   // 全消去と書き込みを 1 つのトランザクションに入れる。db.delete() でデータベースごと
   // 消してから書き込むと、書き込みが失敗してもロールバック先が「空の状態」になり、
   // 利用者の既存帳簿が復旧不能になる。clear() ならロールバックで元データが戻る。
