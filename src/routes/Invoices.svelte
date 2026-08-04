@@ -121,7 +121,9 @@
   function openEdit(inv: Invoice) {
     errorMessage = '';
     convertingFromQuoteId = null;
-    editing = structuredClone(inv);
+    // inv は $state 配列の要素、つまり proxy。structuredClone は proxy を複製できず
+    // DataCloneError で落ちる（編集フォームが開かないままエラーバナーだけ出る）。
+    editing = $state.snapshot(inv);
     editingSnapshot = JSON.stringify(editing);
   }
 
