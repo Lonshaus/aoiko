@@ -294,19 +294,19 @@
             <span class="text-xs text-muted-foreground">{inv.date}</span>
             <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
             <span class="text-xs px-2 py-0.5 rounded bg-muted">{statusLabel(inv.status)}</span>
-            <div class="ml-auto flex gap-2 print:hidden">
+            <div class="ml-auto flex gap-3 print:hidden">
               {#if inv.status === 'draft'}
                 <button
                   type="button"
                   onclick={() => openEdit(inv)}
-                  class="text-xs text-primary hover:underline"
+                  class="text-xs text-primary hover:underline py-2 -my-2"
                 >
                   {m.invoices_action_edit()}
                 </button>
                 <button
                   type="button"
                   onclick={() => askDeleteDraft(inv)}
-                  class="text-xs text-muted-foreground hover:text-destructive"
+                  class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
                 >
                   {m.settings_action_delete()}
                 </button>
@@ -314,7 +314,7 @@
                 <button
                   type="button"
                   onclick={() => print(inv.id)}
-                  class="text-xs text-primary hover:underline"
+                  class="text-xs text-primary hover:underline py-2 -my-2"
                 >
                   {m.invoices_action_print()}
                 </button>
@@ -322,7 +322,7 @@
                   <button
                     type="button"
                     onclick={() => convertToInvoice(inv)}
-                    class="text-xs text-primary hover:underline"
+                    class="text-xs text-primary hover:underline py-2 -my-2"
                   >
                     {m.invoices_action_convert()}
                   </button>
@@ -331,7 +331,7 @@
                   <button
                     type="button"
                     onclick={() => onVoid(inv.id)}
-                    class="text-xs text-muted-foreground hover:text-destructive"
+                    class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
                   >
                     {m.invoices_action_void()}
                   </button>
@@ -412,13 +412,17 @@
             <button
               type="button"
               onclick={() => removeLine(item.id)}
-              class="text-xs text-muted-foreground hover:text-destructive"
+              class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
             >
               {m.settings_action_delete()}
             </button>
           </div>
         {/each}
-        <button type="button" onclick={addLine} class="text-xs text-primary hover:underline">
+        <button
+          type="button"
+          onclick={addLine}
+          class="text-xs text-primary hover:underline py-2 -my-2"
+        >
           {m.invoices_form_add_line()}
         </button>
       </div>

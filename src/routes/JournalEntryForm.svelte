@@ -609,7 +609,7 @@
     <button
       type="button"
       onclick={addDebit}
-      class="text-xs text-muted-foreground hover:text-foreground"
+      class="text-xs text-muted-foreground hover:text-foreground py-2 -my-2"
     >
       {m.journal_form_add_debit()}
     </button>
@@ -761,7 +761,7 @@
     <button
       type="button"
       onclick={addCredit}
-      class="text-xs text-muted-foreground hover:text-foreground"
+      class="text-xs text-muted-foreground hover:text-foreground py-2 -my-2"
     >
       {m.journal_form_add_credit()}
     </button>
