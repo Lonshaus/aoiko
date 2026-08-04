@@ -120,7 +120,7 @@
           <a
             href={item.href}
             use:link
-            class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+            class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
             >{item.label()}</a
           >
         {/each}
@@ -173,7 +173,7 @@
         <a
           href="/manual/{helpChapter}"
           use:link
-          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
         >
           ？{m.nav_manual()}
         </a>
@@ -196,7 +196,7 @@
         <div class="space-y-4 py-12 text-center">
           <h2 class="text-lg font-semibold">{m.manual_not_found()}</h2>
           <p class="text-muted-foreground">{m.not_found_body()}</p>
-          <a href="/" use:link class="text-primary hover:underline">{m.nav_home()}</a>
+          <a href="/" use:link class="text-primary hover:underline py-2 -my-2">{m.nav_home()}</a>
         </div>
       {/if}
       {#snippet failed(error)}

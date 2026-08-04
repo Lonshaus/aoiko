@@ -532,7 +532,7 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_other_income_title()}</h3>
     <p class="text-xs text-muted-foreground">{m.income_deductions_other_income_intro()}</p>
-    <label class="flex items-center gap-2">
+    <label class="flex items-center gap-2 py-2">
       <input type="checkbox" bind:checked={hasSalaryIncome} />
       <span class="text-sm">{m.income_deductions_salary_checkbox()}</span>
     </label>
@@ -620,7 +620,7 @@
           >{formatJPY(realEstateTotalIncome)}</span
         >
       </p>
-      <label class="flex items-center gap-2">
+      <label class="flex items-center gap-2 py-2">
         <input type="checkbox" bind:checked={realEstateBusinessScale} />
         <span class="text-sm">{m.income_deductions_real_estate_business_scale()}</span>
       </label>
@@ -817,7 +817,7 @@
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_family_title()}</h3>
-    <label class="flex items-center gap-2">
+    <label class="flex items-center gap-2 py-2">
       <input type="checkbox" bind:checked={hasSpouse} />
       <span class="text-sm">{m.income_deductions_spouse_checkbox()}</span>
     </label>
@@ -893,7 +893,7 @@
           />
         </label>
         <div class="flex items-center gap-3">
-          <label class="flex items-center gap-1 text-xs">
+          <label class="flex items-center gap-1 text-xs py-2">
             <input type="checkbox" bind:checked={dep.livesWithLinealAscendant} />
             {m.income_deductions_dependent_lives_with_lineal_ascendant()}
           </label>
@@ -1161,23 +1161,23 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_status_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isDisabled} />
         {m.income_deductions_is_disabled()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isSpecialDisabled} />
         {m.income_deductions_is_special_disabled()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isSingleParent} />
         {m.income_deductions_is_single_parent()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isWidow} />
         {m.income_deductions_is_widow()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isWorkingStudent} />
         {m.income_deductions_is_working_student()}
       </label>
