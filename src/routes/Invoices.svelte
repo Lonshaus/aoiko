@@ -448,7 +448,7 @@
         <div class="text-sm text-destructive">{errorMessage}</div>
       {/if}
 
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <button
           type="button"
           onclick={saveDraft}
