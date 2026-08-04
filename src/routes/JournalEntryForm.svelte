@@ -474,8 +474,10 @@
     </div>
     {#each debits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
-        <div class="space-y-2">
+      <div
+        class="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start"
+      >
+        <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'debit')}
@@ -511,7 +513,7 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
+          class="w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
@@ -622,8 +624,10 @@
     </div>
     {#each credits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
-        <div class="space-y-2">
+      <div
+        class="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start"
+      >
+        <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'credit')}
@@ -661,7 +665,7 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
+          class="w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
