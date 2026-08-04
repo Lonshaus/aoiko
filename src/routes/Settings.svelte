@@ -1377,7 +1377,7 @@
       <div class="block sm:col-span-2">
         <span class="text-xs text-muted-foreground">{m.settings_filing_type_label()}</span>
         <div class="mt-1 flex gap-4 text-sm">
-          <label class="flex items-center gap-1">
+          <label class="flex items-center gap-1 py-2">
             <input
               type="radio"
               name="filingType"
@@ -1386,7 +1386,7 @@
             />
             {m.settings_filing_type_blue()}
           </label>
-          <label class="flex items-center gap-1">
+          <label class="flex items-center gap-1 py-2">
             <input
               type="radio"
               name="filingType"
@@ -1936,7 +1936,7 @@
                           placeholder={m.settings_asset_property_address_placeholder()}
                           class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
                         />
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="checkbox" bind:checked={propertyIsResidential} />
                           {m.settings_asset_property_residential()}
                         </label>
@@ -2043,11 +2043,11 @@
                           bind:value={disposeDate}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
                         />
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="scrap" />
                           {m.settings_asset_disposal_type_scrap()}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="sale" />
                           {m.settings_asset_disposal_type_sale()}
                         </label>
@@ -2287,7 +2287,7 @@
                   {a.name}
                 </span>
               </span>
-              <label class="flex items-center gap-2 cursor-pointer text-xs">
+              <label class="flex items-center gap-2 cursor-pointer text-xs py-2">
                 <input
                   type="checkbox"
                   checked={a.isActive !== false}
