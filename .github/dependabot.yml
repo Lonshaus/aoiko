@@ -2,6 +2,10 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: '/'
+    # 開発は develop に集約し、master は develop から切ったリリースブランチだけを受ける。
+    # ここを master のままにすると、依存を更新するたびに本番へデプロイされる。
+    # Dependabot は既定ブランチのこのファイルしか読まないため、設定自体は master に置く。
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -22,5 +26,6 @@ updates:
           - patch
   - package-ecosystem: github-actions
     directory: '/'
+    target-branch: develop
     schedule:
       interval: weekly
