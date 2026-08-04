@@ -2083,7 +2083,7 @@
                       {#if disposeError}
                         <div class="text-xs text-destructive">{disposeError}</div>
                       {/if}
-                      <div class="flex gap-2">
+                      <div class="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onclick={saveDisposal}
@@ -2148,7 +2148,7 @@
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
 
-    <div class="flex items-end gap-3 pt-3 border-t border-border/50">
+    <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-border/50">
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_asset_target_year()}</span>
         <input
@@ -2307,7 +2307,7 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_llm_intro_html()}
     </p>
-    <div class="flex gap-3 items-end">
+    <div class="flex flex-wrap gap-3 items-end">
       <label class="block flex-1">
         <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
         <input

@@ -625,7 +625,7 @@
         </div>
       {/if}
 
-      <div class="flex items-center justify-end gap-3 p-4 border-t border-border/50">
+      <div class="flex flex-wrap items-center justify-end gap-3 p-4 border-t border-border/50">
         {#if unclassifiedCount > 0}
           <span class="text-xs text-amber-600 dark:text-amber-500">
             {m.import_unclassified_notice({ count: unclassifiedCount })}

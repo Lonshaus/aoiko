@@ -1168,7 +1168,7 @@
   <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
     <header class="flex items-baseline justify-between flex-wrap gap-2">
       <h3 class="text-lg font-semibold">{m.reports_trend_title()}</h3>
-      <div class="flex items-end gap-2 text-xs">
+      <div class="flex flex-wrap items-end gap-2 text-xs">
         <label class="block">
           <span class="text-muted-foreground">{m.reports_trend_from()}</span>
           <input
