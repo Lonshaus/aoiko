@@ -5,7 +5,7 @@ import type { BackupAdapter } from './types';
 // が oppose でクローズ済み、preference も存在しない）。web API に頼る限り一部の環境の app は
 // 同期フォルダへの自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
 //
-// ネイティブの plugin は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
+// ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
 // 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
 export interface NativeBackupBridge {
   // 取り消しは null。token は端末固有の不透明文字列で、プラットフォームごとに中身が違う
