@@ -116,7 +116,6 @@ class LedgerStore {
   vendors = $state<Vendor[]>([]);
   parserRules = $state<ParserRule[]>([]);
   fixedAssets = $state<FixedAsset[]>([]);
-  recentEntries = $state<JournalEntry[]>([]);
   recentLedgerRows = $state<LedgerRow[]>([]);
   monthlyOverview = $state<MonthlyOverview>(emptyOverview());
   currentYear = $state<number>(DEFAULT_YEAR);
@@ -160,12 +159,6 @@ class LedgerStore {
         () => db.fixedAssets.orderBy('acquisitionDate').toArray(),
         (v) => {
           this.fixedAssets = v;
-        },
-      ),
-      this.sub(
-        () => db.journalEntries.orderBy('date').reverse().limit(5).toArray(),
-        (v) => {
-          this.recentEntries = v;
         },
       ),
       this.sub(

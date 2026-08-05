@@ -109,7 +109,7 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
 
 export type AmendmentChecklistKey = 'unlock' | 'reverse' | 'review' | 'submit' | 'relock';
 
-export interface AmendmentChecklistItem {
+interface AmendmentChecklistItem {
   key: AmendmentChecklistKey;
 }
 // 修正申告の標準的な手順 key 列。ラベル本文は UI 層で i18n 経由解決。
