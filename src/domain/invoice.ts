@@ -40,7 +40,7 @@ export function createDraftInvoice(
   };
 }
 // 税率グループ単位の小計・消費税額（インボイス制度の「税率ごとに 1 回だけ端数処理」の原則）。
-export interface InvoiceTaxGroup {
+interface InvoiceTaxGroup {
   taxRate: 0.1 | 0.08;
   subtotalExcl: Decimal;
   taxAmount: Decimal;

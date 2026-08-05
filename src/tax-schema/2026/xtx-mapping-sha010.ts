@@ -100,7 +100,7 @@ export interface GeneralMappingInput {
   interimPaidLocal?: Decimal;
 }
 
-export interface GeneralMapping {
+interface GeneralMapping {
   /** SHA010（申告書）第一表・第二表の直接値 leaf */
   sha010: XtxLeafValues;
   /** SHA010 の区分（kubun）ブランチ上書き：中間申告の対象期間 */

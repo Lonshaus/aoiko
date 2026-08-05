@@ -63,7 +63,7 @@ const DECLINING_RATE_TABLE: Record<
   20: { rate: 0.1, revisedRate: 0.112, guarantee: 0.03486 },
 };
 
-export interface DepreciationResult {
+interface DepreciationResult {
   /** その年度の償却額 */
   amount: string;
   /** その年度末時点の累計償却額 */
@@ -314,7 +314,7 @@ function computeDecliningBalance(
     depreciationBase: (revisedBase ?? bookValue).toString(),
   };
 }
-export interface YearEndDepreciationResult {
+interface YearEndDepreciationResult {
   /** 仕訳を新規作成した件数 */
   created: number;
   /** 既存仕訳があり重複回避でスキップした件数 */

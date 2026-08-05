@@ -31,7 +31,7 @@ export function transitionalCreditRate(transactionDate: string): number {
   return 0;
 }
 // 経過措置の人間可読ラベル（UI 表示用）。
-export type TransitionalPeriodLabel =
+type TransitionalPeriodLabel =
   | '80%（2023/10〜2026/9）'
   | '70%（2026/10〜2028/9）'
   | '50%（2028/10〜2030/9）'

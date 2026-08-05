@@ -76,7 +76,7 @@ export function familyEmployeeDeduction(
   return { total, entries };
 }
 
-export interface FamilyEmployeeExclusion {
+interface FamilyEmployeeExclusion {
   spouseExcluded: boolean;
   excludedDependentIds: Set<string>;
 }

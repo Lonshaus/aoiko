@@ -11,12 +11,12 @@
 
 import { D, Decimal } from '../../lib/decimal';
 
-export interface SpouseInput {
+interface SpouseInput {
   totalIncome: Decimal;
   age: number;
 }
 
-export interface DependentInput {
+interface DependentInput {
   id: string;
   /** 年末時点の満年齢 */
   age: number;
@@ -25,7 +25,7 @@ export interface DependentInput {
   livesWithLinealAscendant?: boolean;
 }
 
-export interface LifeInsurancePayments {
+interface LifeInsurancePayments {
   newGeneral?: Decimal;
   oldGeneral?: Decimal;
   newMedical?: Decimal;
@@ -56,7 +56,7 @@ export interface IncomeDeductionInput {
   dependents: DependentInput[];
 }
 
-export interface IncomeDeductionResult {
+interface IncomeDeductionResult {
   basicDeduction: Decimal;
   socialInsuranceDeduction: Decimal;
   smallBusinessMutualAidDeduction: Decimal;
