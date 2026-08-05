@@ -3,6 +3,12 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  // vite.config.ts の __APP_VERSION__ / __APP_COMMIT__ 参照（Settings.svelte 末尾）が
+  // テスト実行時に ReferenceError にならないようダミー値を定義する。
+  define: {
+    __APP_VERSION__: JSON.stringify('test'),
+    __APP_COMMIT__: JSON.stringify('test'),
+  },
   plugins: [svelte()],
   resolve: {
     // 既定の Node 解決条件だと svelte が index-server.js（SSR 版）に解決され、
