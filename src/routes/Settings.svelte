@@ -819,6 +819,9 @@
 
   async function runDepreciation() {
     depreciationStatus = '';
+    if (!(await filedYearGuard.confirm([depreciationYear]))) {
+      return;
+    }
     try {
       const r = await generateYearEndDepreciation(depreciationYear);
       const parts: string[] = [];

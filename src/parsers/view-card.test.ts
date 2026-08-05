@@ -11,7 +11,7 @@ describe('viewCardParser', () => {
 
   test('skips前言とカード会員行, parses明細', () => {
     const r = viewCardParser.parse(sample);
-    expect(r).toHaveLength(3);
+    expect(r).toHaveLength(4);
     expect(r[0]).toMatchObject({
       date: '2026-04-11',
       description: '駅ビル店',
@@ -31,6 +31,15 @@ describe('viewCardParser', () => {
     expect(r[2]).toMatchObject({
       date: '2026-04-20',
       amount: '500',
+      side: 'debit',
+    });
+  });
+
+  test('ご利用額がマイナス表記の行は符号を反転して debit にする', () => {
+    const r = viewCardParser.parse(sample);
+    expect(r[3]).toMatchObject({
+      date: '2026-04-25',
+      amount: '800',
       side: 'debit',
     });
   });
