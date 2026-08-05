@@ -1,10 +1,23 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
 import { ledger } from './ledger.svelte';
-import type { Account } from '../db/types';
+import type { Account, JournalEntry } from '../db/types';
 
 function acc(code: string, year: number, name: string): Account {
   return { code, year, name, category: 'expense', displayOrder: Number(code) };
+}
+
+function entry(id: string, year: number, date: string): JournalEntry {
+  return {
+    id,
+    date,
+    year,
+    description: 'テスト仕訳',
+    status: 'confirmed',
+    source: 'manual',
+    createdAt: Date.now(),
+    confirmedAt: Date.now(),
+  };
 }
 // liveQuery は非同期に反映されるため、条件成立までポーリングで待つ。
 // 上限は CI の負荷を見込んで広めに取る（2 秒では import に数十秒かかる runner で
@@ -109,5 +122,31 @@ describe('liveQuery 購読の失敗', () => {
     ledger.switchYear(2027);
     await waitFor(() => ledger.lastError === null, 'lastError がクリアされる');
     expect(ledger.lastError).toBeNull();
+  });
+});
+
+describe('currentYear 設定の liveQuery 追従（復元対応）', () => {
+  test('settings テーブルの currentYear が書き換わると自動で切り替わる', async () => {
+    ledger.switchYear(2026);
+    await waitFor(() => ledger.currentYear === 2026, '2026 への切替');
+    // restore.ts が行うのと同様に settings テーブルを直接書き換える（手動リロード無しで反映されるべき）
+    await db.settings.put({ key: 'currentYear', value: 2027, updatedAt: Date.now() });
+    await waitFor(() => ledger.currentYear === 2027, 'currentYear の自動追従');
+    await waitFor(() => ledger.accounts.map((a) => a.code).join() === '5140', '2027 の科目');
+  });
+});
+
+describe('computeRecentRows の年度フィルタ', () => {
+  test('現在年度以外の仕訳は recentLedgerRows に含まれない', async () => {
+    await db.journalEntries.bulkAdd([
+      entry('e2026', 2026, '2026-04-01'),
+      entry('e2027', 2027, '2027-04-01'),
+    ]);
+    ledger.switchYear(2026);
+    await waitFor(
+      () => ledger.recentLedgerRows.some((r) => r.entry.id === 'e2026'),
+      '2026 の仕訳が反映される',
+    );
+    expect(ledger.recentLedgerRows.some((r) => r.entry.id === 'e2027')).toBe(false);
   });
 });
