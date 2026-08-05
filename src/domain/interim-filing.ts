@@ -22,7 +22,7 @@ interface InterimInstallment {
   amount: ConsumptionTaxBreakdown;
 }
 
-export interface InterimFilingObligation {
+interface InterimFilingObligation {
   installmentCount: InterimInstallmentCount;
   installments: InterimInstallment[];
 }

@@ -21,7 +21,7 @@ export const FILER_INFO_SETTING_KEYS = new Set([
 
 export const PAYLOAD_VERSION = 1;
 
-export interface BuildPayloadOptions {
+interface BuildPayloadOptions {
   // API キーをバックアップに含めるか（既定 false）
   includeApiKeys?: boolean;
   // 申告者情報をバックアップに含めるか（既定 false）

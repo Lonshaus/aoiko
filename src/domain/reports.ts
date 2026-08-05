@@ -226,7 +226,7 @@ async function loadYearData(year: number): Promise<YearData> {
   return { entries, lines, accounts };
 }
 
-export interface AllReports {
+interface AllReports {
   monthly: MonthlyReport;
   pl: PLReport;
   bs: BSReport;
