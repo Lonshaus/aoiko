@@ -152,19 +152,16 @@
       error = m.order_no_items();
       return;
     }
-    // 品目合計と総額の照合（差異があれば総額を信用しユーザに警告）
+    // 借方は品目、貸方は総額で組むため、両者が一致しないと validateLines が必ず
+    // unbalanced を投げる。続行させても仕訳にならないので、ここで止めて直させる。
+    // どちらの欄も画面上で編集できる。
     const itemsSum = validItems.reduce((s, it) => s.plus(D(it.amount)), D(0));
-    const total = D(data.totalAmount);
-    if (!itemsSum.equals(total)) {
-      const ok = confirm(
-        m.order_total_mismatch({
-          itemSum: formatJPY(itemsSum.toString()),
-          total: formatJPY(data.totalAmount),
-        }),
-      );
-      if (!ok) {
-        return;
-      }
+    if (!itemsSum.equals(D(data.totalAmount))) {
+      error = m.order_total_mismatch({
+        itemSum: formatJPY(itemsSum.toString()),
+        total: formatJPY(data.totalAmount),
+      });
+      return;
     }
 
     committing = true;

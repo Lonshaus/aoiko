@@ -282,7 +282,7 @@
   "order_label_payment_account": "支払元（既定：未払金）",
   "order_item_remove": "削除",
   "order_item_add": "行追加",
-  "order_total_mismatch": "品目合計と総額が一致しません（品目 {itemSum} / 総額 {total}）。総額側を信用して続行しますか？",
+  "order_total_mismatch": "品目合計と総額が一致しません（品目 {itemSum} / 総額 {total}）。どちらかを直してから登録してください。",
   "order_submit": "仕訳を登録",
   "order_default_description": "注文取込",
   "order_success": "✓ 仕訳を登録しました（{name} 合計 {amount}・{count} 行）",
