@@ -141,7 +141,7 @@ function buildInterimPeriodRaw(period?: { start: string; end: string }): string 
   );
 }
 
-export interface TwoWariMappingInput {
+interface TwoWariMappingInput {
   /** 課税資産の譲渡等の対価の額（税抜、標準税率10%＝国税7.8%分）。返品・値引ネット後 */
   taxableBase10: Decimal;
   /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
@@ -158,7 +158,7 @@ export interface TwoWariMappingInput {
   interimPaidLocal?: Decimal;
 }
 
-export interface TwoWariMapping {
+interface TwoWariMapping {
   /** SHA020（申告書）第一表・第二表の直接値 leaf */
   sha020: XtxLeafValues;
   /** SHA020 の区分（kubun）ブランチ上書き：2割特例チェック欄 */
@@ -226,7 +226,7 @@ export function mapTwoWari(input: TwoWariMappingInput): TwoWariMapping {
   };
 }
 
-export interface SimplifiedMappingInput {
+interface SimplifiedMappingInput {
   /** 課税資産の譲渡等の対価の額（税抜、標準税率10%＝国税7.8%分）。返品・値引ネット後 */
   taxableBase10: Decimal;
   /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
@@ -249,7 +249,7 @@ export interface SimplifiedMappingInput {
   interimPaidLocal?: Decimal;
 }
 
-export interface SimplifiedMapping {
+interface SimplifiedMapping {
   /** SHA020（申告書）第一表・第二表の直接値 leaf */
   sha020: XtxLeafValues;
   /** SHA020 の区分（kubun）ブランチ上書き：中間申告の対象期間 */

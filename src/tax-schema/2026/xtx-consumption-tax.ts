@@ -76,7 +76,7 @@ function shinkokuKbnFor(interimPeriod?: { start: string; end: string }): string 
   return interimPeriod ? '2' : '1';
 }
 
-export interface TwoWariXtxContext {
+interface TwoWariXtxContext {
   year: number;
   businessName: string;
   filer: XtxFiler;
@@ -130,7 +130,7 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
   );
 }
 
-export interface SimplifiedXtxContext {
+interface SimplifiedXtxContext {
   year: number;
   businessName: string;
   filer: XtxFiler;
@@ -189,7 +189,7 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
   );
 }
 
-export interface GeneralXtxContext {
+interface GeneralXtxContext {
   year: number;
   businessName: string;
   filer: XtxFiler;
