@@ -98,7 +98,7 @@ export function rewriteImagePaths(markdown: string): string {
 
 const GITHUB_BLOB_BASE = 'https://github.com/Lonshaus/aoiko/blob/master/';
 
-export interface ResolvedManualLink {
+interface ResolvedManualLink {
   href: string;
   external: boolean;
 }
@@ -136,7 +136,7 @@ export function slugifyHeading(text: string): string {
     .replace(/ /g, '-');
 }
 
-export interface Heading {
+interface Heading {
   level: number;
   text: string;
   id: string;
@@ -162,7 +162,7 @@ export function extractHeadings(markdown: string): Heading[] {
   return headings;
 }
 
-export interface SearchHit {
+interface SearchHit {
   slug: string;
   title: string;
   snippet: string;
