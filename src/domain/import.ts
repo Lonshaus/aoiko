@@ -17,7 +17,7 @@ export interface ImportRow {
   counterpartInvoiceCompliant?: boolean;
 }
 
-export interface ImportBatchInfo {
+interface ImportBatchInfo {
   parserName: string;
   fileName: string;
   fileHash: string;

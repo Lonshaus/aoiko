@@ -33,7 +33,7 @@
         plainText = getLicenseText();
         return;
       }
-      const [{ getPolicyDoc, resolvePolicyLink }, { Marked }] = await Promise.all([
+      const [{ getPolicyDoc, isExternalLink }, { Marked }] = await Promise.all([
         import('../lib/policy-docs'),
         import('marked'),
       ]);
@@ -45,11 +45,10 @@
         renderer: {
           link(token) {
             const inner = this.parser.parseInline(token.tokens);
-            const { href, external } = resolvePolicyLink(token.href);
             // 文書間の相対リンク（例 DISCLAIMER.md 内の [LICENSE](LICENSE)）はこのビューアの
             // スコープ外なのでリンクを外してテキストのみ残す。http(s) はブラウザで開く。
-            return external
-              ? `<a href="${href}" target="_blank" rel="noopener noreferrer" class="underline">${inner}</a>`
+            return isExternalLink(token.href)
+              ? `<a href="${token.href}" target="_blank" rel="noopener noreferrer" class="underline">${inner}</a>`
               : inner;
           },
         },

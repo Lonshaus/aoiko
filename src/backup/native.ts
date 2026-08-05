@@ -7,7 +7,7 @@ import type { BackupAdapter } from './types';
 //
 // ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
 // 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
-export interface NativeBackupBridge {
+interface NativeBackupBridge {
   // 取り消しは null。token は端末固有の不透明文字列で、中身は wrapper 側の都合で決まる。
   // web 側は保管して渡し直すだけで、解釈しない。
   backupChooseFolder(): Promise<{ token: string; name: string } | null>;
