@@ -8,7 +8,7 @@ export interface ClassifyInput {
   amount: string;
 }
 
-export interface ClassifySuggestion {
+interface ClassifySuggestion {
   ref: string;
   /** 提案された対方科目 code、信頼度が低い or 適合なしのとき null */
   accountCode: string | null;
@@ -16,7 +16,7 @@ export interface ClassifySuggestion {
   reason?: string;
 }
 
-export interface ClassifyOptions {
+interface ClassifyOptions {
   knownAccountCode: string;
   knownSide: 'debit' | 'credit';
   /** UI から候補に提示する科目（カテゴリ別に絞り込み済を推奨） */

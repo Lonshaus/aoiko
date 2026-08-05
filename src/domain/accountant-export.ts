@@ -28,7 +28,7 @@ function encodeUtf8WithBom(text: string): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode('﻿' + text);
 }
 
-export interface YayoiExportContext {
+interface YayoiExportContext {
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
 }

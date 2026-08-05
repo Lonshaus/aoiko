@@ -154,7 +154,7 @@ function nonBusinessPeriodYears(acquisitionDate: string, businessStartDate: stri
   const remainderMonths = totalMonths % 12;
   return remainderMonths >= 6 ? years + 1 : years;
 }
-export interface ConvertedAssetBasis {
+interface ConvertedAssetBasis {
   nonBusinessDepreciation: Decimal;
   businessStartBasis: Decimal;
 }
@@ -368,7 +368,7 @@ export async function generateOpeningEntries(
   return { entryIds, assetIds };
 }
 
-export interface OpeningRemovalBlocked {
+interface OpeningRemovalBlocked {
   reason: 'has-depreciation';
   assetNames: string[];
 }

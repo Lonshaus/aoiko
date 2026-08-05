@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getPolicyDoc, getLicenseText, stripLanguageNav, resolvePolicyLink } from './policy-docs';
+import { getPolicyDoc, getLicenseText, stripLanguageNav, isExternalLink } from './policy-docs';
 
 describe('getPolicyDoc', () => {
   it('日本語版を返す', () => {
@@ -53,15 +53,12 @@ describe('getLicenseText', () => {
   });
 });
 
-describe('resolvePolicyLink', () => {
+describe('isExternalLink', () => {
   it('http(s) は外部リンクとして扱う', () => {
-    expect(resolvePolicyLink('https://example.com')).toEqual({
-      href: 'https://example.com',
-      external: true,
-    });
+    expect(isExternalLink('https://example.com')).toBe(true);
   });
 
-  it('文書内の相対リンク（例 LICENSE）は解決できない旨を返す', () => {
-    expect(resolvePolicyLink('LICENSE')).toEqual({ href: 'LICENSE', external: false });
+  it('文書内の相対リンク（例 LICENSE）は外部リンクではない', () => {
+    expect(isExternalLink('LICENSE')).toBe(false);
   });
 });

@@ -41,7 +41,7 @@ export interface RealEstateIncomeCtx {
   professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
 }
 
-export interface CombinedBusinessRealEstateIncome {
+interface CombinedBusinessRealEstateIncome {
   /** 事業所得の所得金額（青色控除後）。赤字ならマイナス */
   businessIncome: Decimal;
   /** 不動産所得の所得金額（青色控除後）。赤字ならマイナス */
@@ -134,7 +134,7 @@ export function combinedAoiroDeductionKind(
   return 'simple';
 }
 
-export interface CombinedAoiroDeductionResult {
+interface CombinedAoiroDeductionResult {
   realEstateDeduction: Decimal;
   businessDeduction: Decimal;
   totalDeduction: Decimal;

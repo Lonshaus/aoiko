@@ -37,7 +37,7 @@ const DISPOSAL_MARKER: Record<DisposalType, string> = {
   sale: '固定資産売却',
 };
 
-export interface DisposalLineSpec {
+interface DisposalLineSpec {
   side: 'debit' | 'credit';
   accountCode: string;
   amount: string;
@@ -110,7 +110,7 @@ export function buildDisposalLines(
   return lines;
 }
 
-export interface DisposalEntryResult {
+interface DisposalEntryResult {
   created: boolean;
   reason?:
     | 'no-disposal'
@@ -206,7 +206,7 @@ export async function generateDisposalEntry(
   return { created: true };
 }
 
-export interface TransferIncomeEstimate {
+interface TransferIncomeEstimate {
   proceeds: string;
   acquisitionExpense: string;
   saleExpenses: string;

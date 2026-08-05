@@ -57,21 +57,6 @@ export function getPolicyDoc(doc: PolicyDocName, locale: Locale): string {
 export function isExternalLink(href: string): boolean {
   return /^https?:\/\//.test(href);
 }
-
-export interface ResolvedPolicyLink {
-  href: string;
-  external: boolean;
-}
-// 文書内リンクの href を marked のレンダリング時に解決する。http(s) は外部リンクとして
-// 新規タブで開く。それ以外（例 DISCLAIMER.md 内の [LICENSE](LICENSE)）はこのビューアの
-// スコープ外の文書を指すため、リンクを解決できない旨を external: false で伝える
-// （呼出側はリンクを外してテキストのみ残す）。
-export function resolvePolicyLink(href: string): ResolvedPolicyLink {
-  if (isExternalLink(href)) {
-    return { href, external: true };
-  }
-  return { href, external: false };
-}
 // LICENSE は年号や字下げを保つ固定書式のプレーンテキストであり、他文書のような
 // マークダウンではない。翻訳もない（単一言語で配布される著作権文書のため）。
 // メタ文字の無い literal パスは picomatch がパターンとして受け付けないため、

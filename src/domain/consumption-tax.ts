@@ -149,7 +149,7 @@ export function filingBreakdown(nationalNetRaw: Decimal): ConsumptionTaxBreakdow
   };
 }
 
-export interface ProcessedYearLines {
+interface ProcessedYearLines {
   /** 売上税額（国税分。特定課税仕入れの自認課税分は含まない。経過措置判定は集計後） */
   output: Decimal;
   /** 仕入税額（国税分、経過措置適用前） */
@@ -221,7 +221,7 @@ function emptyProcessedYearLines(): ProcessedYearLines {
 }
 // period 指定時は仮決算（中間申告）用：年内の一部期間（start〜end、両端含む ISO 日付）
 // のみを集計する。未指定（既定）は年間全体（確定申告）。
-export interface ConsumptionTaxPeriod {
+interface ConsumptionTaxPeriod {
   start: string;
   end: string;
 }
@@ -492,7 +492,7 @@ export interface DeductibleInputTax {
 // 控除対象仕入税額の算定に必要な税率別の生の内訳（経過措置適用後、切捨て前）。
 // processYear の結果（本則の通常申告）・GeneralMappingInput（.xtx マッピング）の
 // 双方が同じフィールド名を持つため、どちらからもそのまま渡せる。
-export interface DeductibleInputTaxInputs {
+interface DeductibleInputTaxInputs {
   input10: Decimal;
   input8: Decimal;
   inputCommon10: Decimal;

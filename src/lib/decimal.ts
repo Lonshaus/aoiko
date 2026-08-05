@@ -4,7 +4,7 @@ Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
 export { Decimal };
 
-export type DecimalLike = Decimal | string | number;
+type DecimalLike = Decimal | string | number;
 
 export function D(value: DecimalLike): Decimal {
   return new Decimal(value);
