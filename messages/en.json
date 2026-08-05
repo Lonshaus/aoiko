@@ -283,7 +283,7 @@
   "order_label_payment_account": "Payment source (default: accounts payable)",
   "order_item_remove": "Remove",
   "order_item_add": "Add row",
-  "order_total_mismatch": "Item subtotal does not match the total (items {itemSum} / total {total}). Trust the total and continue?",
+  "order_total_mismatch": "Item subtotal does not match the total (items {itemSum} / total {total}). Correct one of them before saving.",
   "order_submit": "Save entry",
   "order_default_description": "Order import",
   "order_success": "✓ Saved entry ({name}; total {amount}; {count} lines)",
