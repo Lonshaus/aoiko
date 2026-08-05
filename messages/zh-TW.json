@@ -283,7 +283,7 @@
   "order_label_payment_account": "支付來源（預設：未払金）",
   "order_item_remove": "刪除",
   "order_item_add": "新增行",
-  "order_total_mismatch": "品項合計與總額不一致（品項 {itemSum} / 總額 {total}）。要以總額為準繼續嗎？",
+  "order_total_mismatch": "品項合計與總額不一致（品項 {itemSum} / 總額 {total}）。請修正其中一邊後再建立傳票。",
   "order_submit": "建立傳票",
   "order_default_description": "訂單取込",
   "order_success": "✓ 已建立傳票（{name} 合計 {amount}・{count} 行）",
