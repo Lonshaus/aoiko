@@ -630,6 +630,29 @@ describe('#380 貸倒引当金・追加科目欄が KOA210 から落ちる問題
     expect(out.AMF01060).toBe('80000');
   });
 
+  test('個別評価と一括評価が相殺しても、内訳を出す以上は合計欄（AMF00470／AMF01060）を出す', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [
+            expenseRow('貸倒引当金繰入額（個別評価）', '50000'),
+            expenseRow('貸倒引当金繰入額（一括評価）', '-50000'),
+          ],
+          totalRevenue: '0',
+          totalExpense: '0',
+          netIncome: '0',
+          entryCount: 2,
+        },
+      }),
+    );
+    expect(out.AMF01010).toBe('50000');
+    expect(out.AMF01050).toBe('-50000');
+    expect(out.AMF00470).toBe('0');
+    expect(out.AMF01060).toBe('0');
+  });
+
   test('繰戻額あり：AMF00420 に計上し、売上（AMF00100）からその分を差し引く', () => {
     const out = mapKoa210Values(
       ctx({

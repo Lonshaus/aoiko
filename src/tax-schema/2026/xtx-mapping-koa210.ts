@@ -182,7 +182,6 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
     out[tag] = v;
   }
 }
-
 // 固定欄（EXPENSE_ALIAS 経由含む）・引当金ブロックのいずれにも対応しない経費科目。
 // pl.expense の出現順。mapKoa210RepeatedValues（追加科目欄への転記）と
 // koa210AdditionalExpenseOverflow（枠に入りきらない分の警告）の両方で使う。
@@ -234,7 +233,9 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
     put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
   }
   const reserveAccrualTotal = reserveIndividualAmount.plus(reserveLumpSumAmount);
-  if (!reserveAccrualTotal.isZero()) {
+  // 内訳のどちらかを出すなら合計欄も必ず出す。合計が 0 かどうかで判定すると、
+  // 個別評価と一括評価が相殺したとき第2頁に内訳だけあって合計が空欄になる。
+  if (!reserveIndividualAmount.isZero() || !reserveLumpSumAmount.isZero()) {
     put(out, AMF00470_RESERVE_ACCRUAL, reserveAccrualTotal.toString());
     put(out, AMF01060_TOTAL_ACCRUAL, reserveAccrualTotal.toString());
   }
