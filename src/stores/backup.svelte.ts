@@ -357,12 +357,18 @@ class BackupManager {
   async downloadBackup(): Promise<void> {
     this.lastError = '';
     try {
-      const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-      const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-      const stream = await backupZipStream({ includeApiKeys, includeFilerInfo });
-      const saved = await saveFile(stream, `aoiko-ledger-${todayISO()}.zip`, 'application/zip', {
-        confirmCompletion: true,
-      });
+      // zip の組み立ては saveFile が保存先を確定させた後に走らせる。先にやると
+      // showSaveFilePicker のユーザー操作の有効時間が切れる（issue#386）。
+      const saved = await saveFile(
+        async () => {
+          const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
+          const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+          return backupZipStream({ includeApiKeys, includeFilerInfo });
+        },
+        `aoiko-ledger-${todayISO()}.zip`,
+        'application/zip',
+        { confirmCompletion: true },
+      );
       // 保存を取り消した場合に時刻を刻むと、書き出されていないバックアップのために
       // 「端末外バックアップがありません」の警告が抑止されてしまう。
       if (saved) {
