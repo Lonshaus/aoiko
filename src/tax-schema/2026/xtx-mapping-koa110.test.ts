@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
+import {
+  koa110AdditionalExpenseOverflow,
+  mapKoa110RepeatedValues,
+  mapKoa110Values,
+} from './xtx-mapping-koa110';
 import { personalDeductionsToCtx, type XtxContext } from './xtx';
 import type { FixedAsset } from '../../db/types';
 
@@ -235,6 +239,32 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     expect(out.AIG00380).toBe('0');
     expect(out.AIG00400).toBe('4000000');
   });
+
+  test('貸倒引当金繰戻額（52条3項）は経費のマイナスではなく③その他の収入へ計上する（issue#379）', () => {
+    const out = mapKoa110Values(
+      ctx({
+        totalRevenue: '5400000',
+        revenue: [
+          {
+            accountCode: '4110',
+            accountName: '売上高',
+            category: 'revenue',
+            amount: '5000000',
+            displayOrder: 110,
+          },
+          {
+            accountCode: '4120',
+            accountName: '貸倒引当金繰戻額',
+            category: 'revenue',
+            amount: '400000',
+            displayOrder: 120,
+          },
+        ],
+      }),
+    );
+    expect(out.AIG00030).toBe('5000000');
+    expect(out.AIG00050).toBe('400000');
+  });
 });
 
 function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
@@ -428,5 +458,63 @@ describe('mapKoa110RepeatedValues（AIJ00010 事業専従者明細、issue #307�
       ctx({ totalRevenue: '5000000', netIncome: '4000000' }, [], personalDeductions),
     );
     expect(out.AIJ00010).toBeUndefined();
+  });
+});
+
+describe('mapKoa110RepeatedValues（AIG00325 追加科目、issue#379）', () => {
+  function expenseRow(accountName: string, amount: string, displayOrder = 900) {
+    return { accountCode: '9999', accountName, category: 'expense' as const, amount, displayOrder };
+  }
+
+  test('固定欄に対応しない経費科目は追加科目欄へ回す', () => {
+    const out = mapKoa110RepeatedValues(ctx({ expense: [expenseRow('固定資産除却損', '50000')] }));
+    expect(out.AIG00325).toHaveLength(1);
+    expect(out.AIG00325![0]!.AIG00330).toBe('50000');
+  });
+
+  test('科目名はちょうど10文字なら切り詰めない', () => {
+    const name10 = 'あ'.repeat(10);
+    const out = mapKoa110RepeatedValues(ctx({ expense: [expenseRow(name10, '1000')] }));
+    expect(out.AIG00325![0]!.AIG00010).toBe(name10);
+  });
+
+  test('科目名が11文字なら10文字に切り詰める', () => {
+    const name11 = 'あ'.repeat(11);
+    const out = mapKoa110RepeatedValues(ctx({ expense: [expenseRow(name11, '1000')] }));
+    expect(out.AIG00325![0]!.AIG00010).toBe('あ'.repeat(10));
+  });
+
+  test('末尾の分類（個別評価）は科目名欄に不要なため取り除く（貸倒引当金繰入額＝8文字で収まる）', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({ expense: [expenseRow('貸倒引当金繰入額（個別評価）', '400000')] }),
+    );
+    expect(out.AIG00325![0]!.AIG00010).toBe('貸倒引当金繰入額');
+  });
+
+  test('分類を取り除いても10文字を超える場合はバックストップとして切り詰める', () => {
+    const name = `${'あ'.repeat(11)}（区分）`;
+    const out = mapKoa110RepeatedValues(ctx({ expense: [expenseRow(name, '1000')] }));
+    expect(out.AIG00325![0]!.AIG00010).toBe('あ'.repeat(10));
+  });
+
+  test('専従者給与・貸倒引当金繰入額（一括評価）は追加科目にも転記しない（issue#378の除外を共有）', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({
+        expense: [
+          expenseRow('専従者給与', '860000'),
+          expenseRow('貸倒引当金繰入額（一括評価）', '30000'),
+        ],
+      }),
+    );
+    expect(out.AIG00325).toBeUndefined();
+  });
+
+  test('6件目以降は追加科目欄（上限5）に収まらず overflow として報告する', () => {
+    const rows = Array.from({ length: 6 }, (_, i) => expenseRow(`雑科目${i}`, String(1000 + i)));
+    const out = mapKoa110RepeatedValues(ctx({ expense: rows }));
+    expect(out.AIG00325).toHaveLength(5);
+    const overflow = koa110AdditionalExpenseOverflow(ctx({ expense: rows }));
+    expect(overflow).toHaveLength(1);
+    expect(overflow[0]!.accountName).toBe('雑科目5');
   });
 });

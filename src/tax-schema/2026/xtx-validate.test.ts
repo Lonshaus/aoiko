@@ -783,6 +783,9 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             displayOrder: 110,
           },
         ],
+        // 貸倒引当金繰入額（個別評価）は KOA110 に固定欄が無いため追加科目欄
+        // （AIG00325/AIG00010/AIG00330）へ転記される（issue#379）。実 mapping 経路
+        // でも xmllint を通ることを確認する。
         expense: [
           {
             accountCode: '5130',
@@ -791,10 +794,17 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             amount: '120000',
             displayOrder: 130,
           },
+          {
+            accountCode: '5265',
+            accountName: '貸倒引当金繰入額（個別評価）',
+            category: 'expense' as const,
+            amount: '400000',
+            displayOrder: 265,
+          },
         ],
         totalRevenue: '7800000',
-        totalExpense: '120000',
-        netIncome: '7680000',
+        totalExpense: '520000',
+        netIncome: '7280000',
         entryCount: 4,
       },
       bs: {
@@ -835,6 +845,11 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       fixedAssets: [],
     };
     const xtx = buildXtx2026(ctx);
+    // 追加科目欄（AIG00325/AIG00010/AIG00330）が実際に埋まっていることを確認する
+    // （issue#379。xmllint 検証だけでは空欄でも通ってしまうため、値そのものを見る）
+    expect(xtx).toContain('<AIG00325>');
+    expect(xtx).toContain('<AIG00010>貸倒引当金繰入額</AIG00010>');
+    expect(xtx).toContain('<AIG00330>400000</AIG00330>');
     const forms: Array<[string, string]> = [
       ['KOA020', '_valwrap-KOA020.xsd'],
       ['KOA110', '_valwrap-KOA110.xsd'],
@@ -1022,10 +1037,20 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             displayOrder: 210,
           },
         ],
-        expense: [],
+        // 事業的規模の貸倒引当金繰入額（不動産）は追加科目欄（AKG00010/AKG00190）
+        // へ転記される（issue#379）。xmllint の実 mapping 経路でも通ることを確認する。
+        expense: [
+          {
+            accountCode: '5410',
+            accountName: '貸倒引当金繰入額（不動産）',
+            category: 'expense',
+            amount: '100000',
+            displayOrder: 1395,
+          },
+        ],
         totalRevenue: '960000',
-        totalExpense: '0',
-        netIncome: '960000',
+        totalExpense: '100000',
+        netIncome: '860000',
         entryCount: 4,
       };
       const fixedAssets: FixedAsset[] = [
@@ -1082,13 +1107,16 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         aoiroDeductionKind: 'none' as const,
         fixedAssets,
         realEstatePl,
-        personalDeductions: withRealEstate({ businessScale: false }),
+        personalDeductions: withRealEstate({ businessScale: true }),
       };
       const leafValues = mapKoa130Values(ctx);
       const repeats = mapKoa130RepeatedValues(ctx);
       expect(Object.keys(leafValues).length).toBeGreaterThan(0);
       expect(repeats.AKH00010).toHaveLength(1);
       expect(repeats.AKK00010).toHaveLength(1);
+      // 追加科目欄（AKG00010/AKG00190）が実際に埋まっていることを確認する（issue#379）
+      expect(leafValues.AKG00010).toBe('貸倒引当金繰入額');
+      expect(leafValues.AKG00190).toBe('100000');
       const frag = buildFormFragment(
         koa130 as XtxSchema,
         {},
