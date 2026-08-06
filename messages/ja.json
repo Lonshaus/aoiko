@@ -441,6 +441,7 @@
   "reports_xtx_download": ".xtx をダウンロード",
   "reports_xtx_download_reiwa7": "テスト: 令和7年分で書き出し",
   "reports_xtx_download_reiwa7_hint": "令和8年分の e-Tax モジュールは未提供のため、実機取込検証用に NENBUN=7（令和7年分）で書き出します（封包構造は年分非依存）。",
+  "reports_xtx_additional_expense_overflow": "追加科目欄に入りきらず .xtx へ転記できなかった経費があります：{list}。e-Tax 上で手動で追記してください。",
   "settings_filer_title": "申告者情報（e-Tax 提出用）",
   "settings_filer_intro_html": ".xtx を e-Tax に組み込むために必須の情報です。<strong class=\"text-foreground\">本機にのみ保存され、既定ではバックアップに含まれません。</strong>",
   "settings_filer_riyosha_id": "利用者識別番号（16桁）",
