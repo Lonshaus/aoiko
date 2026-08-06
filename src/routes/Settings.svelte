@@ -17,6 +17,7 @@
   import { isValidDefaultRatio } from '../domain/home-office';
   import { BackupCorruptError } from '../backup';
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -305,6 +306,15 @@
   });
 
   onMount(async () => {
+    // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
+    const notice = takeRestoreNotice();
+    if (notice) {
+      restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
+      restoreWarning =
+        notice.missingBlobCount > 0
+          ? m.settings_restore_missing_blobs({ count: notice.missingBlobCount })
+          : '';
+    }
     currentYear = (await getSetting('currentYear')) ?? 2026;
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
@@ -971,17 +981,15 @@
         $state.snapshot(restorePayload),
         restoreAttachmentBlobs,
       );
-      restoreSuccess = m.settings_restore_success({
+      // 画面に残った復元前の設定でどれか1つでも「保存」を押されると、復元した設定が
+      // 上書きされる。DB を丸ごと置き換える clearAll と同じく、直後に読み直す。
+      // 結果の表示は再読み込みをまたいで持ち越す（issue#387）。
+      stashRestoreNotice({
         tables: result.tableCount,
         rows: result.rowCount,
+        missingBlobCount: result.missingBlobCount,
       });
-      restoreWarning =
-        result.missingBlobCount > 0
-          ? m.settings_restore_missing_blobs({ count: result.missingBlobCount })
-          : '';
-      restorePayload = null;
-      restoreAttachmentBlobs = new Map();
-      restoreAttachmentCount = 0;
+      location.reload();
     } catch (err) {
       restoreError = describeStorageError(err);
     }
@@ -2565,9 +2573,6 @@
     {#if restoreSuccess}
       <div class="text-sm text-foreground border border-primary bg-primary/10 rounded px-3 py-2">
         ✓ {restoreSuccess}
-        <button type="button" onclick={() => location.reload()} class="ml-2 text-primary underline">
-          {m.settings_restore_reload()}
-        </button>
       </div>
     {/if}
     {#if restoreWarning}
