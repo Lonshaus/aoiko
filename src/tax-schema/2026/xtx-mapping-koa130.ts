@@ -91,13 +91,21 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string): void 
 }
 // 事業的規模でなければ専従者控除は認められない（ファイル冒頭コメント参照）ため、
 // mapKoa130Values（AKG00240/AKG00250）・mapKoa130RepeatedValues（AKJ00010）で共有する。
+// ここに来る時点で businessScale は必ず true（ガード済み）。KOA130 は白色申告用の
+// 様式なので filingType は 'white' 固定：専従者給与は businessScale に関わらず
+// 白色では実額を使えないため加算し戻すが、貸倒引当金繰入額は businessScale が
+// true なら（52条1項の要件を満たすため）加算し戻さない（issue#378）。
 function realEstateFamilyEmployeeDeductionResult(ctx: XtxContext): FamilyEmployeeDeductionResult {
   const pl = ctx.realEstatePl;
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (!pl || !realEstateInput?.businessScale) {
     return { total: D(0), entries: [] };
   }
-  const preDeductionIncome = realEstatePreDeductionIncome(pl, false);
+  const preDeductionIncome = realEstatePreDeductionIncome(
+    pl,
+    realEstateInput.businessScale,
+    'white',
+  );
   const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
@@ -133,13 +141,19 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
     put(out, tagByJa(PAGE1, ja), row.amount);
   }
   // 専従者控除前の所得金額。白色申告は事業的規模に関わらず専従者給与の実額を
-  // 使えないため、businessScale=false 固定で全額不算入と同じ計算式を使う
-  // （KOA110 の white-return-income.ts と同じ考え方）。
-  const preDeductionIncome = realEstatePreDeductionIncome(pl, false, 'white');
+  // 使えないため常に加算し戻すが、貸倒引当金繰入額（不動産）は事業的規模なら
+  // 52条1項の要件を満たすため加算し戻さない。実際の businessScale を渡す
+  // （KOA110 の white-return-income.ts とは専従者給与側の扱いが異なる。issue#378）。
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  const preDeductionIncome = realEstatePreDeductionIncome(
+    pl,
+    realEstateInput?.businessScale ?? false,
+    'white',
+  );
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
   // 事業的規模でなければ専従者控除は認められないため、その場合は控除額・控除後所得とも
   // 空欄のまま（利用者が e-Tax 上で補完する、従来どおりの挙動）。
-  if (ctx.personalDeductions?.realEstateIncome?.businessScale) {
+  if (realEstateInput?.businessScale) {
     const deduction = realEstateFamilyEmployeeDeductionResult(ctx);
     put(out, tagByJa(PAGE1, '専従者控除'), deduction.total.toString());
     put(
@@ -148,7 +162,6 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
       preDeductionIncome.minus(deduction.total).toString(),
     );
   }
-  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (realEstateInput?.landLoanInterestAmount) {
     put(
       out,
