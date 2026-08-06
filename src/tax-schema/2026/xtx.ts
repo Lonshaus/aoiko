@@ -37,7 +37,11 @@ import {
   mapKoa020RepeatedValues,
   mapKoa020Values,
 } from './xtx-mapping-koa020';
-import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
+import {
+  koa210AdditionalExpenseOverflow,
+  mapKoa210RepeatedValues,
+  mapKoa210Values,
+} from './xtx-mapping-koa210';
 import {
   koa110AdditionalExpenseOverflow,
   mapKoa110Values,
@@ -265,7 +269,10 @@ export function xtxAdditionalExpenseOverflow(ctx: XtxContext): XtxAdditionalExpe
       ...(ctx.realEstatePl ? koa130AdditionalExpenseOverflow(ctx) : []),
     ];
   }
-  return ctx.realEstatePl ? koa220AdditionalExpenseOverflow(ctx) : [];
+  return [
+    ...koa210AdditionalExpenseOverflow(ctx),
+    ...(ctx.realEstatePl ? koa220AdditionalExpenseOverflow(ctx) : []),
+  ];
 }
 
 export function buildXtx2026(ctx: XtxContext): string {
