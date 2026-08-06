@@ -12,6 +12,7 @@
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { badDebtReserveEvaluations } from '../tax-schema/2026/bad-debt-reserve';
   import { ledger } from '../stores/ledger.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -127,6 +128,11 @@
   const creditTotal = $derived(sumAmount(credits));
   const diff = $derived(D(debitTotal).minus(creditTotal).toString());
   const balanced = $derived(D(diff).isZero() && !D(debitTotal).isZero());
+  // 繰入額は出力するが、その根拠となる明細は aoiko では作れない（bad-debt-reserve.ts）。
+  // 記帳の時点で知らせないと、明細を添付しないまま送信して繰入れごと否認されうる。
+  const badDebtEvaluations = $derived(
+    badDebtReserveEvaluations([...debits, ...credits].map((l) => l.accountCode)),
+  );
   // 入力途中でタブを閉じる・リロードした際にデータが無言で消えるのを防ぐ。
   // bind:value を多用しているため、入力ハンドラで flag を立てるより
   // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
@@ -776,6 +782,17 @@
       {/if}
     </div>
   </div>
+
+  {#if badDebtEvaluations.has('lumpSum')}
+    <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_lump_sum_notice()}
+    </div>
+  {/if}
+  {#if badDebtEvaluations.has('individual')}
+    <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_individual_notice()}
+    </div>
+  {/if}
 
   {#if error}
     <div class="text-sm text-destructive">{error}</div>

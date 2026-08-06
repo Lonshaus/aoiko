@@ -149,6 +149,8 @@
   "journal_form_subaccount_select": "補助科目を選択（任意）",
   "journal_form_inventory_item_select": "商品を選択（任意・在庫管理）",
   "journal_form_inventory_quantity_placeholder": "数量",
+  "journal_form_bad_debt_lump_sum_notice": "貸倒引当金繰入額（一括評価）が含まれています。決算書 第2頁の「貸金の合計額」「繰入限度額」は、aoiko が貸金残高を持たないため空欄で出力します。e-Tax 側で補記してください。所得税法52条4項により、この明細の記載が繰入れの適用要件です。",
+  "journal_form_bad_debt_individual_notice": "貸倒引当金繰入額（個別評価）が含まれています。「個別評価による貸倒引当金に関する明細書」は、事由の号・取立て見込額など aoiko が持たない情報が要るため作成しません。e-Tax 側で作成してください。所得税法52条4項により、この明細書の添付が繰入れの適用要件です。",
   "journal_form_amount_placeholder": "金額",
   "journal_form_remove_line_label": "この行を削除",
   "journal_form_tax_included": "内税",
