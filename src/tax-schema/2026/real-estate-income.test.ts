@@ -68,12 +68,17 @@ describe('realEstatePreDeductionIncome', () => {
     expect(realEstatePreDeductionIncome(pl, false).toString()).toBe('300000');
   });
 
-  test('白色申告は貸倒引当金繰入額（不動産）も加算し直す（事業所得側と同じ扱い）', () => {
+  test('非事業的規模なら青色でも貸倒引当金繰入額（不動産）を加算し直す（52条1項は事業を営むことが要件）', () => {
     const pl = plWithBadDebtReserve('2700000', '100000');
-    expect(realEstatePreDeductionIncome(pl, false, 'white').toString()).toBe('2800000');
+    expect(realEstatePreDeductionIncome(pl, false).toString()).toBe('2800000');
   });
 
-  test('青色申告は貸倒引当金繰入額（不動産）を必要経費のまま扱う', () => {
+  test('事業的規模なら白色でも貸倒引当金繰入額（不動産）は必要経費のまま（個別評価は青白共通）', () => {
+    const pl = plWithBadDebtReserve('2700000', '100000');
+    expect(realEstatePreDeductionIncome(pl, true, 'white').toString()).toBe('2700000');
+  });
+
+  test('事業的規模なら青色でも貸倒引当金繰入額（不動産）は必要経費のまま', () => {
     const pl = plWithBadDebtReserve('2700000', '100000');
     expect(realEstatePreDeductionIncome(pl, true).toString()).toBe('2700000');
   });
