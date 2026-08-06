@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { link } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
@@ -113,6 +113,8 @@
   let restoreError = $state('');
   let restoreSuccess = $state('');
   let restoreWarning = $state('');
+  // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
+  let restoreSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
 
@@ -346,6 +348,13 @@
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
+    // 復元の結果は設定画面のかなり下にあり、再読み込み後は先頭に戻ってしまう。
+    // 全置換という取り消せない操作の唯一の確認なので、見える位置まで戻す。
+    // 上の読み込みで高さが変わるため、すべて終わってから測る。
+    if (notice) {
+      await tick();
+      restoreSection?.scrollIntoView({ block: 'center' });
+    }
   });
 
   const expenseAccounts = $derived(ledger.accounts.filter((a) => a.category === 'expense'));
@@ -2551,7 +2560,10 @@
     </p>
   </section>
 
-  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <section
+    bind:this={restoreSection}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_restore_intro_html()}
