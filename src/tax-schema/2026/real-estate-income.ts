@@ -98,7 +98,7 @@ export function computeCombinedBusinessRealEstateIncome(
   };
 }
 
-const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
+export const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
 // 専従者給与（不動産）と貸倒引当金繰入額（不動産）は不算入の要件が別物なので、
 // businessScale と filingType それぞれ別の役割で判定する（issue#378）。
 // - 専従者給与：所得税法57条1項は青色申告かつ事業的規模が要件。白色は実額を
@@ -108,11 +108,12 @@ const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（�
 //   52条2項の青色限定は一括評価の話で、不動産所得は52条2項の対象外（事業所得
 //   限定）だから個別評価しかあり得ず、青白を問わず businessScale だけで決まる。
 // pl.netIncome は通常の経費として控除済みのため、不算入の分だけ加算し直す。
-export function realEstatePreDeductionIncome(
-  pl: PLReport,
+// 所得計算（ここ）・KOA130（白色）・KOA220（青色）の3箇所で同じ判定が要る
+// （issue#379）。ここを唯一の定義元にし、他はこれを呼ぶだけにする。
+export function realEstateDisallowedExpenseAccounts(
   businessScale: boolean,
   filingType: 'blue' | 'white' = 'blue',
-): Decimal {
+): Set<string> {
   const disallowedAccounts = new Set<string>();
   if (filingType === 'white' || !businessScale) {
     disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
@@ -120,6 +121,15 @@ export function realEstatePreDeductionIncome(
   if (!businessScale) {
     disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
   }
+  return disallowedAccounts;
+}
+
+export function realEstatePreDeductionIncome(
+  pl: PLReport,
+  businessScale: boolean,
+  filingType: 'blue' | 'white' = 'blue',
+): Decimal {
+  const disallowedAccounts = realEstateDisallowedExpenseAccounts(businessScale, filingType);
   const disallowed = pl.expense
     .filter((r) => disallowedAccounts.has(r.accountName))
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
