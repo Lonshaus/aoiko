@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
-import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
+import {
+  koa220AdditionalExpenseOverflow,
+  mapKoa220RepeatedValues,
+  mapKoa220Values,
+} from './xtx-mapping-koa220';
 import type { XtxContext } from './xtx';
 import type { FixedAsset } from '../../db/types';
 import type { PLReport } from '../../domain/reports';
@@ -435,5 +439,22 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     }));
     const repeats = mapKoa220RepeatedValues(ctx({ realEstatePl: realEstatePl({ expense }) }));
     expect(repeats.ANF00195).toHaveLength(5);
+  });
+
+  test('公式上限5件を超えた分は koa220AdditionalExpenseOverflow で報告する（issue#379）', () => {
+    const expense: PLReport['expense'] = Array.from({ length: 7 }, (_, i) => ({
+      accountCode: `9${i}`,
+      accountName: `未対応科目${i}（不動産）`,
+      category: 'expense' as const,
+      amount: '1000',
+      displayOrder: i,
+    }));
+    const input = ctx({ realEstatePl: realEstatePl({ expense }) });
+    const overflow = koa220AdditionalExpenseOverflow(input);
+    expect(overflow).toHaveLength(2);
+    expect(overflow.map((o) => o.accountName)).toEqual([
+      '未対応科目5（不動産）',
+      '未対応科目6（不動産）',
+    ]);
   });
 });

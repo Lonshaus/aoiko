@@ -7,8 +7,13 @@
 // family-employee-deduction.ts で算定する（personalDeductions.familyEmployees のうち
 // incomeType が 'realEstate' でないもののみ対象）。
 //
-// 対応できない項目（e-Tax 上で利用者が補完すべき、または白色申告に存在しない）：
-//  - 貸倒引当金繰入額：収支内訳書（一般用）に対応欄が無いため出力しない
+// 固定欄に対応しない経費科目は追加科目欄（AIG00325、繰り返し・上限5、科目名
+// AIG00010 最大10文字）へ回す（issue#379、KOA220 の additionalExpenseRows と同じ方針）。
+// 5件を超える分・追加科目にも回せない科目は koa110AdditionalExpenseOverflow() で
+// 利用者へ提示する（xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+//
+// 貸倒引当金繰戻額（所得税法52条3項）は経費のマイナスではなく総収入金額に算入する
+// ため、その他の収入（AIG00050）へ計上する（issue#379）。
 //
 // ⚠ 専従者控除前の所得金額は pl.netIncome をそのまま使わない。netIncome は
 // 専従者給与・貸倒引当金繰入額を含む全経費控除後の値のため、そのまま出すと
@@ -71,6 +76,11 @@ const EXPENSE_ALIAS: Record<string, string> = {
 // plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
 // 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
 const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
+// 貸倒引当金繰戻額（52条3項、事業側）。収益科目だがその他の収入欄へ計上する。
+const BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME = '貸倒引当金繰戻額';
+// 追加科目欄（AIG00325）は maxOccurs 5、科目名（AIG00010）は最大10文字。
+const MAX_ADDITIONAL_EXPENSE_ROWS = 5;
+const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function formAmount(accountName: string, amount: string): string {
   return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
@@ -99,17 +109,49 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
     out[tag] = v;
   }
 }
+// 固定欄（EXPENSE_ALIAS 経由含む）に対応しない経費科目。pl.expense の出現順。
+// mapKoa110RepeatedValues（追加科目欄への転記）と koa110AdditionalExpenseOverflow
+// （枠に入りきらない分の警告）の両方で使う。
+function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
+  return ctx.pl.expense.filter((row) => {
+    if (WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS.has(row.accountName)) {
+      return false;
+    }
+    const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
+    return !tagByJa(PAGE1, ja);
+  });
+}
+// 追加科目欄（AIG00325）に入りきらなかった経費科目。利用者への警告表示用
+// （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+export function koa110AdditionalExpenseOverflow(
+  ctx: XtxContext,
+): { accountName: string; amount: string }[] {
+  return additionalExpenseCandidates(ctx).slice(MAX_ADDITIONAL_EXPENSE_ROWS);
+}
 
 export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
   const { pl } = ctx;
   const out: XtxLeafValues = {};
-  put(out, tagByJa(PAGE1, '売上（収入）金額'), pl.totalRevenue);
+  const reversalRevenue = pl.revenue.find(
+    (r) => r.accountName === BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME,
+  );
+  const salesAmount = reversalRevenue
+    ? D(pl.totalRevenue).minus(reversalRevenue.amount).toString()
+    : pl.totalRevenue;
+  put(out, tagByJa(PAGE1, '売上（収入）金額'), salesAmount);
+  if (reversalRevenue) {
+    put(out, tagByJa(PAGE1, 'その他の収入'), reversalRevenue.amount);
+  }
   for (const row of pl.expense) {
     if (WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS.has(row.accountName)) {
       continue;
     }
     const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
-    put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
+    const tag = tagByJa(PAGE1, ja);
+    if (!tag) {
+      continue;
+    }
+    put(out, tag, formAmount(row.accountName, row.amount));
   }
   const preDeductionIncome = whiteReturnAdjustedNetIncome(pl);
   put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
@@ -186,9 +228,21 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       return row;
     });
   const familyEmployeeRows = mapFamilyEmployeeRows(ctx);
+  const additionalExpenseRows = additionalExpenseCandidates(ctx)
+    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => {
+      const item: XtxLeafValues = {};
+      const name = row.accountName.slice(0, ADDITIONAL_EXPENSE_NAME_MAX_LENGTH);
+      if (name) {
+        item.AIG00010 = name;
+      }
+      putRow(item, 'AIG00330', row.amount);
+      return item;
+    });
   return {
     ...(rows.length > 0 ? { AIM00010: rows } : {}),
     ...(familyEmployeeRows.length > 0 ? { AIJ00010: familyEmployeeRows } : {}),
+    ...(additionalExpenseRows.length > 0 ? { AIG00325: additionalExpenseRows } : {}),
   };
 }
 // 改行・タブを除去（nametype/zokugaratype の pattern [^\n\r\t]* に適合させる）

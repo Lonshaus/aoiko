@@ -41,6 +41,7 @@
     buildXtx2026,
     personalDeductionsToCtx,
     RealEstateIncomeInputMissingError,
+    xtxAdditionalExpenseOverflow,
     type FilingType,
   } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
@@ -120,6 +121,9 @@
   let confirmingUnlock = $state(false);
   let lockError = $state('');
   let reportsError = $state('');
+  // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
+  // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
+  let xtxOverflowWarning = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
   // 無ければ利用者が手入力する（fabricate しない——CLAUDE.md の監査履歴不変原則）
@@ -525,6 +529,7 @@
       return;
     }
     lockError = '';
+    xtxOverflowWarning = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
@@ -535,31 +540,38 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
+    const xtxCtx = {
+      year: exportYear,
+      dataYear: filingYear,
+      businessName,
+      invoiceNumber,
+      monthly,
+      pl,
+      bs,
+      filer,
+      fixedAssets,
+      filingType,
+      aoiroDeductionKind,
+      ...(realEstatePl ? { realEstatePl } : {}),
+      ...(storedDeductions
+        ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
+        : {}),
+    };
     let xml: string;
     try {
-      xml = buildXtx2026({
-        year: exportYear,
-        dataYear: filingYear,
-        businessName,
-        invoiceNumber,
-        monthly,
-        pl,
-        bs,
-        filer,
-        fixedAssets,
-        filingType,
-        aoiroDeductionKind,
-        ...(realEstatePl ? { realEstatePl } : {}),
-        ...(storedDeductions
-          ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
-          : {}),
-      });
+      xml = buildXtx2026(xtxCtx);
     } catch (e) {
       if (e instanceof RealEstateIncomeInputMissingError) {
         lockError = m.reports_xtx_real_estate_input_missing();
         return;
       }
       throw e;
+    }
+    const overflow = xtxAdditionalExpenseOverflow(xtxCtx);
+    if (overflow.length > 0) {
+      xtxOverflowWarning = m.reports_xtx_additional_expense_overflow({
+        list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
+      });
     }
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
   }
@@ -1955,6 +1967,11 @@
           class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
         >
           {lockError}
+        </div>
+      {/if}
+      {#if xtxOverflowWarning}
+        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+          {xtxOverflowWarning}
         </div>
       {/if}
     </section>

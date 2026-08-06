@@ -11,11 +11,13 @@
 //  - 給料賃金の内訳：aoiko のデータモデルに払込先の内訳を持たないため対象外
 //  - 修繕費の内訳（AKM00000）：aoiko のデータモデルに払込先の内訳を持たないため対象外
 //  - 貸付不動産の保有状況（AKN00000、住宅用/非住宅用/駐車場の棟数集計）：対応不可分
-//  - 貸倒引当金繰入額（不動産）：収支内訳書に専用欄が無いため現状は転記しない。事業的規模
-//    であれば所得からは控除したままなので、収入 − 転記した経費と専従者控除前の所得金額が
-//    その分だけ食い違う。追加科目欄（AKG00010/AKG00190）への転記は issue#379 で入れる。
-//    事業的規模でない場合は 52条1項の要件を満たさないため所得へ加算し直す。貸倒金（不動産）
-//    は実際の貸倒損失として AKG00120「貸倒金」へ出力する
+//
+// 追加科目（AKG00010／AKG00190）は1組のみ。固定欄に対応しない経費科目のうち、
+// 貸倒引当金繰入額（不動産）を最優先（明細書添付が要件の法定項目）、次点は金額の
+// 大きい順で1件だけ転記する（issue#379）。事業的規模でなければ52条1項の要件を
+// 満たさず所得へ加算し直す科目のため、その場合は候補から外す。2件目以降は
+// koa130AdditionalExpenseOverflow() で利用者へ提示する。貸倒金（不動産）は実際の
+// 貸倒損失として AKG00120「貸倒金」へ出力する（追加科目の対象外）
 
 import koa130 from './xtx-schema-koa130.generated.json';
 import { D } from '../../lib/decimal';
@@ -24,7 +26,11 @@ import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types';
 import { computeDepreciation } from '../../domain/depreciation';
-import { realEstatePreDeductionIncome } from './real-estate-income';
+import {
+  realEstatePreDeductionIncome,
+  REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME,
+  REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
+} from './real-estate-income';
 import {
   familyEmployeeDeduction,
   realEstateFamilyEmployees,
@@ -68,6 +74,8 @@ const EXPENSE_ALIAS: Record<string, string> = {
   '雑費（不動産）': '雑費',
   '貸倒金（不動産）': '貸倒金',
 };
+// 追加科目（AKG00010）は xsd で最大10文字。
+const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 function toKingaku(s: string): string {
   const t = s.replace(/,/g, '').trim();
   const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
@@ -112,6 +120,47 @@ function realEstateFamilyEmployeeDeductionResult(ctx: XtxContext): FamilyEmploye
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
 
+// 固定欄（EXPENSE_ALIAS）に対応しない経費科目のうち、追加科目欄（1組のみ）に載せる
+// 候補を優先順位順に並べる：貸倒引当金繰入額（不動産）を最優先、以降は金額の大きい順。
+// 事業的規模でなければ貸倒引当金繰入額（不動産）は52条1項の要件を満たさないため候補から外す
+// （realEstatePreDeductionIncome が所得へ加算し直す科目と同じ判定）。
+function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
+  const pl = ctx.realEstatePl;
+  if (!pl) {
+    return [];
+  }
+  const businessScale = ctx.personalDeductions?.realEstateIncome?.businessScale ?? false;
+  return pl.expense
+    .filter((row) => {
+      if (row.accountName in EXPENSE_ALIAS) {
+        return false;
+      }
+      if (row.accountName === REAL_ESTATE_SENJUSHA_ACCOUNT_NAME) {
+        return false;
+      }
+      if (row.accountName === REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME && !businessScale) {
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.accountName === REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME) {
+        return -1;
+      }
+      if (b.accountName === REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME) {
+        return 1;
+      }
+      return D(b.amount).comparedTo(D(a.amount));
+    });
+}
+// 追加科目の1組に収まらなかった経費科目。利用者への警告表示用
+// （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+export function koa130AdditionalExpenseOverflow(
+  ctx: XtxContext,
+): { accountName: string; amount: string }[] {
+  return additionalExpenseCandidates(ctx).slice(1);
+}
+
 export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
   const pl = ctx.realEstatePl;
@@ -128,7 +177,8 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
     tagByJa(PAGE1, '礼金・権利金・更新料'),
     pl.revenue.find((r) => r.accountName === '礼金・権利金等（不動産）')?.amount ?? '0',
   );
-  // 賃貸料・礼金以外の不動産収入（雑収入（不動産）等）は「名義書換料その他」欄へ集約する
+  // 賃貸料・礼金以外の不動産収入（雑収入（不動産）・貸倒引当金繰戻額（不動産）等）は
+  // 「名義書換料その他」欄へ集約する。52条3項の繰戻額もここに自然に乗る（issue#379）。
   const otherRevenue = pl.revenue
     .filter(
       (r) => r.accountName !== '賃貸料（不動産）' && r.accountName !== '礼金・権利金等（不動産）',
@@ -141,6 +191,16 @@ export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {
       continue;
     }
     put(out, tagByJa(PAGE1, ja), row.amount);
+  }
+  const [additionalExpense] = additionalExpenseCandidates(ctx);
+  if (additionalExpense) {
+    const name = additionalExpense.accountName
+      .replace('（不動産）', '')
+      .slice(0, ADDITIONAL_EXPENSE_NAME_MAX_LENGTH);
+    if (name) {
+      out.AKG00010 = name;
+    }
+    put(out, 'AKG00190', additionalExpense.amount);
   }
   // 専従者控除前の所得金額。白色申告は事業的規模に関わらず専従者給与の実額を
   // 使えないため常に加算し戻すが、貸倒引当金繰入額（不動産）は事業的規模なら

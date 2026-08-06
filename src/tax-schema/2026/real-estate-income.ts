@@ -98,7 +98,7 @@ export function computeCombinedBusinessRealEstateIncome(
   };
 }
 
-const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
+export const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
 // 専従者給与（不動産）と貸倒引当金繰入額（不動産）は不算入の要件が別物なので、
 // businessScale と filingType それぞれ別の役割で判定する（issue#378）。
 // - 専従者給与：所得税法57条1項は青色申告かつ事業的規模が要件。白色は実額を

@@ -302,18 +302,20 @@ function payeeRows<
 }
 // KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
 // 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
-// へ出力する。5件を超える分は出力しない（超過時は e-Tax 上で利用者が手動補完）。
-function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
+// へ出力する。5件を超える分は koa220AdditionalExpenseOverflow() で利用者へ提示する（issue#379）。
+function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
   const pl = ctx.realEstatePl;
   if (!pl) {
     return [];
   }
-  return pl.expense
-    .filter(
-      (row) =>
-        !(row.accountName in EXPENSE_ALIAS) &&
-        row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
-    )
+  return pl.expense.filter(
+    (row) =>
+      !(row.accountName in EXPENSE_ALIAS) && row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
+  );
+}
+
+function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
+  return additionalExpenseCandidates(ctx)
     .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
     .map((row) => {
       const name = row.accountName
@@ -323,6 +325,13 @@ function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
       putRow(item, 'ANF00200', row.amount);
       return item;
     });
+}
+// 追加科目欄（ANF00195、上限5）に入りきらなかった経費科目。利用者への警告表示用
+// （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+export function koa220AdditionalExpenseOverflow(
+  ctx: XtxContext,
+): { accountName: string; amount: string }[] {
+  return additionalExpenseCandidates(ctx).slice(MAX_ADDITIONAL_EXPENSE_ROWS);
 }
 
 export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {

@@ -442,6 +442,7 @@
   "reports_xtx_download": "下載 .xtx",
   "reports_xtx_download_reiwa7": "測試：以令和7年分輸出",
   "reports_xtx_download_reiwa7_hint": "令和8年分的 e-Tax 模組尚未釋出，為了實機載入測試，以 NENBUN=7（令和7年分）輸出（封包結構與年分無關）。",
+  "reports_xtx_additional_expense_overflow": "有費用超出追加科目欄位、未寫入 .xtx：{list}。請在 e-Tax 上手動補上。",
   "settings_filer_title": "申報者資訊（e-Tax 提出用）",
   "settings_filer_intro_html": "將 .xtx 載入 e-Tax 時必填的資訊。<strong class=\"text-foreground\">僅儲存在本機，預設不納入備份。</strong>",
   "settings_filer_riyosha_id": "利用者識別號碼（16 碼）",
