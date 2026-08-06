@@ -99,20 +99,25 @@ export function computeCombinedBusinessRealEstateIncome(
 }
 
 const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
-// 事業的規模でない場合、専従者給与（不動産）は全額不算入（控除前所得に戻す）。
-// 白色申告ではさらに貸倒引当金繰入額（不動産）も不算入（事業所得側の
-// whiteReturnAdjustedNetIncome と同じ扱い。収支内訳書に対応欄が無く転記もされない）。
-// pl.netIncome は通常の経費として控除済みのため、いずれもその分だけ加算し直す。
+// 専従者給与（不動産）と貸倒引当金繰入額（不動産）は不算入の要件が別物なので、
+// businessScale と filingType それぞれ別の役割で判定する（issue#378）。
+// - 専従者給与：所得税法57条1項は青色申告かつ事業的規模が要件。白色は実額を
+//   使えず定額の事業専従者控除に置き換わるため businessScale に関わらず不算入、
+//   青色でも非事業的規模なら不算入（タックスアンサー No.1370）。
+// - 貸倒引当金繰入額：52条1項は「事業を営む」ことのみが要件（青色限定は無い）。
+//   52条2項の青色限定は一括評価の話で、不動産所得は52条2項の対象外（事業所得
+//   限定）だから個別評価しかあり得ず、青白を問わず businessScale だけで決まる。
+// pl.netIncome は通常の経費として控除済みのため、不算入の分だけ加算し直す。
 export function realEstatePreDeductionIncome(
   pl: PLReport,
   businessScale: boolean,
   filingType: 'blue' | 'white' = 'blue',
 ): Decimal {
   const disallowedAccounts = new Set<string>();
-  if (!businessScale) {
+  if (filingType === 'white' || !businessScale) {
     disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
   }
-  if (filingType === 'white') {
+  if (!businessScale) {
     disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
   }
   const disallowed = pl.expense
