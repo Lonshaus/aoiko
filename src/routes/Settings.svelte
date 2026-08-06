@@ -31,6 +31,7 @@
     removeCarryover,
     type CarryoverPreview,
   } from '../domain/carryover';
+  import { applyBadDebtReversal } from '../domain/bad-debt-reversal';
   import {
     SMALL_ASSET_EXPIRY,
     isLumpSumEligible,
@@ -190,6 +191,8 @@
   let carryoverPreview = $state<CarryoverPreview | null>(null);
   let carryoverStatus = $state('');
   let carryoverError = $state('');
+  let badDebtReversalStatus = $state('');
+  let badDebtReversalError = $state('');
 
   let disclaimerAcceptedAt = $state<number | null>(null);
   let disclaimerAcceptedVersion = $state<number | null>(null);
@@ -498,6 +501,28 @@
       }
     } catch (err) {
       carryoverError = describeStorageError(err);
+    }
+  }
+
+  async function runBadDebtReversal() {
+    badDebtReversalError = '';
+    badDebtReversalStatus = '';
+    if (!(await filedYearGuard.confirm([currentYear]))) {
+      return;
+    }
+    try {
+      const r = await applyBadDebtReversal(currentYear);
+      if ('entryId' in r) {
+        badDebtReversalStatus = m.settings_bad_debt_reversal_applied({
+          amount: formatJPY(r.total),
+        });
+      } else if (r.reason === 'already-exists') {
+        badDebtReversalError = m.settings_bad_debt_reversal_already_exists();
+      } else {
+        badDebtReversalError = m.settings_bad_debt_reversal_none();
+      }
+    } catch (err) {
+      badDebtReversalError = describeStorageError(err);
     }
   }
 
@@ -1537,6 +1562,25 @@
         </p>
       </div>
     {/if}
+    <div class="border-t pt-4 space-y-2">
+      <h4 class="text-sm font-medium">{m.settings_bad_debt_reversal_title()}</h4>
+      <p class="text-xs text-muted-foreground">
+        {m.settings_bad_debt_reversal_intro({ year: currentYear })}
+      </p>
+      <button
+        type="button"
+        onclick={runBadDebtReversal}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_bad_debt_reversal_button()}
+      </button>
+      {#if badDebtReversalStatus}
+        <p class="text-sm text-green-600">{badDebtReversalStatus}</p>
+      {/if}
+      {#if badDebtReversalError}
+        <p class="text-sm text-destructive">{badDebtReversalError}</p>
+      {/if}
+    </div>
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
