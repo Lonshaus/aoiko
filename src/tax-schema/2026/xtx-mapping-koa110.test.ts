@@ -167,7 +167,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
           },
           {
             accountCode: '5260',
-            accountName: '貸倒引当金繰入額',
+            accountName: '貸倒引当金繰入額（一括評価）',
             category: 'expense',
             amount: '30000',
             displayOrder: 260,
@@ -202,7 +202,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
           },
           {
             accountCode: '5260',
-            accountName: '貸倒引当金繰入額',
+            accountName: '貸倒引当金繰入額（一括評価）',
             category: 'expense',
             amount: '30000',
             displayOrder: 260,

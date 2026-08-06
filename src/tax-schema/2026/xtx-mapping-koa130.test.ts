@@ -213,6 +213,115 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00230).toBe('2800000');
   });
 
+  test('事業的規模なら白色でも貸倒引当金繰入額（不動産）は必要経費のまま（52条1項、issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '100000',
+          netIncome: '2700000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    // 加算し戻さない：2,700,000 のまま
+    expect(out.AKG00230).toBe('2700000');
+  });
+
+  test('事業的規模なら白色でも専従者給与（不動産）は加算し戻すが貸倒引当金繰入額（不動産）は戻さない（issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5380',
+              accountName: '専従者給与（不動産）',
+              category: 'expense',
+              amount: '300000',
+              displayOrder: 1380,
+            },
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '400000',
+          netIncome: '2000000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    // 専従者給与だけ加算し戻す：2,000,000 + 300,000 = 2,300,000
+    expect(out.AKG00230).toBe('2300000');
+  });
+
+  test('非事業的規模なら貸倒引当金繰入額（不動産）を加算し戻す（personalDeductions 明示、issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '100000',
+          netIncome: '2700000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: false }),
+      }),
+    );
+    expect(out.AKG00230).toBe('2800000');
+  });
+
+  test('専従者控除の上限は貸倒引当金繰入額（不動産）を戻さない所得を基準にする（issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '400000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '400000',
+          netIncome: '1000000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    // 専従者控除前所得金額は 100万（貸倒引当金繰入額は戻さない）→ 100万÷2=50万 と
+    // 配偶者定額86万のいずれか低い方＝50万（戻していれば140万÷2=70万になり不一致）
+    expect(out.AKG00240).toBe('500000');
+    expect(out.AKG00250).toBe('500000');
+  });
+
   test('土地等取得の負債利子額を確定額のまま出力する', () => {
     const out = mapKoa130Values(
       ctx({
