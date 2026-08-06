@@ -517,15 +517,18 @@
     const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
       lockError = m.reports_no_data_for_year({ year: filingYear });
+      xtxOverflowWarning = '';
       return;
     }
     if (filingYear !== 2026) {
       lockError = m.reports_xtx_unsupported_year({ year: filingYear });
+      xtxOverflowWarning = '';
       return;
     }
     const { filer, missing } = await loadFiler();
     if (missing) {
       lockError = m.reports_xtx_filer_incomplete();
+      xtxOverflowWarning = '';
       return;
     }
     lockError = '';

@@ -28,6 +28,7 @@ import type { DepreciationMethod } from '../../db/types';
 import { computeDepreciation } from '../../domain/depreciation';
 import {
   computeCombinedBusinessRealEstateIncome,
+  realEstateDisallowedExpenseAccounts,
   realEstatePreDeductionIncome,
   REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
 } from './real-estate-income';
@@ -303,14 +304,21 @@ function payeeRows<
 // KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
 // 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
 // へ出力する。5件を超える分は koa220AdditionalExpenseOverflow() で利用者へ提示する（issue#379）。
+// 専従者給与（不動産）は事業的規模なら専用欄（差引金額の次）へ出すため常に除外。
+// 所得計算で加算し直す科目（realEstateDisallowedExpenseAccounts、非事業的規模の
+// 引当金・専従者給与）は同じ理由でここでも転記しない（唯一の判定元、issue#379）。
 function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
   const pl = ctx.realEstatePl;
   if (!pl) {
     return [];
   }
+  const businessScale = ctx.personalDeductions?.realEstateIncome?.businessScale ?? false;
+  const disallowed = realEstateDisallowedExpenseAccounts(businessScale, 'blue');
   return pl.expense.filter(
     (row) =>
-      !(row.accountName in EXPENSE_ALIAS) && row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
+      !(row.accountName in EXPENSE_ALIAS) &&
+      row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME &&
+      !disallowed.has(row.accountName),
   );
 }
 
@@ -331,7 +339,9 @@ function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
 export function koa220AdditionalExpenseOverflow(
   ctx: XtxContext,
 ): { accountName: string; amount: string }[] {
-  return additionalExpenseCandidates(ctx).slice(MAX_ADDITIONAL_EXPENSE_ROWS);
+  return additionalExpenseCandidates(ctx)
+    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
 export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {

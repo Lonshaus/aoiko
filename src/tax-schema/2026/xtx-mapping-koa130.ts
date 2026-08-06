@@ -28,8 +28,8 @@ import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types'
 import { computeDepreciation } from '../../domain/depreciation';
 import {
   realEstatePreDeductionIncome,
+  realEstateDisallowedExpenseAccounts,
   REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME,
-  REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
 } from './real-estate-income';
 import {
   familyEmployeeDeduction,
@@ -122,23 +122,21 @@ function realEstateFamilyEmployeeDeductionResult(ctx: XtxContext): FamilyEmploye
 
 // 固定欄（EXPENSE_ALIAS）に対応しない経費科目のうち、追加科目欄（1組のみ）に載せる
 // 候補を優先順位順に並べる：貸倒引当金繰入額（不動産）を最優先、以降は金額の大きい順。
-// 事業的規模でなければ貸倒引当金繰入額（不動産）は52条1項の要件を満たさないため候補から外す
-// （realEstatePreDeductionIncome が所得へ加算し直す科目と同じ判定）。
+// 所得計算で加算し直す科目（realEstateDisallowedExpenseAccounts、専従者給与・事業的
+// 規模でない引当金）は同じ理由でここでも転記しない（唯一の判定元、issue#379）。
 function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
   const pl = ctx.realEstatePl;
   if (!pl) {
     return [];
   }
   const businessScale = ctx.personalDeductions?.realEstateIncome?.businessScale ?? false;
+  const disallowed = realEstateDisallowedExpenseAccounts(businessScale, 'white');
   return pl.expense
     .filter((row) => {
       if (row.accountName in EXPENSE_ALIAS) {
         return false;
       }
-      if (row.accountName === REAL_ESTATE_SENJUSHA_ACCOUNT_NAME) {
-        return false;
-      }
-      if (row.accountName === REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME && !businessScale) {
+      if (disallowed.has(row.accountName)) {
         return false;
       }
       return true;
@@ -158,7 +156,9 @@ function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; am
 export function koa130AdditionalExpenseOverflow(
   ctx: XtxContext,
 ): { accountName: string; amount: string }[] {
-  return additionalExpenseCandidates(ctx).slice(1);
+  return additionalExpenseCandidates(ctx)
+    .slice(1)
+    .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
 export function mapKoa130Values(ctx: XtxContext): XtxLeafValues {

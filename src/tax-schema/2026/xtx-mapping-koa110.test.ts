@@ -484,6 +484,19 @@ describe('mapKoa110RepeatedValues（AIG00325 追加科目、issue#379）', () =>
     expect(out.AIG00325![0]!.AIG00010).toBe('あ'.repeat(10));
   });
 
+  test('末尾の分類（個別評価）は科目名欄に不要なため取り除く（貸倒引当金繰入額＝8文字で収まる）', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({ expense: [expenseRow('貸倒引当金繰入額（個別評価）', '400000')] }),
+    );
+    expect(out.AIG00325![0]!.AIG00010).toBe('貸倒引当金繰入額');
+  });
+
+  test('分類を取り除いても10文字を超える場合はバックストップとして切り詰める', () => {
+    const name = `${'あ'.repeat(11)}（区分）`;
+    const out = mapKoa110RepeatedValues(ctx({ expense: [expenseRow(name, '1000')] }));
+    expect(out.AIG00325![0]!.AIG00010).toBe('あ'.repeat(10));
+  });
+
   test('専従者給与・貸倒引当金繰入額（一括評価）は追加科目にも転記しない（issue#378の除外を共有）', () => {
     const out = mapKoa110RepeatedValues(
       ctx({
