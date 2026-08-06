@@ -99,20 +99,22 @@ export function computeCombinedBusinessRealEstateIncome(
 }
 
 const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
-// 事業的規模でない場合、専従者給与（不動産）は全額不算入（控除前所得に戻す）。
-// 白色申告ではさらに貸倒引当金繰入額（不動産）も不算入（事業所得側の
-// whiteReturnAdjustedNetIncome と同じ扱い。収支内訳書に対応欄が無く転記もされない）。
-// pl.netIncome は通常の経費として控除済みのため、いずれもその分だけ加算し直す。
+// 事業的規模でない場合、専従者給与（不動産）・貸倒引当金繰入額（不動産）はいずれも
+// 全額不算入（控除前所得に戻す）。前者はタックスアンサー No.1370、後者は所得税法
+// 52条1項が「事業を営む」居住者を要件とするため（52条2項の一括評価とは異なり、
+// 個別評価は青白を問わない。issue#378）。pl.netIncome は通常の経費として控除済み
+// のため、いずれもその分だけ加算し直す。
+// filingType は xtx-mapping-koa130.ts/koa020.ts の既存呼び出し（引数省略含む）との
+// 互換のために残すが、判定には使わない（#379/#380 でフォーム側の呼び出しを整理する）。
 export function realEstatePreDeductionIncome(
   pl: PLReport,
   businessScale: boolean,
   filingType: 'blue' | 'white' = 'blue',
 ): Decimal {
+  void filingType;
   const disallowedAccounts = new Set<string>();
   if (!businessScale) {
     disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
-  }
-  if (filingType === 'white') {
     disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
   }
   const disallowed = pl.expense
