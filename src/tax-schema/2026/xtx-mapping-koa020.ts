@@ -130,6 +130,9 @@ export function businessFamilyEmployeeDeductionResult(
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
 // 不動産所得側の事業専従者控除（白色申告・事業的規模の場合のみ、国税庁タックスアンサー No.1373）。
+// ここに来る時点で businessScale は必ず true（ガード済み）。専従者給与は白色では
+// businessScale に関わらず加算し戻すが、貸倒引当金繰入額は businessScale が true
+// なら（52条1項の要件を満たすため）加算し戻さない。実際の businessScale を渡す（issue#378）。
 export function realEstateFamilyEmployeeDeductionResult(
   ctx: IncomeCtx,
 ): FamilyEmployeeDeductionResult {
@@ -137,7 +140,11 @@ export function realEstateFamilyEmployeeDeductionResult(
   if (ctx.filingType !== 'white' || !ctx.realEstatePl || !realEstateInput?.businessScale) {
     return { total: D(0), entries: [] };
   }
-  const preDeductionIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false, 'white');
+  const preDeductionIncome = realEstatePreDeductionIncome(
+    ctx.realEstatePl,
+    realEstateInput.businessScale,
+    'white',
+  );
   const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
@@ -166,14 +173,20 @@ export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
 }
 // 不動産所得のうち、他の所得と損益通算できる金額（土地等取得の負債利子額による制限後）。
 // 不動産所得が無ければ 0。白色申告は青色申告特別控除が無いため共有枠配分は発生しないが、
-// 専従者給与（不動産）の全額不算入・土地等負債利子額の制限は同様に適用する。
+// 専従者給与（不動産）の全額不算入（businessScale に関わらず）・貸倒引当金繰入額（不動産）
+// の不算入（businessScale が false の場合のみ）・土地等負債利子額の制限は同様に適用する
+// （実際の businessScale を渡す。issue#378）。
 function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   if (!ctx.realEstatePl || !realEstateInput) {
     return D(0);
   }
   if (ctx.filingType === 'white') {
-    const preDeductionIncome = realEstatePreDeductionIncome(ctx.realEstatePl, false, 'white');
+    const preDeductionIncome = realEstatePreDeductionIncome(
+      ctx.realEstatePl,
+      realEstateInput.businessScale,
+      'white',
+    );
     return offsettableRealEstateLoss(
       preDeductionIncome.minus(realEstateFamilyEmployeeDeductionResult(ctx).total),
       realEstateInput.landLoanInterestAmount ?? D(0),
