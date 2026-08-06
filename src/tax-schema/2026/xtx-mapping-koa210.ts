@@ -17,6 +17,7 @@ import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod } from '../../db/types';
 import type { BSRow } from '../../domain/reports';
+import { stripClassificationSuffix } from './xtx-mapping-shared';
 
 const SCHEMA = koa210 as XtxSchema;
 
@@ -125,6 +126,33 @@ const EXPENSE_ALIAS: Record<string, string> = {
 // plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
 // 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
 const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
+// 貸倒引当金繰戻額（52条3項）は収益科目だが、引当金ブロックの定位置（AMF00420）が
+// あるため売上（収入）金額からは差し引いて回す（KOA110 の salesAmount と同じ処理。
+// あちらは白色に引当金ブロックが無いためその他の収入へ回す、という違いのみ）。
+const BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME = '貸倒引当金繰戻額';
+// 貸倒引当金繰入額（一括評価・個別評価）は経費科目だが、引当金ブロック（AMF00470）と
+// 第2頁の計算欄（AMF01010／AMF01050／AMF01060）へ計上するため、経費欄・追加科目欄
+// からは除外する（除外しないと同じ金額が二重計上される）。
+const BAD_DEBT_RESERVE_LUMP_SUM_ACCOUNT_NAME = '貸倒引当金繰入額（一括評価）';
+const BAD_DEBT_RESERVE_INDIVIDUAL_ACCOUNT_NAME = '貸倒引当金繰入額（個別評価）';
+const BAD_DEBT_RESERVE_ACCRUAL_ACCOUNT_NAMES = new Set([
+  BAD_DEBT_RESERVE_LUMP_SUM_ACCOUNT_NAME,
+  BAD_DEBT_RESERVE_INDIVIDUAL_ACCOUNT_NAME,
+]);
+// ja が「貸倒引当金」の leaf はページ1に2つ（AMF00420 繰戻額等／AMF00470 繰入額等）
+// あり、tagByJa は文書順最初＝AMF00420 を返すため、この2つは名前引きせずtag直書きにする。
+const AMF00420_RESERVE_REVERSAL = 'AMF00420';
+const AMF00470_RESERVE_ACCRUAL = 'AMF00470';
+// 第2頁「貸倒引当金繰入額の計算」。AMF01020（一括評価枠）は leaf ではなく branch で、
+// 一括評価の繰入額そのものは子の AMF01050 が受ける。貸金合計・繰入限度額
+// （AMF01030／AMF01040）はアプリが貸金残高を持たないため対象外。
+const AMF01010_INDIVIDUAL_ACCRUAL = 'AMF01010';
+const AMF01050_LUMP_SUM_ACCRUAL = 'AMF01050';
+const AMF01060_TOTAL_ACCRUAL = 'AMF01060';
+// 経費の追加科目 繰り返し枠（AMF00355、公式 xsd で maxOccurs 6）。
+// 科目名（AMF00060）は最大10文字。
+const MAX_ADDITIONAL_EXPENSE_ROWS = 6;
+const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function formAmount(accountName: string, amount: string): string {
   return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
@@ -154,16 +182,73 @@ function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
     out[tag] = v;
   }
 }
+// 固定欄（EXPENSE_ALIAS 経由含む）・引当金ブロックのいずれにも対応しない経費科目。
+// pl.expense の出現順。mapKoa210RepeatedValues（追加科目欄への転記）と
+// koa210AdditionalExpenseOverflow（枠に入りきらない分の警告）の両方で使う。
+function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
+  return ctx.pl.expense.filter((row) => {
+    if (BAD_DEBT_RESERVE_ACCRUAL_ACCOUNT_NAMES.has(row.accountName)) {
+      return false;
+    }
+    const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
+    return !tagByJa(PAGE1, ja);
+  });
+}
+// 追加科目欄（AMF00355）に入りきらなかった経費科目。利用者への警告表示用
+// （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+export function koa210AdditionalExpenseOverflow(
+  ctx: XtxContext,
+): { accountName: string; amount: string }[] {
+  return additionalExpenseCandidates(ctx)
+    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => ({ accountName: row.accountName, amount: row.amount }));
+}
 
 export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   const { pl, bs, monthly } = ctx;
   const out: XtxLeafValues = {};
   // 損益計算書（ページ1）
-  put(out, PAGE1[0]?.tag, pl.totalRevenue); // 売上（収入）金額（先頭）
+  const reversalRevenue = pl.revenue.find(
+    (r) => r.accountName === BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME,
+  );
+  const salesAmount = reversalRevenue
+    ? D(pl.totalRevenue).minus(reversalRevenue.amount).toString()
+    : pl.totalRevenue;
+  put(out, PAGE1[0]?.tag, salesAmount); // 売上（収入）金額（先頭）
+  if (reversalRevenue) {
+    put(out, AMF00420_RESERVE_REVERSAL, reversalRevenue.amount);
+  }
+  let reserveIndividualAmount = D(0);
+  let reserveLumpSumAmount = D(0);
   for (const row of pl.expense) {
+    if (row.accountName === BAD_DEBT_RESERVE_INDIVIDUAL_ACCOUNT_NAME) {
+      reserveIndividualAmount = reserveIndividualAmount.plus(row.amount);
+      continue;
+    }
+    if (row.accountName === BAD_DEBT_RESERVE_LUMP_SUM_ACCOUNT_NAME) {
+      reserveLumpSumAmount = reserveLumpSumAmount.plus(row.amount);
+      continue;
+    }
     const ja = EXPENSE_ALIAS[row.accountName] ?? row.accountName;
     put(out, tagByJa(PAGE1, ja), formAmount(row.accountName, row.amount));
   }
+  const reserveAccrualTotal = reserveIndividualAmount.plus(reserveLumpSumAmount);
+  // 内訳のどちらかを出すなら合計欄も必ず出す。合計が 0 かどうかで判定すると、
+  // 個別評価と一括評価が相殺したとき第2頁に内訳だけあって合計が空欄になる。
+  if (!reserveIndividualAmount.isZero() || !reserveLumpSumAmount.isZero()) {
+    put(out, AMF00470_RESERVE_ACCRUAL, reserveAccrualTotal.toString());
+    put(out, AMF01060_TOTAL_ACCRUAL, reserveAccrualTotal.toString());
+  }
+  if (!reserveIndividualAmount.isZero()) {
+    put(out, AMF01010_INDIVIDUAL_ACCRUAL, reserveIndividualAmount.toString());
+  }
+  if (!reserveLumpSumAmount.isZero()) {
+    put(out, AMF01050_LUMP_SUM_ACCRUAL, reserveLumpSumAmount.toString());
+  }
+  // AMF00440／AMF00490（繰戻額等・繰入額等の「計」）、AMF00380 経費計、
+  // AMF00170／AMF00390 差引金額は、既存実装でも KOA210 が一切出力していない
+  // 小計・合計欄（e-Tax 側で再計算される）。ここだけ出すと様式内で扱いが
+  // 不揃いになるため、意図的に対象外のまま揃える。
   // 青色申告特別控除：控除前所得・控除額・控除後所得
   const preIncome = D(pl.netIncome);
   // 控除は不動産所得から先に充当し（措法25の2③）、44欄には事業への配分残額のみ入れる（二重計上防止）。
@@ -286,6 +371,23 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     if (secondBlock.length > 0) {
       repeats.AMG00475 = extraAccountRows(secondBlock, 'AMG00480', 'AMG00720', BS_EXTRA_BLOCK_MAX);
     }
+  }
+  const additionalExpenseRows = additionalExpenseCandidates(ctx)
+    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => {
+      const item: XtxLeafValues = {};
+      const name = stripClassificationSuffix(row.accountName).slice(
+        0,
+        ADDITIONAL_EXPENSE_NAME_MAX_LENGTH,
+      );
+      if (name) {
+        item.AMF00060 = name;
+      }
+      putRow(item, 'AMF00360', row.amount);
+      return item;
+    });
+  if (additionalExpenseRows.length > 0) {
+    repeats.AMF00355 = additionalExpenseRows;
   }
   return repeats;
 }

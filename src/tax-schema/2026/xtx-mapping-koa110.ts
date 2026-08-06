@@ -37,6 +37,7 @@ import {
   WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS,
   whiteReturnAdjustedNetIncome,
 } from './white-return-income';
+import { stripClassificationSuffix } from './xtx-mapping-shared';
 
 const SCHEMA = koa110 as XtxSchema;
 
@@ -76,12 +77,6 @@ const EXPENSE_ALIAS: Record<string, string> = {
 // plContribution が負で集計するため PL 行はマイナスになる（netIncome の計算はそれで正しい）。
 // 様式の「期末商品（製品）棚卸高」欄は売上原価から差し引かれる欄なので、符号を戻して渡す。
 const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
-// 末尾の全角括弧付き分類（個別評価／一括評価／不動産 等）は科目名の様式欄には不要な
-// 内部区分のため、追加科目欄（AIG00010）へ出す前に取り除く。取り除いても10文字を
-// 超える場合のみ slice で切り詰める（バックストップ）。
-function stripClassificationSuffix(name: string): string {
-  return name.replace(/（[^（）]*）$/, '');
-}
 // 貸倒引当金繰戻額（52条3項、事業側）。収益科目だがその他の収入欄へ計上する。
 const BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME = '貸倒引当金繰戻額';
 // 追加科目欄（AIG00325）は maxOccurs 5、科目名（AIG00010）は最大10文字。
