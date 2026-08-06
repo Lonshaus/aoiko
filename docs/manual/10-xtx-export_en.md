@@ -24,7 +24,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 
 aoiko's `.xtx` passes **xmllint XSD validation in CI** and has been **verified by real import into the download edition**.
 
-> **About bad debt write-off / allowance for real estate income**: the blue-return real estate statement (KOA220) has no dedicated field for these two accounts, so they're written into the form's own "additional item" slot (capped at 5 entries). The white-return breakdown statement (KOA130) has a dedicated "貸倒金" (bad debt write-off) field, so that one is written directly there — but since white returns have no allowance concept at all, "貸倒引当金繰入額（不動産）" (bad debt allowance) is never written to KOA130 (see [14. Income & tax deductions](14-income-deductions_en.md)).
+> **About bad debt write-off / allowance for real estate income**: the blue-return real estate statement (KOA220) has no dedicated field for these two accounts, so they're written into the form's own "additional item" slot (capped at 5 entries). The white-return breakdown statement (KOA130) has a dedicated "貸倒金" (bad debt write-off) field, so that one is written directly there, and "貸倒引当金繰入額（不動産）" (bad debt allowance) is written to the additional-item slot (one entry only). The individually-assessed bad debt allowance has no blue-return requirement (Income Tax Act art. 52-1), so it's a deductible expense on a white return too as long as it's a business-scale rental (see [14. Income & tax deductions](14-income-deductions_en.md)).
 
 > **e-Tax software (web edition) does NOT support loading the income-tax procedure (RKO0010).** Use the **download edition** (per-tax module install required). The online preparation corner ("作成コーナー") does not support loading `.xtx`.
 
@@ -55,7 +55,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 |---|---|
 | Breakdown statement p.1: revenue, expense by category, pre-family-deduction income | PL |
 
-> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and bad-debt-reserve entries have no matching field on the breakdown statement and are excluded from the income calculation too (see "Completed in e-Tax" below).
+> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and the lump-sum-assessed bad-debt allowance require a blue return, so they're excluded from the breakdown statement output and from the income calculation too (see "Completed in e-Tax" below). The individually-assessed bad-debt allowance is a deductible expense on a white return too, so it's written to the additional-item slot (capped at 5 entries) as an expense with no fixed field.
 
 ### Completed in e-Tax
 
