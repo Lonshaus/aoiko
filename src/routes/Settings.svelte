@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { link } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
@@ -17,6 +17,7 @@
   import { isValidDefaultRatio } from '../domain/home-office';
   import { BackupCorruptError } from '../backup';
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -112,6 +113,8 @@
   let restoreError = $state('');
   let restoreSuccess = $state('');
   let restoreWarning = $state('');
+  // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
+  let restoreSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
 
@@ -305,6 +308,15 @@
   });
 
   onMount(async () => {
+    // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
+    const notice = takeRestoreNotice();
+    if (notice) {
+      restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
+      restoreWarning =
+        notice.missingBlobCount > 0
+          ? m.settings_restore_missing_blobs({ count: notice.missingBlobCount })
+          : '';
+    }
     currentYear = (await getSetting('currentYear')) ?? 2026;
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
@@ -336,6 +348,13 @@
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
+    // 復元の結果は設定画面のかなり下にあり、再読み込み後は先頭に戻ってしまう。
+    // 全置換という取り消せない操作の唯一の確認なので、見える位置まで戻す。
+    // 上の読み込みで高さが変わるため、すべて終わってから測る。
+    if (notice) {
+      await tick();
+      restoreSection?.scrollIntoView({ block: 'center' });
+    }
   });
 
   const expenseAccounts = $derived(ledger.accounts.filter((a) => a.category === 'expense'));
@@ -971,17 +990,15 @@
         $state.snapshot(restorePayload),
         restoreAttachmentBlobs,
       );
-      restoreSuccess = m.settings_restore_success({
+      // 画面に残った復元前の設定でどれか1つでも「保存」を押されると、復元した設定が
+      // 上書きされる。DB を丸ごと置き換える clearAll と同じく、直後に読み直す。
+      // 結果の表示は再読み込みをまたいで持ち越す（issue#387）。
+      stashRestoreNotice({
         tables: result.tableCount,
         rows: result.rowCount,
+        missingBlobCount: result.missingBlobCount,
       });
-      restoreWarning =
-        result.missingBlobCount > 0
-          ? m.settings_restore_missing_blobs({ count: result.missingBlobCount })
-          : '';
-      restorePayload = null;
-      restoreAttachmentBlobs = new Map();
-      restoreAttachmentCount = 0;
+      location.reload();
     } catch (err) {
       restoreError = describeStorageError(err);
     }
@@ -2543,7 +2560,10 @@
     </p>
   </section>
 
-  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <section
+    bind:this={restoreSection}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_restore_intro_html()}
@@ -2565,9 +2585,6 @@
     {#if restoreSuccess}
       <div class="text-sm text-foreground border border-primary bg-primary/10 rounded px-3 py-2">
         ✓ {restoreSuccess}
-        <button type="button" onclick={() => location.reload()} class="ml-2 text-primary underline">
-          {m.settings_restore_reload()}
-        </button>
       </div>
     {/if}
     {#if restoreWarning}
