@@ -38,9 +38,21 @@ import {
   mapKoa020Values,
 } from './xtx-mapping-koa020';
 import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
-import { mapKoa110Values, mapKoa110RepeatedValues } from './xtx-mapping-koa110';
-import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
-import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
+import {
+  koa110AdditionalExpenseOverflow,
+  mapKoa110Values,
+  mapKoa110RepeatedValues,
+} from './xtx-mapping-koa110';
+import {
+  koa220AdditionalExpenseOverflow,
+  mapKoa220RepeatedValues,
+  mapKoa220Values,
+} from './xtx-mapping-koa220';
+import {
+  koa130AdditionalExpenseOverflow,
+  mapKoa130RepeatedValues,
+  mapKoa130Values,
+} from './xtx-mapping-koa130';
 // 不動産所得の損益（realEstatePl）はあるのに、青色申告特別控除の上限
 // （10万/65万）を決める businessScale 等の入力（personalDeductions.realEstateIncome）が
 // 無い状態。上限を推測すると誤った金額の申告書を作ってしまうため、出力を拒否する。
@@ -237,6 +249,23 @@ export function toFilerInfo(f: XtxFiler): XtxFilerInfo {
     zip: f.zip,
     address: f.address,
   };
+}
+
+// 収支内訳書・決算書の追加科目欄に入りきらなかった経費科目（issue#379）。
+// buildXtx2026 と同じ ctx で呼び、書き出せていない金額を利用者へ提示する。
+export interface XtxAdditionalExpenseOverflowItem {
+  accountName: string;
+  amount: string;
+}
+
+export function xtxAdditionalExpenseOverflow(ctx: XtxContext): XtxAdditionalExpenseOverflowItem[] {
+  if (ctx.filingType === 'white') {
+    return [
+      ...koa110AdditionalExpenseOverflow(ctx),
+      ...(ctx.realEstatePl ? koa130AdditionalExpenseOverflow(ctx) : []),
+    ];
+  }
+  return ctx.realEstatePl ? koa220AdditionalExpenseOverflow(ctx) : [];
 }
 
 export function buildXtx2026(ctx: XtxContext): string {

@@ -442,6 +442,7 @@
   "reports_xtx_download": "Download .xtx",
   "reports_xtx_download_reiwa7": "Test: export as Reiwa 7",
   "reports_xtx_download_reiwa7_hint": "The Reiwa 8 e-Tax module is not yet available, so this exports with NENBUN=7 (Reiwa 7) for real-device import testing (the envelope structure is year-independent).",
+  "reports_xtx_additional_expense_overflow": "Some expenses did not fit the additional-account field and were not written to the .xtx: {list}. Please add them manually in e-Tax.",
   "settings_filer_title": "Filer Info (for e-Tax submission)",
   "settings_filer_intro_html": "Required to load the .xtx into e-Tax. <strong class=\"text-foreground\">Stored only on this device and excluded from backups by default.</strong>",
   "settings_filer_riyosha_id": "User identification number (16 digits)",
