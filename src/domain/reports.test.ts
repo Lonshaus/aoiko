@@ -26,6 +26,7 @@ const TEST_ACCOUNTS: Account[] = [
     displayOrder: 210,
     incomeType: 'realEstate',
   },
+  { code: '4120', year: 2026, name: '貸倒引当金繰戻額', category: 'revenue', displayOrder: 120 },
   {
     code: '5310',
     year: 2026,
@@ -112,6 +113,28 @@ describe('buildPL', () => {
     expect(pl.entryCount).toBe(3);
     expect(pl.revenue).toHaveLength(1);
     expect(pl.expense).toHaveLength(2);
+  });
+
+  test('貸倒引当金繰戻額は特別扱い無しの通常収益として netIncome を押し上げる（issue#378）', async () => {
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-06-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '30000' },
+        { side: 'credit', accountCode: '4120', amount: '30000' },
+      ],
+    });
+
+    const pl = await buildPL(2026);
+
+    expect(pl.totalRevenue).toBe('130000');
+    expect(pl.netIncome).toBe('130000');
   });
 
   test('skips zero-amount accounts in result rows', async () => {
