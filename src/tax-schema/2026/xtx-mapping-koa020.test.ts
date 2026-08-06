@@ -5,6 +5,7 @@ import {
   mapKoa020LeafValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
+  realEstateFamilyEmployeeDeductionResult,
   totalIncomeAmount,
 } from './xtx-mapping-koa020';
 import { personalDeductionsToCtx } from './xtx';
@@ -500,6 +501,83 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
     expect(out.ABB00340).toBe('325000');
     expect(out.ABB00800).toBeUndefined();
     expect(out.ABI00170).toBeUndefined();
+  });
+
+  test('白色×事業的規模の不動産：貸倒引当金繰入額（不動産）は必要経費のまま損益通算可能額に反映する（issue#378）', () => {
+    const rePl: PLReport = {
+      year: 2026,
+      revenue: [],
+      expense: [
+        {
+          accountCode: '5410',
+          accountName: '貸倒引当金繰入額（不動産）',
+          category: 'expense',
+          amount: '100000',
+          displayOrder: 1395,
+        },
+      ],
+      totalRevenue: '0',
+      totalExpense: '100000',
+      netIncome: '325000',
+      entryCount: 0,
+    };
+    const out = mapKoa020LeafValues(
+      ctx({
+        filingType: 'white',
+        pl: { ...plBase, netIncome: '1000000' },
+        realEstatePl: rePl,
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          realEstateIncome: { businessScale: true },
+        },
+      }),
+    );
+    // 事業的規模なら貸倒引当金繰入額（不動産）を加算し戻さない：325,000 のまま
+    expect(out.ABB00340).toBe('325000');
+  });
+
+  test('専従者控除の上限は貸倒引当金繰入額（不動産）を戻さない所得を基準にする（issue#378）', () => {
+    const rePl: PLReport = {
+      year: 2026,
+      revenue: [],
+      expense: [
+        {
+          accountCode: '5410',
+          accountName: '貸倒引当金繰入額（不動産）',
+          category: 'expense',
+          amount: '400000',
+          displayOrder: 1395,
+        },
+      ],
+      totalRevenue: '0',
+      totalExpense: '400000',
+      netIncome: '1000000',
+      entryCount: 0,
+    };
+    const result = realEstateFamilyEmployeeDeductionResult({
+      year: 2026,
+      pl: plBase,
+      filingType: 'white',
+      aoiroDeductionKind: 'none',
+      realEstatePl: rePl,
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: true },
+        familyEmployees: [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ],
+      },
+    });
+    // 専従者控除前所得金額は100万（貸倒引当金繰入額は戻さない）→100万÷2=50万 と
+    // 配偶者定額86万のいずれか低い方＝50万（戻していれば140万÷2=70万になり不一致）
+    expect(result.total.toString()).toBe('500000');
   });
 });
 

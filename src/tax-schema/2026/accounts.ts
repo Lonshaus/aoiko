@@ -68,6 +68,16 @@ export const ACCOUNTS_2026: Account[] = [
     taxCategory: 'taxable10',
     displayOrder: 910,
   },
+  // 貸倒引当金繰戻額（所得税法52条3項、洗替方式）。引当のみで対価の受領を伴わない
+  // ため taxCategory は 5810/5811 の繰入額側と同じ 'nontaxable' とする。
+  {
+    code: '4120',
+    year: 2026,
+    name: '貸倒引当金繰戻額',
+    category: 'revenue',
+    taxCategory: 'nontaxable',
+    displayOrder: 120,
+  },
   // 収益（4xxx）— 不動産所得用（B7 part2、freee/MF と同じく科目を複製）。
   // 賃貸料・礼金等は住宅家賃なら非課税が多いため既定は 'exempt'、店舗等の課税賃貸は
   // 仕訳行の taxCategory 上書きで対応（既存の taxCategory override と同じ運用）。
@@ -88,6 +98,15 @@ export const ACCOUNTS_2026: Account[] = [
     taxCategory: 'exempt',
     incomeType: 'realEstate',
     displayOrder: 220,
+  },
+  {
+    code: '4230',
+    year: 2026,
+    name: '貸倒引当金繰戻額（不動産）',
+    category: 'revenue',
+    taxCategory: 'nontaxable',
+    incomeType: 'realEstate',
+    displayOrder: 230,
   },
   {
     code: '4920',
@@ -279,14 +298,24 @@ export const ACCOUNTS_2026: Account[] = [
     taxCategory: 'taxable10',
     displayOrder: 910,
   },
-  // 費用（5xxx）— 引当金繰入額・専従者給与（form 順では雑費の後）
+  // 費用（5xxx）— 引当金繰入額・専従者給与（form 順では雑費の後）。
+  // 所得税法52条は個別評価（1項、事業を営む青白共通）と一括評価（2項、青色申告の
+  // 事業所得限定）の別制度なので科目も分ける（issue#378）。
   {
     code: '5810',
     year: 2026,
-    name: '貸倒引当金繰入額',
+    name: '貸倒引当金繰入額（一括評価）',
     category: 'expense',
     taxCategory: 'nontaxable',
     displayOrder: 810,
+  },
+  {
+    code: '5811',
+    year: 2026,
+    name: '貸倒引当金繰入額（個別評価）',
+    category: 'expense',
+    taxCategory: 'nontaxable',
+    displayOrder: 811,
   },
   {
     code: '5820',
@@ -380,6 +409,8 @@ export const ACCOUNTS_2026: Account[] = [
   },
   // 貸倒金（不動産）＝実際の貸倒損失（事業的規模でなくても計上可、所得税法64条）。
   // 貸倒引当金繰入額（不動産）＝引当金の繰入れ（事業的規模限定、所得税法51条4項準用）。
+  // 一括評価（52条2項）は事業所得限定のため、不動産所得の引当金は必然的に個別評価
+  // （52条1項）のみ。5810/5811 のような評価方法別の科目分けは不要（issue#378）。
   // KOA220に専用欄が無いため追加科目枠（xtx-mapping-koa220.ts）で出力する。
   {
     code: '5400',
