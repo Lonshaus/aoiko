@@ -151,7 +151,14 @@ Art. 52(3) speaks of the amount credited to the allowance in the prior year — 
 
 ### 7-6. Reflected in `.xtx`
 
-The reversal is revenue and lands in the right box automatically on `.xtx` export: KOA210 `AMF00420`, KOA110 「その他の収入」, KOA130 「名義書換料その他」. See [10. `.xtx` export](10-xtx-export_en.md) for details.
+The reversal is revenue and lands in the right box automatically on `.xtx` export. The business and real-estate parts go to different forms.
+
+| Reversal | Blue return | White return |
+|---|---|---|
+| 4120 (business) | Statement p.1, allowance reversal box (KOA210 `AMF00420`) | Breakdown statement 「その他の収入」 (KOA110) |
+| 4230 (real estate) | Real-estate statement's additional-item slot (KOA220) | Real-estate breakdown statement 「名義書換料その他」 (KOA130) |
+
+See [10. `.xtx` export](10-xtx-export_en.md) for details.
 
 ## 8. Next steps
 
