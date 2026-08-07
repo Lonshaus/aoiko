@@ -2,10 +2,10 @@
 // 複製されていたため 1 箇所へ集約する。呼出側はファイルの中身と名前だけを渡す。
 //
 // 戻り値は「利用者が保存を完了したことを観測できたか」。既定は <a> のダウンロードで、
-// 完了も取消も観測できないため常に true を返す（従来どおりの近似）。
+// 完了も取消も観測できないため常に 'unknown' を返す（あるブラウザ / あるブラウザ）。
 //
 // confirmCompletion を指定した場合だけ、File System Access が使える環境で保存先の確定まで
-// 待ち、取消を取消として区別する。保存済みを主張する記録（バックアップの最終ダウンロード
+// 待ち、'saved'／'cancelled' を区別する。保存済みを主張する記録（バックアップの最終ダウンロード
 // 時刻）を残す呼出側のためのオプションで、既定にはしない：picker を挟むと保存ダイアログの
 // 挙動が変わり、.xtx や CSV の書き出しまで UX が変わってしまうため。
 //
@@ -14,13 +14,14 @@
 // SecurityError で保存できなくなる（chromium issue 40175286）。そのため picker を最初に
 // 呼び、保存先が確定してから中身を作る。データを遅延生成する関数も受け取れるのはこのため。
 export type SaveFileData = Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
+export type SaveFileResult = 'saved' | 'cancelled' | 'unknown';
 
 export async function saveFile(
   data: SaveFileData | (() => Promise<SaveFileData>),
   filename: string,
   mimeType: string,
   options?: { confirmCompletion?: boolean },
-): Promise<boolean> {
+): Promise<SaveFileResult> {
   const picker = (
     window as unknown as {
       showSaveFilePicker?: (opts: {
@@ -40,7 +41,7 @@ export async function saveFile(
     } catch (e: unknown) {
       // 利用者が保存先の選択を取り消した場合。エラーではないので静かに戻す。
       if (e instanceof DOMException && e.name === 'AbortError') {
-        return false;
+        return 'cancelled';
       }
       throw e;
     }
@@ -54,7 +55,7 @@ export async function saveFile(
       await writable.write(resolved);
       await writable.close();
     }
-    return true;
+    return 'saved';
   }
   const blob = await toBlob(await resolveData(data), mimeType);
   const url = URL.createObjectURL(blob);
@@ -65,7 +66,7 @@ export async function saveFile(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-  return true;
+  return 'unknown';
 }
 
 async function resolveData(
@@ -88,6 +89,6 @@ export async function saveTextFile(
   text: string,
   filename: string,
   mimeType: string,
-): Promise<boolean> {
+): Promise<SaveFileResult> {
   return saveFile(new TextEncoder().encode(text), filename, mimeType);
 }

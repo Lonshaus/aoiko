@@ -6,6 +6,7 @@ const SUPPRESSIBLE_CONFIRM_KEYS = [
   'skipExternalSendConfirm',
   'skipAttachmentConfirm',
   'skipFiledYearWarning',
+  'skipDownloadSavedConfirm',
 ] as const satisfies ReadonlyArray<keyof SettingsMap>;
 
 export async function countSuppressedConfirms(): Promise<number> {
