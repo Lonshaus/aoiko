@@ -3,14 +3,8 @@ import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import type { JournalEntry, JournalLine } from '../db/types';
-// 所得税法52条3項の洗替方式：前年に繰り入れた貸倒引当金は、翌年分の総収入金額に算入する。
-// carryover.ts は category を見て一律に持ち越すので、負債である 2170 は毎年そのまま次年度へ
-// 運ばれるだけで、収益へ戻す仕訳は誰も作らない。放置すると引当金残高の上に今年の繰入額が
-// 積まれ、控除が年々累積して総収入金額が年々過少になる（レポート上は正常に見える）。
-//
-// 繰戻額の基準を「前年の繰入額」に置くのは 52条3項の文言どおりであり、同時に事業／不動産の
-// 内訳も解ける——引当金の負債科目は 2170 ひとつしか無いので繰越残高からは所得の種類を
-// 判別できないが、繰入額の科目からは判別できる。
+// 所得税法52条3項の洗替方式。基準を繰越残高でなく前年の繰入額に置くのは条文の文言どおりで、
+// 引当金の負債科目が 2170 ひとつしか無い以上、事業／不動産の内訳もこちらでしか判別できない。
 const RESERVE_LIABILITY = '2170';
 const ACCRUAL_TO_REVERSAL = new Map<string, string>([
   ['5810', '4120'],

@@ -40,8 +40,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
 
-// 表示言語で探さない。テスト環境では読み込みの途中で言語が切り替わることがあり、
-// 文言で探すとその切り替えと競走してしまう。
+// 文言で探さない。テスト環境では読み込みの途中で表示言語が切り替わることがある。
 function reversalButton(): HTMLButtonElement | undefined {
   return (
     container?.querySelector<HTMLButtonElement>('[data-testid="bad-debt-reversal-run"]') ??
@@ -49,10 +48,9 @@ function reversalButton(): HTMLButtonElement | undefined {
   );
 }
 
-// Settings の onMount は getSetting を 20 回以上直列に await する。読み終わる前に
-// db.delete() すると残りが DatabaseClosedError で未処理の rejection になり、テストは
-// 通るのに vitest が exit 1 になる。homeOfficeAccountRatios はその直列読みの最後なので、
-// 他のどこにも出てこない科目コードを仕込んで画面に出るまで待てば、読み込み完了が分かる。
+// onMount の直列読みが終わる前に db.delete() すると DatabaseClosedError が未処理の rejection
+// として残り、テストは通るのに vitest が exit 1 になる。最後に読む homeOfficeAccountRatios に
+// 他へ出てこない科目コードを仕込み、画面に出るまで待って読み込み完了を確かめる。
 const MOUNT_SENTINEL = 'ZZZ9';
 
 async function mountSettled(): Promise<void> {
