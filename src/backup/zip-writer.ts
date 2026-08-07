@@ -1,15 +1,6 @@
 import { crc32 } from './crc32';
-// 無圧縮（store）専用の zip 書き出し。バックアップの中身は証憑写真（既に圧縮済み）と
-// payload.json だけで、どちらも store で入れているため圧縮ロジックは要らない。
-//
-// fflate の Zip を使わない理由：fflate 0.8.3 の書き出しは 32bit フィールドしか書かず、
-// しかも wbytes が `v >>>= 8` で uint32 に丸めるため、4GiB を超えたオフセットは例外も
-// 出さずに巻き戻った値が書かれる。証憑を原本のまま貯め続けるこのアプリでは現実的に
-// 届く上限であり、壊れたことに気付くのが「復元しようとした時」になる（issue#396）。
-//
-// client-zip 等の既製品を採らなかったのは、あちらが小さな書庫でも常に「解凍に 4.5 が必要」と
-// 宣言する仕様のため。利用者が自分のバックアップを Finder やエクスプローラで開けることは
-// このツールでは実質的な機能なので、本当に 4GiB を超えたときだけ 4.5 を名乗る方を選ぶ。
+// 無圧縮（store）専用の zip 書き出し。自前で持つ理由は #396——fflate の書き出しは zip64 を
+// 出さず、4GiB 超のオフセットを例外なしに巻き戻して書く。
 const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
 const CENTRAL_DIRECTORY_SIGNATURE = 0x02014b50;
 const EOCD_SIGNATURE = 0x06054b50;
@@ -26,9 +17,7 @@ const VERSION_STORE = 20;
 const VERSION_ZIP64 = 45;
 // 汎用フラグ bit 11＝ファイル名が UTF-8。
 const FLAG_UTF8 = 0x0800;
-// sentinel と等しい値そのものも zip64 の合図として読まれてしまうため、「超えたら」ではなく
-// 「達したら」で zip64 に切り替える。ちょうど 0xFFFFFFFF バイト・ちょうど 65535 件のときに
-// 壊れるのを防ぐ。
+// sentinel と同値も zip64 の合図として読まれるので、切り替えは「超えたら」でなく「達したら」。
 const SENTINEL_16 = 0xffff;
 const SENTINEL_32 = 0xffffffff;
 
@@ -41,8 +30,7 @@ interface CentralEntry {
 
 function dosDateTime(date: Date): { time: number; date: number } {
   const year = date.getFullYear();
-  // MS-DOS 形式は 1980〜2107 しか表せない。端末の時計が壊れている場合に範囲外の値を
-  // 書いて解凍ツールを壊すより、下限に丸める方が実害が無い。
+  // MS-DOS 形式は 1980〜2107 のみ。端末の時計が狂っていても範囲外を書かないよう丸める。
   const dosYear = Math.min(Math.max(year - 1980, 0), 127);
   return {
     time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
@@ -56,15 +44,12 @@ export class ZipStoreWriter {
   private readonly dos: { time: number; date: number };
   private readonly zip64Threshold: number;
   private finished = false;
-  // zip64Threshold を下げられるようにしてあるのはテストのため。4GiB を実際に確保せずに
-  // zip64 経路を通す手段が他に無く、「バックアップ書き出しの zip64 分岐が誰にも試されて
-  // いない」状態こそが issue#396 そのものなので、その分岐を試せる口を残す方を選んだ。
-  // 本番は既定値（sentinel と同じ 0xFFFFFFFF）のまま使う。
+  // zip64Threshold はテスト専用。4GiB を確保せずに zip64 経路を通す手段が他に無い。
   constructor(mtime: Date, options?: { zip64Threshold?: number }) {
     this.dos = dosDateTime(mtime);
     this.zip64Threshold = options?.zip64Threshold ?? SENTINEL_32;
   }
-  // 1 エントリ分を返す。実体はコピーせずそのまま流すため、ヘッダと実体の 2 つに分けて返す。
+  // 実体をコピーしないよう、ヘッダと実体を分けて返す。
   addEntry(name: string, bytes: Uint8Array): readonly Uint8Array[] {
     if (this.finished) {
       throw new Error('finish() の後にエントリは追加できません');
@@ -73,8 +58,7 @@ export class ZipStoreWriter {
     const size = bytes.length;
     const crc = crc32(bytes);
     const needsSizeZip64 = size >= this.zip64Threshold;
-    // ローカルヘッダの zip64 拡張は、使うなら非圧縮・圧縮の両サイズを必ず並べる。
-    // オフセットはローカルヘッダには書かないので、ここでは判定しない（目録側だけ）。
+    // ローカルヘッダの zip64 拡張は、使うなら両サイズを必ず並べる（オフセットは目録側のみ）。
     const extraSize = needsSizeZip64 ? 20 : 0;
     const header = new Uint8Array(LOCAL_FILE_HEADER_FIXED_SIZE + nameBytes.length + extraSize);
     const view = new DataView(header.buffer);
@@ -141,7 +125,6 @@ export class ZipStoreWriter {
     }
     return record;
   }
-  // セントラルディレクトリ以降をまとめて返す。呼んだ時点で書き出しは終了する。
   finish(): Uint8Array {
     if (this.finished) {
       throw new Error('finish() は 1 回だけ呼べます');
