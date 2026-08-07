@@ -3,10 +3,13 @@
 // backup() は private フィールドへ直接アダプタを差し込む以外に注入口が無いため、
 // ledger.svelte.test.ts と同じくシングルトンをキャストして駆動する。
 
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
 import { backup as backupManager } from './backup.svelte';
+import { getSetting, setSetting } from '../lib/settings';
+import * as saveFileModule from '../lib/save-file';
 import type { BackupAdapter } from '../backup/types';
+import type { SaveFileResult } from '../lib/save-file';
 
 interface Pending {
   resolve: () => void;
@@ -60,7 +63,7 @@ class FakeAdapter implements BackupAdapter {
   }
 }
 
-type Injectable = { adapter: BackupAdapter | null; status: string };
+type Injectable = { adapter: BackupAdapter | null; status: string; adapterKind: string };
 
 // backup() は adapter.backup() に届くまでに設定読込と zip 生成を挟むため、
 // マイクロタスク1回では足りない。実際に呼ばれるまで待つ。
@@ -79,11 +82,18 @@ beforeEach(async () => {
   const injectable = backupManager as unknown as Injectable;
   injectable.adapter = fake;
   injectable.status = 'idle';
+  injectable.adapterKind = 'none';
+  backupManager.lastDownloadAt = null;
 });
 
 afterEach(async () => {
   await db.delete();
+  vi.restoreAllMocks();
 });
+
+function mockSaveFile(result: SaveFileResult): void {
+  vi.spyOn(saveFileModule, 'saveFile').mockResolvedValue(result);
+}
 
 describe('backupManager.backup（書込中に来た要求の追い掛け）', () => {
   test('writing 中に来た要求は完了後に1回だけ再実行される', async () => {
@@ -127,5 +137,60 @@ describe('backupManager.backup（書込中に来た要求の追い掛け）', ()
     await first;
     expect(fake.calls).toBe(1);
     expect(backupManager.status).toBe('error');
+  });
+});
+
+describe('backupManager.downloadBackup（issue#390：保存できたかの確認）', () => {
+  test('取消（cancelled）は刻まず、確認も不要', async () => {
+    mockSaveFile('cancelled');
+    const needsConfirm = await backupManager.downloadBackup();
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBeUndefined();
+  });
+
+  test('picker 経由の成功（saved）は刻み、確認は不要', async () => {
+    mockSaveFile('saved');
+    const needsConfirm = await backupManager.downloadBackup();
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).not.toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
+  });
+
+  test('unknown かつ警告が出ている状態なら、刻まず確認を要求する', async () => {
+    const injectable = backupManager as unknown as { adapterKind: string };
+    injectable.adapterKind = 'opfs'; // フォルダ自動保存が動いていない
+    mockSaveFile('unknown');
+    const needsConfirm = await backupManager.downloadBackup();
+    expect(needsConfirm).toBe(true);
+    expect(backupManager.lastDownloadAt).toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBeUndefined();
+  });
+
+  test('unknown でも警告が出ていなければ、黙って刻む', async () => {
+    const injectable = backupManager as unknown as { adapterKind: string };
+    injectable.adapterKind = 'fsa'; // フォルダ自動保存が動いている＝警告なし
+    mockSaveFile('unknown');
+    const needsConfirm = await backupManager.downloadBackup();
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).not.toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
+  });
+
+  test('unknown かつ抑止設定済みなら、警告が出ていても黙って刻む', async () => {
+    const injectable = backupManager as unknown as { adapterKind: string };
+    injectable.adapterKind = 'opfs';
+    await setSetting('skipDownloadSavedConfirm', true);
+    mockSaveFile('unknown');
+    const needsConfirm = await backupManager.downloadBackup();
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).not.toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
+  });
+
+  test('confirmDownloadSaved は利用者の「保存できた」回答を刻む', async () => {
+    await backupManager.confirmDownloadSaved();
+    expect(backupManager.lastDownloadAt).not.toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
   });
 });

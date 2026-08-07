@@ -21,13 +21,15 @@ describe('suppressed-confirms', () => {
     await setSetting('skipAttachmentConfirm', true);
     await setSetting('skipExternalSendConfirm', false);
     await setSetting('skipFiledYearWarning', true);
-    expect(await countSuppressedConfirms()).toBe(2);
+    await setSetting('skipDownloadSavedConfirm', true);
+    expect(await countSuppressedConfirms()).toBe(3);
   });
 
   test('リセットで全て消え、他の設定は残る', async () => {
     await setSetting('skipAttachmentConfirm', true);
     await setSetting('skipExternalSendConfirm', true);
     await setSetting('skipFiledYearWarning', true);
+    await setSetting('skipDownloadSavedConfirm', true);
     await setSetting('userBusinessName', '青井ウェブ事務所');
 
     await resetSuppressedConfirms();
@@ -36,6 +38,7 @@ describe('suppressed-confirms', () => {
     expect(await getSetting('skipAttachmentConfirm')).toBeUndefined();
     expect(await getSetting('skipExternalSendConfirm')).toBeUndefined();
     expect(await getSetting('skipFiledYearWarning')).toBeUndefined();
+    expect(await getSetting('skipDownloadSavedConfirm')).toBeUndefined();
     expect(await getSetting('userBusinessName')).toBe('青井ウェブ事務所');
   });
 });

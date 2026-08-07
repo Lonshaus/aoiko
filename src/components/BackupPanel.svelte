@@ -3,6 +3,7 @@
   import { backup } from '../stores/backup.svelte';
   import { getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import ConfirmDialog from './ConfirmDialog.svelte';
   import {
     BACKUP_INTERVAL_HOURS,
     BACKUP_RETENTION_COUNTS,
@@ -13,6 +14,7 @@
   } from '../backup/schedule';
   import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
 
+  let downloadSavedConfirmOpen = $state(false);
   let includeApiKeys = $state(false);
   let includeFilerInfo = $state(false);
   let intervalHours = $state<BackupIntervalHours>(0);
@@ -48,6 +50,22 @@
   async function onChangeRetentionCount(e: Event) {
     retentionCount = Number((e.target as HTMLSelectElement).value) as BackupRetentionCount;
     await setSetting('backupRetentionCount', retentionCount);
+  }
+
+  async function onDownloadBackup() {
+    downloadSavedConfirmOpen = await backup.downloadBackup();
+  }
+
+  async function onDownloadSavedConfirm(dontAskAgain: boolean) {
+    downloadSavedConfirmOpen = false;
+    await backup.confirmDownloadSaved();
+    if (dontAskAgain) {
+      await setSetting('skipDownloadSavedConfirm', true);
+    }
+  }
+
+  function onDownloadSavedCancel() {
+    downloadSavedConfirmOpen = false;
   }
 
   function intervalOptionLabel(hours: BackupIntervalHours): string {
@@ -253,7 +271,7 @@
 
     <button
       type="button"
-      onclick={() => backup.downloadBackup()}
+      onclick={onDownloadBackup}
       class="px-4 py-2 border rounded hover:bg-accent"
       class:bg-destructive={downloadStale}
       class:text-destructive-foreground={downloadStale}
@@ -322,3 +340,14 @@
     <span class="block text-xs text-muted-foreground mt-1">{m.backup_panel_retention_hint()}</span>
   </div>
 </section>
+
+<ConfirmDialog
+  open={downloadSavedConfirmOpen}
+  title={m.backup_download_saved_confirm_title()}
+  description={m.backup_download_saved_confirm_desc()}
+  proceedLabel={m.backup_download_saved_confirm_proceed()}
+  cancelLabel={m.backup_download_saved_confirm_cancel()}
+  dontAskLabel={m.backup_download_saved_confirm_dont_ask()}
+  onconfirm={onDownloadSavedConfirm}
+  oncancel={onDownloadSavedCancel}
+/>
