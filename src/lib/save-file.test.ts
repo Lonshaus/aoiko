@@ -96,15 +96,15 @@ describe('保存の完了判定', () => {
     }
   });
 
-  test('保存先の選択を取り消したら false（時刻を刻ませない）', async () => {
+  test('保存先の選択を取り消したら cancelled（時刻を刻ませない）', async () => {
     w.showSaveFilePicker = () => Promise.reject(new DOMException('cancel', 'AbortError'));
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+    const result = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
       confirmCompletion: true,
     });
-    expect(ok).toBe(false);
+    expect(result).toBe('cancelled');
   });
 
-  test('保存先が確定して書き込めたら true', async () => {
+  test('保存先が確定して書き込めたら saved', async () => {
     const written: unknown[] = [];
     w.showSaveFilePicker = () =>
       Promise.resolve({
@@ -117,19 +117,21 @@ describe('保存の完了判定', () => {
             close: () => Promise.resolve(),
           }),
       });
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+    const result = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
       confirmCompletion: true,
     });
-    expect(ok).toBe(true);
+    expect(result).toBe('saved');
     expect(written).toHaveLength(1);
   });
 
-  test('picker が無い環境（<a> ダウンロード）は true', async () => {
+  // picker が無い環境（<a> ダウンロード）は完了も取消も観測できないため unknown。
+  // ここを saved にすると、取消したダウンロードが「保存済み」として記録される（issue#390）。
+  test('picker が無い環境（<a> ダウンロード）は unknown', async () => {
     delete w.showSaveFilePicker;
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
+    const result = await saveFile(new TextEncoder().encode('x'), 'a.zip', 'application/zip', {
       confirmCompletion: true,
     });
-    expect(ok).toBe(true);
+    expect(result).toBe('unknown');
   });
 
   test('confirmCompletion を指定しなければ picker があっても <a> のまま', async () => {
@@ -139,9 +141,9 @@ describe('保存の完了判定', () => {
       return Promise.reject(new DOMException('cancel', 'AbortError'));
     };
     // .xtx・CSV の書き出しはこちら。picker を挟むと e2e の download イベントが来なくなる。
-    const ok = await saveFile(new TextEncoder().encode('x'), 'a.xtx', 'application/xml');
+    const result = await saveFile(new TextEncoder().encode('x'), 'a.xtx', 'application/xml');
     expect(pickerCalled).toBe(false);
-    expect(ok).toBe(true);
+    expect(result).toBe('unknown');
   });
 });
 // FileSystemWritableFileStream の代役。ReadableStream 経路は WritableStream として
@@ -191,7 +193,7 @@ describe('picker を中身の組み立てより先に呼ぶ（issue#386）', () 
       'application/zip',
       { confirmCompletion: true },
     );
-    expect(ok).toBe(true);
+    expect(ok).toBe('saved');
     expect(order).toEqual(['picker', 'build']);
   });
   // 取り消したのに zip を組み立てると、大きな帳簿で無駄に待たされる。
@@ -199,7 +201,7 @@ describe('picker を中身の組み立てより先に呼ぶ（issue#386）', () 
     const build = vi.fn();
     w.showSaveFilePicker = () => Promise.reject(new DOMException('cancel', 'AbortError'));
     const ok = await saveFile(build, 'a.zip', 'application/zip', { confirmCompletion: true });
-    expect(ok).toBe(false);
+    expect(ok).toBe('cancelled');
     expect(build).not.toHaveBeenCalled();
   });
 
@@ -235,14 +237,14 @@ describe('picker を中身の組み立てより先に呼ぶ（issue#386）', () 
       },
     });
     const ok = await saveFile(stream, 'a.zip', 'application/zip', { confirmCompletion: true });
-    expect(ok).toBe(true);
+    expect(ok).toBe('saved');
     expect(writable.chunks.map((c) => [...c])).toEqual([[1, 2], [3]]);
     expect(blobSpy).not.toHaveBeenCalled();
   });
 
   test('<a> ダウンロード経路でも遅延生成の関数を受け取れる', async () => {
     const ok = await saveFile(async () => new Uint8Array([7]), 'a.csv', 'text/csv');
-    expect(ok).toBe(true);
+    expect(ok).toBe('unknown');
     expect(new Uint8Array(await created[0]!.arrayBuffer())).toEqual(new Uint8Array([7]));
   });
 });
