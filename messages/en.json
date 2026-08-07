@@ -155,6 +155,8 @@
   "journal_form_subaccount_select": "Select subaccount (optional)",
   "journal_form_inventory_item_select": "Select item (optional, inventory)",
   "journal_form_inventory_quantity_placeholder": "Qty",
+  "journal_form_bad_debt_lump_sum_notice": "This entry includes an allowance for doubtful accounts (lump-sum valuation). aoiko leaves the \"total receivables\" and \"deductible limit\" boxes on page 2 of the financial statement blank, because it does not track receivable balances. Fill them in on the e-Tax side. Under Income Tax Act art. 52(4), this schedule is a condition for claiming the allowance.",
+  "journal_form_bad_debt_individual_notice": "This entry includes an allowance for doubtful accounts (individual valuation). aoiko does not produce the \"Schedule of allowance for doubtful accounts (individual valuation)\", because it requires information aoiko does not hold, such as the statutory ground and the expected recoverable amounts. Prepare it on the e-Tax side. Under Income Tax Act art. 52(4), attaching this schedule is a condition for claiming the allowance.",
   "journal_form_amount_placeholder": "Amount",
   "journal_form_remove_line_label": "Remove this line",
   "journal_form_tax_included": "Tax included",
