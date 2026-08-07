@@ -1,4 +1,4 @@
-import { zipSync } from 'fflate';
+import { Zip, ZipPassThrough, zipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
 import { BackupCorruptError, buildBackupZipStream, looksLikeZip, parseBackupZip } from './archive';
 import type { BackupPayload } from './types';
@@ -18,6 +18,43 @@ async function drain(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<Arr
 async function blobBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
+// aoiko 自身は data descriptor を使わない（サイズを先に知っているのでローカルヘッダへ書く）。
+// ただし他ツールのストリーミング書き出しは data descriptor を付けるので、リーダー側は
+// 読めなければならない。その形の zip をここで作る。
+function buildDataDescriptorZip(
+  payload: BackupPayload,
+  attachments: ReadonlyArray<readonly [string, Uint8Array]>,
+): Promise<Uint8Array<ArrayBuffer>> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    const zip = new Zip((err, chunk, final) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      chunks.push(chunk);
+      if (final) {
+        const total = chunks.reduce((sum, c) => sum + c.length, 0);
+        const out = new Uint8Array(total);
+        let pos = 0;
+        for (const c of chunks) {
+          out.set(c, pos);
+          pos += c.length;
+        }
+        resolve(out);
+      }
+    });
+    const payloadEntry = new ZipPassThrough('payload.json');
+    zip.add(payloadEntry);
+    payloadEntry.push(new TextEncoder().encode(JSON.stringify(payload)), true);
+    for (const [id, bytes] of attachments) {
+      const entry = new ZipPassThrough(`attachments/${id}`);
+      zip.add(entry);
+      entry.push(bytes, true);
+    }
+    zip.end();
+  });
+}
 
 describe('looksLikeZip', () => {
   test('zip マジックナンバーを検出', () => {
@@ -31,7 +68,7 @@ describe('looksLikeZip', () => {
   });
 });
 
-describe('buildBackupZipStream / parseBackupZip（ストリーミング形式・data descriptor 付き）', () => {
+describe('buildBackupZipStream / parseBackupZip（自前の書き出し）', () => {
   test('payload と添付を往復できる', async () => {
     const payload: BackupPayload = {
       version: 1,
@@ -95,7 +132,34 @@ describe('buildBackupZipStream / parseBackupZip（ストリーミング形式・
   });
 });
 
-describe('parseBackupZip（旧形式・sizes をローカルヘッダに持つ zip）', () => {
+describe('parseBackupZip（他ツールの data descriptor 付き zip）', () => {
+  const payload: BackupPayload = {
+    version: 1,
+    exportedAt: '2026-07-08T00:00:00.000Z',
+    tables: { journalEntries: [{ id: 'e1' }] },
+  };
+
+  test('payload と添付を読める', async () => {
+    const entries: Array<readonly [string, Uint8Array]> = [
+      ['a1', new Uint8Array([1, 2, 3])],
+      ['a2', new Uint8Array([4, 5])],
+    ];
+    const zip = await buildDataDescriptorZip(payload, entries);
+    const parsed = await parseBackupZip(new Blob([zip]));
+    expect(parsed.payload).toEqual(payload);
+    expect(await blobBytes(parsed.attachmentBlobs.get('a1')!)).toEqual(new Uint8Array([1, 2, 3]));
+    expect(await blobBytes(parsed.attachmentBlobs.get('a2')!)).toEqual(new Uint8Array([4, 5]));
+    expect(parsed.corruptAttachmentNames).toEqual([]);
+  });
+
+  test('0 バイトの添付も読める', async () => {
+    const zip = await buildDataDescriptorZip(payload, [['empty', new Uint8Array(0)]]);
+    const parsed = await parseBackupZip(new Blob([zip]));
+    expect((await blobBytes(parsed.attachmentBlobs.get('empty')!)).length).toBe(0);
+  });
+});
+
+describe('parseBackupZip（他ツールが書いた zip・sizes をローカルヘッダに持つ）', () => {
   function buildLegacyZip(
     payload: BackupPayload,
     attachments: ReadonlyArray<readonly [string, Uint8Array]>,
@@ -203,7 +267,7 @@ function buildDataDescriptorLookalike(): Uint8Array {
 describe('parseBackupZip（添付が PK\\x07\\x08 と同じバイト列を含む・#280 再発防止）', () => {
   const payload: BackupPayload = { version: 1, exportedAt: '2026-07-08', tables: {} };
 
-  test('data descriptor 付き zip でも切り詰められず読める', async () => {
+  test('自前の書き出しで切り詰められず読める', async () => {
     const original = buildDataDescriptorLookalike();
     const stream = buildBackupZipStream(payload, asyncAttachments([['poison', original]]));
     const zip = await drain(stream);
@@ -211,7 +275,14 @@ describe('parseBackupZip（添付が PK\\x07\\x08 と同じバイト列を含む
     expect(await blobBytes(parsed.attachmentBlobs.get('poison')!)).toEqual(original);
   });
 
-  test('旧形式（サイズをローカルヘッダに持つ）zip でも読める', async () => {
+  test('他ツールの data descriptor 付き zip でも切り詰められず読める', async () => {
+    const original = buildDataDescriptorLookalike();
+    const zip = await buildDataDescriptorZip(payload, [['poison', original]]);
+    const parsed = await parseBackupZip(new Blob([zip]));
+    expect(await blobBytes(parsed.attachmentBlobs.get('poison')!)).toEqual(original);
+  });
+
+  test('サイズをローカルヘッダに持つ zip でも読める', async () => {
     const original = buildDataDescriptorLookalike();
     const zip = zipSync(
       {

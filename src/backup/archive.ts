@@ -1,5 +1,6 @@
-import { inflateSync, strToU8, Zip, ZipPassThrough } from 'fflate';
+import { inflateSync } from 'fflate';
 import { createCrc32, crc32 } from './crc32';
+import { ZipStoreWriter } from './zip-writer';
 import type { BackupPayload } from './types';
 
 const PAYLOAD_ENTRY_NAME = 'payload.json';
@@ -11,13 +12,12 @@ export function looksLikeZip(bytes: Uint8Array): boolean {
 // 証憑写真（C7）は base64 化すると容量が約1.4倍に膨らむため、JSON に埋め込まず
 // zip 内に原始バイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
 //
-// fflate の Zip はコールバックを push した分だけ同期的に呼ぶストリーミング API。
-// payload.json → 添付1件ずつ → zip.end() を pull() 1回につき1個ずつ ReadableStream
-// へ流すことで、常に添付1件分だけがメモリに乗る。ReadableStream のデフォルト
-// キューイング戦略が enqueue した分だけ desiredSize を下げるため、追加の
-// キューやハンドシェイクを自前で組む必要はない。
+// payload.json → 添付1件ずつ → 目録、を pull() 1回につき1エントリずつ ReadableStream へ
+// 流すことで、常に添付1件分だけがメモリに乗る。ReadableStream のデフォルトキューイング
+// 戦略が enqueue した分だけ desiredSize を下げるため、追加のキューやハンドシェイクを
+// 自前で組む必要はない。
 //
-// 以前は UI 凍結を避けるため処理を Worker へ逃がす非同期 API を使っていた。この Zip は
+// 以前は UI 凍結を避けるため処理を Worker へ逃がす非同期 API を使っていた。この書き出しは
 // 主スレッドで走るが、store なので実処理は memcpy と CRC32 だけで、しかも添付1件ごとに
 // await が挟まる。全証憑を抱え込むことをやめる方が凍結対策として確実なので入れ替えた。
 export function buildBackupZipStream(
@@ -25,53 +25,36 @@ export function buildBackupZipStream(
   attachments: AsyncIterable<readonly [string, Uint8Array]>,
 ): ReadableStream<Uint8Array> {
   const iter = attachments[Symbol.asyncIterator]();
-  let zip: Zip;
+  const writer = new ZipStoreWriter(new Date());
   let payloadSent = false;
-  let iterDone = false;
   return new ReadableStream({
-    start(controller) {
-      zip = new Zip((err, chunk, final) => {
-        if (err) {
-          controller.error(err);
-          return;
-        }
-        controller.enqueue(chunk);
-        if (final) {
-          controller.close();
-        }
-      });
-    },
     async pull(controller) {
       if (!payloadSent) {
         payloadSent = true;
-        const entry = new ZipPassThrough(PAYLOAD_ENTRY_NAME);
-        zip.add(entry);
-        entry.push(strToU8(JSON.stringify(payload)), true);
-        return;
-      }
-      if (iterDone) {
+        const bytes = new TextEncoder().encode(JSON.stringify(payload));
+        for (const chunk of writer.addEntry(PAYLOAD_ENTRY_NAME, bytes)) {
+          controller.enqueue(chunk);
+        }
         return;
       }
       let result: IteratorResult<readonly [string, Uint8Array]>;
       try {
         result = await iter.next();
       } catch (err) {
-        zip.terminate();
         controller.error(err);
         return;
       }
       if (result.done) {
-        iterDone = true;
-        zip.end();
+        controller.enqueue(writer.finish());
+        controller.close();
         return;
       }
       const [id, bytes] = result.value;
-      const entry = new ZipPassThrough(`${ATTACHMENT_PREFIX}${id}`);
-      zip.add(entry);
-      entry.push(bytes, true);
+      for (const chunk of writer.addEntry(`${ATTACHMENT_PREFIX}${id}`, bytes)) {
+        controller.enqueue(chunk);
+      }
     },
     cancel() {
-      zip.terminate();
       void iter.return?.();
     },
   });
@@ -345,9 +328,10 @@ async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): 
   }
   return hash.digest();
 }
-// バックアップ zip は data descriptor 付き（サイズをローカルヘッダに持たない）で書かれるため、
-// ストリーミングでの逐次読みはサイズもCRCも分からないまま次の PK\x07\x08 シグネチャを探す
-// しかなく、添付のバイナリ中に同じ4バイトが出るだけで無音に切り詰まる。
+// 復元は他ツールが書いた zip も受け取る（aoiko 自身の書き出しは data descriptor を使わないが、
+// 他のストリーミング書き出しは使う）。data descriptor 付きの zip を先頭から逐次読みすると、
+// サイズも CRC も分からないまま次の PK\x07\x08 シグネチャを探すしかなく、添付のバイナリ中に
+// 同じ4バイトが出るだけで無音に切り詰まる（#280）。
 // 中央目録には真のサイズとオフセットが入っているので、そこだけ読んで各エントリへ
 // Blob.slice で直接飛ぶ。slice はコピーしないので、無圧縮（store）の添付は
 // バイト列が JS ヒープに一切乗らない。
