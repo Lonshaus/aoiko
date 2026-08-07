@@ -1,5 +1,13 @@
 export type EntrySource =
-  'manual' | 'csv' | 'extension' | 'ocr' | 'carryover' | 'paste' | 'opening';
+  | 'manual'
+  | 'csv'
+  | 'extension'
+  | 'ocr'
+  | 'carryover'
+  | 'paste'
+  | 'opening'
+  // 貸倒引当金の繰戻し（洗替、所得税法52条3項）。重複生成の判定に使う。
+  | 'badDebtReversal';
 type EntryStatus = 'confirmed' | 'reversed';
 export type LineSide = 'debit' | 'credit';
 export type AccountCategory = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense';
