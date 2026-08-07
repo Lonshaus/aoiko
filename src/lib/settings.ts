@@ -79,6 +79,9 @@ export type SettingsMap = {
   // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
+  // <a download> 経路（あるブラウザ / あるブラウザ）で保存できたかの確認ダイアログをスキップ
+  // （利用者が「次回から確認しない」を選択）。
+  skipDownloadSavedConfirm: boolean;
   // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
   // 設定画面の「非表示にした確認を元に戻す」で戻せる（suppressed-confirms.ts）。
   skipFiledYearWarning: boolean;
