@@ -12,6 +12,7 @@
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { badDebtReserveEvaluations } from '../tax-schema/2026/bad-debt-reserve';
   import { ledger } from '../stores/ledger.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
@@ -127,6 +128,9 @@
   const creditTotal = $derived(sumAmount(credits));
   const diff = $derived(D(debitTotal).minus(creditTotal).toString());
   const balanced = $derived(D(diff).isZero() && !D(debitTotal).isZero());
+  const badDebtEvaluations = $derived(
+    badDebtReserveEvaluations([...debits, ...credits].map((l) => l.accountCode)),
+  );
   // 入力途中でタブを閉じる・リロードした際にデータが無言で消えるのを防ぐ。
   // bind:value を多用しているため、入力ハンドラで flag を立てるより
   // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
@@ -776,6 +780,18 @@
       {/if}
     </div>
   </div>
+
+  <!-- 科目を選んだ瞬間に差し込まれる注意なので、読み上げにも届くよう role="status" を付ける。 -->
+  {#if badDebtEvaluations.has('lumpSum')}
+    <div role="status" class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_lump_sum_notice()}
+    </div>
+  {/if}
+  {#if badDebtEvaluations.has('individual')}
+    <div role="status" class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_individual_notice()}
+    </div>
+  {/if}
 
   {#if error}
     <div class="text-sm text-destructive">{error}</div>
