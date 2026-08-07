@@ -40,10 +40,31 @@ const CURRENT_YEAR = new Date().getFullYear();
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
 
+// 表示言語で探さない。テスト環境では読み込みの途中で言語が切り替わることがあり、
+// 文言で探すとその切り替えと競走してしまう。
 function reversalButton(): HTMLButtonElement | undefined {
-  return Array.from(container!.querySelectorAll('button')).find(
-    (b) => /繰り戻/.test(b.textContent ?? '') && !b.disabled,
+  return (
+    container?.querySelector<HTMLButtonElement>('[data-testid="bad-debt-reversal-run"]') ??
+    undefined
   );
+}
+
+// Settings の onMount は getSetting を 20 回以上直列に await する。読み終わる前に
+// db.delete() すると残りが DatabaseClosedError で未処理の rejection になり、テストは
+// 通るのに vitest が exit 1 になる。homeOfficeAccountRatios はその直列読みの最後なので、
+// 他のどこにも出てこない科目コードを仕込んで画面に出るまで待てば、読み込み完了が分かる。
+const MOUNT_SENTINEL = 'ZZZ9';
+
+async function mountSettled(): Promise<void> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
+  container = document.createElement('div');
+  document.body.appendChild(container);
+  instance = mount(Settings, { target: container, props: {} });
+  await waitFor(() => (container?.textContent ?? '').includes(MOUNT_SENTINEL));
 }
 
 beforeEach(async () => {
@@ -51,9 +72,6 @@ beforeEach(async () => {
   await db.open();
   applyBadDebtReversalMock.mockClear();
   filedYearGuard.pending = null;
-  container = document.createElement('div');
-  document.body.appendChild(container);
-  instance = mount(Settings, { target: container, props: {} });
 });
 
 afterEach(async () => {
@@ -72,7 +90,7 @@ afterEach(async () => {
 describe('runBadDebtReversal: 申告済み年度のロック', () => {
   test('申告済み年度なら確認を挟み、続行を選んで初めて生成する', async () => {
     await markYearFiled(CURRENT_YEAR, { monthlySales, pl }, `${CURRENT_YEAR}-12-31`);
-    await waitFor(() => document.querySelectorAll('button').length > 0);
+    await mountSettled();
     const btn = reversalButton();
     expect(btn).toBeDefined();
     btn!.click();
@@ -86,7 +104,7 @@ describe('runBadDebtReversal: 申告済み年度のロック', () => {
 
   test('確認で取消を選ぶと生成されない', async () => {
     await markYearFiled(CURRENT_YEAR, { monthlySales, pl }, `${CURRENT_YEAR}-12-31`);
-    await waitFor(() => document.querySelectorAll('button').length > 0);
+    await mountSettled();
     reversalButton()!.click();
     await waitFor(() => filedYearGuard.pending !== null);
     await filedYearGuard.resolve(false);
@@ -94,7 +112,7 @@ describe('runBadDebtReversal: 申告済み年度のロック', () => {
   });
 
   test('申告済みでなければ確認を挟まずに生成する', async () => {
-    await waitFor(() => document.querySelectorAll('button').length > 0);
+    await mountSettled();
     reversalButton()!.click();
     await waitFor(() => applyBadDebtReversalMock.mock.calls.length > 0);
     expect(filedYearGuard.pending).toBeNull();

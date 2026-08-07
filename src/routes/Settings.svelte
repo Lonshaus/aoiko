@@ -1570,6 +1570,7 @@
       <button
         type="button"
         onclick={runBadDebtReversal}
+        data-testid="bad-debt-reversal-run"
         class="px-4 py-2 border rounded hover:bg-accent"
       >
         {m.settings_bad_debt_reversal_button()}
