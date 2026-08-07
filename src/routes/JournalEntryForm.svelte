@@ -128,8 +128,6 @@
   const creditTotal = $derived(sumAmount(credits));
   const diff = $derived(D(debitTotal).minus(creditTotal).toString());
   const balanced = $derived(D(diff).isZero() && !D(debitTotal).isZero());
-  // 繰入額は出力するが、その根拠となる明細は aoiko では作れない（bad-debt-reserve.ts）。
-  // 記帳の時点で知らせないと、明細を添付しないまま送信して繰入れごと否認されうる。
   const badDebtEvaluations = $derived(
     badDebtReserveEvaluations([...debits, ...credits].map((l) => l.accountCode)),
   );
