@@ -9,6 +9,7 @@
     description?: string;
     descriptionHtml?: string;
     proceedLabel: string;
+    cancelLabel?: string;
     dontAskLabel: string;
     preview?: Snippet;
     onconfirm: (dontAskAgain: boolean) => void;
@@ -21,6 +22,7 @@
     description,
     descriptionHtml,
     proceedLabel,
+    cancelLabel,
     dontAskLabel,
     preview,
     onconfirm,
@@ -56,7 +58,7 @@
       {dontAskLabel}
     </label>
     <AlertDialog.Footer>
-      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Cancel>{cancelLabel ?? m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action onclick={() => onconfirm(dontAskAgain)}>
         {proceedLabel}
       </AlertDialog.Action>
