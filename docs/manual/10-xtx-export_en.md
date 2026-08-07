@@ -66,6 +66,10 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
 | **Consumption tax return** (multi-category simplified taxation, 30% special) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and single-category simplified taxation have `.xtx` export: [§ 6](#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption Tax](07-consumption-tax_en.md)) |
 | **White-return family-employee deduction** (flat ¥860,000 for a spouse, ¥500,000 per other relative) and the post-deduction income | Enter in e-Tax (aoiko does not compute it — it depends on relationship data aoiko doesn't track) |
+| **Basis for the lump-sum-assessed bad-debt allowance** ("total receivables" and "deductible limit" on page 2 of the financial statement) | Enter in e-Tax (aoiko does not track per-debtor receivable balances, so both boxes are output blank; the addition itself is still output) |
+| **Schedule of individually-assessed bad-debt allowance** | Prepare in e-Tax (it needs the statutory ground and the expected recoverable amounts, which aoiko does not hold, so aoiko does not generate it) |
+
+> **A bad-debt allowance addition isn't valid without its supporting statement.** Under Income Tax Act art. 52(4), stating the basis of the addition calculation (and, for individually-assessed allowances, attaching the schedule) is a condition for the allowance to apply at all. aoiko outputs the addition amount, but not the supporting statement behind it — complete that in e-Tax as shown above. The same note appears in the bookkeeping form when you post to the relevant account.
 
 > The baseline division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the rest is completed by the filer in e-Tax at filing time. aoiko additionally outputs income deductions and tax when [14. Income & tax deductions](14-income-deductions_en.md) is filled in.
 
