@@ -155,6 +155,8 @@
   "journal_form_subaccount_select": "選擇輔助科目（選填）",
   "journal_form_inventory_item_select": "選擇商品（選填・庫存管理）",
   "journal_form_inventory_quantity_placeholder": "數量",
+  "journal_form_bad_debt_lump_sum_notice": "這筆分錄含有貸倒引当金繰入額（一括評価）。決算書第 2 頁的「貸金の合計額」「繰入限度額」，因為 aoiko 沒有逐一債務者的債權餘額，會留空輸出，請在 e-Tax 補填。依所得稅法 52 條 4 項，這份明細的記載是這筆繰入額能否列計的適用要件。",
+  "journal_form_bad_debt_individual_notice": "這筆分錄含有貸倒引当金繰入額（個別評価）。「個別評価による貸倒引当金に関する明細書」需要適用事由的款別、預估可回收金額等 aoiko 沒有的資訊，因此不會產生，請在 e-Tax 自行製作。依所得稅法 52 條 4 項，附上這份明細書是這筆繰入額能否列計的適用要件。",
   "journal_form_amount_placeholder": "金額",
   "journal_form_remove_line_label": "刪除此列",
   "journal_form_tax_included": "含稅",
