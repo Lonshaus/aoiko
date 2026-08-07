@@ -12,7 +12,12 @@ import {
 } from '../backup';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
-import { selectExpiredBackups, shouldBackupNow } from '../backup/schedule';
+import {
+  daysSince,
+  needsOffsiteBackupWarning,
+  selectExpiredBackups,
+  shouldBackupNow,
+} from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
 
@@ -351,15 +356,36 @@ class BackupManager {
       }
     } while (this.backupPending);
   }
+  private async stampDownloadedNow(): Promise<void> {
+    this.lastDownloadAt = Date.now();
+    await setSetting('lastDownloadAt', this.lastDownloadAt);
+  }
+  // <a download> 経路（Firefox / Safari）は保存できたか観測できないため、利用者に
+  // 「保存できましたか？」の確認を出した後にこちらを呼んで刻む（issue#390）。
+  async confirmDownloadSaved(): Promise<void> {
+    await this.stampDownloadedNow();
+  }
   // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ zip を書き出す
   // （帳簿データ + 証憑写真原本を同梱）。全環境で動作。
   // OPFS 使用環境では iCloud Drive 等への手動コピーの起点となる。
-  async downloadBackup(): Promise<void> {
+  //
+  // 戻り値は「利用者に保存できたか確かめる必要があるか」。true のときだけ呼出側は
+  // 確認ダイアログを出し、答えが来たら confirmDownloadSaved() を呼ぶ。それ以外の結果
+  // （成功・取消・失敗）は lastDownloadAt / lastError に既に反映されている。
+  async downloadBackup(): Promise<boolean> {
     this.lastError = '';
+    // 「保存できたか聞くべきか」はダウンロードを押した時点の警告表示状態で決める。
+    // 刻んだ後に判定すると、既に刻んだ時刻のせいで warning が偽になってしまう。
+    const daysSinceDownload = daysSince(this.lastDownloadAt);
+    const warningWasShowing = needsOffsiteBackupWarning(
+      this.adapterKind,
+      this.status,
+      daysSinceDownload,
+    );
     try {
       // zip の組み立ては saveFile が保存先を確定させた後に走らせる。先にやると
       // showSaveFilePicker のユーザー操作の有効時間が切れる（issue#386）。
-      const saved = await saveFile(
+      const result = await saveFile(
         async () => {
           const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
           const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
@@ -369,14 +395,26 @@ class BackupManager {
         'application/zip',
         { confirmCompletion: true },
       );
-      // 保存を取り消した場合に時刻を刻むと、書き出されていないバックアップのために
+      // 取り消した場合に時刻を刻むと、書き出されていないバックアップのために
       // 「端末外バックアップがありません」の警告が抑止されてしまう。
-      if (saved) {
-        this.lastDownloadAt = Date.now();
-        await setSetting('lastDownloadAt', this.lastDownloadAt);
+      if (result === 'cancelled') {
+        return false;
       }
+      if (result === 'saved') {
+        await this.stampDownloadedNow();
+        return false;
+      }
+      // result === 'unknown'（<a download> 経路）。警告が出ていなければ取り違えても
+      // 実害が無いので黙って刻む。抑止設定があれば従来どおり無条件に刻む。
+      const skipConfirm = (await getSetting('skipDownloadSavedConfirm')) ?? false;
+      if (!warningWasShowing || skipConfirm) {
+        await this.stampDownloadedNow();
+        return false;
+      }
+      return true;
     } catch (e: unknown) {
       this.lastError = e instanceof Error ? e.message : String(e);
+      return false;
     }
   }
 }
