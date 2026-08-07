@@ -328,9 +328,10 @@ async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): 
   }
   return hash.digest();
 }
-// バックアップ zip は data descriptor 付き（サイズをローカルヘッダに持たない）で書かれるため、
-// ストリーミングでの逐次読みはサイズもCRCも分からないまま次の PK\x07\x08 シグネチャを探す
-// しかなく、添付のバイナリ中に同じ4バイトが出るだけで無音に切り詰まる。
+// 復元は他ツールが書いた zip も受け取る（aoiko 自身の書き出しは data descriptor を使わないが、
+// 他のストリーミング書き出しは使う）。data descriptor 付きの zip を先頭から逐次読みすると、
+// サイズも CRC も分からないまま次の PK\x07\x08 シグネチャを探すしかなく、添付のバイナリ中に
+// 同じ4バイトが出るだけで無音に切り詰まる（#280）。
 // 中央目録には真のサイズとオフセットが入っているので、そこだけ読んで各エントリへ
 // Blob.slice で直接飛ぶ。slice はコピーしないので、無圧縮（store）の添付は
 // バイト列が JS ヒープに一切乗らない。
