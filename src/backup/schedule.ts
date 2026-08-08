@@ -1,5 +1,4 @@
-// 自動バックアップの実行間隔と、古いバックアップの汰換を判定する純ロジック。
-// ブラウザ API に触れないため、アダプタ実装と切り離して単体テストできる。
+// 実行間隔と古いバックアップの汰換を判定する純ロジック。ブラウザ API に触れない。
 export const BACKUP_INTERVAL_HOURS = [0, 1, 3, 5, 12, 24] as const;
 export type BackupIntervalHours = (typeof BACKUP_INTERVAL_HOURS)[number];
 
@@ -10,8 +9,7 @@ const HOUR_MS = 60 * 60 * 1000;
 // 日付入りの名前だけを汰換対象にする。OPFS が併置する固定名
 // （aoiko-ledger-latest.zip）は復元の起点なので決して削除しない。
 const DATED_BACKUP_PATTERN = /^aoiko-ledger-\d{4}-\d{2}-\d{2}\.zip$/;
-// intervalHours = 0 は「変更のたび」（既定・従来動作）。
-// 引数は number で受ける。UI が出す選択肢が変わってもこの判定は変えなくてよい。
+// intervalHours = 0 は「変更のたび」（既定）。
 export function shouldBackupNow(
   lastBackupAt: number | null,
   now: number,
@@ -55,10 +53,8 @@ export function isFolderBackupActive(adapterKind: string, status: string): boole
     (status === 'idle' || status === 'writing')
   );
 }
-// 端末外に控えがあると言えるのは、利用者が選んだフォルダへの自動保存が現に
-// 動いている場合だけ。OPFS はブラウザ管理領域でサイトデータ削除と運命を共にし、
-// フォルダ未設定・ブラウザ非対応はそもそも自動保存が無い。どの場合も手動
-// ダウンロードしか端末外へ出る経路がないため、同じ基準で警告する。
+// 端末外に控えがあると言えるのは、選んだフォルダへの自動保存が現に動いている場合だけ。
+// OPFS はサイトデータ削除と運命を共にするので、この基準には入らない。
 export function needsOffsiteBackupWarning(
   adapterKind: string,
   status: string,

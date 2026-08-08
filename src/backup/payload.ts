@@ -22,9 +22,7 @@ export const FILER_INFO_SETTING_KEYS = new Set([
 export const PAYLOAD_VERSION = 1;
 
 interface BuildPayloadOptions {
-  // API キーをバックアップに含めるか（既定 false）
   includeApiKeys?: boolean;
-  // 申告者情報をバックアップに含めるか（既定 false）
   includeFilerInfo?: boolean;
 }
 
@@ -32,10 +30,8 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
   const includeApiKeys = options.includeApiKeys ?? false;
   const includeFilerInfo = options.includeFilerInfo ?? false;
   const tables: Record<string, unknown[]> = {};
-  // 全テーブルを1つの読み取りトランザクションで揃える。table ごとに await t.toArray()
-  // すると Dexie がその都度独立トランザクションを開き、間に書き込みが割り込んで
-  // 参照整合性が壊れたスナップショットになる（#316）。写真バイナリの読み出しは
-  // iterateAttachmentBlobs で zip ストリーミング中に別途行うため、ここには含めない。
+  // 全テーブルを 1 つの読み取りトランザクションで揃える。table ごとに await すると Dexie が
+  // その都度独立トランザクションを開き、間に書き込みが割り込んで整合性が壊れる（#316）。
   await db.transaction('r', db.tables, async () => {
     for (const t of db.tables) {
       let rows = await t.toArray();
@@ -71,8 +67,7 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     tables,
   };
 }
-// 証憑写真（C7）の実体バイナリを id → bytes で1件ずつ生成する。zip 同梱用。
-// 主キーを先に取得してから1件ずつ get() することで、常に写真1枚分だけがメモリに乗る。
+// 主キーを先に取り、1 件ずつ get() する。常に写真 1 枚分だけがメモリに乗る。
 export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string, Uint8Array]> {
   const ids = await db.attachments.toCollection().primaryKeys();
   for (const id of ids) {

@@ -1,8 +1,6 @@
 import type { BackupAdapter } from './types';
-// Origin Private File System によるブラウザ内サンドボックス書き込み。
-// FSA API 非対応（Safari / Firefox / iOS）の主要な永続化フォルバック。
-// 同期フォルダではないため、ブラウザのデータ削除で失われる。
-// 定期的な JSON ダウンロードでユーザーが iCloud 等に手動コピーする運用前提。
+// FSA API 非対応（Safari / Firefox / iOS）向けのフォルバック。同期フォルダではないので
+// ブラウザのデータ削除で失われる——端末外へ出すには手動ダウンロードが要る。
 export class OpfsBackupAdapter implements BackupAdapter {
   readonly name = 'opfs';
   // getDirectory だけでは足りない。書き込みに使う createWritable は後から実装された
@@ -22,8 +20,7 @@ export class OpfsBackupAdapter implements BackupAdapter {
   async isReady(): Promise<boolean> {
     return this.isAvailable();
   }
-  // OPFS は明示的なユーザー許可不要。永続化ストレージの要求は
-  // アダプタ非依存の関心事なので BackupManager 側が一括で行う。
+  // OPFS は利用者の許可が要らない。永続化ストレージの要求は BackupManager 側が一括で行う。
   async ensurePermission(): Promise<boolean> {
     return this.isAvailable();
   }
@@ -41,9 +38,8 @@ export class OpfsBackupAdapter implements BackupAdapter {
     // 当日分（複数回上書き可、無視で OK）
     const dailyHandle = await root.getFileHandle(fileName, { create: true });
     await stream.pipeTo(await dailyHandle.createWritable());
-    // 復元時に参照しやすいよう「最新」固定名のコピーも保持する。ReadableStream は
-    // 一度しか読めず tee() は両者の読み出し速度差を吸収するため結局バッファするので、
-    // ディスク上の当日分ファイルから直接コピーする（メモリに全体を乗せない）。
+    // 「最新」固定名のコピーも置く。ReadableStream は一度しか読めず、tee() は速度差を
+    // 吸収するため結局バッファするので、ディスク上の当日分から直接コピーする。
     const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
       create: true,
     });

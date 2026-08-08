@@ -1,12 +1,10 @@
 import type { BackupAdapter } from './types';
-// wrapper 版（Windows / macOS / iPadOS / iOS）が注入するネイティブのフォルダ書き込み。
+// wrapper 版が注入するネイティブのフォルダ書き込み。
 //
 // WKWebView に showDirectoryPicker は無く、今後も入らない（WebKit の standards-positions#28
-// が oppose でクローズ済み、preference も存在しない）。web API に頼る限り Apple 側の app は
-// 同期フォルダへの自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
+// が oppose でクローズ済み）。web API に頼る限り Apple 側は同期フォルダへ自動書き出しできない。
 //
-// ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
-// 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
+// SDK は import せず window.__aoikoNative 経由で呼ぶ——公開 repo の依存を増やさないため。
 interface NativeBackupBridge {
   // 取り消しは null。token は端末固有の不透明文字列で、中身は wrapper 側の都合で決まる。
   // web 側は保管して渡し直すだけで、解釈しない。
@@ -28,10 +26,8 @@ type GetFolder = () => Promise<NativeBackupFolder | null>;
 type SetFolder = (folder: NativeBackupFolder) => Promise<void>;
 
 export type NativeBackupState = 'idle' | 'unconfigured' | 'reconfigure-required';
-// 起動時にどの状態から始めるかの判定。BackupManager はモジュール読込時に生成される
-// singleton で単体テストしづらいが、ここを間違えると「自動バックアップが黙って止まる」に
-// 直結する（reconfigure-required を取り違えて unconfigured にすると、利用者は設定済みの
-// つもりのまま保存されなくなる）。判定だけ純粋関数に切り出して確かめられるようにする。
+// 起動時の状態判定。reconfigure-required を unconfigured と取り違えると、利用者は設定済みの
+// つもりのまま一度も保存されなくなる。試せるよう判定だけ純粋関数に切り出してある。
 export function decideNativeState(input: {
   hasFolder: boolean;
   hasLegacyHandle: boolean;
@@ -72,9 +68,8 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     }
     return api.backupIsReady(folder.token);
   }
-  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。iOS の bookmark が
-  // 解決できなくなった場合も、フォルダを移動・削除された場合も回復動線は同じなので、
-  // 権限の再取得を独立した操作にはせず configure に一本化する。
+  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。bookmark の解決失敗も
+  // フォルダの移動・削除も回復動線は同じなので configure に一本化する。
   async ensurePermission(): Promise<boolean> {
     return this.isReady();
   }

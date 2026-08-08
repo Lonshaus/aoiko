@@ -9,17 +9,11 @@ const ATTACHMENT_PREFIX = 'attachments/';
 export function looksLikeZip(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
 }
-// 証憑写真（C7）は base64 化すると容量が約1.4倍に膨らむため、JSON に埋め込まず
-// zip 内に原始バイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
+// 証憑写真は base64 化すると約1.4倍に膨らむので JSON へ埋めず、原始バイナリのまま zip に
+// 同梱する。画像は圧縮済みなので zip 自体は無圧縮（store）。
 //
-// payload.json → 添付1件ずつ → 目録、を pull() 1回につき1エントリずつ ReadableStream へ
-// 流すことで、常に添付1件分だけがメモリに乗る。ReadableStream のデフォルトキューイング
-// 戦略が enqueue した分だけ desiredSize を下げるため、追加のキューやハンドシェイクを
-// 自前で組む必要はない。
-//
-// 以前は UI 凍結を避けるため処理を Worker へ逃がす非同期 API を使っていた。この書き出しは
-// 主スレッドで走るが、store なので実処理は memcpy と CRC32 だけで、しかも添付1件ごとに
-// await が挟まる。全証憑を抱え込むことをやめる方が凍結対策として確実なので入れ替えた。
+// pull() 1 回につき 1 エントリだけ流すので、常に添付 1 件分しかメモリに乗らない。
+// ReadableStream の既定のキューイング戦略が背圧を見てくれるため、自前のキューは要らない。
 export function buildBackupZipStream(
   payload: BackupPayload,
   attachments: AsyncIterable<readonly [string, Uint8Array]>,
@@ -316,8 +310,8 @@ async function readEntryBlob(
   }
   throw new Error(ZIP_READ_ERROR);
 }
-// zip の CRC32 は非圧縮バイト列に対する値。deflate はどうせ展開済みの実体が手元にあるので
-// それを使い、無圧縮（store）はヒープに載せない設計を崩さないよう分割して読み捨てながら回す。
+// CRC32 は非圧縮バイト列に対する値。store は実体をヒープに載せない設計を崩さないよう、
+// 分割して読み捨てながら回す。
 async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): Promise<number> {
   if (inflated) {
     return crc32(inflated);
@@ -328,13 +322,10 @@ async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): 
   }
   return hash.digest();
 }
-// 復元は他ツールが書いた zip も受け取る（aoiko 自身の書き出しは data descriptor を使わないが、
-// 他のストリーミング書き出しは使う）。data descriptor 付きの zip を先頭から逐次読みすると、
-// サイズも CRC も分からないまま次の PK\x07\x08 シグネチャを探すしかなく、添付のバイナリ中に
-// 同じ4バイトが出るだけで無音に切り詰まる（#280）。
-// 中央目録には真のサイズとオフセットが入っているので、そこだけ読んで各エントリへ
-// Blob.slice で直接飛ぶ。slice はコピーしないので、無圧縮（store）の添付は
-// バイト列が JS ヒープに一切乗らない。
+// 他ツールが書いた zip も受け取る。data descriptor 付きを先頭から逐次読みすると、サイズも
+// CRC も分からないまま次の PK\x07\x08 を探すしかなく、添付のバイナリ中に同じ 4 バイトが
+// 出るだけで無音に切り詰まる（#280）。中央目録の真の値を読んで Blob.slice で直接飛ぶ。
+// slice はコピーしないので store の添付はヒープに乗らない。
 export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
   const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
   if (!looksLikeZip(head)) {
@@ -371,9 +362,8 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
     }
   }
-  // payload.json 自体が壊れている（または見つからない）場合だけ硬く止める。帳簿の
-  // 検証を通ったデータまで一緒に捨てないよう、添付だけ壊れている場合は続行し、
-  // 何枚壊れていたかを呼び出し元へ返す（#316。missingBlobCount と同型の警告経路）。
+  // 硬く止めるのは payload.json 自体が壊れている場合だけ。添付だけなら続行し、何枚壊れて
+  // いたかを返す——検証を通った帳簿まで一緒に捨てないため（#316）。
   if (corruptNames.includes(PAYLOAD_ENTRY_NAME)) {
     throw new BackupCorruptError(corruptNames);
   }
