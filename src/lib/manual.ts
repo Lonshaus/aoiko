@@ -31,9 +31,8 @@ const registry = buildLocaleRegistry(modules);
 export function chapterSlugs(): string[] {
   return [...registry.keys()].filter((s) => s !== INDEX_SLUG).sort();
 }
-// 条文は章ではないので registry には入れない。chapterSlugs() は registry から
-// 導出されるため、サイドバーと前後章ナビゲーションには自動的に現れない
-// （「次の章：PRIVACY」のような並びにならない）。ルートとしてだけ解決できればよい。
+// 条文は章ではないので registry には入れない。chapterSlugs() が registry 由来なので、
+// これだけでサイドバーと前後章ナビから外れる。
 function isPolicySlug(slug: string): slug is PolicyDocName {
   return POLICY_DOC_NAMES.includes(slug as PolicyDocName);
 }
@@ -52,8 +51,7 @@ export function getManualContent(slug: string, locale: Locale): string | null {
   }
   return byLocale.get(locale) ?? byLocale.get(baseLocale) ?? null;
 }
-// 見出しをプレーンテキスト表示する箇所（サイドバー・前後章・検索結果・章内目次）向けに
-// インライン記法（`code`・太字・斜体・リンク）を除去する。アンカー id は元テキストから算出するため影響しない。
+// 見出しをプレーンテキストで出す箇所向け。アンカー id は元テキストから算出するので影響しない。
 export function stripInline(text: string): string {
   return text
     .replace(/`([^`]+)`/g, '$1')
@@ -78,9 +76,8 @@ export function adjacentChapters(slug: string): { prev: string | null; next: str
     next: i < slugs.length - 1 ? (slugs[i + 1] ?? null) : null,
   };
 }
-// マニュアル章間の相対リンク（例 `02-journal_zh-TW.md`、`08-depreciation.md`）を
-// SPA ルート `/manual/02-journal` に書き換える。README は目次ルート `/manual` へ。
-// `../../README.md` のようなマニュアル外リンクは [A-Za-z0-9-] が `.` で止まるため対象外。
+// 章間の相対リンクを SPA ルートへ。`../../README.md` 等が対象外になるのは
+// [A-Za-z0-9-] が `.` で止まるため。
 export function rewriteLinks(markdown: string): string {
   return markdown.replace(
     /\]\((?:\.\/)?([A-Za-z0-9-]+)(?:_(?:en|zh-TW))?\.md(#[^)]*)?\)/g,
@@ -90,8 +87,8 @@ export function rewriteLinks(markdown: string): string {
     },
   );
 }
-// GitHub 上でそのまま表示できるよう、markdown ソースは repo ルート相対パス（例 `../../src/assets/logo-wordmark.png`）
-// を使う。アプリ内はルーティング階層に関わらず常に `/` 相対で配信されるため、レンダリング前に絶対パスへ書き換える。
+// markdown ソースは GitHub でそのまま読めるよう repo ルート相対。アプリ内は常に `/` 相対で
+// 配信されるので、描画前に絶対パスへ直す。
 export function rewriteImagePaths(markdown: string): string {
   return markdown.replace(/\.\.\/\.\.\/src\/assets\/logo-wordmark\.png/g, '/logo-wordmark.png');
 }
@@ -102,15 +99,11 @@ interface ResolvedManualLink {
   href: string;
   external: boolean;
 }
-// 利用者が同意した条文への相対リンク。オフラインでも読めるようアプリ内へ解決する。
-// 言語別ファイル（`_en` / `_zh-TW`）は同一 slug へ寄せる。表示言語は UI 設定に
-// 追従させるべきで、どのリンクを踏んだかで決まるべきではないため。
+// 同意済みの条文へのリンク。オフラインでも読めるようアプリ内へ解決する。言語別ファイルを
+// 同一 slug へ寄せるのは、表示言語を UI 設定に追従させ、踏んだリンクで決めさせないため。
 const POLICY_DOC_LINK = /^(?:\.\.\/)+(DISCLAIMER|PRIVACY|SECURITY)(?:_(?:en|zh-TW))?\.md$/;
-// マニュアル内リンクの href を marked のレンダリング時に解決する。
-// `#アンカー`・`rewriteLinks` 済みの `/manual/...` はアプリ内遷移のためそのまま。
-// `http(s)://` は外部リンク。条文は上記のとおりアプリ内へ。
-// それ以外（`../../CONTRIBUTING.md`・原始碼等、開発者向けで同梱する意味がないもの）は
-// GitHub 上の実体を指す絶対 URL に書き換え、外部リンク扱いにする。
+// href を marked の描画時に解決する。同梱していない開発者向けファイル（CONTRIBUTING 等）だけは
+// GitHub 上の実体を指す絶対 URL へ寄せる。
 export function resolveManualLink(href: string): ResolvedManualLink {
   if (href.startsWith('#') || href.startsWith('/manual')) {
     return { href, external: false };
@@ -125,9 +118,8 @@ export function resolveManualLink(href: string): ResolvedManualLink {
   const repoPath = href.replace(/^(\.\.\/)+/, '');
   return { href: `${GITHUB_BLOB_BASE}${repoPath}`, external: true };
 }
-// GitHub 互換の見出し slug。既存の章間 `#アンカー` リンクと一致させる必要があるため
-// 小文字化・記号除去・空白→ハイフン・CJK 保持で揃える。
-// 空白は 1 個ずつ '-' に置換（GitHub anchor と同形にするため、記号除去で生じた連続空白を潰さない）。
+// GitHub 互換の見出し slug。既存の章間 `#アンカー` と一致させる必要がある。空白を 1 個ずつ
+// '-' に置くのもそのため——記号除去で生じた連続空白を潰すと形が変わる。
 export function slugifyHeading(text: string): string {
   return text
     .toLowerCase()
@@ -141,7 +133,6 @@ interface Heading {
   text: string;
   id: string;
 }
-// h2 / h3 のみを章内目次として抽出する。コードブロック内は対象外。
 export function extractHeadings(markdown: string): Heading[] {
   const headings: Heading[] = [];
   let inFence = false;
@@ -178,7 +169,6 @@ function makeSnippet(content: string, idx: number, len: number): string {
     .trim();
   return `${start > 0 ? '…' : ''}${body}${end < content.length ? '…' : ''}`;
 }
-// 全マニュアルを対象に大文字小文字を無視して全文検索する。索引（README）を先頭に章番号順。
 export function searchManual(query: string, locale: Locale): SearchHit[] {
   const q = query.trim().toLowerCase();
   if (q.length === 0) {

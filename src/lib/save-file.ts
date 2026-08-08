@@ -1,18 +1,10 @@
-// ファイルを保存する。バックアップ zip・.xtx・XML・弥生 CSV の 4 箇所に同じ実装が
-// 複製されていたため 1 箇所へ集約する。呼出側はファイルの中身と名前だけを渡す。
+// 戻り値は「保存の完了を観測できたか」。既定の <a> ダウンロードは完了も取消も観測できないので
+// 常に 'unknown'。confirmCompletion のときだけ File System Access で保存先の確定を待つ——
+// 既定にしないのは picker を挟むと .xtx や CSV の書き出しまで挙動が変わるため。
 //
-// 戻り値は「利用者が保存を完了したことを観測できたか」。既定は <a> のダウンロードで、
-// 完了も取消も観測できないため常に 'unknown' を返す（Firefox / Safari）。
-//
-// confirmCompletion を指定した場合だけ、File System Access が使える環境で保存先の確定まで
-// 待ち、'saved'／'cancelled' を区別する。保存済みを主張する記録（バックアップの最終ダウンロード
-// 時刻）を残す呼出側のためのオプションで、既定にはしない：picker を挟むと保存ダイアログの
-// 挙動が変わり、.xtx や CSV の書き出しまで UX が変わってしまうため。
-//
-// ⚠ showSaveFilePicker は一時的なユーザー操作（transient activation、Chromium ではおよそ
-// 5秒）の間しか開けない。中身を先に用意すると大きな帳簿・証憑写真で活性化が切れ、
-// SecurityError で保存できなくなる（chromium issue 40175286）。そのため picker を最初に
-// 呼び、保存先が確定してから中身を作る。データを遅延生成する関数も受け取れるのはこのため。
+// ⚠ showSaveFilePicker は transient activation（Chromium で約 5 秒）の間しか開けない。中身を
+// 先に用意すると大きな帳簿で活性化が切れ SecurityError になる（chromium issue 40175286）。
+// picker を先に呼び、保存先が決まってから中身を作る。遅延生成の関数を受け取れるのはこのため。
 export type SaveFileData = Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
 export type SaveFileResult = 'saved' | 'cancelled' | 'unknown';
 
@@ -80,11 +72,10 @@ async function toBlob(data: SaveFileData, mimeType: string): Promise<Blob> {
     return new Blob([data], { type: mimeType });
   }
   const rawBlob = await new Response(data).blob();
-  // Response(stream).blob() は type が空になるため貼り直す。slice はコピーせず
-  // 同一バイト列への view を返すのでストリーミングで抑えたメモリ増を保つ。
+  // Response(stream).blob() は type が空になるので貼り直す。slice はコピーせず view を返すため、
+  // ストリーミングで抑えたメモリは保たれる。
   return rawBlob.slice(0, rawBlob.size, mimeType);
 }
-// テキストを UTF-8 で書き出す（.xtx・XML 用）。
 export async function saveTextFile(
   text: string,
   filename: string,

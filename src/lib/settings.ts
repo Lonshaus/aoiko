@@ -9,84 +9,64 @@ import type { NativeBackupFolder } from '../backup/native';
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版（Windows / macOS / iPadOS / iOS）で選んだバックアップ先。token は端末固有の
-  // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
+  // token は端末固有なのでバックアップに含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
-  // 自動バックアップの実行間隔（時間）。0 = 変更のたび（既定・従来動作）。
-  // 証憑写真を含む全量 zip を毎回作り直すコストを抑えるための設定。
+  // 0 = 変更のたび（既定）。
   backupIntervalHours: BackupIntervalHours;
-  // 日付入りバックアップの保持件数。0 = 削除しない（既定・従来動作）。
+  // 0 = 削除しない（既定）。
   backupRetentionCount: BackupRetentionCount;
-  // 家事按分の科目別既定比率（accountCode → '0.30' 等の 0〜1 Decimal 文字列）。
-  // 記帳フォームで該当科目を選ぶと自動入力される（行ごとに変更可）。
+  // accountCode → '0.30' 等、0〜1 の Decimal 文字列。
   homeOfficeAccountRatios: Record<string, string>;
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
-  // OCR/LLM エンジン選択（既定 gemini）。
-  // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
-  // - tesseract：WASM の純ローカル OCR（LLM 不要。精度は限定的、人手確認前提）
+  // 既定 gemini。tesseract は WASM の純ローカル OCR で、精度が低く人手確認が前提。
   ocrEngine: 'gemini' | 'openai-compatible' | 'tesseract';
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
   openaiBaseUrl: string;
-  // OCR 用モデル（vision 必須）／LLM 分類用モデル（テキストのみで可）
+  // OCR 側は vision 必須。分類側はテキストのみで可。
   openaiOcrModel: string;
   openaiClassifyModel: string;
-  // OpenAI 互換 API キー（ローカル Ollama 等では通常不要）
+  // ローカル Ollama 等では通常不要。
   openaiApiKey: string;
-  // Tesseract traineddata の取得元。空＝aoiko が同梱するものを使用（既定でオフライン）。
-  // 別の版（精度重視の best 等）を使いたい場合に、jpn.traineddata / eng.traineddata を
-  // 置いた URL（末尾スラッシュ無し）を指定する。
+  // 空＝同梱のものを使う。指定する場合は jpn/eng.traineddata を置いた URL（末尾スラッシュ無し）。
   tesseractLangPath: string;
-  // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
+  // 外部送信前の確認をスキップ。
   skipExternalSendConfirm: boolean;
-  // バックアップ・エクスポートに API キーを含めるか（既定 false）。
-  // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。
+  // 既定 false。同期フォルダへ平文の API キーが出るため、明示的に有効化した場合だけ含める。
   backupIncludeApiKeys: boolean;
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
-  // 消費税関連設定
   taxRegistration: TaxRegistration;
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
   // 本則課税で課税売上高5億円超または課税売上割合95%未満の場合の控除計算方式
   consumptionTaxAttributionMethod: 'individual' | 'proportional';
-  // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
-  // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
+  // .xtx の IT部（定義側）必須項目。個人情報なのでバックアップ既定は含めない。
   userRiyoshaId: string; // 利用者識別番号（16桁）
   userFilerName: string; // 氏名・名称（NOZEISHA_NM）
   userFilerZip: string; // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
   userFilerAddress: string; // 住所（NOZEISHA_ADR）
   userZeimushoCode: string; // 提出先税務署コード（5桁、gen:zeimusho_CD）
   userZeimushoName: string; // 提出先税務署名（任意、gen:zeimusho_NM）
-  // 確定申告方式（.xtx 出力の様式・青色申告特別控除の適用可否に影響）
   filingType: FilingType;
-  // 青色申告特別控除の区分（事業所得・控除額の算定に使用。青色申告のみ）
   aoiroDeductionKind: AoiroDeductionKind;
-  // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
+  // 既定 false。
   backupIncludeFilerInfo: boolean;
-  // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
-  // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
-  // 所得控除画面の不動産所得区分が表示される（切っている間は既存ユーザーの画面は変わらない）。
+  // 既定 false のオプトイン。切っている間は関連する画面要素が出ない。
   realEstateIncomeEnabled: boolean;
-  // 簡易在庫管理（C4）の期末棚卸高自動計算（最終仕入原価法）を使うか。
-  // 未設定時は true 扱い（届出をしていない事業者は法定デフォルトの最終仕入原価法が
-  // 適用されるため）。届出により他の評価方法（先入先出法等）を選んでいる利用者は
-  // false にして、自動計算を無効化し従来通り手動で期末棚卸高を仕訳する。
+  // 期末棚卸高の自動計算（最終仕入原価法）。未設定は true 扱い——届出が無ければ
+  // 法定デフォルトがこの方法のため。他の評価方法を届け出ている利用者は false にする。
   inventoryAutoValuationEnabled: boolean;
-  // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
-  // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
+  // 証憑原本の添付前確認をスキップ。
   skipAttachmentConfirm: boolean;
-  // <a download> 経路（Firefox / Safari）で保存できたかの確認ダイアログをスキップ
-  // （利用者が「次回から確認しない」を選択）。
+  // <a download> 経路（Firefox / Safari）の保存確認をスキップ。
   skipDownloadSavedConfirm: boolean;
-  // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
-  // 設定画面の「非表示にした確認を元に戻す」で戻せる（suppressed-confirms.ts）。
+  // 申告済み年度への書き込み警告をスキップ（suppressed-confirms.ts で戻せる）。
   skipFiledYearWarning: boolean;
-  // 請求書・見積書（C1）の番号プレフィックス。未設定時は既定値（invoice.ts の
-  // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
+  // 未設定時は invoice.ts の DEFAULT_INVOICE_PREFIX / DEFAULT_QUOTE_PREFIX。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
 };

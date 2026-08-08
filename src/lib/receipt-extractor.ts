@@ -1,12 +1,5 @@
-// 設定（ocrEngine）から領収書 OCR の実体を生成するファクトリ。
-//
-// 3 つの引擎（gemini / openai-compatible / tesseract）を共通の
-// ReceiptExtractor インターフェースで包む。
-// - gemini / openai-compatible：vision LLM。既存の createLlmAdapter+extractReceipt を包装
-// - tesseract：純ローカル WASM OCR。動的 import で読み込み、確定性抽出層に渡す
-//
-// 送信先（external / destinationHost）は確認ダイアログ（CloudSendConfirmDialog）の
-// 表示要否判定に使う。tesseract は常に external=false。
+// 設定から領収書 OCR の実体を作る。external / destinationHost は送信前確認ダイアログの
+// 表示要否に使う——tesseract は端末内で完結するので常に external=false。
 
 import { extractReceipt, type ReceiptExtracted } from '../domain/ocr';
 import type { LlmImageInput } from '../domain/llm';

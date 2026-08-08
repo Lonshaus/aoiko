@@ -1,7 +1,5 @@
-// クラウドの vision LLM へ送る前に画像の長辺を抑える。
-// スマホの写真は 4000px 級・十数 MB あるが、vision LLM 側は内部でタイルに分割して
-// 縮小するため、原寸のまま送っても精度は上がらず通信量と待ち時間だけが増える。
-// 領収書の小さい印字が潰れないよう長辺 2048px までとし、それ以下は一切触らない。
+// vision LLM は内部でタイルに分割して縮小するので、4000px 級のスマホ写真をそのまま送っても
+// 精度は上がらず通信量と待ち時間だけ増える。領収書の小さい印字が潰れない 2048px を上限にする。
 export const MAX_UPLOAD_EDGE = 2048;
 // 再エンコードの品質。領収書は文字が読めれば良いが、下げすぎると小さい数字が滲む。
 const JPEG_QUALITY = 0.85;
@@ -21,8 +19,7 @@ export function scaledSize(
     height: Math.max(1, Math.round(height * ratio)),
   };
 }
-// 縮小できなかった場合は必ず元の Blob を返す。OCR に送れないより、
-// 大きいまま送る方がましなため、ここで throw しない。
+// 縮小できなくても throw しない。OCR に送れないより大きいまま送る方がまし。
 export async function downscaleForUpload(file: Blob, maxEdge = MAX_UPLOAD_EDGE): Promise<Blob> {
   if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas !== 'function') {
     return file;

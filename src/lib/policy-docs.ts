@@ -4,14 +4,13 @@ import { baseLocale, locales } from '../paraglide/runtime';
 export const POLICY_DOC_NAMES = ['DISCLAIMER', 'PRIVACY', 'SECURITY'] as const;
 
 export type PolicyDocName = (typeof POLICY_DOC_NAMES)[number];
-// manual.ts の eager glob（全マニュアル章）とは切り離す。DisclaimerConsent は
-// 初回起動時に必ず描画されるため、そちらを import すると全章分がバンドルへ混入する。
+// manual.ts の eager glob とは切り離す。DisclaimerConsent は初回起動で必ず描画されるので、
+// そちらを import すると全章分がバンドルへ混入する。
 const modules = import.meta.glob(
   ['../../DISCLAIMER*.md', '../../PRIVACY*.md', '../../SECURITY*.md'],
   { query: '?raw', import: 'default', eager: true },
 ) as Record<string, string>;
-// ロケール接尾辞付きファイル名（例 `PRIVACY_en.md`）から slug と locale を切り出す。
-// manual.ts の章ファイルとも共通の命名規則のため、ここに置いて両者から使う。
+// `PRIVACY_en.md` から slug と locale を切り出す。manual.ts の章ファイルと同じ命名規則。
 function parseFilename(path: string): { slug: string; locale: Locale } {
   const base = (path.split('/').pop() ?? '').replace(/\.md$/, '');
   for (const loc of locales) {
@@ -25,7 +24,6 @@ function parseFilename(path: string): { slug: string; locale: Locale } {
   }
   return { slug: base, locale: baseLocale };
 }
-// import.meta.glob の結果を slug → locale → 本文 のレジストリへ組み立てる。
 export function buildLocaleRegistry<K extends string = string>(
   modules: Record<string, string>,
 ): Map<K, Map<Locale, string>> {
@@ -57,10 +55,8 @@ export function getPolicyDoc(doc: PolicyDocName, locale: Locale): string {
 export function isExternalLink(href: string): boolean {
   return /^https?:\/\//.test(href);
 }
-// LICENSE は年号や字下げを保つ固定書式のプレーンテキストであり、他文書のような
-// マークダウンではない。翻訳もない（単一言語で配布される著作権文書のため）。
-// メタ文字の無い literal パスは picomatch がパターンとして受け付けないため、
-// マッチ対象を LICENSE 1 件だけに絞ったうえで glob 形式にする。
+// LICENSE は字下げを保つ固定書式で、マークダウンでも多言語でもない。メタ文字の無い literal
+// パスは picomatch がパターンとして受け付けないので、1 件に絞ったうえで glob 形式にする。
 const licenseModules = import.meta.glob('../../LICENSE*', {
   query: '?raw',
   import: 'default',

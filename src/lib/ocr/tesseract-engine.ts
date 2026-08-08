@@ -1,13 +1,6 @@
-// Tesseract（WASM）純ローカル OCR の包装層。
-// engine 選択時のみ動的 import される（バンドル肥大化を避ける）。
-//
-// 役割は薄い：
-//   1) data URL を作って tesseract.js に渡す
-//   2) 生テキストを receipt-text-extract に渡して構造化する
-//
-// 前処理（リサイズ・二値化等）は本最小版では未実装。精度が問題になれば後追い。
-// 画像も traineddata も端末外に出ない。設定で langPath を指定した場合のみ、
-// その URL から traineddata を取得する。
+// Tesseract（WASM）純ローカル OCR。engine 選択時のみ動的 import する（バンドルを膨らませない）。
+// 画像も traineddata も端末外に出ない——langPath を指定した場合だけ、その URL から取得する。
+// 前処理（リサイズ・二値化）は未実装。
 
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
@@ -22,8 +15,7 @@ const WORKER_PATH = '/tesseract/worker.min.js';
 // ディレクトリを渡すと worker 側が SIMD 対応状況を見てファイル名を連結する。
 const CORE_PATH = '/tesseract/core';
 // traineddata も同梱する（jpn+eng で 4.8MB）。既定のままだと jsDelivr へ取りに行き、
-// 「画像は端末外に出ない」「オフラインで使える」という説明と食い違う。
-// precache からは除外してあるため、Tesseract を選んだ利用者だけが取得する。
+// 「端末外に出ない」という説明と食い違う。precache 対象外なので取得するのは選んだ利用者だけ。
 const LANG_PATH = '/tesseract/lang';
 
 export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtractor {
