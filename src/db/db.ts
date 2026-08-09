@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { sha256Hex } from '../lib/sha256';
 import type {
   Account,
   ArApEntry,
@@ -93,6 +94,27 @@ class AoikoDB extends Dexie {
     this.version(9).stores({
       invoices: 'id, documentType, status, vendorId, date, [documentType+date]',
     });
+    // v10: 証憑写真の SHA-256（#397）。フォルダバックアップを内容定址にするため、
+    // 「この中身は既に保存先にあるか」を索引で引けるようにする。
+    this.version(10)
+      .stores({
+        attachments: 'id, entryId, sha256',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<Attachment, string>('attachments');
+        const ids = await table.toCollection().primaryKeys();
+        for (const id of ids) {
+          const row = await table.get(id);
+          if (row === undefined || row.sha256 !== undefined) {
+            continue;
+          }
+          // crypto.subtle も Blob.arrayBuffer も Dexie の外の Promise。素で await すると
+          // 保留中の要求が無くなった時点で IndexedDB がトランザクションを閉じてしまうので、
+          // Dexie.waitFor で繋ぎ止める。
+          const sha256 = await Dexie.waitFor(sha256Hex(row.blob));
+          await table.update(id, { sha256 });
+        }
+      });
   }
 }
 

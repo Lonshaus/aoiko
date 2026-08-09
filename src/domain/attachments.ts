@@ -2,6 +2,7 @@ import type { Attachment } from '../db/types';
 import { newId } from '../lib/id';
 import { MAX_IMAGE_BYTES } from '../lib/file-limit';
 import { readImageSignature } from '../lib/image-signature';
+import { sha256Hex } from '../lib/sha256';
 
 export class AttachmentTooLargeError extends Error {
   constructor(
@@ -41,5 +42,6 @@ export async function buildAttachmentRecord(
     mimeType: file.type || 'application/octet-stream',
     fileName: file.name,
     createdAt: now,
+    sha256: await sha256Hex(file),
   };
 }
