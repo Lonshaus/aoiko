@@ -140,6 +140,9 @@ export interface Attachment {
   mimeType: string;
   fileName: string;
   createdAt: number;
+  // 内容定址バックアップ（#397）用。省略可なのは、旧形式のバックアップから復元した行に
+  // 付いていないため。読む側は欠けていたらその場で計算する。
+  sha256?: string;
 }
 // 予算管理（C10）。月次総額（収入予算・支出予算）のみ、科目別には分解しない
 // （個人事業主想定では科目別入力の設定コストが見合わないとユーザーと合意——AOIKO_FUTURE_IDEAS.md 参照）。
