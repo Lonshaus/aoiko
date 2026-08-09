@@ -1,3 +1,5 @@
+import { splitBackupPath } from './content-store';
+import { descendDir, isNotFoundError, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
 // FSA API 非対応（あるブラウザ / あるブラウザ / ある環境）の主要な永続化フォルバック。
@@ -32,37 +34,65 @@ export class OpfsBackupAdapter implements BackupAdapter {
     await this.ensurePermission();
   }
 
-  async backup(
-    stream: ReadableStream<Uint8Array>,
-    fileName: string,
-  ): Promise<{ fileName: string }> {
+  async backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }> {
     const root = await navigator.storage.getDirectory();
-    const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.')) : '';
+    const { dir, name } = await resolveParent(root, path, true);
     // 当日分（複数回上書き可、無視で OK）
-    const dailyHandle = await root.getFileHandle(fileName, { create: true });
+    const dailyHandle = await dir.getFileHandle(name, { create: true });
     await stream.pipeTo(await dailyHandle.createWritable());
-    // 復元時に参照しやすいよう「最新」固定名のコピーも保持する。ReadableStream は
-    // 一度しか読めず tee() は両者の読み出し速度差を吸収するため結局バッファするので、
-    // ディスク上の当日分ファイルから直接コピーする（メモリに全体を乗せない）。
-    const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
-      create: true,
-    });
-    await (await dailyHandle.getFile()).stream().pipeTo(await latestHandle.createWritable());
-
-    return { fileName };
+    // 「最新」固定名のコピーは単層の zip 運用のためのもの。内容定址の blob まで複製すると
+    // 中身が同じだけの重複が延々と増えるので、ネストしたパスでは作らない。
+    if (name === path) {
+      const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+      // 復元時に参照しやすいよう「最新」固定名のコピーも保持する。ReadableStream は
+      // 一度しか読めず tee() は両者の読み出し速度差を吸収するため結局バッファするので、
+      // ディスク上の当日分ファイルから直接コピーする（メモリに全体を乗せない）。
+      const latestHandle = await root.getFileHandle(`aoiko-ledger-latest${ext}`, {
+        create: true,
+      });
+      await (await dailyHandle.getFile()).stream().pipeTo(await latestHandle.createWritable());
+    }
+    return { fileName: path };
   }
 
-  async list(): Promise<string[]> {
+  async list(subdir?: string): Promise<string[]> {
     const root = await navigator.storage.getDirectory();
+    let dir = root;
+    if (subdir !== undefined) {
+      const segments = splitBackupPath(subdir);
+      try {
+        dir = await descendDir(root, segments, false);
+      } catch (e) {
+        if (isNotFoundError(e)) {
+          return [];
+        }
+        throw e;
+      }
+    }
     const names: string[] = [];
-    for await (const name of root.keys()) {
+    for await (const name of dir.keys()) {
       names.push(name);
     }
     return names;
   }
 
-  async remove(fileName: string): Promise<void> {
+  async read(path: string): Promise<Uint8Array | null> {
     const root = await navigator.storage.getDirectory();
-    await root.removeEntry(fileName);
+    try {
+      const { dir, name } = await resolveParent(root, path, false);
+      const file = await (await dir.getFileHandle(name)).getFile();
+      return new Uint8Array(await file.arrayBuffer());
+    } catch (e) {
+      if (isNotFoundError(e)) {
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  async remove(path: string): Promise<void> {
+    const root = await navigator.storage.getDirectory();
+    const { dir, name } = await resolveParent(root, path, false);
+    await dir.removeEntry(name);
   }
 }

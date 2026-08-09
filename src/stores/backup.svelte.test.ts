@@ -54,6 +54,9 @@ class FakeAdapter implements BackupAdapter {
   list(): Promise<string[]> {
     return Promise.resolve([]);
   }
+  read(_path: string): Promise<Uint8Array | null> {
+    return Promise.resolve(null);
+  }
   remove(_fileName: string): Promise<void> {
     return Promise.resolve();
   }
