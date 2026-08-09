@@ -107,6 +107,26 @@ export function missingBlobs(snapshot: Snapshot, present: ReadonlySet<string>): 
   }
   return result;
 }
+// バックスラッシュ・NUL を含む制御文字・Windows のドライブ修飾（`C:`）を拒む。
+const INVALID_SEGMENT_PATTERN = /[\\\u0000-\u001F]|^[A-Za-z]:/;
+// 保存先ルートからの相対パスをセグメントへ分解する。ここは信頼境界で、同期フォルダから
+// 読んだファイル名がそのままパスへ合成される。壊れた名前・細工された名前で保存先の外を
+// 指せてはならないため、正規化して通すのではなく必ず拒否する（黙って直すと検証が無意味）。
+export function splitBackupPath(path: string): string[] {
+  const segments = path.split('/');
+  for (const segment of segments) {
+    // 空セグメントで、空文字・先頭/末尾スラッシュ・連続スラッシュをまとめて弾く
+    if (
+      segment === '' ||
+      segment === '.' ||
+      segment === '..' ||
+      INVALID_SEGMENT_PATTERN.test(segment)
+    ) {
+      throw new RangeError(`invalid backup path: ${JSON.stringify(path)}`);
+    }
+  }
+  return segments;
+}
 
 export function attachmentPath(sha256: string): string {
   if (!SHA256_PATTERN.test(sha256)) {

@@ -10,6 +10,7 @@ import {
   SNAPSHOT_FORMAT,
   snapshotFileName,
   sortSnapshotsNewestFirst,
+  splitBackupPath,
   unreferencedBlobs,
 } from './content-store';
 import type { Snapshot } from './content-store';
@@ -266,5 +267,51 @@ describe('blobsToDelete', () => {
 
   test('候補が空なら空配列', () => {
     expect(blobsToDelete([], now, 7)).toEqual([]);
+  });
+});
+
+describe('splitBackupPath', () => {
+  test('単一セグメントはそのまま1要素', () => {
+    expect(splitBackupPath('2026-08-09T120000Z.json')).toEqual(['2026-08-09T120000Z.json']);
+  });
+
+  test('スラッシュ区切りを順序通り分解する', () => {
+    expect(splitBackupPath(`${ATTACHMENT_DIR}/${'a'.repeat(64)}`)).toEqual([
+      ATTACHMENT_DIR,
+      'a'.repeat(64),
+    ]);
+    expect(splitBackupPath('a/b/c')).toEqual(['a', 'b', 'c']);
+  });
+  // 以下は「壊れた/細工されたファイル名で保存先の外を指せない」ことの確認。
+  // 正規化して通してはならないので、いずれも例外であることまで見る。
+  test.each([
+    ['空文字', ''],
+    ['先頭スラッシュ（絶対パス）', '/attachments/a'],
+    ['末尾スラッシュ', 'attachments/'],
+    ['空セグメント', 'a//b'],
+    ['カレント参照', 'a/./b'],
+    ['親参照', 'a/../b'],
+    ['親参照のみ', '..'],
+    ['先頭の親参照', '../secrets'],
+    ['カレント参照のみ', '.'],
+    ['バックスラッシュ', 'a\\b'],
+    ['Windows の絶対パス', 'C:\\Windows\\system32'],
+    ['ドライブ修飾', 'C:'],
+    ['ドライブ相対', 'c:secrets'],
+    ['NUL', 'a\u0000b'],
+    ['制御文字', 'a\u001fb'],
+    ['改行', 'snapshots/a\nb.json'],
+  ])('%s は RangeError で拒否する', (_label, path) => {
+    expect(() => splitBackupPath(path)).toThrow(RangeError);
+  });
+
+  test('拒否時は部分的な結果を返さない', () => {
+    let result: string[] | undefined;
+    try {
+      result = splitBackupPath('attachments/../../etc/passwd');
+    } catch {
+      result = undefined;
+    }
+    expect(result).toBeUndefined();
   });
 });
