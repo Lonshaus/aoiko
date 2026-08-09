@@ -5,12 +5,9 @@ import { toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
 import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
-// 減価償却の計算と仕訳生成。
-// 直接法（straight-line）と 200% 定率法（declining-balance）に加え、
-// 少額減価償却資産の特例（措法28の2、small-asset-special）に対応。
-// 取得月から決算月まで月按分、耐用年数満了後は 1 円残し（2007年改正後の標準）。
-// 200% 定率法は平成24年4月1日以後取得分の標準。改定償却率による均等償却切替も実装。
-// 少額特例は取得年度に全額損金算入、以降の償却なし。年間 300 万円の上限あり。
+// 定額法・200% 定率法（平成24年4月1日以後取得分）・少額減価償却資産の特例（措法28の2）。
+// 取得月から決算月まで月按分し、耐用年数満了後は 1 円残す（2007年改正後の標準）。
+// 少額特例は取得年度に全額損金算入、年間 300 万円が上限。
 
 const DEPRECIATION_EXPENSE = '5210';
 const ACCUMULATED_DEPRECIATION = '1520';
@@ -159,9 +156,8 @@ function computeLumpSum(
   }
   throw new Error('unreachable');
 }
-// 少額減価償却資産の特例（措法28の2）：取得年度に全額損金算入。
-// 取得日・取得価額が適用範囲外でもこの関数は計算自体は実施する（呼出元で eligibility は検証する想定）。
-// 年合計 300 万円上限は呼出元（generateYearEndDepreciation）で資産横断的にチェックする。
+// 少額減価償却資産の特例（措法28の2）：取得年度に全額損金算入。適用要件と年合計 300 万円の
+// 上限は呼出元（generateYearEndDepreciation）が資産横断で見るので、ここでは検証しない。
 function computeSmallAssetSpecial(
   asset: FixedAsset,
   year: number,
@@ -331,10 +327,8 @@ function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
   }
   return Number(asset.acquisitionDate.slice(0, 4)) === year;
 }
-// 指定年度の全資産の償却仕訳をまとめて作成する。
-// 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
-// 少額減価償却資産の特例：年合計 300 万円 cap を超える資産は取得日昇順で打ち切り、超過分は仕訳未作成。
-//   要件外の指定（適用期限超過 / 取得価額が閾値以上）も仕訳未作成として返す。
+// 同じ assetId + year の仕訳があればスキップする。少額特例は年合計 300 万円の cap を超えた分と
+// 要件外の指定を仕訳未作成として返す。
 export async function generateYearEndDepreciation(
   year: number,
 ): Promise<YearEndDepreciationResult> {

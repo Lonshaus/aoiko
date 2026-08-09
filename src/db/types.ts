@@ -142,7 +142,7 @@ export interface Attachment {
   createdAt: number;
 }
 // 予算管理（C10）。月次総額（収入予算・支出予算）のみ、科目別には分解しない
-// （個人事業主想定では科目別入力の設定コストが見合わないとユーザーと合意——AOIKO_FUTURE_IDEAS.md 参照）。
+// （個人事業主想定では科目別入力の設定コストが見合わない）。
 export interface Budget {
   year: number;
   month: number; // 1-12

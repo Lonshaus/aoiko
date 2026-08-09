@@ -135,7 +135,6 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
     priorEndingCapital: priorCapital.toString(),
   };
 }
-// 期首振替を実際の仕訳としてデータベースへ書き込む。
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
 export async function applyCarryover(
   year: number,
@@ -225,12 +224,9 @@ export interface StaleCarryover {
   year: number;
   differences: Array<{ accountCode: string; carried: string; current: string }>;
 }
-// applyCarryover はその場限りのスナップショットで、前年度の訂正仕訳があっても自動では
-// 再計算されない。既存の期首振替仕訳（source='carryover'）に記帳された金額と、
-// computeCarryover(year) で前年度残高から改めて算出した金額を突き合わせ、
-// ズレている科目を返す。振替仕訳が存在しない、または一致していれば null。
-// #332 以降 removeCarryover は反対仕訳方式のため、集計対象の判定は countsTowardTotals に委ねる
-// （反転済みの原仕訳・反転仕訳自体は対象外、現に有効な 1 件だけを比較する）。
+// applyCarryover はその場限りのスナップショットで、前年度に訂正が入っても自動では再計算されない。
+// 記帳済みの金額と computeCarryover(year) の再計算を突き合わせ、ズレた科目を返す。
+// #332 以降 removeCarryover は反対仕訳方式なので、対象の判定は countsTowardTotals に委ねる。
 export async function detectStaleCarryover(year: number): Promise<StaleCarryover | null> {
   const entry = await db.journalEntries
     .where('year')

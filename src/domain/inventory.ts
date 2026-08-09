@@ -5,7 +5,6 @@ import { countsTowardTotals } from './journal';
 // 適用される法定デフォルト）のみ対応する。届出により他の評価方法（先入先出法・
 // 移動平均法等）を選んでいる利用者は Settings の inventoryAutoValuationEnabled を
 // false にして本機能を無効化し、従来通り手動で期末棚卸高を仕訳する
-// （詳細は PJ_aoiko/AOIKO_FUTURE_IDEAS.md 参照）。
 //
 // 品目ごとの現在庫数量・直近仕入単価は別途可変状態として保持せず、確定仕訳
 // （JournalLine.itemId/quantity）から都度導出する（CLAUDE.md「仕訳が唯一の

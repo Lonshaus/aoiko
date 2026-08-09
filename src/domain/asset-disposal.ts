@@ -10,17 +10,9 @@ import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/
 // 除却（対価なし）：帳簿価額（未償却残高）全額を必要経費「固定資産除却損」に計上する。
 // 三社（freee/やよい/MFクラウド）とも扱いは一致。
 //
-// 売却（対価あり）：個人事業主の事業用資産売却は事業所得ではなく譲渡所得（分離課税）
-// に該当し、損益計算書に含めてはいけない。freee 方式（事業主貸/事業主借で売却対価と
-// 帳簿価額の差額を結転し、損益計算書に一切触れない）を採用した。理由：
-//   - aoiko は既に事業主貸/事業主借を「事業と個人の境界を跨ぐ取引」の結転に
-//     使っており（家事按分・年末元入金振替）、資産売却も同じ性質の取引として
-//     構造的に一貫する
-//   - 通用（MF系）の「固定資産売却損益」科目方式は、損益表科目でありながら
-//     事業所得の集計からは除外する必要があり、その除外ロジックを新しい集計機能
-//     （報表・xtx出力）を追加するたびに書き漏らすリスクがある
-// 譲渡所得そのものの試算は estimateTransferIncome() で別途参考値として提供する
-// （分離課税の税額計算・特別控除の判定は行わない。詳細は同関数のコメント参照）。
+// 売却（対価あり）：事業用資産の売却は事業所得ではなく譲渡所得（分離課税）なので、損益計算書に
+// 含めてはいけない。事業主貸/事業主借で対価と帳簿価額の差額を結転し、PL に一切触れない。
+// 譲渡所得そのものは estimateTransferIncome() が参考値を出す。
 //
 // 一括償却資産（施行令139条）は除却・売却後も3年均等償却の継続が法律上必須で、
 // 未償却残高の早期損金算入が認められない。除却/売却の対価と帳簿価額の関係が
@@ -54,7 +46,6 @@ export function disposalBookValue(asset: FixedAsset): {
   const result = computeDepreciation(asset, disposedYear);
   return { accumulatedEnd: result.accumulatedEnd, bookValueEnd: result.bookValueEnd };
 }
-// 除却/売却の仕訳明細を組み立てる純粋関数（DB へは書き込まない）。
 export function buildDisposalLines(
   asset: FixedAsset,
   cashAccountCode: string = DEFAULT_CASH_ACCOUNT,

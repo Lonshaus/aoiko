@@ -51,7 +51,7 @@ function rateSuffix(taxRate: number): string {
 // （taxRate が実質的な判定基準で、taxCategory 未指定でも taxRate > 0 なら通常の課税区分として扱う）。
 // 令和8年度改正のインボイス経過措置70%/50%/30%は弥生側の正式な記述形式が未公開のため、
 // 確認済みの「区分80%」と同じパターンで外推している（区分{N}%）。弥生が正式な形式を
-// 公表したら要見直し（AOIKO_FUTURE_IDEAS.md 未記載、コード内のこの注記のみが根拠）。
+// 公表したら要見直し。根拠はこの注記だけで、他に記録が無い。
 function yayoiTaxInfo(
   line: JournalLine,
   account: Account,
@@ -278,7 +278,7 @@ export function buildGenericCsvRows(
 const CORRECTION_HISTORY_HEADER = ['原仕訳日付', '原仕訳摘要', '原仕訳金額', '打消し仕訳日付'];
 // 訂正履歴CSV（C9-4/C9-5、方案A）。原仕訳（status='reversed'）と打消し仕訳（reversedByEntryId
 // が指す先）の2件のみを出力する「取消履歴」。訂正後の正しい仕訳への構造的なリンクは
-// データモデル上存在しないため出力しない（AOIKO_FUTURE_IDEAS.md 参照）。
+// データモデル上存在しないため出力しない。
 export function buildCorrectionHistoryRows(
   entries: JournalEntry[],
   lines: JournalLine[],

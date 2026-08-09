@@ -246,10 +246,8 @@ function newEntry(date: string, description: string): JournalEntry {
     confirmedAt: now,
   };
 }
-// 開業精霊：開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
-// 転用資産は本体（固定資産テーブルへの登録）のみ行い、以後の減価償却は既存の
-// 年末一括生成（generateYearEndDepreciation）に委ねる。ここでは開業時点の
-// 未償却残高を計上する開業仕訳のみを作る。
+// 開業費・転用資産・自由項目をまとめて書き込む。転用資産は固定資産テーブルへ登録するだけで、
+// 以後の償却は generateYearEndDepreciation に委ねる。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
 ): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
@@ -372,16 +370,13 @@ interface OpeningRemovalBlocked {
   reason: 'has-depreciation';
   assetNames: string[];
 }
-// 開業精霊のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
-// 保存法。removeCarryover と同じ方式）、精霊が登録した固定資産は取り除く。
+// 開業精霊のやり直し。開業仕訳は打消し仕訳で相殺する（確定仕訳は物理削除しない＝電子帳簿保存法）。
 //
-// 固定資産は仕訳ではないので打ち消せず、削除するしかない。ところが減価償却・除却の仕訳は
-// description の資産タグ（#<id 先頭 8 文字>）でしか資産と結び付いておらず、外部キーが無い。
-// 参照が残っている資産を消すと、存在しない資産を指す仕訳が帳簿に残るため、その場合は
-// 仕訳も資産も触らずに中止して、先にそちらを訂正してもらう。
+// 固定資産は仕訳ではないので消すしかないが、減価償却・除却の仕訳とは description の資産タグ
+// （#<id 先頭 8 文字>）でしか繋がっておらず外部キーが無い。参照が残ったまま消すと存在しない
+// 資産を指す仕訳が帳簿に残るので、その場合は何も触らずに中止する。
 //
-// 印（source: 'opening'）が付くのはこの仕組みを入れて以降に作られた資産だけ。それ以前の
-// 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
+// source: 'opening' が付くのはこの仕組み以降の資産だけ。それ以前は判別できないので対象外。
 export async function removeOpeningEntries(
   year: number,
 ): Promise<{ removed: boolean } | OpeningRemovalBlocked> {

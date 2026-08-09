@@ -39,8 +39,7 @@ export interface PLReport {
   netIncome: string;
   entryCount: number;
 }
-// 取引先別 / 補助科目別 / 部門別の集計。指定した軸（vendor / subAccount / department）で
-// 各勘定科目内の取引を分解する。経費分析・実績把握に使う。
+// 指定した軸（vendor / subAccount / department）で各勘定科目内の取引を分解する。
 export type BreakdownAxis = 'vendor' | 'subAccount' | 'department';
 
 interface BreakdownEntry {
@@ -205,7 +204,6 @@ export interface BSReport {
 // 訂正は成対排除方式：原仕訳（status='reversed'）と訂正仕訳（originalEntryId 持ち）を
 // 両方とも集計から除外する（countsTowardTotals）。片方だけ算入すると正味が −1×原仕訳 になり、
 // B/S・繰越に幻の残高が生じるため、必ずペアで除外すること。
-// 期締め後の訂正処理（修正申告ロジック）は reportSnapshots の filed フラグ機構で対応予定。
 
 type YearData = { entries: JournalEntry[]; lines: JournalLine[]; accounts: Account[] };
 
@@ -233,8 +231,7 @@ interface AllReports {
   monthlyPL: MonthlyPLReport;
   breakdown: BreakdownReport;
 }
-// 同一年度の全レポートを 1 回の loadYearData で計算する。
-// 各 buildX を個別に呼ぶと同じ年度データを 5 回読み込むため、共有して IDB アクセスを削減する。
+// 各 buildX を個別に呼ぶと同じ年度データを 5 回読むので、1 回の loadYearData を共有する。
 export async function buildAll(year: number, breakdownAxis: BreakdownAxis): Promise<AllReports> {
   const data = await loadYearData(year);
   return {
@@ -528,9 +525,8 @@ export async function buildPL(
     entryCount: entries.length,
   };
 }
-// 複数年度トレンド分析（C8）。PL/BS のみ対応（方案A、AOIKO_FUTURE_IDEAS.md 参照）。
-// 各年度の buildPL/buildBS をそのまま呼び出し、科目単位でピボットするだけ
-// （既存の単年度計算ロジックをそのまま再利用、按分等の新規計算は行わない）。
+// 複数年度トレンド分析。各年度の buildPL/buildBS を呼んで科目単位でピボットするだけで、
+// 按分等の新しい計算はしない。
 interface MultiYearPLRow {
   accountCode: string;
   accountName: string;

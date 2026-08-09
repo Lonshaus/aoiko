@@ -1,18 +1,13 @@
-// 消費税納付額の計算。
-// 4 方式に対応：本則課税 / 簡易課税 / 2 割特例 / 3 割特例。
-// 国税分（消費税申告書ベース）と地方消費税分を別個に算出、合計も出す。
-// 経過措置：適格請求書なしの仕入は取引日に応じた控除率（80/70/50/30/0%）を適用。
+// 本則課税 / 簡易課税 / 2 割特例 / 3 割特例。適格請求書なしの仕入には取引日に応じた
+// 経過措置の控除率（80/70/50/30/0%）を当てる。
 //
 // 仕訳分類：
-//   売上税額 = revenue category、taxRate > 0。credit がプラス、debit（売上値引・返品）はマイナス
-//   仕入税額 = expense category（debit プラス / credit＝返金はマイナス）
-//            + asset category の debit 側（事業主貸 1610 を除外）、taxRate > 0
+//   売上税額 = revenue、taxRate > 0（credit プラス、debit ＝売上値引・返品はマイナス）
+//   仕入税額 = expense（debit プラス / credit ＝返金はマイナス）＋ asset の debit 側
+//            （事業主貸 1610 を除外）、taxRate > 0
 //
-// 各 ConsumptionTaxResult は 2 系統の数値を持つ：
-//   円単位（outputTax/inputTax/netTax 等）：方式比較用の概算。円未満切捨てのみ
-//   filingRounded/taxableBase：実際の申告書の端数処理（課税標準額は税率ごとに
-//     千円未満切捨て・税額は1円未満切捨て・差引/地方税額は百円未満切捨て）を模した
-//     「申告書相当額」。ただし付表 2-3 等の正式な申告書そのものは生成しない。
+// ⚠ 数値は 2 系統ある。円単位（outputTax 等）は方式比較用の概算で円未満切捨てのみ。
+// filingRounded/taxableBase は申告書の端数処理を模した額。取り違えると金額が合わない。
 import { db } from '../db/db';
 import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
@@ -50,7 +45,6 @@ export interface ConsumptionTaxResult {
   /** 申告書相当額（課税標準額の千円未満切捨て・税額の1円未満切捨て・差引/地方税額の百円未満切捨てを模した概算） */
   filingRounded: ConsumptionTaxBreakdown;
 }
-// 取引金額（税込 or 税抜）から税抜金額（課税標準額の基礎）を計算。
 export function taxExcludedPortion(
   amount: Decimal,
   taxRate: number,
@@ -62,9 +56,7 @@ export function taxExcludedPortion(
   const priceInclusive = taxIncluded ? amount : amount.times(1 + taxRate);
   return priceInclusive.dividedBy(1 + taxRate);
 }
-// 取引金額から国税相当の消費税額を計算。
-// taxIncluded=true: amount は税込価格、国税 = amount × 7.8/110（標準）
-// taxIncluded=false: amount は税抜価格、税込 = amount × (1 + taxRate)、国税は税込から逆算
+// taxIncluded=true: 国税 = amount × 7.8/110（標準）。false: 税込へ直してから逆算する。
 function nationalPortion(amount: Decimal, taxRate: number, taxIncluded: boolean): Decimal {
   const base = taxExcludedPortion(amount, taxRate, taxIncluded);
   if (taxRate === 0.1) {
@@ -351,11 +343,8 @@ export async function processYear(
       accumulateUsage(line, signed, rate);
       continue;
     }
-    // 特定課税仕入れ（リバースチャージ）：常に標準税率。経過措置の適用判定
-    // （本則課税・課税売上割合95%未満のみ申告義務。95%以上・簡易・2割/3割特例は
-    // 当分の間「なかったもの」）は集計後に行うため、ここでは独立集計のみ行う。
-    // output・input への混入はせず、用途区分別内訳（reverseChargeApplies 判定後に
-    // 控除側へ織り込むため）を別枠で保持する。
+    // 特定課税仕入れ（リバースチャージ）：常に標準税率。申告義務があるのは本則課税かつ
+    // 課税売上割合 95% 未満だけで、その判定は集計後なので、ここでは別枠に積むだけにする。
     if (effectiveTaxCategory === 'reverseCharge') {
       const national = nationalPortion(D(line.amount), 0.1, line.taxIncluded);
       const signed = line.side === 'debit' ? national : national.negated();
