@@ -1,10 +1,7 @@
 // e-Tax .xtx 2 段式 ID/IDREF 文書モデルの核。
+// 様式 schema（xtx-schema-*.generated.json）＋ 値マップ（定義名→値）から .xtx XML を組む。
 //
-// 入力：様式 schema（xtx-schema-*.generated.json）+ 値マップ（定義名→値）
-// 出力：エンベロープ付き .xtx XML 文字列
-//
-// 構造は e-Tax 自身が「切り出し」た実ファイル（PJ_aoiko/etax-reference-koa210.xtx）に
-// 準拠する。判定 A（実機取込）が SC00X010 で fail した根因＝旧封包の構造誤りを修正：
+// 構造は e-Tax 自身が書き出した実ファイルに準拠する。ここを外すと取込が SC00X010 で落ちる：
 //   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
 //     <RKO0010 VR="25.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
 //       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）
@@ -155,10 +152,8 @@ interface FormAttrs {
 // 直接値 leaf（idref 無し）の値マップ：leaf tag → 値文字列。
 // KOA210 決算書の金額等はこちら（IT部を経由しない）。
 export type XtxLeafValues = Record<string, string>;
-// 繰り返しブロック（xsd:maxOccurs > 1、例：KOA110 の減価償却資産明細 AIM00010）の値。
-// ブランチ tag → その繰り返し 1 件分の直接値 leaf マップの配列。
-// 各エントリは独立した leafValues として子要素を解決する（他の繰り返しや外側の
-// leafValues とは混ざらない）。エントリが 0 件ならそのブランチ自体を出力しない。
+// 繰り返しブロック（xsd:maxOccurs > 1、例：KOA110 の減価償却資産明細 AIM00010）。
+// 各エントリは独立した leafValues として解決し、外側とは混ざらない。0 件ならブランチごと出さない。
 export type XtxRepeatedValues = Record<string, XtxLeafValues[]>;
 // 「区分」型（gen:kubun、例：SHA020 の ABY00000「税額控除に係る経過措置の適用
 // （２割特例）」）は kubun_CD 子要素を持つが、buildRefTree の型解決では子として
