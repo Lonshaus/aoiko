@@ -324,9 +324,8 @@
   function removeFamilyEmployee(id: string) {
     familyEmployees = familyEmployees.filter((f) => f.id !== id);
   }
-  // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
-  // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
-  // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
+  // 保存用（文字列）を 1 箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal へ変換する。
+  // xtx.ts と同じ変換を通すので、保存内容と試算・.xtx 出力が食い違わない。
   const recordDraft = $derived<Omit<PersonalDeductionInput, 'year' | 'updatedAt'>>({
     socialInsurancePaid,
     smallBusinessMutualAidPaid,
@@ -453,9 +452,8 @@
       realEstateFamilyEmployeeDeductionResult(incomeCtx).total,
     );
   });
-  // 事業専従者との相互排他（issue #307）。ctx 側は既に personalDeductionsToCtx で
-  // 除外済みだが、UI 上で「なぜ配偶者控除・扶養控除が消えたか」を示すため、同じ判定を
-  // ローカルの入力値（配偶者チェック・扶養親族一覧）に対して再度行う。
+  // 事業専従者との相互排他（issue #307）。ctx 側は除外済みだが、「なぜ控除が消えたか」を
+  // 画面で示すため同じ判定をローカルの入力値にも当てる。
   const familyEmployeeExclusionResult = $derived(
     familyEmployeeExclusion(
       familyEmployees,

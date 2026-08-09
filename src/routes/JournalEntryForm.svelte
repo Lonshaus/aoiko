@@ -131,9 +131,8 @@
   const badDebtEvaluations = $derived(
     badDebtReserveEvaluations([...debits, ...credits].map((l) => l.accountCode)),
   );
-  // 入力途中でタブを閉じる・リロードした際にデータが無言で消えるのを防ぐ。
-  // bind:value を多用しているため、入力ハンドラで flag を立てるより
-  // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
+  // 入力途中で閉じても無言で消えないように。bind:value が多いので、ハンドラで flag を
+  // 立てるより state 全体を初期状態と比べる $derived のほうが非侵入的。
   const isDirty = $derived(
     description !== '' ||
       department !== '' ||

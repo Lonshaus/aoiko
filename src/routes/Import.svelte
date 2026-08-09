@@ -96,9 +96,8 @@
       .slice(pageRange.start, pageRange.end)
       .map((row, i) => ({ row, index: pageRange.start + i })),
   );
-  // 取込元の下拉が変わったら、読み込み済みの表を parser 不一致のまま残さない。
-  // 再解析ではなく破棄：computeFileHash / 重複チェック / findOverlappingRows / ルール適用を
-  // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
+  // 取込元が変わったら parser 不一致の表を残さない。再解析ではなく破棄するのは、hash から
+  // ルール適用まで丸ごとやり直しになるため。
   function handleParserChange(newName: string) {
     if (rows.length > 0 && newName !== selectedParserName) {
       reset();
