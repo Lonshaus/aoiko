@@ -74,16 +74,57 @@ class FakeFileHandle {
   }
 }
 
-class FakeDirectoryHandle {
-  private handles = new Map<string, FakeFileHandle>();
+function notFound(name: string): DOMException {
+  return new DOMException(`${name} not found`, 'NotFoundError');
+}
 
-  async getFileHandle(name: string, _options?: { create?: boolean }) {
-    let handle = this.handles.get(name);
-    if (!handle) {
-      handle = new FakeFileHandle();
-      this.handles.set(name, handle);
+class FakeDirectoryHandle {
+  readonly files = new Map<string, FakeFileHandle>();
+  readonly dirs = new Map<string, FakeDirectoryHandle>();
+  // NotFoundError 以外を投げさせて、握り潰されないことを確かめるための注入口
+  failure: Error | null = null;
+
+  async getFileHandle(name: string, options?: { create?: boolean }) {
+    if (this.failure) {
+      throw this.failure;
     }
-    return handle;
+    const existing = this.files.get(name);
+    if (existing) {
+      return existing;
+    }
+    if (!options?.create) {
+      throw notFound(name);
+    }
+    const created = new FakeFileHandle();
+    this.files.set(name, created);
+    return created;
+  }
+
+  async getDirectoryHandle(name: string, options?: { create?: boolean }) {
+    if (this.failure) {
+      throw this.failure;
+    }
+    const existing = this.dirs.get(name);
+    if (existing) {
+      return existing;
+    }
+    if (!options?.create) {
+      throw notFound(name);
+    }
+    const created = new FakeDirectoryHandle();
+    this.dirs.set(name, created);
+    return created;
+  }
+
+  async removeEntry(name: string): Promise<void> {
+    if (!this.files.delete(name) && !this.dirs.delete(name)) {
+      throw notFound(name);
+    }
+  }
+
+  async *keys(): AsyncGenerator<string> {
+    yield* this.files.keys();
+    yield* this.dirs.keys();
   }
 }
 
@@ -145,5 +186,105 @@ describe('OpfsBackupAdapter.backup', () => {
       'aoiko-ledger-2026-07-28.zip',
     );
     expect(result).toEqual({ fileName: 'aoiko-ledger-2026-07-28.zip' });
+  });
+
+  test('ネストしたパスは途中のディレクトリを作って書く', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const sha = 'a'.repeat(64);
+    const result = await new OpfsBackupAdapter().backup(
+      streamOf([new Uint8Array([9, 8])]),
+      `attachments/${sha}`,
+    );
+    expect(result).toEqual({ fileName: `attachments/${sha}` });
+    const handle = root.dirs.get('attachments')?.files.get(sha);
+    expect(Array.from(new Uint8Array(await (await handle!.getFile()).arrayBuffer()))).toEqual([
+      9, 8,
+    ]);
+  });
+  // 内容定址の blob ごとに「最新」複製を作ると、中身が同じだけの重複が延々と増える。
+  test('ネストしたパスでは aoiko-ledger-latest を作らない', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    await new OpfsBackupAdapter().backup(
+      streamOf([new Uint8Array([1])]),
+      `attachments/${'b'.repeat(64)}`,
+    );
+    expect([...root.files.keys()]).toEqual([]);
+  });
+});
+
+describe('OpfsBackupAdapter.read', () => {
+  test('書いたバイト列をそのまま読み戻す', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    await adapter.backup(
+      streamOf([new Uint8Array([1, 2, 3])]),
+      'snapshots/2026-08-09T120000Z.json',
+    );
+    const bytes = await adapter.read('snapshots/2026-08-09T120000Z.json');
+    expect(Array.from(bytes!)).toEqual([1, 2, 3]);
+  });
+
+  test('ファイルもディレクトリも無ければ null', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    expect(await adapter.read('attachments/x')).toBeNull();
+    await adapter.backup(streamOf([new Uint8Array([1])]), `attachments/${'c'.repeat(64)}`);
+    expect(await adapter.read(`attachments/${'d'.repeat(64)}`)).toBeNull();
+  });
+  // NotFoundError 以外まで null にすると、IO 失敗が「まだ同期されていない」に化ける。
+  test('NotFoundError 以外はそのまま投げる', async () => {
+    const root = new FakeDirectoryHandle();
+    root.failure = new DOMException('disk', 'NotReadableError');
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    await expect(new OpfsBackupAdapter().read('snapshots/a.json')).rejects.toThrow('disk');
+  });
+});
+
+describe('OpfsBackupAdapter.list / remove', () => {
+  test('subdir を渡すとその直下の名前だけを返す', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    await adapter.backup(streamOf([new Uint8Array([1])]), 'snapshots/2026-08-09T120000Z.json');
+    await adapter.backup(streamOf([new Uint8Array([1])]), `attachments/${'e'.repeat(64)}`);
+    expect(await adapter.list('snapshots')).toEqual(['2026-08-09T120000Z.json']);
+    expect((await adapter.list()).sort()).toEqual(['attachments', 'snapshots']);
+  });
+
+  test('ディレクトリが無ければ空配列', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    expect(await new OpfsBackupAdapter().list('attachments')).toEqual([]);
+  });
+
+  test('list も NotFoundError 以外はそのまま投げる', async () => {
+    const root = new FakeDirectoryHandle();
+    root.failure = new DOMException('denied', 'NotAllowedError');
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    await expect(new OpfsBackupAdapter().list('attachments')).rejects.toThrow('denied');
+  });
+
+  test('ネストしたパスのファイルを消す（親ディレクトリは残す）', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    const sha = 'f'.repeat(64);
+    await adapter.backup(streamOf([new Uint8Array([1])]), `attachments/${sha}`);
+    await adapter.remove(`attachments/${sha}`);
+    expect(root.dirs.get('attachments')?.files.has(sha)).toBe(false);
+    expect(root.dirs.has('attachments')).toBe(true);
   });
 });
