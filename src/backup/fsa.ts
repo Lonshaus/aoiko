@@ -1,3 +1,5 @@
+import { splitBackupPath } from './content-store';
+import { descendDir, isNotFoundError, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
 
 type GetHandle = () => Promise<FileSystemDirectoryHandle | null>;
@@ -45,10 +47,7 @@ export class FsaBackupAdapter implements BackupAdapter {
     await this.setHandle(handle);
   }
 
-  async backup(
-    stream: ReadableStream<Uint8Array>,
-    fileName: string,
-  ): Promise<{ fileName: string }> {
+  async backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }> {
     const h = await this.getHandle();
     if (!h) {
       throw new Error('バックアップフォルダが未設定です');
@@ -56,13 +55,14 @@ export class FsaBackupAdapter implements BackupAdapter {
     if (!(await this.ensurePermission())) {
       throw new Error('フォルダへのアクセス許可が拒否されました');
     }
-    const fileHandle = await h.getFileHandle(fileName, { create: true });
+    const { dir, name } = await resolveParent(h, path, true);
+    const fileHandle = await dir.getFileHandle(name, { create: true });
     // pipeTo は成功時に書き込み先を close するため、明示的な close は不要。
     await stream.pipeTo(await fileHandle.createWritable());
-    return { fileName };
+    return { fileName: path };
   }
 
-  async list(): Promise<string[]> {
+  async list(subdir?: string): Promise<string[]> {
     const h = await this.getHandle();
     if (!h) {
       return [];
@@ -70,18 +70,52 @@ export class FsaBackupAdapter implements BackupAdapter {
     if (!(await this.ensurePermission())) {
       return [];
     }
+    let dir = h;
+    if (subdir !== undefined) {
+      const segments = splitBackupPath(subdir);
+      try {
+        dir = await descendDir(h, segments, false);
+      } catch (e) {
+        if (isNotFoundError(e)) {
+          return [];
+        }
+        throw e;
+      }
+    }
     const names: string[] = [];
-    for await (const name of h.keys()) {
+    for await (const name of dir.keys()) {
       names.push(name);
     }
     return names;
   }
+  // 権限拒否は例外のまま返す。null は「まだ同期されていない」を表すので、
+  // アクセスできない状態と取り違えると古いスナップショットへ黙って退行する。
+  async read(path: string): Promise<Uint8Array | null> {
+    const h = await this.getHandle();
+    if (!h) {
+      throw new Error('バックアップフォルダが未設定です');
+    }
+    if (!(await this.ensurePermission())) {
+      throw new Error('フォルダへのアクセス許可が拒否されました');
+    }
+    try {
+      const { dir, name } = await resolveParent(h, path, false);
+      const file = await (await dir.getFileHandle(name)).getFile();
+      return new Uint8Array(await file.arrayBuffer());
+    } catch (e) {
+      if (isNotFoundError(e)) {
+        return null;
+      }
+      throw e;
+    }
+  }
 
-  async remove(fileName: string): Promise<void> {
+  async remove(path: string): Promise<void> {
     const h = await this.getHandle();
     if (!h) {
       return;
     }
-    await h.removeEntry(fileName);
+    const { dir, name } = await resolveParent(h, path, false);
+    await dir.removeEntry(name);
   }
 }

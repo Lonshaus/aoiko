@@ -132,6 +132,45 @@ describe('NativeFolderBackupAdapter.backup', () => {
     ).rejects.toThrow('バックアップフォルダが未設定です');
     expect(api.backupWrite).not.toHaveBeenCalled();
   });
+  // backupWrite はファイル名しか受け取らない。スラッシュ入りの名前を渡すと wrapper が
+  // 何を作るか保証できないので、web 側で止める。
+  test('サブフォルダ付きのパスは wrapper へ渡さず失敗する', async () => {
+    const api = stubNative();
+    await expect(
+      adapterWith(CONFIGURED).adapter.backup(streamOf([1]), 'attachments/' + 'a'.repeat(64)),
+    ).rejects.toThrow('backupWrite はサブフォルダに未対応です');
+    expect(api.backupWrite).not.toHaveBeenCalled();
+  });
+});
+
+describe('NativeFolderBackupAdapter.read', () => {
+  test('backupRead があれば token とパスを渡してバイト列を返す', async () => {
+    const bytes = new Uint8Array([1, 2, 3]);
+    const api = stubNative({ backupRead: vi.fn(async () => bytes) });
+    expect(await adapterWith(CONFIGURED).adapter.read('snapshots/2026-08-09T120000Z.json')).toBe(
+      bytes,
+    );
+    expect(api.backupRead).toHaveBeenCalledWith('tok', 'snapshots/2026-08-09T120000Z.json');
+  });
+
+  test('未同期は wrapper が null を返す（そのまま素通しする）', async () => {
+    stubNative({ backupRead: vi.fn(async () => null) });
+    expect(await adapterWith(CONFIGURED).adapter.read('attachments/x')).toBeNull();
+  });
+  // 能力が無いことを null で返すと「まだ同期されていない」と区別できず、
+  // 読めるはずのスナップショットを黙って捨ててしまう。
+  test('backupRead が無い wrapper では null ではなく例外', async () => {
+    stubNative();
+    await expect(adapterWith(CONFIGURED).adapter.read('snapshots/a.json')).rejects.toThrow(
+      'ネイティブ側の backupRead が未実装',
+    );
+  });
+
+  test('保存先の外を指すパスは wrapper へ渡さない', async () => {
+    const api = stubNative({ backupRead: vi.fn(async () => null) });
+    await expect(adapterWith(CONFIGURED).adapter.read('../secrets')).rejects.toThrow(RangeError);
+    expect(api.backupRead).not.toHaveBeenCalled();
+  });
 });
 
 describe('NativeFolderBackupAdapter.list / remove', () => {
@@ -157,6 +196,42 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     const api = stubNative();
     await adapterWith(null).adapter.remove('aoiko-ledger-2026-07-01.zip');
     expect(api.backupRemove).not.toHaveBeenCalled();
+  });
+
+  test('remove もサブフォルダ付きのパスは wrapper へ渡さない', async () => {
+    const api = stubNative();
+    await expect(
+      adapterWith(CONFIGURED).adapter.remove('attachments/' + 'a'.repeat(64)),
+    ).rejects.toThrow('backupRemove はサブフォルダに未対応です');
+    expect(api.backupRemove).not.toHaveBeenCalled();
+  });
+
+  test('backupListDir があれば subdir を渡して一覧する', async () => {
+    const api = stubNative({ backupListDir: vi.fn(async () => ['2026-08-09T120000Z.json']) });
+    expect(await adapterWith(CONFIGURED).adapter.list('snapshots')).toEqual([
+      '2026-08-09T120000Z.json',
+    ]);
+    expect(api.backupListDir).toHaveBeenCalledWith('tok', 'snapshots');
+    expect(api.backupList).not.toHaveBeenCalled();
+  });
+  // 空配列で返すと「フォルダが空」と区別できず、汰換や GC が誤動作する。
+  test('backupListDir が無い wrapper では空配列ではなく例外', async () => {
+    stubNative();
+    await expect(adapterWith(CONFIGURED).adapter.list('snapshots')).rejects.toThrow(
+      'ネイティブ側の backupListDir が未実装',
+    );
+  });
+
+  test('subdir 無しの list は従来どおり backupList を使う', async () => {
+    const api = stubNative({ backupListDir: vi.fn(async () => []) });
+    expect(await adapterWith(CONFIGURED).adapter.list()).toEqual(['aoiko-ledger-2026-07-28.zip']);
+    expect(api.backupListDir).not.toHaveBeenCalled();
+  });
+
+  test('保存先の外を指す subdir は wrapper へ渡さない', async () => {
+    const api = stubNative({ backupListDir: vi.fn(async () => []) });
+    await expect(adapterWith(CONFIGURED).adapter.list('../..')).rejects.toThrow(RangeError);
+    expect(api.backupListDir).not.toHaveBeenCalled();
   });
 });
 describe('decideNativeState', () => {
