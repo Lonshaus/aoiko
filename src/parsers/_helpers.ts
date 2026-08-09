@@ -1,4 +1,3 @@
-// CSV パーサー間で共有される小さなユーティリティ。
 // YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日 を 'YYYY-MM-DD' に正規化。
 // 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
 export function normalizeDate(s: string): string {
@@ -49,7 +48,6 @@ export function buildRawRow(header: string[], row: string[]): Record<string, str
   }
   return result;
 }
-// 必須列のインデックスを取得。1 つでも欠けたら早期に投げる。
 export function requireColumns(
   header: string[],
   names: readonly string[],
@@ -72,13 +70,11 @@ export function requireColumns(
   }
   return indices;
 }
-// オプショナル列のインデックス。無ければ -1。
 export function optionalColumn(header: string[], name: string): number {
   return header.indexOf(name);
 }
-// カード明細 CSV はカード名・支払日等の前言行＋空行の後に表頭が来る形式が多い。
-// 必須列名をすべて含む最初の行を表頭とみなし、その行インデックスを返す。
-// 見つからなければ -1。
+// カード明細 CSV は前言行＋空行の後に表頭が来る形式が多い。必須列名をすべて含む最初の行を
+// 表頭とみなす。見つからなければ -1。
 export function findHeaderRow(
   rows: string[][],
   required: readonly string[],

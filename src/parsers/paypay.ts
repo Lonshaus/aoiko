@@ -13,7 +13,6 @@ import type { CsvParser, ParsedTransaction } from './types';
 // 出金金額（円）がある支払い行は credit（未払金 増）として取り込む。
 // 入金行のうち「返金・返品・キャンセル」は debit（未払金 減）として取り込み、
 // それ以外の入金（ポイント・残高の獲得など）は仕訳対象外として読み飛ばす。
-// 残高チャージ運用が必要になった場合は別 parser で対応する。
 
 const DISPLAY = 'PayPay（クレジット決済）';
 const REQUIRED = ['取引日', '出金金額（円）', '取引先'] as const;

@@ -1,13 +1,8 @@
 import type { CsvParser } from './types';
 
 export type { CsvParser, ParsedTransaction, ParserEncoding } from './types';
-// Auto-discovery：./xxx.ts または ./xxx/xxx.ts に default export された CsvParser を全件収集する。
-// 新しい parser を追加するには：
-//   1. src/parsers/my-bank.ts（フラット）または src/parsers/my-bank/my-bank.ts（フォルダ、fixture 同梱）を作成、
-//      `export default { ... satisfies CsvParser }` する
-//   2. テスト + fixture を追加
-//   3. PR を投げる
-// _ で始まるファイル・フォルダ（_template など）は除外される。
+// Auto-discovery：./xxx.ts または ./xxx/xxx.ts の default export を全件収集する。
+// _ で始まるファイル・フォルダ（_template など）は除外。追加手順は _template.example.ts へ。
 const modules = import.meta.glob<{ default: CsvParser }>(
   [
     './**/*.ts',
