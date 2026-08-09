@@ -1,3 +1,4 @@
+import { splitBackupPath } from './content-store';
 import type { BackupAdapter } from './types';
 // wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）が注入するネイティブのフォルダ書き込み。
 //
@@ -17,6 +18,11 @@ interface NativeBackupBridge {
   backupWrite(token: string, fileName: string, data: ReadableStream<Uint8Array>): Promise<void>;
   backupList(token: string): Promise<string[]>;
   backupRemove(token: string, fileName: string): Promise<void>;
+  // 内容定址バックアップ用。wrapper 側が未実装のため optional にしてあり、
+  // 呼び出し側は関数の有無で能力を判定する（別スライスで wrapper へ追加する）。
+  // 見つからないファイルは wrapper 側で null にする。IO 失敗は例外のまま。
+  backupRead?(token: string, path: string): Promise<Uint8Array | null>;
+  backupListDir?(token: string, subdir: string): Promise<string[]>;
 }
 
 export interface NativeBackupFolder {
@@ -50,6 +56,14 @@ function bridge(): NativeBackupBridge | null {
   }
   const api = (window as unknown as { __aoikoNative?: Partial<NativeBackupBridge> }).__aoikoNative;
   return typeof api?.backupChooseFolder === 'function' ? (api as NativeBackupBridge) : null;
+}
+
+// backupWrite / backupRemove はファイル名だけを受け取る。スラッシュ入りの名前を
+// そのまま渡すと wrapper 側が何を作るか保証できないため、ここで止める。
+function requireFlatPath(path: string, method: string): void {
+  if (splitBackupPath(path).length > 1) {
+    throw new Error(`ネイティブ側の ${method} はサブフォルダに未対応です: ${path}`);
+  }
 }
 
 export class NativeFolderBackupAdapter implements BackupAdapter {
@@ -93,34 +107,54 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     await this.setFolder(chosen);
   }
 
-  async backup(
-    stream: ReadableStream<Uint8Array>,
-    fileName: string,
-  ): Promise<{ fileName: string }> {
+  async backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }> {
+    requireFlatPath(path, 'backupWrite');
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
       throw new Error('バックアップフォルダが未設定です');
     }
-    await api.backupWrite(folder.token, fileName, stream);
-    return { fileName };
+    await api.backupWrite(folder.token, path, stream);
+    return { fileName: path };
   }
 
-  async list(): Promise<string[]> {
+  async list(subdir?: string): Promise<string[]> {
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
       return [];
     }
-    return api.backupList(folder.token);
+    if (subdir === undefined) {
+      return api.backupList(folder.token);
+    }
+    splitBackupPath(subdir);
+    if (typeof api.backupListDir !== 'function') {
+      throw new Error('ネイティブ側の backupListDir が未実装のため、サブフォルダを一覧できません');
+    }
+    return api.backupListDir(folder.token, subdir);
+  }
+  // 能力が無いことを null で返さない。「まだ同期されていない」と区別できなくなり、
+  // 読めるはずのスナップショットを黙って捨てることになる。
+  async read(path: string): Promise<Uint8Array | null> {
+    splitBackupPath(path);
+    const api = bridge();
+    const folder = await this.getFolder();
+    if (!api || !folder) {
+      throw new Error('バックアップフォルダが未設定です');
+    }
+    if (typeof api.backupRead !== 'function') {
+      throw new Error('ネイティブ側の backupRead が未実装のため、バックアップを読み出せません');
+    }
+    return api.backupRead(folder.token, path);
   }
 
-  async remove(fileName: string): Promise<void> {
+  async remove(path: string): Promise<void> {
+    requireFlatPath(path, 'backupRemove');
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
       return;
     }
-    await api.backupRemove(folder.token, fileName);
+    await api.backupRemove(folder.token, path);
   }
 }
