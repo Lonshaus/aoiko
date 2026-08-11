@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalLine } from '../db/types';
 import type { ParsedTransaction } from '../parsers/types';
 
@@ -65,6 +65,7 @@ export async function commitImport(
   const now = Date.now();
 
   await db.transaction('rw', [db.journalEntries, db.journalLines, db.importBatches], async () => {
+    markConfirmedWrite(options);
     await db.importBatches.add({
       id: batchId,
       parserName: info.parserName,
