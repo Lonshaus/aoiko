@@ -1,7 +1,6 @@
-// scheduleBackup は間隔判定を挟まず backup() を呼ぶため、圧縮中に来た保存が
-// 捨てられると「どのバックアップにも入らない変更」が生まれる（#316）。
-// backup() は private フィールドへ直接アダプタを差し込む以外に注入口が無いため、
-// ledger.svelte.test.ts と同じくシングルトンをキャストして駆動する。
+// 書き出し中に来た保存が捨てられると「どのバックアップにも入らない変更」が
+// 生まれる（#316）。backup() は private フィールドへ直接アダプタを差し込む以外に
+// 注入口が無いため、ledger.svelte.test.ts と同じくシングルトンをキャストして駆動する。
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
@@ -78,7 +77,7 @@ class FakeAdapter implements BackupAdapter {
 
 type Injectable = { adapter: BackupAdapter | null; status: string; adapterKind: string };
 
-// backup() は adapter.backup() に届くまでに設定読込と zip 生成を挟むため、
+// backup() は adapter.backup() に届くまでに設定読込と payload 組み立てを挟むため、
 // マイクロタスク1回では足りない。実際に呼ばれるまで待つ。
 async function waitForCalls(expected: number): Promise<void> {
   for (let i = 0; i < 200 && fake.calls < expected; i++) {
@@ -165,6 +164,44 @@ describe('backupManager.backup（書込中に来た要求の追い掛け）', ()
     await first;
     expect(fake.calls).toBe(1);
     expect(backupManager.status).toBe('error');
+  });
+});
+
+// 参照されなくなった証憑の実体の掃除。消えると困るのは利用者の写真そのものなので、
+// 「既定では走らない」と「毎回は走らない」を書き込み側から確かめる。
+describe('backupManager.backup（実体の掃除の起動条件）', () => {
+  async function runBackup(): Promise<void> {
+    const p = backupManager.backup();
+    await waitForCalls(1);
+    fake.settleOne();
+    await p;
+  }
+
+  test('既定（0 日）では走らない', async () => {
+    await runBackup();
+    expect(await getSetting('lastBlobSweepAt')).toBeUndefined();
+  });
+
+  test('日数を設定していれば走る', async () => {
+    await setSetting('blobRetentionDays', 30);
+    await runBackup();
+    expect(await getSetting('lastBlobSweepAt')).toEqual(expect.any(Number));
+  });
+
+  test('前回から 1 日経っていなければ走らない', async () => {
+    await setSetting('blobRetentionDays', 30);
+    const stamped = Date.now() - 60_000;
+    await setSetting('lastBlobSweepAt', stamped);
+    await runBackup();
+    expect(await getSetting('lastBlobSweepAt')).toBe(stamped);
+  });
+
+  test('前回から 1 日以上経っていれば走る', async () => {
+    await setSetting('blobRetentionDays', 30);
+    const stamped = Date.now() - 25 * 60 * 60 * 1000;
+    await setSetting('lastBlobSweepAt', stamped);
+    await runBackup();
+    expect(await getSetting('lastBlobSweepAt')).not.toBe(stamped);
   });
 });
 

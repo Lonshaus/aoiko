@@ -2,7 +2,8 @@ import { describe, expect, test } from 'vitest';
 import {
   ATTACHMENT_DIR,
   attachmentPath,
-  blobsToDelete,
+  snapshotTimeMs,
+  snapshotsToScanForSweep,
   buildSnapshot,
   expiredSnapshots,
   missingBlobs,
@@ -231,54 +232,67 @@ describe('expiredSnapshots', () => {
 });
 
 describe('unreferencedBlobs', () => {
+  const A = 'a'.repeat(64);
+  const B = 'b'.repeat(64);
+  const C = 'c'.repeat(64);
+
   test('present にあり referenced に無いものを返す', () => {
-    const present = new Set(['a', 'b', 'c']);
-    const referenced = new Set(['b']);
-    expect(unreferencedBlobs(present, referenced)).toEqual(['a', 'c']);
+    expect(unreferencedBlobs(new Set([A, B, C]), new Set([B]))).toEqual([A, C]);
   });
 
   test('全て参照されていれば空配列', () => {
-    const present = new Set(['a', 'b']);
+    const present = new Set([A, B]);
     expect(unreferencedBlobs(present, present)).toEqual([]);
   });
 
   test('present が空なら空配列', () => {
-    expect(unreferencedBlobs(new Set(), new Set(['a']))).toEqual([]);
+    expect(unreferencedBlobs(new Set(), new Set([A]))).toEqual([]);
+  });
+  // 利用者が同じフォルダへ置いた無関係なファイルを掃除で巻き込まないため。
+  test('SHA-256 の名前でないものは対象にしない', () => {
+    expect(unreferencedBlobs(new Set([A, 'memo.txt', 'ZZZZ']), new Set())).toEqual([A]);
   });
 });
 
-describe('blobsToDelete', () => {
-  const DAY_MS = 24 * 60 * 60 * 1000;
-  const now = 1_000_000 * DAY_MS;
-
-  test('retentionDays が null なら常に空配列', () => {
-    const candidates = [{ sha256: 'a'.repeat(64), unreferencedSinceMs: 0 }];
-    expect(blobsToDelete(candidates, now, null)).toEqual([]);
+describe('snapshotTimeMs', () => {
+  test('ファイル名から時刻を取る（中身を読まない）', () => {
+    expect(snapshotTimeMs('2026-08-09T120000Z.json')).toBe(Date.parse('2026-08-09T12:00:00Z'));
   });
 
-  test('境界ちょうど（retentionDays 日経過）は削除対象に含む', () => {
-    const candidates = [{ sha256: 'a'.repeat(64), unreferencedSinceMs: now - 7 * DAY_MS }];
-    expect(blobsToDelete(candidates, now, 7)).toEqual(['a'.repeat(64)]);
+  test('スナップショットの名前でなければ null', () => {
+    expect(snapshotTimeMs('aoiko-ledger-2026-08-09.zip')).toBeNull();
+    expect(snapshotTimeMs('2026-08-09T120000Z.txt')).toBeNull();
+  });
+});
+
+describe('snapshotsToScanForSweep', () => {
+  const now = Date.parse('2026-08-09T12:00:00Z');
+  const DAY = 24 * 60 * 60 * 1000;
+  const recent = '2026-08-08T120000Z.json';
+  const old = '2026-05-01T120000Z.json';
+
+  test('0 日（削除しない）は空配列', () => {
+    expect(snapshotsToScanForSweep([recent, old], now, 0)).toEqual([]);
   });
 
-  test('境界未満は削除対象に含まない', () => {
-    const candidates = [{ sha256: 'a'.repeat(64), unreferencedSinceMs: now - 7 * DAY_MS + 1 }];
-    expect(blobsToDelete(candidates, now, 7)).toEqual([]);
+  test('スナップショットが無ければ空配列', () => {
+    expect(snapshotsToScanForSweep([], now, 30)).toEqual([]);
   });
 
-  test('負の retentionDays は null と同様に扱う', () => {
-    const candidates = [{ sha256: 'a'.repeat(64), unreferencedSinceMs: 0 }];
-    expect(blobsToDelete(candidates, now, -1)).toEqual([]);
+  test('日数の窓に入る版だけ読む', () => {
+    expect(snapshotsToScanForSweep([recent, old], now, 30)).toEqual([recent]);
+  });
+  // 最新版の参照先を消すと、直近のバックアップが写真の欠けたものになる。
+  test('最新版は窓の外でも必ず含める', () => {
+    expect(snapshotsToScanForSweep([old], now, 30)).toEqual([old]);
   });
 
-  test('非有限の retentionDays は null と同様に扱う', () => {
-    const candidates = [{ sha256: 'a'.repeat(64), unreferencedSinceMs: 0 }];
-    expect(blobsToDelete(candidates, now, Number.POSITIVE_INFINITY)).toEqual([]);
-    expect(blobsToDelete(candidates, now, Number.NaN)).toEqual([]);
-  });
-
-  test('候補が空なら空配列', () => {
-    expect(blobsToDelete([], now, 7)).toEqual([]);
+  test('境界ちょうどは窓の中', () => {
+    const edge =
+      new Date(now - 30 * DAY)
+        .toISOString()
+        .replace(/(\d{2}):(\d{2}):(\d{2})\.\d{3}Z$/, '$1$2$3Z') + '.json';
+    expect(snapshotsToScanForSweep([recent, edge], now, 30)).toContain(edge);
   });
 });
 
