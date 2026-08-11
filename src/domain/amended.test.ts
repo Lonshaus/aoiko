@@ -1,3 +1,4 @@
+import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
@@ -20,6 +21,8 @@ async function addEntry(opts: {
   const id = newId();
   const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    // 申告後に漏れていた経費を足す（修正申告）は、画面の確認を通った書き込み。
+    allowFiledYearWriteInThisTransaction();
     await db.journalEntries.add({
       id,
       date: opts.date,

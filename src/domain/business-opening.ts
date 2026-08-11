@@ -2,7 +2,7 @@ import { D, Decimal, toIndexable } from '../lib/decimal';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
@@ -263,6 +263,7 @@ export async function generateOpeningEntries(
   let alreadyExists = false;
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    markConfirmedWrite(options);
     // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
     // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
     const existing = await db.journalEntries
@@ -393,6 +394,7 @@ export async function removeOpeningEntries(
   let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    markConfirmedWrite(options);
     const originals = await db.journalEntries
       .where('year')
       .equals(year)

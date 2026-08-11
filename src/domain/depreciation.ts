@@ -3,7 +3,7 @@ import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 減価償却の計算と仕訳生成。
@@ -413,6 +413,7 @@ export async function generateYearEndDepreciation(
       ? `減価償却（措法28の2）${asset.name} #${asset.id.slice(0, 8)}`
       : `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`;
     await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      markConfirmedWrite(options);
       await db.journalEntries.add({
         id: entryId,
         date,

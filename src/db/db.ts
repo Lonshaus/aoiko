@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { installFiledYearGuard } from './filed-year-guard';
 import { sha256Hex } from '../lib/sha256';
 import type {
   Account,
@@ -39,6 +40,9 @@ class AoikoDB extends Dexie {
 
   constructor() {
     super('aoiko');
+    // 申告済み年度への書き込みを止める門。version() より先に差し込む（middleware は
+    // open() までに登録されていればよいが、後から足すと登録漏れに気付きにくい）。
+    installFiledYearGuard(this);
 
     this.version(1).stores({
       journalEntries: 'id, date, year, status, originalEntryId, [year+date], [date+status]',
