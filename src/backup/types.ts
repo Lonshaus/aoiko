@@ -15,7 +15,7 @@ export interface BackupAdapter {
   // path に '/' を含めた場合、途中のディレクトリは実装側が作る。
   backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }>;
   // 保存先にある既存バックアップのファイル名一覧（古いものの汰換判定に使う）。
-  // subdir を渡すとその直下だけを返す。返すのはパスではなく名前。
+  // ディレクトリは含まない。subdir を渡すとその直下だけを返す。返すのはパスではなく名前。
   // 存在しないディレクトリは空配列。同期途中のフォルダでは普通に起きるため。
   list(subdir?: string): Promise<string[]>;
   // 指定パスの中身を読む。見つからなければ null。
