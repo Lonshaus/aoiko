@@ -487,7 +487,7 @@
       return;
     }
     try {
-      const r = await applyCarryover(currentYear);
+      const r = await applyCarryover(currentYear, { allowFiledYear: true });
       if ('entryId' in r) {
         carryoverStatus = m.settings_carryover_applied();
         carryoverPreview = null;
@@ -508,7 +508,7 @@
       return;
     }
     try {
-      const r = await applyBadDebtReversal(currentYear);
+      const r = await applyBadDebtReversal(currentYear, { allowFiledYear: true });
       if ('entryId' in r) {
         badDebtReversalStatus = m.settings_bad_debt_reversal_applied({
           amount: formatJPY(r.total),
@@ -534,7 +534,7 @@
       return;
     }
     try {
-      const r = await removeCarryover(currentYear);
+      const r = await removeCarryover(currentYear, { allowFiledYear: true });
       carryoverStatus = r.removed
         ? m.settings_carryover_deleted()
         : m.settings_carryover_no_target();
@@ -843,7 +843,7 @@
         return;
       }
     }
-    const result = await generateDisposalEntry(id, disposeCashAccount);
+    const result = await generateDisposalEntry(id, disposeCashAccount, { allowFiledYear: true });
     if (result.created) {
       disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
       return;
@@ -864,7 +864,7 @@
       return;
     }
     try {
-      const r = await generateYearEndDepreciation(depreciationYear);
+      const r = await generateYearEndDepreciation(depreciationYear, { allowFiledYear: true });
       const parts: string[] = [];
       parts.push(
         r.skipped > 0

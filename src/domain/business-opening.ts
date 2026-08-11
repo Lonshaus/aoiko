@@ -2,6 +2,7 @@ import { D, Decimal, toIndexable } from '../lib/decimal';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable } from './year-lock';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
@@ -252,11 +253,13 @@ function newEntry(date: string, description: string): JournalEntry {
 // 未償却残高を計上する開業仕訳のみを作る。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
+  options?: { allowFiledYear?: boolean },
 ): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
   const date = input.businessStartDate;
   const year = Number(date.slice(0, 4));
+  await assertYearsWritable([year], options);
   let alreadyExists = false;
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
@@ -384,7 +387,9 @@ interface OpeningRemovalBlocked {
 // 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
 export async function removeOpeningEntries(
   year: number,
+  options?: { allowFiledYear?: boolean },
 ): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
+  await assertYearsWritable([year], options);
   let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
