@@ -1,5 +1,5 @@
 import { splitBackupPath } from './content-store';
-import { descendDir, isNotFoundError, resolveParent } from './fs-handle';
+import { descendDir, isNotFoundError, listFileNames, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
 // FSA API 非対応（あるブラウザ / あるブラウザ / ある環境）の主要な永続化フォルバック。
@@ -69,11 +69,7 @@ export class OpfsBackupAdapter implements BackupAdapter {
         throw e;
       }
     }
-    const names: string[] = [];
-    for await (const name of dir.keys()) {
-      names.push(name);
-    }
-    return names;
+    return listFileNames(dir);
   }
 
   async read(path: string): Promise<Uint8Array | null> {
