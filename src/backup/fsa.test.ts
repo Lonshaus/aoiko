@@ -9,6 +9,7 @@ function notFound(name: string): DOMException {
 }
 
 class FakeFileHandle {
+  readonly kind = 'file' as const;
   committed = new Uint8Array(0);
 
   createWritable(): WritableStream<Uint8Array> {
@@ -36,6 +37,7 @@ class FakeFileHandle {
 }
 
 class FakeDirectoryHandle {
+  readonly kind = 'directory' as const;
   readonly files = new Map<string, FakeFileHandle>();
   readonly dirs = new Map<string, FakeDirectoryHandle>();
   // NotFoundError 以外を投げさせて、握り潰されないことを確かめるための注入口
@@ -95,6 +97,11 @@ class FakeDirectoryHandle {
   async *keys(): AsyncGenerator<string> {
     yield* this.files.keys();
     yield* this.dirs.keys();
+  }
+
+  async *entries(): AsyncGenerator<[string, FakeFileHandle | FakeDirectoryHandle]> {
+    yield* this.files.entries();
+    yield* this.dirs.entries();
   }
 }
 
@@ -181,12 +188,12 @@ describe('FsaBackupAdapter.read', () => {
 });
 
 describe('FsaBackupAdapter.list', () => {
-  test('引数無しは直下の名前を返す', async () => {
+  test('引数無しは直下のファイル名だけを返す（ディレクトリは含まない）', async () => {
     const root = new FakeDirectoryHandle();
     const adapter = adapterOn(root);
     await adapter.backup(streamOf([1]), 'aoiko-ledger-2026-07-28.zip');
     await adapter.backup(streamOf([1]), 'snapshots/2026-08-09T120000Z.json');
-    expect((await adapter.list()).sort()).toEqual(['aoiko-ledger-2026-07-28.zip', 'snapshots']);
+    expect(await adapter.list()).toEqual(['aoiko-ledger-2026-07-28.zip']);
   });
 
   test('subdir を渡すとその直下の名前だけを返す（パスではない）', async () => {
@@ -199,6 +206,25 @@ describe('FsaBackupAdapter.list', () => {
       '2026-08-08T120000Z.json',
       '2026-08-09T120000Z.json',
     ]);
+  });
+  // 内容定址バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
+  // ディレクトリを誤って数えないことを保証する。
+  test('直下にディレクトリがあってもファイルだけを返す', async () => {
+    const root = new FakeDirectoryHandle();
+    const adapter = adapterOn(root);
+    await adapter.backup(streamOf([1]), 'aoiko-ledger-2026-07-28.zip');
+    await root.getDirectoryHandle('snapshots', { create: true });
+    await root.getDirectoryHandle('attachments', { create: true });
+    expect(await adapter.list()).toEqual(['aoiko-ledger-2026-07-28.zip']);
+  });
+
+  test('subdir 配下にディレクトリがあってもファイルだけを返す', async () => {
+    const root = new FakeDirectoryHandle();
+    const adapter = adapterOn(root);
+    await adapter.backup(streamOf([1]), 'snapshots/2026-08-09T120000Z.json');
+    const snapshots = await root.getDirectoryHandle('snapshots', { create: true });
+    await snapshots.getDirectoryHandle('nested', { create: true });
+    expect(await adapter.list('snapshots')).toEqual(['2026-08-09T120000Z.json']);
   });
   // 一度もバックアップしていない同期フォルダでは attachments/ がまだ存在しない。
   test('ディレクトリが無ければ空配列', async () => {

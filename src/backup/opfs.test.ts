@@ -48,6 +48,7 @@ describe('OpfsBackupAdapter.isAvailable', () => {
 // OPFS の最小フェイク。happy-dom は OPFS を提供しないため、backup() が使う
 // getFileHandle / createWritable / getFile だけを実ディスクなしで再現する。
 class FakeFileHandle {
+  readonly kind = 'file' as const;
   committed = new Uint8Array(0);
 
   createWritable() {
@@ -79,6 +80,7 @@ function notFound(name: string): DOMException {
 }
 
 class FakeDirectoryHandle {
+  readonly kind = 'directory' as const;
   readonly files = new Map<string, FakeFileHandle>();
   readonly dirs = new Map<string, FakeDirectoryHandle>();
   // NotFoundError 以外を投げさせて、握り潰されないことを確かめるための注入口
@@ -125,6 +127,11 @@ class FakeDirectoryHandle {
   async *keys(): AsyncGenerator<string> {
     yield* this.files.keys();
     yield* this.dirs.keys();
+  }
+
+  async *entries(): AsyncGenerator<[string, FakeFileHandle | FakeDirectoryHandle]> {
+    yield* this.files.entries();
+    yield* this.dirs.entries();
   }
 }
 
@@ -258,7 +265,32 @@ describe('OpfsBackupAdapter.list / remove', () => {
     await adapter.backup(streamOf([new Uint8Array([1])]), 'snapshots/2026-08-09T120000Z.json');
     await adapter.backup(streamOf([new Uint8Array([1])]), `attachments/${'e'.repeat(64)}`);
     expect(await adapter.list('snapshots')).toEqual(['2026-08-09T120000Z.json']);
-    expect((await adapter.list()).sort()).toEqual(['attachments', 'snapshots']);
+    expect(await adapter.list()).toEqual([]);
+  });
+  // 内容定址バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
+  // ディレクトリを誤って数えないことを保証する。
+  test('直下にディレクトリがあってもファイルだけを返す', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    await adapter.backup(streamOf([new Uint8Array([1])]), 'aoiko-ledger-2026-07-28.zip');
+    await root.getDirectoryHandle('snapshots', { create: true });
+    expect((await adapter.list()).sort()).toEqual([
+      'aoiko-ledger-2026-07-28.zip',
+      'aoiko-ledger-latest.zip',
+    ]);
+  });
+
+  test('subdir 配下にディレクトリがあってもファイルだけを返す', async () => {
+    const root = new FakeDirectoryHandle();
+    vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+
+    const adapter = new OpfsBackupAdapter();
+    await adapter.backup(streamOf([new Uint8Array([1])]), 'snapshots/2026-08-09T120000Z.json');
+    const snapshots = await root.getDirectoryHandle('snapshots', { create: true });
+    await snapshots.getDirectoryHandle('nested', { create: true });
+    expect(await adapter.list('snapshots')).toEqual(['2026-08-09T120000Z.json']);
   });
 
   test('ディレクトリが無ければ空配列', async () => {

@@ -1,5 +1,5 @@
 import { splitBackupPath } from './content-store';
-import { descendDir, isNotFoundError, resolveParent } from './fs-handle';
+import { descendDir, isNotFoundError, listFileNames, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
 
 type GetHandle = () => Promise<FileSystemDirectoryHandle | null>;
@@ -82,11 +82,7 @@ export class FsaBackupAdapter implements BackupAdapter {
         throw e;
       }
     }
-    const names: string[] = [];
-    for await (const name of dir.keys()) {
-      names.push(name);
-    }
-    return names;
+    return listFileNames(dir);
   }
   // 権限拒否は例外のまま返す。null は「まだ同期されていない」を表すので、
   // アクセスできない状態と取り違えると古いスナップショットへ黙って退行する。
