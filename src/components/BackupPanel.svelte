@@ -5,20 +5,20 @@
   import { m } from '../paraglide/messages';
   import ConfirmDialog from './ConfirmDialog.svelte';
   import {
-    BACKUP_INTERVAL_HOURS,
     BACKUP_RETENTION_COUNTS,
+    BLOB_RETENTION_DAYS,
     daysSince,
     isFolderBackupActive,
     needsOffsiteBackupWarning,
     shouldShowHomeScreenHint,
   } from '../backup/schedule';
-  import type { BackupIntervalHours, BackupRetentionCount } from '../backup/schedule';
+  import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 
   let downloadSavedConfirmOpen = $state(false);
   let includeApiKeys = $state(false);
   let includeFilerInfo = $state(false);
-  let intervalHours = $state<BackupIntervalHours>(0);
   let retentionCount = $state<BackupRetentionCount>(0);
+  let blobRetentionDays = $state<BlobRetentionDays>(0);
   // 起動後に変わらないので non-reactive でよい
   const isStandalone =
     typeof window !== 'undefined' &&
@@ -28,8 +28,8 @@
   onMount(async () => {
     includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
     includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-    intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
     retentionCount = (await getSetting('backupRetentionCount')) ?? 0;
+    blobRetentionDays = (await getSetting('blobRetentionDays')) ?? 0;
   });
 
   async function onToggleIncludeApiKeys(e: Event) {
@@ -42,14 +42,14 @@
     await setSetting('backupIncludeFilerInfo', includeFilerInfo);
   }
 
-  async function onChangeIntervalHours(e: Event) {
-    intervalHours = Number((e.target as HTMLSelectElement).value) as BackupIntervalHours;
-    await setSetting('backupIntervalHours', intervalHours);
-  }
-
   async function onChangeRetentionCount(e: Event) {
     retentionCount = Number((e.target as HTMLSelectElement).value) as BackupRetentionCount;
     await setSetting('backupRetentionCount', retentionCount);
+  }
+
+  async function onChangeBlobRetentionDays(e: Event) {
+    blobRetentionDays = Number((e.target as HTMLSelectElement).value) as BlobRetentionDays;
+    await setSetting('blobRetentionDays', blobRetentionDays);
   }
 
   async function onDownloadBackup() {
@@ -68,25 +68,18 @@
     downloadSavedConfirmOpen = false;
   }
 
-  function intervalOptionLabel(hours: BackupIntervalHours): string {
-    if (hours === 0) {
-      return m.backup_panel_interval_option_change();
-    }
-    if (hours === 24) {
-      return m.backup_panel_interval_option_daily();
-    }
-    // 英語の複数形が崩れるため 1 時間だけ別文言にする
-    if (hours === 1) {
-      return m.backup_panel_interval_option_hourly();
-    }
-    return m.backup_panel_interval_option_hours({ hours: String(hours) });
-  }
-
   function retentionOptionLabel(count: BackupRetentionCount): string {
     if (count === 0) {
       return m.backup_panel_retention_option_never();
     }
     return m.backup_panel_retention_option_keep({ count: String(count) });
+  }
+
+  function blobRetentionOptionLabel(days: BlobRetentionDays): string {
+    if (days === 0) {
+      return m.backup_panel_blob_retention_option_never();
+    }
+    return m.backup_panel_blob_retention_option_days({ days: String(days) });
   }
 
   function formatTime(ts: number | null): string {
@@ -307,23 +300,6 @@
   </label>
 
   <div class="text-sm border-t pt-4">
-    <label class="flex items-center justify-between gap-2" for="backup-interval-hours">
-      <span>{m.backup_panel_interval_label()}</span>
-      <select
-        id="backup-interval-hours"
-        value={intervalHours}
-        onchange={onChangeIntervalHours}
-        class="border rounded px-2 py-1 bg-background"
-      >
-        {#each BACKUP_INTERVAL_HOURS as hours (hours)}
-          <option value={hours}>{intervalOptionLabel(hours)}</option>
-        {/each}
-      </select>
-    </label>
-    <span class="block text-xs text-muted-foreground mt-1">{m.backup_panel_interval_hint()}</span>
-  </div>
-
-  <div class="text-sm">
     <label class="flex items-center justify-between gap-2" for="backup-retention-count">
       <span>{m.backup_panel_retention_label()}</span>
       <select
@@ -338,6 +314,25 @@
       </select>
     </label>
     <span class="block text-xs text-muted-foreground mt-1">{m.backup_panel_retention_hint()}</span>
+  </div>
+
+  <div class="text-sm">
+    <label class="flex items-center justify-between gap-2" for="blob-retention-days">
+      <span>{m.backup_panel_blob_retention_label()}</span>
+      <select
+        id="blob-retention-days"
+        value={blobRetentionDays}
+        onchange={onChangeBlobRetentionDays}
+        class="border rounded px-2 py-1 bg-background"
+      >
+        {#each BLOB_RETENTION_DAYS as days (days)}
+          <option value={days}>{blobRetentionOptionLabel(days)}</option>
+        {/each}
+      </select>
+    </label>
+    <span class="block text-xs text-muted-foreground mt-1">
+      {m.backup_panel_blob_retention_hint()}
+    </span>
   </div>
 </section>
 
