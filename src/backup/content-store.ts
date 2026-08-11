@@ -12,6 +12,9 @@ export interface SnapshotAttachmentRef {
 
 export interface Snapshot {
   format: number;
+  // 中身（tables）の版。format は入れ物の版で、別々に動く。これを落とすと復元時に
+  // BackupPayload の版を検査できず、IncompatibleBackupError の防壁が効かなくなる。
+  payloadVersion: number;
   exportedAt: string;
   tables: Record<string, unknown[]>;
   attachments: SnapshotAttachmentRef[];
@@ -23,6 +26,7 @@ export function buildSnapshot(
 ): Snapshot {
   return {
     format: SNAPSHOT_FORMAT,
+    payloadVersion: payload.version,
     exportedAt: payload.exportedAt,
     tables: payload.tables,
     attachments: [...attachments],
@@ -78,6 +82,9 @@ export function parseSnapshot(text: string): Snapshot | null {
   if (obj.format !== SNAPSHOT_FORMAT) {
     return null;
   }
+  if (typeof obj.payloadVersion !== 'number' || !Number.isInteger(obj.payloadVersion)) {
+    return null;
+  }
   if (typeof obj.exportedAt !== 'string') {
     return null;
   }
@@ -89,6 +96,7 @@ export function parseSnapshot(text: string): Snapshot | null {
   }
   return {
     format: obj.format,
+    payloadVersion: obj.payloadVersion,
     exportedAt: obj.exportedAt,
     tables: obj.tables as Record<string, unknown[]>,
     attachments: obj.attachments,
