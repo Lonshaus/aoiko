@@ -12,6 +12,7 @@ import {
   iterateAttachmentBlobs,
   iterateAttachmentSources,
   pruneSnapshots,
+  sweepUnreferencedBlobs,
   readLatestSnapshot,
   writeLooseBackup,
   type BackupAdapter,
@@ -19,7 +20,7 @@ import {
 } from '../backup';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
-import { daysSince, needsOffsiteBackupWarning, shouldBackupNow } from '../backup/schedule';
+import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
 
@@ -46,6 +47,7 @@ type BackupStatus =
   | 'error';
 
 const DEBOUNCE_MS = 1000;
+const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 class BackupManager {
   status = $state<BackupStatus>('initializing');
@@ -181,9 +183,6 @@ class BackupManager {
       hasLegacyHandle: legacy !== null,
       ready: await adapter.isReady(),
     });
-    if (this.status === 'idle') {
-      void this.maybeStartupBackup();
-    }
   }
 
   private async initFsa(adapter: FsaBackupAdapter): Promise<void> {
@@ -198,9 +197,6 @@ class BackupManager {
     this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
     const perm = await handle.queryPermission({ mode: 'readwrite' });
     this.status = perm === 'granted' ? 'idle' : 'permission-required';
-    if (this.status === 'idle') {
-      void this.maybeStartupBackup();
-    }
   }
 
   private async initOpfs(adapter: OpfsBackupAdapter): Promise<void> {
@@ -208,7 +204,6 @@ class BackupManager {
     this.lastBackupAt = (await getSetting('lastBackupAt')) ?? null;
     this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
     this.status = 'idle';
-    void this.maybeStartupBackup();
   }
 
   async configure(): Promise<void> {
@@ -260,29 +255,8 @@ class BackupManager {
       clearTimeout(this.debounceTimer);
     }
     this.debounceTimer = setTimeout(() => {
-      void this.maybeAutoBackup();
+      void this.backup();
     }, DEBOUNCE_MS);
-  }
-  // データ変更による自動実行の入口。手動実行（backup()）は間隔設定に関係なく常に走らせる。
-  private async maybeAutoBackup(): Promise<void> {
-    const intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
-    if (!shouldBackupNow(this.lastBackupAt, Date.now(), intervalHours)) {
-      return;
-    }
-    await this.backup();
-  }
-  // 起動時の取りこぼし回収。間隔を空けていると、最後に記帳した分が未保存のまま
-  // アプリを閉じている場合があるため、経過していれば起動時に保存する。
-  // 「変更のたび」設定では従来どおり、起動しただけでは保存しない。
-  private async maybeStartupBackup(): Promise<void> {
-    const intervalHours = (await getSetting('backupIntervalHours')) ?? 0;
-    if (intervalHours === 0) {
-      return;
-    }
-    if (!shouldBackupNow(this.lastBackupAt, Date.now(), intervalHours)) {
-      return;
-    }
-    await this.backup();
   }
   // 古いスナップショットを保持件数まで減らす。証憑写真の実体は消さない（内容定址で、
   // 消した版以外からも参照され得るため。参照されなくなった実体の掃除は別立て）。
@@ -295,6 +269,29 @@ class BackupManager {
         return;
       }
       await pruneSnapshots(this.adapter, keepCount);
+    } catch (e: unknown) {
+      this.lastError = e instanceof Error ? e.message : String(e);
+    }
+  }
+  // 参照されなくなった証憑の実体を掃除する。既定では何もしない。
+  //
+  // 判定に窓の中の全スナップショットを読む必要があるので、保存のたびには走らせない。
+  // 実体が増えるのは「帳簿から消した証憑」の分だけで放置しても膨らみ方は緩いため、
+  // 1 日 1 回で足りる。pruneOldBackups と同じく例外は外へ出さない。
+  private async sweepBlobs(): Promise<void> {
+    try {
+      const retentionDays = (await getSetting('blobRetentionDays')) ?? 0;
+      if (retentionDays === 0 || !this.adapter) {
+        return;
+      }
+      const now = Date.now();
+      const last = (await getSetting('lastBlobSweepAt')) ?? 0;
+      // 端末の時計が巻き戻された場合は走らせる側に倒す（掃除しないより溜まる方が困る）。
+      if (now > last && now - last < SWEEP_INTERVAL_MS) {
+        return;
+      }
+      await sweepUnreferencedBlobs(this.adapter, retentionDays, now);
+      await setSetting('lastBlobSweepAt', now);
     } catch (e: unknown) {
       this.lastError = e instanceof Error ? e.message : String(e);
     }
@@ -372,6 +369,7 @@ class BackupManager {
         // 汰換が終わるまで status は 'writing' のままにする。先に 'idle' へ戻すと
         // デバウンス経由の次のバックアップが再入ガードをすり抜けて並走する。
         await this.pruneOldBackups();
+        await this.sweepBlobs();
         this.status = 'idle';
       } catch (e: unknown) {
         this.lastError = describeStorageError(e);
