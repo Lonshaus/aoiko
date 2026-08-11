@@ -1,23 +1,25 @@
 import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
 import {
+  ATTACHMENT_DIR,
   FsaBackupAdapter,
   NativeFolderBackupAdapter,
   OpfsBackupAdapter,
+  SNAPSHOT_DIR,
   decideNativeState,
   buildBackupZipStream,
   buildPayload,
   iterateAttachmentBlobs,
+  iterateAttachmentSources,
+  pruneSnapshots,
+  readLatestSnapshot,
+  writeLooseBackup,
   type BackupAdapter,
+  type FolderRestoreSource,
 } from '../backup';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
-import {
-  daysSince,
-  needsOffsiteBackupWarning,
-  selectExpiredBackups,
-  shouldBackupNow,
-} from '../backup/schedule';
+import { daysSince, needsOffsiteBackupWarning, shouldBackupNow } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
 
@@ -282,7 +284,8 @@ class BackupManager {
     }
     await this.backup();
   }
-  // 日付入りの古いバックアップを保持件数まで減らす。
+  // 古いスナップショットを保持件数まで減らす。証憑写真の実体は消さない（内容定址で、
+  // 消した版以外からも参照され得るため。参照されなくなった実体の掃除は別立て）。
   // 呼ばれる時点でバックアップ本体は成功しているため、設定の読み取り失敗も含めて
   // 例外を外へ出さない。ここで throw すると成功した保存が失敗として表示されてしまう。
   private async pruneOldBackups(): Promise<void> {
@@ -291,13 +294,26 @@ class BackupManager {
       if (keepCount === 0 || !this.adapter) {
         return;
       }
-      const expired = selectExpiredBackups(await this.adapter.list(), keepCount);
-      for (const fileName of expired) {
-        await this.adapter.remove(fileName);
-      }
+      await pruneSnapshots(this.adapter, keepCount);
     } catch (e: unknown) {
       this.lastError = e instanceof Error ? e.message : String(e);
     }
+  }
+  // 復元画面から使う。保存先の握りは manager が持ったままにしたいのでアダプタは外へ出さない。
+  async readLatestSnapshot(): Promise<FolderRestoreSource | null> {
+    if (!this.adapter || !this.canRead) {
+      return null;
+    }
+    return readLatestSnapshot(this.adapter);
+  }
+  // 保存先が確定していて読み書きできる状態か。
+  get canRead(): boolean {
+    return (
+      this.status !== 'initializing' &&
+      this.status !== 'unsupported' &&
+      this.status !== 'unconfigured' &&
+      this.status !== 'reconfigure-required'
+    );
   }
   // 「全データ削除」から呼ぶ。OPFS のバックアップは帳簿と証憑写真の完全な複製で
   // ありながら、利用者が Finder / エクスプローラーから見ることも消すこともできない。
@@ -307,6 +323,13 @@ class BackupManager {
     if (this.adapterKind !== 'opfs' || !this.adapter) {
       return;
     }
+    for (const subdir of [SNAPSHOT_DIR, ATTACHMENT_DIR]) {
+      for (const fileName of await this.adapter.list(subdir)) {
+        await this.adapter.remove(`${subdir}/${fileName}`);
+      }
+    }
+    // 直下には散ファイル以前に書いた zip が残っている。帳簿と証憑写真の完全な複製な
+    // ので、これも消さないと「全データ削除」の意味が無くなる。
     for (const fileName of await this.adapter.list()) {
       await this.adapter.remove(fileName);
     }
@@ -339,9 +362,10 @@ class BackupManager {
       try {
         const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
         const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-        const stream = await backupZipStream({ includeApiKeys, includeFilerInfo });
-        const fileName = `aoiko-ledger-${todayISO()}.zip`;
-        await this.adapter.backup(stream, fileName);
+        // zip を作り直さず、変わった分だけ書く。証憑写真は中身が同じなら 1 つしか置かない
+        // ので、写真が増えても毎回の同期量は帳簿本体＋新しい写真だけで済む（#397）。
+        const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
+        await writeLooseBackup(this.adapter, payload, iterateAttachmentSources());
         this.lastBackupAt = Date.now();
         await setSetting('lastBackupAt', this.lastBackupAt);
         this.lastError = '';

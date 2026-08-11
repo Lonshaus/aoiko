@@ -3,7 +3,6 @@ import {
   daysSince,
   isFolderBackupActive,
   needsOffsiteBackupWarning,
-  selectExpiredBackups,
   shouldBackupNow,
   shouldShowHomeScreenHint,
 } from './schedule';
@@ -49,69 +48,6 @@ describe('shouldBackupNow', () => {
     expect(shouldBackupNow(last, 24 * HOUR_MS, 24)).toBe(true);
     expect(shouldBackupNow(last, 24 * HOUR_MS - 1, 24)).toBe(false);
     expect(shouldBackupNow(last, 24 * HOUR_MS + 1, 24)).toBe(true);
-  });
-});
-
-describe('selectExpiredBackups', () => {
-  test('keepCount = 0 は常に空配列', () => {
-    const names = [
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-      'aoiko-ledger-2026-03-01.zip',
-    ];
-    expect(selectExpiredBackups(names, 0)).toEqual([]);
-  });
-
-  test('対象が keepCount 以下なら空配列', () => {
-    const names = ['aoiko-ledger-2026-01-01.zip'];
-    expect(selectExpiredBackups(names, 7)).toEqual([]);
-  });
-
-  test('対象が keepCount ちょうどなら空配列（境界値）', () => {
-    const names = [
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-      'aoiko-ledger-2026-03-01.zip',
-    ];
-    expect(selectExpiredBackups(names, 3)).toEqual([]);
-  });
-
-  test('対象が keepCount より多いとき、古い順に超過分だけ返す', () => {
-    const names = [
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-      'aoiko-ledger-2026-03-01.zip',
-      'aoiko-ledger-2026-04-01.zip',
-    ];
-    expect(selectExpiredBackups(names, 3)).toEqual(['aoiko-ledger-2026-01-01.zip']);
-  });
-
-  test('aoiko-ledger-latest.zip は削除対象に含まれない', () => {
-    const names = [
-      'aoiko-ledger-latest.zip',
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-    ];
-    expect(selectExpiredBackups(names, 1)).toEqual(['aoiko-ledger-2026-01-01.zip']);
-  });
-
-  test('関係ないファイル名は対象外', () => {
-    const names = ['memo.txt', 'aoiko-ledger.zip', 'aoiko-ledger-2026-07.zip'];
-    expect(selectExpiredBackups(names, 90)).toEqual([]);
-  });
-
-  test('入力順がバラバラでも日付順で正しく古いものが選ばれる', () => {
-    const names = [
-      'aoiko-ledger-2026-05-01.zip',
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-03-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-      'aoiko-ledger-2026-04-01.zip',
-    ];
-    expect(selectExpiredBackups(names, 3)).toEqual([
-      'aoiko-ledger-2026-01-01.zip',
-      'aoiko-ledger-2026-02-01.zip',
-    ]);
   });
 });
 

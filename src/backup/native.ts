@@ -21,7 +21,7 @@ interface NativeBackupBridge {
   // 内容定址バックアップ用。wrapper 側が未実装のため optional にしてあり、
   // 呼び出し側は関数の有無で能力を判定する（別スライスで wrapper へ追加する）。
   // 見つからないファイルは wrapper 側で null にする。IO 失敗は例外のまま。
-  backupRead?(token: string, path: string): Promise<Uint8Array | null>;
+  backupRead?(token: string, path: string): Promise<Uint8Array<ArrayBuffer> | null>;
   backupListDir?(token: string, subdir: string): Promise<string[]>;
 }
 
@@ -135,7 +135,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
   }
   // 能力が無いことを null で返さない。「まだ同期されていない」と区別できなくなり、
   // 読めるはずのスナップショットを黙って捨てることになる。
-  async read(path: string): Promise<Uint8Array | null> {
+  async read(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
     splitBackupPath(path);
     const api = bridge();
     const folder = await this.getFolder();

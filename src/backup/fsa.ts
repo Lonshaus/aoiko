@@ -86,7 +86,7 @@ export class FsaBackupAdapter implements BackupAdapter {
   }
   // 権限拒否は例外のまま返す。null は「まだ同期されていない」を表すので、
   // アクセスできない状態と取り違えると古いスナップショットへ黙って退行する。
-  async read(path: string): Promise<Uint8Array | null> {
+  async read(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
     const h = await this.getHandle();
     if (!h) {
       throw new Error('バックアップフォルダが未設定です');
