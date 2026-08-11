@@ -72,7 +72,7 @@ export class OpfsBackupAdapter implements BackupAdapter {
     return listFileNames(dir);
   }
 
-  async read(path: string): Promise<Uint8Array | null> {
+  async read(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
     const root = await navigator.storage.getDirectory();
     try {
       const { dir, name } = await resolveParent(root, path, false);

@@ -34,8 +34,10 @@ class FakeAdapter implements BackupAdapter {
   configure(): Promise<void> {
     return Promise.resolve();
   }
+  paths: string[] = [];
   backup(_stream: ReadableStream<Uint8Array>, fileName: string): Promise<{ fileName: string }> {
     this.calls++;
+    this.paths.push(fileName);
     const shouldFail = this.failNext;
     this.failNext = false;
     return new Promise((resolve, reject) => {
@@ -51,13 +53,21 @@ class FakeAdapter implements BackupAdapter {
       });
     });
   }
-  list(): Promise<string[]> {
-    return Promise.resolve([]);
+  // 保存先にある物の一覧。汰換・全削除の対象選びを見るために持つ。
+  stored = new Set<string>();
+  list(subdir?: string): Promise<string[]> {
+    const prefix = subdir === undefined ? '' : `${subdir}/`;
+    return Promise.resolve(
+      [...this.stored]
+        .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes('/'))
+        .map((p) => p.slice(prefix.length)),
+    );
   }
-  read(_path: string): Promise<Uint8Array | null> {
+  read(_path: string): Promise<Uint8Array<ArrayBuffer> | null> {
     return Promise.resolve(null);
   }
-  remove(_fileName: string): Promise<void> {
+  remove(path: string): Promise<void> {
+    this.stored.delete(path);
     return Promise.resolve();
   }
   // 進行中の1件を完了させる
@@ -97,6 +107,21 @@ afterEach(async () => {
 function mockSaveFile(result: SaveFileResult): void {
   vi.spyOn(saveFileModule, 'saveFile').mockResolvedValue(result);
 }
+
+describe('backupManager.backup（保存先への書き方）', () => {
+  // zip を作り直さず、変わった分だけ書く（#397）。ここが zip 名に戻ると、写真が増える
+  // ほど毎回の同期量が膨らむ元の作りへ逆戻りする。
+  test('自動保存はスナップショットとして書く', async () => {
+    const p = backupManager.backup();
+    await waitForCalls(1);
+    fake.settleOne();
+    await p;
+
+    expect(fake.paths).toEqual([
+      expect.stringMatching(/^snapshots\/\d{4}-\d{2}-\d{2}T\d{6}Z\.json$/),
+    ]);
+  });
+});
 
 describe('backupManager.backup（書込中に来た要求の追い掛け）', () => {
   test('writing 中に来た要求は完了後に1回だけ再実行される', async () => {
@@ -140,6 +165,35 @@ describe('backupManager.backup（書込中に来た要求の追い掛け）', ()
     await first;
     expect(fake.calls).toBe(1);
     expect(backupManager.status).toBe('error');
+  });
+});
+
+// OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者は ファイル管理 から見ることも
+// 消すこともできない。ここに取りこぼしがあると、譲渡・廃棄した端末に帳簿が残る。
+describe('backupManager.clearStoredBackups（OPFS の控えの全削除）', () => {
+  test('散ファイルも旧形式の zip も残さない', async () => {
+    const injectable = backupManager as unknown as { adapterKind: string };
+    injectable.adapterKind = 'opfs';
+    fake.stored = new Set([
+      'snapshots/2026-08-09T120000Z.json',
+      `attachments/${'a'.repeat(64)}`,
+      'aoiko-ledger-2026-07-01.zip',
+      'aoiko-ledger-latest.zip',
+    ]);
+
+    await backupManager.clearStoredBackups();
+
+    expect([...fake.stored]).toEqual([]);
+  });
+
+  test('利用者が選んだフォルダ（fsa / native）には手を出さない', async () => {
+    const injectable = backupManager as unknown as { adapterKind: string };
+    injectable.adapterKind = 'fsa';
+    fake.stored = new Set(['snapshots/2026-08-09T120000Z.json']);
+
+    await backupManager.clearStoredBackups();
+
+    expect([...fake.stored]).toHaveLength(1);
   });
 });
 

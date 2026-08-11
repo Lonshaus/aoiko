@@ -4,7 +4,7 @@ import { pruneSnapshots, writeLooseBackup, type AttachmentSource } from './snaps
 import type { BackupAdapter, BackupPayload } from './types';
 // 実際の保存先の代わり。書かれた順序も見たいので、書き込みの履歴を残す。
 function fakeAdapter(initial: Record<string, string[]> = {}) {
-  const files = new Map<string, Uint8Array>();
+  const files = new Map<string, Uint8Array<ArrayBuffer>>();
   const writeOrder: string[] = [];
   const removed: string[] = [];
   for (const [dir, names] of Object.entries(initial)) {
@@ -19,8 +19,8 @@ function fakeAdapter(initial: Record<string, string[]> = {}) {
     ensurePermission: async () => true,
     configure: async () => {},
     async backup(stream, path) {
-      const parts: Uint8Array[] = [];
-      for await (const chunk of stream as unknown as AsyncIterable<Uint8Array>) {
+      const parts: Uint8Array<ArrayBuffer>[] = [];
+      for await (const chunk of stream as unknown as AsyncIterable<Uint8Array<ArrayBuffer>>) {
         parts.push(chunk);
       }
       const joined = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0));
