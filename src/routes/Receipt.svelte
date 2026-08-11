@@ -14,6 +14,7 @@
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
@@ -238,6 +239,7 @@
         return;
       }
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date: data.date,

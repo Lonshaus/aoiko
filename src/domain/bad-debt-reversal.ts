@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
 // 所得税法52条3項の洗替方式。基準を繰越残高でなく前年の繰入額に置くのは条文の文言どおりで、
 // 引当金の負債科目が 2170 ひとつしか無い以上、事業／不動産の内訳もこちらでしか判別できない。
@@ -88,6 +88,7 @@ export async function applyBadDebtReversal(
   let alreadyExists = false;
 
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    markConfirmedWrite(options);
     // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
     const existing = await db.journalEntries
       .where('year')
