@@ -98,6 +98,7 @@ describe('writeLooseBackup', () => {
     const snapshot = readJson(files, r.snapshotPath);
 
     expect(snapshot.format).toBe(1);
+    expect(snapshot.payloadVersion).toBe(payload.version);
     expect(snapshot.exportedAt).toBe(payload.exportedAt);
     expect(snapshot.tables).toEqual(payload.tables);
     expect(snapshot.attachments).toEqual([
