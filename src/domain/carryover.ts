@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
 
 export interface CarryoverPreview {
@@ -217,6 +217,7 @@ export async function applyCarryover(
   );
 
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    markConfirmedWrite(options);
     await db.journalEntries.add(entry);
     await db.journalLines.bulkAdd(lines);
   });
@@ -307,6 +308,7 @@ export async function removeCarryover(
   }
   const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    markConfirmedWrite(options);
     for (const orig of existing) {
       const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
       const reversalId = newId();
