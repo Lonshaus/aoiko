@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import { sha256Hex } from '../lib/sha256';
 import type { Attachment } from '../db/types';
 import type { BackupPayload } from './types';
 // 常にバックアップ対象外の settings キー。除外理由は 2 種類ある。
@@ -81,5 +82,32 @@ export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string
       continue;
     }
     yield [id, new Uint8Array(await row.blob.arrayBuffer())];
+  }
+}
+// 内容定址バックアップ用。id・SHA-256・大きさ・実体を 1 件ずつ生成する。
+// zip 同梱用の iterateAttachmentBlobs と分けてあるのは、あちらが id をファイル名に使う
+// のに対し、こちらは SHA-256 をファイル名に使うため（同じ写真は 1 つしか置かない）。
+//
+// sha256 は v10 の upgrade で全行に入るが、型の上では任意のままなので、欠けていれば
+// その場で計算する。ここで諦めると、その写真だけが復元できないバックアップになる。
+export async function* iterateAttachmentSources(): AsyncGenerator<{
+  id: string;
+  sha256: string;
+  bytes: number;
+  data: Uint8Array;
+}> {
+  const ids = await db.attachments.toCollection().primaryKeys();
+  for (const id of ids) {
+    const row = await db.attachments.get(id);
+    if (!row) {
+      continue;
+    }
+    const data = new Uint8Array(await row.blob.arrayBuffer());
+    yield {
+      id,
+      sha256: row.sha256 ?? (await sha256Hex(row.blob)),
+      bytes: data.byteLength,
+      data,
+    };
   }
 }
