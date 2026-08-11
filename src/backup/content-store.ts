@@ -151,25 +151,49 @@ export function expiredSnapshots(fileNames: readonly string[], retentionCount: n
   return sorted.slice(retentionCount);
 }
 
+export function isBlobFileName(name: string): boolean {
+  return SHA256_PATTERN.test(name);
+}
+// 保存先に置かれているが、どのスナップショットからも参照されていない実体。
+// SHA-256 の名前でないものは aoiko が置いたものではないので、対象から外す。
 export function unreferencedBlobs(
   present: ReadonlySet<string>,
   referenced: ReadonlySet<string>,
 ): string[] {
-  return [...present].filter((sha256) => !referenced.has(sha256));
+  return [...present].filter((name) => isBlobFileName(name) && !referenced.has(name));
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export function blobsToDelete(
-  candidates: readonly { sha256: string; unreferencedSinceMs: number }[],
+// ファイル名は exportedAt から作られているので、中身を読まずに時刻が取れる。
+export function snapshotTimeMs(fileName: string): number | null {
+  if (!SNAPSHOT_FILE_NAME_PATTERN.test(fileName)) {
+    return null;
+  }
+  const ms = Date.parse(
+    `${fileName.slice(0, 13)}:${fileName.slice(13, 15)}:${fileName.slice(15, 17)}Z`,
+  );
+  return Number.isNaN(ms) ? null : ms;
+}
+/**
+ * 実体の掃除で「参照されている」を数えるために読むべきスナップショット。
+ *
+ * retentionDays 以内の版だけ読めば足りる。その範囲のどれからも参照されていない
+ * 実体は、少なくとも retentionDays のあいだ参照されていないことになるため。
+ * 判定に「いつ参照されなくなったか」の記録は要らず、フォルダに状態ファイルを
+ * 増やさずに済む。
+ *
+ * 最新版だけは年齢に関わらず必ず含める。復元に使われるのはその版なので、参照先を
+ * 消してしまうと直近のバックアップが写真の欠けたものになる。
+ */
+export function snapshotsToScanForSweep(
+  fileNames: readonly string[],
   nowMs: number,
-  retentionDays: number | null,
+  retentionDays: number,
 ): string[] {
-  if (retentionDays === null || !Number.isFinite(retentionDays) || retentionDays < 0) {
+  const sorted = sortSnapshotsNewestFirst(fileNames);
+  if (sorted.length === 0 || retentionDays <= 0) {
     return [];
   }
-  const thresholdMs = retentionDays * DAY_MS;
-  return candidates
-    .filter((c) => nowMs - c.unreferencedSinceMs >= thresholdMs)
-    .map((c) => c.sha256);
+  const cutoff = nowMs - retentionDays * DAY_MS;
+  return sorted.filter((name, i) => i === 0 || (snapshotTimeMs(name) ?? 0) >= cutoff);
 }
