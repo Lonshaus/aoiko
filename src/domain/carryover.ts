@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
 
 export interface CarryoverPreview {
@@ -139,7 +140,9 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
 export async function applyCarryover(
   year: number,
+  options?: { allowFiledYear?: boolean },
 ): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
+  await assertYearsWritable([year], options);
   const preview = await computeCarryover(year);
   if (
     preview.assets.length === 0 &&
@@ -286,7 +289,11 @@ export async function detectStaleCarryover(year: number): Promise<StaleCarryover
 // 期首振替のやり直し。確定仕訳は物理削除せず、打消し仕訳で相殺する（reverse.ts と同じ方式。
 // CLAUDE.md「確定仕訳は不変・訂正は反対仕訳・完全な監査履歴を保持」＝電子帳簿保存法）。
 // 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。
-export async function removeCarryover(year: number): Promise<{ removed: boolean }> {
+export async function removeCarryover(
+  year: number,
+  options?: { allowFiledYear?: boolean },
+): Promise<{ removed: boolean }> {
+  await assertYearsWritable([year], options);
   const existing = await db.journalEntries
     .where('year')
     .equals(year)

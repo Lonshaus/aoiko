@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { markYearFiled } from './snapshots';
-import { lockedYearsAmong } from './year-lock';
+import { assertYearsWritable, FiledYearError, lockedYearsAmong } from './year-lock';
 import type { ReportSnapshotData } from '../db/types';
 
 const monthlySales: ReportSnapshotData & { type: 'monthly-sales' } = {
@@ -44,5 +44,45 @@ describe('lockedYearsAmong', () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
     const r = await lockedYearsAmong([2025, 2027]);
     expect(r).toEqual([]);
+  });
+});
+
+describe('assertYearsWritable', () => {
+  test('未申告年度なら通す', async () => {
+    await expect(assertYearsWritable([2025])).resolves.toBeUndefined();
+  });
+
+  test('申告済み年度が 1 つでも混ざれば止める', async () => {
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    await expect(assertYearsWritable([2025, 2026, 2027])).rejects.toThrow(FiledYearError);
+  });
+
+  test('止めた年度を持たせる（どの年度で止まったか出せるように）', async () => {
+    await markYearFiled(2024, { monthlySales, pl }, '2024-12-31');
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    const err = await assertYearsWritable([2024, 2025, 2026]).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FiledYearError);
+    expect((err as FiledYearError).years).toEqual([2024, 2026]);
+  });
+
+  test('確認を通った呼出だけ allowFiledYear で開ける', async () => {
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    await expect(assertYearsWritable([2026], { allowFiledYear: true })).resolves.toBeUndefined();
+  });
+
+  // 省略・undefined・false のどれも「開けない」側に倒す。allowFiledYear は
+  // 明示的に true を渡したときだけ効く門であって、既定で開いてはいけない。
+  test('allowFiledYear は明示的な true 以外では開かない', async () => {
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    await expect(assertYearsWritable([2026], {})).rejects.toThrow(FiledYearError);
+    await expect(assertYearsWritable([2026], { allowFiledYear: false })).rejects.toThrow(
+      FiledYearError,
+    );
+    await expect(assertYearsWritable([2026], undefined)).rejects.toThrow(FiledYearError);
+  });
+
+  test('年度が空なら何も止めない', async () => {
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    await expect(assertYearsWritable([])).resolves.toBeUndefined();
   });
 });

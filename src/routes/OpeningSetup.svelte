@@ -192,24 +192,27 @@
       if (!(await filedYearGuard.confirm([year], { detail }))) {
         return;
       }
-      const result = await generateOpeningEntries({
-        businessStartDate,
-        expenses,
-        expenseAmortization,
-        convertedAssets: convertedAssets.map((a) => ({
-          name: a.name,
-          acquisitionDate: a.acquisitionDate,
-          acquisitionCost: a.acquisitionCost,
-          usefulLifeYears: a.usefulLifeYears,
-          accountCode: a.accountCode,
-          // チェック後に取得日等を書き換えて不適格になった行の取りこぼし防止
-          depreciationMethod:
-            a.depreciationMethod === 'small-asset-special' && !smallAssetEligibleByAcquisition(a)
-              ? 'straight-line'
-              : a.depreciationMethod,
-        })),
-        customItems: items,
-      });
+      const result = await generateOpeningEntries(
+        {
+          businessStartDate,
+          expenses,
+          expenseAmortization,
+          convertedAssets: convertedAssets.map((a) => ({
+            name: a.name,
+            acquisitionDate: a.acquisitionDate,
+            acquisitionCost: a.acquisitionCost,
+            usefulLifeYears: a.usefulLifeYears,
+            accountCode: a.accountCode,
+            // チェック後に取得日等を書き換えて不適格になった行の取りこぼし防止
+            depreciationMethod:
+              a.depreciationMethod === 'small-asset-special' && !smallAssetEligibleByAcquisition(a)
+                ? 'straight-line'
+                : a.depreciationMethod,
+          })),
+          customItems: items,
+        },
+        { allowFiledYear: true },
+      );
       if ('reason' in result) {
         error = m.opening_already_exists();
         canRedo = true;
@@ -229,7 +232,12 @@
     generating = true;
     error = '';
     try {
-      const removal = await removeOpeningEntries(Number(businessStartDate.slice(0, 4)));
+      // 作り直しは既存の開業仕訳を打ち消す書き込み。生成と同じく申告済み年度の確認を通す。
+      const redoYear = Number(businessStartDate.slice(0, 4));
+      if (!(await filedYearGuard.confirm([redoYear]))) {
+        return;
+      }
+      const removal = await removeOpeningEntries(redoYear, { allowFiledYear: true });
       if ('reason' in removal) {
         error = m.opening_redo_blocked({ assets: removal.assetNames.join('、') });
         return;
