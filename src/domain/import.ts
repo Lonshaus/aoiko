@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable } from './year-lock';
 import type { JournalLine } from '../db/types';
 import type { ParsedTransaction } from '../parsers/types';
 
@@ -40,6 +41,7 @@ export class DuplicateImportError extends Error {
 export async function commitImport(
   info: ImportBatchInfo,
   rows: ImportRow[],
+  options?: { allowFiledYear?: boolean },
 ): Promise<{ batchId: string; entryCount: number }> {
   const existing = await db.importBatches.where('fileHash').equals(info.fileHash).first();
   if (existing) {
@@ -53,6 +55,11 @@ export async function commitImport(
   if (validRows.length === 0) {
     throw new Error('登録対象の行がありません');
   }
+  // 行ごとに年度が違いうるので、実際に書く年度を全部集めて判定する。
+  await assertYearsWritable(
+    validRows.map((r) => Number(r.transaction.date.slice(0, 4))),
+    options,
+  );
 
   const batchId = newId();
   const now = Date.now();
