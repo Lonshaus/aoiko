@@ -67,9 +67,11 @@
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import type { FilingType } from '../tax-schema/2026/xtx';
   import {
+    displayZeimusho,
     isValidZeimushoCode,
+    isZeimushoUnresolved,
+    nextConfirmedZeimusho,
     searchZeimusho,
-    zeimushoName,
     type ZeimushoEntry,
   } from '../tax-schema/2026/zeimusho';
 
@@ -247,14 +249,10 @@
   let zeimushoOpen = $state(false);
   // 入力欄に文字が残っているのに確定した署が無い状態。ここで保存を通すと、設定済みの
   // 利用者が一文字消しただけで提出先税務署が空文字で上書きされ、次の .xtx から消える。
-  const zeimushoUnresolved = $derived(zeimushoQuery.trim() !== '' && userZeimushoCode === '');
+  const zeimushoUnresolved = $derived(
+    isZeimushoUnresolved(zeimushoQuery, { code: userZeimushoCode, name: userZeimushoName }),
+  );
   const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
-  function displayZeimusho(code: string, name: string): string {
-    if (!code) {
-      return '';
-    }
-    return name ? `${name}（${code}）` : code;
-  }
   function selectZeimusho(e: ZeimushoEntry): void {
     userZeimushoCode = e.code;
     userZeimushoName = e.name;
@@ -264,15 +262,12 @@
   function onZeimushoInput(value: string): void {
     zeimushoQuery = value;
     zeimushoOpen = true;
-    // 5桁コードを直接入力した場合は確定（署名は master から補完）
-    const code = value.trim();
-    if (/^\d{5}$/.test(code) && isValidZeimushoCode(code)) {
-      userZeimushoCode = code;
-      userZeimushoName = zeimushoName(code) ?? '';
-    } else {
-      userZeimushoCode = '';
-      userZeimushoName = '';
-    }
+    const next = nextConfirmedZeimusho(value, {
+      code: userZeimushoCode,
+      name: userZeimushoName,
+    });
+    userZeimushoCode = next.code;
+    userZeimushoName = next.name;
   }
 
   const accountGroups = $derived(ledger.groupedAccounts());
@@ -417,7 +412,9 @@
 
   async function saveFiler(e: Event) {
     e.preventDefault();
-    if (zeimushoCodeInvalid) {
+    // ボタンの disabled だけに頼らない。欄と確定値がずれたまま保存すると、画面に
+    // 出ている署とは違うコードが .xtx へ載る。
+    if (zeimushoCodeInvalid || zeimushoUnresolved) {
       return;
     }
     await setSetting('userRiyoshaId', userRiyoshaId.trim());
