@@ -3,6 +3,7 @@ import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable } from './year-lock';
 import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 減価償却の計算と仕訳生成。
@@ -337,7 +338,9 @@ function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
 //   要件外の指定（適用期限超過 / 取得価額が閾値以上）も仕訳未作成として返す。
 export async function generateYearEndDepreciation(
   year: number,
+  options?: { allowFiledYear?: boolean },
 ): Promise<YearEndDepreciationResult> {
+  await assertYearsWritable([year], options);
   const assets = await db.fixedAssets.toArray();
   const date = `${year}-12-31`;
   const now = Date.now();

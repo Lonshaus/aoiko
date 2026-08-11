@@ -3,6 +3,7 @@ import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable } from './year-lock';
 import { computeDepreciation } from './depreciation';
 import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 固定資産の除却・売却（B6）。
@@ -124,12 +125,15 @@ interface DisposalEntryResult {
 export async function generateDisposalEntry(
   assetId: string,
   cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
+  options?: { allowFiledYear?: boolean },
 ): Promise<DisposalEntryResult> {
   const asset = await db.fixedAssets.get(assetId);
   const disposedDate = asset?.disposedDate;
   if (!asset || !disposedDate) {
     return { created: false, reason: 'no-disposal' };
   }
+  // 書く年度は除却日で決まる。引数からは分からないので資産を引いた後で判定する。
+  await assertYearsWritable([Number(disposedDate.slice(0, 4))], options);
   if (asset.depreciationMethod === 'lump-sum') {
     return { created: false, reason: 'lump-sum-unsupported' };
   }

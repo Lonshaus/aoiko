@@ -353,6 +353,7 @@
           ...(knownSubAccountId ? { knownSubAccountId } : {}),
         },
         importRows,
+        { allowFiledYear: true },
       );
       // 採用されたルールの hitCount をインクリメント
       const ruleIds = new Set(
