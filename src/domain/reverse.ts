@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { todayISO } from '../lib/date';
 import { isYearLocked } from './snapshots';
+import { markConfirmedWrite } from './year-lock';
 // 訂正仕訳：原仕訳の借方/貸方を入れ替えた打消し仕訳を新規作成し、
 // 原仕訳を status='reversed' に変更する。元データは削除しない（電子帳簿保存法の要件）。
 // 集計は成対排除方式（countsTowardTotals 参照）：原仕訳・訂正仕訳とも集計から除外され、
@@ -45,6 +46,7 @@ export async function reverseEntry(
   const now = Date.now();
 
   await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+    markConfirmedWrite(options);
     await db.journalEntries.add({
       id: newEntryId,
       date: today,

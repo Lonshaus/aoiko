@@ -12,6 +12,7 @@
   import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { badDebtReserveEvaluations } from '../tax-schema/2026/bad-debt-reserve';
   import { ledger } from '../stores/ledger.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
@@ -335,6 +336,8 @@
       }
 
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date,

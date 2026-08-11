@@ -10,6 +10,7 @@
   import { getSetting, setSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
@@ -213,6 +214,7 @@
       }
 
       await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date: data.date,

@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
 import {
   FILER_INFO_SETTING_KEYS,
   looksLikeZip,
@@ -107,6 +108,10 @@ export async function restoreFromPayload(
   // 消してから書き込むと、書き込みが失敗してもロールバック先が「空の状態」になり、
   // 利用者の既存帳簿が復旧不能になる。clear() ならロールバックで元データが戻る。
   await db.transaction('rw', db.tables, async () => {
+    // 復元は全テーブルの置換で、申告済み年度の仕訳もそのまま書き戻す。書き込みの門
+    // （db/filed-year-guard.ts）はそれを止めるので、正当な経路であることを明示する。
+    // ここを外すと、申告済みの年度を含むバックアップが復元できなくなる。
+    allowFiledYearWriteInThisTransaction();
     for (const table of db.tables) {
       await table.clear();
     }
