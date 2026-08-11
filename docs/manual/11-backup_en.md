@@ -80,7 +80,7 @@ Settings → **"Backup"** section → **"Download backup"**:
 
 - All data (entries, sub-accounts, vendors, fixed assets, settings, receipt photos, etc.) bundled into one zip file
 - Saved to your browser's "Downloads" folder
-- Filename like `aoiko-ledger-{timestamp}.zip`
+- Filename like `aoiko-ledger-{date}.zip` (no time component, so repeated exports on the same day all share one name)
 
 > **API keys and filer info are excluded by default**. Unless you turn on "Include API keys in backups" and "Include filer info", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
 
