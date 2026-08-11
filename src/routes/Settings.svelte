@@ -959,13 +959,42 @@
     }
   }
 
-  async function handleRestoreFile(e: Event) {
+  function resetRestoreState() {
     restoreError = '';
     restoreSuccess = '';
     restoreWarning = '';
     restorePayload = null;
     restoreAttachmentBlobs = new Map();
     restoreAttachmentCount = 0;
+  }
+  // 保存先フォルダから直接読む経路。同期フォルダには散ファイルで置かれていて、
+  // 利用者が「どのファイルか」を選べる形になっていないため、選ばせずに一番新しい
+  // 復元可能な版をこちらで選ぶ。
+  async function handleRestoreFromFolder() {
+    resetRestoreState();
+    restoreFileName = '';
+    try {
+      const found = await backup.readLatestSnapshot();
+      if (found === null) {
+        restoreError = m.settings_restore_folder_empty();
+        return;
+      }
+      restorePayload = found.payload;
+      restoreAttachmentBlobs = found.attachmentBlobs;
+      restoreAttachmentCount = found.attachmentBlobs.size;
+      restoreFileName = found.snapshotName;
+      if (found.corruptAttachmentCount > 0) {
+        restoreWarning = m.settings_restore_corrupt_attachments({
+          count: found.corruptAttachmentCount,
+        });
+      }
+    } catch (err) {
+      restoreError = describeStorageError(err);
+    }
+  }
+
+  async function handleRestoreFile(e: Event) {
+    resetRestoreState();
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
@@ -2610,6 +2639,18 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_restore_intro_html()}
     </p>
+    {#if backup.canRead}
+      <div class="space-y-1">
+        <button
+          type="button"
+          onclick={handleRestoreFromFolder}
+          class="px-4 py-2 border rounded hover:bg-accent hover:text-accent-foreground"
+        >
+          {m.settings_restore_folder()}
+        </button>
+        <p class="text-xs text-muted-foreground">{m.settings_restore_folder_hint()}</p>
+      </div>
+    {/if}
     <input
       type="file"
       accept=".zip,application/zip,.json,application/json"
