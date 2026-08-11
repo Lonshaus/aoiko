@@ -3,7 +3,7 @@ import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { countsTowardTotals } from './journal';
-import { assertYearsWritable } from './year-lock';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { computeDepreciation } from './depreciation';
 import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 固定資産の除却・売却（B6）。
@@ -182,6 +182,7 @@ export async function generateDisposalEntry(
   const description = `${marker} ${asset.name} ${tag}`;
 
   await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+    markConfirmedWrite(options);
     await db.journalEntries.add({
       id: entryId,
       date: disposedDate,
