@@ -26,6 +26,8 @@ describe('buildSnapshot', () => {
     const attachments = [{ id: 'a', sha256: 'f'.repeat(64), bytes: 10 }];
     const snapshot = buildSnapshot(payload, attachments);
     expect(snapshot.format).toBe(SNAPSHOT_FORMAT);
+    // 入れ物の版（format）と中身の版（payloadVersion）は別々に動く。
+    expect(snapshot.payloadVersion).toBe(payload.version);
     expect(snapshot.exportedAt).toBe(payload.exportedAt);
     expect(snapshot.tables).toBe(payload.tables);
     expect(snapshot.attachments).toEqual(attachments);
@@ -86,6 +88,7 @@ describe('sortSnapshotsNewestFirst', () => {
 function validSnapshotJson(): string {
   return JSON.stringify({
     format: SNAPSHOT_FORMAT,
+    payloadVersion: 1,
     exportedAt: '2026-08-09T12:00:00.000Z',
     tables: { entries: [] },
     attachments: [{ id: 'a', sha256: 'a'.repeat(64), bytes: 10 }],
@@ -97,6 +100,14 @@ describe('parseSnapshot', () => {
     const snapshot = parseSnapshot(validSnapshotJson());
     expect(snapshot).not.toBeNull();
     expect(snapshot?.attachments).toHaveLength(1);
+  });
+
+  test('payloadVersion が無い・整数でないものは null', () => {
+    const base = JSON.parse(validSnapshotJson()) as Record<string, unknown>;
+    const { payloadVersion: _omitted, ...without } = base;
+    expect(parseSnapshot(JSON.stringify(without))).toBeNull();
+    expect(parseSnapshot(JSON.stringify({ ...base, payloadVersion: '1' }))).toBeNull();
+    expect(parseSnapshot(JSON.stringify({ ...base, payloadVersion: 1.5 }))).toBeNull();
   });
 
   test('壊れた（truncated）JSON は null', () => {
@@ -150,6 +161,7 @@ describe('parseSnapshot', () => {
 describe('missingBlobs', () => {
   const snapshot: Snapshot = {
     format: SNAPSHOT_FORMAT,
+    payloadVersion: 1,
     exportedAt: '2026-08-09T12:00:00.000Z',
     tables: {},
     attachments: [
