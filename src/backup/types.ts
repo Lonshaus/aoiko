@@ -24,7 +24,7 @@ export interface BackupAdapter {
   // 分岐だから。同期が半分だけ進んだ状態で新しいスナップショットが参照する blob が
   // まだ無い、というのが想定内で、その場合は 1 つ前のスナップショットへ落とす。
   // 権限拒否や IO 失敗は従来どおり例外。
-  read(path: string): Promise<Uint8Array | null>;
+  read(path: string): Promise<Uint8Array<ArrayBuffer> | null>;
   // 指定パスのファイルを削除する
   remove(path: string): Promise<void>;
 }
