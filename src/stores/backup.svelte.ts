@@ -16,8 +16,10 @@ import {
   readLatestSnapshot,
   writeLooseBackup,
   type BackupAdapter,
+  type FolderRestoreOptions,
   type FolderRestoreSource,
 } from '../backup';
+import { DeadlineExceededError, withDeadline } from '../lib/deadline';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
 import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
@@ -48,6 +50,7 @@ type BackupStatus =
 
 const DEBOUNCE_MS = 1000;
 const SWEEP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const SWEEP_DEADLINE_MS = 30 * 1000;
 
 class BackupManager {
   status = $state<BackupStatus>('initializing');
@@ -66,6 +69,9 @@ class BackupManager {
   private skipFirstAutoBackup = true;
   // writing 中に来た要求を1件だけ覚えておき、書込完了後に追い掛けて再実行する
   private backupPending = false;
+  // 時限切れの後も裏で走り続けている掃除がある間は次を重ねない
+  private sweepInFlight = false;
+  private sweepDeadlineMs = SWEEP_DEADLINE_MS;
 
   constructor() {
     // 初期化が落ちたまま 'initializing' に留まると、表示は「初期化中…」のままなのに
@@ -278,10 +284,15 @@ class BackupManager {
   // 判定に窓の中の全スナップショットを読む必要があるので、保存のたびには走らせない。
   // 実体が増えるのは「帳簿から消した証憑」の分だけで放置しても膨らみ方は緩いため、
   // 1 日 1 回で足りる。pruneOldBackups と同じく例外は外へ出さない。
+  //
+  // 時限が要るのは、クラウド同期フォルダが端末から中身を追い出したスナップショットを
+  // 読みに行くと、オフラインでは例外も返らないまま返ってこないため。ここは backup() の
+  // 中で status = 'writing' のまま await されるので、止まると status が戻らず以降の
+  // バックアップが 1 件も走らなくなる。
   private async sweepBlobs(): Promise<void> {
     try {
       const retentionDays = (await getSetting('blobRetentionDays')) ?? 0;
-      if (retentionDays === 0 || !this.adapter) {
+      if (retentionDays === 0 || !this.adapter || this.sweepInFlight) {
         return;
       }
       const now = Date.now();
@@ -290,18 +301,34 @@ class BackupManager {
       if (now > last && now - last < SWEEP_INTERVAL_MS) {
         return;
       }
-      await sweepUnreferencedBlobs(this.adapter, retentionDays, now);
-      await setSetting('lastBlobSweepAt', now);
+      // 時限を過ぎても読み出し自体は止められない（中断する手段が無い）。裏で走り続けて
+      // いる間は次を重ねないよう、旗は元の処理が決着してから下ろす。
+      this.sweepInFlight = true;
+      const running = sweepUnreferencedBlobs(this.adapter, retentionDays, now)
+        .then(async () => {
+          await setSetting('lastBlobSweepAt', now);
+        })
+        .catch((e: unknown) => {
+          this.lastError = e instanceof Error ? e.message : String(e);
+        })
+        .finally(() => {
+          this.sweepInFlight = false;
+        });
+      await withDeadline(running, this.sweepDeadlineMs);
     } catch (e: unknown) {
-      this.lastError = e instanceof Error ? e.message : String(e);
+      // 時限切れは異常ではない。クラウドから中身が降りてくるのを待っているだけで、
+      // バックアップ本体は成功している。利用者に出さず次の機会へ持ち越す。
+      if (!(e instanceof DeadlineExceededError)) {
+        this.lastError = e instanceof Error ? e.message : String(e);
+      }
     }
   }
   // 復元画面から使う。保存先の握りは manager が持ったままにしたいのでアダプタは外へ出さない。
-  async readLatestSnapshot(): Promise<FolderRestoreSource | null> {
+  async readLatestSnapshot(options?: FolderRestoreOptions): Promise<FolderRestoreSource | null> {
     if (!this.adapter || !this.canRead) {
       return null;
     }
-    return readLatestSnapshot(this.adapter);
+    return readLatestSnapshot(this.adapter, options);
   }
   // 保存先が確定していて読み書きできる状態か。
   get canRead(): boolean {

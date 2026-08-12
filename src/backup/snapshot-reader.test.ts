@@ -5,9 +5,11 @@ import { readLatestSnapshot } from './snapshot-reader';
 import { writeLooseBackup, type AttachmentSource } from './snapshot-writer';
 import type { BackupAdapter, BackupPayload } from './types';
 // 実際の保存先の代わり。read の回数も見たいので数える。
+// hangPaths に載せたパスは iCloud の dataless ファイルを模して永久に解決しない Promise を返す。
 function fakeAdapter() {
   const files = new Map<string, Uint8Array<ArrayBuffer>>();
   const reads: string[] = [];
+  const hangPaths = new Set<string>();
   const adapter: BackupAdapter = {
     name: 'fake',
     isAvailable: async () => true,
@@ -34,15 +36,18 @@ function fakeAdapter() {
         .filter((p) => p.startsWith(prefix) && !p.slice(prefix.length).includes('/'))
         .map((p) => p.slice(prefix.length));
     },
-    async read(path) {
+    read(path) {
       reads.push(path);
-      return files.get(path) ?? null;
+      if (hangPaths.has(path)) {
+        return new Promise(() => {});
+      }
+      return Promise.resolve(files.get(path) ?? null);
     },
     async remove(path) {
       files.delete(path);
     },
   };
-  return { adapter, files, reads };
+  return { adapter, files, reads, hangPaths };
 }
 
 function putText(files: Map<string, Uint8Array<ArrayBuffer>>, path: string, text: string): void {
@@ -156,6 +161,109 @@ describe('readLatestSnapshot', () => {
     expect(found?.corruptAttachmentCount).toBe(1);
     expect(found?.attachmentBlobs.size).toBe(0);
     expect(found?.payload.tables).toEqual({ journalEntries: [{ id: 'e1' }] });
+  });
+  // iCloud Drive の dataless ファイルはオフラインで読むと例外も errno も返らず止まる（実測）。
+  test('実体の読みが時限切れなら notDownloadedCount に数え、corruptAttachmentCount には数えない', async () => {
+    const { adapter, files, hangPaths } = fakeAdapter();
+    files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
+    hangPaths.add(`${ATTACHMENT_DIR}/${redSha}`);
+    putSnapshot(files, '2026-08-09T12:00:00.000Z', [{ id: 'att1', sha256: redSha, bytes: 3 }]);
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+
+    expect(found?.notDownloadedCount).toBe(1);
+    expect(found?.corruptAttachmentCount).toBe(0);
+    expect(found?.attachmentBlobs.size).toBe(0);
+    expect(found?.payload.tables).toEqual({ journalEntries: [{ id: 'e1' }] });
+  });
+  // 時限は 1 件ごとなので、諦める仕組みが無いと未ダウンロードの枚数 × 30 秒だけ待つ。
+  // 400 枚なら 3 時間を超え、「遅い」ではなく「終わらない」になる。
+  test('時限切れが続いたら残りは読まずに畳む', async () => {
+    const { adapter, files, reads, hangPaths } = fakeAdapter();
+    const shas = Array.from({ length: 10 }, (_, i) => String(i).repeat(64));
+    for (const sha of shas) {
+      files.set(`${ATTACHMENT_DIR}/${sha}`, RED);
+      hangPaths.add(`${ATTACHMENT_DIR}/${sha}`);
+    }
+    putSnapshot(
+      files,
+      '2026-08-09T12:00:00.000Z',
+      shas.map((sha, i) => ({ id: `att${i}`, sha256: sha, bytes: 3 })),
+    );
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+    // 諦めた後の分も「未ダウンロード」として数える。数が合わないと利用者に嘘をつく。
+    expect(found?.notDownloadedCount).toBe(10);
+    expect(reads.filter((p) => p.startsWith(ATTACHMENT_DIR))).toHaveLength(3);
+  });
+  // 1 枚だけ重い写真で復元全体を諦めてしまわないこと。
+  test('間に成功が挟まれば数え直す', async () => {
+    const { adapter, files, reads, hangPaths } = fakeAdapter();
+    const slow = ['1'.repeat(64), '2'.repeat(64), '4'.repeat(64), '5'.repeat(64)];
+    for (const sha of slow) {
+      files.set(`${ATTACHMENT_DIR}/${sha}`, RED);
+      hangPaths.add(`${ATTACHMENT_DIR}/${sha}`);
+    }
+    files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
+    const order = [slow[0], slow[1], redSha, slow[2], slow[3]] as string[];
+    putSnapshot(
+      files,
+      '2026-08-09T12:00:00.000Z',
+      order.map((sha, i) => ({ id: `att${i}`, sha256: sha, bytes: 3 })),
+    );
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+
+    expect(found?.notDownloadedCount).toBe(4);
+    expect(found?.attachmentBlobs.size).toBe(1);
+    expect(reads.filter((p) => p.startsWith(ATTACHMENT_DIR))).toHaveLength(5);
+  });
+
+  test('スナップショット本体の読みが時限切れなら飛ばして、1 つ前の版を使う', async () => {
+    const { adapter, files, hangPaths } = fakeAdapter();
+    const older = putSnapshot(files, '2026-08-08T12:00:00.000Z', []);
+    const newest = putSnapshot(files, '2026-08-09T12:00:00.000Z', []);
+    hangPaths.add(`${SNAPSHOT_DIR}/${newest}`);
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+
+    expect(found?.snapshotName).toBe(older);
+    expect(found?.skippedSnapshots).toBe(1);
+  });
+
+  test('onProgress は単調に進み、最後は (total, total)', async () => {
+    const { adapter, files } = fakeAdapter();
+    files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
+    files.set(`${ATTACHMENT_DIR}/${blueSha}`, BLUE);
+    putSnapshot(files, '2026-08-09T12:00:00.000Z', [
+      { id: 'att1', sha256: redSha, bytes: 3 },
+      { id: 'att2', sha256: blueSha, bytes: 4 },
+    ]);
+    const calls: [number, number][] = [];
+
+    await readLatestSnapshot(adapter, { onProgress: (done, total) => calls.push([done, total]) });
+
+    expect(calls.length).toBeGreaterThanOrEqual(1);
+    expect(calls.every(([, total]) => total === 2)).toBe(true);
+    expect(calls.map(([done]) => done)).toEqual(
+      [...calls.map(([done]) => done)].sort((a, b) => a - b),
+    );
+    expect(calls.at(-1)).toEqual([2, 2]);
+  });
+
+  test('時限切れの sha256 を 2 つの証憑 id が参照していても、実体読みは 1 回だけ', async () => {
+    const { adapter, files, hangPaths, reads } = fakeAdapter();
+    files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
+    hangPaths.add(`${ATTACHMENT_DIR}/${redSha}`);
+    putSnapshot(files, '2026-08-09T12:00:00.000Z', [
+      { id: 'att1', sha256: redSha, bytes: 3 },
+      { id: 'att2', sha256: redSha, bytes: 3 },
+    ]);
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+
+    expect(found?.notDownloadedCount).toBe(2);
+    expect(reads.filter((p) => p === `${ATTACHMENT_DIR}/${redSha}`)).toHaveLength(1);
   });
 });
 // S6 の要。書いたものが読み戻せなければ、バックアップは無いのと同じ。

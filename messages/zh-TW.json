@@ -692,6 +692,7 @@
   "settings_restore_folder": "從備份資料夾還原",
   "settings_restore_folder_hint": "讀取自動備份資料夾中最新且可還原的一份備份。",
   "settings_restore_folder_empty": "備份資料夾中找不到可還原的備份。",
+  "settings_restore_folder_progress": "讀取憑證中… {done} / {total}",
   "settings_restore_success": "已還原 {tables} 個表格 / {rows} 列。",
   "settings_restore_missing_blobs": "有 {count} 筆憑證照片找不到實體資料，已還原為空白。",
   "settings_restore_summary": "version {version} ・ {tables} 個表 ・ {rows} 列",
@@ -965,6 +966,7 @@
   "invoices_print_due_date": "付款期限",
   "invoices_print_reduced_note": "※ 為適用輕減稅率（8%）的品項",
   "settings_restore_corrupt_attachments": "備份中有 {count} 張憑證照片已損毀。帳本資料仍可還原，但這些照片將無法還原。",
+  "settings_restore_not_downloaded": "有 {count} 張憑證照片尚未從雲端下載完成。請在連上網路後稍待片刻再重試一次。",
   "settings_asset_disposal_run_error_needs_depreciation": "請先執行「產生折舊仕訳」。除却・売却的仕訳要與當年度的折舊仕訳成對才會平衡。",
   "reports_no_data_for_year": "{year} 年度沒有可彙總的仕訳。請先登錄仕訳。"
 }
