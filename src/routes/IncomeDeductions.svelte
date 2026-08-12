@@ -6,6 +6,7 @@
   import { newId } from '../lib/id';
   import { assignInputNumber } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
   import {
     computeIncomeDeductions,
@@ -134,6 +135,7 @@
   }
 
   let saved = $state(false);
+  let saveError = $state('');
   // 最後に保存した内容の署名。null の間は読み込み前なので未保存扱いにしない。
   let savedSnapshot = $state<string | null>(null);
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
@@ -487,7 +489,15 @@
     if (loadedYear !== year) {
       return;
     }
-    await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    // 書けなかったのに「保存しました」を出すと、未保存の警告も止まってしまう。
+    try {
+      await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    } catch (e) {
+      saveError = describeStorageError(e);
+      saved = false;
+      return;
+    }
+    saveError = '';
     savedSnapshot = draftSignature;
     saved = true;
   }
@@ -1328,7 +1338,9 @@
   </section>
 
   <div class="flex items-center gap-3 justify-end">
-    {#if saved && !isDirty}
+    {#if saveError}
+      <span class="text-xs text-destructive">{saveError}</span>
+    {:else if saved && !isDirty}
       <span class="text-xs text-green-600">{m.income_deductions_saved()}</span>
     {/if}
     <button
