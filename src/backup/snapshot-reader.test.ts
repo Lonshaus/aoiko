@@ -176,6 +176,48 @@ describe('readLatestSnapshot', () => {
     expect(found?.attachmentBlobs.size).toBe(0);
     expect(found?.payload.tables).toEqual({ journalEntries: [{ id: 'e1' }] });
   });
+  // 時限は 1 件ごとなので、諦める仕組みが無いと未ダウンロードの枚数 × 30 秒だけ待つ。
+  // 400 枚なら 3 時間を超え、「遅い」ではなく「終わらない」になる。
+  test('時限切れが続いたら残りは読まずに畳む', async () => {
+    const { adapter, files, reads, hangPaths } = fakeAdapter();
+    const shas = Array.from({ length: 10 }, (_, i) => String(i).repeat(64));
+    for (const sha of shas) {
+      files.set(`${ATTACHMENT_DIR}/${sha}`, RED);
+      hangPaths.add(`${ATTACHMENT_DIR}/${sha}`);
+    }
+    putSnapshot(
+      files,
+      '2026-08-09T12:00:00.000Z',
+      shas.map((sha, i) => ({ id: `att${i}`, sha256: sha, bytes: 3 })),
+    );
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+    // 諦めた後の分も「未ダウンロード」として数える。数が合わないと利用者に嘘をつく。
+    expect(found?.notDownloadedCount).toBe(10);
+    expect(reads.filter((p) => p.startsWith(ATTACHMENT_DIR))).toHaveLength(3);
+  });
+  // 1 枚だけ重い写真で復元全体を諦めてしまわないこと。
+  test('間に成功が挟まれば数え直す', async () => {
+    const { adapter, files, reads, hangPaths } = fakeAdapter();
+    const slow = ['1'.repeat(64), '2'.repeat(64), '4'.repeat(64), '5'.repeat(64)];
+    for (const sha of slow) {
+      files.set(`${ATTACHMENT_DIR}/${sha}`, RED);
+      hangPaths.add(`${ATTACHMENT_DIR}/${sha}`);
+    }
+    files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
+    const order = [slow[0], slow[1], redSha, slow[2], slow[3]] as string[];
+    putSnapshot(
+      files,
+      '2026-08-09T12:00:00.000Z',
+      order.map((sha, i) => ({ id: `att${i}`, sha256: sha, bytes: 3 })),
+    );
+
+    const found = await readLatestSnapshot(adapter, { readDeadlineMs: 20 });
+
+    expect(found?.notDownloadedCount).toBe(4);
+    expect(found?.attachmentBlobs.size).toBe(1);
+    expect(reads.filter((p) => p.startsWith(ATTACHMENT_DIR))).toHaveLength(5);
+  });
 
   test('スナップショット本体の読みが時限切れなら飛ばして、1 つ前の版を使う', async () => {
     const { adapter, files, hangPaths } = fakeAdapter();

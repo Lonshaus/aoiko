@@ -12,6 +12,16 @@ import {
 import type { BackupAdapter, BackupPayload } from './types';
 
 const DEFAULT_READ_DEADLINE_MS = 30_000;
+/**
+ * 時限切れがこの回数続いたら、残りは読まずに「未ダウンロード」として畳む。
+ *
+ * 時限は 1 件ごとに掛かるので、これが無いと写真 400 枚がすべて未ダウンロードの端末では
+ * 400 × 30 秒 = 3 時間以上ずっと待つことになる。それは「遅い」ではなく「終わらない」。
+ *
+ * 回線が細いだけの端末で誤って諦める可能性はあるが、そのときの代償は復元をやり直す
+ * ことだけで、帳簿は返っているし未取得の枚数も伝えている。
+ */
+const CONSECUTIVE_TIMEOUT_LIMIT = 3;
 
 export interface FolderRestoreOptions {
   readDeadlineMs?: number;
@@ -111,12 +121,22 @@ async function loadAttachments(
   const attachmentBlobs = new Map<string, Blob>();
   let corruptAttachmentCount = 0;
   let notDownloadedCount = 0;
+  let consecutiveTimeouts = 0;
+  let givenUp = false;
   const total = snapshot.attachments.length;
   let done = 0;
   for (const ref of snapshot.attachments) {
     let result = byHash.get(ref.sha256);
     if (result === undefined) {
-      result = await readVerifiedBlob(adapter, ref.sha256, readDeadlineMs);
+      result = givenUp
+        ? { kind: 'timeout' }
+        : await readVerifiedBlob(adapter, ref.sha256, readDeadlineMs);
+      if (result.kind === 'timeout') {
+        consecutiveTimeouts++;
+        givenUp = givenUp || consecutiveTimeouts >= CONSECUTIVE_TIMEOUT_LIMIT;
+      } else {
+        consecutiveTimeouts = 0;
+      }
       byHash.set(ref.sha256, result);
     }
     if (result.kind === 'ok') {
