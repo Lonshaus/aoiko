@@ -58,14 +58,6 @@ function bridge(): NativeBackupBridge | null {
   return typeof api?.backupChooseFolder === 'function' ? (api as NativeBackupBridge) : null;
 }
 
-// backupWrite / backupRemove はファイル名だけを受け取る。スラッシュ入りの名前を
-// そのまま渡すと wrapper 側が何を作るか保証できないため、ここで止める。
-function requireFlatPath(path: string, method: string): void {
-  if (splitBackupPath(path).length > 1) {
-    throw new Error(`ネイティブ側の ${method} はサブフォルダに未対応です: ${path}`);
-  }
-}
-
 export class NativeFolderBackupAdapter implements BackupAdapter {
   readonly name = 'native';
 
@@ -108,7 +100,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
   }
 
   async backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }> {
-    requireFlatPath(path, 'backupWrite');
+    splitBackupPath(path);
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
@@ -149,7 +141,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
   }
 
   async remove(path: string): Promise<void> {
-    requireFlatPath(path, 'backupRemove');
+    splitBackupPath(path);
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
