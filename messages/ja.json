@@ -691,6 +691,7 @@
   "settings_restore_folder": "保存先フォルダから復元",
   "settings_restore_folder_hint": "自動保存しているフォルダにある、一番新しい復元できるバックアップを読み込みます。",
   "settings_restore_folder_empty": "保存先フォルダに復元できるバックアップが見つかりませんでした。",
+  "settings_restore_folder_progress": "証憑を読み込み中… {done} / {total}",
   "settings_restore_success": "{tables} テーブル / {rows} 行 を復元しました。",
   "settings_restore_missing_blobs": "証憑写真 {count} 件の実体データが見つからなかったため、空のまま復元しました。",
   "settings_restore_summary": "version {version} ・ {tables} テーブル ・ {rows} 行",
@@ -964,6 +965,7 @@
   "invoices_print_due_date": "支払期限",
   "invoices_print_reduced_note": "※は軽減税率（8%）の対象品目",
   "settings_restore_corrupt_attachments": "証憑写真 {count} 件がバックアップ内で壊れています。帳簿データは復元できますが、これらの写真は復元されません。",
+  "settings_restore_not_downloaded": "証憑写真 {count} 件がまだクラウドからダウンロードされていません。オンライン状態で少し時間をおいてから、もう一度お試しください。",
   "settings_asset_disposal_run_error_needs_depreciation": "先に「減価償却仕訳を生成」を実行してください。除却・売却の仕訳は当年分の償却仕訳と対で釣り合います。",
   "reports_no_data_for_year": "{year} 年度に集計できる仕訳がありません。先に仕訳を登録してください。"
 }

@@ -116,6 +116,9 @@
   let restoreError = $state('');
   let restoreSuccess = $state('');
   let restoreWarning = $state('');
+  let restoringFromFolder = $state(false);
+  let restoreProgressDone = $state(0);
+  let restoreProgressTotal = $state(0);
   // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
   let restoreSection = $state<HTMLElement | null>(null);
 
@@ -973,8 +976,16 @@
   async function handleRestoreFromFolder() {
     resetRestoreState();
     restoreFileName = '';
+    restoringFromFolder = true;
+    restoreProgressDone = 0;
+    restoreProgressTotal = 0;
     try {
-      const found = await backup.readLatestSnapshot();
+      const found = await backup.readLatestSnapshot({
+        onProgress: (done, total) => {
+          restoreProgressDone = done;
+          restoreProgressTotal = total;
+        },
+      });
       if (found === null) {
         restoreError = m.settings_restore_folder_empty();
         return;
@@ -983,13 +994,20 @@
       restoreAttachmentBlobs = found.attachmentBlobs;
       restoreAttachmentCount = found.attachmentBlobs.size;
       restoreFileName = found.snapshotName;
+      const warnings: string[] = [];
       if (found.corruptAttachmentCount > 0) {
-        restoreWarning = m.settings_restore_corrupt_attachments({
-          count: found.corruptAttachmentCount,
-        });
+        warnings.push(
+          m.settings_restore_corrupt_attachments({ count: found.corruptAttachmentCount }),
+        );
       }
+      if (found.notDownloadedCount > 0) {
+        warnings.push(m.settings_restore_not_downloaded({ count: found.notDownloadedCount }));
+      }
+      restoreWarning = warnings.join(' ');
     } catch (err) {
       restoreError = describeStorageError(err);
+    } finally {
+      restoringFromFolder = false;
     }
   }
 
@@ -2644,11 +2662,20 @@
         <button
           type="button"
           onclick={handleRestoreFromFolder}
-          class="px-4 py-2 border rounded hover:bg-accent hover:text-accent-foreground"
+          disabled={restoringFromFolder}
+          class="px-4 py-2 border rounded hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
         >
           {m.settings_restore_folder()}
         </button>
         <p class="text-xs text-muted-foreground">{m.settings_restore_folder_hint()}</p>
+        {#if restoringFromFolder && restoreProgressTotal > 0}
+          <p class="text-xs text-muted-foreground">
+            {m.settings_restore_folder_progress({
+              done: restoreProgressDone,
+              total: restoreProgressTotal,
+            })}
+          </p>
+        {/if}
       </div>
     {/if}
     <input

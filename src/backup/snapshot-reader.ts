@@ -1,3 +1,4 @@
+import { DeadlineExceededError, withDeadline } from '../lib/deadline';
 import { sha256Hex } from '../lib/sha256';
 import {
   ATTACHMENT_DIR,
@@ -10,6 +11,23 @@ import {
 } from './content-store';
 import type { BackupAdapter, BackupPayload } from './types';
 
+const DEFAULT_READ_DEADLINE_MS = 30_000;
+/**
+ * 時限切れがこの回数続いたら、残りは読まずに「未ダウンロード」として畳む。
+ *
+ * 時限は 1 件ごとに掛かるので、これが無いと写真 400 枚がすべて未ダウンロードの端末では
+ * 400 × 30 秒 = 3 時間以上ずっと待つことになる。それは「遅い」ではなく「終わらない」。
+ *
+ * 回線が細いだけの端末で誤って諦める可能性はあるが、そのときの代償は復元をやり直す
+ * ことだけで、帳簿は返っているし未取得の枚数も伝えている。
+ */
+const CONSECUTIVE_TIMEOUT_LIMIT = 3;
+
+export interface FolderRestoreOptions {
+  readDeadlineMs?: number;
+  onProgress?: (done: number, total: number) => void;
+}
+
 export interface FolderRestoreSource {
   payload: BackupPayload;
   attachmentBlobs: Map<string, Blob>;
@@ -18,6 +36,8 @@ export interface FolderRestoreSource {
   skippedSnapshots: number;
   // 実体を取り戻せなかった証憑の数。帳簿本体は復元できるので警告に留める。
   corruptAttachmentCount: number;
+  // 時限内に読み切れなかった証憑の数。クラウド側にまだ実体があるだけで壊れてはいない。
+  notDownloadedCount: number;
 }
 /**
  * 保存先フォルダから、そのまま復元できる一番新しいスナップショットを読む。
@@ -27,7 +47,9 @@ export interface FolderRestoreSource {
  */
 export async function readLatestSnapshot(
   adapter: BackupAdapter,
+  options?: FolderRestoreOptions,
 ): Promise<FolderRestoreSource | null> {
+  const readDeadlineMs = options?.readDeadlineMs ?? DEFAULT_READ_DEADLINE_MS;
   const names = sortSnapshotsNewestFirst(await adapter.list(SNAPSHOT_DIR));
   if (names.length === 0) {
     return null;
@@ -35,12 +57,17 @@ export async function readLatestSnapshot(
   const present = new Set(await adapter.list(ATTACHMENT_DIR));
   let skippedSnapshots = 0;
   for (const name of names) {
-    const snapshot = await readSnapshot(adapter, name);
+    const snapshot = await readSnapshot(adapter, name, readDeadlineMs);
     if (snapshot === null || missingBlobs(snapshot, present).length > 0) {
       skippedSnapshots++;
       continue;
     }
-    const { attachmentBlobs, corruptAttachmentCount } = await loadAttachments(adapter, snapshot);
+    const { attachmentBlobs, corruptAttachmentCount, notDownloadedCount } = await loadAttachments(
+      adapter,
+      snapshot,
+      readDeadlineMs,
+      options?.onProgress,
+    );
     return {
       payload: {
         version: snapshot.payloadVersion,
@@ -51,49 +78,101 @@ export async function readLatestSnapshot(
       snapshotName: name,
       skippedSnapshots,
       corruptAttachmentCount,
+      notDownloadedCount,
     };
   }
   return null;
 }
 
-async function readSnapshot(adapter: BackupAdapter, name: string): Promise<Snapshot | null> {
-  const bytes = await adapter.read(`${SNAPSHOT_DIR}/${name}`);
+async function readSnapshot(
+  adapter: BackupAdapter,
+  name: string,
+  readDeadlineMs: number,
+): Promise<Snapshot | null> {
+  let bytes: Uint8Array<ArrayBuffer> | null;
+  try {
+    bytes = await withDeadline(adapter.read(`${SNAPSHOT_DIR}/${name}`), readDeadlineMs);
+  } catch (error) {
+    if (error instanceof DeadlineExceededError) {
+      return null;
+    }
+    throw error;
+  }
   return bytes === null ? null : parseSnapshot(new TextDecoder().decode(bytes));
 }
+
+type BlobRead = { kind: 'ok'; blob: Blob } | { kind: 'corrupt' } | { kind: 'timeout' };
 /**
  * 復元側が要るのは証憑 id → 実体の対応で、保存先にあるのは SHA-256 の名前の実体。
  * 同じ写真を複数の仕訳へ貼っていれば実体は 1 つで参照が複数になるため、読むのは
- * 1 回だけにして id ごとに同じ Blob を配る。
+ * 1 回だけにして id ごとに同じ結果を配る。
  */
 async function loadAttachments(
   adapter: BackupAdapter,
   snapshot: Snapshot,
-): Promise<{ attachmentBlobs: Map<string, Blob>; corruptAttachmentCount: number }> {
-  // null は「読めなかった／中身が名前と合わない」。同じ実体を読み直さないよう失敗も覚える。
-  const byHash = new Map<string, Blob | null>();
+  readDeadlineMs: number,
+  onProgress: ((done: number, total: number) => void) | undefined,
+): Promise<{
+  attachmentBlobs: Map<string, Blob>;
+  corruptAttachmentCount: number;
+  notDownloadedCount: number;
+}> {
+  const byHash = new Map<string, BlobRead>();
   const attachmentBlobs = new Map<string, Blob>();
   let corruptAttachmentCount = 0;
+  let notDownloadedCount = 0;
+  let consecutiveTimeouts = 0;
+  let givenUp = false;
+  const total = snapshot.attachments.length;
+  let done = 0;
   for (const ref of snapshot.attachments) {
-    if (!byHash.has(ref.sha256)) {
-      byHash.set(ref.sha256, await readVerifiedBlob(adapter, ref.sha256));
+    let result = byHash.get(ref.sha256);
+    if (result === undefined) {
+      result = givenUp
+        ? { kind: 'timeout' }
+        : await readVerifiedBlob(adapter, ref.sha256, readDeadlineMs);
+      if (result.kind === 'timeout') {
+        consecutiveTimeouts++;
+        givenUp = givenUp || consecutiveTimeouts >= CONSECUTIVE_TIMEOUT_LIMIT;
+      } else {
+        consecutiveTimeouts = 0;
+      }
+      byHash.set(ref.sha256, result);
     }
-    const blob = byHash.get(ref.sha256) ?? null;
-    if (blob === null) {
+    if (result.kind === 'ok') {
+      attachmentBlobs.set(ref.id, result.blob);
+    } else if (result.kind === 'timeout') {
+      notDownloadedCount++;
+    } else {
       corruptAttachmentCount++;
-      continue;
     }
-    attachmentBlobs.set(ref.id, blob);
+    done++;
+    onProgress?.(done, total);
   }
-  return { attachmentBlobs, corruptAttachmentCount };
+  return { attachmentBlobs, corruptAttachmentCount, notDownloadedCount };
 }
 /**
  * 内容定址が効くのはここ。名前が中身の SHA-256 なので、同期が途中で切れた半端な
  * ファイルを中身から見分けられる。合わなければその写真 1 枚を諦め、帳簿は復元する。
+ * 時限切れは「壊れている」とは別に扱う。クラウド側にまだ実体があるだけで、回線が
+ * 戻れば読めるようになる。
  */
-async function readVerifiedBlob(adapter: BackupAdapter, sha256: string): Promise<Blob | null> {
-  const data = await adapter.read(attachmentPath(sha256));
-  if (data === null || (await sha256Hex(data)) !== sha256) {
-    return null;
+async function readVerifiedBlob(
+  adapter: BackupAdapter,
+  sha256: string,
+  readDeadlineMs: number,
+): Promise<BlobRead> {
+  let data: Uint8Array<ArrayBuffer> | null;
+  try {
+    data = await withDeadline(adapter.read(attachmentPath(sha256)), readDeadlineMs);
+  } catch (error) {
+    if (error instanceof DeadlineExceededError) {
+      return { kind: 'timeout' };
+    }
+    throw error;
   }
-  return new Blob([data]);
+  if (data === null || (await sha256Hex(data)) !== sha256) {
+    return { kind: 'corrupt' };
+  }
+  return { kind: 'ok', blob: new Blob([data]) };
 }

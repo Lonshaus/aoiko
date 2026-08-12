@@ -692,6 +692,7 @@
   "settings_restore_folder": "Restore from backup folder",
   "settings_restore_folder_hint": "Loads the newest restorable backup from the folder you set for automatic backups.",
   "settings_restore_folder_empty": "No restorable backup was found in the backup folder.",
+  "settings_restore_folder_progress": "Loading receipts… {done} / {total}",
   "settings_restore_success": "Restored {tables} tables / {rows} rows.",
   "settings_restore_missing_blobs": "{count} receipt photo(s) had no image data, so they were restored empty.",
   "settings_restore_summary": "version {version} ・ {tables} tables ・ {rows} rows",
@@ -965,6 +966,7 @@
   "invoices_print_due_date": "Due date",
   "invoices_print_reduced_note": "※ marks items subject to the reduced tax rate (8%)",
   "settings_restore_corrupt_attachments": "{count} receipt photo(s) in this backup are damaged. The ledger data can still be restored, but these photos will not be restored.",
+  "settings_restore_not_downloaded": "{count} receipt photo(s) have not finished downloading from the cloud yet. Please try again once you are back online.",
   "settings_asset_disposal_run_error_needs_depreciation": "Run \"Generate depreciation entries\" first. The disposal entry only balances together with this year's depreciation entry.",
   "reports_no_data_for_year": "There are no journal entries to aggregate for {year}. Enter journal entries first."
 }
