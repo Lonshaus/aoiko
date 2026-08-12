@@ -75,7 +75,7 @@ function applySnapshotRows(rows: readonly ReportSnapshot[]): void {
   }
 }
 
-export async function refreshFiledYears(db: Dexie): Promise<void> {
+async function refreshFiledYears(db: Dexie): Promise<void> {
   const rows = (await db
     .table<ReportSnapshot>('reportSnapshots')
     .where('type')

@@ -151,7 +151,7 @@ export function expiredSnapshots(fileNames: readonly string[], retentionCount: n
   return sorted.slice(retentionCount);
 }
 
-export function isBlobFileName(name: string): boolean {
+function isBlobFileName(name: string): boolean {
   return SHA256_PATTERN.test(name);
 }
 // 保存先に置かれているが、どのスナップショットからも参照されていない実体。
