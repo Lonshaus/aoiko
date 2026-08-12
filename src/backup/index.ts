@@ -9,7 +9,11 @@ export {
 export { ATTACHMENT_DIR, SNAPSHOT_DIR } from './content-store';
 export { pruneSnapshots, writeLooseBackup } from './snapshot-writer';
 export { sweepUnreferencedBlobs } from './blob-gc';
-export { readLatestSnapshot, type FolderRestoreSource } from './snapshot-reader';
+export {
+  readLatestSnapshot,
+  type FolderRestoreOptions,
+  type FolderRestoreSource,
+} from './snapshot-reader';
 export {
   BackupCorruptError,
   buildBackupZipStream,
