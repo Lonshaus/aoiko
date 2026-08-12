@@ -132,13 +132,22 @@ describe('NativeFolderBackupAdapter.backup', () => {
     ).rejects.toThrow('バックアップフォルダが未設定です');
     expect(api.backupWrite).not.toHaveBeenCalled();
   });
-  // backupWrite はファイル名しか受け取らない。スラッシュ入りの名前を渡すと wrapper が
-  // 何を作るか保証できないので、web 側で止める。
-  test('サブフォルダ付きのパスは wrapper へ渡さず失敗する', async () => {
+  // 内容定址の版面では書き出し先が全部サブフォルダ付きになる。ここで弾くと
+  // wrapper 版のバックアップが 1 件も通らない（#430）。
+  test('サブフォルダ付きのパスをそのまま wrapper へ渡す', async () => {
+    const api = stubNative();
+    const path = 'attachments/' + 'a'.repeat(64);
+    expect(await adapterWith(CONFIGURED).adapter.backup(streamOf([1]), path)).toEqual({
+      fileName: path,
+    });
+    expect(api.backupWrite).toHaveBeenCalledWith(CONFIGURED.token, path, expect.anything());
+  });
+
+  test('組み立てられないパスは wrapper へ渡さない', async () => {
     const api = stubNative();
     await expect(
-      adapterWith(CONFIGURED).adapter.backup(streamOf([1]), 'attachments/' + 'a'.repeat(64)),
-    ).rejects.toThrow('backupWrite はサブフォルダに未対応です');
+      adapterWith(CONFIGURED).adapter.backup(streamOf([1]), 'snapshots/../escape.json'),
+    ).rejects.toThrow(RangeError);
     expect(api.backupWrite).not.toHaveBeenCalled();
   });
 });
@@ -198,11 +207,16 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(api.backupRemove).not.toHaveBeenCalled();
   });
 
-  test('remove もサブフォルダ付きのパスは wrapper へ渡さない', async () => {
+  test('remove もサブフォルダ付きのパスをそのまま渡す', async () => {
     const api = stubNative();
-    await expect(
-      adapterWith(CONFIGURED).adapter.remove('attachments/' + 'a'.repeat(64)),
-    ).rejects.toThrow('backupRemove はサブフォルダに未対応です');
+    const path = 'attachments/' + 'a'.repeat(64);
+    await adapterWith(CONFIGURED).adapter.remove(path);
+    expect(api.backupRemove).toHaveBeenCalledWith(CONFIGURED.token, path);
+  });
+
+  test('remove も組み立てられないパスは wrapper へ渡さない', async () => {
+    const api = stubNative();
+    await expect(adapterWith(CONFIGURED).adapter.remove('../escape')).rejects.toThrow(RangeError);
     expect(api.backupRemove).not.toHaveBeenCalled();
   });
 
