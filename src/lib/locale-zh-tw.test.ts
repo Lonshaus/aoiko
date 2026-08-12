@@ -74,9 +74,31 @@ const KEEP_AS_JAPANESE = [
   // かなを含む日本語の語句
   '少額減価償却資産特例（措法28の2、即時全額損金）',
   '少額減価償却資産特例（措法28の2、即時償却）',
+  '一括償却資産',
+  '少額減価償却資産特例',
   '実機組み込み',
   '弥生会計',
 ];
+
+/**
+ * 日本語の語と中文の訳が両方使われていたもの。中文側に寄せる。
+ *
+ * 訳語は自分で決めていない。どれもこのファイルが既に使っているもので、日本語のまま
+ * 残っている箇所と混在していた（7 つの文字列は 1 文の中で両方を使っていた）。
+ *
+ * `除却`（7 箇所）と `取得價額`（8 箇所）はここに入れていない。中文の対訳がファイル内に
+ * 1 つも無く、一貫して使われている＝混用ではないため。直すには訳語を新しく作ることに
+ * なり、それは今直している問題そのもの。
+ */
+const UNIFIED_TERMS: Record<string, string> = {
+  償却: '折舊',
+  償卻: '折舊',
+  振替: '結轉',
+  期首: '期初',
+  棚卸: '庫存',
+  繰戻: '沖回',
+  按分: '分攤',
+};
 
 function stripKept(text: string, kept: readonly string[]): string {
   let out = text;
@@ -126,6 +148,23 @@ describe('zh-TW の訳文', () => {
       });
       if (both.length > 0) {
         offenders.push(`${key}: ${both.join(' ')}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+  // 字ではなく語として日本語のまま残っていたもの。新字体を含まないので上の 2 つでは
+  // 拾えない（`償却` `振替` `棚卸` など）。
+  test('中文の訳がある日本語の語が残っていない', () => {
+    const offenders: string[] = [];
+    for (const [key, value] of Object.entries(messages)) {
+      if (typeof value !== 'string') {
+        continue;
+      }
+      const stripped = stripKept(value, kept);
+      const found = Object.keys(UNIFIED_TERMS).filter((jp) => stripped.includes(jp));
+      if (found.length > 0) {
+        const fix = found.map((jp) => `${jp}→${UNIFIED_TERMS[jp]}`).join(' ');
+        offenders.push(`${key}: ${fix}`);
       }
     }
     expect(offenders).toEqual([]);
