@@ -134,3 +134,20 @@ describe('journalLines の金額検証', () => {
     ).toThrow(/amountIndexed/);
   });
 });
+
+describe('明細と仕訳の対応', () => {
+  test('仕訳の無い明細は拒否する', () => {
+    expect(() =>
+      validateBackupPayload(
+        payload({
+          journalEntries: [validEntry],
+          journalLines: [validLine, { ...validLine, id: 'l2', entryId: 'e-missing' }],
+        }),
+      ),
+    ).toThrow(/e-missing/);
+  });
+  // 仕訳表が入っていないバックアップは対応を見ようがない。表ごとの検証は済んでいるので通す。
+  test('journalEntries が無ければ照合しない', () => {
+    expect(() => validateBackupPayload(payload({ journalLines: [validLine] }))).not.toThrow();
+  });
+});

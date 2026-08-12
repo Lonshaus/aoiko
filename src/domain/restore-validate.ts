@@ -95,6 +95,26 @@ function validateGeneric(table: string, keyField: string, r: unknown, i: number)
     fail(table, i, `主キー ${keyField} がありません`);
   }
 }
+/**
+ * 明細が実在する仕訳を指しているか。仕訳の無い明細を入れてしまうと、仕訳の一覧にも
+ * 修正の対象にも出てこないのに試算表の合計だけ狂うため、画面から追えなくなる。
+ *
+ * 書き込み側は 1 つのトランザクションで両方を書くのでこの状態は作れない。手で編集した
+ * バックアップや、途中で壊れたファイルへの備え。
+ */
+function validateLineReferences(entries: unknown[], lines: unknown[]): void {
+  const entryIds = new Set<string>();
+  for (const r of entries) {
+    if (isObject(r) && typeof r.id === 'string') {
+      entryIds.add(r.id);
+    }
+  }
+  lines.forEach((r, i) => {
+    if (isObject(r) && typeof r.entryId === 'string' && !entryIds.has(r.entryId)) {
+      fail('journalLines', i, `entryId に対応する仕訳がありません：${r.entryId}`);
+    }
+  });
+}
 // payload 全体を検証する。問題があれば BackupValidationError を投げる（呼出元は削除前に検証する）。
 export function validateBackupPayload(payload: BackupPayload): void {
   if (!isObject(payload.tables)) {
@@ -117,5 +137,10 @@ export function validateBackupPayload(payload: BackupPayload): void {
         validateGeneric(name, keyField, r, i);
       }
     });
+  }
+  const entries = payload.tables.journalEntries;
+  const lines = payload.tables.journalLines;
+  if (Array.isArray(entries) && Array.isArray(lines)) {
+    validateLineReferences(entries, lines);
   }
 }
