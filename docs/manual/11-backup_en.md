@@ -47,7 +47,7 @@ Settings → **"Backup"** section.
 4. **"Allow"** on the access-permission dialog
 5. The Settings screen shows **"Current folder: 〇〇"** on success
 
-From then on, on every entry add/edit, a file like `aoiko-ledger-{date}.zip` is automatically written to that folder. The zip bundles the ledger data (JSON) together with the original receipt photo images ([02. § 1-7](02-journal_en.md#1-7-attaching-a-receipt-photo)).
+From then on, on every entry add/edit, the ledger data is written automatically. Instead of a zip, it's written as loose files: one snapshot (JSON) per backup under `snapshots/`, and receipt photos ([02. § 1-7](02-journal_en.md#1-7-attaching-a-receipt-photo)) under `attachments/`, each named by the SHA-256 of its content. A photo stored once is reused wherever it's attached, so pasting the same photo into several entries doesn't duplicate it, and a photo that hasn't changed is never rewritten by a later backup.
 
 > **Google Drive / iCloud / Dropbox integration tip**: if the FSA folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: `~/Google Drive/My Drive/aoiko-backup/` → local writes auto-sync to Google Drive.
 >
@@ -73,6 +73,19 @@ If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, 
 ### 3-4. Confirming last backup time
 
 Settings → "Backup" section shows **"Last backup: 2026-05-26 14:23"**. If it's stale for long, supplement with a manual export.
+
+### 3-5. Deleting old backups and unused receipt photos
+
+Settings → "Backup" section has two independent deletion settings with different targets.
+
+| Setting | What it deletes | Default |
+|---|---|---|
+| **Delete old backups** | Snapshot files under `snapshots/` | Never delete |
+| **Delete unused receipt photos** | Attachment files under `attachments/` | Never delete |
+
+**"Delete old backups"** removes old snapshots once they exceed the number you keep (7 / 30 / 90). Deletion cannot be undone. Only the snapshot files themselves are affected — receipt photo files are left alone, since other dates may still reference them.
+
+**"Delete unused receipt photos"** removes a receipt photo file from the backup folder once no snapshot has referenced it for the number of days you choose (30 / 90 / 180). If several devices share the same folder, a photo another device still uses could be removed, so choose a generous number of days.
 
 ## 4. Manual export
 
@@ -102,7 +115,15 @@ Then:
 - Migrating to a new PC
 - Switching browsers (Chrome → Safari etc.)
 
-### 5-2. Procedure
+### 5-2. Restore from the backup folder
+
+If a backup folder is already configured, click **"Restore from backup folder"** and restore in one step.
+
+- It scans `snapshots/` newest first and picks the first one whose referenced photos are all present in `attachments/`. If cloud sync has only delivered part of your photos, it keeps looking back until it finds a snapshot it can restore completely, so you never have to hunt for the right file yourself
+- A receipt photo whose content no longer matches its SHA-256 name is skipped individually — the ledger itself still restores fine — and the number skipped is shown as a warning
+- Receipt photos that cloud sync hasn't downloaded to this device yet are reported separately from corrupt ones, as a "not downloaded" count. Wait a moment while online, then try again
+
+### 5-3. Restore from a file
 
 1. Settings → **"Restore from backup"** section
 2. **"Choose file"** to pick a zip (new format) or JSON (legacy format) — the format is auto-detected from the extension/content, so there's only one button
@@ -116,7 +137,7 @@ Then:
 6. **"Replace and restore"** to execute
 7. Success message → **"Reload"** to reload the app
 
-### 5-3. Cautions
+### 5-4. Cautions
 
 - **Full replacement**: IndexedDB is entirely overwritten. If you misclick, there's no undo
 - **Always export manually first** if work is in progress
