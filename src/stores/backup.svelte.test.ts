@@ -62,7 +62,15 @@ class FakeAdapter implements BackupAdapter {
         .map((p) => p.slice(prefix.length)),
     );
   }
+  // 読み出しの回数と、返ってこない状態を作れるようにする。クラウド同期フォルダが
+  // 端末から中身を追い出したファイルは、オフラインで読むと例外も返らないまま返らない。
+  reads = 0;
+  hangReads = false;
   read(_path: string): Promise<Uint8Array<ArrayBuffer> | null> {
+    this.reads++;
+    if (this.hangReads) {
+      return new Promise<never>(() => {});
+    }
     return Promise.resolve(null);
   }
   remove(path: string): Promise<void> {
@@ -75,7 +83,13 @@ class FakeAdapter implements BackupAdapter {
   }
 }
 
-type Injectable = { adapter: BackupAdapter | null; status: string; adapterKind: string };
+type Injectable = {
+  adapter: BackupAdapter | null;
+  status: string;
+  adapterKind: string;
+  sweepInFlight: boolean;
+  sweepDeadlineMs: number;
+};
 
 // backup() は adapter.backup() に届くまでに設定読込と payload 組み立てを挟むため、
 // マイクロタスク1回では足りない。実際に呼ばれるまで待つ。
@@ -95,7 +109,10 @@ beforeEach(async () => {
   injectable.adapter = fake;
   injectable.status = 'idle';
   injectable.adapterKind = 'none';
+  injectable.sweepInFlight = false;
+  injectable.sweepDeadlineMs = 30;
   backupManager.lastDownloadAt = null;
+  backupManager.lastError = '';
 });
 
 afterEach(async () => {
@@ -202,6 +219,55 @@ describe('backupManager.backup（実体の掃除の起動条件）', () => {
     await setSetting('lastBlobSweepAt', stamped);
     await runBackup();
     expect(await getSetting('lastBlobSweepAt')).not.toBe(stamped);
+  });
+});
+// 掃除は backup() の中で status = 'writing' のまま await される。クラウドから追い出された
+// スナップショットをオフラインで読むと返ってこないので、時限が無いと status が二度と
+// 'idle' に戻らず、以降のバックアップが 1 件も走らなくなる（例外ではないので catch にも
+// 掛からない）。利用者の帳簿が黙って保存されなくなるため、ここは落とせない。
+describe('backupManager.backup（掃除が返ってこない場合）', () => {
+  async function runBackup(): Promise<void> {
+    const p = backupManager.backup();
+    await waitForCalls(fake.calls + 1);
+    fake.settleOne();
+    await p;
+  }
+
+  beforeEach(async () => {
+    await setSetting('blobRetentionDays', 30);
+    fake.stored = new Set(['snapshots/2026-08-09T120000Z.json']);
+    fake.hangReads = true;
+  });
+
+  test('status は idle に戻り、次のバックアップが走る', async () => {
+    await runBackup();
+
+    expect(fake.reads).toBeGreaterThan(0);
+    expect(backupManager.status).toBe('idle');
+
+    const before = fake.calls;
+    await runBackup();
+    expect(fake.calls).toBe(before + 1);
+  });
+  // 元の読み出しは止められないので、重ねると返らない処理が積み上がる。
+  test('裏で走ったままの掃除がある間は次の掃除を始めない', async () => {
+    await runBackup();
+    const reads = fake.reads;
+
+    await setSetting('lastBlobSweepAt', 0);
+    await runBackup();
+
+    expect(fake.reads).toBe(reads);
+  });
+
+  test('時限切れは利用者向けのエラーにしない', async () => {
+    await runBackup();
+    expect(backupManager.lastError).toBe('');
+  });
+
+  test('掃除が終わらなかった回は記録を進めない（次の機会に持ち越す）', async () => {
+    await runBackup();
+    expect(await getSetting('lastBlobSweepAt')).toBeUndefined();
   });
 });
 
