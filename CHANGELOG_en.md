@@ -8,7 +8,7 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
-- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48
+- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48. Two packages ship no licence text of their own (is-reference, locate-character); the notice now carries the standard text of their declared licence together with the copyright holder they declare
 
 ## [1.0.4] - 2026-08-13
 
