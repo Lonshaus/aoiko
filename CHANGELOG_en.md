@@ -4,6 +4,12 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.5] - 2026-08-13
+
+### Fixed
+
+- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48
+
 ## [1.0.4] - 2026-08-13
 
 ### Added

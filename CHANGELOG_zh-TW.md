@@ -4,6 +4,12 @@
 
 本檔案格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版號遵循 [Semantic Versioning](https://semver.org/)。對 aoiko 而言，「破壞相容性的變更（major）」指讓既有備份 JSON 或瀏覽器內資料（IndexedDB）無法被新版讀取的變更。
 
+## [1.0.5] - 2026-08-13
+
+### 修正
+
+- 隨附的 `THIRD_PARTY_LICENSES.txt` 漏列了實際會散布出去的軟體,包含 Svelte 執行期、畫面元件與內附的 Inter 字型。npm 的「開發用相依」這個分類講的是「安裝時要不要」,不是「會不會進到散布的產物」,而先前拿它當判準。清單從 7 件增加到 48 件
+
 ## [1.0.4] - 2026-08-13
 
 ### 新增
