@@ -65,6 +65,13 @@
           <PolicyDocViewer doc="SECURITY" label="SECURITY.md" />
           ／
           <PolicyDocViewer doc="LICENSE" label="LICENSE (AGPL-3.0)" />
+          ／
+          <a
+            href="/THIRD_PARTY_LICENSES.txt"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
+          >
         </p>
       </div>
     </section>
