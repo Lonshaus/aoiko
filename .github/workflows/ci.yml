@@ -21,6 +21,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npm run licenses:check
+
       - run: npm run format:check
 
       - run: npm run check
