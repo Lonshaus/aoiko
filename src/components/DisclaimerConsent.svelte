@@ -82,6 +82,13 @@
           rel="noopener noreferrer"
           class="underline hover:text-foreground">LICENSE (AGPL-3.0)</a
         >
+        ／
+        <a
+          href="/THIRD_PARTY_LICENSES.txt"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
+        >
       </p>
     </section>
 
