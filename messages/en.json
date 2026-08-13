@@ -940,6 +940,7 @@
   "backup_notice_no_offsite_days": "⚠ No backup downloaded for {days} days. All data will be lost if the browser is cleared.",
   "update_register_error": "⚠ Couldn't set up offline mode (you can keep using aoiko online this session)",
   "policy_doc_loading": "Loading…",
+  "policy_doc_load_failed": "Could not load. Please try opening it again in a moment.",
   "backup_panel_storage_evictable": "Persistent storage isn't granted in this browser (this is normal in most environments). Under storage pressure your ledger data could still be discarded, so make downloading backups a habit.",
   "backup_panel_home_screen_hint": "In Safari, adding this app to the Home Screen lets the system treat it as persistent storage and raises your storage quota. Try \"Add to Home Screen\" from the Share menu.",
   "backup_panel_retention_label": "Delete old backups",
