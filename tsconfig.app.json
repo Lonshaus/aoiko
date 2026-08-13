@@ -20,7 +20,11 @@
     "resolveJsonModule": true,
     "paths": {
       "$lib": ["./src/lib"],
-      "$lib/*": ["./src/lib/*"]
+      "$lib/*": ["./src/lib/*"],
+      // tesseract-wasm は .d.ts を同梱しているが、package.json の exports に types 条件が
+      // 無いため bundler 解決では型が見つからない（上流の梱包漏れ）。外すと
+      // 「Could not find a declaration file」で svelte-check が落ちる。
+      "tesseract-wasm": ["./node_modules/tesseract-wasm/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"],

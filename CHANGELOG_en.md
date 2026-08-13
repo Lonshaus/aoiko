@@ -4,6 +4,17 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.4] - 2026-08-13
+
+### Added
+
+- Bundled the copyright notices of production npm dependencies as `THIRD_PARTY_LICENSES.txt`, now shipped with the app and reachable from the disclaimer-consent screen and the settings screen. This satisfies the attribution requirements of MIT, BSD-2-Clause, and Apache-2.0
+
+### Changed
+
+- Switched the local OCR engine from tesseract.js to tesseract-wasm. The engine, the WASM core, and the Japanese model are now all served from the same origin, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). Download size for the local engine dropped from over 12MB to about 5MB
+- Removed the "trained-data source" setting, since the model is now bundled with the app
+
 ## [1.0.3] - 2026-07-31
 
 Fixes wrong figures on tax filings, plus a set of defects that lost ledger data or corrupted backups in ways a later update cannot undo. **If any of these apply to you, see "What to check" below.**

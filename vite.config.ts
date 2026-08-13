@@ -83,12 +83,15 @@ export default defineConfig({
       workbox: {
         // SPA の history routing と相性のよい navigateFallback
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        // 免責同意画面と設定画面から開く著作権表示は、SPA のルートではなく実ファイル。
+        // 除外しないと navigation として index.html が返り、router が知らない経路として
+        // 404 画面になる（SW 導入後のみ起きるため、開発中は気付けない）。
+        navigateFallbackDenylist: [/^\/api\//, /^\/THIRD_PARTY_LICENSES\.txt$/],
         // .html / .css / .js / 画像 / フォント を precache
         globPatterns: ['**/*.{html,css,js,svg,png,ico,webmanifest,woff,woff2}'],
-        // tesseract の worker とコアは合計 12MB 超。OCR エンジンに Tesseract を
-        // 選んだ利用者だけが必要とするため precache から除外する（選んだ時点で
-        // 通常のリクエストとして取得される）。
+        // tesseract-wasm の worker・コア・日本語モデルは合計 6MB 超。OCR エンジンに
+        // Tesseract を選んだ利用者だけが必要とするため precache から除外する
+        // （選んだ時点で通常のリクエストとして取得される）。
         globIgnores: ['tesseract/**'],
       },
       devOptions: {
