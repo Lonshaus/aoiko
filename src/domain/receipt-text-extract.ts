@@ -22,7 +22,11 @@ const REIWA_DATE_RE =
   /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
 // 金額 token：¥1,500 / ￥1,500 / 1,500 / 1500円 / \1,500 等。
 // 整数部のみ採用（小数表記レシートは想定外）。
-const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:,\d{3})+|\d+)(?:\s*円)?/g;
+// 桁区切りに `.` も許すのは、OCR が小さな `,` を `.` と読み違えるのが日常的なため
+// （実測：`合計 2,200円` → `合計 2.200 円`）。許さないと token が `2` と `200` に割れ、
+// 行内最後の `200` を合計と誤認する。3 桁ちょうどの群に限れば、円には補助単位が無いので
+// 小数との取り違えは起きない。
+const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]\d{3})+|\d+)(?:\s*円)?/g;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
 const TOTAL_KEYWORDS_EXCLUDE = [
   '小計',
@@ -108,7 +112,7 @@ function parseAmounts(s: string): number[] {
   AMOUNT_TOKEN_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = AMOUNT_TOKEN_RE.exec(s)) !== null) {
-    const n = Number(m[1]!.replace(/,/g, ''));
+    const n = Number(m[1]!.replace(/[,.]/g, ''));
     if (Number.isFinite(n) && n > 0) {
       result.push(n);
     }
