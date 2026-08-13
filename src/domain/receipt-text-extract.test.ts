@@ -106,4 +106,25 @@ describe('extractFromOcrText', () => {
     const r = extractFromOcrText('2026/13/45\n合計 500');
     expect(r.date).toBe('');
   });
+
+  // 実測の OCR 出力そのまま（tesseract-wasm + jpn）。`,` が `.` に化け、
+  // 文字間に空白が入る。以前はこれで `2` と `200` に割れ、合計が 200 になっていた。
+  test('桁区切りが . に化けても合計を取り違えない', () => {
+    const r = extractFromOcrText(
+      'あお いこ 商店\nT1234567890123\n2026 年 08 月 13 日\n小計 2.000 円\n消費 税 200 円\n合計 2.200 円\nお 釣り 800 円',
+    );
+    expect(r.totalAmount).toBe('2200');
+    expect(r.date).toBe('2026-08-13');
+    expect(r.invoiceNumber).toBe('T1234567890123');
+  });
+
+  // 同じ画像でも出方が揺れる。これも実測の OCR 出力そのまま（区切りが `.,` の 2 文字）。
+  test('桁区切りが複数文字に化けても合計を取り違えない', () => {
+    const r = extractFromOcrText('小計 2.000 円\n消費 税 200 円\n\n合計 2.,200 円');
+    expect(r.totalAmount).toBe('2200');
+  });
+
+  test('3 桁ちょうどでない . は桁区切りとみなさない', () => {
+    expect(extractFromOcrText('合計 2.20 円').totalAmount).toBe('20');
+  });
 });
