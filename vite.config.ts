@@ -19,6 +19,34 @@ function gitCommitShort(): string {
   }
 }
 
+// tesseract-wasm の lib.js は worker とコアの既定位置を `new URL(..., import.meta.url)`
+// で書いており、vite はこれを静的に見つけて assets/ へ複製する。aoiko は OCRClient に
+// workerURL を明示で渡し、worker は自分の隣（/tesseract/）からコアを取るため、複製された
+// ほうは実行時に一度も使われない。しかも vite が書き出した worker の中では
+// tesseract-core-fallback.wasm の参照がハッシュ名へ書き換わっておらず、そもそも
+// 使えば壊れる。放置すると配布物に約 1.9MB の死重が乗り、worker は .js なので
+// precache にまで入る（OCR を使わない利用者まで取得してしまう）。
+// 参照そのものは engine chunk の到達不能な分岐に残るが、実行されない。
+function dropUnusedTesseractAssets() {
+  const PATTERN = /^assets\/tesseract-(core|worker)-[^/]+\.(wasm|js)$/;
+  return {
+    name: 'aoiko-drop-unused-tesseract-assets',
+    generateBundle(_options: unknown, bundle: Record<string, unknown>) {
+      const hit = Object.keys(bundle).filter((f) => PATTERN.test(f));
+      // 上流の作りが変わって複製が出なくなったら、この plugin は役目を終えている。
+      // 黙って何もしないと消したつもりのものが残り続けるので気付けるようにする。
+      if (hit.length === 0) {
+        throw new Error(
+          'tesseract-wasm の複製資産が見つからない。上流の変更でこの plugin が不要になった可能性がある。',
+        );
+      }
+      for (const file of hit) {
+        delete bundle[file];
+      }
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -26,6 +54,7 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify(gitCommitShort()),
   },
   plugins: [
+    dropUnusedTesseractAssets(),
     tailwindcss(),
     paraglideVitePlugin({
       project: './project.inlang',
