@@ -125,6 +125,43 @@ function licenseNameFromText(dir) {
   return first !== '' && first.length <= 60 ? `${first}（本文から判定）` : '(不明)';
 }
 
+// MIT License の標準本文（SPDX の canonical text）。本文を同梱していないパッケージの
+// ために持つ。著作権者の行は各パッケージの宣言を上に並べるため差し替えている。
+const MIT_TEXT = `MIT License
+
+Copyright (c) 上記各パッケージの著作権者
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR OTHER DEALINGS IN THE SOFTWARE.`;
+
+// author は文字列（"Rich Harris"）とオブジェクト（{ name, email }）の両形式がある。
+// 推測はせず、宣言されたものだけを返す。
+function declaredAuthor(dir) {
+  const path = join(dir, 'package.json');
+  if (!existsSync(path)) {
+    return '';
+  }
+  const author = JSON.parse(readFileSync(path, 'utf8')).author;
+  if (typeof author === 'string') {
+    return author;
+  }
+  return typeof author?.name === 'string' ? author.name : '';
+}
+
 function readNamed(dir, pattern) {
   if (!existsSync(dir)) {
     return '';
@@ -182,13 +219,30 @@ function render(packages) {
   if (missing.length > 0) {
     lines.push('─'.repeat(78), '');
     lines.push(
-      '次のパッケージはライセンス本文のファイルを同梱していません。上の一覧の識別子を参照してください。',
+      'これらのパッケージは npm へ公開された配布物にライセンス本文のファイルを含めていない。',
+      '（上流の files 設定から漏れているだけで、ライセンスが無いわけではない。）',
+      '識別子だけでは MIT が求める「著作権表示と許諾条文を複製物に含めること」を満たせないため、',
+      '各パッケージが宣言しているライセンスの標準本文を掲げる。著作権者は各パッケージの',
+      'package.json が宣言する author をそのまま採った。原本は各リポジトリを参照のこと。',
       '',
     );
     for (const p of missing) {
+      const holder = declaredAuthor(p.dir);
       lines.push(`  ${p.name}@${p.version}  —  ${p.license}`);
+      lines.push(holder === '' ? '  （author の宣言が無い）' : `  ${holder}`, '');
     }
-    lines.push('');
+    // 本文が無いのは今のところ MIT のみ。他のライセンスが出てきたら、その標準本文を
+    // 足すまでここへ落とさない（識別子だけ載せて満たしたことにはできない）。
+    const other = missing.filter((p) => p.license !== 'MIT');
+    if (other.length > 0) {
+      throw new Error(
+        `本文を同梱せず MIT でもないパッケージがある。標準本文を用意すること: ${other
+          .map((p) => `${p.name}@${p.version}（${p.license}）`)
+          .join(', ')}`,
+      );
+    }
+    lines.push('以下は MIT License の標準本文（上記各パッケージの著作権者に読み替えること）。', '');
+    lines.push(MIT_TEXT, '');
   }
   // BOM を付けるのは text/plain に charset が付かない配信環境があるため。
   // 付けないとブラウザが既定の旧エンコーディングで解釈し、日本語が全て文字化けする
