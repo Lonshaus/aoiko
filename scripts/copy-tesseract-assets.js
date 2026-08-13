@@ -14,7 +14,14 @@ const srcDir = join(root, 'node_modules', 'tesseract-wasm', 'dist');
 const outDir = join(root, 'public', 'tesseract');
 // fallback は WASM SIMD 非対応の実行環境向け。worker が supportsFastBuild() で
 // 選ぶため、どちらが要るかは建置時には決まらない。
-const ASSETS = ['tesseract-worker.js', 'tesseract-core.wasm', 'tesseract-core-fallback.wasm'];
+// scripts/gen-third-party-licenses.js がこの配列を import して手動ライセンス一覧との
+// 突き合わせに使うため、ここを直接編集すれば向こうの検査に反映される。
+export const ASSETS = [
+  'tesseract-worker.js',
+  'tesseract-core.wasm',
+  'tesseract-core-fallback.wasm',
+];
+export const MODEL_FILE = 'jpn.traineddata';
 // 4.0.0_best_int は best を整数量子化したもの。非量子化版は展開後 40MB 超あり、
 // 収據の認識精度差に見合わない。
 const MODEL_GZ = join(
@@ -33,14 +40,20 @@ function copy(from, to) {
   copyFileSync(from, to);
 }
 
-mkdirSync(outDir, { recursive: true });
-
-for (const asset of ASSETS) {
-  copy(join(srcDir, asset), join(outDir, asset));
+function main() {
+  mkdirSync(outDir, { recursive: true });
+  for (const asset of ASSETS) {
+    copy(join(srcDir, asset), join(outDir, asset));
+  }
+  if (!existsSync(MODEL_GZ)) {
+    throw new Error(`OCR model not found: ${MODEL_GZ}`);
+  }
+  // tesseract-wasm の loadModel は生の traineddata を読むため建置時に展開しておく。
+  writeFileSync(join(outDir, MODEL_FILE), gunzipSync(readFileSync(MODEL_GZ)));
 }
 
-if (!existsSync(MODEL_GZ)) {
-  throw new Error(`OCR model not found: ${MODEL_GZ}`);
+// gen-third-party-licenses.js は ASSETS/MODEL_FILE だけを import で使いたいので、
+// 複製処理（node_modules 前提・書き込みを伴う）は直接起動されたときだけ走らせる。
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
 }
-// tesseract-wasm の loadModel は生の traineddata を読むため建置時に展開しておく。
-writeFileSync(join(outDir, 'jpn.traineddata'), gunzipSync(readFileSync(MODEL_GZ)));
