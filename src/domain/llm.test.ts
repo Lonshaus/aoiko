@@ -177,3 +177,46 @@ describe('オフライン時の fetch 失敗', () => {
     await expect(a.generateJson('x')).rejects.toThrow(/インターネット/);
   });
 });
+
+describe('接続失敗の理由の併記', () => {
+  // wrapper 版はネイティブ側の拒否理由をそのまま投げてくる。捨てると利用者は
+  // 「サーバ起動・CORS を確認」という、この状況では解決しない助言だけを見る。
+  test('下位のエラーメッセージを助言に併記する', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    const a = new OpenAICompatibleAdapter('http://192.168.1.50:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.toThrow(/許可されていない URL です/);
+    await expect(a.generateJson('x')).rejects.toThrow(/CORS/);
+  });
+
+  test('モデル一覧の取得でも併記する', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    await expect(listOpenAiModels('http://192.168.1.50:11434/v1')).rejects.toThrow(
+      /許可されていない URL です/,
+    );
+  });
+  // オフラインの一次判定は今までどおり優先する。回線が落ちているときに
+  // 下位の理由を並べても、最初に見るべきものが埋もれる。
+  test('オフライン時は理由を併記せずオフライン文言のみ', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    const a = new OpenAICompatibleAdapter('http://192.168.1.50:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.not.toThrow(/許可されていない/);
+  });
+});
