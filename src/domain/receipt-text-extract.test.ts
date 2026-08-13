@@ -118,6 +118,12 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBe('T1234567890123');
   });
 
+  // 同じ画像でも出方が揺れる。これも実測の OCR 出力そのまま（区切りが `.,` の 2 文字）。
+  test('桁区切りが複数文字に化けても合計を取り違えない', () => {
+    const r = extractFromOcrText('小計 2.000 円\n消費 税 200 円\n\n合計 2.,200 円');
+    expect(r.totalAmount).toBe('2200');
+  });
+
   test('3 桁ちょうどでない . は桁区切りとみなさない', () => {
     expect(extractFromOcrText('合計 2.20 円').totalAmount).toBe('20');
   });
