@@ -4,6 +4,17 @@
 
 本檔案格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版號遵循 [Semantic Versioning](https://semver.org/)。對 aoiko 而言，「破壞相容性的變更（major）」指讓既有備份 JSON 或瀏覽器內資料（IndexedDB）無法被新版讀取的變更。
 
+## [1.0.4] - 2026-08-13
+
+### 新增
+
+- 將內建的正式環境 npm 依賴套件著作權聲明,收錄成 `THIRD_PARTY_LICENSES.txt` 隨程式一起發佈,並可從免責同意畫面與設定畫面開啟。用來對應 MIT・BSD-2-Clause・Apache-2.0 各自要求的標示義務
+
+### 變更
+
+- 本機 OCR 引擎從 tesseract.js 換成 tesseract-wasm。引擎本體、WASM 核心、日文模型現在都改由本站直接提供,本機 OCR 因此完全不再對外發出任何請求(之前首次使用時會向 CDN 抓取模型資料)。下載大小也從超過 12MB 降到約 5MB
+- 因模型已內建,移除設定畫面中的「學習模型取得來源」項目
+
 ## [1.0.3] - 2026-07-31
 
 修正申報文件上的錯誤數字,以及一批會讓帳簿或備份以無法事後補救的方式損失的缺陷。**如果你做過相關操作,請看下方「建議確認的項目」。**
