@@ -940,6 +940,7 @@
   "backup_notice_no_offsite_days": "⚠ 已 {days} 天沒有下載備份。瀏覽器資料若被清除將全部遺失。",
   "update_register_error": "⚠ 離線功能設置失敗（本次連線期間仍可正常使用）",
   "policy_doc_loading": "載入中…",
+  "policy_doc_load_failed": "讀取失敗,請稍後再開一次。",
   "backup_panel_storage_evictable": "此瀏覽器未取得持久化儲存權限（在多數環境下這是正常狀態）。空間吃緊時帳本資料仍可能被丟棄，請養成下載備份的習慣。",
   "backup_panel_home_screen_hint": "在 Safari 中，將此應用程式加到主畫面後，系統會視為永久性儲存並提高儲存空間上限。可從分享選單選擇「加入主畫面」試試看。",
   "backup_panel_retention_label": "刪除舊備份",

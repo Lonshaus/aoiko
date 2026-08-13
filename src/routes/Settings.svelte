@@ -2728,12 +2728,7 @@
         {m.settings_disclaimer_full_text_label()}
         <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
         ／
-        <a
-          href="/THIRD_PARTY_LICENSES.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
-        >
+        <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
       </p>
       <div>
         <button
