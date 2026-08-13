@@ -56,8 +56,16 @@ export function describeLlmError(e: unknown): string {
 }
 // fetch 自体が失敗した場合、まず「オフラインだから」を疑わせる。
 // キー設定ミスと誤認させてユーザーに無駄なデバッグをさせないための一次判定。
-function connectionErrorMessage(fallback: string): string {
-  return isOffline() ? m.common_offline_error() : fallback;
+//
+// 理由の粒度は環境によって違う。ブラウザの fetch は `Load failed` 程度しか返さないので
+// 助言のほうが役に立つが、wrapper 版は「許可されていない URL です」のように原因そのものを
+// 返す。捨てると、解決しない助言だけを見せて延々と調べさせることになるため併記する。
+function connectionErrorMessage(fallback: string, cause?: unknown): string {
+  if (isOffline()) {
+    return m.common_offline_error();
+  }
+  const detail = cause instanceof Error ? cause.message.trim() : '';
+  return detail === '' ? fallback : `${fallback}：${detail}`;
 }
 // Google Gemini API アダプター（無料枠あり、レイテンシ・コストともに低い）。
 // 2026 時点で gemini-2.5-flash 推奨。設定で他モデルも可能。
@@ -98,7 +106,7 @@ export class GeminiAdapter implements LlmAdapter {
         body: JSON.stringify(body),
       });
     } catch (e) {
-      throw new LlmError(connectionErrorMessage('Gemini API への接続に失敗しました'), e);
+      throw new LlmError(connectionErrorMessage('Gemini API への接続に失敗しました', e), e);
     }
 
     if (!response.ok) {
@@ -216,6 +224,7 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
       throw new LlmError(
         connectionErrorMessage(
           `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,
+          e,
         ),
         e,
       );
@@ -254,7 +263,10 @@ export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Pr
     response = await fetch(`${base}/models`, { headers });
   } catch (e) {
     throw new LlmError(
-      connectionErrorMessage(`${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`),
+      connectionErrorMessage(
+        `${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`,
+        e,
+      ),
       e,
     );
   }
