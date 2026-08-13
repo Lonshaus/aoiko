@@ -166,7 +166,6 @@
   let geminiTestStatus = $state('');
   let ocrEngine = $state<'gemini' | 'openai-compatible' | 'tesseract'>('gemini');
   let openaiBaseUrl = $state('');
-  let tesseractLangPath = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
   let openaiApiKey = $state('');
@@ -303,7 +302,6 @@
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
-    tesseractLangPath = (await getSetting('tesseractLangPath')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
     openaiApiKey = (await getSetting('openaiApiKey')) ?? '';
@@ -827,7 +825,6 @@
   async function saveOcrEngine() {
     await setSetting('ocrEngine', ocrEngine);
     await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
-    await setSetting('tesseractLangPath', tesseractLangPath.trim());
     await setSetting('openaiOcrModel', openaiOcrModel.trim());
     await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
     await setSetting('openaiApiKey', openaiApiKey.trim());
@@ -2293,15 +2290,6 @@
         <p class="text-xs text-muted-foreground">
           {@html m.settings_tesseract_intro_html()}
         </p>
-        <label class="block">
-          <span class="text-xs text-muted-foreground">{m.settings_tesseract_langpath_label()}</span>
-          <input
-            type="text"
-            bind:value={tesseractLangPath}
-            placeholder={m.settings_tesseract_langpath_placeholder()}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
-          />
-        </label>
       {/if}
 
       {#if ocrEngine === 'openai-compatible'}
@@ -2547,6 +2535,13 @@
           target="_blank"
           rel="noopener noreferrer"
           class="underline hover:text-foreground">DISCLAIMER.md</a
+        >
+        ／
+        <a
+          href="/THIRD_PARTY_LICENSES.txt"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
         >
       </p>
       <div>
