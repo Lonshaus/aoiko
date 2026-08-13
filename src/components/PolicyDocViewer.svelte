@@ -4,7 +4,7 @@
   import type { PolicyDocName } from '../lib/policy-docs';
 
   type Props = {
-    doc: PolicyDocName | 'LICENSE';
+    doc: PolicyDocName | 'LICENSE' | 'THIRD_PARTY';
     label: string;
   };
   let { doc, label }: Props = $props();
@@ -12,7 +12,13 @@
   let open = $state(false);
   let html = $state<string | null>(null);
   let plainText = $state<string | null>(null);
+  let error = $state('');
   let loading = $state(false);
+  // 第三者ライセンス表示だけは実行時に取得する。wrapper 版はビルド後にネイティブ側
+  // （Rust クレート）の一覧を同じファイルへ連結するため、ビルド時に埋め込むと web 側の
+  // 分しか出せなくなる。配られている実体を読むことで、web 版・wrapper 版のどちらでも
+  // その環境に入っているものがそのまま出る。
+  const THIRD_PARTY_PATH = '/THIRD_PARTY_LICENSES.txt';
   // オフライン時も自己完結で全文を読めるようにする（旧: GitHub への外部リンクのみ）。
   // LICENSE は年号・字下げを保つ固定書式のプレーンテキストで、他 3 文書は marked で描画する。
   // どちらも初回展開時まで import しない：DisclaimerConsent は起動時に必ず描画されるため、
@@ -27,10 +33,27 @@
       return;
     }
     loading = true;
+    error = '';
     try {
       if (doc === 'LICENSE') {
         const { getLicenseText } = await import('../lib/policy-docs');
         plainText = getLicenseText();
+        return;
+      }
+      if (doc === 'THIRD_PARTY') {
+        try {
+          const res = await fetch(THIRD_PARTY_PATH);
+          if (!res.ok) {
+            throw new Error(String(res.status));
+          }
+          // Response.text() は UTF-8 の BOM を落とす。BOM 自体は、この経路を通さず
+          // 直接 URL を開いた時に文字化けさせないためファイル側に残してある。
+          plainText = await res.text();
+        } catch (e) {
+          const { isOffline } = await import('../lib/network-status');
+          error = isOffline() ? m.common_offline_error() : m.policy_doc_load_failed();
+          console.error(e);
+        }
         return;
       }
       const [{ getPolicyDoc, isExternalLink }, { Marked }] = await Promise.all([
@@ -67,6 +90,8 @@
   >
     {#if loading}
       <p class="text-xs text-muted-foreground">{m.policy_doc_loading()}</p>
+    {:else if error !== ''}
+      <p class="text-xs text-destructive">{error}</p>
     {:else if plainText !== null}
       <pre class="whitespace-pre-wrap text-[11px] leading-relaxed font-mono">{plainText}</pre>
     {:else if html !== null}
