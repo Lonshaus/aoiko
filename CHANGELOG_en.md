@@ -8,7 +8,8 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ### Fixed
 
-- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48. Two packages ship no licence text of their own (is-reference, locate-character); the notice now carries the standard text of their declared licence together with the copyright holder they declare
+- The purely-local OCR engine (WASM) and a service-worker helper file were each being included twice in what we distribute. The copy that is never used at runtime has been removed: about 91KB that every user cached regardless of whether they use OCR is no longer cached, and the distributed files are about 1.9MB smaller
+- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48. Two packages ship no licence text of their own (is-reference, locate-character); the notice now carries the standard text of their declared licence together with the copyright holder they declare. Things that are not npm packages, and so could never be discovered automatically, are now listed too: the Tesseract engine and Leptonica statically linked into the WASM, the Japanese trained model, and the vendored UI components
 
 ## [1.0.4] - 2026-08-13
 
