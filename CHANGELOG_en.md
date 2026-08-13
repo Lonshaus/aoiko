@@ -4,23 +4,20 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
-## [1.0.5] - 2026-08-13
-
-### Fixed
-
-- The purely-local OCR engine (WASM) and a service-worker helper file were each being included twice in what we distribute. The copy that is never used at runtime has been removed: about 91KB that every user cached regardless of whether they use OCR is no longer cached, and the distributed files are about 1.9MB smaller
-- The bundled `THIRD_PARTY_LICENSES.txt` was missing entries for software that is actually distributed, including the Svelte runtime, UI components and the bundled Inter font. npm's "development dependency" classification describes whether a package is needed at install time, not whether it ends up in what we distribute, and it was being used as the test. The list went from 7 entries to 48. Two packages ship no licence text of their own (is-reference, locate-character); the notice now carries the standard text of their declared licence together with the copyright holder they declare. Things that are not npm packages, and so could never be discovered automatically, are now listed too: the Tesseract engine and Leptonica statically linked into the WASM, the Japanese trained model, and the vendored UI components
-
 ## [1.0.4] - 2026-08-13
 
 ### Added
 
-- Bundled the copyright notices of production npm dependencies as `THIRD_PARTY_LICENSES.txt`, now shipped with the app and reachable from the disclaimer-consent screen and the settings screen. This satisfies the attribution requirements of MIT, BSD-2-Clause, and Apache-2.0
+- The copyright notices of the third-party software we bundle are now included in what we distribute, as `THIRD_PARTY_LICENSES.txt`, reachable from the disclaimer screen and from Settings. This is what MIT, BSD-2-Clause, Apache-2.0 and OFL-1.1 each require
 
 ### Changed
 
-- Switched the local OCR engine from tesseract.js to tesseract-wasm. The engine, the WASM core, and the Japanese model are now all served from the same origin, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). Download size for the local engine dropped from over 12MB to about 5MB
-- Removed the "trained-data source" setting, since the model is now bundled with the app
+- The purely-local OCR engine switched from tesseract.js to tesseract-wasm. The engine, the WASM core and the Japanese model are now all served by aoiko itself, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). The download also shrank from over 12MB to about 5MB
+- The "trained data source" setting was removed, since the model is now bundled
+
+### Fixed
+
+- The purely-local OCR could pick up the wrong total when it misread the thousands separator on a receipt. Reading `合計 2,200円` as `2.200` or `2.,200` caused the total to be imported as 200 yen
 
 ## [1.0.3] - 2026-07-31
 
