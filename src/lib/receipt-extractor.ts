@@ -3,7 +3,7 @@
 // 3 つの引擎（gemini / openai-compatible / tesseract）を共通の
 // ReceiptExtractor インターフェースで包む。
 // - gemini / openai-compatible：vision LLM。既存の createLlmAdapter+extractReceipt を包装
-// - tesseract：純ローカル WASM OCR。動的 import で読み込み、確定性抽出層に渡す
+// - tesseract：純ローカル WASM OCR（tesseract-wasm）。動的 import で読み込み、確定性抽出層に渡す
 //
 // 送信先（external / destinationHost）は確認ダイアログ（CloudSendConfirmDialog）の
 // 表示要否判定に使う。tesseract は常に external=false。
@@ -27,9 +27,8 @@ export async function createReceiptExtractor(): Promise<ReceiptExtractor> {
   const engine = (await getSetting('ocrEngine')) ?? 'gemini';
 
   if (engine === 'tesseract') {
-    const langPath = (await getSetting('tesseractLangPath'))?.trim() || undefined;
     const { createTesseractReceiptExtractor } = await import('./ocr/tesseract-engine');
-    return createTesseractReceiptExtractor(langPath);
+    return createTesseractReceiptExtractor();
   }
 
   const adapter = await createLlmAdapter('ocr');
