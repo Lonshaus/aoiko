@@ -4,6 +4,21 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.0.4] - 2026-08-13
+
+### Added
+
+- The copyright notices of the third-party software we bundle are now included in what we distribute, as `THIRD_PARTY_LICENSES.txt`, reachable from the disclaimer screen and from Settings. This is what MIT, BSD-2-Clause, Apache-2.0 and OFL-1.1 each require
+
+### Changed
+
+- The purely-local OCR engine switched from tesseract.js to tesseract-wasm. The engine, the WASM core and the Japanese model are now all served by aoiko itself, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). The download also shrank from over 12MB to about 5MB
+- The "trained data source" setting was removed, since the model is now bundled
+
+### Fixed
+
+- The purely-local OCR could pick up the wrong total when it misread the thousands separator on a receipt. Reading `合計 2,200円` as `2.200` or `2.,200` caused the total to be imported as 200 yen
+
 ## [1.0.3] - 2026-07-31
 
 Fixes wrong figures on tax filings, plus a set of defects that lost ledger data or corrupted backups in ways a later update cannot undo. **If any of these apply to you, see "What to check" below.**

@@ -1,56 +1,60 @@
-// Tesseract（WASM）純ローカル OCR の包装層。
+// tesseract-wasm（WASM）純ローカル OCR の包装層。
 // engine 選択時のみ動的 import される（バンドル肥大化を避ける）。
 //
 // 役割は薄い：
-//   1) data URL を作って tesseract.js に渡す
+//   1) base64 を ImageBitmap に復号して tesseract-wasm に渡す
 //   2) 生テキストを receipt-text-extract に渡して構造化する
 //
 // 前処理（リサイズ・二値化等）は本最小版では未実装。精度が問題になれば後追い。
-// 画像も traineddata も端末外に出ない。設定で langPath を指定した場合のみ、
-// その URL から traineddata を取得する。
-
+// 画像は端末外に出ない。worker・コア WASM・日本語モデルはすべて同一オリジンから
+// 配るため、通信そのものが発生しない（scripts/copy-tesseract-assets.js が複製する）。
+import { OCRClient } from 'tesseract-wasm';
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { isOffline } from '../network-status';
 import { m } from '../../paraglide/messages';
-// worker とコアは自己ホストする。tesseract.js の既定値は jsDelivr CDN だが、
-// blob worker は生成元の CSP を継承するため、script-src に外部オリジンを
-// 持たない aoiko では worker 内の importScripts が必ずブロックされる。
-// 実体は scripts/copy-tesseract-assets.js が public/tesseract/ へ複製する。
-const WORKER_PATH = '/tesseract/worker.min.js';
-// ディレクトリを渡すと worker 側が SIMD 対応状況を見てファイル名を連結する。
-const CORE_PATH = '/tesseract/core';
-// traineddata も同梱する（jpn+eng で 4.8MB）。既定のままだと jsDelivr へ取りに行き、
-// 「画像は端末外に出ない」「オフラインで使える」という説明と食い違う。
-// precache からは除外してあるため、Tesseract を選んだ利用者だけが取得する。
-const LANG_PATH = '/tesseract/lang';
+const WORKER_URL = '/tesseract/tesseract-worker.js';
+const MODEL_URL = '/tesseract/jpn.traineddata';
 
-export function createTesseractReceiptExtractor(langPath?: string): ReceiptExtractor {
+// data URL を fetch すると connect-src（'self' のみ）に阻まれるため自前で復号する。
+function toBlob(image: LlmImageInput): Blob {
+  const binary = atob(image.base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: image.mimeType });
+}
+
+export function createTesseractReceiptExtractor(): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
     engine: 'tesseract',
     async extract(image: LlmImageInput) {
-      const dataUrl = `data:${image.mimeType};base64,${image.base64}`;
-      const Tesseract = await import('tesseract.js');
-      const options: Record<string, unknown> = {
-        workerPath: WORKER_PATH,
-        corePath: CORE_PATH,
-        langPath: langPath || LANG_PATH,
-      };
-      // 初回は traineddata（4.8MB）を同一オリジンから取得する（precache 対象外のため）。
-      // ここでオフラインだと素の fetch 失敗が出るので、原因が分かる文言に変換する。
-      let data: { text?: string };
+      // 画像の復号はブラウザに任せる（tesseract-wasm 自身は復号器を持たない）。
+      // 対応外の形式ならここで例外になり、無言で空文字が返ることはない。
+      const bitmap = await createImageBitmap(toBlob(image));
+      const client = new OCRClient({ workerURL: WORKER_URL });
       try {
-        ({ data } = await Tesseract.recognize(dataUrl, 'jpn+eng', options));
-      } catch (e) {
-        if (isOffline()) {
-          throw new Error(m.common_offline_error(), { cause: e });
+        // worker・コア・モデルは同一オリジンだが precache 対象外なので、初回だけ
+        // 取得が要る。オフラインだと素の fetch 失敗が出るため、原因が分かる文言に変換する。
+        try {
+          await client.loadModel(MODEL_URL);
+        } catch (e) {
+          if (isOffline()) {
+            throw new Error(m.common_offline_error(), { cause: e });
+          }
+          throw e;
         }
-        throw e;
+        await client.loadImage(bitmap);
+        return extractFromOcrText(await client.getText());
+      } finally {
+        bitmap.close();
+        // worker を残すと WASM のヒープが解放されない（tesseract-wasm の既知の制約）。
+        await client.destroy();
       }
-      return extractFromOcrText(data.text ?? '');
     },
   };
 }
