@@ -4,23 +4,20 @@
 
 本檔案格式遵循 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)，版號遵循 [Semantic Versioning](https://semver.org/)。對 aoiko 而言，「破壞相容性的變更（major）」指讓既有備份 JSON 或瀏覽器內資料（IndexedDB）無法被新版讀取的變更。
 
-## [1.0.5] - 2026-08-13
-
-### 修正
-
-- 純本機 OCR 的引擎本體(WASM)與 service worker 的輔助檔案在散布的產物裡各有兩份。移除了執行時不會用到的那一份:不使用 OCR 的人也會快取的約 91KB 不再進入快取,散布的產物也小了約 1.9MB
-- 隨附的 `THIRD_PARTY_LICENSES.txt` 漏列了實際會散布出去的軟體,包含 Svelte 執行期、畫面元件與內附的 Inter 字型。npm 的「開發用相依」這個分類講的是「安裝時要不要」,不是「會不會進到散布的產物」,而先前拿它當判準。清單從 7 件增加到 48 件。另外有兩個套件本身沒有附授權條文(is-reference、locate-character),現在會列出它們宣告的授權標準條文與著作權人。另外把不是 npm 套件、因此自動收集看不到的東西也列進來:靜態連結進 WASM 的 Tesseract 本體與 Leptonica、日文學習模型,以及 vendor 進來的畫面元件
-
 ## [1.0.4] - 2026-08-13
 
 ### 新增
 
-- 將內建的正式環境 npm 依賴套件著作權聲明,收錄成 `THIRD_PARTY_LICENSES.txt` 隨程式一起發佈,並可從免責同意畫面與設定畫面開啟。用來對應 MIT・BSD-2-Clause・Apache-2.0 各自要求的標示義務
+- 隨附的第三方軟體著作權表示現在會包含在散布的產物裡(`THIRD_PARTY_LICENSES.txt`),可從免責同意畫面與設定畫面開啟。這是 MIT、BSD-2-Clause、Apache-2.0、OFL-1.1 各自要求的事項
 
 ### 變更
 
-- 本機 OCR 引擎從 tesseract.js 換成 tesseract-wasm。引擎本體、WASM 核心、日文模型現在都改由本站直接提供,本機 OCR 因此完全不再對外發出任何請求(之前首次使用時會向 CDN 抓取模型資料)。下載大小也從超過 12MB 降到約 5MB
-- 因模型已內建,移除設定畫面中的「學習模型取得來源」項目
+- 純本機 OCR 引擎從 tesseract.js 換成 tesseract-wasm。引擎本體、WASM 核心、日文模型現在都由 aoiko 自行提供,本機 OCR 因此完全不再對外發出任何請求(之前首次使用時會向 CDN 抓取模型資料)。下載大小也從超過 12MB 降到約 5MB
+- 因為模型已隨附,設定畫面的「學習資料來源」項目移除
+
+### 修正
+
+- 純本機 OCR 讀錯收據上的千分位符號時,會抓錯合計金額。把 `合計 2,200円` 讀成 `2.200` 或 `2.,200` 時,合計會被填成 200 圓
 
 ## [1.0.3] - 2026-07-31
 
