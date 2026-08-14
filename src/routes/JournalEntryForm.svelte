@@ -489,7 +489,7 @@
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'debit')}
             required
-            class="w-full px-3 py-2 bg-background border rounded text-foreground"
+            class="h-10 w-full px-3 bg-background border rounded text-foreground"
           >
             <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
@@ -503,7 +503,7 @@
           {#if subs.length > 0}
             <select
               bind:value={line.subAccountId}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+              class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
               <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
@@ -520,11 +520,11 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
+          class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
             <option value={opt.value}>{opt.label()}</option>
@@ -535,7 +535,7 @@
           onclick={() => removeLine('debit', line.id)}
           disabled={debits.length <= 1}
           aria-label={m.journal_form_remove_line_label()}
-          class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+          class="h-10 px-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
         </button>
@@ -639,7 +639,7 @@
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'credit')}
             required
-            class="w-full px-3 py-2 bg-background border rounded text-foreground"
+            class="h-10 w-full px-3 bg-background border rounded text-foreground"
           >
             <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
@@ -653,7 +653,7 @@
           {#if subs.length > 0}
             <select
               bind:value={line.subAccountId}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+              class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
               <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
@@ -672,11 +672,11 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
+          class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
             <option value={opt.value}>{opt.label()}</option>
@@ -687,7 +687,7 @@
           onclick={() => removeLine('credit', line.id)}
           disabled={credits.length <= 1}
           aria-label={m.journal_form_remove_line_label()}
-          class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+          class="h-10 px-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
         </button>

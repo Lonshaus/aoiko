@@ -14,7 +14,9 @@
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
-  const isWide = $derived(isManual || router.path === '/reports');
+  // 仕訳一覧の表は min-w-[720px]。狭い器（max-w-3xl＝内寸 704px）に入れると 16px はみ出し、
+  // 借方科目・貸方科目の列が一文字ずつ折り返して縦書きのようになる。
+  const isWide = $derived(isManual || router.path === '/reports' || router.path === '/journal');
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
