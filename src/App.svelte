@@ -14,9 +14,18 @@
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
-  // 仕訳一覧の表は min-w-[720px]。狭い器（max-w-3xl＝内寸 704px）に入れると 16px はみ出し、
-  // 借方科目・貸方科目の列が一文字ずつ折り返して縦書きのようになる。
-  const isWide = $derived(isManual || router.path === '/reports' || router.path === '/journal');
+  // 器の幅は画面が抱える表の実寸で決める。狭すぎると表がはみ出し、列が一文字ずつ折り返して
+  // 縦書きのようになる。器の内寸は max-w から左右 padding 64px を引いた値。
+  // - /reports：決算書の表が実測 1002px。カードの内側 48px も引くので max-w-6xl（内寸 1040px）
+  // - /journal：仕訳一覧の表が min-w-[720px]。max-w-5xl（内寸 960px）
+  // - /manual：長文なので広げると読みにくい。表は無いので max-w-5xl のまま
+  const PAGE_MAX_WIDTH: Record<string, string> = {
+    '/reports': 'max-w-6xl',
+    '/journal': 'max-w-5xl',
+  };
+  const mainMaxWidth = $derived(
+    isManual ? 'max-w-5xl' : (PAGE_MAX_WIDTH[router.path] ?? 'max-w-3xl'),
+  );
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
@@ -166,9 +175,7 @@
     {/if}
   </header>
   <main
-    class="flex-1 container mx-auto px-4 md:px-8 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] {isWide
-      ? 'max-w-5xl'
-      : 'max-w-3xl'}"
+    class="flex-1 container mx-auto px-4 md:px-8 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] {mainMaxWidth}"
   >
     {#if helpChapter}
       <div class="print:hidden mb-4 flex justify-end">
