@@ -1193,7 +1193,7 @@
             min="2020"
             max="2099"
             step="1"
-            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-24 h-7 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <label class="block">
@@ -1205,14 +1205,14 @@
             min="2020"
             max="2099"
             step="1"
-            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-24 h-7 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <button
           type="button"
           onclick={loadTrend}
           disabled={trendLoading}
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+          class="h-7 px-3 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {trendLoading ? m.reports_trend_loading() : m.reports_trend_run()}
         </button>
@@ -1429,7 +1429,7 @@
         <span class="text-muted-foreground">{m.reports_arap_type()}</span>
         <select
           bind:value={newArApType}
-          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground"
+          class="mt-1 h-8 px-2 bg-background border rounded text-foreground"
         >
           <option value="receivable">{m.reports_arap_type_receivable()}</option>
           <option value="payable">{m.reports_arap_type_payable()}</option>
@@ -1441,7 +1441,7 @@
           type="text"
           bind:value={newArApDescription}
           required
-          class="mt-1 w-full px-2 py-1.5 bg-background border rounded text-foreground"
+          class="mt-1 w-full h-8 px-2 bg-background border rounded text-foreground"
         />
       </label>
       <label class="block">
@@ -1450,7 +1450,7 @@
           type="date"
           bind:value={newArApDueDate}
           required
-          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+          class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
         />
       </label>
       <label class="block">
@@ -1462,12 +1462,12 @@
           min="0"
           step="1"
           required
-          class="mt-1 w-28 px-2 py-1.5 bg-background border rounded text-foreground text-right tabular-nums"
+          class="mt-1 w-28 h-8 px-2 bg-background border rounded text-foreground text-right tabular-nums"
         />
       </label>
       <button
         type="submit"
-        class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.reports_arap_add()}
       </button>
@@ -1551,7 +1551,7 @@
           <input
             type="date"
             bind:value={cashFlowAsOfDate}
-            class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <label class="block">
@@ -1563,13 +1563,13 @@
             min="1"
             max="24"
             step="1"
-            class="mt-1 w-20 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-20 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <button
           type="button"
           onclick={loadCashFlowForecast}
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+          class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
           {m.reports_cashflow_run()}
         </button>

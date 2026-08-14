@@ -1634,7 +1634,7 @@
       <select
         bind:value={newSubParent}
         required
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_subaccount_parent_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -1650,11 +1650,11 @@
         bind:value={newSubName}
         required
         placeholder={m.settings_subaccount_name_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -1705,11 +1705,11 @@
         bind:value={newVendorName}
         required
         placeholder={m.settings_vendor_name_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newVendorEntityType}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="unknown">{m.settings_vendor_entity_label()}</option>
         <option value="corporation">{m.settings_vendor_entity_corporation()}</option>
@@ -1722,11 +1722,11 @@
         bind:value={newVendorInvoice}
         placeholder={m.settings_vendor_invoice_placeholder()}
         pattern={INVOICE_NUMBER_PATTERN}
-        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+        class="flex-1 min-w-48 px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
       />
       <select
         bind:value={newVendorAccountCode}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_vendor_default_account()}</option>
         {#each accountGroups as group (group.category)}
@@ -1741,11 +1741,11 @@
         type="text"
         bind:value={newVendorAddress}
         placeholder={m.settings_vendor_address_placeholder()}
-        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-48 px-3 h-11 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -1811,11 +1811,11 @@
           bind:value={newInventoryItemName}
           required
           placeholder={m.settings_inventory_item_name_placeholder()}
-          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+          class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
         />
         <button
           type="submit"
-          class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
           {m.settings_action_add()}
         </button>
@@ -1866,7 +1866,7 @@
           bind:value={newAssetDate}
           required
           title={m.settings_asset_date_title()}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
         />
         <input
           type="number"
@@ -1876,7 +1876,7 @@
           min="0"
           step="1"
           placeholder={m.settings_asset_cost_placeholder()}
-          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+          class="flex-1 min-w-40 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
         />
         <input
           type="number"
@@ -1887,12 +1887,12 @@
           max="50"
           step="1"
           title={m.settings_asset_life_title()}
-          class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="w-20 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
         />
         <select
           bind:value={newAssetAccount}
           title={m.settings_asset_account_title()}
-          class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
         >
           <option value="1510">1510 工具器具備品</option>
           <option value="1511">1511 建物</option>
@@ -2264,14 +2264,14 @@
           min="2020"
           max="2099"
           step="1"
-          class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums text-sm"
+          class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground tabular-nums text-sm"
         />
       </label>
       <button
         type="button"
         onclick={runDepreciation}
         disabled={ledger.fixedAssets.length === 0}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+        class="px-4 h-10 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_asset_run_button()}
       </button>
@@ -2289,7 +2289,7 @@
     <form onsubmit={addRule} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newRuleMatchType}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="description-includes">{m.settings_rule_match_includes()}</option>
         <option value="vendor-name">{m.settings_rule_match_vendor()}</option>
@@ -2300,12 +2300,12 @@
         bind:value={newRulePattern}
         required
         placeholder={m.settings_rule_pattern_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newRuleAccountCode}
         required
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_rule_account_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -2323,11 +2323,11 @@
         min="0"
         step="1"
         title={m.settings_rule_priority_title()}
-        class="w-20 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+        class="w-20 px-3 h-11 bg-background border rounded text-foreground tabular-nums"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -2420,13 +2420,13 @@
           type="password"
           bind:value={geminiKey}
           placeholder="AIza..."
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
         />
       </label>
       <button
         type="button"
         onclick={saveGeminiKey}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_llm_save()}
       </button>
@@ -2434,7 +2434,7 @@
         type="button"
         onclick={testGeminiKey}
         disabled={!geminiKey.trim()}
-        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+        class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_llm_test()}
       </button>
@@ -2775,7 +2775,7 @@
     >
       <select
         bind:value={hoRatioAccount}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        class="px-3 h-9 bg-background border rounded text-foreground text-sm"
       >
         <option value="">{m.journal_form_account_select()}</option>
         {#each expenseAccounts as a (a.code)}
@@ -2792,11 +2792,11 @@
         max="0.99"
         step="0.01"
         placeholder="0.30"
-        class="w-24 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        class="w-24 px-3 h-9 bg-background border rounded text-foreground text-sm tabular-nums"
       />
       <button
         type="submit"
-        class="px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+        class="px-3 h-9 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
