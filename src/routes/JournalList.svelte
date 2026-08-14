@@ -540,8 +540,11 @@
             <th class="text-left font-normal px-4 py-3 w-8"></th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_date()}</th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_description()}</th>
-            <th class="text-left font-normal px-4 py-3">{m.journal_th_debit()}</th>
-            <th class="text-left font-normal px-4 py-3">{m.journal_th_credit()}</th>
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap">{m.journal_th_debit()}</th
+            >
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap"
+              >{m.journal_th_credit()}</th
+            >
             <th class="text-right font-normal px-4 py-3">{m.journal_th_amount()}</th>
           </tr>
         </thead>
