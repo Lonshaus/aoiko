@@ -387,7 +387,7 @@
           min="2020"
           max="2099"
           step="1"
-          class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          class="mt-1 w-24 px-3 h-11 bg-background border rounded text-foreground tabular-nums"
         />
       </label>
       <label class="block">
@@ -395,7 +395,7 @@
         <select
           bind:value={month}
           onchange={onMonthChange}
-          class="mt-1 px-3 py-2 bg-background border rounded text-foreground"
+          class="mt-1 px-3 h-11 bg-background border rounded text-foreground"
         >
           <option value={null}>{m.journal_list_filter_month_all()}</option>
           {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as mo (mo)}
@@ -416,7 +416,7 @@
           }}
           onblur={applyDescQuery}
           placeholder={m.journal_list_filter_description_placeholder()}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground"
         />
       </label>
       <label class="block">
@@ -466,7 +466,7 @@
         <select
           bind:value={vendorIdQuery}
           onchange={onVendorChange}
-          class="mt-1 px-3 py-2 bg-background border rounded text-foreground max-w-56"
+          class="mt-1 px-3 h-11 bg-background border rounded text-foreground max-w-56"
         >
           <option value="">{m.journal_list_filter_vendor_all()}</option>
           {#each vendors as v (v.id)}
@@ -477,7 +477,7 @@
       <button
         type="button"
         onclick={resetFilters}
-        class="px-4 py-2 border rounded hover:bg-accent text-sm"
+        class="px-4 h-11 border rounded hover:bg-accent text-sm"
       >
         {m.journal_list_filter_reset()}
       </button>
