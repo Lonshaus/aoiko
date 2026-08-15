@@ -5,7 +5,7 @@ import { newId } from '../lib/id';
 import { reverseEntry } from './reverse';
 import { markYearFiled } from './snapshots';
 import { todayISO } from '../lib/date';
-import type { ReportSnapshotData } from '../db/types';
+import type { JournalLine, ReportSnapshotData } from '../db/types';
 
 async function seedEntry(opts: {
   description: string;
@@ -13,6 +13,7 @@ async function seedEntry(opts: {
   debitAccount: string;
   creditAccount: string;
   amount: string;
+  debitExtras?: Pick<JournalLine, 'taxCategory' | 'inputUsageCategory' | 'itemId' | 'quantity'>;
 }): Promise<string> {
   const entryId = newId();
   const now = Date.now();
@@ -38,6 +39,7 @@ async function seedEntry(opts: {
         taxRate: 0,
         taxIncluded: true,
         invoiceCompliant: false,
+        ...opts.debitExtras,
       },
       {
         id: newId(),
@@ -91,6 +93,55 @@ describe('reverseEntry', () => {
     expect(credit?.accountCode).toBe('5130');
     expect(debit?.amount).toBe('5000');
     expect(credit?.amount).toBe('5000');
+  });
+
+  test('明細の任意フィールド（税区分・用途区分・商品・数量）を訂正仕訳へ転記する', async () => {
+    const origId = await seedEntry({
+      description: '仕入',
+      date: '2026-04-15',
+      debitAccount: '5110',
+      creditAccount: '1130',
+      amount: '11000',
+      debitExtras: {
+        taxCategory: 'importTax10',
+        inputUsageCategory: 'common',
+        itemId: 'item-abc',
+        quantity: '3',
+      },
+    });
+
+    const reversalId = await reverseEntry(origId);
+
+    const reversalLines = await db.journalLines.where('entryId').equals(reversalId).toArray();
+    // 原仕訳で借方だった 5110 は、訂正仕訳では貸方側の行になる
+    const reversed = reversalLines.find((l) => l.accountCode === '5110');
+    expect(reversed).toBeDefined();
+    expect(reversed!.side).toBe('credit');
+    expect(reversed!.taxCategory).toBe('importTax10');
+    expect(reversed!.inputUsageCategory).toBe('common');
+    expect(reversed!.itemId).toBe('item-abc');
+    expect(reversed!.quantity).toBe('3');
+  });
+
+  test('任意フィールドを持たない明細では、訂正仕訳の行に空のキーを生やさない', async () => {
+    const origId = await seedEntry({
+      description: '電気代',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '5000',
+    });
+
+    const reversalId = await reverseEntry(origId);
+
+    const reversalLines = await db.journalLines.where('entryId').equals(reversalId).toArray();
+    expect(reversalLines).toHaveLength(2);
+    for (const line of reversalLines) {
+      expect(Object.keys(line)).not.toContain('taxCategory');
+      expect(Object.keys(line)).not.toContain('inputUsageCategory');
+      expect(Object.keys(line)).not.toContain('itemId');
+      expect(Object.keys(line)).not.toContain('quantity');
+    }
   });
 
   test('marks the original as reversed and links forward', async () => {
