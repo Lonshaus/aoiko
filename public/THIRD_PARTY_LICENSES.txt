@@ -50,7 +50,7 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   runed@0.35.1  —  MIT
   shadcn-svelte@1.5.0  —  MIT
   style-to-object@1.0.14  —  MIT
-  svelte@5.56.8  —  MIT
+  svelte@5.56.9  —  MIT
   svelte-toolbelt@0.10.6  —  MIT License（本文から判定）
   tabbable@6.4.0  —  MIT
   tailwind-merge@3.6.0  —  MIT
@@ -1369,7 +1369,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：svelte@5.56.8
+対象：svelte@5.56.9
 
 Copyright (c) 2016-2025 [Svelte Contributors](https://github.com/sveltejs/svelte/graphs/contributors)
 
