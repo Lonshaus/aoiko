@@ -3,6 +3,7 @@ import './app.css';
 import App from './App.svelte';
 import { seedAndReconcileAccounts } from './db';
 import { getSetting, setSetting } from './lib/settings';
+import { applyUiLanguage } from './lib/ui-language';
 // IndexedDB が使えない環境（Safari プライベートモード・ストレージ拒否・容量枯渇）では
 // シードや設定読み書きが失敗する。例外を握りつぶして白画面にせず、状況を表示する。
 // paraglide（多言語メッセージ）はまだ読み込まれておらず、失敗の理由次第では
@@ -60,6 +61,8 @@ async function start(): Promise<void> {
   });
 }
 
+// IndexedDB に触らないので、start() が落ちる環境でも先に済ませられる。
+applyUiLanguage();
 try {
   await start();
 } catch (e) {
