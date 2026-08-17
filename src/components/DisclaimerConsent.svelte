@@ -22,14 +22,15 @@
   }
 </script>
 
+<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと iPhone のステータスバーに隠れる（#457） -->
 <div
-  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
   role="dialog"
   aria-modal="true"
   aria-labelledby="disclaimer-title"
 >
   <div
-    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto overscroll-contain p-8 space-y-6 shadow-xl"
+    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-full overflow-y-auto overscroll-contain p-8 space-y-6 shadow-xl"
   >
     <header class="space-y-2">
       <h2 id="disclaimer-title" class="text-2xl font-bold">{m.disclaimer_welcome_title()}</h2>
