@@ -9,6 +9,7 @@
   import FiledYearWarningDialog from './components/FiledYearWarningDialog.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
   import { pathToChapter } from './lib/manual-routes';
+  import { isOpaqueError } from './lib/opaque-error';
   import { ledger } from './stores/ledger.svelte';
   import { m } from './paraglide/messages';
 
@@ -48,7 +49,10 @@
   // 単一バナーに畳むため boolean 一つで管理する。
   let showErrorBanner = $state(false);
   onMount(() => {
-    const onError = () => {
+    const onError = (event: Event) => {
+      if (isOpaqueError(event)) {
+        return;
+      }
       showErrorBanner = true;
     };
     window.addEventListener('error', onError);
