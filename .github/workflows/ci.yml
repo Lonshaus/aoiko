@@ -67,9 +67,10 @@ jobs:
           retention-days: 7
 
   # 打包（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
-  # ubuntu を使うのは倍率が最も低いため（Linux 1x / Windows 2x / macOS 10x）。
+  # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
+  # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
   native:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v6
 
@@ -83,14 +84,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
-
-      # Tauri は Linux で webkit2gtk へリンクする。cargo test を走らせるだけでも要る。
-      # libssl-dev は native-tls 用。Linux では OS の OpenSSL へリンクする。
-      # 配る対象は Windows / macOS / iOS なので、実際の配布物が OpenSSL を使うことは無い。
-      - name: Linux の依存を入れる
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
 
       - run: npm ci
 
