@@ -422,19 +422,6 @@ fn set_ui_locale(app: tauri::AppHandle, locale: String) {
     }
 }
 
-// 支援（アプリ内購入）。配る 3 つの環境にしか依存を入れていないので、登録もそこだけ。
-// Linux では CI の cargo test だけが走る。C（設定の型）は既定の () だが、`Builder::new`
-// からは推論できないので明示する。
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))]
-fn iap_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    tauri_plugin_iap::init()
-}
-
-#[cfg(not(any(target_os = "macos", target_os = "ios", target_os = "windows")))]
-fn iap_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    tauri::plugin::Builder::<R, ()>::new("iap").build()
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -445,7 +432,9 @@ pub fn run() {
         // コマンドだけで、そちらは開く場所も文面も webview から指定できない。
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_aoiko_native::init())
-        .plugin(iap_plugin())
+        // 支援（アプリ内購入）。配る 3 つの環境（macOS / iOS / Windows）にしか依存を入れて
+        // いないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
+        .plugin(tauri_plugin_iap::init())
         .invoke_handler(tauri::generate_handler![
             aoiko_fetch,
             force_close,

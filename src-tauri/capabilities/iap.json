@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "iap",
-  "description": "支援（アプリ内購入）。商店を持つ 3 つの環境にだけ適用する。Linux には tauri-plugin-iap を入れていないので、platforms を書かないと CI（ubuntu の cargo test）が未知の権限で落ちる",
+  "description": "支援（アプリ内購入）。商店を持つ 3 つの環境（macOS / iOS / Windows）にだけ適用する",
   "platforms": ["macOS", "iOS", "windows"],
   "windows": ["main"],
   "permissions": ["iap:default"]

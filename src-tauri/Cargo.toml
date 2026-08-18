@@ -35,7 +35,7 @@ tauri-plugin-opener = "2"
 tauri-plugin-aoiko-native = { path = "plugins/tauri-plugin-aoiko-native" }
 
 # 支援（アプリ内購入）。iOS / macOS は StoreKit 2、Windows は Microsoft Store API。
-# 配る 3 つの環境にだけ入れる。CI の cargo test は Linux で走るので、そこへは持ち込まない。
+# 配る 3 つの環境にだけ入れる。
 [target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))'.dependencies]
 tauri-plugin-iap = "0.9"
 
