@@ -8,7 +8,7 @@
 
 Step-by-step instructions for first-time aoiko users. Each chapter covers one feature or workflow; reading them in order gives you everything you need for day-to-day operation.
 
-> For installation and startup, see the README on GitHub. This guide focuses on what to do **after** opening the app.
+> This guide focuses on what to do **after** opening aoiko.
 
 ## Table of contents
 
