@@ -240,6 +240,22 @@ describe('restoreFromJson', () => {
   });
 });
 
+// 復元は全テーブルを clear してから書き戻す。スタンプ帳とバッジはバックアップに
+// 入っていないので、素通りさせると「復元しただけで消える」ことになる。
+describe('支援の記録は復元で消えない', () => {
+  test('スタンプ帳は復元後も残る', async () => {
+    await db.stamps.put({ id: 's1', tier: 'bronze', at: '2026-08-18' });
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
+    expect(await db.stamps.count()).toBe(1);
+  });
+
+  test('支援者バッジは復元後も残る', async () => {
+    await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
+    expect((await db.settings.get('supporterBadgeAt'))?.value).toBe('2026-08-18');
+  });
+});
+
 describe('証憑写真（C7）の zip 往復', () => {
   // 備考：happy-dom + fake-indexeddb の組み合わせでは Blob の structured clone が
   // 中身（バイト列）を保持しない既知の制限があるため（実ブラウザの IndexedDB では問題ない、

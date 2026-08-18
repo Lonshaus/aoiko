@@ -12,6 +12,9 @@ export type SettingsMap = {
   // wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
+  // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
+  // 商店から復元できるので、バックアップには含めない（backup/payload.ts）。
+  supporterBadgeAt: string | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
   // 日付入りバックアップの保持件数。0 = 削除しない（既定・従来動作）。

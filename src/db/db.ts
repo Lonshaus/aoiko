@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import { installFiledYearGuard } from './filed-year-guard';
 import { sha256Hex } from '../lib/sha256';
+import type { Stamp } from '../domain/stamps';
 import type {
   Account,
   ArApEntry,
@@ -37,6 +38,8 @@ class AoikoDB extends Dexie {
   budgets!: Table<Budget, [number, number]>;
   arApEntries!: Table<ArApEntry, string>;
   invoices!: Table<Invoice, string>;
+  // 支援のスタンプ帳。バックアップには含めない（payload.ts の SKIP_TABLES）。
+  stamps!: Table<Stamp, string>;
 
   constructor() {
     super('aoiko');
@@ -119,6 +122,10 @@ class AoikoDB extends Dexie {
           await table.update(id, { sha256 });
         }
       });
+    // 押した順に並べたいだけなので at の索引で足りる。tier では引かない。
+    this.version(11).stores({
+      stamps: 'id, at',
+    });
   }
 }
 

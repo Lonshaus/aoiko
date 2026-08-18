@@ -8,6 +8,8 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify('test'),
     __APP_COMMIT__: JSON.stringify('test'),
+    // 購入画面のテストを走らせたいので、テストではネイティブ版として扱う。
+    __NATIVE__: JSON.stringify(true),
   },
   plugins: [svelte()],
   resolve: {

@@ -54,6 +54,9 @@ export default defineConfig({
     // 上書きできるようにする。未設定なら package.json の値。
     __APP_VERSION__: JSON.stringify(process.env.AOIKO_VERSION ?? pkg.version),
     __APP_COMMIT__: JSON.stringify(gitCommitShort()),
+    // ネイティブ版のビルドでだけ true。商店を持たない web に購入画面を含めないため、
+    // 実行時の判定ではなくここで畳む。false になった側は import ごと落ちる。
+    __NATIVE__: JSON.stringify(process.env.AOIKO_NATIVE === '1'),
   },
   plugins: [
     dropUnusedTesseractAssets(),

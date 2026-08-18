@@ -109,6 +109,16 @@
   let hoRatioError = $state('');
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
+  let supportOpen = $state(false);
+  // 商店を持つのはネイティブ版だけ。web には購入画面そのものを含めない。
+  // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
+  // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
+  // window.__aoikoNative を生やせば画面を出せてしまう。
+  // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
+  const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  const SupportDialog = __NATIVE__
+    ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
+    : null;
   let confirmingRestore = $state(false);
   let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
   let restoreAttachmentCount = $state(0);
@@ -2822,10 +2832,27 @@
       </button>
     </div>
   </section>
+  {#if canSupport}
+    <div class="text-center">
+      <button
+        type="button"
+        onclick={() => (supportOpen = true)}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.support_open()}
+      </button>
+    </div>
+  {/if}
   <p class="text-center text-xs text-muted-foreground">
     aoiko v{__APP_VERSION__} ({__APP_COMMIT__})
   </p>
 </div>
+
+{#if canSupport && SupportDialog}
+  {#await SupportDialog then Dialog}
+    <Dialog open={supportOpen} onclose={() => (supportOpen = false)} />
+  {/await}
+{/if}
 
 <AlertDialog.Root bind:open={confirmingFilingType}>
   <AlertDialog.Content>
