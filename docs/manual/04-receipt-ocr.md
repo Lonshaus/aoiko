@@ -56,11 +56,11 @@
 - 「**キャンセル**」 で中止
 - 「次回から確認しない」にチェックを入れて送信すると、それ以降は全エンジン（OCR・CSV・注文取込の LLM 送信共通）で確認がスキップされます
 
-> **チェック前に再確認**：「次回から確認しない」は IndexedDB の `skipExternalSendConfirm: true` に記録され、設定画面から解除する手段はありません（全エンジン共通フラグ）。間違えてチェックしてしまった場合は、ブラウザの開発者ツールで IndexedDB（`aoiko` データベース → `settings` テーブル）の該当キーを削除してください。「設定 → データ管理」の全データ削除は帳簿ごと消えるため最終手段です。
+> **確認ダイアログを戻したい場合**：「次回から確認しない」は IndexedDB の `skipExternalSendConfirm: true` に記録されます（全エンジン共通フラグ）。設定 → 「**基本情報**」 の 「**非表示にした確認を元に戻す**」 を押すと、非表示にした確認をまとめて戻せます。
 
 #### Tesseract の場合：送信ダイアログ無し
 
-WASM で端末内処理されるため確認ダイアログは出ません。言語データ（`jpn.traineddata` / `eng.traineddata`、あわせて約 4.8MB）は aoiko 自身が配信しており、初回の解析時にのみ取得されます。以降はブラウザがキャッシュするため、外部への通信は一切発生しません。
+WASM で端末内処理されるため確認ダイアログは出ません。言語データ（`jpn.traineddata` / `eng.traineddata`、あわせて約 4.8MB）は aoiko 自身が配信しており、初回の解析時にのみ取得されます。以降は端末内に保持されるため、外部への通信は一切発生しません。
 
 ### 2-3. 抽出結果の確認・修正
 
@@ -115,8 +115,8 @@ Tesseract 路で解析した場合、抽出結果ヘッダの下に黄色の注�
 
 - **vision モデル必須**（テキスト専用モデルでは画像入力で失敗）
 - 推奨モデル：`gemma4`、`ministral-3`、`llama3.2-vision` 等
-- Ollama 側：`OLLAMA_ORIGINS` に aoiko の URL（例 `http://localhost:31527`）を必ず追加
-- aoiko 自体も `npm run preview` でローカル起動（HTTPS 配信版は localhost に接続不可）
+- **アプリ版**：追加設定は要りません
+- **ブラウザ版**：Ollama 側の `OLLAMA_ORIGINS` に aoiko の URL（例 `http://localhost:31527`）を追加し、aoiko 自体も `npm run preview` でローカル起動（HTTPS 配信版は localhost に接続不可）
 
 ### Tesseract
 

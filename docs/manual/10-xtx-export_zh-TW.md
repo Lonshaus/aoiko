@@ -87,7 +87,7 @@ aoiko 處理的是 **事業損益**。`.xtx` 會帶入決算書、確定申告�
 
 ### 3-2. 檔名
 
-aoiko 產生的檔名為 `aoiko-{年度}.xtx`，存到瀏覽器的「下載」資料夾。
+aoiko 產生的檔名為 `aoiko-{年度}.xtx`，瀏覽器版存到瀏覽器的「下載」資料夾，App 版會開啟對話框讓你選存放位置。
 
 > aoiko 的 `.gitignore` 已含 `aoiko-*.xtx`，不會誤 commit 進 repo。
 

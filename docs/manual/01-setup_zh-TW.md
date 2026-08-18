@@ -10,7 +10,7 @@
 > - 登記輔助科目（例如各銀行帳戶分開）和交易對象
 > - 設定 OCR/LLM 的 API 金鑰／endpoint（要用到才需要）
 >
-> **前提**：照 GitHub 上 README 的步驟把 aoiko 跑起來、瀏覽器打開了。
+> **前提**：aoiko 已經開著（瀏覽器版或 App 版都可以）。
 
 ## 1. 同意免責事項
 
@@ -160,12 +160,12 @@
 5. 「**儲存**」 → 「**連線測試**」
 
 > - OCR 必須選 **vision 對應模型**（gemma4 / ministral-3 / llama3.2-vision 等）
-> - 指向 localhost 的話、aoiko 本身也要**本機執行**（`npm run preview`）。HTTPS 配信版的 aoiko 連不到 localhost
-> - Ollama 那邊要設 `OLLAMA_ORIGINS` 把 aoiko 的 URL 加進白名單
+> - **App 版**：指向 `http://localhost` 也能直接連線，Ollama 那邊不用另外設定
+> - **瀏覽器版**：aoiko 本身也要**本機執行**（`npm run preview`），HTTPS 配信版的 aoiko 連不到 localhost。另外 Ollama 那邊要設 `OLLAMA_ORIGINS` 把 aoiko 的 URL 加進白名單
 
 ### 7-C. Tesseract（純本地 WASM OCR）
 
-不用 LLM、整個在瀏覽器跑完的 OCR。**精度有限**、要人工確認。
+不用 LLM、整個在裝置內跑完的 OCR。**精度有限**、要人工確認。
 
 1. 引擎選「**Tesseract**」
 2. 「**儲存**」
