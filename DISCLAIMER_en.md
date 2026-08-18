@@ -46,9 +46,11 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 
 ## 6. Data loss risk
 
-- Data is stored in your browser's IndexedDB and is **completely lost when you clear browser cache or site data**.
-- **The browser itself can delete your data without you doing anything.** Examples: automatic eviction by the browser when device storage runs low, and Safari's rule that script-writable storage is cleared after 7 days without a visit (ITP). Either can happen with no action from you.
-- As a result, **your data can disappear one day with no warning unless you keep backups**. Backup (File System Access API / OPFS / manual JSON download) operates **at the user's responsibility**.
+- Data is stored in your browser's IndexedDB and is **completely lost when you clear browser cache or site data**. The app version stores data the same way, so deleting the app's data loses it just the same.
+- **Your data can be deleted automatically, with no action from you.** Examples: automatic eviction when the device runs low on free space, and removal by WebKit's tracking prevention (ITP) of storage that has gone untouched for a period. That period is **30 days counted in days the browser or app actually ran**; the 7-day figure applies only when the site was reached through one specific kind of navigation.
+- **Tracking prevention is on by default in the app version too.** Being an app does not mean the data is safe from it.
+- **Automatic backup to OPFS is not protection against the deletions above.** OPFS sits in the same partition as the ledger data and is removed along with it.
+- As a result, **your data can disappear one day with no warning unless you keep backups**. Backup (backup folder / File System Access API / manual JSON download) operates **at the user's responsibility**.
 
 ## 7. License
 
@@ -60,7 +62,7 @@ Corresponds to the version number shown in the consent status.
 
 | version | Date | Changes |
 | --- | --- | --- |
-| 5 | 2026-07-27 | Added a note that the browser itself can automatically delete data (storage-pressure eviction, Safari's 7-day-no-visit clearing) (§6). Revised the Tesseract entry to state that no external request is made, now that the language data ships with aoiko (§5) |
+| 5 | 2026-08-15 | Added a note that data can be deleted automatically with no action from the user, and corrected the period to match the implementation (30 days counted in days the browser or app actually ran). Stated that tracking prevention is also active in the app version, and that backing up to OPFS is not protection. Added the backup folder to the list of backup destinations (§6). Revised the Tesseract entry to state that no external request is made, now that the language data ships with aoiko (§5) |
 | 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
 | 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |
 | 2 | 2026-06-28 | `.xtx` revised from "provisional — do not use for actual filing" to "covers the business portion; loadable into e-Tax Software (download edition)" |
