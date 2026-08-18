@@ -3,7 +3,7 @@
 このファイルは scripts/gen-native-licenses.mjs が cargo metadata から生成しています。
 直接編集せず、依存を変えたら再生成してください。
 
-対象：配布物へリンクされる依存 329 件（macOS / iOS / Windows の通常依存の和集合）。
+対象：配布物へリンクされる依存 334 件（macOS / iOS / Windows の通常依存の和集合）。
 dev-dependencies（テスト専用）と build-dependencies（ビルド時にしか動かず自身のコードは
 リンクされない proc macro 等）は除く。
 aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参照してください。
@@ -235,7 +235,11 @@ aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参�
   string_cache@0.9.0  —  MIT OR Apache-2.0
   strsim@0.11.1  —  MIT
   subtle@2.6.1  —  BSD-3-Clause
+  swift-bridge@0.1.59  —  Apache-2.0/MIT
+  swift-bridge-ir@0.1.59  —  Apache-2.0/MIT
+  swift-bridge-macro@0.1.59  —  Apache-2.0/MIT
   swift-rs@1.0.7  —  MIT OR Apache-2.0
+  syn@1.0.109  —  MIT OR Apache-2.0
   syn@2.0.119  —  MIT OR Apache-2.0
   syn@3.0.3  —  MIT OR Apache-2.0
   sync_wrapper@1.0.2  —  Apache-2.0
@@ -246,6 +250,7 @@ aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参�
   tauri@2.11.5  —  Apache-2.0 OR MIT
   tauri-codegen@2.6.3  —  Apache-2.0 OR MIT
   tauri-macros@2.6.3  —  Apache-2.0 OR MIT
+  tauri-plugin-iap@0.9.1  —  MIT
   tauri-plugin-opener@2.5.4  —  Apache-2.0 OR MIT
   tauri-runtime@2.11.3  —  Apache-2.0 OR MIT
   tauri-runtime-wry@2.11.4  —  Apache-2.0 OR MIT
@@ -2331,7 +2336,7 @@ DEALINGS IN THE SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：camino@1.2.4, displaydoc@0.2.6, fastrand@2.5.0, once_cell@1.21.4, servo_arc@0.4.3
+対象：camino@1.2.4, displaydoc@0.2.6, fastrand@2.5.0, once_cell@1.21.4, servo_arc@0.4.3, swift-bridge@0.1.59, syn@1.0.109
 
                               Apache License
                         Version 2.0, January 2004
@@ -21761,6 +21766,32 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
+対象：tauri-plugin-iap@0.9.1
+
+MIT License
+
+Copyright (c) 2025 Vladimir Pankratov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+──────────────────────────────────────────────────────────────────────────────
+
 対象：tauri-plugin-opener@2.5.4
 
 SPDXVersion: SPDX-2.1
@@ -25909,6 +25940,34 @@ SOFTWARE.
 MIT License
 
 著作権者の宣言なし（Cargo.toml の authors が空）。原本は https://github.com/madsmtm/objc2 を参照。
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+──────────────────────────────────────────────────────────────────────────────
+
+対象：swift-bridge-ir@0.1.59, swift-bridge-macro@0.1.59
+
+宣言されたライセンスは「Apache-2.0/MIT」。このうち MIT の条件を選択して本文を掲げる。
+
+MIT License
+
+著作権者の宣言なし（Cargo.toml の authors が空）。原本は https://github.com/chinedufn/swift-bridge を参照。
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
