@@ -1,3 +1,4 @@
+import { nativeBridge } from './native-bridge';
 // ファイルを保存する。バックアップ zip・.xtx・XML・弥生 CSV の 4 箇所に同じ実装が
 // 複製されていたため 1 箇所へ集約する。呼出側はファイルの中身と名前だけを渡す。
 //
@@ -22,6 +23,20 @@ export async function saveFile(
   mimeType: string,
   options?: { confirmCompletion?: boolean },
 ): Promise<SaveFileResult> {
+  // ネイティブのシェルがあるときは、そちらの保存ダイアログへ渡す。一部の環境の webview では
+  // <a download> + blob URL が何も起こさない（ファイルもエラーも出ない・tauri#8452）ため、
+  // 下の既定経路はそもそも成立しない。
+  //
+  // ネイティブの保存ダイアログは完了と取消を常に区別できるので 'unknown' は返らず、
+  // confirmCompletion を見る必要も無い。ReadableStream はそのまま渡す（シェル側が届いた順に
+  // 書き出すので、証憑写真込みの zip をメモリに載せずに済む）。
+  //
+  // 遅延生成の関数はダイアログの前に解決してよい。web 側が遅延を受け付けるのは picker の
+  // transient activation が切れるのを避けるためで（#386）、ネイティブ側にその制限は無い。
+  const bridge = nativeBridge();
+  if (typeof bridge?.saveFile === 'function') {
+    return (await bridge.saveFile(await resolveData(data), filename)) ? 'saved' : 'cancelled';
+  }
   const picker = (
     window as unknown as {
       showSaveFilePicker?: (opts: {
