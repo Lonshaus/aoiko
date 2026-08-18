@@ -65,3 +65,41 @@ jobs:
           name: playwright-report
           path: ${{ runner.temp }}/aoiko-playwright/report/
           retention-days: 7
+
+  # 打包（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
+  # ubuntu を使うのは倍率が最も低いため（Linux 1x / Windows 2x / macOS 10x）。
+  native:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      # Tauri は Linux で webkit2gtk へリンクする。cargo test を走らせるだけでも要る。
+      # libssl-dev は native-tls 用。Linux では OS の OpenSSL へリンクする。
+      # 配る対象は Windows / macOS / iOS なので、実際の配布物が OpenSSL を使うことは無い。
+      - name: Linux の依存を入れる
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
+
+      - run: npm ci
+
+      # 依存の追加・更新でライセンス一覧が古くなったまま配られるのを防ぐ。
+      # cargo metadata しか使わないので、対象プラットフォームの toolchain は要らない。
+      - run: npm run licenses:native:check
+
+      # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
+      - run: npm run test:init
+
+      # mobile_entry_point のガードもここに入っている。
+      - run: npm run test:rust
