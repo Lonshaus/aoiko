@@ -1,0 +1,63 @@
+[package]
+name = "aoiko-desktop"
+version = "1.0.0"
+description = "aoiko デスクトップ版"
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+name = "aoiko_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# aoiko_fetch 用。cookie は使わないので入れない（送る先は OCR/LLM の API だけ）。
+# TLS は native-tls＝OS のもの（macOS は Security.framework、Windows は Schannel）を使う。
+# rustls だと自前の暗号実装を同梱することになり、App Store の
+# ITSAppUsesNonExemptEncryption が true になって毎年 BIS へ自己分類報告が要る（#97）。
+# native-tls だけだと ALPN を要求しないので h2 が選ばれず、http2 を有効にしていても
+# 実際の接続は HTTP/1.1 へ落ちる（実測）。native-tls-alpn は ALPN を有効にするだけで、
+# 自前の暗号実装は持ち込まない。
+reqwest = { version = "0.12", default-features = false, features = [
+  "charset",
+  "http2",
+  "macos-system-configuration",
+  "native-tls-alpn",
+] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+# バックアップフォルダの選択・解決と、その配下のファイル入出力すべて（issue #38）。
+# plugin-fs の代わりで、全プラットフォームがこれを通る。
+tauri-plugin-aoiko-native = { path = "plugins/tauri-plugin-aoiko-native" }
+
+# 印刷はネイティブ側で行う。WKWebView 上の window.print() は例外を投げるため
+# （tauri#3066）、WKWebView の printOperationWithPrintInfo: を直接呼ぶ。
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", features = [
+  "NSGraphics",
+  "NSPrintInfo",
+  "NSPrintOperation",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
+objc2-web-kit = { version = "0.3", features = ["WKWebView"] }
+# Windows も同じ理由でネイティブ側へ回す。WebView2 の ShowPrintUI を呼ぶ。
+# webview2-com は tauri 自身が cfg(windows) で使っている版に合わせる（controller() が
+# ここの ICoreWebView2Controller を返すため、版がずれると型が合わない）。
+# windows-core は ICoreWebView2 から ICoreWebView2_16 へ QueryInterface するために要る。
+[target.'cfg(target_os = "windows")'.dependencies]
+webview2-com = "0.38"
+windows-core = "0.61"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

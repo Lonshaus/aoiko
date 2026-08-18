@@ -1,0 +1,43 @@
+[package]
+name = "tauri-plugin-aoiko-native"
+version = "1.0.0"
+description = "aoiko デスクトップ版のバックアップフォルダ選択と、iOS/iPadOS の印刷・アプリ内ブラウザ表示"
+edition = "2021"
+rust-version = "1.77.2"
+links = "tauri-plugin-aoiko-native"
+
+[lib]
+name = "tauri_plugin_aoiko_native"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-plugin = { version = "2", features = ["build"] }
+
+[dependencies]
+# security-scoped bookmark を保存できる形にする。
+base64 = "0.22"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2" }
+# サンドボックス下の macOS は、選んだ場所への許可が起動 1 回きり。次の起動へ持ち越す
+# security-scoped bookmark は Foundation にしか無い。
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-foundation = { version = "0.3", features = [
+  "NSArray",
+  "NSData",
+  "NSError",
+  "NSString",
+  "NSURL",
+] }
+# フォルダ選択・保存先の指定・未保存確認はこのプラグインの中で完結させる。デスクトップの
+# plugin-dialog は rfd の薄い殻でしかないので、その rfd を直接持って plugin-dialog ごと外す。
+# 外れていれば dialog:* はどの権限マニフェストにも無く、capabilities に 1 行足しても
+# 解決できずビルドが落ちる（plugin-fs と同じ状態）。cfg と feature は plugin-dialog の
+# 宣言に合わせてある。
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+rfd = { version = "0.16", features = ["common-controls-v6"], default-features = false }
+# Linux 向けには配らない。CI のテストを ubuntu で走らせるためだけの指定で、rfd の build script は
+# mac と Windows 以外だと backend 未選択で panic する（#90）。第三者ライセンス一覧は
+# cargo metadata --filter-platform を配布対象ごとに回して作るので、ここは載らない。
+[target.'cfg(target_os = "linux")'.dependencies]
+rfd = { version = "0.16", features = ["xdg-portal", "async-std"], default-features = false }

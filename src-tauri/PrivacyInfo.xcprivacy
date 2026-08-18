@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 追跡はしない。識別子も広告も無い。 -->
+  <key>NSPrivacyTracking</key>
+  <false/>
+  <key>NSPrivacyTrackingDomains</key>
+  <array/>
+  <!-- 帳簿は端末内にしか置かないので「収集」に当たるものは無い。
+       Apple の定義は「transmitting data off the device」。 -->
+  <key>NSPrivacyCollectedDataTypes</key>
+  <array/>
+  <!-- Apple の自動走査は二進位のシンボルを見る。実測（2026-08-13）でこの実行ファイルに
+       含まれていたのは `_stat` / `_fstat` / `_lstat` だけで、`NSUserDefaults` は含まれない。
+       使っていない類まで宣言すると、次に走査結果が変わったとき何が本当に要るのか分からなくなる。
+       C617.1＝アプリ自身がコンテナ内で作った・アクセスしたファイルのタイムスタンプ。 -->
+  <key>NSPrivacyAccessedAPITypes</key>
+  <array>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>C617.1</string>
+      </array>
+    </dict>
+  </array>
+</dict>
+</plist>
