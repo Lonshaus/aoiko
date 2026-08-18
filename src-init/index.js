@@ -4,12 +4,13 @@
 //
 // プラグインの JS API は npm パッケージとして別配布で、`withGlobalTauri` では注入されない
 // （実機で確認：window.__TAURI__ に入るのは app/core/dpi/event/image/menu/mocks/
-// path/tray/webview/webviewWindow/window だけ）。そのためデスクトップ側の repo で束ねて、
-// 必要な入口だけを window.__aoikoNative へ出す。公開 repo の依存は増えない。
+// path/tray/webview/webviewWindow/window だけ）。そのためここで束ねて、必要な入口だけを
+// window.__aoikoNative へ出す。プラグインごとの npm パッケージは入れず、invoke を直に叩く。
 import { invoke } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
+import { createIap } from './iap.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -88,6 +89,10 @@ window.__aoikoNative = {
     await invoke('plugin:aoiko-native|backup_remove', { relPath: fileName });
   },
 };
+// 支援（アプリ内購入）。商店ごとに品目 ID が違うので、走っている場所を Rust から
+// 受け取って決める。品目を作っていない環境では createIap が null を返し、購入の
+// 入口が生えない＝支援画面ごと出ない。
+Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
 
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
