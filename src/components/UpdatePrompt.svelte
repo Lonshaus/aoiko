@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { registerSW } from 'virtual:pwa-register';
   import { m } from '../paraglide/messages';
+  import { nativeBridge } from '../lib/native-bridge';
 
   let updateAvailable = $state(false);
   let offlineReady = $state(false);
@@ -11,6 +12,16 @@
   let updateFn: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
   onMount(() => {
+    // ネイティブのシェルの中では Service Worker を登録しない。tauri:// のような
+    // HTTP family 以外のスキームでは web view が登録を明確に拒否するため、登録を試みると
+    // 起動のたびに onRegisterError の警告が出る。更新は配布元（ストア）が担うので、
+    // ここでの更新提示自体が要らない。
+    //
+    // `virtual:pwa-register` の import はここで使っているので残る。使っていないと
+    // VitePWA の injectRegister: 'auto' が index.html へ登録スクリプトを自動注入する。
+    if (nativeBridge() !== null) {
+      return;
+    }
     updateFn = registerSW({
       onNeedRefresh() {
         updateAvailable = true;
