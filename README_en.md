@@ -50,7 +50,8 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 | Storage | IndexedDB (Dexie) + File System Access API / OPFS |
 | Money | Decimal.js (14+2 zero-padded sortable index) |
 | OCR / LLM | Selectable: Google Gemini API (BYOK) / OpenAI-compatible / Ollama and other local vision LLMs / Tesseract (purely-local WASM OCR) |
-| Test | Vitest + fake-indexeddb |
+| Native | Tauri 2 (Windows / macOS / iPadOS / iOS) + Rust |
+| Test | Vitest + fake-indexeddb + `node --test` + `cargo test` |
 | Lang | TypeScript strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` |
 
 > SvelteKit is not used (pure SPA, custom history router).
@@ -100,6 +101,15 @@ src/
 ├── backup/                      # Backup adapter (FSA / OPFS)
 └── tax-schema/                  # Year-versioned tax schemas
     └── 2026/                    # Account table + .xtx output (official XSD compliant; verified on real e-Tax software)
+
+src-init/                        # Shim injected into the WebView (bundled by esbuild into src-tauri/init.js)
+src-tauri/                       # Native side (Tauri 2)
+├── src/                         # Menu, window, navigation control, and outbound API relay
+├── plugins/tauri-plugin-aoiko-native/
+│                                # Save dialog and backup folder (Rust + Swift)
+├── capabilities/                # Permissions
+├── icons/                       # App icons
+└── tauri.conf.json              # Version, identifier, CSP, bundle settings
 ```
 
 ## Usage
