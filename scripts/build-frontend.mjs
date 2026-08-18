@@ -16,7 +16,9 @@ for (const script of ['check', 'build']) {
     cwd: root,
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    env: { ...process.env, AOIKO_VERSION: tauriConf.version },
+    // AOIKO_NATIVE は購入画面などネイティブ版にしか無い部分を出力へ入れる合図。
+    // web のビルドはこれを通らないので、そちら側では畳まれて消える。
+    env: { ...process.env, AOIKO_VERSION: tauriConf.version, AOIKO_NATIVE: '1' },
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);

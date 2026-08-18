@@ -122,6 +122,22 @@ describe('buildPayload', () => {
   });
 });
 
+// スタンプ帳はこの端末だけの記録だと画面で言っている。バックアップに入れると
+// 別端末での復元で引き継がれてしまい、その説明が嘘になる。
+describe('支援の記録は持ち出さない', () => {
+  test('stamps テーブルは payload に入らない', async () => {
+    await db.stamps.put({ id: 's1', tier: 'gold', at: '2026-08-18' });
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(p.tables.stamps).toBeUndefined();
+  });
+
+  test('supporterBadgeAt は常に除外（商店から復元するもの）', async () => {
+    await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(settingKeys(p.tables)).not.toContain('supporterBadgeAt');
+  });
+});
+
 describe('iterateAttachmentBlobs', () => {
   test('添付が無ければ何も yield しない', async () => {
     const results: Array<readonly [string, Uint8Array]> = [];
