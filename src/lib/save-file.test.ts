@@ -248,3 +248,57 @@ describe('picker を中身の組み立てより先に呼ぶ（issue#386）', () 
     expect(new Uint8Array(await created[0]!.arrayBuffer())).toEqual(new Uint8Array([7]));
   });
 });
+
+describe('ネイティブのシェルがあるとき', () => {
+  afterEach(() => {
+    delete (window as unknown as { __aoikoNative?: unknown }).__aoikoNative;
+  });
+
+  test('保存はシェルへ渡し、<a> ダウンロードは行わない', async () => {
+    const calls: { filename: string; data: unknown }[] = [];
+    (window as unknown as { __aoikoNative?: unknown }).__aoikoNative = {
+      saveFile: async (data: unknown, filename: string) => {
+        calls.push({ filename, data });
+        return true;
+      },
+    };
+    const result = await saveFile(new Uint8Array([1, 2]), 'a.zip', 'application/zip');
+    expect(result).toBe('saved');
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.filename).toBe('a.zip');
+    expect(clicked).toHaveLength(0);
+    expect(created).toHaveLength(0);
+  });
+
+  test('シェルが false を返したら cancelled', async () => {
+    (window as unknown as { __aoikoNative?: unknown }).__aoikoNative = {
+      saveFile: async () => false,
+    };
+    expect(await saveFile(new Uint8Array([1]), 'a.zip', 'application/zip')).toBe('cancelled');
+  });
+  // 遅延生成を受け付けるのは picker の transient activation 対策（#386）で、
+  // シェル側にその制限は無い。ダイアログの前に解決してよい。
+  test('遅延生成の関数も解決してから渡す', async () => {
+    let made = 0;
+    (window as unknown as { __aoikoNative?: unknown }).__aoikoNative = {
+      saveFile: async () => true,
+    };
+    await saveFile(
+      async () => {
+        made += 1;
+        return new Uint8Array([9]);
+      },
+      'a.zip',
+      'application/zip',
+    );
+    expect(made).toBe(1);
+  });
+  // saveFile を持たないシェル（能力が段階的に増える）ではブラウザ経路へ落ちる。
+  test('saveFile を持たない橋渡しなら <a> ダウンロードのまま', async () => {
+    (window as unknown as { __aoikoNative?: unknown }).__aoikoNative = {
+      setUiLocale: async () => {},
+    };
+    expect(await saveFile(new Uint8Array([1]), 'a.zip', 'application/zip')).toBe('unknown');
+    expect(clicked).toHaveLength(1);
+  });
+});
