@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-🌐 **Try it online**: <https://aoiko.pages.dev> (trial only — see [Running locally](#running-locally) for caveats)
+🌐 **Online**: <https://aoiko.pages.dev>
 
 A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥750,000 Blue Return (青色申告) deduction** for Reiwa 9 (2027) and later filings (requires on-time e-Tax submission + qualified electronic ledger storage; the older ¥650,000 deduction is still supported). Covers CSV/OCR/EC order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export — all in a single web app. White Return (income/expense breakdown statement) is also supported. No backend, BYOK (you bring your own API key).
 
@@ -102,75 +102,9 @@ src/
     └── 2026/                    # Account table + .xtx output (official XSD compliant; verified on real e-Tax software)
 ```
 
-## Running locally
-
-An online version is available at <https://aoiko.pages.dev>. However, it is **for trial only**, with the following caveats:
-
-- It auto-deploys on every push to master, so **the version can change without notice** (you don't control update timing).
-- For real bookkeeping/filing, **self-host locally where you can pin a version** (steps below).
-- Data is stored only in your browser (IndexedDB) and never sent to a server. Use at your own risk.
-
-To run it yourself, follow the steps below. Data lives in your browser's IndexedDB and never leaves your device (see [PRIVACY.md](PRIVACY.md)).
-
-### Prerequisites
-
-- [Node.js 22 LTS](https://nodejs.org/) or later
-- npm (bundled with Node.js)
-- Git (to clone the repo; ZIP download also OK)
-- A modern browser (Chrome / Edge / Safari / Firefox)
-
-### Startup
-
-```bash
-git clone https://github.com/Lonshaus/aoiko.git
-cd aoiko
-npm install
-npm run build
-npm run preview
-```
-
-Open <http://localhost:31527> in your browser. On first launch, accept the disclaimer, then enter your business name and fiscal year in Settings. To use OCR/LLM, pick an engine in Settings (Gemini API key / Ollama or other OpenAI-compatible endpoint / Tesseract [OCR-only, limited accuracy]).
-
-### Install as a PWA (recommended)
-
-Click the "Install" button in the address bar of Chrome / Edge — aoiko launches like a desktop app and works offline. Safari users: "Share" → "Add to Home Screen".
-
-### Where data is stored
-
-- Journals, fixed assets, vendors, settings → IndexedDB in the browser (on-device, no server transmission)
-- "Settings" → "Backup" lets you pick a local folder for automatic JSON backups (File System Access API; OPFS fallback for unsupported browsers. Safari below 26 and iOS have no automatic backup — manual download only)
-
-If you clear browser data, IndexedDB is wiped. Regularly export manually (in Settings) or configure a backup folder.
-
-### Updating
-
-```bash
-git pull
-npm install
-npm run build
-npm run preview
-```
-
-Open <http://localhost:31527> in your browser. If you've installed it as a PWA, a "new version" prompt appears on launch.
-
 ## Usage
 
 See [docs/manual/](docs/manual/README_en.md) for step-by-step operating instructions. Covers initial setup, journal entries, CSV import, and reports in dedicated chapters (Japanese and Traditional Chinese versions also available).
-
-## Development
-
-```bash
-npm install
-npm run dev        # Dev server (http://localhost:10708)
-npm run test       # Vitest
-npm run check      # svelte-check type checking
-npm run build      # Production build
-npm run preview    # Preview the build (http://localhost:31527)
-npm run format     # Prettier formatting
-npm run verify     # format:check + check + test + build
-```
-
-Node 22 LTS (CI also runs 22; locally Node 24 also works since `engines: >=22`) / npm (bundled with Node.js).
 
 ## License
 

@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml/badge.svg)](https://github.com/Lonshaus/aoiko/actions/workflows/ci.yml) [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-🌐 **線上試用**: <https://aoiko.pages.dev>（僅供試用・注意事項見「[使用者向：本機啟動](#使用者向本機啟動)」）
+🌐 **線上版**: <https://aoiko.pages.dev>
 
 給日本個人事業主用的純前端記帳工具。目標是青色申告 **75 萬日圓**特別控除（令和 9 年分以後、需 e-Tax 期限內提交＋優良な電子帳簿保存／改正前的 65 萬日圓控除也持續支援），把 CSV／OCR／EC 訂單頁取込、複式簿記、減價償卻、資產負債表、`.xtx`（e-Tax 申報檔）輸出全部在單一 Web App 中完成。也支援白色申告(収支内訳書)。無後端、BYOK（API 金鑰使用者自備）。
 
@@ -102,75 +102,9 @@ src/
     └── 2026/                    # 勘定科目表、`.xtx` 輸出（依官方 XSD、已通過實機組み込み驗證）
 ```
 
-## 使用者向：本機啟動
-
-線上版公開於 <https://aoiko.pages.dev>。但**僅供試用**，請注意以下幾點：
-
-- 每次 push 到 master 就自動部署，**版本會不預告變動**（更新時機無法自行掌控）。
-- 實際記帳・申報，**建議自行在本機架設、可固定版本**（步驟見下）。
-- 資料僅存於瀏覽器（IndexedDB），不會送到伺服器。請自負責任使用。
-
-想在本機跑請照以下步驟啟動。資料存在瀏覽器 IndexedDB、不會離開本機（請見 [PRIVACY.md](PRIVACY.md)）。
-
-### 前提
-
-- [Node.js 22 LTS](https://nodejs.org/) 以上
-- npm（Node.js 內建）
-- Git（取得 repo 用、ZIP 下載也行）
-- 現代瀏覽器（Chrome / Edge / Safari / Firefox）
-
-### 啟動步驟
-
-```bash
-git clone https://github.com/Lonshaus/aoiko.git
-cd aoiko
-npm install
-npm run build
-npm run preview
-```
-
-瀏覽器打開 <http://localhost:31527>。首次啟動會請你同意免責事項，接著在「設定」畫面輸入事業名稱、年度。要用 OCR/LLM 的話在「設定」選引擎（Gemini API 金鑰／Ollama 等 OpenAI 相容 endpoint／Tesseract〔僅 OCR、精度有限〕）。
-
-### 以 PWA 安裝（推薦）
-
-Chrome / Edge 網址列右側的「安裝」按鈕點下去，aoiko 就會像桌面應用一樣啟動、也能離線運作。Safari 使用者請走「分享」→「加入主畫面」。
-
-### 資料存放位置
-
-- 仕訳、固定資產、取引先、設定 → 瀏覽器 IndexedDB（本機、不送伺服器）
-- 「設定」→「備份」可指定本地資料夾、自動 JSON 備份（File System Access API、不支援的瀏覽器走 OPFS。Safari 26 以前與 iOS 不支援自動備份，只能手動下載）
-
-清掉瀏覽器資料 IndexedDB 也會消失，所以建議定期手動匯出（設定畫面）或指定備份資料夾。
-
-### 更新方法
-
-```bash
-git pull
-npm install
-npm run build
-npm run preview
-```
-
-瀏覽器打開 <http://localhost:31527>。裝成 PWA 的話、啟動時會跳「新版本」提示。
-
 ## 使用方式
 
 操作手順請見 [docs/manual/](docs/manual/README_zh-TW.md)。分章節說明初次設定・建立傳票・CSV 匯入・報表（日文・英文版也有）。
-
-## 開發
-
-```bash
-npm install
-npm run dev        # 開發伺服器（http://localhost:10708）
-npm run test       # Vitest
-npm run check      # svelte-check 型別檢查
-npm run build      # 正式建置
-npm run preview    # 建置後預覽（http://localhost:31527）
-npm run format     # Prettier 格式化
-npm run verify     # format:check ＋ check ＋ test ＋ build
-```
-
-Node 22 LTS（CI 也用 22、本機跑 Node 24 也行，`engines: >=22`）／ npm（Node.js 內建）。
 
 ## 授權
 
