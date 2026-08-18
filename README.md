@@ -50,7 +50,8 @@
 | Storage | IndexedDB（Dexie）+ File System Access API / OPFS |
 | Money | Decimal.js（14+2 ゼロパディング辞書順インデックス） |
 | OCR / LLM | 設定で選択：Google Gemini API（BYOK）／OpenAI 互換・Ollama 等のローカル vision LLM／Tesseract（純ローカル WASM OCR） |
-| Test | Vitest + fake-indexeddb |
+| Native | Tauri 2（Windows / macOS / iPadOS / iOS）+ Rust |
+| Test | Vitest + fake-indexeddb + `node --test` + `cargo test` |
 | Lang | TypeScript strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes` |
 
 > SvelteKit 不使用（純 SPA、自前 history router）。
@@ -100,6 +101,15 @@ src/
 ├── backup/                      # バックアップ adapter（FSA / OPFS）
 └── tax-schema/                  # 年度別税制スキーマ
     └── 2026/                    # 勘定科目テーブル・.xtx 出力（公式 XSD 準拠・実機組み込み検証済み）
+
+src-init/                        # WebView へ注入する shim（esbuild で src-tauri/init.js へ束ねる）
+src-tauri/                       # ネイティブ側（Tauri 2）
+├── src/                         # メニュー・ウィンドウ・ナビゲーション制御・外部 API への取次ぎ
+├── plugins/tauri-plugin-aoiko-native/
+│                                # 保存ダイアログ・バックアップフォルダ（Rust + Swift）
+├── capabilities/                # 権限
+├── icons/                       # app アイコン
+└── tauri.conf.json              # 版・identifier・CSP・バンドル設定
 ```
 
 ## 使い方
