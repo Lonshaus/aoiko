@@ -56,11 +56,11 @@
 - 「**取消**」中止
 - 勾「下次起不問」後送出，之後**所有引擎**（OCR・CSV・訂單取込的 LLM 送出共通）都不再跳對話框
 
-> **勾之前請三思**：這會存到 IndexedDB `skipExternalSendConfirm: true`（全引擎共通旗標），設定畫面沒有解除手段。誤勾的話請用瀏覽器開發者工具刪掉該 key（IndexedDB → `aoiko` 資料庫 → `settings` 表）。「設定 → 資料管理」的全資料刪除連帳簿一起消失，是最後手段。
+> **想把確認對話框叫回來的話**：「下次起不問」會存到 IndexedDB `skipExternalSendConfirm: true`（全引擎共通旗標）。到設定 →「**基本資訊**」按「**還原已隱藏的確認**」，就能把隱藏起來的確認一次全部還原。
 
 #### Tesseract：不跳對話框
 
-WASM 在本機處理、不需要確認。語言資料（`jpn.traineddata` / `eng.traineddata`，合計約 4.8MB）由 aoiko 自己提供，只在第一次辨識時取得，之後由瀏覽器快取，完全不會有對外連線。
+WASM 在本機處理、不需要確認。語言資料（`jpn.traineddata` / `eng.traineddata`，合計約 4.8MB）由 aoiko 自己提供，只在第一次辨識時取得，之後留在裝置內，完全不會有對外連線。
 
 ### 2-3. 抽取結果確認・修正
 
@@ -115,8 +115,8 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 
 - **必須選 vision 模型**（純文字模型遇到圖片輸入會掛）
 - 推薦：`gemma4`、`ministral-3`、`llama3.2-vision` 等
-- Ollama 那邊：`OLLAMA_ORIGINS` 一定要把 aoiko 的 URL（例 `http://localhost:31527`）加進來
-- aoiko 自己也要本機起（`npm run preview`）。HTTPS 配信版連不到 localhost
+- **App 版**：不用另外設定
+- **瀏覽器版**：Ollama 那邊的 `OLLAMA_ORIGINS` 要把 aoiko 的 URL（例 `http://localhost:31527`）加進來，aoiko 自己也要本機起（`npm run preview`），HTTPS 配信版連不到 localhost
 
 ### Tesseract
 

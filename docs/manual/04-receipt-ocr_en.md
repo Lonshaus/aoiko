@@ -56,11 +56,11 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 - **"Cancel"** to abort
 - Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import LLM sends)
 
-> **Think twice before checking**: this is stored as IndexedDB `skipExternalSendConfirm: true` (a single flag across engines) and there is no settings UI to undo it. If you checked it by mistake, delete that key with your browser's developer tools (IndexedDB → `aoiko` database → `settings` table). "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+> **To bring the confirmation back**: "Don't ask again" is stored as IndexedDB `skipExternalSendConfirm: true` (a single flag across engines). Press "**Restore hidden confirmations**" under Settings → "**Basic information**" to bring back every confirmation you hid.
 
 #### Tesseract: no dialog
 
-WASM-on-device, so no confirmation. The language data (`jpn.traineddata` / `eng.traineddata`, about 4.8 MB together) is served by aoiko itself and fetched only on your first scan. The browser caches it afterwards, so no external request is ever made.
+WASM-on-device, so no confirmation. The language data (`jpn.traineddata` / `eng.traineddata`, about 4.8 MB together) is served by aoiko itself and fetched only on your first scan. It stays on the device afterwards, so no external request is ever made.
 
 ### 2-3. Review and edit the extracted result
 
@@ -115,8 +115,8 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 
 - **Vision-capable model required** (text-only models fail on image input)
 - Recommended: `gemma4`, `ministral-3`, `llama3.2-vision`
-- On the Ollama side: add aoiko's URL (e.g. `http://localhost:31527`) to `OLLAMA_ORIGINS`
-- aoiko itself must run locally too (`npm run preview`); HTTPS-served aoiko can't reach localhost
+- **App**: no extra configuration needed
+- **Browser**: add aoiko's URL (e.g. `http://localhost:31527`) to `OLLAMA_ORIGINS` on the Ollama side, and run aoiko locally too (`npm run preview`); HTTPS-served aoiko can't reach localhost
 
 ### Tesseract
 

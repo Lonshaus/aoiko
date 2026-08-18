@@ -87,7 +87,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 
 ### 3-2. File name
 
-aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
+aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder in the browser version; the app opens a dialog so you can choose where to save it.
 
 > aoiko's `.gitignore` includes `aoiko-*.xtx` so it is not accidentally committed.
 

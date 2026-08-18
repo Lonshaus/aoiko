@@ -10,7 +10,7 @@ What to do from launching aoiko to being ready to book transactions.
 > - Register sub-accounts (e.g. per bank account) and vendors
 > - Configure an API key / endpoint for OCR/LLM, if you want to use those
 >
-> **Prerequisites**: aoiko is started per the README on GitHub and open in your browser.
+> **Prerequisites**: aoiko is open (either the browser version or the app).
 
 ## 1. Accept the disclaimer
 
@@ -160,12 +160,12 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 5. **"Save"** → **"Test connection"**
 
 > - OCR requires a **vision-capable model** (gemma4 / ministral-3 / llama3.2-vision etc.)
-> - To use localhost, aoiko must also run **locally** (`npm run preview`); aoiko served over HTTPS cannot reach `http://localhost`
-> - Set `OLLAMA_ORIGINS` on the Ollama side to allow aoiko's URL
+> - **App**: `http://localhost` endpoints work as-is. No extra configuration is needed on the Ollama side
+> - **Browser**: aoiko must also run **locally** (`npm run preview`); aoiko served over HTTPS cannot reach `http://localhost`. You also need to set `OLLAMA_ORIGINS` on the Ollama side to allow aoiko's URL
 
 ### 7-C. Tesseract (purely-local WASM OCR)
 
-OCR that runs entirely in the browser, with no LLM. **Accuracy is limited**; manual verification required.
+OCR that runs entirely on your device, with no LLM. **Accuracy is limited**; manual verification required.
 
 1. Choose **"Tesseract"**
 2. **"Save"**
