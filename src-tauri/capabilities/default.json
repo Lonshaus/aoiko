@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "aoiko デスクトップ版が使うプラグイン権限。platforms を書かないので iOS/iPadOS にも同じものが適用される",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://**" }, { "url": "http://**" }, { "url": "mailto:*" }]
+    },
+    "aoiko-native:default"
+  ]
+}
