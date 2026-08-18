@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 書き出した .xtx・CSV・バックアップ zip を「ファイル」アプリの
+       「この iPhone 内 / aoiko」から取り出せるようにする。iOS には保存先を選ばせる
+       仕組みが無く、plugin-dialog の save() も空ファイルを書き出す実装のため、
+       アプリの Documents へ書いてここから取り出してもらう経路にしている。 -->
+  <key>UIFileSharingEnabled</key>
+  <true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <true/>
+  <!-- OCR/LLM に同一 LAN の Ollama 等を指定する場合に要る。既定の Gemini は
+       https なので、この許可を出さなくても使える。 -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>この端末と同じネットワークにある OCR・LLM サーバー（Ollama 等）へ接続するために使用します。設定で接続先を指定した場合にのみ通信します。</string>
+  <!-- 同上。ローカルの接続先は http のため、平文通信を LAN に限って許可する。
+       外部への平文通信は許可しない（ATS の既定のまま）。 -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+  <!-- macOS 側（Info.plist）と同じ理由。UIKit と WebKit が引く文字列（ファイル選択・
+       共有シート・印刷パネル）と、App Store の製品ページの「言語」欄が、この一覧から決まる。 -->
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>ja</string>
+    <string>zh-Hant</string>
+    <string>en</string>
+  </array>
+</dict>
+</plist>
