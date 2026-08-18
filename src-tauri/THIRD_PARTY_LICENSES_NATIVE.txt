@@ -1,6 +1,6 @@
-﻿aoiko デスクトップ版が配布物に含む第三者 Rust クレートと、その著作権表示
+﻿aoiko のネイティブ版（Windows / macOS / iPadOS / iOS）が配布物に含む第三者 Rust クレートと、その著作権表示
 
-このファイルは scripts/gen-third-party-licenses.mjs が cargo metadata から生成しています。
+このファイルは scripts/gen-native-licenses.mjs が cargo metadata から生成しています。
 直接編集せず、依存を変えたら再生成してください。
 
 対象：配布物へリンクされる依存 329 件（macOS / iOS / Windows の通常依存の和集合）。
