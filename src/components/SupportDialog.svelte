@@ -171,6 +171,9 @@
     --ink-gold: oklch(0.72 0.14 85);
     --paper: oklch(0.985 0.008 90);
     --paper-line: oklch(0.9 0.012 90);
+    /* showModal() の中央寄せはブラウザ既定の margin: auto に頼っている。Tailwind の
+       preflight が全要素の margin を 0 にするのでそれが消え、左上へ寄る。 */
+    margin: auto;
     width: min(30rem, calc(100vw - 2rem));
     max-height: 85vh;
     overflow-y: auto;
