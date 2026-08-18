@@ -12,6 +12,17 @@ use tauri_plugin_opener::OpenerExt;
 mod menu_i18n;
 
 const INIT_SCRIPT: &str = include_str!("../init.js");
+// 商店ごとに品目 ID が違うので、走っている場所を init.js へ渡す。JS 側から OS を
+// 見分ける手段（userAgent 等）は web view だと ある環境 と ある環境 の区別が付かない。
+const PLATFORM: &str = if cfg!(target_os = "macos") {
+    "macos"
+} else if cfg!(target_os = "ios") {
+    "ios"
+} else if cfg!(target_os = "windows") {
+    "windows"
+} else {
+    "other"
+};
 // ウィンドウ終了要求を JS 側の未保存判定へ渡す。init.js が未読込のときだけ即座に閉じる
 // （画面が出ていない＝未保存の入力も存在しないため）。
 const CLOSE_SCRIPT: &str = r#"
@@ -421,6 +432,9 @@ pub fn run() {
         // コマンドだけで、そちらは開く場所も文面も webview から指定できない。
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_aoiko_native::init())
+        // 支援（アプリ内購入）。配る 3 つの環境（ある環境 / ある環境 / ある環境）にしか依存を入れて
+        // いないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
+        .plugin(tauri_plugin_iap::init())
         .invoke_handler(tauri::generate_handler![
             aoiko_fetch,
             force_close,
@@ -432,7 +446,9 @@ pub fn run() {
             let handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("aoiko")
-                .initialization_script(INIT_SCRIPT)
+                .initialization_script(format!(
+                    "window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"
+                ))
                 // マニュアルと UI の外部リンクは、そのままだとアプリのウィンドウごと外部サイトへ
                 // 遷移し、戻る手段が無くなる。OS 標準のブラウザへ渡してナビゲーションは中止する。
                 .on_navigation(move |url| {

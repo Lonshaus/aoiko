@@ -20,6 +20,10 @@
     { kind: 'tip-large', tier: 'gold', label: m.support_tip_large },
   ];
 
+  // 消耗型を 1 つも売っていない商店（ある環境 は支援者バッジだけ）では、金額ボタンも
+  // スタンプ帳も出さない。押せない枠と、永久に 0 個のままの帳面が残るため。
+  const hasTips = $derived(TIERS.some((t) => support.productFor(t.kind) !== undefined));
+
   onMount(() => {
     void support.load();
   });
@@ -71,63 +75,65 @@
   <h2>{m.support_title()}</h2>
   <p class="lead">{m.support_lead()}</p>
 
-  <div class="tiers">
-    {#each TIERS as t (t.kind)}
-      {@const product = support.productFor(t.kind)}
-      {#if product}
-        <button
-          type="button"
-          class="tier {t.tier}"
-          disabled={support.busy}
-          onclick={() => buy(t.kind)}
-        >
-          <span class="chip"></span>
-          <span class="amount">{product.displayPrice}</span>
-          <span class="label">{t.label()}</span>
-        </button>
-      {/if}
-    {/each}
-  </div>
-  <p class="note">{m.support_tiers_note()}</p>
-
-  <div class="book">
-    <div class="book-head">
-      <strong>{m.support_book_title()}</strong>
-      <span class="tally">{m.support_book_count({ count: support.stamps.length })}</span>
-    </div>
-    <div class="slots">
-      {#each support.slots as stamp, i (i)}
-        <div class="slot">
-          {#if stamp}
-            <span
-              class="stamp {stamp.tier}"
-              class:just={stamp.id === support.justStamped}
-              style="--rot: {stampRotation(support.page * support.slots.length + i)}deg"
-            >
-              <svg class="paw" aria-hidden="true"><use href="#support-paw" /></svg>
-              <span class="date">{stamp.at.replaceAll('-', '.')}</span>
-            </span>
-          {/if}
-        </div>
+  {#if hasTips}
+    <div class="tiers">
+      {#each TIERS as t (t.kind)}
+        {@const product = support.productFor(t.kind)}
+        {#if product}
+          <button
+            type="button"
+            class="tier {t.tier}"
+            disabled={support.busy}
+            onclick={() => buy(t.kind)}
+          >
+            <span class="chip"></span>
+            <span class="amount">{product.displayPrice}</span>
+            <span class="label">{t.label()}</span>
+          </button>
+        {/if}
       {/each}
     </div>
-    <div class="pager">
-      <button
-        type="button"
-        aria-label={m.support_book_prev()}
-        disabled={support.page === 0}
-        onclick={() => (support.page -= 1)}>‹</button
-      >
-      <span>{m.support_book_page({ page: support.page + 1, total: support.pageCount })}</span>
-      <button
-        type="button"
-        aria-label={m.support_book_next()}
-        disabled={support.page === support.pageCount - 1}
-        onclick={() => (support.page += 1)}>›</button
-      >
+    <p class="note">{m.support_tiers_note()}</p>
+
+    <div class="book">
+      <div class="book-head">
+        <strong>{m.support_book_title()}</strong>
+        <span class="tally">{m.support_book_count({ count: support.stamps.length })}</span>
+      </div>
+      <div class="slots">
+        {#each support.slots as stamp, i (i)}
+          <div class="slot">
+            {#if stamp}
+              <span
+                class="stamp {stamp.tier}"
+                class:just={stamp.id === support.justStamped}
+                style="--rot: {stampRotation(support.page * support.slots.length + i)}deg"
+              >
+                <svg class="paw" aria-hidden="true"><use href="#support-paw" /></svg>
+                <span class="date">{stamp.at.replaceAll('-', '.')}</span>
+              </span>
+            {/if}
+          </div>
+        {/each}
+      </div>
+      <div class="pager">
+        <button
+          type="button"
+          aria-label={m.support_book_prev()}
+          disabled={support.page === 0}
+          onclick={() => (support.page -= 1)}>‹</button
+        >
+        <span>{m.support_book_page({ page: support.page + 1, total: support.pageCount })}</span>
+        <button
+          type="button"
+          aria-label={m.support_book_next()}
+          disabled={support.page === support.pageCount - 1}
+          onclick={() => (support.page += 1)}>›</button
+        >
+      </div>
     </div>
-  </div>
-  <p class="note">{m.support_book_note()}</p>
+    <p class="note">{m.support_book_note()}</p>
+  {/if}
 
   {#if support.productFor('supporter-badge')}
     {@const badge = support.productFor('supporter-badge')}
