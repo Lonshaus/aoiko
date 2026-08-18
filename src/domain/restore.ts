@@ -76,6 +76,13 @@ export async function restoreFromPayload(
   const preservedFilerSettings = (await db.settings.toArray()).filter(
     (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key),
   );
+  // スタンプ帳と支援者バッジはこの端末だけの記録で、バックアップにも入っていない
+  // （backup/payload.ts の SKIP_TABLES / SKIP_SETTING_KEYS）。全消去で巻き添えにすると、
+  // 復元しただけで消える。書き戻して残す。
+  const preservedStamps = await db.stamps.toArray();
+  const preservedBadge = (await db.settings.toArray()).filter(
+    (r) => r.key === 'supporterBadgeAt' && !restoredSettingKeys.has(r.key),
+  );
   // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
   // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
   const writes: { name: string; rows: unknown[] }[] = [];
@@ -120,6 +127,12 @@ export async function restoreFromPayload(
     }
     if (preservedFilerSettings.length > 0) {
       await db.settings.bulkPut(preservedFilerSettings);
+    }
+    if (preservedStamps.length > 0) {
+      await db.stamps.bulkPut(preservedStamps);
+    }
+    if (preservedBadge.length > 0) {
+      await db.settings.bulkPut(preservedBadge);
     }
   });
 
