@@ -5,6 +5,7 @@
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { toISODateLocal, todayISO } from '../lib/date';
+  import { nativeBridge } from '../lib/native-bridge';
   import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
@@ -2809,7 +2810,7 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_data_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      {m.settings_data_intro()}
+      {nativeBridge() ? m.settings_data_intro_native() : m.settings_data_intro()}
     </p>
     <div>
       <button
@@ -2850,7 +2851,7 @@
     <AlertDialog.Header>
       <AlertDialog.Title>{m.settings_clear_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        {m.settings_clear_confirm_desc()}
+        {nativeBridge() ? m.settings_clear_confirm_desc_native() : m.settings_clear_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
