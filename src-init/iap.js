@@ -15,6 +15,11 @@ const PRODUCT_IDS = {
     'tip-large': 'net.lonshaus.aoiko.ios.tip.large',
     'supporter-badge': 'net.lonshaus.aoiko.ios.supporterbadge',
   },
+  // Windows は支援者バッジだけ。消耗型は商店に品目を作っていないので、
+  // 表に無い kind は listIapProducts が返さず、スタンプ側の導線ごと出ない。
+  windows: {
+    'supporter-badge': 'net.lonshaus.aoiko.win.supporterbadge',
+  },
 };
 // StoreKit も Play も、消耗しない品目と分けるためにこの区別を要求する。
 // 定期購読は扱わないので inapp 固定。

@@ -24,16 +24,49 @@ test('macOS と iOS で品目 ID が分かれている', () => {
   assert.equal(productIdsFor('ios')['supporter-badge'], 'net.lonshaus.aoiko.ios.supporterbadge');
 });
 
-test('品目を作っていない環境では入口ごと生えない', () => {
-  assert.equal(productIdsFor('windows'), null);
+test('表に無い環境では入口ごと生えない', () => {
+  assert.equal(productIdsFor('linux'), null);
   assert.equal(
-    createIap(() => {}, 'windows'),
+    createIap(() => {}, 'linux'),
     null,
   );
   assert.equal(
     createIap(() => {}, undefined),
     null,
   );
+});
+
+// Windows は支援者バッジだけ。消耗型は商店に品目を作っていないので、間違って
+// 売ろうとしないことをここで固定する。
+test('Windows はバッジ 1 件だけ', () => {
+  assert.deepEqual(Object.keys(productIdsFor('windows')), ['supporter-badge']);
+  assert.equal(
+    productIdsFor('windows')['supporter-badge'],
+    'net.lonshaus.aoiko.win.supporterbadge',
+  );
+});
+
+test('Windows で消耗型を買おうとしても商店を呼ばない', async () => {
+  const { invoke, calls } = fakeInvoke({});
+  const iap = createIap(invoke, 'windows');
+  assert.equal(await iap.purchaseIap('tip-small'), 'cancelled');
+  assert.equal(calls.length, 0);
+});
+
+test('Windows の一覧にはバッジしか出ない', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|get_products': () => ({
+      products: [
+        { productId: 'net.lonshaus.aoiko.win.supporterbadge', formattedPrice: '¥1,000' },
+        { productId: 'net.lonshaus.aoiko.mac.tip.small', formattedPrice: '¥50' },
+      ],
+    }),
+  });
+  const iap = createIap(invoke, 'windows');
+  assert.deepEqual(await iap.listIapProducts(), [
+    { kind: 'supporter-badge', displayPrice: '¥1,000' },
+  ]);
+  assert.deepEqual(calls[0].args.payload.productIds, ['net.lonshaus.aoiko.win.supporterbadge']);
 });
 
 test('kindFor は自分の商店の ID だけを引く', () => {
