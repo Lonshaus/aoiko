@@ -67,14 +67,35 @@ describe('購入導線', () => {
   });
 });
 
+// ある環境 は支援者バッジだけを売る。押せない金額ボタンと、永久に 0 個のままの
+// スタンプ帳を出さないことを固定する。
+describe('消耗型が無い商店（Windows）', () => {
+  test('金額ボタンもスタンプ帳も出さない', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥1,000' }];
+    render();
+    flushSync();
+    expect(target?.querySelector('.tiers')).toBeNull();
+    expect(target?.querySelector('.book')).toBeNull();
+  });
+
+  test('支援者バッジの枠は出す', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥1,000' }];
+    render();
+    flushSync();
+    expect(target?.querySelector('.badge-block')).not.toBeNull();
+  });
+});
+
 describe('スタンプ帳', () => {
   test('空でも 9 枠出す', () => {
+    support.products = [{ kind: 'tip-small', displayPrice: '¥50' }];
     render();
     flushSync();
     expect(target?.querySelectorAll('.slot')).toHaveLength(9);
   });
 
   test('押した日付を点区切りで出す', () => {
+    support.products = [{ kind: 'tip-small', displayPrice: '¥50' }];
     support.stamps = [{ id: 's1', tier: 'gold', at: '2026-08-18' }];
     render();
     flushSync();
