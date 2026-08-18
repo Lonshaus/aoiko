@@ -6,7 +6,16 @@ import type { BackupPayload } from './types';
 // - backupFolderHandle：FileSystemDirectoryHandle でシリアライズできない
 // - nativeBackupFolder：シリアライズはできるが端末固有（パス / security-scoped bookmark）で、
 //   別端末へ復元すると存在しない場所や他人のフォルダを指し得る
-const SKIP_SETTING_KEYS = new Set(['backupFolderHandle', 'nativeBackupFolder']);
+const SKIP_SETTING_KEYS = new Set([
+  'backupFolderHandle',
+  'nativeBackupFolder',
+  // 支援者バッジ。商店から復元できるものなので、バックアップで運ぶと
+  // 買っていない端末へ持ち込めてしまう。
+  'supporterBadgeAt',
+]);
+// 常にバックアップ対象外のテーブル。
+// - stamps：この端末だけの記録だと画面で言っている。含めると復元で別端末へ引き継がれる
+const SKIP_TABLES = new Set(['stamps']);
 // API キー（平文）。既定では除外し、利用者が明示的に含めると選択した場合のみ書き出す。
 const SENSITIVE_SETTING_KEYS = new Set(['geminiApiKey', 'openaiApiKey']);
 // 申告者情報（利用者識別番号・氏名・住所・税務署）。個人情報のため既定で除外し、
@@ -39,6 +48,9 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
   // iterateAttachmentBlobs で zip ストリーミング中に別途行うため、ここには含めない。
   await db.transaction('r', db.tables, async () => {
     for (const t of db.tables) {
+      if (SKIP_TABLES.has(t.name)) {
+        continue;
+      }
       let rows = await t.toArray();
       if (t.name === 'settings') {
         rows = rows.filter((r) => {

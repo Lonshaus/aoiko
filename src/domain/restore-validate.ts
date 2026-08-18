@@ -36,6 +36,10 @@ export const PRIMARY_KEY: Record<string, string> = {
   arApEntries: 'id',
   invoices: 'id',
 };
+// 意図的に復元しないテーブル。PRIMARY_KEY に載せないことで「無視される」を利用している。
+// 載せてしまうと、手で書き換えたバックアップから別端末のスタンプを持ち込めてしまう。
+// backup/payload.ts の SKIP_TABLES（書き出し側）と対。
+export const NEVER_RESTORED = new Set(['stamps']);
 
 function validateJournalEntry(r: unknown, i: number): void {
   if (!isObject(r)) {
