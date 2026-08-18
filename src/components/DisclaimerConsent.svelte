@@ -1,6 +1,7 @@
 <script lang="ts">
   import { DISCLAIMER_VERSION, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import { nativeBridge } from '../lib/native-bridge';
   import PolicyDocViewer from './PolicyDocViewer.svelte';
 
   type Props = {
@@ -52,7 +53,11 @@
         <li>{@html m.disclaimer_bullet_tax_law_html()}</li>
         <li>{@html m.disclaimer_bullet_xtx_html()}</li>
         <li>{@html m.disclaimer_bullet_llm_html()}</li>
-        <li>{@html m.disclaimer_bullet_storage_html()}</li>
+        <li>
+          {@html nativeBridge()
+            ? m.disclaimer_bullet_storage_html_native()
+            : m.disclaimer_bullet_storage_html()}
+        </li>
         <li>{@html m.disclaimer_bullet_liability_html()}</li>
       </ul>
 
