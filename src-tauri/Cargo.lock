@@ -64,6 +64,7 @@ dependencies = [
  "tauri-plugin-iap",
  "tauri-plugin-opener",
  "webview2-com",
+ "windows",
  "windows-core 0.61.2",
 ]
 

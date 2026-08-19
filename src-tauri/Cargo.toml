@@ -62,6 +62,9 @@ objc2-web-kit = { version = "0.3", features = ["WKWebView"] }
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2-com = "0.38"
 windows-core = "0.61"
+# 起動時に WebView2 の不在を知らせる MessageBoxW。webview2-com が同じ版を既に
+# 使っているため crate は増えない（Cargo.lock の行も増えない）。
+windows = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging"] }
 
 [profile.release]
 codegen-units = 1

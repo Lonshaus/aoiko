@@ -438,8 +438,40 @@ fn set_ui_locale(app: tauri::AppHandle, locale: String) {
     }
 }
 
+// WebView2 が無いと Builder::run() が Err を返し、windows_subsystem = "windows" の
+// ため panic の出力はどこにも出ない。利用者から見るとアイコンを押しても何も起きない。
+// MSIX にはインストーラの段が無く、webviewInstallMode は WiX / NSIS にしか効かないので、
+// ランタイムを入れてくれるものが無い（Windows 11 は内蔵、Windows 10 は保証されない）。
+// 文面は 3 言語を 1 つの箱に並べる。この時点では帳簿も設定も読めておらず、
+// app の表示言語を知る手段が無い。
+#[cfg(target_os = "windows")]
+fn webview2_present() -> bool {
+    use windows::core::{w, HSTRING};
+    use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONERROR, MB_OK};
+    if tauri::webview_version().is_ok() {
+        return true;
+    }
+    let text = HSTRING::from(concat!(
+        "aoiko を起動するには Microsoft Edge WebView2 ランタイムが必要です。\n",
+        "下記から入手してください。\n\n",
+        "aoiko requires the Microsoft Edge WebView2 Runtime.\n",
+        "Please install it from the address below.\n\n",
+        "aoiko 需要 Microsoft Edge WebView2 執行階段。\n",
+        "請從以下網址安裝。\n\n",
+        "https://developer.microsoft.com/microsoft-edge/webview2/",
+    ));
+    unsafe {
+        MessageBoxW(None, &text, w!("aoiko"), MB_OK | MB_ICONERROR);
+    }
+    false
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    if !webview2_present() {
+        return;
+    }
     tauri::Builder::default()
         // plugin-fs は登録しない。登録したままだと capabilities に fs:* を 1 行足すだけで
         // ページ上のスクリプトへファイル入出力が戻る。ファイルへ触るのは plugin-aoiko-native
