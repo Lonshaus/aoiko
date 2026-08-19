@@ -24,7 +24,7 @@ export type NativeBridge = {
   restoreIapPurchases?(): Promise<IapProductKind[]>;
 };
 
-export type IapProductKind = 'tip-small' | 'tip-medium' | 'tip-large' | 'supporter-badge';
+export type IapProductKind = 'tip' | 'supporter-badge';
 
 export type IapProduct = {
   kind: IapProductKind;

@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { getSetting, setSetting } from '../lib/settings';
 import { newId } from '../lib/id';
 import { todayISO } from '../lib/date';
-import { TIP_TIERS, isTipKind, stampPageCount, stampPageSlots, type Stamp } from '../domain/stamps';
+import { nextStampFace, stampPageCount, stampPageSlots, type Stamp } from '../domain/stamps';
 import {
   nativeBridge,
   type IapProduct,
@@ -28,8 +28,8 @@ class SupportStore {
   }
 
   async load(): Promise<void> {
-    // 押した順。id は UUID で順序を持たないので at で並べ、同日内は挿入順のままにする。
-    this.stamps = await db.stamps.orderBy('at').toArray();
+    // 押した順。at は日付までしか無く id は UUID v4 なので、この索引でしか押した順に戻せない。
+    this.stamps = await db.stamps.orderBy('createdAt').toArray();
     this.badgeAt = (await getSetting('supporterBadgeAt')) ?? null;
     // 最後の頁を開く。集めたものを見せる画面なので、白紙の 1 頁目より新しい方が要る。
     this.page = stampPageCount(this.stamps.length) - 1;
@@ -78,8 +78,17 @@ class SupportStore {
   // 購入が確定したときだけ通る。ここを画面から直接呼ばないのは、商店を通さずに
   // スタンプが増える経路を作らないため。
   private async grant(kind: IapProductKind): Promise<void> {
-    if (isTipKind(kind)) {
-      const stamp: Stamp = { id: newId(), tier: TIP_TIERS[kind], at: todayISO() };
+    if (kind === 'tip') {
+      // 絵柄は押した時点で決めて保存する。表示のたびに引き直すと、同じスタンプの
+      // 見た目が再読み込みで変わってしまう。
+      // 同じミリ秒に 2 個入ると at と同じ「同点」に戻る。直前より必ず後ろへ置く。
+      const previous = this.stamps[this.stamps.length - 1]?.createdAt ?? 0;
+      const stamp: Stamp = {
+        id: newId(),
+        ...nextStampFace(this.stamps),
+        at: todayISO(),
+        createdAt: Math.max(Date.now(), previous + 1),
+      };
       await db.stamps.put(stamp);
       this.stamps = [...this.stamps, stamp];
       this.page = this.pageCount - 1;

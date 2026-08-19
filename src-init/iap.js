@@ -4,20 +4,15 @@
 // 品目 ID は商店ごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
 const PRODUCT_IDS = {
   macos: {
-    'tip-small': 'net.lonshaus.aoiko.mac.tip.small',
-    'tip-medium': 'net.lonshaus.aoiko.mac.tip.medium',
-    'tip-large': 'net.lonshaus.aoiko.mac.tip.large',
+    tip: 'net.lonshaus.aoiko.mac.tip',
     'supporter-badge': 'net.lonshaus.aoiko.mac.supporterbadge',
   },
   ios: {
-    'tip-small': 'net.lonshaus.aoiko.ios.tip.small',
-    'tip-medium': 'net.lonshaus.aoiko.ios.tip.medium',
-    'tip-large': 'net.lonshaus.aoiko.ios.tip.large',
+    tip: 'net.lonshaus.aoiko.ios.tip',
     'supporter-badge': 'net.lonshaus.aoiko.ios.supporterbadge',
   },
-  // Windows は支援者バッジだけ。消耗型は商店に品目を作っていないので、
-  // 表に無い kind は listIapProducts が返さず、スタンプ側の導線ごと出ない。
   windows: {
+    tip: 'net.lonshaus.aoiko.win.tip',
     'supporter-badge': 'net.lonshaus.aoiko.win.supporterbadge',
   },
 };
