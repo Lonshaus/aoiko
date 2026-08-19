@@ -14,6 +14,14 @@
        https なので、この許可を出さなくても使える。 -->
   <key>NSLocalNetworkUsageDescription</key>
   <string>この端末と同じネットワークにある OCR・LLM サーバー（Ollama 等）へ接続するために使用します。設定で接続先を指定した場合にのみ通信します。</string>
+  <!-- 暗号は全て OS 提供のものだけを使う。TLS は reqwest の native-tls-alpn 経由で
+       macOS の Security.framework・Windows の Schannel が担い、自前の実装（rustls/ring）は
+       ビルドの依存グラフに入っていない。バックアップや API キーを自前で暗号化するように
+       なったらこの値は true になり、毎年 2 月 1 日に米 BIS への自己分類報告が要る。 -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>NSHumanReadableCopyright</key>
+  <string>2026 Lonshaus</string>
   <!-- 同上。ローカルの接続先は http のため、平文通信を LAN に限って許可する。
        外部への平文通信は許可しない（ATS の既定のまま）。 -->
   <key>NSAppTransportSecurity</key>
