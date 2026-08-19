@@ -11,6 +11,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+# build.rs が題名欄のアイコンを RGBA へ展開するのに使う。ビルド時にしか動かないので
+# 出荷物には入らない。tauri-codegen が既に同じ版を使っており、crate は増えない。
+png = { version = "0.18", default-features = false }
 
 [dependencies]
 # aoiko_fetch 用。cookie は使わないので入れない（送る先は OCR/LLM の API だけ）。
