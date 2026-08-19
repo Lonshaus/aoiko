@@ -52,6 +52,22 @@ const RELOAD_SCRIPT: &str = r#"
 fn force_close(window: tauri::WebviewWindow) {
     let _ = window.destroy();
 }
+// 題名欄と Alt+Tab のアイコンは exe に埋めた .ico が既定で、1 枚しか持てない。座布団なしの猫は
+// 明るい題名欄では読めるが暗い題名欄では沈むため、暗いときだけ白い座布団を敷いた版へ差し替える。
+// 猫そのものの色は変えない。
+//
+// 絵は icons/titlebar-*.png。build.rs が RGBA へ展開して OUT_DIR へ出す。
+#[cfg(target_os = "windows")]
+fn apply_titlebar_icon(window: &tauri::WebviewWindow) {
+    const SIDE: u32 = 64;
+    const LIGHT: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/titlebar-light.rgba"));
+    const DARK: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/titlebar-dark.rgba"));
+    let rgba = match window.theme() {
+        Ok(tauri::Theme::Dark) => DARK,
+        _ => LIGHT,
+    };
+    let _ = window.set_icon(tauri::image::Image::new(rgba, SIDE, SIDE));
+}
 // src-init/index.js が印刷と外部リンクの実装を出し分けるためのフラグ。ある環境/ある環境 だけ
 // plugin-aoiko-native の print_page / open_in_app へ回す。
 #[tauri::command]
@@ -508,14 +524,22 @@ pub fn run() {
                 });
             }
 
-            let close_target = window.clone();
+            #[cfg(target_os = "windows")]
+            apply_titlebar_icon(&window);
+
+            let event_target = window.clone();
             window.on_window_event(move |event| {
+                // ThemeChanged は builder で theme を指定していないときだけ届く（指定＝固定のため）。
+                #[cfg(target_os = "windows")]
+                if let WindowEvent::ThemeChanged(_) = event {
+                    apply_titlebar_icon(&event_target);
+                }
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     // eval をこのコールバックの中で直接呼ぶと固まる。コールバックは主スレッドで走り、
                     // eval も主スレッドへディスパッチするため再入してデッドロックする（実機で確認）。
                     // 別スレッドへ逃がして、コールバックから抜けたあとにディスパッチさせる。
-                    let target = close_target.clone();
+                    let target = event_target.clone();
                     tauri::async_runtime::spawn(async move {
                         let _ = target.eval(CLOSE_SCRIPT);
                     });
