@@ -27,6 +27,7 @@
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
+  import FilePicker from '../components/FilePicker.svelte';
 
   const PAGE_SIZE = 500;
 
@@ -423,12 +424,9 @@
 
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_file()}</span>
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          onchange={handleFile}
-          class="mt-1 w-full text-sm text-muted-foreground"
-        />
+        <span class="mt-1 block">
+          <FilePicker accept=".csv,text/csv" onchange={handleFile} />
+        </span>
         {#if fileName}
           <span class="text-xs text-muted-foreground mt-1 block">
             {m.import_file_selected({ name: fileName })}
