@@ -988,5 +988,6 @@
   "support_restore_none": "復元できる購入はありませんでした。",
   "support_purchase_pending": "購入は承認待ちです。承認されると反映されます。",
   "support_close": "閉じる",
-  "support_open": "aoiko を支援する"
+  "support_open": "aoiko を支援する",
+  "file_picker_choose": "ファイルを選択"
 }

@@ -14,6 +14,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { Attachment, Vendor } from '../db/types';
+  import FilePicker from '../components/FilePicker.svelte';
 
   const PAGE_SIZE = 50;
   const now = new Date();
@@ -663,7 +664,7 @@
                                 href={attachmentUrls.get(a.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onclick={(e) => e.stopPropagation()}
+                                onclick={(e: MouseEvent) => e.stopPropagation()}
                               >
                                 <img
                                   src={attachmentUrls.get(a.id)}
@@ -679,12 +680,10 @@
                           {m.journal_list_attachments_empty()}
                         </p>
                       {/if}
-                      <input
-                        type="file"
+                      <FilePicker
                         accept="image/*"
                         onchange={handleAttachmentFile}
-                        onclick={(e) => e.stopPropagation()}
-                        class="text-xs text-muted-foreground"
+                        onclick={(e: MouseEvent) => e.stopPropagation()}
                       />
                       {#if attachmentError}
                         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
