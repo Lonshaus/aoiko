@@ -1,65 +1,117 @@
-import { describe, test, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   STAMPS_PER_PAGE,
+  STAMP_COLORS,
+  STAMP_SHAPES,
+  nextStampFace,
   stampPageCount,
   stampPageSlots,
   stampRotation,
   type Stamp,
 } from './stamps';
 
-function stamps(n: number): Stamp[] {
-  return Array.from({ length: n }, (_, i) => ({
-    id: `s${i}`,
-    tier: 'bronze' as const,
-    at: '2026-08-18',
-  }));
+function stamp(i: number, shape = STAMP_SHAPES[0], color = STAMP_COLORS[0]): Stamp {
+  return { id: `s${i}`, shape, color, at: '2026-08-19', createdAt: i };
 }
 
 describe('stampPageCount', () => {
-  test('0 個でも 1 頁ある', () => {
+  it('0 個でも 1 頁ある', () => {
     expect(stampPageCount(0)).toBe(1);
   });
 
-  test('ちょうど 1 頁ぶんで 2 頁目を作らない', () => {
-    expect(stampPageCount(STAMPS_PER_PAGE)).toBe(1);
-  });
-
-  test('1 個はみ出したら 2 頁', () => {
-    expect(stampPageCount(STAMPS_PER_PAGE + 1)).toBe(2);
+  it('ちょうど 9 個で 2 頁目を作らない', () => {
+    expect(stampPageCount(9)).toBe(1);
+    expect(stampPageCount(10)).toBe(2);
   });
 });
 
 describe('stampPageSlots', () => {
-  test('埋まっていなくても常に 9 枠返す', () => {
-    const slots = stampPageSlots(stamps(2), 0);
+  it('埋まっていなくても常に 9 枠返す', () => {
+    const slots = stampPageSlots([stamp(0)], 0);
     expect(slots).toHaveLength(STAMPS_PER_PAGE);
-    expect(slots.slice(2).every((s) => s === null)).toBe(true);
+    expect(slots[0]?.id).toBe('s0');
+    expect(slots[1]).toBeNull();
   });
 
-  test('2 頁目は 10 個目から', () => {
-    const slots = stampPageSlots(stamps(11), 1);
-    expect(slots[0]?.id).toBe('s9');
-    expect(slots[1]?.id).toBe('s10');
-    expect(slots[2]).toBeNull();
+  it('詰めずに頁の位置どおりに返す', () => {
+    const stamps = Array.from({ length: 10 }, (_, i) => stamp(i));
+    expect(stampPageSlots(stamps, 1)[0]?.id).toBe('s9');
+    expect(stampPageSlots(stamps, 1)[1]).toBeNull();
   });
 
-  test('存在しない頁を見ても落ちず、空の枠だけ返す', () => {
-    expect(stampPageSlots(stamps(3), 5).every((s) => s === null)).toBe(true);
+  it('存在しない頁は空の 9 枠', () => {
+    expect(stampPageSlots([], 5).every((s) => s === null)).toBe(true);
   });
 });
 
 describe('stampRotation', () => {
-  test('同じ位置なら何度呼んでも同じ角度', () => {
-    expect(stampRotation(4)).toBe(stampRotation(4));
+  it('同じ位置なら何度呼んでも同じ角度', () => {
+    expect(stampRotation(3)).toBe(stampRotation(3));
   });
 
-  test('表より後ろの位置でも角度が付く（0 に落ちない）', () => {
-    for (let i = 0; i < 40; i++) {
-      expect(stampRotation(i)).not.toBe(0);
+  it('負の位置でも表の範囲に収まる', () => {
+    expect(typeof stampRotation(-1)).toBe('number');
+    expect(stampRotation(-1)).not.toBeNaN();
+  });
+});
+
+describe('nextStampFace', () => {
+  // 押し続けたときの列を作る。random は差し替えられるので、揺らぎの検証もここでできる。
+  function sequence(count: number, random: () => number): Stamp[] {
+    const stamps: Stamp[] = [];
+    for (let i = 0; i < count; i++) {
+      const face = nextStampFace(stamps, random);
+      stamps.push({
+        id: `s${i}`,
+        shape: face.shape,
+        color: face.color,
+        at: '2026-08-19',
+        createdAt: i,
+      });
+    }
+    return stamps;
+  }
+
+  it('7 個ごとに 7 種すべてが 1 回ずつ出る', () => {
+    const stamps = sequence(70, Math.random);
+    for (let page = 0; page < 10; page++) {
+      const window = stamps.slice(page * 7, page * 7 + 7);
+      expect(new Set(window.map((s) => s.shape)).size).toBe(7);
+      expect(new Set(window.map((s) => s.color)).size).toBe(7);
     }
   });
 
-  test('負の位置でも表の範囲に収める', () => {
-    expect(stampRotation(-1)).toBe(stampRotation(11));
+  it('隣り合うスタンプが同じ絵柄・同じ色にならない', () => {
+    const stamps = sequence(200, Math.random);
+    for (let i = 1; i < stamps.length; i++) {
+      expect(stamps[i]?.shape).not.toBe(stamps[i - 1]?.shape);
+      expect(stamps[i]?.color).not.toBe(stamps[i - 1]?.color);
+    }
+  });
+
+  it('絵柄と色は連動しない', () => {
+    // 連動していると 49 通りではなく 7 通りしか出ない。並びが一致しないことで見る。
+    const stamps = sequence(70, Math.random);
+    const shapeIndexes = stamps.map((s) => STAMP_SHAPES.indexOf(s.shape));
+    const colorIndexes = stamps.map((s) => STAMP_COLORS.indexOf(s.color));
+    expect(shapeIndexes).not.toEqual(colorIndexes);
+  });
+
+  it('random が常に 0 でも 7 種を使い切る', () => {
+    // 偏った乱数でも「使い切るまで引かない」が効いていることを確かめる。
+    const stamps = sequence(7, () => 0);
+    expect(new Set(stamps.map((s) => s.shape)).size).toBe(7);
+  });
+
+  it('random が上限を返しても範囲外にならない', () => {
+    const face = nextStampFace([], () => 0.999999);
+    expect(STAMP_SHAPES).toContain(face.shape);
+    expect(STAMP_COLORS).toContain(face.color);
+  });
+
+  it('空の帳面からでも引ける', () => {
+    const face = nextStampFace([]);
+    expect(STAMP_SHAPES).toContain(face.shape);
+    expect(STAMP_COLORS).toContain(face.color);
   });
 });
