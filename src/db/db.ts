@@ -122,10 +122,38 @@ class AoikoDB extends Dexie {
           await table.update(id, { sha256 });
         }
       });
-    // 押した順に並べたいだけなので at の索引で足りる。tier では引かない。
+    // 押した順に並べたいだけなので at の索引で足りる。絵柄では引かない。
     this.version(11).stores({
       stamps: 'id, at',
     });
+    // v11 のスタンプは銅・銀・金の 3 段だった（#479 で 7 種 7 色へ）。索引は変わらないが
+    // 欄の意味が変わるので、既に押されている分をここで移す。決め打ちの対応にするのは、
+    // 同じスタンプが再読み込みのたびに違う絵柄になるのを避けるため。
+    this.version(12)
+      .stores({
+        stamps: 'id, at, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const faces = {
+          bronze: { shape: 'yarn', color: 'orange' },
+          silver: { shape: 'bell', color: 'blue' },
+          gold: { shape: 'butterfly', color: 'yellow' },
+        } as const;
+        // createdAt は v11 に無い。日付までしか手掛かりが無いので、同じ日の中は
+        // それまでの並び（at の昇順）をそのまま通し番号にして固定する。
+        const rows = await tx.table('stamps').orderBy('at').toArray();
+        let i = 0;
+        for (const row of rows) {
+          const face = faces[row.tier as keyof typeof faces] ?? faces.bronze;
+          await tx.table('stamps').update(row.id, {
+            shape: face.shape,
+            color: face.color,
+            createdAt: Date.parse(`${row.at}T00:00:00Z`) + i,
+            tier: undefined,
+          });
+          i += 1;
+        }
+      });
   }
 }
 

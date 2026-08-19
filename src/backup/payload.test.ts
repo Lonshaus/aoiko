@@ -126,7 +126,7 @@ describe('buildPayload', () => {
 // 別端末での復元で引き継がれてしまい、その説明が嘘になる。
 describe('支援の記録は持ち出さない', () => {
   test('stamps テーブルは payload に入らない', async () => {
-    await db.stamps.put({ id: 's1', tier: 'gold', at: '2026-08-18' });
+    await db.stamps.put({ id: 's1', shape: 'bell', color: 'blue', at: '2026-08-18', createdAt: 1 });
     const p = await buildPayload({ includeApiKeys: true });
     expect(p.tables.stamps).toBeUndefined();
   });
