@@ -9,6 +9,14 @@
        WKWebView を通らないため ATS は掛からない（2026-08-12 実測）。 -->
   <key>NSLocalNetworkUsageDescription</key>
   <string>この端末と同じネットワークにある OCR・LLM サーバー（Ollama 等）へ接続するために使用します。設定で接続先を指定した場合にのみ通信します。</string>
+  <!-- 暗号は全て OS 提供のものだけを使う。TLS は reqwest の native-tls-alpn 経由で
+       macOS の Security.framework・Windows の Schannel が担い、自前の実装（rustls/ring）は
+       ビルドの依存グラフに入っていない。バックアップや API キーを自前で暗号化するように
+       なったらこの値は true になり、毎年 2 月 1 日に米 BIS への自己分類報告が要る。 -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>NSHumanReadableCopyright</key>
+  <string>2026 Lonshaus</string>
   <!-- この app が持つ言語の一覧。AppKit と WebKit は、この一覧と利用者の優先言語の交差から
        プロセスの実効言語を決め、フレームワーク側の文字列（保存パネル・印刷パネル・
        input[type=file]・コンテキストメニュー）をそこから引く。宣言が無いと英語専用の app と
