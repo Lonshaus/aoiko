@@ -244,7 +244,13 @@ describe('restoreFromJson', () => {
 // 入っていないので、素通りさせると「復元しただけで消える」ことになる。
 describe('支援の記録は復元で消えない', () => {
   test('スタンプ帳は復元後も残る', async () => {
-    await db.stamps.put({ id: 's1', tier: 'bronze', at: '2026-08-18' });
+    await db.stamps.put({
+      id: 's1',
+      shape: 'yarn',
+      color: 'orange',
+      at: '2026-08-18',
+      createdAt: 1,
+    });
     await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
     expect(await db.stamps.count()).toBe(1);
   });

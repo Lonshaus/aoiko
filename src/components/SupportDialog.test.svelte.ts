@@ -35,30 +35,31 @@ afterEach(() => {
 });
 
 describe('購入導線', () => {
-  test('商店が返さなかった品目のボタンは出さない', () => {
-    support.products = [{ kind: 'tip-small', displayPrice: '$0.99' }];
+  test('価格は商店が返した文字列をそのまま出す（自前で組み立てない）', () => {
+    support.products = [{ kind: 'tip', displayPrice: 'NT$35' }];
     render();
     flushSync();
-    const labels = [...(target?.querySelectorAll('.tier .amount') ?? [])].map((e) => e.textContent);
-    expect(labels).toEqual(['$0.99']);
+    expect(target?.querySelector('.tier .amount')?.textContent).toBe('NT$35');
   });
 
-  test('価格は商店が返した文字列をそのまま出す（自前で組み立てない）', () => {
-    support.products = [{ kind: 'tip-large', displayPrice: 'NT$60' }];
+  test('消耗型を商店が売っていなければ金額ボタンもスタンプ帳も出さない', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
     render();
     flushSync();
-    expect(target?.querySelector('.tier .amount')?.textContent).toBe('NT$60');
+    expect(target?.querySelector('.tiers')).toBeNull();
+    expect(target?.querySelector('.book')).toBeNull();
+    expect(target?.querySelector('.badge-block')).not.toBeNull();
   });
 
   test('支援者バッジを商店が売っていなければ枠ごと出さない', () => {
-    support.products = [{ kind: 'tip-small', displayPrice: '¥50' }];
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     render();
     flushSync();
     expect(target?.querySelector('.badge-block')).toBeNull();
   });
 
   test('購入済みならバッジの購入ボタンを出さない', () => {
-    support.products = [{ kind: 'supporter-badge', displayPrice: '¥1,000' }];
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
     support.badgeAt = '2026-03-14';
     render();
     flushSync();
@@ -67,38 +68,56 @@ describe('購入導線', () => {
   });
 });
 
-// Windows は支援者バッジだけを売る。押せない金額ボタンと、永久に 0 個のままの
-// スタンプ帳を出さないことを固定する。
-describe('消耗型が無い商店（Windows）', () => {
-  test('金額ボタンもスタンプ帳も出さない', () => {
-    support.products = [{ kind: 'supporter-badge', displayPrice: '¥1,000' }];
-    render();
-    flushSync();
-    expect(target?.querySelector('.tiers')).toBeNull();
-    expect(target?.querySelector('.book')).toBeNull();
-  });
-
-  test('支援者バッジの枠は出す', () => {
-    support.products = [{ kind: 'supporter-badge', displayPrice: '¥1,000' }];
-    render();
-    flushSync();
-    expect(target?.querySelector('.badge-block')).not.toBeNull();
-  });
-});
-
 describe('スタンプ帳', () => {
   test('空でも 9 枠出す', () => {
-    support.products = [{ kind: 'tip-small', displayPrice: '¥50' }];
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     render();
     flushSync();
     expect(target?.querySelectorAll('.slot')).toHaveLength(9);
   });
 
   test('押した日付を点区切りで出す', () => {
-    support.products = [{ kind: 'tip-small', displayPrice: '¥50' }];
-    support.stamps = [{ id: 's1', tier: 'gold', at: '2026-08-18' }];
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    support.stamps = [{ id: 's1', shape: 'fish', color: 'blue', at: '2026-08-18', createdAt: 1 }];
     render();
     flushSync();
     expect(target?.querySelector('.stamp .date')?.textContent).toBe('2026.08.18');
+  });
+
+  // 絵柄は保存されたものを描く。ここが位置や乱数で決まっていると、同じスタンプの
+  // 見た目が再読み込みのたびに変わる。
+  test('保存された絵柄と色をそのまま描く', () => {
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    support.stamps = [
+      { id: 's1', shape: 'butterfly', color: 'violet', at: '2026-08-18', createdAt: 1 },
+    ];
+    render();
+    flushSync();
+    expect(target?.querySelector('.stamp')?.classList.contains('violet')).toBe(true);
+    expect(target?.querySelector('.stamp .toy use')?.getAttribute('href')).toBe('#stamp-butterfly');
+  });
+
+  test('絵柄ごとに違う図形を引く', () => {
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    support.stamps = [
+      { id: 's1', shape: 'yarn', color: 'red', at: '2026-08-18', createdAt: 1 },
+      { id: 's2', shape: 'bell', color: 'green', at: '2026-08-18', createdAt: 2 },
+    ];
+    render();
+    flushSync();
+    const refs = [...(target?.querySelectorAll('.stamp .toy use') ?? [])].map((e) =>
+      e.getAttribute('href'),
+    );
+    expect(refs).toEqual(['#stamp-yarn', '#stamp-bell']);
+  });
+
+  // 7 種すべてに図形が要る。1 つでも欠けると、その絵柄のスタンプだけ空白で押される。
+  test('7 種すべての図形が定義されている', () => {
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    render();
+    flushSync();
+    for (const shape of ['yarn', 'mouse', 'bell', 'feather', 'fish', 'butterfly', 'teaser']) {
+      expect(target?.querySelector(`#stamp-${shape}`)).not.toBeNull();
+    }
   });
 });
