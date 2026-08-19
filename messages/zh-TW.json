@@ -991,5 +991,6 @@
   "support_restore_none": "沒有可以還原的購買。",
   "support_purchase_pending": "購買正在等待核准，核准後就會反映。",
   "support_close": "關閉",
-  "support_open": "支援 aoiko"
+  "support_open": "支援 aoiko",
+  "file_picker_choose": "選擇檔案"
 }

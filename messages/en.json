@@ -991,5 +991,6 @@
   "support_restore_none": "There was nothing to restore.",
   "support_purchase_pending": "The purchase is waiting for approval. It will appear once approved.",
   "support_close": "Close",
-  "support_open": "Support aoiko"
+  "support_open": "Support aoiko",
+  "file_picker_choose": "Choose file"
 }
