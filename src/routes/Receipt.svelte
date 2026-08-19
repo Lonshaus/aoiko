@@ -20,6 +20,7 @@
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
+  import FilePicker from '../components/FilePicker.svelte';
 
   let file = $state<File | null>(null);
   let preview = $state<string | null>(null);
@@ -297,13 +298,9 @@
   <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onchange={handleFile}
-        class="mt-1 w-full text-sm text-muted-foreground"
-      />
+      <span class="mt-1 block">
+        <FilePicker accept="image/*" capture="environment" onchange={handleFile} />
+      </span>
     </label>
 
     {#if preview}

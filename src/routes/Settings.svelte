@@ -67,6 +67,7 @@
   } from '../tax-schema/2026/simplified-tax';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import type { FilingType } from '../tax-schema/2026/xtx';
+  import FilePicker from '../components/FilePicker.svelte';
   import {
     displayZeimusho,
     isValidZeimushoCode,
@@ -2677,12 +2678,7 @@
         {/if}
       </div>
     {/if}
-    <input
-      type="file"
-      accept=".zip,application/zip,.json,application/json"
-      onchange={handleRestoreFile}
-      class="w-full text-sm text-muted-foreground"
-    />
+    <FilePicker accept=".zip,application/zip,.json,application/json" onchange={handleRestoreFile} />
     {#if restoreFileName}
       <p class="text-xs text-muted-foreground">
         {m.settings_restore_selected({ name: restoreFileName })}
