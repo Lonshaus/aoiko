@@ -18,6 +18,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
+  import FilePicker from '../components/FilePicker.svelte';
 
   type DraftLine = {
     id: string;
@@ -439,12 +440,9 @@
     </label>
     <label class="block sm:col-span-3">
       <span class="text-xs text-muted-foreground">{m.journal_form_label_attachment()}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onchange={handleAttachmentFile}
-        class="mt-1 w-full text-sm text-muted-foreground"
-      />
+      <span class="mt-1 block">
+        <FilePicker accept="image/*" onchange={handleAttachmentFile} />
+      </span>
       {#if attachmentError}
         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
       {/if}
