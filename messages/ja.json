@@ -987,6 +987,8 @@
   "support_restore_tip": "機種変更や再インストールのあとに、購入済みの支援者バッジを取り戻します。返金の手続きではありません。スタンプ帳はこの端末に残るので、この操作は要りません。",
   "support_restore_none": "復元できる購入はありませんでした。",
   "support_purchase_pending": "購入は承認待ちです。承認されると反映されます。",
+  "support_products_missing": "品目を取り出せませんでした。通信を確かめて、もう一度お試しください。",
+  "support_products_retry": "再読み込み",
   "support_close": "閉じる",
   "support_open": "aoiko を支援する",
   "file_picker_choose": "ファイルを選択"
