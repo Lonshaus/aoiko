@@ -988,6 +988,8 @@
   "support_restore_tip": "Gets back a supporter badge you already bought, after a new device or a reinstall. This is not a refund. The stamp book stays on this device, so you do not need this for it.",
   "support_restore_none": "There was nothing to restore.",
   "support_purchase_pending": "The purchase is waiting for approval. It will appear once approved.",
+  "support_products_missing": "Could not load the items. Check your connection and try again.",
+  "support_products_retry": "Reload",
   "support_close": "Close",
   "support_open": "Support aoiko",
   "file_picker_choose": "Choose file"
