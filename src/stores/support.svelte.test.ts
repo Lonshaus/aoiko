@@ -34,6 +34,7 @@ beforeEach(async () => {
   support.stamps = [];
   support.badgeAt = null;
   support.products = [];
+  support.productsAsked = false;
   support.page = 0;
 });
 
@@ -174,5 +175,38 @@ describe('押した順', () => {
     const times = support.stamps.map((s) => s.createdAt);
     expect(times[1]).toBeGreaterThan(times[0] ?? 0);
     expect(times[2]).toBeGreaterThan(times[1] ?? 0);
+  });
+});
+
+describe('品目の取り出し', () => {
+  test('片方しか返らないと欠けていると判る', async () => {
+    // 実機で、最初の 1 回だけ消耗型しか返らないことがあった。
+    // 黙って隠すと利用者は品目が無いのか壊れているのか区別できない。
+    let calls = 0;
+    (window as unknown as { __aoikoNative?: NativeBridge }).__aoikoNative = {
+      listIapProducts: () => {
+        calls += 1;
+        return Promise.resolve(
+          calls === 1
+            ? [{ kind: 'tip' as IapProductKind, displayPrice: '¥150' }]
+            : [
+                { kind: 'tip' as IapProductKind, displayPrice: '¥150' },
+                { kind: 'supporter-badge' as IapProductKind, displayPrice: '¥500' },
+              ],
+        );
+      },
+    };
+    await support.load();
+    expect(support.productsMissing).toBe(true);
+    expect(support.productFor('supporter-badge')).toBeUndefined();
+
+    await support.loadProducts();
+    expect(support.productsMissing).toBe(false);
+    expect(support.productFor('supporter-badge')?.displayPrice).toBe('¥500');
+  });
+
+  test('問い合わせる前は欠けている扱いにしない', () => {
+    expect(support.productsAsked).toBe(false);
+    expect(support.productsMissing).toBe(false);
   });
 });

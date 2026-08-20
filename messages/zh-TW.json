@@ -988,6 +988,8 @@
   "support_restore_tip": "換機或重新安裝之後，取回已經買過的支援者徽章。這不是退款程序。集章冊留在這台裝置上，不需要用到這個功能。",
   "support_restore_none": "沒有可以還原的購買。",
   "support_purchase_pending": "購買正在等待核准，核准後就會反映。",
+  "support_products_missing": "取不到品項。請確認連線後再試一次。",
+  "support_products_retry": "重新載入",
   "support_close": "關閉",
   "support_open": "支援 aoiko",
   "file_picker_choose": "選擇檔案"
