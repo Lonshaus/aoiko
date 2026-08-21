@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createIap, kindFor, productIdsFor, purchaseResultOf } from './iap.js';
+import {
+  createIap,
+  kindFor,
+  productIdsFor,
+  purchaseResultOf,
+  purchaseResultOfError,
+} from './iap.js';
 // 商店ごとに品目 ID が違い、間違えると「商店に無い品目」を買わせようとして落ちる。
 // 消耗型を consume し忘れると 2 回目が買えなくなる。どちらも実機でしか気付けないので、
 // 対応表と後始末の呼び出しをここで固定する。
@@ -142,6 +148,42 @@ test('取り消しと承認待ちでは consume しない', async () => {
     await iap.purchaseIap('tip');
     assert.equal(calls.length, 1);
   }
+});
+
+// 取りこぼすと、買わずに閉じただけの操作でエラーバナーが点く。
+test('例外で来る取消・承認待ちも語彙へ移す', () => {
+  assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
+  assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
+  // プラグインは文字列で寄越す。商店 側は code が文面に畳み込まれる。
+  assert.equal(purchaseResultOfError('Purchase cancelled by user'), 'cancelled');
+  assert.equal(
+    purchaseResultOfError('[purchaseNotCompleted] - Purchase was not completed'),
+    'cancelled',
+  );
+  // 本物の失敗は握り潰さない。呼び出し側へ投げ直させる。
+  assert.equal(purchaseResultOfError(new Error('Network error during purchase')), null);
+  assert.equal(purchaseResultOfError(new Error('Transaction verification failed')), null);
+});
+
+test('取消の例外は購入せずに終わり、consume も呼ばない', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|purchase': () => {
+      throw new Error('Purchase cancelled by user');
+    },
+  });
+  const iap = createIap(invoke, 'macos');
+  assert.equal(await iap.purchaseIap('tip'), 'cancelled');
+  assert.equal(calls.length, 1);
+});
+
+test('本物の失敗は投げ直す', async () => {
+  const { invoke } = fakeInvoke({
+    'plugin:iap|purchase': () => {
+      throw new Error('Server error during purchase');
+    },
+  });
+  const iap = createIap(invoke, 'macos');
+  await assert.rejects(() => iap.purchaseIap('tip'), /Server error/);
 });
 
 test('知らない kind では商店を呼ばない', async () => {

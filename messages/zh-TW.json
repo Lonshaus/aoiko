@@ -990,6 +990,7 @@
   "support_purchase_pending": "購買正在等待核准，核准後就會反映。",
   "support_products_missing": "取不到品項。請確認連線後再試一次。",
   "support_products_retry": "重新載入",
+  "support_purchase_failed": "購買未能完成。請稍後再試一次。",
   "support_close": "關閉",
   "support_open": "支援 aoiko",
   "file_picker_choose": "選擇檔案"
