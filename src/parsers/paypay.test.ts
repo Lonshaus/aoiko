@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { paypayParser } from './paypay';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/paypay-sample.csv', paypayParser.encoding);
 

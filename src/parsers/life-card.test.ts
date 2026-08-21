@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { lifeCardParser } from './life-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/life-card-sample.csv', lifeCardParser.encoding);
 

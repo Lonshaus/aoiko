@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { paypayCardParser } from './paypay-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sampleCsv = readSample(
   'src/parsers/fixtures/paypay-card-sample.csv',

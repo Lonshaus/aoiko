@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { mufgParser } from './mufg';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/mufg-sample.csv', mufgParser.encoding);
 

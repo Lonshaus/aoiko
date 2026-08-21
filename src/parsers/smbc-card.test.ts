@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { smbcCardParser } from './smbc-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/smbc-card-sample.csv', smbcCardParser.encoding);
 

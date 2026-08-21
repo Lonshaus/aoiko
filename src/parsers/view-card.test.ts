@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { viewCardParser } from './view-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/view-card-sample.csv', viewCardParser.encoding);
 

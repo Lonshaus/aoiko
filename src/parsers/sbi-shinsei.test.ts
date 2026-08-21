@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { sbiShinseiParser } from './sbi-shinsei';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sampleCsv = readSample(
   'src/parsers/fixtures/sbi-shinsei-sample.csv',

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { saisonCardParser } from './saison-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/saison-card-sample.csv', saisonCardParser.encoding);
 

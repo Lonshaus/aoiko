@@ -3,7 +3,7 @@
 
 import { describe, expect, test } from 'vitest';
 import myBankParser from './_template.example';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample(
   'src/parsers/fixtures/_template.example-sample.csv',

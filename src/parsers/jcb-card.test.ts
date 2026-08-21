@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { jcbCardParser } from './jcb-card';
-import { readSample } from './fixtures/read';
+import { readSample } from './fixtures/_read';
 
 const sample = readSample('src/parsers/fixtures/jcb-card-sample.csv', jcbCardParser.encoding);
 
