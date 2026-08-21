@@ -4,6 +4,65 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.1.0] - 2026-08-22
+
+Backups are now written as loose files inside a folder instead of one archive, and a year you have already filed can no longer be rewritten by accident. Ledger speed has also been improved across the board.
+
+### Added
+
+- **Folder backups**. Backups are now written as loose files inside a folder. Receipt photos are deduplicated by SHA-256, so a ledger with many photos writes out quickly and only the differences grow from one backup to the next. Receipts no longer referenced are cleaned up automatically
+- **Protection for filed years**. Any operation that would change a year already marked as filed is detected and warned about before it is written. The same safeguard now also covers paths that bypass the screen, so import and year-end processing can no longer rewrite a filed year silently
+- **Bad-debt reserve**. Individually-assessed and lump-sum-assessed reserves are now handled separately, and the individually-assessed portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
+- **Redo for the business-opening wizard**. The wizard can now be run again from the start even after it has already been run once. A second run no longer double-books opening costs or converted assets
+- **Editing invoice and quote drafts**. Drafts can now be edited after being created. Printouts now show the reduced-rate notice and the payment due date
+- The copyright notices of the third-party software we bundle can now be opened from within aoiko. Dependencies distributed only through CSS are now included as well
+
+### Changed
+
+- Backup export and restore switched from a single zip to loose files inside a folder. The "backup interval" setting has been removed as a result
+- Links to the full text of the disclaimer and the third-party licenses now open within aoiko instead of leaving it
+- Sending to a `.local` address now also counts as sending outside the device, and shows the send confirmation
+- Improved ledger speed for large books. Rendering the confirmation table for 2,000 rows dropped from 82.6 seconds to 0.33 seconds (0.74 seconds even at 5,000 rows); backup export and restore are now streamed, alongside image processing, so the screen no longer freezes. Also fixed CSV import memory usage growing without bound as row count increased
+
+### Fixed (ledger and backups)
+
+- A failed restore could leave the ledger fully erased with no way back. Erasing and writing now happen as a single unit
+- A backup that had exported successfully could fail to restore. Restore now also verifies the backup's CRC32
+- Backup zips over 4GiB were corrupted (zip64 support added)
+- Ledgers with many receipt photos could fail to save, so export was not possible
+- The ledger itself is now restored even when an attachment is corrupted. Orphaned line items are no longer imported, and a failed save of income deductions is no longer silently swallowed
+- On browsers that cannot observe when a save has completed, a cancelled backup was treated as saved
+- The screen now reloads automatically after a backup is restored
+- Reading a receipt photo evicted from cloud storage could hang indefinitely
+
+### Fixed (tax filings and forms)
+
+- On the blue-return statement (real estate), bad-debt reserve and expenses with no matching field were dropped (KOA210)
+- On the statement of earnings, expenses entered in the additional-item field with no matching field were dropped (KOA110, KOA130)
+- The single-parent deduction is now year-specific, supporting the ¥380,000 amount for 令和9年分 (2027) onward
+- Redoing the opening-of-period transfer now uses reversing entries, so the history is preserved
+- Fixed the year on screen not following after a restore, year-end depreciation not being checked against a filed year, and negative amounts on line items not being handled the same way everywhere
+
+### Fixed (import)
+
+- Order import now stops and shows a reason when the line-item total does not match the grand total
+- Switching the import source left the already-loaded table in place
+
+### Fixed (printing)
+
+- Print settings had no effect, the screen froze after printing, and some reports could not be printed at all
+- Tables did not fit on A4, and borders disappeared in dark mode
+
+### Fixed (screen)
+
+- The disclaimer dialog was hidden behind the iPhone status bar
+- Just opening the share sheet showed an error
+- `<html lang>` stayed Japanese even after switching the UI language
+- Layout issues on narrow screens: overflowing button labels, text links too small to tap, cramped account columns, and mismatched form control heights
+- Japanese shinjitai kanji had leaked into the Traditional Chinese translation
+- Misleading states after a failed load: the heading updating to the new year while old figures remained, and lists staying stuck on "loading"
+- Connection failures now also show the actual reason
+
 ## [1.0.4] - 2026-08-13
 
 ### Added
