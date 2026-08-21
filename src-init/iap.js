@@ -38,6 +38,21 @@ export function purchaseResultOf(purchase) {
   return PURCHASE_STATE[purchase?.purchaseState] ?? 'cancelled';
 }
 
+// プラグインは取消と保留を戻り値ではなく例外で伝える。放置すると未捕捉の例外として
+// エラーバナーが点く。
+export function purchaseResultOfError(error) {
+  // プラグインは Error を文字列へ直列化して寄越すので、判るのは文面だけ。
+  // 商店 は「cancelled by user」、商店 は「[purchaseNotCompleted] - ...」。
+  const message = String(error?.message ?? error ?? '').toLowerCase();
+  if (message.includes('cancel') || message.includes('notcompleted')) {
+    return 'cancelled';
+  }
+  if (message.includes('pending')) {
+    return 'pending';
+  }
+  return null;
+}
+
 export function createIap(invoke, platform) {
   const ids = productIdsFor(platform);
   // ある環境 の品目はまだ商店に作っていない。表が無ければ入口ごと生やさず、
@@ -64,9 +79,18 @@ export function createIap(invoke, platform) {
     if (productId === undefined) {
       return 'cancelled';
     }
-    const purchase = await invoke('plugin:iap|purchase', {
-      payload: { productId, productType: PRODUCT_TYPE },
-    });
+    let purchase;
+    try {
+      purchase = await invoke('plugin:iap|purchase', {
+        payload: { productId, productType: PRODUCT_TYPE },
+      });
+    } catch (error) {
+      const fromError = purchaseResultOfError(error);
+      if (fromError === null) {
+        throw error;
+      }
+      return fromError;
+    }
     const result = purchaseResultOf(purchase);
     // 消耗型は finish しないと同じ品目を二度買えない。スタンプは何度でも押せる
     // ものなので、確定した時点で必ず消費する。
