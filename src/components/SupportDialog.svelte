@@ -14,8 +14,11 @@
   let dialog = $state<HTMLDialogElement | null>(null);
   let notice = $state('');
 
+  // 投げっぱなしにすると未捕捉の例外としてエラーバナーが点く。
   onMount(() => {
-    void support.load();
+    void support.load().catch(() => {
+      notice = m.support_purchase_failed();
+    });
   });
 
   // showModal / close は命令的な API しか無く、宣言的に開閉できない。open を唯一の
@@ -33,15 +36,36 @@
 
   async function buy(kind: IapProductKind): Promise<void> {
     notice = '';
-    const result = await support.purchase(kind);
+    let result;
+    try {
+      result = await support.purchase(kind);
+    } catch {
+      notice = m.support_purchase_failed();
+      return;
+    }
     if (result === 'pending') {
       notice = m.support_purchase_pending();
     }
   }
 
+  async function retryProducts(): Promise<void> {
+    notice = '';
+    try {
+      await support.loadProducts();
+    } catch {
+      notice = m.support_purchase_failed();
+    }
+  }
+
   async function restore(): Promise<void> {
     notice = '';
-    const restored = await support.restore();
+    let restored;
+    try {
+      restored = await support.restore();
+    } catch {
+      notice = m.support_purchase_failed();
+      return;
+    }
     if (restored !== 'unavailable' && restored.length === 0) {
       notice = m.support_restore_none();
     }
@@ -227,7 +251,7 @@
   {#if support.productsMissing}
     <div class="missing">
       <span>{m.support_products_missing()}</span>
-      <button type="button" disabled={support.busy} onclick={() => support.loadProducts()}>
+      <button type="button" disabled={support.busy} onclick={retryProducts}>
         {m.support_products_retry()}
       </button>
     </div>
