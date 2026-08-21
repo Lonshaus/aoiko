@@ -529,7 +529,7 @@
                       placeholder={m.journal_form_account_select()}
                       onchange={() => onCounterpartAccountChange(row)}
                       disabled={row.skip}
-                      class="flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
+                      class="min-w-0 flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
                     />
                     {#if row.matchedRuleId}
                       <span
