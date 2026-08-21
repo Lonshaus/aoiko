@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { viewCardParser } from './view-card';
-import sample from './fixtures/view-card-sample.csv?raw';
+import { readSample } from './fixtures/_read';
+
+const sample = readSample('src/parsers/fixtures/view-card-sample.csv', viewCardParser.encoding);
 
 describe('viewCardParser', () => {
   test('metadata', () => {
