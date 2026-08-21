@@ -3,7 +3,12 @@
 
 import { describe, expect, test } from 'vitest';
 import myBankParser from './_template.example';
-import sample from './fixtures/_template.example-sample.csv?raw';
+import { readSample } from './fixtures/_read';
+
+const sample = readSample(
+  'src/parsers/fixtures/_template.example-sample.csv',
+  myBankParser.encoding,
+);
 
 describe('myBankParser', () => {
   test('metadata', () => {
