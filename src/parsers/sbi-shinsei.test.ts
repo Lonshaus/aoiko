@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { sbiShinseiParser } from './sbi-shinsei';
-import sampleCsv from './fixtures/sbi-shinsei-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sampleCsv = readSample(
+  'src/parsers/fixtures/sbi-shinsei-sample.csv',
+  sbiShinseiParser.encoding,
+);
 
 describe('sbiShinseiParser', () => {
   test('parser metadata', () => {

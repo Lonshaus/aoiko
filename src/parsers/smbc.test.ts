@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { smbcParser } from './smbc';
-import sample from './fixtures/smbc-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sample = readSample('src/parsers/fixtures/smbc-sample.csv', smbcParser.encoding);
 
 describe('smbcParser', () => {
   test('metadata', () => {

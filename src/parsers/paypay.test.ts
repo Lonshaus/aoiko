@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { paypayParser } from './paypay';
-import sample from './fixtures/paypay-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sample = readSample('src/parsers/fixtures/paypay-sample.csv', paypayParser.encoding);
 
 describe('paypayParser', () => {
   test('metadata: クレジット運用前提で未払金(2120)', () => {

@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { mufgCardParser } from './mufg-card';
-import sample from './fixtures/mufg-card-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sample = readSample('src/parsers/fixtures/mufg-card-sample.csv', mufgCardParser.encoding);
 
 describe('mufgCardParser', () => {
   test('metadata', () => {

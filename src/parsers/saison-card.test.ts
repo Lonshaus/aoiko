@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { saisonCardParser } from './saison-card';
-import sample from './fixtures/saison-card-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sample = readSample('src/parsers/fixtures/saison-card-sample.csv', saisonCardParser.encoding);
 
 describe('saisonCardParser', () => {
   test('metadata', () => {

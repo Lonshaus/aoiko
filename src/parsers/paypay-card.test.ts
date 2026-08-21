@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { paypayCardParser } from './paypay-card';
-import sampleCsv from './fixtures/paypay-card-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sampleCsv = readSample(
+  'src/parsers/fixtures/paypay-card-sample.csv',
+  paypayCardParser.encoding,
+);
 
 describe('paypayCardParser', () => {
   test('parser metadata', () => {

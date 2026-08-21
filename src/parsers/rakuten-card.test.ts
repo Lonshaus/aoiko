@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'vitest';
 import { rakutenCardParser } from './rakuten-card';
-import sample from './fixtures/rakuten-card-sample.csv?raw';
+import { readSample } from './fixtures/read';
+
+const sample = readSample(
+  'src/parsers/fixtures/rakuten-card-sample.csv',
+  rakutenCardParser.encoding,
+);
 
 describe('rakutenCardParser', () => {
   test('metadata', () => {
