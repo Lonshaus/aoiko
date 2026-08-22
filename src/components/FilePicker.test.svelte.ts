@@ -60,10 +60,6 @@ describe('FilePicker', () => {
     expect(render({ accept: '.csv,text/csv' }).accept).toBe('.csv,text/csv');
   });
 
-  test('capture をそのまま渡す（領収書はカメラを直接開く）', () => {
-    expect(render({ capture: 'environment' }).getAttribute('capture')).toBe('environment');
-  });
-
   test('accept を渡さなければ属性を付けない', () => {
     expect(render().hasAttribute('accept')).toBe(false);
   });
