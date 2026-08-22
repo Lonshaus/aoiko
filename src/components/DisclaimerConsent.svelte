@@ -54,7 +54,9 @@
         <li>{@html m.disclaimer_bullet_xtx_html()}</li>
         <li>{@html m.disclaimer_bullet_llm_html()}</li>
         <li>
-          {@html nativeBridge()
+          <!-- 文言カタログは条件を問わず全部が模組へ組まれる。実行時だけの判定にすると、
+               選ばれない側の文字列まで産物に残る（購入画面と同じ理由で build 時に畳む）。 -->
+          {@html __NATIVE__ && nativeBridge()
             ? m.disclaimer_bullet_storage_html_native()
             : m.disclaimer_bullet_storage_html()}
         </li>
