@@ -147,9 +147,8 @@ pub(crate) fn recognize_text<R: Runtime>(
     }
 }
 
-// 設定画面が選択肢を出す前に問う。関数が生えていることと、その端末が日本語を
-// 読めることは別（Windows は言語機能が既定で入っておらず、Apple 側も版と導入内容で
-// 変わる）。推測せず毎回問い、読めないなら選ばせない。
+// 設定画面はこの答えで案内を出し分ける。選択肢自体は消さない（消すと、選べない
+// 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
 #[tauri::command(async)]
 pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
     #[cfg(target_os = "ios")]
