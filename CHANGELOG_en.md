@@ -56,7 +56,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 ### Fixed (screen)
 
 - The receipt image picker opened the camera directly, leaving no way to choose from the photo library or files
-- The disclaimer dialog was hidden behind the iPhone status bar
+- On mobile browsers, the disclaimer dialog was hidden behind the status bar on some devices
 - Just opening the share sheet showed an error
 - `<html lang>` stayed Japanese even after switching the UI language
 - Layout issues on narrow screens: overflowing button labels, text links too small to tap, cramped account columns, and mismatched form control heights
