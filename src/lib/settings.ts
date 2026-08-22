@@ -3,12 +3,27 @@ import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
 import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
+import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
+import type { NativeBackupFolder } from '../backup/native';
 
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
+  // wrapper 版で選んだバックアップ先。token は端末固有の
+  // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
+  nativeBackupFolder: NativeBackupFolder | null;
+  // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
+  // 商店から復元できるので、バックアップには含めない（backup/payload.ts）。
+  supporterBadgeAt: string | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
+  // 日付入りバックアップの保持件数。0 = 削除しない（既定・従来動作）。
+  backupRetentionCount: BackupRetentionCount;
+  // どのスナップショットからも参照されなくなった証憑の実体を消すまでの日数。
+  // 0 = 消さない（既定）。
+  blobRetentionDays: BlobRetentionDays;
+  // 上の掃除を最後に走らせた時刻。全スナップショットを読むので毎回は走らせない。
+  lastBlobSweepAt: number | null;
   // 家事按分の科目別既定比率（accountCode → '0.30' 等の 0〜1 Decimal 文字列）。
   // 記帳フォームで該当科目を選ぶと自動入力される（行ごとに変更可）。
   homeOfficeAccountRatios: Record<string, string>;
@@ -65,6 +80,12 @@ export type SettingsMap = {
   // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
+  // <a download> 経路（Firefox / Safari）で保存できたかの確認ダイアログをスキップ
+  // （利用者が「次回から確認しない」を選択）。
+  skipDownloadSavedConfirm: boolean;
+  // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
+  // 設定画面の「非表示にした確認を元に戻す」で戻せる（suppressed-confirms.ts）。
+  skipFiledYearWarning: boolean;
   // 請求書・見積書（C1）の番号プレフィックス。未設定時は既定値（invoice.ts の
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
@@ -75,7 +96,8 @@ export type SettingsMap = {
 // v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
-export const DISCLAIMER_VERSION = 4;
+// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・Safari の非訪問 7 日消去）を追記。
+export const DISCLAIMER_VERSION = 5;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

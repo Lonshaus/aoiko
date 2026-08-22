@@ -1,15 +1,26 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
-import { buildBackupZip, buildPayload, PAYLOAD_VERSION } from '../backup';
+import { buildBackupZipStream, buildPayload, PAYLOAD_VERSION } from '../backup';
 import { newId } from '../lib/id';
 import { toIndexable } from '../lib/decimal';
 import {
+  BackupTooLargeError,
   IncompatibleBackupError,
+  isBackupTooLarge,
   parseBackupFile,
   parseBackupJson,
   restoreFromJson,
   restoreFromPayload,
 } from './restore';
+import { MAX_BACKUP_BYTES } from '../lib/file-limit';
+
+// happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
+// 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
+// テストだけ Node 組込みの Blob を使う。
+function nodeBlob(bytes: Uint8Array<ArrayBuffer>): Blob {
+  return new NodeBlob([bytes]) as unknown as Blob;
+}
 
 beforeEach(async () => {
   await db.delete();
@@ -151,6 +162,40 @@ describe('restoreFromJson', () => {
     expect(vendors).toHaveLength(0);
   });
 
+  test('書き込みが失敗しても既存の帳簿データはロールバックで戻る', async () => {
+    const entryId = 'keep-entry';
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: entryId,
+      date: '2026-05-01',
+      year: 2026,
+      description: '復元前からある仕訳',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
+    await db.vendors.add({ id: 'keep-vendor', name: '残るべき業者' });
+
+    await expect(
+      restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        tables: {
+          vendors: [{ id: 'v1', name: '新業者' }],
+          invoices: [{ id: 'inv-1', notCloneable: () => {} }],
+        },
+      }),
+    ).rejects.toThrow();
+
+    const entries = await db.journalEntries.toArray();
+    const vendors = await db.vendors.toArray();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.description).toBe('復元前からある仕訳');
+    expect(vendors).toHaveLength(1);
+    expect(vendors[0]?.name).toBe('残るべき業者');
+  });
+
   test('clears existing data before restore', async () => {
     await db.vendors.add({ id: newId(), name: '消える業者' });
 
@@ -195,6 +240,28 @@ describe('restoreFromJson', () => {
   });
 });
 
+// 復元は全テーブルを clear してから書き戻す。スタンプ帳とバッジはバックアップに
+// 入っていないので、素通りさせると「復元しただけで消える」ことになる。
+describe('支援の記録は復元で消えない', () => {
+  test('スタンプ帳は復元後も残る', async () => {
+    await db.stamps.put({
+      id: 's1',
+      shape: 'yarn',
+      color: 'orange',
+      at: '2026-08-18',
+      createdAt: 1,
+    });
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
+    expect(await db.stamps.count()).toBe(1);
+  });
+
+  test('支援者バッジは復元後も残る', async () => {
+    await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
+    expect((await db.settings.get('supporterBadgeAt'))?.value).toBe('2026-08-18');
+  });
+});
+
 describe('証憑写真（C7）の zip 往復', () => {
   // 備考：happy-dom + fake-indexeddb の組み合わせでは Blob の structured clone が
   // 中身（バイト列）を保持しない既知の制限があるため（実ブラウザの IndexedDB では問題ない、
@@ -216,7 +283,7 @@ describe('証憑写真（C7）の zip 往復', () => {
     });
 
     const payload = await buildPayload();
-    const attachmentBlobs = new Map([['att-1', new Uint8Array([1, 2, 3])]]);
+    const attachmentBlobs = new Map([['att-1', nodeBlob(new Uint8Array([1, 2, 3]))]]);
     payload.tables['attachments'] = [
       { id: 'att-1', entryId, mimeType: 'image/jpeg', fileName: 'r.jpg', createdAt: now },
     ];
@@ -228,6 +295,38 @@ describe('証憑写真（C7）の zip 往復', () => {
     expect(restored[0]!.entryId).toBe(entryId);
     expect(restored[0]!.fileName).toBe('r.jpg');
     expect(restored[0]!.mimeType).toBe('image/jpeg');
+  });
+
+  test('復元した添付の blob.type はメタデータの mimeType と一致し、バイト列も保たれる', async () => {
+    const entryId = newId();
+    const now = Date.now();
+    await db.journalEntries.add({
+      id: entryId,
+      date: '2026-05-01',
+      year: 2026,
+      description: 'テスト',
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: now,
+      confirmedAt: now,
+    });
+
+    const payload = await buildPayload();
+    // 元の Blob 自体は mimeType を持たない状態で渡し、restoreFromPayload が
+    // メタデータの mimeType で張り替えることを検証する。
+    const attachmentBlobs = new Map([['att-1', nodeBlob(new Uint8Array([1, 2, 3]))]]);
+    payload.tables['attachments'] = [
+      { id: 'att-1', entryId, mimeType: 'image/png', fileName: 'r.png', createdAt: now },
+    ];
+
+    await restoreFromPayload(payload, attachmentBlobs);
+
+    const restored = await db.attachments.toArray();
+    expect(restored).toHaveLength(1);
+    expect(restored[0]!.blob.type).toBe('image/png');
+    expect(new Uint8Array(await restored[0]!.blob.arrayBuffer())).toEqual(
+      new Uint8Array([1, 2, 3]),
+    );
   });
 
   test('実体の無い添付は missingBlobCount に計上される', async () => {
@@ -248,9 +347,20 @@ describe('証憑写真（C7）の zip 往復', () => {
         ],
       },
     };
-    const blobs = new Map([['has', new Uint8Array([1, 2, 3])]]);
-    const result = await restoreFromPayload(payload, blobs);
-    expect(result.missingBlobCount).toBe(1);
+    const blobs = new Map([['has', nodeBlob(new Uint8Array([1, 2, 3]))]]);
+    // 実体が無い行の Blob 組み立て（new Blob(...)）自体は Dexie の書き込み前なので、
+    // happy-dom の structuredClone 制限を経由せずに直接検証できるよう global Blob を差し替える。
+    vi.stubGlobal('Blob', NodeBlob);
+    try {
+      const result = await restoreFromPayload(payload, blobs);
+      expect(result.missingBlobCount).toBe(1);
+      const restored = await db.attachments.toArray();
+      const missing = restored.find((r) => r.id === 'missing');
+      expect(missing!.blob.size).toBe(0);
+      expect(missing!.blob.type).toBe('image/jpeg');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   test('旧 JSON 形式（attachmentBlobs 空）でも欠損を計上する', async () => {
@@ -273,11 +383,17 @@ describe('証憑写真（C7）の zip 往復', () => {
       exportedAt: '2026-05-10',
       tables: { vendors: [{ id: 'v1', name: '業者' }] },
     };
-    const zipBytes = buildBackupZip(payload, new Map([['a1', new Uint8Array([9, 9])]]));
+    async function* attachments(): AsyncGenerator<readonly [string, Uint8Array]> {
+      yield ['a1', new Uint8Array([9, 9])];
+    }
+    const stream = buildBackupZipStream(payload, attachments());
+    const zipBytes = new Uint8Array(await new Response(stream).arrayBuffer());
     const zipFile = new File([zipBytes.slice()], 'backup.zip', { type: 'application/zip' });
     const zipParsed = await parseBackupFile(zipFile);
     expect(zipParsed.payload.tables['vendors']).toHaveLength(1);
-    expect(zipParsed.attachmentBlobs.get('a1')).toEqual(new Uint8Array([9, 9]));
+    expect(new Uint8Array(await zipParsed.attachmentBlobs.get('a1')!.arrayBuffer())).toEqual(
+      new Uint8Array([9, 9]),
+    );
 
     const jsonFile = new File([JSON.stringify(payload)], 'backup.json', {
       type: 'application/json',
@@ -285,5 +401,34 @@ describe('証憑写真（C7）の zip 往復', () => {
     const jsonParsed = await parseBackupFile(jsonFile);
     expect(jsonParsed.payload.tables['vendors']).toHaveLength(1);
     expect(jsonParsed.attachmentBlobs.size).toBe(0);
+  });
+
+  test('旧 JSON 形式で上限超過なら BackupTooLargeError（内容は読まずに弾く）', async () => {
+    const jsonFile = new File(['{"version":1,"tables":{}}'], 'backup.json', {
+      type: 'application/json',
+    });
+    // 実際に 100MB のファイルは作らず、size だけ上限超過を装う。
+    Object.defineProperty(jsonFile, 'size', { value: MAX_BACKUP_BYTES + 1 });
+    await expect(parseBackupFile(jsonFile)).rejects.toThrow(BackupTooLargeError);
+  });
+});
+
+describe('isBackupTooLarge', () => {
+  test('zip は上限を超えても許容する', () => {
+    expect(isBackupTooLarge(true, MAX_BACKUP_BYTES + 1)).toBe(false);
+  });
+
+  test('旧 JSON は上限超過で弾く', () => {
+    expect(isBackupTooLarge(false, MAX_BACKUP_BYTES + 1)).toBe(true);
+  });
+
+  test('境界値（ちょうど上限）は許容する', () => {
+    expect(isBackupTooLarge(false, MAX_BACKUP_BYTES)).toBe(false);
+    expect(isBackupTooLarge(true, MAX_BACKUP_BYTES)).toBe(false);
+  });
+
+  test('上限未満はどちらも許容する', () => {
+    expect(isBackupTooLarge(false, 100)).toBe(false);
+    expect(isBackupTooLarge(true, 100)).toBe(false);
   });
 });

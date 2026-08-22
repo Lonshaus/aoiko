@@ -19,8 +19,7 @@ import { D } from '../../lib/decimal';
 import { buildXtx2026 } from './xtx';
 import { buildFormFragment, type XtxLeafValues } from './xtx-document';
 import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
-import { mapKoa210Values } from './xtx-mapping-koa210';
-import { mapKoa210RepeatedValues } from './xtx-mapping-koa210';
+import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
@@ -286,122 +285,174 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('KOA210 実 mapping 経路（PL/BS/月別）が公式 xsd に適合する', () => {
-    const pl: PLReport = {
-      year: 2026,
-      revenue: [
-        {
-          accountCode: '4110',
-          accountName: '売上高',
-          category: 'revenue',
-          amount: '5000000',
-          displayOrder: 110,
+  maybe(
+    'KOA210 実 mapping 経路（PL/BS/月別、貸倒引当金・追加科目含む）が公式 xsd に適合する',
+    () => {
+      const pl: PLReport = {
+        year: 2026,
+        revenue: [
+          {
+            accountCode: '4110',
+            accountName: '売上高',
+            category: 'revenue',
+            amount: '5000000',
+            displayOrder: 110,
+          },
+          // #380: 収益科目だが引当金ブロック（AMF00420）へ回るため売上から差し引かれる
+          {
+            accountCode: '4120',
+            accountName: '貸倒引当金繰戻額',
+            category: 'revenue',
+            amount: '20000',
+            displayOrder: 120,
+          },
+        ],
+        expense: [
+          {
+            accountCode: '5130',
+            accountName: '水道光熱費',
+            category: 'expense',
+            amount: '120000',
+            displayOrder: 130,
+          },
+          {
+            accountCode: '5150',
+            accountName: '通信費',
+            category: 'expense',
+            amount: '88000',
+            displayOrder: 150,
+          },
+          {
+            accountCode: '5210',
+            accountName: '減価償却費',
+            category: 'expense',
+            amount: '240000',
+            displayOrder: 210,
+          },
+          // #380: 引当金ブロック（AMF00470・第2頁 AMF01010/01050/01060）へ回る
+          {
+            accountCode: '5810',
+            accountName: '貸倒引当金繰入額（一括評価）',
+            category: 'expense',
+            amount: '50000',
+            displayOrder: 280,
+          },
+          {
+            accountCode: '5811',
+            accountName: '貸倒引当金繰入額（個別評価）',
+            category: 'expense',
+            amount: '30000',
+            displayOrder: 281,
+          },
+          // #380: 固定欄の無い経費 → 追加科目欄（AMF00355）
+          {
+            accountCode: '5280',
+            accountName: '固定資産除却損',
+            category: 'expense',
+            amount: '12000',
+            displayOrder: 282,
+          },
+        ],
+        totalRevenue: '5020000',
+        totalExpense: '540000',
+        netIncome: '4480000',
+        entryCount: 12,
+      };
+      const bs: BSReport = {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [
+          {
+            accountCode: '1110',
+            accountName: '現金',
+            category: 'asset',
+            balance: '300000',
+          },
+          {
+            accountCode: '1130',
+            accountName: '普通預金',
+            category: 'asset',
+            balance: '4252000',
+          },
+        ],
+        liabilities: [],
+        equity: [
+          {
+            accountCode: '3110',
+            accountName: '元入金',
+            category: 'equity',
+            balance: '4552000',
+          },
+        ],
+        netIncome: '4480000',
+        totalAssets: '4552000',
+        totalLiabilitiesAndEquity: '4552000',
+        balanced: true,
+      };
+      const monthly: MonthlyReport = {
+        year: 2026,
+        months: Array.from({ length: 12 }, (_, i) => ({
+          month: i + 1,
+          sales: String((i + 1) * 100000),
+          expense: String((i + 1) * 10000),
+          purchases: String((i + 1) * 3000),
+        })),
+        totalSales: '7800000',
+        totalExpense: '780000',
+      };
+      const koa210Ctx = {
+        year: 2026,
+        businessName: 'aoikoウェブ事務所',
+        invoiceNumber: '',
+        monthly,
+        pl,
+        bs,
+        filer: {
+          riyoshaId: '',
+          name: '',
+          zip: '',
+          address: '',
+          zeimushoCode: '',
+          zeimushoName: '',
         },
-      ],
-      expense: [
-        {
-          accountCode: '5130',
-          accountName: '水道光熱費',
-          category: 'expense',
-          amount: '120000',
-          displayOrder: 130,
-        },
-        {
-          accountCode: '5150',
-          accountName: '通信費',
-          category: 'expense',
-          amount: '88000',
-          displayOrder: 150,
-        },
-        {
-          accountCode: '5210',
-          accountName: '減価償却費',
-          category: 'expense',
-          amount: '240000',
-          displayOrder: 210,
-        },
-      ],
-      totalRevenue: '5000000',
-      totalExpense: '448000',
-      netIncome: '4552000',
-      entryCount: 9,
-    };
-    const bs: BSReport = {
-      year: 2026,
-      asOf: '2026-12-31',
-      assets: [
-        {
-          accountCode: '1110',
-          accountName: '現金',
-          category: 'asset',
-          balance: '300000',
-        },
-        {
-          accountCode: '1130',
-          accountName: '普通預金',
-          category: 'asset',
-          balance: '4252000',
-        },
-      ],
-      liabilities: [],
-      equity: [
-        {
-          accountCode: '3110',
-          accountName: '元入金',
-          category: 'equity',
-          balance: '4552000',
-        },
-      ],
-      netIncome: '4552000',
-      totalAssets: '4552000',
-      totalLiabilitiesAndEquity: '4552000',
-      balanced: true,
-    };
-    const monthly: MonthlyReport = {
-      year: 2026,
-      months: Array.from({ length: 12 }, (_, i) => ({
-        month: i + 1,
-        sales: String((i + 1) * 100000),
-        expense: String((i + 1) * 10000),
-        purchases: String((i + 1) * 3000),
-      })),
-      totalSales: '7800000',
-      totalExpense: '780000',
-    };
-    const leafValues = mapKoa210Values({
-      year: 2026,
-      businessName: 'aoikoウェブ事務所',
-      invoiceNumber: '',
-      monthly,
-      pl,
-      bs,
-      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
-      filingType: 'blue',
-      aoiroDeductionKind: 'electronic',
-      fixedAssets: [],
-    });
-    expect(Object.keys(leafValues).length).toBeGreaterThan(10);
-    const frag = buildFormFragment(
-      koa210 as XtxSchema,
-      {},
-      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
-      leafValues,
-    );
-    const doc =
-      `<?xml version="1.0" encoding="UTF-8"?>\n` +
-      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
-    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-    expect(out).not.toContain('Schemas parser error');
-    expect(r.status, out).toBe(0);
-  });
+        filingType: 'blue' as const,
+        aoiroDeductionKind: 'electronic' as const,
+        fixedAssets: [],
+      };
+      const leafValues = mapKoa210Values(koa210Ctx);
+      expect(Object.keys(leafValues).length).toBeGreaterThan(10);
+      // #380: 貸倒引当金の引当金ブロック・追加科目欄も leaf として実際に出力されている
+      expect(leafValues.AMF00100).toBe('5000000'); // 繰戻額分を差し引いた売上（収入）金額
+      expect(leafValues.AMF00420).toBe('20000'); // 繰戻額等・貸倒引当金
+      expect(leafValues.AMF00470).toBe('80000'); // 繰入額等・貸倒引当金
+      expect(leafValues.AMF01010).toBe('30000'); // 個別評価による本年分繰入額
+      expect(leafValues.AMF01050).toBe('50000'); // 一括評価による本年分繰入額
+      expect(leafValues.AMF01060).toBe('80000'); // 本年分の貸倒引当金繰入額
+      const repeatedValues = mapKoa210RepeatedValues(koa210Ctx);
+      expect(repeatedValues.AMF00355).toEqual([{ AMF00060: '固定資産除却損', AMF00360: '12000' }]);
+      const frag = buildFormFragment(
+        koa210 as XtxSchema,
+        {},
+        { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+        leafValues,
+        repeatedValues,
+      );
+      const doc =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+      const xmlPath = join(dir, 'doc.xml');
+      writeFileSync(xmlPath, doc, 'utf8');
+      const r = spawnSync(
+        'xmllint',
+        ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
+        { encoding: 'utf8' },
+      );
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      expect(out).not.toContain('Schemas parser error');
+      expect(r.status, out).toBe(0);
+    },
+  );
 
   maybe('KOA110 実 mapping 経路（PL、白色申告）が公式 xsd に適合する', () => {
     const pl: PLReport = {
@@ -783,6 +834,9 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             displayOrder: 110,
           },
         ],
+        // 貸倒引当金繰入額（個別評価）は KOA110 に固定欄が無いため追加科目欄
+        // （AIG00325/AIG00010/AIG00330）へ転記される（issue#379）。実 mapping 経路
+        // でも xmllint を通ることを確認する。
         expense: [
           {
             accountCode: '5130',
@@ -791,10 +845,17 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             amount: '120000',
             displayOrder: 130,
           },
+          {
+            accountCode: '5265',
+            accountName: '貸倒引当金繰入額（個別評価）',
+            category: 'expense' as const,
+            amount: '400000',
+            displayOrder: 265,
+          },
         ],
         totalRevenue: '7800000',
-        totalExpense: '120000',
-        netIncome: '7680000',
+        totalExpense: '520000',
+        netIncome: '7280000',
         entryCount: 4,
       },
       bs: {
@@ -835,6 +896,11 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       fixedAssets: [],
     };
     const xtx = buildXtx2026(ctx);
+    // 追加科目欄（AIG00325/AIG00010/AIG00330）が実際に埋まっていることを確認する
+    // （issue#379。xmllint 検証だけでは空欄でも通ってしまうため、値そのものを見る）
+    expect(xtx).toContain('<AIG00325>');
+    expect(xtx).toContain('<AIG00010>貸倒引当金繰入額</AIG00010>');
+    expect(xtx).toContain('<AIG00330>400000</AIG00330>');
     const forms: Array<[string, string]> = [
       ['KOA020', '_valwrap-KOA020.xsd'],
       ['KOA110', '_valwrap-KOA110.xsd'],
@@ -1022,10 +1088,20 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
             displayOrder: 210,
           },
         ],
-        expense: [],
+        // 事業的規模の貸倒引当金繰入額（不動産）は追加科目欄（AKG00010/AKG00190）
+        // へ転記される（issue#379）。xmllint の実 mapping 経路でも通ることを確認する。
+        expense: [
+          {
+            accountCode: '5410',
+            accountName: '貸倒引当金繰入額（不動産）',
+            category: 'expense',
+            amount: '100000',
+            displayOrder: 1395,
+          },
+        ],
         totalRevenue: '960000',
-        totalExpense: '0',
-        netIncome: '960000',
+        totalExpense: '100000',
+        netIncome: '860000',
         entryCount: 4,
       };
       const fixedAssets: FixedAsset[] = [
@@ -1082,13 +1158,16 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         aoiroDeductionKind: 'none' as const,
         fixedAssets,
         realEstatePl,
-        personalDeductions: withRealEstate({ businessScale: false }),
+        personalDeductions: withRealEstate({ businessScale: true }),
       };
       const leafValues = mapKoa130Values(ctx);
       const repeats = mapKoa130RepeatedValues(ctx);
       expect(Object.keys(leafValues).length).toBeGreaterThan(0);
       expect(repeats.AKH00010).toHaveLength(1);
       expect(repeats.AKK00010).toHaveLength(1);
+      // 追加科目欄（AKG00010/AKG00190）が実際に埋まっていることを確認する（issue#379）
+      expect(leafValues.AKG00010).toBe('貸倒引当金繰入額');
+      expect(leafValues.AKG00190).toBe('100000');
       const frag = buildFormFragment(
         koa130 as XtxSchema,
         {},

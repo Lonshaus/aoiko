@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { auPayCardParser } from './aupay-card';
-import sample from './aupay-card-sample.csv?raw';
+import { readSample } from '../fixtures/_read';
+
+const sample = readSample('src/parsers/aupay-card/aupay-card-sample.csv', auPayCardParser.encoding);
 
 describe('auPayCardParser', () => {
   test('metadata', () => {

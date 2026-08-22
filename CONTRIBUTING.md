@@ -28,8 +28,6 @@ npm run verify   # typecheck + tests + build を順に実行
 
 ## CSV パーサーを追加する
 
-### A. TypeScript で書く（推奨、柔軟）
-
 1. **テンプレートをコピー**
 
    フラット配置（既存の大半の parser）：
@@ -82,44 +80,6 @@ npm run verify   # typecheck + tests + build を順に実行
 6. **PR**
    - タイトル例：`feat(parser): add my-bank parser`
    - 説明に：対応している銀行/カードの名前、フォーマットの参考情報
-
-### B. JSON 設定で宣言的に書く（簡単、限定的）
-
-実装が「ヘッダー列の対応関係 + 数値正規化」だけで済むなら JSON で十分。
-
-例：
-
-```typescript
-import { defineParser } from './json-config';
-
-const myBankParser = defineParser({
-  name: 'my-bank',
-  displayName: 'マイ銀行',
-  accountCode: '1130',
-  encoding: 'shift_jis',
-  columns: {
-    date: { header: '取引日' },
-    description: { header: '内容' },
-    withdrawal: { header: '出金額' },
-    deposit: { header: '入金額' },
-    balance: { header: '残高' },
-  },
-});
-
-export default myBankParser;
-```
-
-サポートする 3 種のパターン：
-
-| パターン | 例 | 設定キー |
-|---------|------|--------|
-| 銀行型（出金/入金で側決定） | 三菱UFJ、三井住友、SBI新生 | `withdrawal` + `deposit` |
-| カード型（全行固定側） | 楽天カード、JCBカード、au PAY カード | `amount` + `side` |
-| 符号付き型（金額符号で判定） | 単一の金額列に符号付き数値（+/-）で入出金が混在する形式 | `signedAmount` |
-
-複雑な分岐（複数列マージ、特殊な日付フォーマット、ユーザー欄含む）は TypeScript で書いてください。
-
----
 
 ## fixture の匿名化指針
 

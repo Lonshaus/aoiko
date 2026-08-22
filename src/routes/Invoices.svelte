@@ -6,6 +6,7 @@
   import { todayISO } from '../lib/date';
   import { D, formatJPY } from '../lib/decimal';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import { ledger } from '../stores/ledger.svelte';
   import {
     convertQuoteToInvoiceDraft,
@@ -13,9 +14,11 @@
     DEFAULT_INVOICE_PREFIX,
     DEFAULT_QUOTE_PREFIX,
     groupLineItemsByTaxRate,
+    hasReducedRateItems,
     invoiceTotal,
     issueInvoice,
     newLineItem,
+    REDUCED_TAX_RATE,
     voidInvoice,
   } from '../domain/invoice';
   import { m } from '../paraglide/messages';
@@ -43,8 +46,13 @@
   let taxRegistration = $state('taxable');
 
   $effect(() => {
-    const sub = liveQuery(() => db.invoices.toArray()).subscribe((v) => {
-      invoices = v;
+    const sub = liveQuery(() => db.invoices.toArray()).subscribe({
+      next: (v) => {
+        invoices = v;
+      },
+      error: (e: unknown) => {
+        errorMessage = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -56,9 +64,15 @@
     const handle = () => {
       printingId = null;
     };
+    // afterprint が発火しない経路（印刷ダイアログを閉じても発火しないブラウザ挙動）があるため、
+    // ウィンドウにフォーカスが戻った時点でも状態を戻す（印刷ダイアログを閉じると必ずフォーカスが戻る）
     window.addEventListener('afterprint', handle);
+    window.addEventListener('focus', handle);
     requestAnimationFrame(() => window.print());
-    return () => window.removeEventListener('afterprint', handle);
+    return () => {
+      window.removeEventListener('afterprint', handle);
+      window.removeEventListener('focus', handle);
+    };
   });
 
   async function loadIssuerInfo() {
@@ -107,7 +121,9 @@
   function openEdit(inv: Invoice) {
     errorMessage = '';
     convertingFromQuoteId = null;
-    editing = structuredClone(inv);
+    // inv は $state 配列の要素、つまり proxy。structuredClone は proxy を複製できず
+    // DataCloneError で落ちる（編集フォームが開かないままエラーバナーだけ出る）。
+    editing = $state.snapshot(inv);
     editingSnapshot = JSON.stringify(editing);
   }
 
@@ -147,7 +163,7 @@
       editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     } finally {
       submitting = false;
     }
@@ -173,7 +189,7 @@
       editingSnapshot = null;
       convertingFromQuoteId = null;
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     } finally {
       submitting = false;
     }
@@ -202,7 +218,7 @@
     try {
       await voidInvoice(id);
     } catch (e) {
-      errorMessage = e instanceof Error ? e.message : String(e);
+      errorMessage = describeStorageError(e);
     }
   }
 
@@ -223,13 +239,18 @@
     printingInvoice ? groupLineItemsByTaxRate(printingInvoice.lineItems) : [],
   );
   const printingTotal = $derived(printingInvoice ? invoiceTotal(printingInvoice.lineItems) : D(0));
+  const printingHasReduced = $derived(
+    printingInvoice ? hasReducedRateItems(printingInvoice.lineItems) : false,
+  );
 </script>
 
-<div class="print:hidden space-y-6">
+<!-- 一覧を常に print:hidden にすると、この画面で印刷しても白紙が出るだけになる。
+     単票を印刷している間だけ隠し、それ以外は一覧をそのまま用紙に出す。 -->
+<div class="space-y-6 {printingId ? 'print:hidden' : ''}">
   <h2 class="text-xl font-semibold">{m.invoices_title()}</h2>
 
   {#if !editing}
-    <div class="flex gap-2 border-b">
+    <div class="flex gap-2 border-b print:hidden">
       <button
         type="button"
         onclick={() => (tab = 'invoice')}
@@ -253,7 +274,7 @@
     <button
       type="button"
       onclick={startNew}
-      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+      class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 print:hidden"
     >
       {m.invoices_action_new()}
     </button>
@@ -273,19 +294,19 @@
             <span class="text-xs text-muted-foreground">{inv.date}</span>
             <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
             <span class="text-xs px-2 py-0.5 rounded bg-muted">{statusLabel(inv.status)}</span>
-            <div class="ml-auto flex gap-2">
+            <div class="ml-auto flex gap-3 print:hidden">
               {#if inv.status === 'draft'}
                 <button
                   type="button"
                   onclick={() => openEdit(inv)}
-                  class="text-xs text-primary hover:underline"
+                  class="text-xs text-primary hover:underline py-2 -my-2"
                 >
                   {m.invoices_action_edit()}
                 </button>
                 <button
                   type="button"
                   onclick={() => askDeleteDraft(inv)}
-                  class="text-xs text-muted-foreground hover:text-destructive"
+                  class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
                 >
                   {m.settings_action_delete()}
                 </button>
@@ -293,7 +314,7 @@
                 <button
                   type="button"
                   onclick={() => print(inv.id)}
-                  class="text-xs text-primary hover:underline"
+                  class="text-xs text-primary hover:underline py-2 -my-2"
                 >
                   {m.invoices_action_print()}
                 </button>
@@ -301,7 +322,7 @@
                   <button
                     type="button"
                     onclick={() => convertToInvoice(inv)}
-                    class="text-xs text-primary hover:underline"
+                    class="text-xs text-primary hover:underline py-2 -my-2"
                   >
                     {m.invoices_action_convert()}
                   </button>
@@ -310,7 +331,7 @@
                   <button
                     type="button"
                     onclick={() => onVoid(inv.id)}
-                    class="text-xs text-muted-foreground hover:text-destructive"
+                    class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
                   >
                     {m.invoices_action_void()}
                   </button>
@@ -391,13 +412,17 @@
             <button
               type="button"
               onclick={() => removeLine(item.id)}
-              class="text-xs text-muted-foreground hover:text-destructive"
+              class="text-xs text-muted-foreground hover:text-destructive py-2 -my-2"
             >
               {m.settings_action_delete()}
             </button>
           </div>
         {/each}
-        <button type="button" onclick={addLine} class="text-xs text-primary hover:underline">
+        <button
+          type="button"
+          onclick={addLine}
+          class="text-xs text-primary hover:underline py-2 -my-2"
+        >
           {m.invoices_form_add_line()}
         </button>
       </div>
@@ -429,7 +454,7 @@
         <div class="text-sm text-destructive">{errorMessage}</div>
       {/if}
 
-      <div class="flex gap-2">
+      <div class="flex flex-wrap gap-2">
         <button
           type="button"
           onclick={saveDraft}
@@ -478,6 +503,9 @@
       <div class="text-right text-xs">
         <p>{m.invoices_print_number()}: {printingInvoice.number}</p>
         <p>{m.invoices_print_date()}: {printingInvoice.date}</p>
+        {#if printingInvoice.documentType === 'invoice' && printingInvoice.dueDate}
+          <p>{m.invoices_print_due_date()}: {printingInvoice.dueDate}</p>
+        {/if}
       </div>
     </div>
     <div class="border-t pt-2 text-right text-xs space-y-1">
@@ -499,7 +527,7 @@
       <tbody>
         {#each printingInvoice.lineItems as item (item.id)}
           <tr class="border-b">
-            <td class="py-1">{item.name}</td>
+            <td class="py-1">{item.name}{item.taxRate === REDUCED_TAX_RATE ? ' ※' : ''}</td>
             <td class="text-right py-1">{item.quantity}</td>
             <td class="text-right py-1 font-mono">{formatJPY(item.unitPrice)}</td>
             <td class="text-right py-1">{item.taxRate * 100}%</td>
@@ -507,6 +535,9 @@
         {/each}
       </tbody>
     </table>
+    {#if printingHasReduced}
+      <p class="text-xs">{m.invoices_print_reduced_note()}</p>
+    {/if}
     <div class="text-xs space-y-1">
       {#each printingGroups as g (g.taxRate)}
         <div class="flex justify-between">

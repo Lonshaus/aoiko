@@ -4,19 +4,20 @@
   import { assignInputNumber } from '../lib/number-input';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { reverseEntry } from '../domain/reverse';
-  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
-  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
+  import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
   import { buildLedgerRows, ledger, type LedgerRow } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { Attachment, Vendor } from '../db/types';
+  import FilePicker from '../components/FilePicker.svelte';
 
   const PAGE_SIZE = 50;
   const now = new Date();
-
   // 処理年度に追従（ユーザーがセレクタで別年度を選ぶと override、Settings で年度が
   // 変わると再計算されて追従に戻る writable derived）。
   let year = $derived(ledger.currentYear);
@@ -40,6 +41,7 @@
   let expandedId = $state<string | null>(null);
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
+  let filterError = $state('');
   // 証憑写真（C7）。展開中の仕訳の添付一覧と、事後添付の確認フロー。
   let expandedAttachments = $state<Attachment[]>([]);
   let attachmentUrls = $state<Map<string, string>>(new Map());
@@ -55,11 +57,14 @@
       expandedAttachments = [];
       return;
     }
-    const sub = liveQuery(() => db.attachments.where('entryId').equals(id).toArray()).subscribe(
-      (v) => {
+    const sub = liveQuery(() => db.attachments.where('entryId').equals(id).toArray()).subscribe({
+      next: (v) => {
         expandedAttachments = v;
       },
-    );
+      error: (e: unknown) => {
+        attachmentError = describeStorageError(e);
+      },
+    });
     return () => sub.unsubscribe();
   });
 
@@ -158,8 +163,13 @@
   }
 
   $effect(() => {
-    const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe((v) => {
-      vendors = v;
+    const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe({
+      next: (v) => {
+        vendors = v;
+      },
+      error: (e: unknown) => {
+        filterError = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -172,13 +182,18 @@
     const aMax = amountMaxQuery;
     const vid = vendorIdQuery;
     const off = pageOffset;
-    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, vid, off)).subscribe(
-      (result) => {
+    const sub = liveQuery(() => fetchFiltered(yr, mo, q, aMin, aMax, vid, off)).subscribe({
+      next: (result) => {
+        filterError = '';
         rows = result.rows;
         totalCount = result.total;
         loading = false;
       },
-    );
+      error: (e: unknown) => {
+        filterError = describeStorageError(e);
+        loading = false;
+      },
+    });
     return () => sub.unsubscribe();
   });
 
@@ -249,11 +264,17 @@
     const target = confirmingReverseId;
     confirmingReverseId = null;
     reverseError = '';
+    const targetYear = rows.find((r) => r.entry.id === target)?.entry.year;
+    // 通常は展開中の行から確定した id なので必ず見つかる。念のための fallback は
+    // ガードを経ずに reverseEntry 自身のロック判定に委ねる（既存の安全側の挙動を維持）。
+    if (targetYear !== undefined && !(await filedYearGuard.confirm([targetYear]))) {
+      return;
+    }
     try {
-      await reverseEntry(target);
+      await reverseEntry(target, targetYear !== undefined ? { allowFiledYear: true } : undefined);
       expandedId = null;
     } catch (e) {
-      reverseError = e instanceof Error ? e.message : String(e);
+      reverseError = describeStorageError(e);
     }
   }
 
@@ -264,7 +285,7 @@
     if (!f) {
       return;
     }
-    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+    if (f.size > MAX_IMAGE_BYTES) {
       attachmentError = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
@@ -272,7 +293,7 @@
       input.value = '';
       return;
     }
-    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+    if ((await getSetting('skipAttachmentConfirm')) !== true) {
       pendingAttachmentFile = f;
       pendingAttachmentInput = input;
       attachmentPreview = URL.createObjectURL(f);
@@ -289,9 +310,13 @@
       return;
     }
     try {
-      await db.attachments.add(buildAttachmentRecord(id, f, Date.now()));
+      const record = await buildAttachmentRecord(id, f, Date.now());
+      await db.attachments.add(record);
     } catch (e) {
-      attachmentError = e instanceof Error ? e.message : String(e);
+      attachmentError =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     }
   }
 
@@ -363,7 +388,7 @@
           min="2020"
           max="2099"
           step="1"
-          class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          class="mt-1 w-24 px-3 h-11 bg-background border rounded text-foreground tabular-nums"
         />
       </label>
       <label class="block">
@@ -371,7 +396,7 @@
         <select
           bind:value={month}
           onchange={onMonthChange}
-          class="mt-1 px-3 py-2 bg-background border rounded text-foreground"
+          class="mt-1 px-3 h-11 bg-background border rounded text-foreground"
         >
           <option value={null}>{m.journal_list_filter_month_all()}</option>
           {#each [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as mo (mo)}
@@ -392,7 +417,7 @@
           }}
           onblur={applyDescQuery}
           placeholder={m.journal_list_filter_description_placeholder()}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground"
         />
       </label>
       <label class="block">
@@ -442,7 +467,7 @@
         <select
           bind:value={vendorIdQuery}
           onchange={onVendorChange}
-          class="mt-1 px-3 py-2 bg-background border rounded text-foreground max-w-56"
+          class="mt-1 px-3 h-11 bg-background border rounded text-foreground max-w-56"
         >
           <option value="">{m.journal_list_filter_vendor_all()}</option>
           {#each vendors as v (v.id)}
@@ -453,7 +478,7 @@
       <button
         type="button"
         onclick={resetFilters}
-        class="px-4 py-2 border rounded hover:bg-accent text-sm"
+        class="px-4 h-11 border rounded hover:bg-accent text-sm"
       >
         {m.journal_list_filter_reset()}
       </button>
@@ -500,16 +525,27 @@
     </div>
   {/if}
 
+  {#if filterError}
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
+      {filterError}
+    </div>
+  {/if}
+
   {#if rows.length > 0}
     <div class="bg-card text-card-foreground rounded-xl overflow-x-auto shadow-sm">
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[720px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-4 py-3 w-8"></th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_date()}</th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_description()}</th>
-            <th class="text-left font-normal px-4 py-3">{m.journal_th_debit()}</th>
-            <th class="text-left font-normal px-4 py-3">{m.journal_th_credit()}</th>
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap">{m.journal_th_debit()}</th
+            >
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap"
+              >{m.journal_th_credit()}</th
+            >
             <th class="text-right font-normal px-4 py-3">{m.journal_th_amount()}</th>
           </tr>
         </thead>
@@ -628,7 +664,7 @@
                                 href={attachmentUrls.get(a.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onclick={(e) => e.stopPropagation()}
+                                onclick={(e: MouseEvent) => e.stopPropagation()}
                               >
                                 <img
                                   src={attachmentUrls.get(a.id)}
@@ -644,12 +680,10 @@
                           {m.journal_list_attachments_empty()}
                         </p>
                       {/if}
-                      <input
-                        type="file"
+                      <FilePicker
                         accept="image/*"
                         onchange={handleAttachmentFile}
-                        onclick={(e) => e.stopPropagation()}
-                        class="text-xs text-muted-foreground"
+                        onclick={(e: MouseEvent) => e.stopPropagation()}
                       />
                       {#if attachmentError}
                         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
@@ -719,9 +753,20 @@
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-<AttachmentConfirmDialog
+{#snippet attachmentPreviewImage()}
+  {#if attachmentPreview}
+    <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+      <img src={attachmentPreview} alt={m.receipt_preview_alt()} class="max-h-64 object-contain" />
+    </div>
+  {/if}
+{/snippet}
+<ConfirmDialog
   open={attachmentConfirmOpen}
-  previewUrl={attachmentPreview}
+  title={m.attachment_confirm_title()}
+  description={m.attachment_confirm_desc()}
+  proceedLabel={m.attachment_confirm_proceed()}
+  dontAskLabel={m.attachment_confirm_dont_ask()}
+  preview={attachmentPreviewImage}
   onconfirm={onAttachmentConfirm}
   oncancel={onAttachmentCancel}
 />

@@ -24,7 +24,7 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 
 aoiko's `.xtx` passes **xmllint XSD validation in CI** and has been **verified by real import into the download edition**.
 
-> **About bad debt write-off / allowance for real estate income**: the blue-return real estate statement (KOA220) has no dedicated field for these two accounts, so they're written into the form's own "additional item" slot (capped at 5 entries). The white-return breakdown statement (KOA130) has a dedicated "貸倒金" (bad debt write-off) field, so that one is written directly there — but since white returns have no allowance concept at all, "貸倒引当金繰入額（不動産）" (bad debt allowance) is never written to KOA130 (see [14. Income & tax deductions](14-income-deductions_en.md)).
+> **About bad debt write-off / allowance for real estate income**: the blue-return real estate statement (KOA220) has no dedicated field for these two accounts, so they're written into the form's own "additional item" slot (capped at 5 entries). The white-return breakdown statement (KOA130) has a dedicated "貸倒金" (bad debt write-off) field, so that one is written directly there, and "貸倒引当金繰入額（不動産）" (bad debt allowance) is written to the additional-item slot (one entry only). The individually-assessed bad debt allowance has no blue-return requirement (Income Tax Act art. 52-1), so it's a deductible expense on a white return too as long as it's a business-scale rental (see [14. Income & tax deductions](14-income-deductions_en.md)).
 
 > **e-Tax software (web edition) does NOT support loading the income-tax procedure (RKO0010).** Use the **download edition** (per-tax module install required). The online preparation corner ("作成コーナー") does not support loading `.xtx`.
 
@@ -55,7 +55,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 |---|---|
 | Breakdown statement p.1: revenue, expense by category, pre-family-deduction income | PL |
 
-> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and bad-debt-reserve entries have no matching field on the breakdown statement and are excluded from the income calculation too (see "Completed in e-Tax" below).
+> White return has no balance sheet or monthly-sales fields (the breakdown statement itself has no such sections). Family-employee salary and the lump-sum-assessed bad-debt allowance require a blue return, so they're excluded from the breakdown statement output and from the income calculation too (see "Completed in e-Tax" below). The individually-assessed bad-debt allowance is a deductible expense on a white return too, so it's written to the additional-item slot (capped at 5 entries) as an expense with no fixed field.
 
 ### Completed in e-Tax
 
@@ -66,6 +66,10 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
 | **Consumption tax return** (multi-category simplified taxation, 30% special) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and single-category simplified taxation have `.xtx` export: [§ 6](#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption Tax](07-consumption-tax_en.md)) |
 | **White-return family-employee deduction** (flat ¥860,000 for a spouse, ¥500,000 per other relative) and the post-deduction income | Enter in e-Tax (aoiko does not compute it — it depends on relationship data aoiko doesn't track) |
+| **Basis for the lump-sum-assessed bad-debt allowance** ("total receivables" and "deductible limit" on page 2 of the financial statement) | Enter in e-Tax (aoiko does not track per-debtor receivable balances, so both boxes are output blank; the addition itself is still output) |
+| **Schedule of individually-assessed bad-debt allowance** | Prepare in e-Tax (it needs the statutory ground and the expected recoverable amounts, which aoiko does not hold, so aoiko does not generate it) |
+
+> **A bad-debt allowance addition isn't valid without its supporting statement.** Under Income Tax Act art. 52(4), stating the basis of the addition calculation (and, for individually-assessed allowances, attaching the schedule) is a condition for the allowance to apply at all. aoiko outputs the addition amount, but not the supporting statement behind it — complete that in e-Tax as shown above. The same note appears in the bookkeeping form when you post to the relevant account.
 
 > The baseline division of labor is common to accounting software: the software produces bookkeeping, statements, and business income; the rest is completed by the filer in e-Tax at filing time. aoiko additionally outputs income deductions and tax when [14. Income & tax deductions](14-income-deductions_en.md) is filled in.
 
@@ -83,7 +87,13 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 
 ### 3-2. File name
 
-aoiko generates `aoiko-{year}.xtx`, saved to your browser's Downloads folder.
+aoiko generates `aoiko-{year}.xtx`,
+<!-- only:browser -->
+saved to your browser's Downloads folder.
+<!-- /only -->
+<!-- only:native -->
+on desktop it opens a save dialog to choose the destination; on iPad/iPhone it's saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- /only -->
 
 > aoiko's `.gitignore` includes `aoiko-*.xtx` so it is not accidentally committed.
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import {
   BsExtraAccountOverflowError,
+  koa210AdditionalExpenseOverflow,
   mapKoa210RepeatedValues,
   mapKoa210Values,
 } from './xtx-mapping-koa210';
@@ -532,5 +533,220 @@ describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）',
     const rows = out.AMF01600;
     expect(rows).toHaveLength(1);
     expect(rows![0]!.AMF01610).toBe('新規備品');
+  });
+});
+
+function expenseRow(
+  accountName: string,
+  amount: string,
+  overrides: Partial<PLReport['expense'][number]> = {},
+): PLReport['expense'][number] {
+  return {
+    accountCode: '0000',
+    accountName,
+    category: 'expense',
+    amount,
+    displayOrder: 0,
+    ...overrides,
+  };
+}
+
+function revenueRow(
+  accountName: string,
+  amount: string,
+  overrides: Partial<PLReport['revenue'][number]> = {},
+): PLReport['revenue'][number] {
+  return {
+    accountCode: '0000',
+    accountName,
+    category: 'revenue',
+    amount,
+    displayOrder: 0,
+    ...overrides,
+  };
+}
+
+describe('#380 貸倒引当金・追加科目欄が KOA210 から落ちる問題', () => {
+  test('個別評価のみ：AMF00470・AMF01010・AMF01060 に計上、AMF01050 は出さない', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [expenseRow('貸倒引当金繰入額（個別評価）', '30000')],
+          totalRevenue: '0',
+          totalExpense: '30000',
+          netIncome: '-30000',
+          entryCount: 1,
+        },
+      }),
+    );
+    expect(out.AMF00470).toBe('30000');
+    expect(out.AMF01010).toBe('30000');
+    expect(out.AMF01060).toBe('30000');
+    expect(out.AMF01050).toBeUndefined();
+  });
+
+  test('一括評価のみ：AMF00470・AMF01050・AMF01060 に計上、AMF01010 は出さない', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [expenseRow('貸倒引当金繰入額（一括評価）', '50000')],
+          totalRevenue: '0',
+          totalExpense: '50000',
+          netIncome: '-50000',
+          entryCount: 1,
+        },
+      }),
+    );
+    expect(out.AMF00470).toBe('50000');
+    expect(out.AMF01050).toBe('50000');
+    expect(out.AMF01060).toBe('50000');
+    expect(out.AMF01010).toBeUndefined();
+  });
+
+  test('両方：AMF00470・AMF01060 は合計、AMF01010／AMF01050 はそれぞれの内訳', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [
+            expenseRow('貸倒引当金繰入額（個別評価）', '30000'),
+            expenseRow('貸倒引当金繰入額（一括評価）', '50000'),
+          ],
+          totalRevenue: '0',
+          totalExpense: '80000',
+          netIncome: '-80000',
+          entryCount: 2,
+        },
+      }),
+    );
+    expect(out.AMF00470).toBe('80000');
+    expect(out.AMF01010).toBe('30000');
+    expect(out.AMF01050).toBe('50000');
+    expect(out.AMF01060).toBe('80000');
+  });
+
+  test('個別評価と一括評価が相殺しても、内訳を出す以上は合計欄（AMF00470／AMF01060）を出す', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [
+            expenseRow('貸倒引当金繰入額（個別評価）', '50000'),
+            expenseRow('貸倒引当金繰入額（一括評価）', '-50000'),
+          ],
+          totalRevenue: '0',
+          totalExpense: '0',
+          netIncome: '0',
+          entryCount: 2,
+        },
+      }),
+    );
+    expect(out.AMF01010).toBe('50000');
+    expect(out.AMF01050).toBe('-50000');
+    expect(out.AMF00470).toBe('0');
+    expect(out.AMF01060).toBe('0');
+  });
+
+  test('繰戻額あり：AMF00420 に計上し、売上（AMF00100）からその分を差し引く', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [revenueRow('売上高', '5000000'), revenueRow('貸倒引当金繰戻額', '20000')],
+          expense: [],
+          totalRevenue: '5020000',
+          totalExpense: '0',
+          netIncome: '5020000',
+          entryCount: 2,
+        },
+      }),
+    );
+    expect(out.AMF00420).toBe('20000');
+    expect(out.AMF00100).toBe('5000000');
+  });
+
+  test('引当金も繰戻額も無ければ、関連 leaf は一切出力しない（空 leaf を作らない）', () => {
+    const out = mapKoa210Values(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [revenueRow('売上高', '5000000')],
+          expense: [],
+          totalRevenue: '5000000',
+          totalExpense: '0',
+          netIncome: '5000000',
+          entryCount: 1,
+        },
+      }),
+    );
+    expect(out.AMF00420).toBeUndefined();
+    expect(out.AMF00470).toBeUndefined();
+    expect(out.AMF01010).toBeUndefined();
+    expect(out.AMF01050).toBeUndefined();
+    expect(out.AMF01060).toBeUndefined();
+  });
+
+  test('固定欄の無い経費（固定資産除却損）は AMF00355 追加科目に科目名・金額を出す', () => {
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [expenseRow('固定資産除却損', '12000')],
+          totalRevenue: '0',
+          totalExpense: '12000',
+          netIncome: '-12000',
+          entryCount: 1,
+        },
+      }),
+    );
+    expect(out.AMF00355).toEqual([{ AMF00060: '固定資産除却損', AMF00360: '12000' }]);
+  });
+
+  test('引当金の2科目は AMF00355 追加科目には出さない（引当金ブロック側と二重計上しない）', () => {
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [
+            expenseRow('貸倒引当金繰入額（個別評価）', '30000'),
+            expenseRow('貸倒引当金繰入額（一括評価）', '50000'),
+          ],
+          totalRevenue: '0',
+          totalExpense: '80000',
+          netIncome: '-80000',
+          entryCount: 2,
+        },
+      }),
+    );
+    expect(out.AMF00355).toBeUndefined();
+  });
+
+  test('固定欄の無い経費が7件あると6件のみ AMF00355 に入り、7件目は koa210AdditionalExpenseOverflow で返る', () => {
+    const expense = Array.from({ length: 7 }, (_, i) =>
+      expenseRow(`独自経費${i}`, String((i + 1) * 1000)),
+    );
+    const context = ctx({
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense,
+        totalRevenue: '0',
+        totalExpense: '28000',
+        netIncome: '-28000',
+        entryCount: 7,
+      },
+    });
+    const repeated = mapKoa210RepeatedValues(context);
+    expect(repeated.AMF00355).toHaveLength(6);
+    const overflow = koa210AdditionalExpenseOverflow(context);
+    expect(overflow).toEqual([{ accountName: '独自経費6', amount: '7000' }]);
   });
 });

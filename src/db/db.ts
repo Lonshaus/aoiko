@@ -1,4 +1,7 @@
 import Dexie, { type Table } from 'dexie';
+import { installFiledYearGuard } from './filed-year-guard';
+import { sha256Hex } from '../lib/sha256';
+import type { Stamp } from '../domain/stamps';
 import type {
   Account,
   ArApEntry,
@@ -18,7 +21,7 @@ import type {
   Vendor,
 } from './types';
 
-export class AoikoDB extends Dexie {
+class AoikoDB extends Dexie {
   journalEntries!: Table<JournalEntry, string>;
   journalLines!: Table<JournalLine, string>;
   accounts!: Table<Account, [string, number]>;
@@ -35,9 +38,14 @@ export class AoikoDB extends Dexie {
   budgets!: Table<Budget, [number, number]>;
   arApEntries!: Table<ArApEntry, string>;
   invoices!: Table<Invoice, string>;
+  // 支援のスタンプ帳。バックアップには含めない（payload.ts の SKIP_TABLES）。
+  stamps!: Table<Stamp, string>;
 
   constructor() {
     super('aoiko');
+    // 申告済み年度への書き込みを止める門。version() より先に差し込む（middleware は
+    // open() までに登録されていればよいが、後から足すと登録漏れに気付きにくい）。
+    installFiledYearGuard(this);
 
     this.version(1).stores({
       journalEntries: 'id, date, year, status, originalEntryId, [year+date], [date+status]',
@@ -93,6 +101,59 @@ export class AoikoDB extends Dexie {
     this.version(9).stores({
       invoices: 'id, documentType, status, vendorId, date, [documentType+date]',
     });
+    // v10: 証憑写真の SHA-256（#397）。フォルダバックアップを内容定址にするため、
+    // 「この中身は既に保存先にあるか」を索引で引けるようにする。
+    this.version(10)
+      .stores({
+        attachments: 'id, entryId, sha256',
+      })
+      .upgrade(async (tx) => {
+        const table = tx.table<Attachment, string>('attachments');
+        const ids = await table.toCollection().primaryKeys();
+        for (const id of ids) {
+          const row = await table.get(id);
+          if (row === undefined || row.sha256 !== undefined) {
+            continue;
+          }
+          // crypto.subtle も Blob.arrayBuffer も Dexie の外の Promise。素で await すると
+          // 保留中の要求が無くなった時点で IndexedDB がトランザクションを閉じてしまうので、
+          // Dexie.waitFor で繋ぎ止める。
+          const sha256 = await Dexie.waitFor(sha256Hex(row.blob));
+          await table.update(id, { sha256 });
+        }
+      });
+    // 押した順に並べたいだけなので at の索引で足りる。絵柄では引かない。
+    this.version(11).stores({
+      stamps: 'id, at',
+    });
+    // v11 のスタンプは銅・銀・金の 3 段だった（#479 で 7 種 7 色へ）。索引は変わらないが
+    // 欄の意味が変わるので、既に押されている分をここで移す。決め打ちの対応にするのは、
+    // 同じスタンプが再読み込みのたびに違う絵柄になるのを避けるため。
+    this.version(12)
+      .stores({
+        stamps: 'id, at, createdAt',
+      })
+      .upgrade(async (tx) => {
+        const faces = {
+          bronze: { shape: 'yarn', color: 'orange' },
+          silver: { shape: 'bell', color: 'blue' },
+          gold: { shape: 'butterfly', color: 'yellow' },
+        } as const;
+        // createdAt は v11 に無い。日付までしか手掛かりが無いので、同じ日の中は
+        // それまでの並び（at の昇順）をそのまま通し番号にして固定する。
+        const rows = await tx.table('stamps').orderBy('at').toArray();
+        let i = 0;
+        for (const row of rows) {
+          const face = faces[row.tier as keyof typeof faces] ?? faces.bronze;
+          await tx.table('stamps').update(row.id, {
+            shape: face.shape,
+            color: face.color,
+            createdAt: Date.parse(`${row.at}T00:00:00Z`) + i,
+            tier: undefined,
+          });
+          i += 1;
+        }
+      });
   }
 }
 

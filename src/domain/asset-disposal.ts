@@ -3,6 +3,7 @@ import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { computeDepreciation } from './depreciation';
 import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 固定資産の除却・売却（B6）。
@@ -37,7 +38,7 @@ const DISPOSAL_MARKER: Record<DisposalType, string> = {
   sale: '固定資産売却',
 };
 
-export interface DisposalLineSpec {
+interface DisposalLineSpec {
   side: 'debit' | 'credit';
   accountCode: string;
   amount: string;
@@ -110,21 +111,29 @@ export function buildDisposalLines(
   return lines;
 }
 
-export interface DisposalEntryResult {
+interface DisposalEntryResult {
   created: boolean;
-  reason?: 'no-disposal' | 'already-exists' | 'missing-sale-price' | 'lump-sum-unsupported';
+  reason?:
+    | 'no-disposal'
+    | 'already-exists'
+    | 'missing-sale-price'
+    | 'lump-sum-unsupported'
+    | 'needs-year-end-depreciation';
 }
 // 除却/売却の仕訳を実際に作成する。既に同じ資産・同マーカーの仕訳がある場合はスキップ
 // （generateYearEndDepreciation と同じ重複防止パターン）。
 export async function generateDisposalEntry(
   assetId: string,
   cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
+  options?: { allowFiledYear?: boolean },
 ): Promise<DisposalEntryResult> {
   const asset = await db.fixedAssets.get(assetId);
   const disposedDate = asset?.disposedDate;
   if (!asset || !disposedDate) {
     return { created: false, reason: 'no-disposal' };
   }
+  // 書く年度は除却日で決まる。引数からは分からないので資産を引いた後で判定する。
+  await assertYearsWritable([Number(disposedDate.slice(0, 4))], options);
   if (asset.depreciationMethod === 'lump-sum') {
     return { created: false, reason: 'lump-sum-unsupported' };
   }
@@ -147,6 +156,25 @@ export async function generateDisposalEntry(
   if (existing) {
     return { created: false, reason: 'already-exists' };
   }
+  // 除却仕訳は当年の月按分を含む累計償却額を貸方で落とすが、その当年分は 12/31 の
+  // 年末一括償却仕訳の借方があって初めて釣り合う。順序が逆だと累計償却額が負残高になり、
+  // 費用も同額少なくなる。両者は設定画面の独立したボタンなので、ここで順序を担保する。
+  const currentYearDepreciation = computeDepreciation(asset, year);
+  if (!D(currentYearDepreciation.amount).isZero()) {
+    const yearEnd = await db.journalEntries
+      .where('[year+date]')
+      .equals([year, `${year}-12-31`])
+      .filter(
+        (e) =>
+          countsTowardTotals(e) &&
+          e.description.includes(tag) &&
+          e.description.includes('減価償却'),
+      )
+      .first();
+    if (!yearEnd) {
+      return { created: false, reason: 'needs-year-end-depreciation' };
+    }
+  }
 
   const lines = buildDisposalLines(asset, cashAccountCode);
   const entryId = newId();
@@ -154,6 +182,7 @@ export async function generateDisposalEntry(
   const description = `${marker} ${asset.name} ${tag}`;
 
   await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+    markConfirmedWrite(options);
     await db.journalEntries.add({
       id: entryId,
       date: disposedDate,
@@ -182,7 +211,7 @@ export async function generateDisposalEntry(
   return { created: true };
 }
 
-export interface TransferIncomeEstimate {
+interface TransferIncomeEstimate {
   proceeds: string;
   acquisitionExpense: string;
   saleExpenses: string;
