@@ -1,0 +1,13 @@
+# Automatically generated - DO NOT EDIT!
+
+"$schema" = "../../schemas/schema.json"
+
+[[permission]]
+identifier = "allow-backup-close"
+description = "Enables the backup_close command without any pre-configured scope."
+commands.allow = ["backup_close"]
+
+[[permission]]
+identifier = "deny-backup-close"
+description = "Denies the backup_close command without any pre-configured scope."
+commands.deny = ["backup_close"]

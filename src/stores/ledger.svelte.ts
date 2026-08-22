@@ -2,7 +2,6 @@ import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
 import { D } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from '../domain/journal';
-import { getSetting } from '../lib/settings';
 // 現状の勘定科目スキーマは 2026 年分のみ。年度セレクタ／翌年分スキーマ追加までの既定値。
 const DEFAULT_YEAR = 2026;
 import type {
@@ -33,7 +32,7 @@ export interface AccountGroup {
   items: Account[];
 }
 
-export interface LedgerRowSide {
+interface LedgerRowSide {
   code: string;
   name: string;
   subAccountName?: string;
@@ -49,7 +48,7 @@ export interface LedgerRow {
   totalAmount: string;
 }
 
-export interface MonthlyOverview {
+interface MonthlyOverview {
   year: number;
   month: number;
   revenue: string;
@@ -117,10 +116,6 @@ class LedgerStore {
   vendors = $state<Vendor[]>([]);
   parserRules = $state<ParserRule[]>([]);
   fixedAssets = $state<FixedAsset[]>([]);
-  accountsCount = $state<number | undefined>(undefined);
-  entriesCount = $state<number | undefined>(undefined);
-  linesCount = $state<number | undefined>(undefined);
-  recentEntries = $state<JournalEntry[]>([]);
   recentLedgerRows = $state<LedgerRow[]>([]);
   monthlyOverview = $state<MonthlyOverview>(emptyOverview());
   currentYear = $state<number>(DEFAULT_YEAR);
@@ -167,30 +162,6 @@ class LedgerStore {
         },
       ),
       this.sub(
-        () => db.accounts.count(),
-        (v) => {
-          this.accountsCount = v;
-        },
-      ),
-      this.sub(
-        () => db.journalEntries.count(),
-        (v) => {
-          this.entriesCount = v;
-        },
-      ),
-      this.sub(
-        () => db.journalLines.count(),
-        (v) => {
-          this.linesCount = v;
-        },
-      ),
-      this.sub(
-        () => db.journalEntries.orderBy('date').reverse().limit(5).toArray(),
-        (v) => {
-          this.recentEntries = v;
-        },
-      ),
-      this.sub(
         () => db.settings.get('realEstateIncomeEnabled'),
         (v) => {
           this.realEstateIncomeEnabled = v?.value === true;
@@ -214,14 +185,18 @@ class LedgerStore {
           this.departments = v.filter((d): d is string => typeof d === 'string' && d !== '');
         },
       ),
+      // 復元（restore.ts）が settings を書き換えても追従できるよう liveQuery で購読する。
+      this.sub(
+        () => db.settings.get('currentYear'),
+        (v) => {
+          if (typeof v?.value === 'number') {
+            this.switchYear(v.value);
+          }
+        },
+      ),
     );
-    // 年度依存の購読は currentYear 設定を読んでから（既定値で先に張り、設定値が違えば張り直す）
+    // 年度依存の購読は既定値で先に張っておき、上の currentYear 購読が届き次第張り直す。
     this.subscribeYearScoped();
-    void getSetting('currentYear').then((y) => {
-      if (typeof y === 'number') {
-        this.switchYear(y);
-      }
-    });
   }
   // 処理年度を切り替え、年度スコープの購読を張り直す（Settings 保存時に呼ぶ）。
   // 永続化は呼び出し元が setSetting で行う。同一年度なら何もしない（冪等）。
@@ -294,7 +269,9 @@ class LedgerStore {
   }
 
   private async computeRecentRows(year: number): Promise<LedgerRow[]> {
-    const entries = await db.journalEntries.orderBy('date').reverse().limit(10).toArray();
+    const entries = (await db.journalEntries.where('year').equals(year).sortBy('date'))
+      .reverse()
+      .slice(0, 10);
     return buildLedgerRows(entries, year);
   }
 

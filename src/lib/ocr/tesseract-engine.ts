@@ -12,6 +12,8 @@ import { OCRClient } from 'tesseract-wasm';
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
+import { isOffline } from '../network-status';
+import { m } from '../../paraglide/messages';
 const WORKER_URL = '/tesseract/tesseract-worker.js';
 const MODEL_URL = '/tesseract/jpn.traineddata';
 
@@ -36,7 +38,16 @@ export function createTesseractReceiptExtractor(): ReceiptExtractor {
       const bitmap = await createImageBitmap(toBlob(image));
       const client = new OCRClient({ workerURL: WORKER_URL });
       try {
-        await client.loadModel(MODEL_URL);
+        // worker・コア・モデルは同一オリジンだが precache 対象外なので、初回だけ
+        // 取得が要る。オフラインだと素の fetch 失敗が出るため、原因が分かる文言に変換する。
+        try {
+          await client.loadModel(MODEL_URL);
+        } catch (e) {
+          if (isOffline()) {
+            throw new Error(m.common_offline_error(), { cause: e });
+          }
+          throw e;
+        }
         await client.loadImage(bitmap);
         return extractFromOcrText(await client.getText());
       } finally {

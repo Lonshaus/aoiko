@@ -17,7 +17,7 @@ Generate journal candidates from photos or images of paper receipts.
 |---|---|---|---|
 | **Gemini Vision** (default) | ◎ | Yes | Gemini API key |
 | **OpenAI-compatible** (Ollama etc.) | ◯〜◎ | None for localhost / Yes for remote | Endpoint + vision model |
-| **Tesseract** | △ | None (only `traineddata` first-fetch from CDN) | Just select in Settings |
+| **Tesseract** | △ | None | Just select in Settings |
 
 > Detailed setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
 
@@ -30,7 +30,7 @@ Click **"Receipts"** in the navigation to open `Receipt`.
 Click the file input under **"1. Choose an image (camera also OK)"**:
 
 - PC: pick JPG / PNG / WebP / HEIC from the file dialog
-- Phone (PWA installed): the camera option appears, take a photo on the spot
+- Phone or tablet: choose from the photo library, take a photo on the spot, or pick a file
 
 The chosen image is shown as a preview.
 
@@ -56,11 +56,22 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 - **"Cancel"** to abort
 - Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import LLM sends)
 
+<!-- only:browser -->
 > **Think twice before checking**: this is stored as IndexedDB `skipExternalSendConfirm: true` (a single flag across engines) and there is no settings UI to undo it. If you checked it by mistake, delete that key with your browser's developer tools (IndexedDB → `aoiko` database → `settings` table). "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+<!-- /only -->
+<!-- only:native -->
+> **Think twice before checking**: if you check it by mistake, undo it from Settings → "Basic info" → **"Restore hidden confirmations"**. "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+<!-- /only -->
 
 #### Tesseract: no dialog
 
-WASM-on-device, so no confirmation. The first run downloads `traineddata` (several MB) from CDN.
+WASM-on-device, so no confirmation. The language data (`jpn.traineddata` / `eng.traineddata`, about 4.8 MB together) is served by aoiko itself and fetched only on your first scan.
+<!-- only:browser -->
+The browser caches it afterwards, so no external request is ever made.
+<!-- /only -->
+<!-- only:native -->
+It's cached inside the app afterwards, so no external request is ever made.
+<!-- /only -->
 
 ### 2-3. Review and edit the extracted result
 
@@ -115,8 +126,13 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 
 - **Vision-capable model required** (text-only models fail on image input)
 - Recommended: `gemma4`, `ministral-3`, `llama3.2-vision`
+<!-- only:browser -->
 - On the Ollama side: add aoiko's URL (e.g. `http://localhost:31527`) to `OLLAMA_ORIGINS`
 - aoiko itself must run locally too (`npm run preview`); HTTPS-served aoiko can't reach localhost
+<!-- /only -->
+<!-- only:native -->
+- No extra setup needed for localhost either — the app relays the request
+<!-- /only -->
 
 ### Tesseract
 
@@ -124,7 +140,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - Accept that vendor and items will be empty; this is by design
 - T+13 invoice number is rock-solid (extracted by regex)
 - Date and total are best-effort. Always verify manually
-- For fully offline operation, set the `traineddata` URL to a self-hosted location in Settings
+- The language data ships with aoiko, so it works fully offline after the first fetch. Only set a `traineddata` source in Settings if you want a different edition (e.g. the higher-accuracy best models)
 
 ## 4. Troubleshooting
 

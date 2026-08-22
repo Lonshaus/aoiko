@@ -29,7 +29,6 @@ import {
   type TaxableSalesRatio,
 } from '../../domain/consumption-tax';
 import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
-
 // gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
 function toKingaku(value: Decimal): string {
   const rounded = value.toDecimalPlaces(0, Decimal.ROUND_DOWN);
@@ -45,7 +44,6 @@ function put(out: XtxLeafValues, tag: string, value: Decimal): void {
     out[tag] = v;
   }
 }
-
 // 差引が正なら差引欄（dueTag）、負なら還付欄（refundTag）へ絶対値を書き込む。
 // 消費税申告書は控除超過による還付を差引税額の負値ではなく、専用の控除不足還付税額欄に
 // 正値で記載する（⑧控除不足還付税額・地方の控除不足還付・還付額など）。
@@ -102,7 +100,7 @@ export interface GeneralMappingInput {
   interimPaidLocal?: Decimal;
 }
 
-export interface GeneralMapping {
+interface GeneralMapping {
   /** SHA010（申告書）第一表・第二表の直接値 leaf */
   sha010: XtxLeafValues;
   /** SHA010 の区分（kubun）ブランチ上書き：中間申告の対象期間 */
@@ -278,7 +276,6 @@ function buildShb033(
   put(shb033, 'DTC00020', input.nonTaxableSalesBase);
   put(shb033, 'DTC00030', salesRatio.totalSalesForRatio);
   shb033.DTD00000 = salesRatio.ratioPercent;
-
   // ⑧ 課税仕入れに係る消費税額：国内分のみ（輸入消費税は⑪、特定課税仕入れは⑩で別掲するため
   // 課税仕入れ由来の input8/input10 から輸入消費税分を控除する）。按分前の税率別内訳のため
   // deductible（按分後）とは別に、生の input8/input10 を1円未満切捨てして使う。
@@ -308,7 +305,6 @@ function buildShb033(
   put(shb033, 'DTE00240', total8);
   put(shb033, 'DTE00250', total10);
   put(shb033, 'DTE00260', total8.plus(total10));
-
   // ⑯ 控除対象仕入税額の税率別内訳は domain 側で算定済みの deductible をそのまま使う
   // （按分前と按分後の値が食い違うと、この付表自身の合計が申告書④と一致しなくなる）。
   if (fullDeduction) {
@@ -339,7 +335,6 @@ function buildShb033(
   }
   return shb033;
 }
-
 // 差引税額（base）から本年中の中間納付額（paid）を充当した結果を返す。
 // paid が base を超える場合は還付（AAJ00130/AAK00090 系）扱いとする。
 function applyInterimCredit(base: Decimal, paid: Decimal): { due: Decimal; refund: Decimal } {
@@ -378,7 +373,6 @@ function buildSha010(
   putSigned(sha010, 'AAJ00100', 'AAJ00090', filingNational);
   putSigned(sha010, 'AAK00030', 'AAK00020', filingNational);
   putSigned(sha010, 'AAK00060', 'AAK00050', filingLocal);
-
   // 中間納付の充当は差引税額（納付側）に対してのみ行う。控除不足還付（差引が負）の
   // 場合は差引税額が無く、中間納付額はその全額が中間納付還付税額となる。
   const nationalDue = filingNational.isNegative() ? D(0) : filingNational;

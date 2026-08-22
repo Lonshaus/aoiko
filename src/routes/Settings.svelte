@@ -1,17 +1,24 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { link } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { toISODateLocal, todayISO } from '../lib/date';
-  import { exceedsLimit, formatBytes, MAX_BACKUP_BYTES } from '../lib/file-limit';
+  import { nativeBridge } from '../lib/native-bridge';
+  import { formatBytes } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
+  import { describeLlmError } from '../domain/llm';
   import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
+  import { saveFile } from '../lib/save-file';
+  import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
-  import { parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { BackupCorruptError } from '../backup';
+  import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -25,6 +32,7 @@
     removeCarryover,
     type CarryoverPreview,
   } from '../domain/carryover';
+  import { applyBadDebtReversal } from '../domain/bad-debt-reversal';
   import {
     SMALL_ASSET_EXPIRY,
     isLumpSumEligible,
@@ -32,7 +40,10 @@
     smallAssetThreshold,
   } from '../tax-schema/2026/limits';
   import { formatJPY } from '../lib/decimal';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { countSuppressedConfirms, resetSuppressedConfirms } from '../lib/suppressed-confirms';
   import BackupPanel from '../components/BackupPanel.svelte';
+  import PolicyDocViewer from '../components/PolicyDocViewer.svelte';
   import { DEFAULT_INVOICE_PREFIX, DEFAULT_QUOTE_PREFIX } from '../domain/invoice';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type {
@@ -56,10 +67,13 @@
   } from '../tax-schema/2026/simplified-tax';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import type { FilingType } from '../tax-schema/2026/xtx';
+  import FilePicker from '../components/FilePicker.svelte';
   import {
+    displayZeimusho,
     isValidZeimushoCode,
+    isZeimushoUnresolved,
+    nextConfirmedZeimusho,
     searchZeimusho,
-    zeimushoName,
     type ZeimushoEntry,
   } from '../tax-schema/2026/zeimusho';
 
@@ -88,20 +102,37 @@
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
+  let skipExternalSendConfirm = $state(false);
+  let resetSuppressedConfirmsStatus = $state('');
   let homeOfficeRatios = $state<Record<string, string>>({});
   let hoRatioAccount = $state('');
   let hoRatioValue = $state('');
   let hoRatioError = $state('');
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
+  let supportOpen = $state(false);
+  // 商店を持つのはネイティブ版だけ。web には購入画面そのものを含めない。
+  // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
+  // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
+  // window.__aoikoNative を生やせば画面を出せてしまう。
+  // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
+  const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  const SupportDialog = __NATIVE__
+    ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
+    : null;
   let confirmingRestore = $state(false);
   let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
   let restoreAttachmentCount = $state(0);
-  let restoreAttachmentBlobs: Map<string, Uint8Array> = new Map();
+  let restoreAttachmentBlobs: Map<string, Blob> = new Map();
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
   let restoreWarning = $state('');
+  let restoringFromFolder = $state(false);
+  let restoreProgressDone = $state(0);
+  let restoreProgressTotal = $state(0);
+  // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
+  let restoreSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
 
@@ -176,6 +207,8 @@
   let carryoverPreview = $state<CarryoverPreview | null>(null);
   let carryoverStatus = $state('');
   let carryoverError = $state('');
+  let badDebtReversalStatus = $state('');
+  let badDebtReversalError = $state('');
 
   let disclaimerAcceptedAt = $state<number | null>(null);
   let disclaimerAcceptedVersion = $state<number | null>(null);
@@ -230,14 +263,10 @@
   let zeimushoOpen = $state(false);
   // 入力欄に文字が残っているのに確定した署が無い状態。ここで保存を通すと、設定済みの
   // 利用者が一文字消しただけで提出先税務署が空文字で上書きされ、次の .xtx から消える。
-  const zeimushoUnresolved = $derived(zeimushoQuery.trim() !== '' && userZeimushoCode === '');
+  const zeimushoUnresolved = $derived(
+    isZeimushoUnresolved(zeimushoQuery, { code: userZeimushoCode, name: userZeimushoName }),
+  );
   const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
-  function displayZeimusho(code: string, name: string): string {
-    if (!code) {
-      return '';
-    }
-    return name ? `${name}（${code}）` : code;
-  }
   function selectZeimusho(e: ZeimushoEntry): void {
     userZeimushoCode = e.code;
     userZeimushoName = e.name;
@@ -247,15 +276,12 @@
   function onZeimushoInput(value: string): void {
     zeimushoQuery = value;
     zeimushoOpen = true;
-    // 5桁コードを直接入力した場合は確定（署名は master から補完）
-    const code = value.trim();
-    if (/^\d{5}$/.test(code) && isValidZeimushoCode(code)) {
-      userZeimushoCode = code;
-      userZeimushoName = zeimushoName(code) ?? '';
-    } else {
-      userZeimushoCode = '';
-      userZeimushoName = '';
-    }
+    const next = nextConfirmedZeimusho(value, {
+      code: userZeimushoCode,
+      name: userZeimushoName,
+    });
+    userZeimushoCode = next.code;
+    userZeimushoName = next.name;
   }
 
   const accountGroups = $derived(ledger.groupedAccounts());
@@ -294,6 +320,15 @@
   });
 
   onMount(async () => {
+    // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
+    const notice = takeRestoreNotice();
+    if (notice) {
+      restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
+      restoreWarning =
+        notice.missingBlobCount > 0
+          ? m.settings_restore_missing_blobs({ count: notice.missingBlobCount })
+          : '';
+    }
     currentYear = (await getSetting('currentYear')) ?? 2026;
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
@@ -322,7 +357,15 @@
     filingType = (await getSetting('filingType')) ?? 'blue';
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
+    skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
+    // 復元の結果は設定画面のかなり下にあり、再読み込み後は先頭に戻ってしまう。
+    // 全置換という取り消せない操作の唯一の確認なので、見える位置まで戻す。
+    // 上の読み込みで高さが変わるため、すべて終わってから測る。
+    if (notice) {
+      await tick();
+      restoreSection?.scrollIntoView({ block: 'center' });
+    }
   });
 
   const expenseAccounts = $derived(ledger.accounts.filter((a) => a.category === 'expense'));
@@ -382,7 +425,9 @@
 
   async function saveFiler(e: Event) {
     e.preventDefault();
-    if (zeimushoCodeInvalid) {
+    // ボタンの disabled だけに頼らない。欄と確定値がずれたまま保存すると、画面に
+    // 出ている署とは違うコードが .xtx へ載る。
+    if (zeimushoCodeInvalid || zeimushoUnresolved) {
       return;
     }
     await setSetting('userRiyoshaId', userRiyoshaId.trim());
@@ -420,8 +465,20 @@
     }, 2000);
   }
 
+  async function resetSuppressedConfirmsClick() {
+    const count = await countSuppressedConfirms();
+    await resetSuppressedConfirms();
+    skipAttachmentConfirm = false;
+    skipExternalSendConfirm = false;
+    resetSuppressedConfirmsStatus =
+      count > 0
+        ? m.settings_basic_reset_suppressed_confirms_done({ count })
+        : m.settings_basic_reset_suppressed_confirms_none();
+  }
+
   async function clearAll() {
     confirmingClear = false;
+    await backup.clearStoredBackups();
     await db.delete();
     location.reload();
   }
@@ -432,15 +489,18 @@
     try {
       carryoverPreview = await computeCarryover(currentYear);
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
     }
   }
 
   async function runCarryover() {
     carryoverError = '';
     carryoverStatus = '';
+    if (!(await filedYearGuard.confirm([currentYear]))) {
+      return;
+    }
     try {
-      const r = await applyCarryover(currentYear);
+      const r = await applyCarryover(currentYear, { allowFiledYear: true });
       if ('entryId' in r) {
         carryoverStatus = m.settings_carryover_applied();
         carryoverPreview = null;
@@ -450,20 +510,49 @@
         carryoverError = m.settings_carryover_no_prior();
       }
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
+    }
+  }
+
+  async function runBadDebtReversal() {
+    badDebtReversalError = '';
+    badDebtReversalStatus = '';
+    if (!(await filedYearGuard.confirm([currentYear]))) {
+      return;
+    }
+    try {
+      const r = await applyBadDebtReversal(currentYear, { allowFiledYear: true });
+      if ('entryId' in r) {
+        badDebtReversalStatus = m.settings_bad_debt_reversal_applied({
+          amount: formatJPY(r.total),
+        });
+      } else if (r.reason === 'already-exists') {
+        badDebtReversalError = m.settings_bad_debt_reversal_already_exists();
+      } else {
+        badDebtReversalError = m.settings_bad_debt_reversal_none();
+      }
+    } catch (err) {
+      badDebtReversalError = describeStorageError(err);
     }
   }
 
   async function deleteCarryover() {
     carryoverError = '';
     carryoverStatus = '';
+    if (
+      !(await filedYearGuard.confirm([currentYear], {
+        detail: m.filed_year_warning_detail_carryover({ year: currentYear }),
+      }))
+    ) {
+      return;
+    }
     try {
-      const r = await removeCarryover(currentYear);
+      const r = await removeCarryover(currentYear, { allowFiledYear: true });
       carryoverStatus = r.removed
         ? m.settings_carryover_deleted()
         : m.settings_carryover_no_target();
     } catch (err) {
-      carryoverError = err instanceof Error ? err.message : String(err);
+      carryoverError = describeStorageError(err);
     }
   }
 
@@ -752,7 +841,22 @@
   }
 
   async function runDisposalEntry(id: string) {
-    const result = await generateDisposalEntry(id, disposeCashAccount);
+    const asset = await db.fixedAssets.get(id);
+    if (asset?.disposedDate) {
+      const year = Number(asset.disposedDate.slice(0, 4));
+      if (
+        !(await filedYearGuard.confirm([year], {
+          detail: m.filed_year_warning_detail_disposal({
+            name: asset.name,
+            cost: formatJPY(asset.acquisitionCost),
+            date: asset.disposedDate,
+          }),
+        }))
+      ) {
+        return;
+      }
+    }
+    const result = await generateDisposalEntry(id, disposeCashAccount, { allowFiledYear: true });
     if (result.created) {
       disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
       return;
@@ -762,14 +866,18 @@
       'already-exists': m.settings_asset_disposal_run_error_exists(),
       'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
       'lump-sum-unsupported': m.settings_asset_disposal_run_error_lump_sum(),
+      'needs-year-end-depreciation': m.settings_asset_disposal_run_error_needs_depreciation(),
     };
     disposeStatus = { ...disposeStatus, [id]: messages[result.reason!] };
   }
 
   async function runDepreciation() {
     depreciationStatus = '';
+    if (!(await filedYearGuard.confirm([depreciationYear]))) {
+      return;
+    }
     try {
-      const r = await generateYearEndDepreciation(depreciationYear);
+      const r = await generateYearEndDepreciation(depreciationYear, { allowFiledYear: true });
       const parts: string[] = [];
       parts.push(
         r.skipped > 0
@@ -816,9 +924,7 @@
       );
       geminiTestStatus = m.settings_llm_test_success();
     } catch (e) {
-      geminiTestStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      geminiTestStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 
@@ -843,9 +949,7 @@
         count: openaiModels.length,
       });
     } catch (e) {
-      openaiStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 
@@ -863,30 +967,64 @@
       );
       openaiStatus = m.settings_llm_test_success();
     } catch (e) {
-      openaiStatus = m.settings_llm_test_error({
-        message: e instanceof Error ? e.message : String(e),
-      });
+      openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
     }
   }
 
-  async function handleRestoreFile(e: Event) {
+  function resetRestoreState() {
     restoreError = '';
     restoreSuccess = '';
     restoreWarning = '';
     restorePayload = null;
     restoreAttachmentBlobs = new Map();
     restoreAttachmentCount = 0;
+  }
+  // 保存先フォルダから直接読む経路。同期フォルダには散ファイルで置かれていて、
+  // 利用者が「どのファイルか」を選べる形になっていないため、選ばせずに一番新しい
+  // 復元可能な版をこちらで選ぶ。
+  async function handleRestoreFromFolder() {
+    resetRestoreState();
+    restoreFileName = '';
+    restoringFromFolder = true;
+    restoreProgressDone = 0;
+    restoreProgressTotal = 0;
+    try {
+      const found = await backup.readLatestSnapshot({
+        onProgress: (done, total) => {
+          restoreProgressDone = done;
+          restoreProgressTotal = total;
+        },
+      });
+      if (found === null) {
+        restoreError = m.settings_restore_folder_empty();
+        return;
+      }
+      restorePayload = found.payload;
+      restoreAttachmentBlobs = found.attachmentBlobs;
+      restoreAttachmentCount = found.attachmentBlobs.size;
+      restoreFileName = found.snapshotName;
+      const warnings: string[] = [];
+      if (found.corruptAttachmentCount > 0) {
+        warnings.push(
+          m.settings_restore_corrupt_attachments({ count: found.corruptAttachmentCount }),
+        );
+      }
+      if (found.notDownloadedCount > 0) {
+        warnings.push(m.settings_restore_not_downloaded({ count: found.notDownloadedCount }));
+      }
+      restoreWarning = warnings.join(' ');
+    } catch (err) {
+      restoreError = describeStorageError(err);
+    } finally {
+      restoringFromFolder = false;
+    }
+  }
+
+  async function handleRestoreFile(e: Event) {
+    resetRestoreState();
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) {
-      return;
-    }
-    if (exceedsLimit(file.size, MAX_BACKUP_BYTES)) {
-      restoreError = m.common_file_too_large({
-        size: formatBytes(file.size),
-        limit: formatBytes(MAX_BACKUP_BYTES),
-      });
-      input.value = '';
       return;
     }
     restoreFileName = file.name;
@@ -896,8 +1034,25 @@
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
       restoreAttachmentCount = parsed.attachmentBlobs.size;
+      // 帳簿自体は復元可能。選択時点で「写真だけ失う」ことを警告として先に見せる。
+      if (parsed.corruptAttachmentNames.length > 0) {
+        restoreWarning = m.settings_restore_corrupt_attachments({
+          count: parsed.corruptAttachmentNames.length,
+        });
+      }
     } catch (err) {
-      restoreError = err instanceof Error ? err.message : String(err);
+      if (err instanceof BackupTooLargeError) {
+        restoreError = m.common_file_too_large({
+          size: formatBytes(err.fileSize),
+          limit: formatBytes(err.limit),
+        });
+        input.value = '';
+      } else if (err instanceof BackupCorruptError) {
+        restoreError = m.settings_restore_corrupt({ count: err.entryNames.length });
+        input.value = '';
+      } else {
+        restoreError = err instanceof Error ? err.message : String(err);
+      }
     }
   }
 
@@ -913,39 +1068,25 @@
         $state.snapshot(restorePayload),
         restoreAttachmentBlobs,
       );
-      restoreSuccess = m.settings_restore_success({
+      // 画面に残った復元前の設定でどれか1つでも「保存」を押されると、復元した設定が
+      // 上書きされる。DB を丸ごと置き換える clearAll と同じく、直後に読み直す。
+      // 結果の表示は再読み込みをまたいで持ち越す（issue#387）。
+      stashRestoreNotice({
         tables: result.tableCount,
         rows: result.rowCount,
+        missingBlobCount: result.missingBlobCount,
       });
-      restoreWarning =
-        result.missingBlobCount > 0
-          ? m.settings_restore_missing_blobs({ count: result.missingBlobCount })
-          : '';
-      restorePayload = null;
-      restoreAttachmentBlobs = new Map();
-      restoreAttachmentCount = 0;
+      location.reload();
     } catch (err) {
-      restoreError = err instanceof Error ? err.message : String(err);
+      restoreError = describeStorageError(err);
     }
-  }
-
-  function downloadBytes(bytes: Uint8Array, filename: string, mimeType: string): void {
-    const blob = new Blob([bytes.slice()], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   async function downloadYayoiCsv() {
     accountantExportError = '';
     try {
       const bytes = await exportYayoiCsv(currentYear);
-      downloadBytes(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -955,7 +1096,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportGenericCsv(currentYear);
-      downloadBytes(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-journal-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -965,7 +1106,7 @@
     accountantExportError = '';
     try {
       const bytes = await exportCorrectionHistoryCsv(currentYear);
-      downloadBytes(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
+      await saveFile(bytes, `aoiko-corrections-${currentYear}.csv`, 'text/csv');
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
@@ -1120,6 +1261,32 @@
       />
       {m.settings_basic_skip_attachment_confirm()}
     </label>
+    <label class="flex items-center gap-2 text-sm cursor-pointer">
+      <input
+        type="checkbox"
+        checked={skipExternalSendConfirm}
+        onchange={(e) => {
+          skipExternalSendConfirm = (e.target as HTMLInputElement).checked;
+          setSetting('skipExternalSendConfirm', skipExternalSendConfirm);
+        }}
+      />
+      {m.settings_basic_skip_external_send_confirm()}
+    </label>
+    <div>
+      <button
+        type="button"
+        onclick={resetSuppressedConfirmsClick}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_basic_reset_suppressed_confirms()}
+      </button>
+      <p class="mt-1 text-xs text-muted-foreground">
+        {m.settings_basic_reset_suppressed_confirms_hint()}
+      </p>
+      {#if resetSuppressedConfirmsStatus}
+        <p class="mt-1 text-xs text-green-600">{resetSuppressedConfirmsStatus}</p>
+      {/if}
+    </div>
     <div class="flex justify-end">
       <button
         type="submit"
@@ -1308,7 +1475,7 @@
       <div class="block sm:col-span-2">
         <span class="text-xs text-muted-foreground">{m.settings_filing_type_label()}</span>
         <div class="mt-1 flex gap-4 text-sm">
-          <label class="flex items-center gap-1">
+          <label class="flex items-center gap-1 py-2">
             <input
               type="radio"
               name="filingType"
@@ -1317,7 +1484,7 @@
             />
             {m.settings_filing_type_blue()}
           </label>
-          <label class="flex items-center gap-1">
+          <label class="flex items-center gap-1 py-2">
             <input
               type="radio"
               name="filingType"
@@ -1448,6 +1615,26 @@
         </p>
       </div>
     {/if}
+    <div class="border-t pt-4 space-y-2">
+      <h4 class="text-sm font-medium">{m.settings_bad_debt_reversal_title()}</h4>
+      <p class="text-xs text-muted-foreground">
+        {m.settings_bad_debt_reversal_intro({ year: currentYear })}
+      </p>
+      <button
+        type="button"
+        onclick={runBadDebtReversal}
+        data-testid="bad-debt-reversal-run"
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.settings_bad_debt_reversal_button()}
+      </button>
+      {#if badDebtReversalStatus}
+        <p class="text-sm text-green-600">{badDebtReversalStatus}</p>
+      {/if}
+      {#if badDebtReversalError}
+        <p class="text-sm text-destructive">{badDebtReversalError}</p>
+      {/if}
+    </div>
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
@@ -1459,7 +1646,7 @@
       <select
         bind:value={newSubParent}
         required
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_subaccount_parent_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -1475,11 +1662,11 @@
         bind:value={newSubName}
         required
         placeholder={m.settings_subaccount_name_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -1530,11 +1717,11 @@
         bind:value={newVendorName}
         required
         placeholder={m.settings_vendor_name_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newVendorEntityType}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="unknown">{m.settings_vendor_entity_label()}</option>
         <option value="corporation">{m.settings_vendor_entity_corporation()}</option>
@@ -1547,11 +1734,11 @@
         bind:value={newVendorInvoice}
         placeholder={m.settings_vendor_invoice_placeholder()}
         pattern={INVOICE_NUMBER_PATTERN}
-        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+        class="flex-1 min-w-48 px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
       />
       <select
         bind:value={newVendorAccountCode}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_vendor_default_account()}</option>
         {#each accountGroups as group (group.category)}
@@ -1566,11 +1753,11 @@
         type="text"
         bind:value={newVendorAddress}
         placeholder={m.settings_vendor_address_placeholder()}
-        class="flex-1 min-w-48 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-48 px-3 h-11 bg-background border rounded text-foreground"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -1636,11 +1823,11 @@
           bind:value={newInventoryItemName}
           required
           placeholder={m.settings_inventory_item_name_placeholder()}
-          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+          class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
         />
         <button
           type="submit"
-          class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+          class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
           {m.settings_action_add()}
         </button>
@@ -1691,7 +1878,7 @@
           bind:value={newAssetDate}
           required
           title={m.settings_asset_date_title()}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
         />
         <input
           type="number"
@@ -1701,7 +1888,7 @@
           min="0"
           step="1"
           placeholder={m.settings_asset_cost_placeholder()}
-          class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+          class="flex-1 min-w-40 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
         />
         <input
           type="number"
@@ -1712,12 +1899,12 @@
           max="50"
           step="1"
           title={m.settings_asset_life_title()}
-          class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="w-20 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
         />
         <select
           bind:value={newAssetAccount}
           title={m.settings_asset_account_title()}
-          class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
         >
           <option value="1510">1510 工具器具備品</option>
           <option value="1511">1511 建物</option>
@@ -1787,7 +1974,7 @@
     {#if ledger.fixedAssets.length > 0}
       <!-- 列数が多く狭幅で溢れるため、ページ全体ではなく表だけ横スクロールさせる -->
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal py-1">{m.settings_asset_th_name()}</th>
@@ -1867,7 +2054,7 @@
                           placeholder={m.settings_asset_property_address_placeholder()}
                           class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
                         />
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="checkbox" bind:checked={propertyIsResidential} />
                           {m.settings_asset_property_residential()}
                         </label>
@@ -1974,11 +2161,11 @@
                           bind:value={disposeDate}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
                         />
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="scrap" />
                           {m.settings_asset_disposal_type_scrap()}
                         </label>
-                        <label class="flex items-center gap-1 text-sm">
+                        <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="sale" />
                           {m.settings_asset_disposal_type_sale()}
                         </label>
@@ -2014,7 +2201,7 @@
                       {#if disposeError}
                         <div class="text-xs text-destructive">{disposeError}</div>
                       {/if}
-                      <div class="flex gap-2">
+                      <div class="flex flex-wrap gap-2">
                         <button
                           type="button"
                           onclick={saveDisposal}
@@ -2079,7 +2266,7 @@
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
 
-    <div class="flex items-end gap-3 pt-3 border-t border-border/50">
+    <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-border/50">
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_asset_target_year()}</span>
         <input
@@ -2089,14 +2276,14 @@
           min="2020"
           max="2099"
           step="1"
-          class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums text-sm"
+          class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground tabular-nums text-sm"
         />
       </label>
       <button
         type="button"
         onclick={runDepreciation}
         disabled={ledger.fixedAssets.length === 0}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+        class="px-4 h-10 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_asset_run_button()}
       </button>
@@ -2114,7 +2301,7 @@
     <form onsubmit={addRule} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newRuleMatchType}
-        class="px-3 py-2 bg-background border rounded text-foreground"
+        class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="description-includes">{m.settings_rule_match_includes()}</option>
         <option value="vendor-name">{m.settings_rule_match_vendor()}</option>
@@ -2125,12 +2312,12 @@
         bind:value={newRulePattern}
         required
         placeholder={m.settings_rule_pattern_placeholder()}
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       />
       <select
         bind:value={newRuleAccountCode}
         required
-        class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground"
+        class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_rule_account_select()}</option>
         {#each accountGroups as group (group.category)}
@@ -2148,11 +2335,11 @@
         min="0"
         step="1"
         title={m.settings_rule_priority_title()}
-        class="w-20 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+        class="w-20 px-3 h-11 bg-background border rounded text-foreground tabular-nums"
       />
       <button
         type="submit"
-        class="ml-auto px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="ml-auto px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -2218,7 +2405,7 @@
                   {a.name}
                 </span>
               </span>
-              <label class="flex items-center gap-2 cursor-pointer text-xs">
+              <label class="flex items-center gap-2 cursor-pointer text-xs py-2">
                 <input
                   type="checkbox"
                   checked={a.isActive !== false}
@@ -2238,20 +2425,20 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_llm_intro_html()}
     </p>
-    <div class="flex gap-3 items-end">
+    <div class="flex flex-wrap gap-3 items-end">
       <label class="block flex-1">
         <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
         <input
           type="password"
           bind:value={geminiKey}
           placeholder="AIza..."
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
         />
       </label>
       <button
         type="button"
         onclick={saveGeminiKey}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.settings_llm_save()}
       </button>
@@ -2259,7 +2446,7 @@
         type="button"
         onclick={testGeminiKey}
         disabled={!geminiKey.trim()}
-        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+        class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_llm_test()}
       </button>
@@ -2462,17 +2649,36 @@
     </p>
   </section>
 
-  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <section
+    bind:this={restoreSection}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_restore_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_restore_intro_html()}
     </p>
-    <input
-      type="file"
-      accept=".zip,application/zip,.json,application/json"
-      onchange={handleRestoreFile}
-      class="w-full text-sm text-muted-foreground"
-    />
+    {#if backup.canRead}
+      <div class="space-y-1">
+        <button
+          type="button"
+          onclick={handleRestoreFromFolder}
+          disabled={restoringFromFolder}
+          class="px-4 py-2 border rounded hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+        >
+          {m.settings_restore_folder()}
+        </button>
+        <p class="text-xs text-muted-foreground">{m.settings_restore_folder_hint()}</p>
+        {#if restoringFromFolder && restoreProgressTotal > 0}
+          <p class="text-xs text-muted-foreground">
+            {m.settings_restore_folder_progress({
+              done: restoreProgressDone,
+              total: restoreProgressTotal,
+            })}
+          </p>
+        {/if}
+      </div>
+    {/if}
+    <FilePicker accept=".zip,application/zip,.json,application/json" onchange={handleRestoreFile} />
     {#if restoreFileName}
       <p class="text-xs text-muted-foreground">
         {m.settings_restore_selected({ name: restoreFileName })}
@@ -2484,9 +2690,6 @@
     {#if restoreSuccess}
       <div class="text-sm text-foreground border border-primary bg-primary/10 rounded px-3 py-2">
         ✓ {restoreSuccess}
-        <button type="button" onclick={() => location.reload()} class="ml-2 text-primary underline">
-          {m.settings_restore_reload()}
-        </button>
       </div>
     {/if}
     {#if restoreWarning}
@@ -2530,19 +2733,9 @@
       </p>
       <p class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">DISCLAIMER.md</a
-        >
+        <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
         ／
-        <a
-          href="/THIRD_PARTY_LICENSES.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
-        >
+        <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
       </p>
       <div>
         <button
@@ -2589,7 +2782,7 @@
     >
       <select
         bind:value={hoRatioAccount}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+        class="px-3 h-9 bg-background border rounded text-foreground text-sm"
       >
         <option value="">{m.journal_form_account_select()}</option>
         {#each expenseAccounts as a (a.code)}
@@ -2606,11 +2799,11 @@
         max="0.99"
         step="0.01"
         placeholder="0.30"
-        class="w-24 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        class="w-24 px-3 h-9 bg-background border rounded text-foreground text-sm tabular-nums"
       />
       <button
         type="submit"
-        class="px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
+        class="px-3 h-9 bg-primary text-primary-foreground rounded text-sm hover:opacity-90"
       >
         {m.settings_action_add()}
       </button>
@@ -2623,7 +2816,7 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_data_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      {m.settings_data_intro()}
+      {nativeBridge() ? m.settings_data_intro_native() : m.settings_data_intro()}
     </p>
     <div>
       <button
@@ -2635,10 +2828,27 @@
       </button>
     </div>
   </section>
+  {#if canSupport}
+    <div class="text-center">
+      <button
+        type="button"
+        onclick={() => (supportOpen = true)}
+        class="px-4 py-2 border rounded hover:bg-accent"
+      >
+        {m.support_open()}
+      </button>
+    </div>
+  {/if}
   <p class="text-center text-xs text-muted-foreground">
     aoiko v{__APP_VERSION__} ({__APP_COMMIT__})
   </p>
 </div>
+
+{#if canSupport && SupportDialog}
+  {#await SupportDialog then Dialog}
+    <Dialog open={supportOpen} onclose={() => (supportOpen = false)} />
+  {/await}
+{/if}
 
 <AlertDialog.Root bind:open={confirmingFilingType}>
   <AlertDialog.Content>
@@ -2664,7 +2874,7 @@
     <AlertDialog.Header>
       <AlertDialog.Title>{m.settings_clear_confirm_title()}</AlertDialog.Title>
       <AlertDialog.Description>
-        {m.settings_clear_confirm_desc()}
+        {nativeBridge() ? m.settings_clear_confirm_desc_native() : m.settings_clear_confirm_desc()}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>

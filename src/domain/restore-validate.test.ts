@@ -1,5 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { BackupValidationError, PRIMARY_KEY, validateBackupPayload } from './restore-validate';
+import {
+  BackupValidationError,
+  NEVER_RESTORED,
+  PRIMARY_KEY,
+  validateBackupPayload,
+} from './restore-validate';
 import { db } from '../db';
 import type { BackupPayload } from '../backup';
 
@@ -111,12 +116,56 @@ describe('validateBackupPayload', () => {
   });
 });
 
+describe('意図的に復元しないテーブル', () => {
+  test('stamps は PRIMARY_KEY に載せない（載せると別端末の記録を持ち込める）', () => {
+    expect('stamps' in PRIMARY_KEY).toBe(false);
+    expect(NEVER_RESTORED.has('stamps')).toBe(true);
+  });
+
+  test('stamps を含むバックアップでも検証は通る（無視されるだけ）', () => {
+    expect(() => validateBackupPayload(payload({ stamps: [{ id: 's1' }] }))).not.toThrow();
+  });
+});
+
 describe('PRIMARY_KEY と db スキーマの同期', () => {
   test('db.tables の全テーブルが PRIMARY_KEY に登録されている', () => {
-    const missing = db.tables.map((t) => t.name).filter((name) => !(name in PRIMARY_KEY));
+    const missing = db.tables
+      .map((t) => t.name)
+      .filter((name) => !(name in PRIMARY_KEY) && !NEVER_RESTORED.has(name));
     expect(
       missing,
       'db に新テーブルを追加したら restore-validate.ts の PRIMARY_KEY にも追加すること（未登録テーブルは復元時に黙って無視され、利用者データが復元されない）',
     ).toEqual([]);
+  });
+});
+
+describe('journalLines の金額検証', () => {
+  test('負の金額は拒否する（validateLines・toIndexable と揃える）', () => {
+    expect(() =>
+      validateBackupPayload(payload({ journalLines: [{ ...validLine, amount: '-100' }] })),
+    ).toThrow(/amount/);
+  });
+
+  test('amountIndexed の形式が壊れていれば拒否する', () => {
+    expect(() =>
+      validateBackupPayload(payload({ journalLines: [{ ...validLine, amountIndexed: 'abc' }] })),
+    ).toThrow(/amountIndexed/);
+  });
+});
+
+describe('明細と仕訳の対応', () => {
+  test('仕訳の無い明細は拒否する', () => {
+    expect(() =>
+      validateBackupPayload(
+        payload({
+          journalEntries: [validEntry],
+          journalLines: [validLine, { ...validLine, id: 'l2', entryId: 'e-missing' }],
+        }),
+      ),
+    ).toThrow(/e-missing/);
+  });
+  // 仕訳表が入っていないバックアップは対応を見ようがない。表ごとの検証は済んでいるので通す。
+  test('journalEntries が無ければ照合しない', () => {
+    expect(() => validateBackupPayload(payload({ journalLines: [validLine] }))).not.toThrow();
   });
 });

@@ -48,6 +48,11 @@ const SHIPPED_DEV_ONLY = [
   'workbox-routing',
   'workbox-strategies',
   'workbox-window',
+  // CSS の @import だけで配布物へ入るため、JS の import を辿る調べ方では見つからない。
+  // dist/assets/index-*.css の先頭に tailwindcss の著作権表示がそのまま出ている。
+  // どちらも建置専用の依存（oxide・CLI 等）は配られないので、依存は辿らない。
+  'tailwindcss', // src/app.css の @import。preflight・theme 層は tailwindcss 自身のコード
+  'shadcn-svelte', // src/app.css が dist/tailwind.css を @import する
 ];
 
 // tesseract-ocr/tesseract の LICENSE 本文（2026-08 に upstream から取得）。

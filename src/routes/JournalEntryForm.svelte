@@ -3,18 +3,22 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
-  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { todayISO } from '../lib/date';
   import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
-  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
+  import { badDebtReserveEvaluations } from '../tax-schema/2026/bad-debt-reserve';
   import { ledger } from '../stores/ledger.svelte';
-  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
   import type { IncomeType, InputUsageCategory, JournalLine, TaxCategory } from '../db/types';
+  import FilePicker from '../components/FilePicker.svelte';
 
   type DraftLine = {
     id: string;
@@ -126,6 +130,9 @@
   const creditTotal = $derived(sumAmount(credits));
   const diff = $derived(D(debitTotal).minus(creditTotal).toString());
   const balanced = $derived(D(diff).isZero() && !D(debitTotal).isZero());
+  const badDebtEvaluations = $derived(
+    badDebtReserveEvaluations([...debits, ...credits].map((l) => l.accountCode)),
+  );
   // 入力途中でタブを閉じる・リロードした際にデータが無言で消えるのを防ぐ。
   // bind:value を多用しているため、入力ハンドラで flag を立てるより
   // reactive state 全体を初期状態と比較する $derived の方が非侵入的。
@@ -198,7 +205,7 @@
     if (!f) {
       return;
     }
-    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+    if (f.size > MAX_IMAGE_BYTES) {
       attachmentError = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
@@ -206,7 +213,7 @@
       input.value = '';
       return;
     }
-    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+    if ((await getSetting('skipAttachmentConfirm')) !== true) {
       pendingAttachmentFile = f;
       pendingAttachmentInput = input;
       attachmentPreview = URL.createObjectURL(f);
@@ -321,7 +328,17 @@
       const lines = [...buildLines(expandedDebits, 'debit'), ...buildLines(credits, 'credit')];
       validateLines(lines);
 
+      const attachmentRecords = await Promise.all(
+        attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
+      );
+
+      if (!(await filedYearGuard.confirm([Number(date.slice(0, 4))]))) {
+        return;
+      }
+
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date,
@@ -334,17 +351,18 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        if (attachments.length > 0) {
-          await db.attachments.bulkAdd(
-            attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
-          );
+        if (attachmentRecords.length > 0) {
+          await db.attachments.bulkAdd(attachmentRecords);
         }
       });
 
       reset();
       date = today();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     } finally {
       saving = false;
     }
@@ -422,12 +440,9 @@
     </label>
     <label class="block sm:col-span-3">
       <span class="text-xs text-muted-foreground">{m.journal_form_label_attachment()}</span>
-      <input
-        type="file"
-        accept="image/*"
-        onchange={handleAttachmentFile}
-        class="mt-1 w-full text-sm text-muted-foreground"
-      />
+      <span class="mt-1 block">
+        <FilePicker accept="image/*" onchange={handleAttachmentFile} />
+      </span>
       {#if attachmentError}
         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
       {/if}
@@ -464,13 +479,15 @@
     </div>
     {#each debits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
-        <div class="space-y-2">
+      <div
+        class="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start"
+      >
+        <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'debit')}
             required
-            class="w-full px-3 py-2 bg-background border rounded text-foreground"
+            class="h-10 w-full px-3 bg-background border rounded text-foreground"
           >
             <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
@@ -484,7 +501,7 @@
           {#if subs.length > 0}
             <select
               bind:value={line.subAccountId}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+              class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
               <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
@@ -501,11 +518,11 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
+          class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
             <option value={opt.value}>{opt.label()}</option>
@@ -516,7 +533,7 @@
           onclick={() => removeLine('debit', line.id)}
           disabled={debits.length <= 1}
           aria-label={m.journal_form_remove_line_label()}
-          class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+          class="h-10 px-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
         </button>
@@ -597,7 +614,7 @@
     <button
       type="button"
       onclick={addDebit}
-      class="text-xs text-muted-foreground hover:text-foreground"
+      class="text-xs text-muted-foreground hover:text-foreground py-2 -my-2"
     >
       {m.journal_form_add_debit()}
     </button>
@@ -612,13 +629,15 @@
     </div>
     {#each credits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
-      <div class="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start">
-        <div class="space-y-2">
+      <div
+        class="grid grid-cols-[1fr_auto_auto] sm:grid-cols-[1fr_auto_auto_auto] gap-2 items-start"
+      >
+        <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'credit')}
             required
-            class="w-full px-3 py-2 bg-background border rounded text-foreground"
+            class="h-10 w-full px-3 bg-background border rounded text-foreground"
           >
             <option value="" disabled>{m.journal_form_account_select()}</option>
             {#each accountGroups as group (group.category)}
@@ -632,7 +651,7 @@
           {#if subs.length > 0}
             <select
               bind:value={line.subAccountId}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+              class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
               <option value="">{m.journal_form_subaccount_select()}</option>
               {#each subs as s (s.id)}
@@ -651,11 +670,11 @@
           min="0"
           step="1"
           placeholder={m.journal_form_amount_placeholder()}
-          class="w-32 px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
+          class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
           bind:value={line.taxRate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm"
+          class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
           {#each TAX_OPTIONS as opt (opt.value)}
             <option value={opt.value}>{opt.label()}</option>
@@ -666,7 +685,7 @@
           onclick={() => removeLine('credit', line.id)}
           disabled={credits.length <= 1}
           aria-label={m.journal_form_remove_line_label()}
-          class="px-2 py-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
+          class="h-10 px-2 text-muted-foreground hover:text-destructive disabled:opacity-30"
         >
           ×
         </button>
@@ -747,7 +766,7 @@
     <button
       type="button"
       onclick={addCredit}
-      class="text-xs text-muted-foreground hover:text-foreground"
+      class="text-xs text-muted-foreground hover:text-foreground py-2 -my-2"
     >
       {m.journal_form_add_credit()}
     </button>
@@ -762,6 +781,18 @@
       {/if}
     </div>
   </div>
+
+  <!-- 科目を選んだ瞬間に差し込まれる注意なので、読み上げにも届くよう role="status" を付ける。 -->
+  {#if badDebtEvaluations.has('lumpSum')}
+    <div role="status" class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_lump_sum_notice()}
+    </div>
+  {/if}
+  {#if badDebtEvaluations.has('individual')}
+    <div role="status" class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {m.journal_form_bad_debt_individual_notice()}
+    </div>
+  {/if}
 
   {#if error}
     <div class="text-sm text-destructive">{error}</div>
@@ -786,9 +817,20 @@
   </div>
 </form>
 
-<AttachmentConfirmDialog
+{#snippet attachmentPreviewImage()}
+  {#if attachmentPreview}
+    <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+      <img src={attachmentPreview} alt={m.receipt_preview_alt()} class="max-h-64 object-contain" />
+    </div>
+  {/if}
+{/snippet}
+<ConfirmDialog
   open={attachmentConfirmOpen}
-  previewUrl={attachmentPreview}
+  title={m.attachment_confirm_title()}
+  description={m.attachment_confirm_desc()}
+  proceedLabel={m.attachment_confirm_proceed()}
+  dontAskLabel={m.attachment_confirm_dont_ask()}
+  preview={attachmentPreviewImage}
   onconfirm={onAttachmentConfirm}
   oncancel={onAttachmentCancel}
 />

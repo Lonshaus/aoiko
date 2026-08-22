@@ -121,7 +121,46 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 - The entry's `description` is「前期繰越（○○年から）」(fixed Japanese text that includes the prior year)
 - Internally tagged as `source: 'carryover'` (filterable via [02. § 2-1](02-journal_en.md#2-1-filters))
 
-## 7. Next steps
+## 7. Reversing the allowance for doubtful accounts (洗替方式)
+
+### 7-1. Why it exists
+
+Under Income Tax Act art. 52(3), the allowance for doubtful accounts booked at the end of the prior year must be added back to this year's gross revenue in full (the "洗替方式" / replacement method), and a fresh allowance is booked at this year's end. The carryover covered by this chapter just carries `2170 Allowance for doubtful accounts` forward like any other liability — it does not perform this reversal. If nobody books the reversal, the allowance balance stays on the balance sheet, this year's new addition stacks on top of it, and the deduction accumulates year after year while gross revenue is understated. Nothing on the reports looks wrong, which is why aoiko gives you a button that generates this entry.
+
+### 7-2. Where the button is
+
+Settings → the year-end processing area, next to Depreciation and Prior-period carryover: 「**貸倒引当金の繰戻し**」 (reversal of the allowance for doubtful accounts). Pressing it generates one journal entry dated `{year}-01-01`.
+
+### 7-3. What it generates
+
+| Side | Account | Amount |
+|---|---|---|
+| Debit | 2170 Allowance for doubtful accounts | Total addition booked last year |
+| Credit | 4120 Reversal of allowance for doubtful accounts | Total of last year's 5810 (blanket) + 5811 (specific) |
+| Credit | 4230 Reversal of allowance for doubtful accounts (real estate) | Total of last year's 5410 (real estate) |
+
+### 7-4. Why the basis is the prior year's addition, not the carried balance
+
+Art. 52(3) speaks of the amount credited to the allowance in the prior year — that amount itself is the basis. Using it also resolves the business / real-estate split. There is only one allowance liability account (`2170`), so the carried balance alone cannot tell which income type it belongs to — but the addition accounts can (5810/5811 = business, 5410 = real estate).
+
+### 7-5. Behaviour notes
+
+- Nothing to reverse (no addition booked in the prior year) → the button reports that and creates nothing
+- Running it twice → the second run is refused; only one reversal entry per year
+- An addition entry that has been corrected via a reversing entry (訂正) is excluded from both the calculation and the duplicate check, so a mistaken reversal can be corrected and regenerated
+
+### 7-6. Reflected in `.xtx`
+
+The reversal is revenue and lands in the right box automatically on `.xtx` export. The business and real-estate parts go to different forms.
+
+| Reversal | Blue return | White return |
+|---|---|---|
+| 4120 (business) | Statement p.1, allowance reversal box (KOA210 `AMF00420`) | Breakdown statement 「その他の収入」 (KOA110) |
+| 4230 (real estate) | Real-estate statement's additional-item slot (KOA220) | Real-estate breakdown statement 「名義書換料その他」 (KOA130) |
+
+See [10. `.xtx` export](10-xtx-export_en.md) for details.
+
+## 8. Next steps
 
 - Year's depreciation → [08. Depreciation § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation)
 - Year-end output / filing → [10. `.xtx` export](10-xtx-export_en.md)

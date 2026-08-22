@@ -53,6 +53,18 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# ネイティブ側（Tauri）のビルド生成物
+src-tauri/target/
+# 入れ子のクレートで cargo を走らせた時の置き土産も拾う
+**/target/
+# ライブラリクレートの Cargo.lock は追跡しない（入れ子で cargo を走らせると出来る）
+src-tauri/plugins/*/Cargo.lock
+src-tauri/gen/
+# esbuild が src-init/ から生成する。
+src-tauri/init.js
+# tauri ios build がプラグインへ複製する Tauri の Swift API。
+src-tauri/plugins/*/.tauri/
+
 # aoiko 手動 export（誤コミット防止）
 aoiko-ledger-*.json
 aoiko-*.xtx

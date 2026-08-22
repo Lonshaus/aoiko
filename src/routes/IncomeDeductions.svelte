@@ -6,6 +6,7 @@
   import { newId } from '../lib/id';
   import { assignInputNumber } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
   import {
     computeIncomeDeductions,
@@ -134,6 +135,7 @@
   }
 
   let saved = $state(false);
+  let saveError = $state('');
   // 最後に保存した内容の署名。null の間は読み込み前なので未保存扱いにしない。
   let savedSnapshot = $state<string | null>(null);
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
@@ -324,7 +326,6 @@
   function removeFamilyEmployee(id: string) {
     familyEmployees = familyEmployees.filter((f) => f.id !== id);
   }
-
   // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
   // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
   // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
@@ -488,7 +489,15 @@
     if (loadedYear !== year) {
       return;
     }
-    await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    // 書けなかったのに「保存しました」を出すと、未保存の警告も止まってしまう。
+    try {
+      await db.personalDeductions.put({ ...recordDraft, year, updatedAt: Date.now() });
+    } catch (e) {
+      saveError = describeStorageError(e);
+      saved = false;
+      return;
+    }
+    saveError = '';
     savedSnapshot = draftSignature;
     saved = true;
   }
@@ -533,7 +542,7 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_other_income_title()}</h3>
     <p class="text-xs text-muted-foreground">{m.income_deductions_other_income_intro()}</p>
-    <label class="flex items-center gap-2">
+    <label class="flex items-center gap-2 py-2">
       <input type="checkbox" bind:checked={hasSalaryIncome} />
       <span class="text-sm">{m.income_deductions_salary_checkbox()}</span>
     </label>
@@ -621,7 +630,7 @@
           >{formatJPY(realEstateTotalIncome)}</span
         >
       </p>
-      <label class="flex items-center gap-2">
+      <label class="flex items-center gap-2 py-2">
         <input type="checkbox" bind:checked={realEstateBusinessScale} />
         <span class="text-sm">{m.income_deductions_real_estate_business_scale()}</span>
       </label>
@@ -651,7 +660,7 @@
         </button>
       </div>
       {#each realEstateRentPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -709,7 +718,7 @@
         </button>
       </div>
       {#each realEstateLoanInterestPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -768,7 +777,7 @@
         </button>
       </div>
       {#each realEstateProfessionalFeesPaid as r (r.id)}
-        <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end border-t pt-2">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
             bind:value={r.payeeName}
@@ -818,7 +827,7 @@
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_family_title()}</h3>
-    <label class="flex items-center gap-2">
+    <label class="flex items-center gap-2 py-2">
       <input type="checkbox" bind:checked={hasSpouse} />
       <span class="text-sm">{m.income_deductions_spouse_checkbox()}</span>
     </label>
@@ -863,7 +872,7 @@
       </button>
     </div>
     {#each dependents as dep (dep.id)}
-      <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 items-end border-t pt-3">
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end border-t pt-3">
         <label class="block sm:col-span-2">
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_name()}</span>
           <input
@@ -894,7 +903,7 @@
           />
         </label>
         <div class="flex items-center gap-3">
-          <label class="flex items-center gap-1 text-xs">
+          <label class="flex items-center gap-1 text-xs py-2">
             <input type="checkbox" bind:checked={dep.livesWithLinealAscendant} />
             {m.income_deductions_dependent_lives_with_lineal_ascendant()}
           </label>
@@ -1162,23 +1171,23 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.income_deductions_status_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isDisabled} />
         {m.income_deductions_is_disabled()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isSpecialDisabled} />
         {m.income_deductions_is_special_disabled()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isSingleParent} />
         {m.income_deductions_is_single_parent()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isWidow} />
         {m.income_deductions_is_widow()}
       </label>
-      <label class="flex items-center gap-2 text-sm">
+      <label class="flex items-center gap-2 text-sm py-2">
         <input type="checkbox" bind:checked={isWorkingStudent} />
         {m.income_deductions_is_working_student()}
       </label>
@@ -1329,7 +1338,9 @@
   </section>
 
   <div class="flex items-center gap-3 justify-end">
-    {#if saved && !isDirty}
+    {#if saveError}
+      <span class="text-xs text-destructive">{saveError}</span>
+    {:else if saved && !isDirty}
       <span class="text-xs text-green-600">{m.income_deductions_saved()}</span>
     {/if}
     <button

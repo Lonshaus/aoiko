@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- 書き出した .xtx・CSV・バックアップ zip を「ファイル」アプリの
+       「この iPhone 内 / aoiko」から取り出せるようにする。iOS には保存先を選ばせる
+       仕組みが無く、plugin-dialog の save() も空ファイルを書き出す実装のため、
+       アプリの Documents へ書いてここから取り出してもらう経路にしている。 -->
+  <key>UIFileSharingEnabled</key>
+  <true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key>
+  <true/>
+  <!-- OCR/LLM に同一 LAN の Ollama 等を指定する場合に要る。既定の Gemini は
+       https なので、この許可を出さなくても使える。 -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>この端末と同じネットワークにある OCR・LLM サーバー（Ollama 等）へ接続するために使用します。設定で接続先を指定した場合にのみ通信します。</string>
+  <!-- 領収書の取込で、その場で撮る経路がカメラを開く。iOS はこの宣言が無いと、
+       許可を尋ねるのではなくプロセスごと終了させる（TCC）。 -->
+  <key>NSCameraUsageDescription</key>
+  <string>領収書やレシートをその場で撮影して読み取るためにカメラを使用します。撮影した画像は端末内で処理され、クラウドの OCR エンジンを選んでいる場合のみ、確認のうえ送信されます。</string>
+  <!-- 暗号は全て OS 提供のものだけを使う。TLS は reqwest の native-tls-alpn 経由で
+       macOS の Security.framework・Windows の Schannel が担い、自前の実装（rustls/ring）は
+       ビルドの依存グラフに入っていない。バックアップや API キーを自前で暗号化するように
+       なったらこの値は true になり、毎年 2 月 1 日に米 BIS への自己分類報告が要る。 -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>NSHumanReadableCopyright</key>
+  <string>2026 Lonshaus</string>
+  <!-- 同上。ローカルの接続先は http のため、平文通信を LAN に限って許可する。
+       外部への平文通信は許可しない（ATS の既定のまま）。 -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+  </dict>
+  <!-- macOS 側（Info.plist）と同じ理由。UIKit と WebKit が引く文字列（ファイル選択・
+       共有シート・印刷パネル）と、App Store の製品ページの「言語」欄が、この一覧から決まる。 -->
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>ja</string>
+    <string>zh-Hant</string>
+    <string>en</string>
+  </array>
+</dict>
+</plist>

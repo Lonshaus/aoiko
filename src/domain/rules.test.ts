@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
-import { findMatchingRule, matchRule, recordRuleHit } from './rules';
+import { findMatchingRule, loadRules, matchRule, recordRuleHit } from './rules';
 import type { ParserRule } from '../db/types';
 
 function rule(overrides: Partial<ParserRule> = {}): ParserRule {
@@ -52,23 +52,34 @@ describe('matchRule', () => {
 });
 
 describe('findMatchingRule', () => {
-  test('returns null when no rule matches', async () => {
-    await db.parserRules.add(rule({ pattern: 'amazon' }));
-    const r = await findMatchingRule('rakuten');
-    expect(r).toBeNull();
+  test('returns first rule in given order that matches', () => {
+    const a = rule({ pattern: 'aws', accountCode: '5200' });
+    const b = rule({ pattern: 'aws', accountCode: '5150' });
+    expect(findMatchingRule([a, b], 'AWS Charge')?.accountCode).toBe('5200');
   });
 
-  test('returns first matching rule by priority', async () => {
+  test('returns null when no rule matches', () => {
+    const r = rule({ pattern: 'amazon' });
+    expect(findMatchingRule([r], 'rakuten')).toBeNull();
+  });
+
+  test('returns null for empty rule list', () => {
+    expect(findMatchingRule([], 'amazon')).toBeNull();
+  });
+
+  test('case-insensitive description match', () => {
+    const r = rule({ pattern: 'Amazon' });
+    expect(findMatchingRule([r], 'amazon.co.jp')).not.toBeNull();
+  });
+});
+
+describe('loadRules', () => {
+  test('preserves priority ordering end to end, higher priority wins', async () => {
     await db.parserRules.add(rule({ pattern: 'aws', accountCode: '5200', priority: 5 }));
     await db.parserRules.add(rule({ pattern: 'aws', accountCode: '5150', priority: 100 }));
-    const r = await findMatchingRule('AWS Charge');
+    const rules = await loadRules();
+    const r = findMatchingRule(rules, 'AWS Charge');
     expect(r?.accountCode).toBe('5150');
-  });
-
-  test('case-insensitive description match', async () => {
-    await db.parserRules.add(rule({ pattern: 'Amazon' }));
-    const r = await findMatchingRule('amazon.co.jp');
-    expect(r).not.toBeNull();
   });
 });
 

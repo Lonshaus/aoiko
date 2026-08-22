@@ -3,21 +3,24 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
+  import { downscaleForUpload } from '../lib/image-downscale';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
-  import { shouldConfirmAttachment } from '../domain/attachment-confirm';
-  import { buildAttachmentRecord } from '../domain/attachments';
+  import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
   import { formatJPY } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import { exceedsLimit, formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
+  import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
-  import type { LlmImageInput } from '../domain/llm';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
-  import AttachmentConfirmDialog from '../components/AttachmentConfirmDialog.svelte';
+  import { describeLlmError, type LlmImageInput } from '../domain/llm';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
+  import FilePicker from '../components/FilePicker.svelte';
 
   let file = $state<File | null>(null);
   let preview = $state<string | null>(null);
@@ -26,9 +29,6 @@
   let knownAccount = $state('1110'); // 現金 デフォルト
   let processing = $state(false);
   let error = $state('');
-  let success = $state('');
-  // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
-  let committing = $state(false);
   // 読み込んだ画像と OCR 結果は確定するまで DB に無い。撮り直し・再解析になる。
   const isDirty = $derived(file !== null || extracted !== null);
   const unsavedToken = {};
@@ -36,6 +36,9 @@
     setUnsavedGuard(unsavedToken, isDirty);
     return () => clearUnsavedGuard(unsavedToken);
   });
+  let success = $state('');
+  // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
+  let committing = $state(false);
   let confirmOpen = $state(false);
   let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
   let pending = $state<{
@@ -68,7 +71,7 @@
     if (!f) {
       return;
     }
-    if (exceedsLimit(f.size, MAX_IMAGE_BYTES)) {
+    if (f.size > MAX_IMAGE_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
@@ -76,7 +79,7 @@
       input.value = '';
       return;
     }
-    if (shouldConfirmAttachment(await getSetting('skipAttachmentConfirm'))) {
+    if ((await getSetting('skipAttachmentConfirm')) !== true) {
       pendingAttachmentFile = f;
       pendingInput = input;
       attachmentPreview = URL.createObjectURL(f);
@@ -124,8 +127,11 @@
     processing = true;
     error = '';
     try {
-      const image = await fileToBase64(file);
       const extractor = await createReceiptExtractor();
+      // クラウドへ送る場合だけ縮小する。Tesseract は端末内処理で通信量の問題が無く、
+      // 解像度を落としても得るものが無い。
+      const source = extractor.external ? await downscaleForUpload(file) : file;
+      const image = await fileToBase64(source);
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
@@ -139,7 +145,7 @@
       }
       await runExtract(extractor, image);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       processing = false;
     }
   }
@@ -149,7 +155,7 @@
       extracted = await extractor.extract(image);
       lastEngine = extractor.engine;
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       processing = false;
     }
@@ -227,7 +233,14 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
+      // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+      // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
+      const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
+      if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
+        return;
+      }
       await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date: data.date,
@@ -239,10 +252,8 @@
           confirmedAt: now,
         });
         await db.journalLines.bulkAdd(lines);
-        // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
-        // 書き込み、孤児画像・空参照を防ぐ。
-        if (file) {
-          await db.attachments.add(buildAttachmentRecord(entryId, file, now));
+        if (attachmentRecord) {
+          await db.attachments.add(attachmentRecord);
         }
       });
 
@@ -254,7 +265,10 @@
         preview = null;
       }
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error =
+        e instanceof AttachmentInvalidTypeError
+          ? m.common_file_not_image()
+          : describeStorageError(e);
     } finally {
       committing = false;
     }
@@ -284,13 +298,9 @@
   <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onchange={handleFile}
-        class="mt-1 w-full text-sm text-muted-foreground"
-      />
+      <span class="mt-1 block">
+        <FilePicker accept="image/*" onchange={handleFile} />
+      </span>
     </label>
 
     {#if preview}
@@ -443,15 +453,29 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={confirmOpen}
-  host={pending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
 />
-<AttachmentConfirmDialog
+{#snippet attachmentPreviewImage()}
+  {#if attachmentPreview}
+    <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
+      <img src={attachmentPreview} alt={m.receipt_preview_alt()} class="max-h-64 object-contain" />
+    </div>
+  {/if}
+{/snippet}
+<ConfirmDialog
   open={attachmentConfirmOpen}
-  previewUrl={attachmentPreview}
+  title={m.attachment_confirm_title()}
+  description={m.attachment_confirm_desc()}
+  proceedLabel={m.attachment_confirm_proceed()}
+  dontAskLabel={m.attachment_confirm_dont_ask()}
+  preview={attachmentPreviewImage}
   onconfirm={onAttachmentConfirm}
   oncancel={onAttachmentCancel}
 />

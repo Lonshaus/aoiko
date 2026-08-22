@@ -9,7 +9,7 @@ import {
   adjacentChapters,
   rewriteLinks,
   rewriteImagePaths,
-  stripLanguageNav,
+  resolveManualLink,
   stripInline,
   slugifyHeading,
   extractHeadings,
@@ -68,21 +68,13 @@ describe('searchManual', () => {
   it('ヒット無しは空配列', () => {
     expect(searchManual('zzzznonexistentqueryzzz', 'ja')).toEqual([]);
   });
-});
-
-describe('stripLanguageNav', () => {
-  it('言語切替行を取り除く', () => {
-    const src =
-      '# 01. 初次設定\n\n本文\n\n**Language**: [日本語](01-setup.md) | **繁體中文**\n\n続き';
-    const out = stripLanguageNav(src);
-    expect(out).not.toContain('**Language**');
-    expect(out).toContain('# 01. 初次設定');
-    expect(out).toContain('続き');
-  });
-
-  it('言語行が無ければそのまま', () => {
-    const src = '# 見出し\n\n本文';
-    expect(stripLanguageNav(src)).toBe(src);
+  // 条文は章ではないので検索対象に含めない。含めると章の検索結果に条文が混ざり、
+  // 前後章ナビゲーションを持たないページへ利用者を放り出すことになる。
+  it('条文は検索対象に含めない', () => {
+    const hits = searchManual('プライバシーポリシー', 'ja');
+    expect(hits.map((h) => h.slug)).not.toContain('PRIVACY');
+    expect(hits.map((h) => h.slug)).not.toContain('DISCLAIMER');
+    expect(hits.map((h) => h.slug)).not.toContain('SECURITY');
   });
 });
 
@@ -135,6 +127,12 @@ describe('hasChapter', () => {
     expect(hasChapter(INDEX_SLUG)).toBe(true);
     expect(hasChapter('999-nope')).toBe(false);
   });
+
+  it('条文 slug も解決できる（章ではないがルートとしては有効）', () => {
+    expect(hasChapter('DISCLAIMER')).toBe(true);
+    expect(hasChapter('PRIVACY')).toBe(true);
+    expect(hasChapter('SECURITY')).toBe(true);
+  });
 });
 
 describe('getManualContent', () => {
@@ -146,6 +144,12 @@ describe('getManualContent', () => {
 
   it('未知の slug は null', () => {
     expect(getManualContent('999-nope', 'ja')).toBeNull();
+  });
+
+  it('条文 slug は locale ごとの本文を返す', () => {
+    expect(getManualContent('DISCLAIMER', 'ja')).toContain('免責事項');
+    expect(getManualContent('DISCLAIMER', 'en')).toContain('Disclaimer');
+    expect(getManualContent('PRIVACY', 'ja')).toContain('プライバシー');
   });
 });
 
@@ -220,6 +224,68 @@ describe('rewriteLinks', () => {
   it('外部 URL は書き換えない', () => {
     const src = '[issues](https://github.com/Lonshaus/aoiko/issues)';
     expect(rewriteLinks(src)).toBe(src);
+  });
+});
+
+describe('resolveManualLink', () => {
+  it('章間リンク（rewriteLinks 済みの /manual/...）はそのまま', () => {
+    expect(resolveManualLink('/manual/02-journal')).toEqual({
+      href: '/manual/02-journal',
+      external: false,
+    });
+  });
+
+  it('ページ内アンカーはそのまま', () => {
+    expect(resolveManualLink('#4-選擇消費税方式')).toEqual({
+      href: '#4-選擇消費税方式',
+      external: false,
+    });
+  });
+
+  it('条文へのリンクはアプリ内ルートへ解決する', () => {
+    expect(resolveManualLink('../../PRIVACY.md')).toEqual({
+      href: '/manual/PRIVACY',
+      external: false,
+    });
+    expect(resolveManualLink('../../DISCLAIMER.md')).toEqual({
+      href: '/manual/DISCLAIMER',
+      external: false,
+    });
+  });
+
+  it('条文の言語別ファイルは同一 slug へ寄せる（表示言語は UI 設定に従う）', () => {
+    expect(resolveManualLink('../../PRIVACY_en.md').href).toBe('/manual/PRIVACY');
+    expect(resolveManualLink('../../PRIVACY_zh-TW.md').href).toBe('/manual/PRIVACY');
+    expect(resolveManualLink('../../DISCLAIMER_zh-TW.md').href).toBe('/manual/DISCLAIMER');
+  });
+
+  it('開発者向けの repo 相対リンクは GitHub の絶対 URL へ書き換え、外部扱いにする', () => {
+    expect(resolveManualLink('../../CONTRIBUTING.md')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/CONTRIBUTING.md',
+      external: true,
+    });
+    expect(resolveManualLink('../../docs/xtx-spec/README.md')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/docs/xtx-spec/README.md',
+      external: true,
+    });
+    expect(resolveManualLink('../../src/tax-schema/2026/accounts.ts')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/src/tax-schema/2026/accounts.ts',
+      external: true,
+    });
+  });
+
+  it('README は条文ではないため GitHub のまま（アプリ内に同梱しない）', () => {
+    expect(resolveManualLink('../../README.md')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/blob/master/README.md',
+      external: true,
+    });
+  });
+
+  it('外部 URL は書き換えず外部扱いにする', () => {
+    expect(resolveManualLink('https://github.com/Lonshaus/aoiko/issues')).toEqual({
+      href: 'https://github.com/Lonshaus/aoiko/issues',
+      external: true,
+    });
   });
 });
 

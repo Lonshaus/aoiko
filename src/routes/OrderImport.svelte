@@ -6,11 +6,16 @@
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { newId } from '../lib/id';
   import { createOrderExtractor, type OrderExtractor } from '../lib/order-extractor';
+  import { describeLlmError } from '../domain/llm';
   import { getSetting, setSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
+  import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
+  import AccountSelect from '../components/AccountSelect.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
 
   type ReviewItem = OrderItem & { accountCode: string };
@@ -77,7 +82,7 @@
       }
       await runExtract(extractor, pastedText);
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       processing = false;
     }
   }
@@ -89,7 +94,7 @@
       const def = defaultExpenseAccount();
       reviewItems = result.items.map((it) => ({ ...it, accountCode: def }));
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       processing = false;
     }
@@ -148,19 +153,16 @@
       error = m.order_no_items();
       return;
     }
-    // 品目合計と総額の照合（差異があれば総額を信用しユーザに警告）
+    // 借方は品目、貸方は総額で組むため、両者が一致しないと validateLines が必ず
+    // unbalanced を投げる。続行させても仕訳にならないので、ここで止めて直させる。
+    // どちらの欄も画面上で編集できる。
     const itemsSum = validItems.reduce((s, it) => s.plus(D(it.amount)), D(0));
-    const total = D(data.totalAmount);
-    if (!itemsSum.equals(total)) {
-      const ok = confirm(
-        m.order_total_mismatch({
-          itemSum: formatJPY(itemsSum.toString()),
-          total: formatJPY(data.totalAmount),
-        }),
-      );
-      if (!ok) {
-        return;
-      }
+    if (!itemsSum.equals(D(data.totalAmount))) {
+      error = m.order_total_mismatch({
+        itemSum: formatJPY(itemsSum.toString()),
+        total: formatJPY(data.totalAmount),
+      });
+      return;
     }
 
     committing = true;
@@ -205,7 +207,14 @@
           : data.vendor
         : m.order_default_description();
 
+      if (
+        !(await filedYearGuard.confirm([Number(data.date.slice(0, 4))], { suppressible: true }))
+      ) {
+        return;
+      }
+
       await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+        allowFiledYearWriteInThisTransaction();
         await db.journalEntries.add({
           id: entryId,
           date: data.date,
@@ -226,7 +235,7 @@
       });
       reset();
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     } finally {
       committing = false;
     }
@@ -331,7 +340,7 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[600px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
               <th class="text-left font-normal px-2 py-2">{m.order_th_description()}</th>
@@ -362,18 +371,11 @@
                   />
                 </td>
                 <td class="px-2 py-2">
-                  <select
+                  <AccountSelect
                     bind:value={item.accountCode}
+                    groups={accountGroups}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs"
-                  >
-                    {#each accountGroups as group (group.category)}
-                      <optgroup label={group.label}>
-                        {#each group.items as a (a.code)}
-                          <option value={a.code}>{a.code} {a.name}</option>
-                        {/each}
-                      </optgroup>
-                    {/each}
-                  </select>
+                  />
                 </td>
                 <td class="px-2 py-2">
                   <button
@@ -433,9 +435,12 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={confirmOpen}
-  host={pending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
 />

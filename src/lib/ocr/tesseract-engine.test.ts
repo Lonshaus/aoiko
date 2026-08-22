@@ -70,6 +70,22 @@ describe('createTesseractReceiptExtractor', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 
+  // モデルは precache 対象外なので、初回だけオフラインで落ちうる。
+  // 素の fetch 失敗のままだと設定ミスと区別が付かない。
+  test('オフラインでモデルを取得できない時は原因の分かる文言に変換する', async () => {
+    const { m } = await import('../../paraglide/messages');
+    vi.stubGlobal('navigator', { onLine: false });
+    loadModel.mockRejectedValueOnce(new Error('Failed to fetch'));
+    await expect(extract()).rejects.toThrow(m.common_offline_error());
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test('オンラインでの取得失敗はそのまま投げる', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    loadModel.mockRejectedValueOnce(new Error('Failed to fetch'));
+    await expect(extract()).rejects.toThrow('Failed to fetch');
+  });
+
   test('認識が失敗しても worker と ImageBitmap を解放する', async () => {
     getText.mockRejectedValueOnce(new Error('boom'));
     await expect(extract()).rejects.toThrow('boom');

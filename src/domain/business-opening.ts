@@ -1,6 +1,8 @@
 import { D, Decimal, toIndexable } from '../lib/decimal';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
+import { countsTowardTotals } from './journal';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
@@ -153,7 +155,7 @@ function nonBusinessPeriodYears(acquisitionDate: string, businessStartDate: stri
   const remainderMonths = totalMonths % 12;
   return remainderMonths >= 6 ? years + 1 : years;
 }
-export interface ConvertedAssetBasis {
+interface ConvertedAssetBasis {
   nonBusinessDepreciation: Decimal;
   businessStartBasis: Decimal;
 }
@@ -181,12 +183,12 @@ export function computeConvertedAssetBasis(
   return { nonBusinessDepreciation, businessStartBasis };
 }
 
-export interface OpeningExpenseItem {
+interface OpeningExpenseItem {
   name: string;
   amount: string;
 }
 export type ExpenseAmortization = 'immediate' | 'five-year';
-export interface OpeningConvertedAsset {
+interface OpeningConvertedAsset {
   name: string;
   acquisitionDate: string;
   acquisitionCost: string;
@@ -251,12 +253,31 @@ function newEntry(date: string, description: string): JournalEntry {
 // 未償却残高を計上する開業仕訳のみを作る。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
-): Promise<OpeningSetupResult> {
+  options?: { allowFiledYear?: boolean },
+): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
   const date = input.businessStartDate;
+  const year = Number(date.slice(0, 4));
+  await assertYearsWritable([year], options);
+  let alreadyExists = false;
 
   await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    markConfirmedWrite(options);
+    // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
+    // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
+    const existing = await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter(
+        (e) =>
+          e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
+      )
+      .first();
+    if (existing) {
+      alreadyExists = true;
+      return;
+    }
     // 開業費（繰延資産）
     const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
     if (!expenseTotal.isZero()) {
@@ -284,7 +305,6 @@ export async function generateOpeningEntries(
         entryIds.push(amortEntry.id);
       }
     }
-
     // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
     const assetLines: Array<{
       side: 'debit' | 'credit';
@@ -307,6 +327,7 @@ export async function generateOpeningEntries(
         usefulLifeYears: asset.usefulLifeYears,
         depreciationMethod: asset.depreciationMethod,
         accountCode: asset.accountCode,
+        source: 'opening',
       };
       await db.fixedAssets.add(fixedAsset);
       assetIds.push(fixedAsset.id);
@@ -344,6 +365,99 @@ export async function generateOpeningEntries(
       entryIds.push(entry.id);
     }
   });
+  if (alreadyExists) {
+    return { reason: 'already-exists' };
+  }
 
   return { entryIds, assetIds };
+}
+
+interface OpeningRemovalBlocked {
+  reason: 'has-depreciation';
+  assetNames: string[];
+}
+// 開業精霊のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
+// 保存法。removeCarryover と同じ方式）、精霊が登録した固定資産は取り除く。
+//
+// 固定資産は仕訳ではないので打ち消せず、削除するしかない。ところが減価償却・除却の仕訳は
+// description の資産タグ（#<id 先頭 8 文字>）でしか資産と結び付いておらず、外部キーが無い。
+// 参照が残っている資産を消すと、存在しない資産を指す仕訳が帳簿に残るため、その場合は
+// 仕訳も資産も触らずに中止して、先にそちらを訂正してもらう。
+//
+// 印（source: 'opening'）が付くのはこの仕組みを入れて以降に作られた資産だけ。それ以前の
+// 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
+export async function removeOpeningEntries(
+  year: number,
+  options?: { allowFiledYear?: boolean },
+): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
+  await assertYearsWritable([year], options);
+  let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
+
+  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+    markConfirmedWrite(options);
+    const originals = await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+      .toArray();
+    if (originals.length === 0) {
+      return;
+    }
+    // 精霊が登録した資産は取得日＝開業日なので、年度で対象を絞れる。
+    const targets = await db.fixedAssets
+      .filter((a) => a.source === 'opening' && Number(a.acquisitionDate.slice(0, 4)) === year)
+      .toArray();
+    if (targets.length > 0) {
+      const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
+      const referenced = new Set<string>();
+      await db.journalEntries.each((e) => {
+        if (!countsTowardTotals(e)) {
+          return;
+        }
+        for (const [tag, name] of byTag) {
+          if (e.description.includes(tag)) {
+            referenced.add(name);
+          }
+        }
+      });
+      if (referenced.size > 0) {
+        result = { reason: 'has-depreciation', assetNames: [...referenced] };
+        return;
+      }
+    }
+
+    const now = Date.now();
+    for (const orig of originals) {
+      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+      const reversalId = newId();
+      await db.journalEntries.add({
+        id: reversalId,
+        // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
+        date: orig.date,
+        year: orig.year,
+        description: `[訂正] ${orig.description}`,
+        status: 'confirmed',
+        originalEntryId: orig.id,
+        source: 'opening',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      for (const line of lines) {
+        await db.journalLines.add({
+          ...line,
+          id: newId(),
+          entryId: reversalId,
+          side: line.side === 'debit' ? 'credit' : 'debit',
+        });
+      }
+      await db.journalEntries.update(orig.id, {
+        status: 'reversed',
+        reversedByEntryId: reversalId,
+      });
+    }
+    await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
+    result = { removed: true };
+  });
+
+  return result;
 }
