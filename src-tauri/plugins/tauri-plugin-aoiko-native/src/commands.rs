@@ -140,7 +140,16 @@ pub(crate) fn recognize_text<R: Runtime>(
             .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
         crate::desktop::recognize_text(&bytes)
     }
-    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    #[cfg(target_os = "windows")]
+    {
+        let _ = &app;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let bytes = STANDARD
+            .decode(image_base64.as_bytes())
+            .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
+        crate::desktop::recognize_text(&bytes)
+    }
+    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "windows")))]
     {
         let _ = (app, image_base64);
         Err(Error::UnsupportedPlatform)

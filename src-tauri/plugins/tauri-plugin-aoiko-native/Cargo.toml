@@ -44,6 +44,17 @@ objc2-vision = { version = "0.3", default-features = false, features = [
   "objc2-core-foundation",
 ] }
 objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
+# 文字認識。Windows の OCR は WinRT にあり、windows クレートは既に tao 経由で依存グラフに
+# 入っているため、ここでは要る feature を足すだけでクレートは増えない。
+# 日本語の言語機能は既定で入っていないので、使えるかは実行時に問う。
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+  "Media_Ocr",
+  "Graphics_Imaging",
+  "Storage_Streams",
+  "Globalization",
+] }
+
 # フォルダ選択・保存先の指定・未保存確認はこのプラグインの中で完結させる。デスクトップの
 # plugin-dialog は rfd の薄い殻でしかないので、その rfd を直接持って plugin-dialog ごと外す。
 # 外れていれば dialog:* はどの権限マニフェストにも無く、capabilities に 1 行足しても
