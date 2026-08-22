@@ -1,7 +1,7 @@
 // 商店が売っていない品目のボタンを出さないこと、購入済みのバッジで文言が変わることを見る。
 // どちらも「買えないものを見せない」ための分岐で、間違えると審査で落ちる。
 
-import { describe, expect, test, afterEach, beforeEach } from 'vitest';
+import { describe, expect, test, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import SupportDialog from './SupportDialog.svelte';
 import { support } from '../stores/support.svelte';
@@ -22,10 +22,12 @@ beforeEach(async () => {
   support.stamps = [];
   support.badgeAt = null;
   support.products = [];
+  support.productsAsked = false;
   support.page = 0;
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   if (component !== null) {
     unmount(component);
     component = null;
@@ -119,5 +121,68 @@ describe('スタンプ帳', () => {
     for (const shape of ['yarn', 'mouse', 'bell', 'feather', 'fish', 'butterfly', 'teaser']) {
       expect(target?.querySelector(`#stamp-${shape}`)).not.toBeNull();
     }
+  });
+});
+
+// 商店が片方しか返さないことが実機で起きた（#491）。黙って隠すと、審査員には
+// 宣言した品目が画面に無い状態が見える。
+describe('品目が揃わないとき', () => {
+  function missing(): HTMLElement | null {
+    return target?.querySelector('.missing') ?? null;
+  }
+
+  test('商店に問い合わせる前は、まだ何も言わない', () => {
+    render();
+    expect(missing()).toBeNull();
+  });
+
+  test('片方しか返らなければ、隠さずに取れなかったことを出す', () => {
+    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    support.productsAsked = true;
+    render();
+    expect(missing()).not.toBeNull();
+    expect(missing()?.querySelector('button')).not.toBeNull();
+  });
+
+  test('1 つも返らなくても同じく出す', () => {
+    support.productsAsked = true;
+    render();
+    expect(missing()).not.toBeNull();
+  });
+
+  test('揃っていれば出さない', () => {
+    support.products = [
+      { kind: 'tip', displayPrice: '¥150' },
+      { kind: 'supporter-badge', displayPrice: '¥500' },
+    ];
+    support.productsAsked = true;
+    render();
+    expect(missing()).toBeNull();
+  });
+
+  // 実機で起きたのはこの順序：最初に開くと片方だけ、開き直すと両方。
+  test('押すと商店へ問い合わせ直し、揃えば表示が消える', async () => {
+    const both = [
+      { kind: 'tip' as const, displayPrice: '¥150' },
+      { kind: 'supporter-badge' as const, displayPrice: '¥500' },
+    ];
+    let asked = 0;
+    const listIapProducts = vi.fn(async () => {
+      asked += 1;
+      return asked === 1 ? [both[0]!] : both;
+    });
+    vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { listIapProducts } }));
+    render();
+    // 1 回目の返りは片方だけ。まず出ることを確かめてから押す。
+    await vi.waitFor(() => {
+      flushSync();
+      expect(missing()).not.toBeNull();
+    });
+    missing()?.querySelector('button')?.click();
+    await vi.waitFor(() => {
+      flushSync();
+      expect(missing()).toBeNull();
+    });
+    expect(asked).toBe(2);
   });
 });
