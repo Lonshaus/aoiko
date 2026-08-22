@@ -4,7 +4,9 @@ import {
   computeConvertedAssetBasis,
   generateOpeningEntries,
   oldStraightLineRate,
+  removeOpeningEntries,
 } from './business-opening';
+import type { OpeningSetupInput, OpeningSetupResult } from './business-opening';
 
 beforeEach(async () => {
   await db.delete();
@@ -127,8 +129,18 @@ describe('非業務期間の月数計算（応当日ベース）', () => {
 });
 
 describe('generateOpeningEntries', () => {
+  // 二重実行の判定は専用のテストで確認する。他のテストは生成が通る前提なので、
+  // ここで絞り込んでおき、各テストが result.entryIds を素直に読めるようにする。
+  async function generateOk(input: OpeningSetupInput): Promise<OpeningSetupResult> {
+    const result = await generateOpeningEntries(input);
+    if ('reason' in result) {
+      throw new Error(`生成されませんでした：${result.reason}`);
+    }
+    return result;
+  }
+
   it('開業費のみ：全額費用化で計上仕訳と償却仕訳の2本を生成', async () => {
-    const result = await generateOpeningEntries({
+    const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [
         { name: '名刺', amount: '1000' },
@@ -151,7 +163,7 @@ describe('generateOpeningEntries', () => {
   });
 
   it('開業費：5年均等償却は初年度分（1/5）のみ費用化', async () => {
-    const result = await generateOpeningEntries({
+    const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [{ name: 'サイト制作', amount: '500000' }],
       expenseAmortization: 'five-year',
@@ -166,7 +178,7 @@ describe('generateOpeningEntries', () => {
   });
 
   it('転用資産：固定資産登録＋開業時未償却残高で元入金と貸借が合う', async () => {
-    const result = await generateOpeningEntries({
+    const result = await generateOk({
       businessStartDate: '2022-01-01',
       expenses: [],
       expenseAmortization: 'immediate',
@@ -197,7 +209,7 @@ describe('generateOpeningEntries', () => {
   });
 
   it('自由項目：貸方指定なら元入金は借方で相殺', async () => {
-    const result = await generateOpeningEntries({
+    const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [],
       expenseAmortization: 'immediate',
@@ -213,7 +225,7 @@ describe('generateOpeningEntries', () => {
   });
 
   it('全項目が空なら仕訳は生成しない', async () => {
-    const result = await generateOpeningEntries({
+    const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [],
       expenseAmortization: 'immediate',
@@ -222,5 +234,146 @@ describe('generateOpeningEntries', () => {
     });
     expect(result.entryIds).toHaveLength(0);
     expect(result.assetIds).toHaveLength(0);
+  });
+
+  it('2回目は already-exists を返し、仕訳も固定資産も増やさない', async () => {
+    const input: OpeningSetupInput = {
+      businessStartDate: '2026-07-01',
+      expenses: [{ name: '名刺', amount: '10000' }],
+      expenseAmortization: 'immediate',
+      convertedAssets: [
+        {
+          name: 'ノートPC',
+          acquisitionDate: '2024-01-10',
+          acquisitionCost: '300000',
+          usefulLifeYears: 4,
+          accountCode: '1410',
+          depreciationMethod: 'straight-line',
+        },
+      ],
+      customItems: [],
+    };
+    await generateOk(input);
+    const entriesAfterFirst = await db.journalEntries.count();
+    const assetsAfterFirst = await db.fixedAssets.count();
+
+    const second = await generateOpeningEntries(input);
+    expect(second).toEqual({ reason: 'already-exists' });
+    expect(await db.journalEntries.count()).toBe(entriesAfterFirst);
+    expect(await db.fixedAssets.count()).toBe(assetsAfterFirst);
+  });
+
+  it('開業年度が違えば作成できる（判定は年度スコープ）', async () => {
+    await generateOk({
+      businessStartDate: '2026-07-01',
+      expenses: [{ name: '名刺', amount: '10000' }],
+      expenseAmortization: 'immediate',
+      convertedAssets: [],
+      customItems: [],
+    });
+    const other = await generateOpeningEntries({
+      businessStartDate: '2027-01-05',
+      expenses: [{ name: '名刺', amount: '10000' }],
+      expenseAmortization: 'immediate',
+      convertedAssets: [],
+      customItems: [],
+    });
+    expect('entryIds' in other).toBe(true);
+  });
+});
+
+describe('removeOpeningEntries', () => {
+  const input: OpeningSetupInput = {
+    businessStartDate: '2026-07-01',
+    expenses: [{ name: '名刺', amount: '10000' }],
+    expenseAmortization: 'immediate',
+    convertedAssets: [
+      {
+        name: 'ノートPC',
+        acquisitionDate: '2024-01-10',
+        acquisitionCost: '300000',
+        usefulLifeYears: 4,
+        accountCode: '1410',
+        depreciationMethod: 'straight-line',
+      },
+    ],
+    customItems: [],
+  };
+
+  it('対象が無ければ removed: false', async () => {
+    expect(await removeOpeningEntries(2026)).toEqual({ removed: false });
+  });
+
+  it('開業仕訳を打ち消し、精霊が登録した資産を消す', async () => {
+    await generateOpeningEntries(input);
+    const created = await db.journalEntries.where('year').equals(2026).toArray();
+
+    expect(await removeOpeningEntries(2026)).toEqual({ removed: true });
+
+    for (const orig of created) {
+      const after = await db.journalEntries.get(orig.id);
+      expect(after?.status).toBe('reversed');
+      expect(after?.reversedByEntryId).toBeDefined();
+      const reversal = await db.journalEntries.get(after!.reversedByEntryId!);
+      // 年をまたぐと開業年度が変わってしまうので、打消しは原仕訳と同じ日付
+      expect(reversal?.date).toBe(orig.date);
+      expect(reversal?.originalEntryId).toBe(orig.id);
+      const origLines = await db.journalLines
+        .where('entryId')
+        .equals(orig.id)
+        .sortBy('accountCode');
+      const revLines = await db.journalLines
+        .where('entryId')
+        .equals(reversal!.id)
+        .sortBy('accountCode');
+      expect(revLines.map((l) => l.side)).toEqual(
+        origLines.map((l) => (l.side === 'debit' ? 'credit' : 'debit')),
+      );
+      expect(revLines.map((l) => l.amount)).toEqual(origLines.map((l) => l.amount));
+    }
+    expect(await db.fixedAssets.count()).toBe(0);
+  });
+
+  it('打ち消したあとは同じ年度で作り直せる', async () => {
+    await generateOpeningEntries(input);
+    await removeOpeningEntries(2026);
+    const again = await generateOpeningEntries(input);
+    expect('entryIds' in again).toBe(true);
+    expect(await db.fixedAssets.count()).toBe(1);
+  });
+
+  it('資産を参照する減価償却仕訳があれば中止し、仕訳も資産も触らない', async () => {
+    await generateOpeningEntries(input);
+    const asset = (await db.fixedAssets.toArray())[0]!;
+    await db.journalEntries.add({
+      id: 'dep-1',
+      date: '2026-12-31',
+      year: 2026,
+      description: `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`,
+      status: 'confirmed',
+      source: 'manual',
+      createdAt: Date.now(),
+      confirmedAt: Date.now(),
+    });
+    const entriesBefore = await db.journalEntries.count();
+
+    expect(await removeOpeningEntries(2026)).toEqual({
+      reason: 'has-depreciation',
+      assetNames: ['ノートPC'],
+    });
+    expect(await db.journalEntries.count()).toBe(entriesBefore);
+    expect(await db.fixedAssets.count()).toBe(1);
+    const opening = await db.journalEntries.where('year').equals(2026).toArray();
+    expect(opening.every((e) => e.status !== 'reversed')).toBe(true);
+  });
+
+  it('印の無い固定資産は消さない（この仕組みより前に作られた資産）', async () => {
+    await generateOpeningEntries(input);
+    const asset = (await db.fixedAssets.toArray())[0]!;
+    const { source: _source, ...withoutMarker } = asset;
+    await db.fixedAssets.put(withoutMarker);
+
+    expect(await removeOpeningEntries(2026)).toEqual({ removed: true });
+    expect(await db.fixedAssets.count()).toBe(1);
   });
 });

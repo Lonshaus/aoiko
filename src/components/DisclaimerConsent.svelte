@@ -1,6 +1,8 @@
 <script lang="ts">
   import { DISCLAIMER_VERSION, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import { nativeBridge } from '../lib/native-bridge';
+  import PolicyDocViewer from './PolicyDocViewer.svelte';
 
   type Props = {
     onaccept: () => void;
@@ -21,14 +23,15 @@
   }
 </script>
 
+<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと iPhone のステータスバーに隠れる（#457） -->
 <div
-  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
   role="dialog"
   aria-modal="true"
   aria-labelledby="disclaimer-title"
 >
   <div
-    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-8 space-y-6 shadow-xl"
+    class="bg-card text-card-foreground rounded-2xl max-w-2xl w-full max-h-full overflow-y-auto overscroll-contain p-8 space-y-6 shadow-xl"
   >
     <header class="space-y-2">
       <h2 id="disclaimer-title" class="text-2xl font-bold">{m.disclaimer_welcome_title()}</h2>
@@ -50,46 +53,28 @@
         <li>{@html m.disclaimer_bullet_tax_law_html()}</li>
         <li>{@html m.disclaimer_bullet_xtx_html()}</li>
         <li>{@html m.disclaimer_bullet_llm_html()}</li>
-        <li>{@html m.disclaimer_bullet_storage_html()}</li>
+        <li>
+          {@html nativeBridge()
+            ? m.disclaimer_bullet_storage_html_native()
+            : m.disclaimer_bullet_storage_html()}
+        </li>
         <li>{@html m.disclaimer_bullet_liability_html()}</li>
       </ul>
 
-      <p class="text-xs text-muted-foreground pt-2 border-t">
-        {m.disclaimer_docs_prefix()}<a
-          href="https://github.com/Lonshaus/aoiko/blob/master/DISCLAIMER.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">DISCLAIMER.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/PRIVACY.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">PRIVACY.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/SECURITY.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">SECURITY.md</a
-        >
-        ／
-        <a
-          href="https://github.com/Lonshaus/aoiko/blob/master/LICENSE"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">LICENSE (AGPL-3.0)</a
-        >
-        ／
-        <a
-          href="/THIRD_PARTY_LICENSES.txt"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="underline hover:text-foreground">THIRD_PARTY_LICENSES.txt</a
-        >
-      </p>
+      <div class="text-xs text-muted-foreground pt-2 border-t space-y-1">
+        <p>
+          {m.disclaimer_docs_prefix()}
+          <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
+          ／
+          <PolicyDocViewer doc="PRIVACY" label="PRIVACY.md" />
+          ／
+          <PolicyDocViewer doc="SECURITY" label="SECURITY.md" />
+          ／
+          <PolicyDocViewer doc="LICENSE" label="LICENSE (AGPL-3.0)" />
+          ／
+          <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
+        </p>
+      </div>
     </section>
 
     <footer class="flex justify-end pt-2">

@@ -3,6 +3,9 @@
 // aoiko はキーを使用者のブラウザ内のみで保持し、Google の API エンドポイントに直接送る。
 // サーバーサイドの中継なし。
 
+import { m } from '../paraglide/messages';
+import { isOffline } from '../lib/network-status';
+
 export interface LlmImageInput {
   /** Base64 エンコードされた画像データ（data URL の prefix なし） */
   base64: string;
@@ -23,10 +26,46 @@ export class LlmError extends Error {
   constructor(
     message: string,
     public readonly cause?: unknown,
+    /** HTTP エラーレスポンスの場合のみステータスコードを持つ */
+    public readonly status?: number,
   ) {
     super(message);
     this.name = 'LlmError';
   }
+}
+// HTTP ステータスから既知の失敗パターン（キー誤り・エンドポイント誤り・レート制限・サーバ障害）を
+// 判定し、利用者向けの文言に変換する。生のレスポンス本文は詳細として残す（storage-error.ts と同じ方針）。
+export function describeLlmError(e: unknown): string {
+  if (!(e instanceof LlmError) || e.status === undefined) {
+    return e instanceof Error ? e.message : String(e);
+  }
+  const detail = e.message;
+  if (e.status === 401 || e.status === 403) {
+    return m.llm_error_auth({ status: e.status, detail });
+  }
+  if (e.status === 404) {
+    return m.llm_error_not_found({ status: e.status, detail });
+  }
+  if (e.status === 429) {
+    return m.llm_error_rate_limit({ status: e.status, detail });
+  }
+  if (e.status >= 500) {
+    return m.llm_error_server({ status: e.status, detail });
+  }
+  return detail;
+}
+// fetch 自体が失敗した場合、まず「オフラインだから」を疑わせる。
+// キー設定ミスと誤認させてユーザーに無駄なデバッグをさせないための一次判定。
+//
+// 理由の粒度は環境によって違う。ブラウザの fetch は `Load failed` 程度しか返さないので
+// 助言のほうが役に立つが、wrapper 版は「許可されていない URL です」のように原因そのものを
+// 返す。捨てると、解決しない助言だけを見せて延々と調べさせることになるため併記する。
+function connectionErrorMessage(fallback: string, cause?: unknown): string {
+  if (isOffline()) {
+    return m.common_offline_error();
+  }
+  const detail = cause instanceof Error ? cause.message.trim() : '';
+  return detail === '' ? fallback : `${fallback}：${detail}`;
 }
 // Google Gemini API アダプター（無料枠あり、レイテンシ・コストともに低い）。
 // 2026 時点で gemini-2.5-flash 推奨。設定で他モデルも可能。
@@ -67,12 +106,16 @@ export class GeminiAdapter implements LlmAdapter {
         body: JSON.stringify(body),
       });
     } catch (e) {
-      throw new LlmError('Gemini API への接続に失敗しました', e);
+      throw new LlmError(connectionErrorMessage('Gemini API への接続に失敗しました', e), e);
     }
 
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      throw new LlmError(`Gemini API エラー ${response.status}: ${errText.slice(0, 200)}`);
+      throw new LlmError(
+        `Gemini API エラー ${response.status}: ${errText.slice(0, 200)}`,
+        undefined,
+        response.status,
+      );
     }
 
     const payload = (await response.json()) as {
@@ -101,10 +144,12 @@ export function hostOf(baseUrl: string): string {
     return baseUrl;
   }
 }
-
+// 「この端末自身か」を判定する。端末から出ない宛先だけが送信前確認を省略できる。
+// `.local`（mDNS）は LAN 上の別のマシンであり、`192.168.x.x` と同じく端末外。
+// 自分で立てたサーバーであっても、証憑写真がどの機械へ渡るのかは利用者に示す。
 export function isLocalHost(host: string): boolean {
   const name = host.replace(/:\d+$/, '').toLowerCase();
-  return LOCAL_HOSTS.has(name) || name.endsWith('.local');
+  return LOCAL_HOSTS.has(name);
 }
 // ローカル LLM が ```json フェンス等で囲って返すケースに耐性を持たせて JSON 抽出
 function parseLooseJson(text: string): unknown {
@@ -177,13 +222,20 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
       });
     } catch (e) {
       throw new LlmError(
-        `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,
+        connectionErrorMessage(
+          `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,
+          e,
+        ),
         e,
       );
     }
     if (!response.ok) {
       const errText = await response.text().catch(() => '');
-      throw new LlmError(`LLM API エラー ${response.status}: ${errText.slice(0, 200)}`);
+      throw new LlmError(
+        `LLM API エラー ${response.status}: ${errText.slice(0, 200)}`,
+        undefined,
+        response.status,
+      );
     }
     const payload = (await response.json()) as {
       choices?: Array<{ message?: { content?: string } }>;
@@ -210,16 +262,22 @@ export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Pr
   try {
     response = await fetch(`${base}/models`, { headers });
   } catch (e) {
-    throw new LlmError(`${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`, e);
+    throw new LlmError(
+      connectionErrorMessage(
+        `${hostOf(base)} への接続に失敗しました（サーバ起動・CORS を確認）`,
+        e,
+      ),
+      e,
+    );
   }
   if (!response.ok) {
-    throw new LlmError(`モデル一覧取得エラー ${response.status}`);
+    throw new LlmError(`モデル一覧取得エラー ${response.status}`, undefined, response.status);
   }
   const payload = (await response.json()) as {
     data?: Array<{ id?: string }>;
   };
   return (payload.data ?? [])
-    .map((m) => m.id)
+    .map((model) => model.id)
     .filter((id): id is string => typeof id === 'string' && id.length > 0)
     .sort();
 }

@@ -8,22 +8,28 @@
     findOverlappingRows,
     type ImportRow,
   } from '../domain/import';
-  import { findMatchingRule, recordRuleHit } from '../domain/rules';
-  import type { LlmAdapter } from '../domain/llm';
+  import { findMatchingRule, loadRules, recordRuleHit } from '../domain/rules';
+  import { describeLlmError, type LlmAdapter } from '../domain/llm';
   import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { formatJPY } from '../lib/decimal';
-  import CloudSendConfirmDialog from '../components/CloudSendConfirmDialog.svelte';
+  import AccountSelect from '../components/AccountSelect.svelte';
+  import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
   import { taxRateForCategory } from '../lib/tax-category';
-  import { exceedsLimit, formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
+  import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
   import { CsvEncodingError, decodeCsv } from '../lib/encoding';
+  import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
+  import FilePicker from '../components/FilePicker.svelte';
+
+  const PAGE_SIZE = 500;
 
   type RowState = {
     transaction: ParsedTransaction;
@@ -46,8 +52,10 @@
   let fileName = $state('');
   let fileHash = $state('');
   let rows = $state<RowState[]>([]);
+  let page = $state(0);
   let knownSubAccountId = $state('');
   let duplicateNotice = $state('');
+  let parserChangedNotice = $state('');
   let importing = $state(false);
   // 解析済みの行は取込を押すまで DB に無い。画面を離れると読み直しになる。
   const isDirty = $derived(rows.length > 0 && !importing);
@@ -78,17 +86,40 @@
   const validCount = $derived(
     rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length,
   );
+  const unclassifiedCount = $derived(
+    rows.filter((r) => !r.skip && r.counterpartAccountCode.length === 0).length,
+  );
+  const totalPages = $derived(pageCount(rows.length, PAGE_SIZE));
+  const currentPage = $derived(clampPage(page, rows.length, PAGE_SIZE));
+  const pageRange = $derived(pageBounds(rows.length, PAGE_SIZE, currentPage));
+  const pageRows = $derived(
+    rows
+      .slice(pageRange.start, pageRange.end)
+      .map((row, i) => ({ row, index: pageRange.start + i })),
+  );
+  // 取込元の下拉が変わったら、読み込み済みの表を parser 不一致のまま残さない。
+  // 再解析ではなく破棄：computeFileHash / 重複チェック / findOverlappingRows / ルール適用を
+  // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
+  function handleParserChange(newName: string) {
+    if (rows.length > 0 && newName !== selectedParserName) {
+      reset();
+      parserChangedNotice = m.import_parser_changed_notice();
+    }
+    selectedParserName = newName;
+  }
 
   async function handleFile(e: Event) {
     error = '';
     success = '';
+    parserChangedNotice = '';
     rows = [];
+    page = 0;
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file || !currentParser) {
       return;
     }
-    if (exceedsLimit(file.size, MAX_CSV_BYTES)) {
+    if (file.size > MAX_CSV_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(file.size),
         limit: formatBytes(MAX_CSV_BYTES),
@@ -114,25 +145,26 @@
       const txs = currentParser.parse(text);
       // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
       const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
-      rows = await Promise.all(
-        txs.map(async (t, i): Promise<RowState> => {
-          const rule = await findMatchingRule(t.description);
-          const code = rule?.accountCode ?? '';
-          return {
-            transaction: t,
-            counterpartAccountCode: code,
-            counterpartSubAccountId: '',
-            description: t.description,
-            skip: overlapping.has(i),
-            matchedRuleId: rule?.id ?? '',
-            llmConfidence: '',
-            taxRate: defaultTaxRateFor(code),
-            invoiceCompliant: false,
-          };
-        }),
-      );
+      const rules = await loadRules();
+      rows = txs.map((t, i): RowState => {
+        const rule = findMatchingRule(rules, t.description);
+        const code = rule?.accountCode ?? '';
+        return {
+          transaction: t,
+          counterpartAccountCode: code,
+          counterpartSubAccountId: '',
+          description: t.description,
+          skip: overlapping.has(i),
+          matchedRuleId: rule?.id ?? '',
+          llmConfidence: '',
+          taxRate: defaultTaxRateFor(code),
+          invoiceCompliant: false,
+        };
+      });
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
+      // 同じファイルを選び直しても change が発火するように、成功時も input をクリアする
+      input.value = '';
     } catch (e) {
       if (e instanceof CsvEncodingError) {
         error = m.import_encoding_error({ parser: currentParser.displayName });
@@ -182,7 +214,7 @@
     try {
       adapter = await createLlmAdapter('classify');
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
       return;
     }
     const skip = await getSetting('skipExternalSendConfirm');
@@ -255,7 +287,7 @@
             })
           : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeLlmError(e);
     } finally {
       llmClassifying = false;
     }
@@ -281,10 +313,12 @@
 
   function reset() {
     rows = [];
+    page = 0;
     fileName = '';
     fileHash = '';
     knownSubAccountId = '';
     duplicateNotice = '';
+    parserChangedNotice = '';
     error = '';
   }
 
@@ -307,6 +341,10 @@
         counterpartTaxRate: r.taxRate,
         counterpartInvoiceCompliant: r.invoiceCompliant,
       }));
+      const years = new Set(importRows.map((r) => Number(r.transaction.date.slice(0, 4))));
+      if (!(await filedYearGuard.confirm(years))) {
+        return;
+      }
       const result = await commitImport(
         {
           parserName: currentParser.name,
@@ -316,6 +354,7 @@
           ...(knownSubAccountId ? { knownSubAccountId } : {}),
         },
         importRows,
+        { allowFiledYear: true },
       );
       // 採用されたルールの hitCount をインクリメント
       const ruleIds = new Set(
@@ -353,7 +392,8 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_parser()}</span>
         <select
-          bind:value={selectedParserName}
+          value={selectedParserName}
+          onchange={(e) => handleParserChange((e.target as HTMLSelectElement).value)}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         >
           {#each PARSERS as p (p.name)}
@@ -384,12 +424,9 @@
 
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_file()}</span>
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          onchange={handleFile}
-          class="mt-1 w-full text-sm text-muted-foreground"
-        />
+        <span class="mt-1 block">
+          <FilePicker accept=".csv,text/csv" onchange={handleFile} />
+        </span>
         {#if fileName}
           <span class="text-xs text-muted-foreground mt-1 block">
             {m.import_file_selected({ name: fileName })}
@@ -415,6 +452,13 @@
         class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
       >
         ⚠ {duplicateNotice}
+      </div>
+    {/if}
+    {#if parserChangedNotice}
+      <div
+        class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
+      >
+        ⚠ {parserChangedNotice}
       </div>
     {/if}
   </section>
@@ -443,19 +487,19 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[820px] table-fixed text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
-              <th class="text-left font-normal px-3 py-2">{m.journal_th_date()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[6.5rem]">{m.journal_th_date()}</th>
               <th class="text-left font-normal px-3 py-2">{m.journal_th_description()}</th>
-              <th class="text-right font-normal px-3 py-2">{m.journal_th_amount()}</th>
-              <th class="text-left font-normal px-3 py-2">{m.import_th_counterpart()}</th>
-              <th class="text-left font-normal px-3 py-2">{m.import_th_tax()}</th>
-              <th class="text-center font-normal px-3 py-2">{m.import_th_skip()}</th>
+              <th class="text-right font-normal px-3 py-2 w-[7.5rem]">{m.journal_th_amount()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[13rem]">{m.import_th_counterpart()}</th>
+              <th class="text-left font-normal px-3 py-2 w-[6rem]">{m.import_th_tax()}</th>
+              <th class="text-center font-normal px-3 py-2 w-[3.5rem]">{m.import_th_skip()}</th>
             </tr>
           </thead>
           <tbody>
-            {#each rows as row, i (i)}
+            {#each pageRows as { row, index } (index)}
               {@const subs = row.counterpartAccountCode
                 ? ledger.subAccountsFor(row.counterpartAccountCode)
                 : []}
@@ -479,21 +523,14 @@
                 </td>
                 <td class="px-3 py-2 space-y-1">
                   <div class="flex items-center gap-1">
-                    <select
+                    <AccountSelect
                       bind:value={row.counterpartAccountCode}
+                      groups={accountGroups}
+                      placeholder={m.journal_form_account_select()}
                       onchange={() => onCounterpartAccountChange(row)}
                       disabled={row.skip}
-                      class="flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
-                    >
-                      <option value="">{m.journal_form_account_select()}</option>
-                      {#each accountGroups as group (group.category)}
-                        <optgroup label={group.label}>
-                          {#each group.items as a (a.code)}
-                            <option value={a.code}>{a.code} {a.name}</option>
-                          {/each}
-                        </optgroup>
-                      {/each}
-                    </select>
+                      class="min-w-0 flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
+                    />
                     {#if row.matchedRuleId}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
@@ -557,7 +594,42 @@
         </table>
       </div>
 
-      <div class="flex justify-end gap-2 p-4 border-t border-border/50">
+      {#if totalPages > 1}
+        <div
+          class="flex items-center justify-center gap-3 px-4 py-2 border-t border-border/50 text-xs"
+        >
+          <button
+            type="button"
+            onclick={() => (page = currentPage - 1)}
+            disabled={currentPage === 0}
+            class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.import_pager_prev()}
+          </button>
+          <span class="text-muted-foreground tabular-nums">
+            {m.import_pager_range({
+              start: pageRange.start + 1,
+              end: pageRange.end,
+              total: rows.length,
+            })}
+          </span>
+          <button
+            type="button"
+            onclick={() => (page = currentPage + 1)}
+            disabled={currentPage >= totalPages - 1}
+            class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.import_pager_next()}
+          </button>
+        </div>
+      {/if}
+
+      <div class="flex flex-wrap items-center justify-end gap-3 p-4 border-t border-border/50">
+        {#if unclassifiedCount > 0}
+          <span class="text-xs text-amber-600 dark:text-amber-500">
+            {m.import_unclassified_notice({ count: unclassifiedCount })}
+          </span>
+        {/if}
         <button
           type="button"
           onclick={reset}
@@ -579,9 +651,12 @@
   {/if}
 </div>
 
-<CloudSendConfirmDialog
+<ConfirmDialog
   open={llmConfirmOpen}
-  host={llmPending?.host ?? ''}
+  title={m.cloud_send_confirm_title()}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: llmPending?.host ?? '' })}
+  proceedLabel={m.cloud_send_confirm_proceed()}
+  dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onLlmConfirm}
   oncancel={onLlmCancel}
 />

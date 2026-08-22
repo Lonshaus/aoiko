@@ -99,7 +99,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  /* Inter Variable はラテン文字のみのため、和文・繁体中文は OS 同梱の CJK フォントに委ねる。
+     日本語読者向けの字形（直/骨 等）を優先し、Hiragino/游ゴシックを先に置く。
+     繁体中文ユーザーには PingFang TC / 微軟正黑體が後段フォールバックとして機能する。 */
+  --font-sans:
+    'Inter Variable', -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'PingFang TC', 'Microsoft JhengHei',
+    system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -126,14 +132,81 @@
   }
 }
 
+/* 印刷時は prefers-color-scheme: dark が有効なままでも用紙上は常に明色にする（帳票印刷は print:block、他は print:hidden） */
+@media print {
+  :root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --border: oklch(0.145 0 0);
+    --muted-foreground: oklch(0.145 0 0);
+  }
+  /* 帳票側の p-8（2rem）が既に余白を持つため、@page の余白は控えめにして二重余白を避ける */
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  /* レポート画面の操作系 UI は用紙に出さない（帳票印刷は print:block、他は print:hidden の既存方針を踏襲） */
+  #reports-page > header,
+  #reports-page button,
+  #reports-page form,
+  #reports-page select {
+    display: none;
+  }
+  /* min-h-screen は画面用に 1 画面分の高さを確保する指定。用紙では帳票の内容と
+     無関係に 1 ページ分の高さが残り、その後ろに空白ページが 1 枚出る。 */
+  .min-h-screen {
+    min-height: 0;
+  }
+  /* 横スクロール前提の表は用紙上では折り返さずそのまま流し込む */
+  .overflow-x-auto {
+    overflow-x: visible;
+  }
+  /* 表の min-w-* は狭い画面で横スクロールへ移行させるための画面用の指定。
+     用紙は横スクロールできないため、そのままだと A4 の印刷可能幅（約 703px）を
+     超えた分が切れて読めなくなる。印刷時だけ最小幅を外して用紙幅に畳む。 */
+  .overflow-x-auto table {
+    min-width: 0;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
+    /* viewport-fit=cover + apple-mobile-web-app-status-bar-style=black-translucent で
+       コンテンツがノッチ／ステータスバー領域まで描画されるため、安全域分だけ余白を確保する */
+    padding-top: env(safe-area-inset-top);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
   }
   html {
     @apply font-sans;
+    /* prefers-color-scheme に連動しているネイティブ UI（スクロールバー・フォームコントロール）を
+       ダークモードでも正しい配色にする */
+    color-scheme: light dark;
+    /* 長い仕訳一覧・帳票表のスクロール中に pull-to-refresh が誤発火しないようにする */
+    overscroll-behavior-y: contain;
+  }
+  [data-slot='alert-dialog-content'] {
+    /* ダイアログ内スクロールが背後のページへ連鎖しないようにする */
+    overscroll-behavior: contain;
+  }
+  button,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  th {
+    /* 見出し・表頭・ボタンのラベルが 1 行に収まらないとき、各行の長さを揃える。既定の
+       折り返しは行が埋まるまで詰めるため、最終行に数文字しか残らない（「訂正履歴（取消
+       履歴）CSVをダウンロード」を幅 293px に入れると 257px と 48px の 2 行）。
+       1 行で収まるものには影響しない。本文の段落は最終行が短くても不自然ではないため、
+       右端の余白がまだらになるのを避けて対象から外す。 */
+    text-wrap: balance;
   }
 }

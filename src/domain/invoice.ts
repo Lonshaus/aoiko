@@ -17,7 +17,7 @@ const SALES_ACCOUNT_CODE = '4110'; // 売上高
 export const DEFAULT_INVOICE_PREFIX = 'INV';
 export const DEFAULT_QUOTE_PREFIX = 'QUO';
 
-export class InvoiceError extends Error {}
+class InvoiceError extends Error {}
 
 export function newLineItem(): InvoiceLineItem {
   return { id: newId(), name: '', quantity: '1', unitPrice: '0', taxRate: 0.1 };
@@ -40,11 +40,18 @@ export function createDraftInvoice(
   };
 }
 // 税率グループ単位の小計・消費税額（インボイス制度の「税率ごとに 1 回だけ端数処理」の原則）。
-export interface InvoiceTaxGroup {
+interface InvoiceTaxGroup {
   taxRate: 0.1 | 0.08;
   subtotalExcl: Decimal;
   taxAmount: Decimal;
   grossAmount: Decimal;
+}
+// 適格請求書の記載事項には「軽減対象課税資産の譲渡等である旨」が含まれる。
+// 8% の明細が 1 行でもあれば、どの行が対象かを書面上で示す必要がある。
+export const REDUCED_TAX_RATE = 0.08;
+
+export function hasReducedRateItems(lineItems: InvoiceLineItem[]): boolean {
+  return lineItems.some((item) => item.taxRate === REDUCED_TAX_RATE);
 }
 
 export function groupLineItemsByTaxRate(lineItems: InvoiceLineItem[]): InvoiceTaxGroup[] {

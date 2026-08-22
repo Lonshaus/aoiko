@@ -6,12 +6,27 @@
   import UpdatePrompt from './components/UpdatePrompt.svelte';
   import DisclaimerConsent from './components/DisclaimerConsent.svelte';
   import UnsavedChangesDialog from './components/UnsavedChangesDialog.svelte';
+  import FiledYearWarningDialog from './components/FiledYearWarningDialog.svelte';
   import { DISCLAIMER_VERSION, getSetting } from './lib/settings';
   import { pathToChapter } from './lib/manual-routes';
+  import { isOpaqueError } from './lib/opaque-error';
+  import { ledger } from './stores/ledger.svelte';
   import { m } from './paraglide/messages';
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
+  // 器の幅は画面が抱える表の実寸で決める。狭すぎると表がはみ出し、列が一文字ずつ折り返して
+  // 縦書きのようになる。器の内寸は max-w から左右 padding 64px を引いた値。
+  // - /reports：決算書の表が実測 1002px。カードの内側 48px も引くので max-w-6xl（内寸 1040px）
+  // - /journal：仕訳一覧の表が min-w-[720px]。max-w-5xl（内寸 960px）
+  // - /manual：長文なので広げると読みにくい。表は無いので max-w-5xl のまま
+  const PAGE_MAX_WIDTH: Record<string, string> = {
+    '/reports': 'max-w-6xl',
+    '/journal': 'max-w-5xl',
+  };
+  const mainMaxWidth = $derived(
+    isManual ? 'max-w-5xl' : (PAGE_MAX_WIDTH[router.path] ?? 'max-w-3xl'),
+  );
 
   type ConsentState = 'checking' | 'required' | 'granted';
   let consentState = $state<ConsentState>('checking');
@@ -34,7 +49,10 @@
   // 単一バナーに畳むため boolean 一つで管理する。
   let showErrorBanner = $state(false);
   onMount(() => {
-    const onError = () => {
+    const onError = (event: Event) => {
+      if (isOpaqueError(event)) {
+        return;
+      }
       showErrorBanner = true;
     };
     window.addEventListener('error', onError);
@@ -43,6 +61,12 @@
       window.removeEventListener('error', onError);
       window.removeEventListener('unhandledrejection', onError);
     };
+  });
+  // liveQuery 購読の失敗（ledger ストア集約）も同じバナーで知らせる。
+  $effect(() => {
+    if (ledger.lastError !== null) {
+      showErrorBanner = true;
+    }
   });
   // 初回ロードを軽くするため、ホーム以外の画面は遅延読み込みする。
   // memo で同一 promise を返し、画面遷移のたびに再 import されないようにする。
@@ -85,7 +109,7 @@
 <div class="min-h-screen flex flex-col">
   {#if showErrorBanner}
     <div
-      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive"
+      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive pt-[calc(0.5rem+env(safe-area-inset-top))]"
     >
       <span>{m.error_banner_message()}</span>
       <button
@@ -97,7 +121,9 @@
       </button>
     </div>
   {/if}
-  <header class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground">
+  <header
+    class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground pt-[env(safe-area-inset-top)]"
+  >
     <div
       class="container mx-auto max-w-5xl px-4 md:px-8 py-4 flex items-center justify-between gap-6"
     >
@@ -109,7 +135,7 @@
           <a
             href={item.href}
             use:link
-            class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
+            class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
             >{item.label()}</a
           >
         {/each}
@@ -152,13 +178,15 @@
       </nav>
     {/if}
   </header>
-  <main class="flex-1 container mx-auto px-4 md:px-8 py-8 {isManual ? 'max-w-5xl' : 'max-w-3xl'}">
+  <main
+    class="flex-1 container mx-auto px-4 md:px-8 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] {mainMaxWidth}"
+  >
     {#if helpChapter}
       <div class="print:hidden mb-4 flex justify-end">
         <a
           href="/manual/{helpChapter}"
           use:link
-          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
         >
           ？{m.nav_manual()}
         </a>
@@ -181,7 +209,7 @@
         <div class="space-y-4 py-12 text-center">
           <h2 class="text-lg font-semibold">{m.manual_not_found()}</h2>
           <p class="text-muted-foreground">{m.not_found_body()}</p>
-          <a href="/" use:link class="text-primary hover:underline">{m.nav_home()}</a>
+          <a href="/" use:link class="text-primary hover:underline py-2 -my-2">{m.nav_home()}</a>
         </div>
       {/if}
       {#snippet failed(error)}
@@ -211,6 +239,7 @@
 
 <UpdatePrompt />
 <UnsavedChangesDialog />
+<FiledYearWarningDialog />
 
 {#if consentState === 'required'}
   <DisclaimerConsent onaccept={onConsentAccepted} />

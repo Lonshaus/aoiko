@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- macOS 15 以降は LAN 上の別ホストへの接続も許可の対象になる。iOS 側（Info.ios.plist）
+       だけ宣言していて macOS が空だと、OCR/LLM に同一 LAN の Ollama 等を指定したときに
+       許可を求める余地すら無い。文面は iOS 側と揃える。
+       ATS の項目は入れない。対外 http はネイティブ側の reqwest が出しており、
+       WKWebView を通らないため ATS は掛からない（2026-08-12 実測）。 -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>この端末と同じネットワークにある OCR・LLM サーバー（Ollama 等）へ接続するために使用します。設定で接続先を指定した場合にのみ通信します。</string>
+  <!-- 暗号は全て OS 提供のものだけを使う。TLS は reqwest の native-tls-alpn 経由で
+       macOS の Security.framework・Windows の Schannel が担い、自前の実装（rustls/ring）は
+       ビルドの依存グラフに入っていない。バックアップや API キーを自前で暗号化するように
+       なったらこの値は true になり、毎年 2 月 1 日に米 BIS への自己分類報告が要る。 -->
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>NSHumanReadableCopyright</key>
+  <string>2026 Lonshaus</string>
+  <!-- この app が持つ言語の一覧。AppKit と WebKit は、この一覧と利用者の優先言語の交差から
+       プロセスの実効言語を決め、フレームワーク側の文字列（保存パネル・印刷パネル・
+       input[type=file]・コンテキストメニュー）をそこから引く。宣言が無いと英語専用の app と
+       判定され、日本語の Mac でも保存パネルが Cancel / Save で出る。
+       実効言語は起動時に一度決まる。NSSavePanel にも WKWebView にも locale を渡す API は
+       無いので、ここはシステムの言語に従うだけで、設定画面の言語切り替えには連動しない。
+       プラットフォームの挙動であって直せる類ではない（メニューバーは #84）。
+       App Store の製品ページに出る「言語」欄もこの一覧から導出されるため、
+       宣言が無いと日本向けの申告ソフトが English と表示される。
+       値は frontend の locales（src/paraglide/runtime.js）と揃える。繁体字中国語は
+       plist 側の綴りが zh-Hant。 -->
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>ja</string>
+    <string>zh-Hant</string>
+    <string>en</string>
+  </array>
+</dict>
+</plist>

@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
 
 export interface CarryoverPreview {
@@ -139,7 +140,9 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
 export async function applyCarryover(
   year: number,
+  options?: { allowFiledYear?: boolean },
 ): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
+  await assertYearsWritable([year], options);
   const preview = await computeCarryover(year);
   if (
     preview.assets.length === 0 &&
@@ -152,7 +155,10 @@ export async function applyCarryover(
   const existing = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter((e) => e.source === 'carryover' && e.status === 'confirmed')
+    .filter(
+      (e) =>
+        e.source === 'carryover' && e.status === 'confirmed' && e.originalEntryId === undefined,
+    )
     .first();
   if (existing) {
     return { reason: 'already-exists' };
@@ -169,7 +175,6 @@ export async function applyCarryover(
     createdAt: now,
     confirmedAt: now,
   };
-
   // amount の符号に応じて positiveSide／その逆側へ振り分けた JournalLine を積む。
   const pushSignedLine = (
     lines: JournalLine[],
@@ -212,6 +217,7 @@ export async function applyCarryover(
   );
 
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    markConfirmedWrite(options);
     await db.journalEntries.add(entry);
     await db.journalLines.bulkAdd(lines);
   });
@@ -219,19 +225,116 @@ export async function applyCarryover(
   return { entryId: entry.id };
 }
 
-export async function removeCarryover(year: number): Promise<{ removed: boolean }> {
+export interface StaleCarryover {
+  year: number;
+  differences: Array<{ accountCode: string; carried: string; current: string }>;
+}
+// applyCarryover はその場限りのスナップショットで、前年度の訂正仕訳があっても自動では
+// 再計算されない。既存の期首振替仕訳（source='carryover'）に記帳された金額と、
+// computeCarryover(year) で前年度残高から改めて算出した金額を突き合わせ、
+// ズレている科目を返す。振替仕訳が存在しない、または一致していれば null。
+// #332 以降 removeCarryover は反対仕訳方式のため、集計対象の判定は countsTowardTotals に委ねる
+// （反転済みの原仕訳・反転仕訳自体は対象外、現に有効な 1 件だけを比較する）。
+export async function detectStaleCarryover(year: number): Promise<StaleCarryover | null> {
+  const entry = await db.journalEntries
+    .where('year')
+    .equals(year)
+    .filter((e) => e.source === 'carryover' && countsTowardTotals(e))
+    .first();
+  if (!entry) {
+    return null;
+  }
+
+  const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
+  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const accountMap = new Map(accounts.map((a) => [a.code, a]));
+
+  const carried = new Map<string, Decimal>();
+  for (const line of lines) {
+    const acc = accountMap.get(line.accountCode);
+    if (!acc) {
+      continue;
+    }
+    const amount = D(line.amount);
+    const positiveSide = acc.category === 'asset' ? 'debit' : 'credit';
+    carried.set(line.accountCode, line.side === positiveSide ? amount : amount.negated());
+  }
+
+  const preview = await computeCarryover(year);
+  const current = new Map<string, Decimal>();
+  for (const a of preview.assets) {
+    current.set(a.accountCode, D(a.amount));
+  }
+  for (const l of preview.liabilities) {
+    current.set(l.accountCode, D(l.amount));
+  }
+  current.set(preview.capitalCode, D(preview.capitalAmount));
+
+  const codes = new Set([...carried.keys(), ...current.keys()]);
+  const differences: StaleCarryover['differences'] = [];
+  for (const code of codes) {
+    const carriedAmount = carried.get(code) ?? D(0);
+    const currentAmount = current.get(code) ?? D(0);
+    if (!carriedAmount.equals(currentAmount)) {
+      differences.push({
+        accountCode: code,
+        carried: carriedAmount.toString(),
+        current: currentAmount.toString(),
+      });
+    }
+  }
+  differences.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+
+  return differences.length === 0 ? null : { year, differences };
+}
+// 期首振替のやり直し。確定仕訳は物理削除せず、打消し仕訳で相殺する（reverse.ts と同じ方式。
+// CLAUDE.md「確定仕訳は不変・訂正は反対仕訳・完全な監査履歴を保持」＝電子帳簿保存法）。
+// 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。
+export async function removeCarryover(
+  year: number,
+  options?: { allowFiledYear?: boolean },
+): Promise<{ removed: boolean }> {
+  await assertYearsWritable([year], options);
   const existing = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter((e) => e.source === 'carryover')
+    .filter(
+      (e) =>
+        e.source === 'carryover' && e.status === 'confirmed' && e.originalEntryId === undefined,
+    )
     .toArray();
   if (existing.length === 0) {
     return { removed: false };
   }
+  const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
-    for (const e of existing) {
-      await db.journalLines.where('entryId').equals(e.id).delete();
-      await db.journalEntries.delete(e.id);
+    markConfirmedWrite(options);
+    for (const orig of existing) {
+      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+      const reversalId = newId();
+      await db.journalEntries.add({
+        id: reversalId,
+        date: orig.date,
+        year: orig.year,
+        description: `[訂正] ${orig.description}`,
+        status: 'confirmed',
+        originalEntryId: orig.id,
+        source: 'carryover',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      for (const line of lines) {
+        await db.journalLines.add({
+          ...line,
+          id: newId(),
+          entryId: reversalId,
+          side: line.side === 'debit' ? 'credit' : 'debit',
+        });
+      }
+      await db.journalEntries.update(orig.id, {
+        status: 'reversed',
+        reversedByEntryId: reversalId,
+      });
     }
   });
   return { removed: true };

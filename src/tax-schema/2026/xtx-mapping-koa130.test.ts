@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
-import { mapKoa130RepeatedValues, mapKoa130Values } from './xtx-mapping-koa130';
+import {
+  koa130AdditionalExpenseOverflow,
+  mapKoa130RepeatedValues,
+  mapKoa130Values,
+} from './xtx-mapping-koa130';
 import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import type { FixedAsset, PersonalDeductionFamilyEmployee } from '../../db/types';
@@ -213,6 +217,115 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00230).toBe('2800000');
   });
 
+  test('事業的規模なら白色でも貸倒引当金繰入額（不動産）は必要経費のまま（52条1項、issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '100000',
+          netIncome: '2700000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    // 加算し戻さない：2,700,000 のまま
+    expect(out.AKG00230).toBe('2700000');
+  });
+
+  test('事業的規模なら白色でも専従者給与（不動産）は加算し戻すが貸倒引当金繰入額（不動産）は戻さない（issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5380',
+              accountName: '専従者給与（不動産）',
+              category: 'expense',
+              amount: '300000',
+              displayOrder: 1380,
+            },
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '400000',
+          netIncome: '2000000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    // 専従者給与だけ加算し戻す：2,000,000 + 300,000 = 2,300,000
+    expect(out.AKG00230).toBe('2300000');
+  });
+
+  test('非事業的規模なら貸倒引当金繰入額（不動産）を加算し戻す（personalDeductions 明示、issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '100000',
+          netIncome: '2700000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: false }),
+      }),
+    );
+    expect(out.AKG00230).toBe('2800000');
+  });
+
+  test('専従者控除の上限は貸倒引当金繰入額（不動産）を戻さない所得を基準にする（issue#378）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '400000',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '400000',
+          netIncome: '1000000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }, [
+          {
+            id: 'f1',
+            name: '配偶者花子',
+            relation: 'spouse',
+            age: 40,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ]),
+      }),
+    );
+    // 専従者控除前所得金額は 100万（貸倒引当金繰入額は戻さない）→ 100万÷2=50万 と
+    // 配偶者定額86万のいずれか低い方＝50万（戻していれば140万÷2=70万になり不一致）
+    expect(out.AKG00240).toBe('500000');
+    expect(out.AKG00250).toBe('500000');
+  });
+
   test('土地等取得の負債利子額を確定額のまま出力する', () => {
     const out = mapKoa130Values(
       ctx({
@@ -265,6 +378,172 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     );
     expect(out.AKG00240).toBeUndefined();
     expect(out.AKG00250).toBeUndefined();
+  });
+});
+
+describe('mapKoa130Values（AKG00010/AKG00190 追加科目・単一枠、issue#379）', () => {
+  test('固定欄に対応しない経費科目は追加科目へ転記する', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5399',
+              accountName: '雑科目（不動産）',
+              category: 'expense',
+              amount: '50000',
+              displayOrder: 1399,
+            },
+          ],
+        }),
+      }),
+    );
+    expect(out.AKG00010).toBe('雑科目');
+    expect(out.AKG00190).toBe('50000');
+  });
+
+  test('貸倒引当金繰入額（不動産）は金額が小さくても最優先で枠を占める', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5399',
+              accountName: '雑科目（不動産）',
+              category: 'expense',
+              amount: '999999',
+              displayOrder: 1399,
+            },
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '1',
+              displayOrder: 1395,
+            },
+          ],
+          totalExpense: '1000000',
+          netIncome: '0',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    expect(out.AKG00010).toBe('貸倒引当金繰入額');
+    expect(out.AKG00190).toBe('1');
+  });
+
+  test('貸倒引当金繰入額（不動産）が候補に無ければ金額の大きい順で1件だけ枠に入れる', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5398',
+              accountName: '小口科目（不動産）',
+              category: 'expense',
+              amount: '1000',
+              displayOrder: 1398,
+            },
+            {
+              accountCode: '5397',
+              accountName: '大口科目（不動産）',
+              category: 'expense',
+              amount: '999000',
+              displayOrder: 1397,
+            },
+          ],
+        }),
+      }),
+    );
+    expect(out.AKG00010).toBe('大口科目');
+    expect(out.AKG00190).toBe('999000');
+  });
+
+  test('非事業的規模の貸倒引当金繰入額（不動産）は所得計算から除外される科目なので枠にも転記しない', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '100000',
+              displayOrder: 1395,
+            },
+          ],
+        }),
+        personalDeductions: withRealEstate({ businessScale: false }),
+      }),
+    );
+    expect(out.AKG00010).toBeUndefined();
+    expect(out.AKG00190).toBeUndefined();
+  });
+
+  test('枠は1組のみ・2件目以降は koa130AdditionalExpenseOverflow で報告する', () => {
+    const input = ctx({
+      realEstatePl: realEstatePl({
+        expense: [
+          {
+            accountCode: '5398',
+            accountName: '小口科目（不動産）',
+            category: 'expense',
+            amount: '1000',
+            displayOrder: 1398,
+          },
+          {
+            accountCode: '5397',
+            accountName: '大口科目（不動産）',
+            category: 'expense',
+            amount: '999000',
+            displayOrder: 1397,
+          },
+        ],
+      }),
+    });
+    expect(mapKoa130Values(input).AKG00010).toBe('大口科目');
+    const overflow = koa130AdditionalExpenseOverflow(input);
+    expect(overflow).toHaveLength(1);
+    expect(overflow[0]!.accountName).toBe('小口科目（不動産）');
+  });
+
+  test('収入 − 転記経費 == 専従者控除前の所得金額（白色・事業的規模・引当金40万、issue#379）', () => {
+    const out = mapKoa130Values(
+      ctx({
+        realEstatePl: realEstatePl({
+          revenue: [
+            {
+              accountCode: '4210',
+              accountName: '賃貸料（不動産）',
+              category: 'revenue',
+              amount: '5000000',
+              displayOrder: 210,
+            },
+          ],
+          expense: [
+            {
+              accountCode: '5410',
+              accountName: '貸倒引当金繰入額（不動産）',
+              category: 'expense',
+              amount: '400000',
+              displayOrder: 1395,
+            },
+          ],
+          totalRevenue: '5000000',
+          totalExpense: '400000',
+          netIncome: '4600000',
+        }),
+        personalDeductions: withRealEstate({ businessScale: true }),
+      }),
+    );
+    const revenue = D(out.AKG00030 ?? '0')
+      .plus(out.AKG00050 ?? '0')
+      .plus(out.AKG00060 ?? '0');
+    const transcribedExpense = D(out.AKG00190 ?? '0');
+    expect(revenue.toString()).toBe('5000000');
+    expect(transcribedExpense.toString()).toBe('400000');
+    expect(revenue.minus(transcribedExpense).toString()).toBe(out.AKG00230);
+    expect(out.AKG00230).toBe('4600000');
   });
 });
 

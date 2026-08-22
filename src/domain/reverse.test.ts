@@ -5,7 +5,7 @@ import { newId } from '../lib/id';
 import { reverseEntry } from './reverse';
 import { markYearFiled } from './snapshots';
 import { todayISO } from '../lib/date';
-import type { ReportSnapshotData } from '../db/types';
+import type { JournalLine, ReportSnapshotData } from '../db/types';
 
 async function seedEntry(opts: {
   description: string;
@@ -13,6 +13,7 @@ async function seedEntry(opts: {
   debitAccount: string;
   creditAccount: string;
   amount: string;
+  debitExtras?: Pick<JournalLine, 'taxCategory' | 'inputUsageCategory' | 'itemId' | 'quantity'>;
 }): Promise<string> {
   const entryId = newId();
   const now = Date.now();
@@ -38,6 +39,7 @@ async function seedEntry(opts: {
         taxRate: 0,
         taxIncluded: true,
         invoiceCompliant: false,
+        ...opts.debitExtras,
       },
       {
         id: newId(),
@@ -91,6 +93,55 @@ describe('reverseEntry', () => {
     expect(credit?.accountCode).toBe('5130');
     expect(debit?.amount).toBe('5000');
     expect(credit?.amount).toBe('5000');
+  });
+
+  test('明細の任意フィールド（税区分・用途区分・商品・数量）を訂正仕訳へ転記する', async () => {
+    const origId = await seedEntry({
+      description: '仕入',
+      date: '2026-04-15',
+      debitAccount: '5110',
+      creditAccount: '1130',
+      amount: '11000',
+      debitExtras: {
+        taxCategory: 'importTax10',
+        inputUsageCategory: 'common',
+        itemId: 'item-abc',
+        quantity: '3',
+      },
+    });
+
+    const reversalId = await reverseEntry(origId);
+
+    const reversalLines = await db.journalLines.where('entryId').equals(reversalId).toArray();
+    // 原仕訳で借方だった 5110 は、訂正仕訳では貸方側の行になる
+    const reversed = reversalLines.find((l) => l.accountCode === '5110');
+    expect(reversed).toBeDefined();
+    expect(reversed!.side).toBe('credit');
+    expect(reversed!.taxCategory).toBe('importTax10');
+    expect(reversed!.inputUsageCategory).toBe('common');
+    expect(reversed!.itemId).toBe('item-abc');
+    expect(reversed!.quantity).toBe('3');
+  });
+
+  test('任意フィールドを持たない明細では、訂正仕訳の行に空のキーを生やさない', async () => {
+    const origId = await seedEntry({
+      description: '電気代',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '5000',
+    });
+
+    const reversalId = await reverseEntry(origId);
+
+    const reversalLines = await db.journalLines.where('entryId').equals(reversalId).toArray();
+    expect(reversalLines).toHaveLength(2);
+    for (const line of reversalLines) {
+      expect(Object.keys(line)).not.toContain('taxCategory');
+      expect(Object.keys(line)).not.toContain('inputUsageCategory');
+      expect(Object.keys(line)).not.toContain('itemId');
+      expect(Object.keys(line)).not.toContain('quantity');
+    }
   });
 
   test('marks the original as reversed and links forward', async () => {
@@ -179,9 +230,37 @@ describe('reverseEntry', () => {
     await expect(reverseEntry(origId)).rejects.toThrow(/申告済み.*ロック/);
   });
 
-  test('rejects when the correction would land in a locked year (記帳先の年度ロック)', async () => {
-    // 訂正仕訳は「今日」の年度に記帳される。原仕訳の年度が未ロックでも、
-    // 今日の年度がロック済みなら訂正できない（申告済み年度への注入防止）
+  test('allowFiledYear:true でロック済み原仕訳年度でも訂正できる（#339 の修正申告フロー向けオプトイン）', async () => {
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    });
+    const monthlySales: ReportSnapshotData & { type: 'monthly-sales' } = {
+      type: 'monthly-sales',
+      data: { months: [] },
+    };
+    const pl: ReportSnapshotData & { type: 'pl' } = {
+      type: 'pl',
+      data: {
+        rows: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+      },
+    };
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+
+    const reversalId = await reverseEntry(origId, { allowFiledYear: true });
+    const reversal = await db.journalEntries.get(reversalId);
+    expect(reversal).toBeDefined();
+  });
+
+  test('今日の年度がロック済みでも訂正できる（訂正仕訳は countsTowardTotals 対象外のため無関係）', async () => {
+    // 訂正仕訳は「今日」の年度に記帳されるが originalEntryId を持つため countsTowardTotals
+    // から除外され、今日の年度の集計には一切影響しない。よって今日の年度のロックは無関係。
     const currentYear = Number(todayISO().slice(0, 4));
     const origId = await seedEntry({
       description: 'テスト',
@@ -205,6 +284,8 @@ describe('reverseEntry', () => {
     };
     await markYearFiled(currentYear, { monthlySales, pl }, `${currentYear}-12-31`);
 
-    await expect(reverseEntry(origId)).rejects.toThrow(/記帳できません/);
+    const reversalId = await reverseEntry(origId);
+    const reversal = await db.journalEntries.get(reversalId);
+    expect(reversal).toBeDefined();
   });
 });
