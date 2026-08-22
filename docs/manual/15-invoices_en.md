@@ -52,7 +52,13 @@ From the quotes list, click **"Convert to invoice"** to create a new invoice dra
 
 ## 5. Printing to send
 
-For an issued document, click **"Print"** in the list to open the print dialog. To save as a PDF, choose "Save as PDF" as the destination in the print dialog.
+For an issued document, click **"Print"** in the list to open the print dialog.
+<!-- only:browser -->
+To save as a PDF, choose "Save as PDF" as the destination in the print dialog.
+<!-- /only -->
+<!-- only:native -->
+On desktop, save as PDF from the print panel (on macOS, for example, that's the "PDF" menu at the bottom-left). On iPad/iPhone, save via the share sheet.
+<!-- /only -->
 
 The printed layout automatically includes the fields required under the qualified invoice retention system:
 

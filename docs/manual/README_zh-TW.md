@@ -30,7 +30,12 @@
 - [08. 減價償卻](08-depreciation_zh-TW.md) — 固定資產、定額・定率法、少額 40 萬日圓特例
 - [09. 前期繰越](09-carryover_zh-TW.md) — 年度切換、期首振替傳票
 - [10. `.xtx` 輸出](10-xtx-export_zh-TW.md) — e-Tax 格式產生與匯入驗證
+<!-- only:browser -->
 - [11. 備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
+<!-- /only -->
+<!-- only:native -->
+- [11. 備份與還原](11-backup_zh-TW.md) — 選一個資料夾就自動寫出、手動匯出、還原
+<!-- /only -->
 - [12. 修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
 - [13. 開業時設定（開業精靈）](13-opening-setup_zh-TW.md) — 開業費、轉用資產未償卻殘額計算、自由項目
 - [14. 所得控除・税額控除](14-income-deductions_zh-TW.md) — 輸入家庭成員・保險費・醫療費・捐款等資料，試算基礎扣除〜復興特別所得税，並反映到 `.xtx` 輸出

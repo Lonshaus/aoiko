@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { acceptDisclaimer } from './helpers';
-// UI 播種 → /reports → .xtx ダウンロードまでを 1 本で通す。過去の回帰（exportYear 錯位・
+// UI 播種 → /reports → .xtx 書き出しまでを 1 本で通す。過去の回帰（exportYear 錯位・
 // BS 欄錯置・リバースチャージ漏配線）は「unit は各自緑・繋ぐと壊れる」接線層だったため、
 // 出力フロー全体を通して封包後の値・ファイル名・文書構造を確かめる。
 // ドメイン計算そのものは Vitest（xtx.test.ts 等）で網羅済み。ここは統合のみ。
@@ -82,7 +82,7 @@ test('UIで播種した仕訳が .xtx 出力に反映され、年・売上・経
   });
 
   await page.goto('/reports');
-  const downloadButton = page.getByRole('button', { name: '.xtx をダウンロード', exact: true });
+  const downloadButton = page.getByRole('button', { name: '.xtx を書き出す', exact: true });
   await expect(downloadButton).toBeVisible();
 
   const downloadPromise = page.waitForEvent('download');
