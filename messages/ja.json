@@ -276,7 +276,7 @@
   "order_title": "注文取込（貼り付け→LLM 抽出）",
   "order_subtitle": "Amazon・楽天 等の注文ページ全文を貼り付けて、LLM で品目内訳を抽出 → 確認 → 仕訳化。DOM を読み取らないため、サイト改修の影響を受けません。",
   "order_step_paste": "1. 注文ページのテキストを貼り付け",
-  "order_paste_placeholder": "注文ページを全選択 (Cmd+A) → コピー (Cmd+C) して貼り付けてください。ヘッダやレコメンド部分が混在していても LLM が判別します。",
+  "order_paste_placeholder": "注文ページを全選択 ({mod}+A) → コピー ({mod}+C) して貼り付けてください。ヘッダやレコメンド部分が混在していても LLM が判別します。",
   "order_analyze_button": "解析する",
   "order_analyze_running": "⏳ 解析中…",
   "order_step_review": "2. 抽出結果（編集可）",
