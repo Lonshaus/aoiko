@@ -62,18 +62,18 @@
       </ul>
 
       <div class="text-xs text-muted-foreground pt-2 border-t space-y-1">
-        <p>
+        <div>
           {m.disclaimer_docs_prefix()}
-          <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
-          ／
-          <PolicyDocViewer doc="PRIVACY" label="PRIVACY.md" />
-          ／
-          <PolicyDocViewer doc="SECURITY" label="SECURITY.md" />
-          ／
-          <PolicyDocViewer doc="LICENSE" label="LICENSE (AGPL-3.0)" />
-          ／
-          <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
-        </p>
+          <PolicyDocViewer
+            docs={[
+              { doc: 'DISCLAIMER', label: 'DISCLAIMER.md' },
+              { doc: 'PRIVACY', label: 'PRIVACY.md' },
+              { doc: 'SECURITY', label: 'SECURITY.md' },
+              { doc: 'LICENSE', label: 'LICENSE (AGPL-3.0)' },
+              { doc: 'THIRD_PARTY', label: 'THIRD_PARTY_LICENSES.txt' },
+            ]}
+          />
+        </div>
       </div>
     </section>
 

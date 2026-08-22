@@ -2731,12 +2731,15 @@
           version: disclaimerAcceptedVersion ?? 0,
         })}
       </p>
-      <p class="text-xs text-muted-foreground">
+      <div class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}
-        <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
-        ／
-        <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
-      </p>
+        <PolicyDocViewer
+          docs={[
+            { doc: 'DISCLAIMER', label: 'DISCLAIMER.md' },
+            { doc: 'THIRD_PARTY', label: 'THIRD_PARTY_LICENSES.txt' },
+          ]}
+        />
+      </div>
       <div>
         <button
           type="button"
