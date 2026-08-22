@@ -123,9 +123,10 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // 文字認識も同じ二段構え。橋渡しが生えていない環境で選ばせると、読めない引擎が選ばれた
-  // まま設定がバックアップに乗って別の端末へ渡る。
-  const canUseNativeOcr = __NATIVE__ && typeof nativeBridge()?.recognizeText === 'function';
+  // 文字認識は三段構え。橋渡しが生えていても、その端末が日本語を読めるとは限らない
+  // （Windows は言語機能が既定で入っておらず、Apple 側も版と導入内容で変わる）。
+  // 推測せず onMount で実際に問い、返事が来るまでは出さない。
+  let nativeOcrAvailable = $state(false);
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -345,6 +346,9 @@
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    // 関数の有無だけでは足りない。読めるかどうかはネイティブ側にしか分からない。
+    const ask = __NATIVE__ ? nativeBridge()?.isTextRecognitionAvailable : undefined;
+    nativeOcrAvailable = typeof ask === 'function' ? await ask().catch(() => false) : false;
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -2479,7 +2483,7 @@
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
           <option value="tesseract">{m.settings_engine_tesseract()}</option>
-          {#if canUseNativeOcr}
+          {#if nativeOcrAvailable || ocrEngine === 'native'}
             <option value="native">{m.settings_engine_native()}</option>
           {/if}
         </select>
@@ -2492,9 +2496,15 @@
       {/if}
 
       {#if ocrEngine === 'native'}
-        <p class="text-xs text-muted-foreground">
-          {@html m.settings_native_ocr_intro_html()}
-        </p>
+        {#if nativeOcrAvailable}
+          <p class="text-xs text-muted-foreground">
+            {@html m.settings_native_ocr_intro_html()}
+          </p>
+        {:else}
+          <!-- 選ばれたまま読めない端末へ移ることがある（設定はバックアップに乗る）。
+               勝手に別の引擎へ落とさず、選び直しは利用者に委ねる。 -->
+          <p class="text-xs text-destructive">{m.ocr_native_unavailable()}</p>
+        {/if}
       {/if}
 
       {#if ocrEngine === 'openai-compatible'}

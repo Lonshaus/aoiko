@@ -147,6 +147,22 @@ pub(crate) fn recognize_text<R: Runtime>(
     }
 }
 
+// 設定画面が選択肢を出す前に問う。関数が生えていることと、その端末が日本語を
+// 読めることは別（Windows は言語機能が既定で入っておらず、Apple 側も版と導入内容で
+// 変わる）。推測せず毎回問い、読めないなら選ばせない。
+#[tauri::command(async)]
+pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().is_text_recognition_available()
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = &app;
+        crate::desktop::is_text_recognition_available()
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(target_os = "ios")]

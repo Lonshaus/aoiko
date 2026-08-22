@@ -230,6 +230,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::backup_remove,
             commands::export_open,
             commands::recognize_text,
+            commands::is_text_recognition_available,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());
