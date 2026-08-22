@@ -30,12 +30,7 @@ Click **"Receipts"** in the navigation to open `Receipt`.
 Click the file input under **"1. Choose an image (camera also OK)"**:
 
 - PC: pick JPG / PNG / WebP / HEIC from the file dialog
-<!-- only:browser -->
-- Phone (PWA installed): the camera option appears, take a photo on the spot
-<!-- /only -->
-<!-- only:native -->
-- Phone (the app): the camera option appears, take a photo on the spot
-<!-- /only -->
+- Phone or tablet: choose from the photo library, take a photo on the spot, or pick a file
 
 The chosen image is shown as a preview.
 
