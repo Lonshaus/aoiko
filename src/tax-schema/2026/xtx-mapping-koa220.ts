@@ -28,6 +28,7 @@ import type { DepreciationMethod } from '../../db/types';
 import { computeDepreciation } from '../../domain/depreciation';
 import {
   computeCombinedBusinessRealEstateIncome,
+  realEstateDisallowedExpenseAccounts,
   realEstatePreDeductionIncome,
   REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
 } from './real-estate-income';
@@ -194,7 +195,6 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
-
 // 第2頁「貸家等の状況」（ANF00340）。incomeType: 'realEstate' の FixedAsset の
 // realEstateDetail から生成する（物件＝資産という1:1の単純化、複数棟をまたぐ
 // 按分等は対象外）。
@@ -236,7 +236,6 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
       return row;
     });
 }
-
 // 第3頁「減価償却費の計算」（ANF00890）。incomeType: 'realEstate' の FixedAsset のみ、
 // 事業所得側（xtx-mapping-koa110.ts の mapKoa110RepeatedValues）と同じロジックを使う。
 function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
@@ -302,21 +301,29 @@ function payeeRows<
     return row;
   });
 }
-
 // KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
 // 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
-// へ出力する。5件を超える分は出力しない（超過時は e-Tax 上で利用者が手動補完）。
-function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
+// へ出力する。5件を超える分は koa220AdditionalExpenseOverflow() で利用者へ提示する（issue#379）。
+// 専従者給与（不動産）は事業的規模なら専用欄（差引金額の次）へ出すため常に除外。
+// 所得計算で加算し直す科目（realEstateDisallowedExpenseAccounts、非事業的規模の
+// 引当金・専従者給与）は同じ理由でここでも転記しない（唯一の判定元、issue#379）。
+function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; amount: string }[] {
   const pl = ctx.realEstatePl;
   if (!pl) {
     return [];
   }
-  return pl.expense
-    .filter(
-      (row) =>
-        !(row.accountName in EXPENSE_ALIAS) &&
-        row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME,
-    )
+  const businessScale = ctx.personalDeductions?.realEstateIncome?.businessScale ?? false;
+  const disallowed = realEstateDisallowedExpenseAccounts(businessScale, 'blue');
+  return pl.expense.filter(
+    (row) =>
+      !(row.accountName in EXPENSE_ALIAS) &&
+      row.accountName !== REAL_ESTATE_SENJUSHA_ACCOUNT_NAME &&
+      !disallowed.has(row.accountName),
+  );
+}
+
+function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
+  return additionalExpenseCandidates(ctx)
     .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
     .map((row) => {
       const name = row.accountName
@@ -326,6 +333,15 @@ function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
       putRow(item, 'ANF00200', row.amount);
       return item;
     });
+}
+// 追加科目欄（ANF00195、上限5）に入りきらなかった経費科目。利用者への警告表示用
+// （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
+export function koa220AdditionalExpenseOverflow(
+  ctx: XtxContext,
+): { accountName: string; amount: string }[] {
+  return additionalExpenseCandidates(ctx)
+    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
 export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.security.app-sandbox</key>
+  <true/>
+  <!-- 対外連線（Gemini・本機 Ollama）だけでなく WKWebView 自体にも必要。
+       欠けると TestFlight で白画面になる（tauri-apps/tauri#13815）。 -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!-- 保存ダイアログで利用者が選んだ場所への書き込み。 -->
+  <key>com.apple.security.files.user-selected.read-write</key>
+  <true/>
+  <!-- 上の許可は起動 1 回きり。バックアップフォルダは次の起動でも同じ場所へ書くため、
+       security-scoped bookmark で持ち越す。これが無いと bookmark を作れず、
+       自動バックアップが再起動のたびに「選び直し」へ落ちる。 -->
+  <key>com.apple.security.files.bookmarks.app-scope</key>
+  <true/>
+  <!-- 請求書の印刷。サンドボックス下ではこれが無いと印刷機構へ触れず、
+       システムが「This application does not support printing」を出す。
+       print_page は呼ばれているのでアプリ側にはエラーが残らない。 -->
+  <key>com.apple.security.print</key>
+  <true/>
+</dict>
+</plist>

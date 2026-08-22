@@ -3,8 +3,14 @@ import { db } from '../db/db';
 import { D, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
-import { applyCarryover, computeCarryover, removeCarryover } from './carryover';
+import {
+  applyCarryover,
+  computeCarryover,
+  detectStaleCarryover,
+  removeCarryover,
+} from './carryover';
 import { reverseEntry } from './reverse';
+import { buildBS } from './reports';
 import { todayISO } from '../lib/date';
 import type { Account, EntrySource, LineSide } from '../db/types';
 
@@ -312,7 +318,85 @@ describe('applyCarryover', () => {
 });
 
 describe('removeCarryover', () => {
-  test('carryover 仕訳とその明細を削除', async () => {
+  async function seedPriorYear(): Promise<void> {
+    await seedAccounts(2025);
+    await seedAccounts(2026);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '3110', amount: '100000' },
+      ],
+    });
+  }
+
+  test('確定仕訳は削除せず、打消し仕訳で相殺する', async () => {
+    await seedPriorYear();
+    const applied = await applyCarryover(2026);
+    const originalId = 'entryId' in applied ? applied.entryId : '';
+    expect(originalId).not.toBe('');
+
+    const r = await removeCarryover(2026);
+    expect(r.removed).toBe(true);
+
+    // 原仕訳は残り、reversed になる
+    const orig = await db.journalEntries.get(originalId);
+    expect(orig?.status).toBe('reversed');
+    expect(orig?.reversedByEntryId).toBeDefined();
+
+    // 打消し仕訳は同じ期首日・同じ年度に、原仕訳を指して作られる
+    const reversal = await db.journalEntries.get(orig!.reversedByEntryId!);
+    expect(reversal?.originalEntryId).toBe(originalId);
+    expect(reversal?.date).toBe(orig?.date);
+    expect(reversal?.year).toBe(2026);
+
+    // 明細は貸借が反転している
+    const origLines = await db.journalLines.where('entryId').equals(originalId).toArray();
+    const revLines = await db.journalLines.where('entryId').equals(reversal!.id).toArray();
+    expect(revLines).toHaveLength(origLines.length);
+    for (const ol of origLines) {
+      const match = revLines.find(
+        (rl) => rl.accountCode === ol.accountCode && rl.amount === ol.amount,
+      );
+      expect(match?.side).toBe(ol.side === 'debit' ? 'credit' : 'debit');
+    }
+  });
+
+  test('打消し後は繰越をやり直せる（already-exists にならない）', async () => {
+    await seedPriorYear();
+    await applyCarryover(2026);
+    await removeCarryover(2026);
+    const redo = await applyCarryover(2026);
+    expect('entryId' in redo).toBe(true);
+  });
+
+  test('対象が無ければ removed=false', async () => {
+    await seedPriorYear();
+    const r = await removeCarryover(2026);
+    expect(r.removed).toBe(false);
+  });
+
+  test('やり直しても B/S は繰越 1 回分と同じ（成対排除が効く）', async () => {
+    await seedPriorYear();
+    await applyCarryover(2026);
+    const once = await buildBS(2026);
+    await removeCarryover(2026);
+    await applyCarryover(2026);
+    const twice = await buildBS(2026);
+    expect(twice.totalAssets).toBe(once.totalAssets);
+    expect(twice.totalLiabilitiesAndEquity).toBe(once.totalLiabilitiesAndEquity);
+  });
+});
+
+describe('detectStaleCarryover', () => {
+  test('繰越仕訳が存在しなければ null', async () => {
+    await seedAccounts(2025);
+    await seedAccounts(2026);
+    expect(await detectStaleCarryover(2026)).toBeNull();
+  });
+
+  test('前年度残高と一致していれば null', async () => {
     await seedAccounts(2025);
     await seedAccounts(2026);
     await seedEntry({
@@ -324,12 +408,175 @@ describe('removeCarryover', () => {
       ],
     });
     await applyCarryover(2026);
-    const r = await removeCarryover(2026);
-    expect(r.removed).toBe(true);
-    const left = await db.journalEntries.where('year').equals(2026).count();
-    expect(left).toBe(0);
-    const lines = await db.journalLines.count();
-    // 元の 2025 仕訳 2 行 + 削除した carryover 0 行
-    expect(lines).toBe(2);
+    expect(await detectStaleCarryover(2026)).toBeNull();
+  });
+
+  test('繰越後に前年度が訂正されるとズレを検出する', async () => {
+    await seedAccounts(2025);
+    await seedAccounts(2026);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '3110', amount: '100000' },
+      ],
+    });
+    await applyCarryover(2026);
+    // 繰越確定後に前年度の漏れていた経費を追加（前年度残高が変わる）
+    await seedEntry({
+      date: '2025-11-01',
+      description: '漏れていた経費',
+      pairs: [
+        { side: 'debit', accountCode: '5200', amount: '20000' },
+        { side: 'credit', accountCode: '1130', amount: '20000' },
+      ],
+    });
+    const r = await detectStaleCarryover(2026);
+    expect(r).not.toBeNull();
+    const byCode = new Map(r!.differences.map((d) => [d.accountCode, d]));
+    // 普通預金：繰越済みは100000のまま、現在の再計算は80000
+    expect(byCode.get('1130')).toEqual({
+      accountCode: '1130',
+      carried: '100000',
+      current: '80000',
+    });
+    // 元入金：繰越済みは100000のまま、現在の再計算は80000（純利益減少分を吸収）
+    expect(byCode.get('3110')).toEqual({
+      accountCode: '3110',
+      carried: '100000',
+      current: '80000',
+    });
+  });
+
+  test('#332 の反対仕訳方式：反転済み原仕訳と反転仕訳を無視し、現に有効な仕訳だけ比較する', async () => {
+    await seedAccounts(2025);
+    await seedAccounts(2026);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '3110', amount: '100000' },
+      ],
+    });
+
+    // やり直し前の古い（誤った）繰越仕訳：既に反転済み（status='reversed'）
+    const staleId = newId();
+    const reversalId = newId();
+    const liveId = newId();
+    const now = Date.now();
+    await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+      await db.journalEntries.add({
+        id: staleId,
+        date: '2026-01-01',
+        year: 2026,
+        description: '前期繰越（誤り・反転済み）',
+        status: 'reversed',
+        source: 'carryover',
+        reversedByEntryId: reversalId,
+        createdAt: now,
+        confirmedAt: now,
+      });
+      await db.journalLines.bulkAdd([
+        {
+          id: newId(),
+          entryId: staleId,
+          side: 'debit',
+          accountCode: '1130',
+          amount: '999999',
+          amountIndexed: toIndexable('999999'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+        {
+          id: newId(),
+          entryId: staleId,
+          side: 'credit',
+          accountCode: '3110',
+          amount: '999999',
+          amountIndexed: toIndexable('999999'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+      ]);
+      // 反転仕訳（原仕訳の反対側）
+      await db.journalEntries.add({
+        id: reversalId,
+        date: '2026-01-01',
+        year: 2026,
+        description: '[訂正] 前期繰越（誤り・反転済み）',
+        status: 'confirmed',
+        originalEntryId: staleId,
+        source: 'carryover',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      await db.journalLines.bulkAdd([
+        {
+          id: newId(),
+          entryId: reversalId,
+          side: 'credit',
+          accountCode: '1130',
+          amount: '999999',
+          amountIndexed: toIndexable('999999'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+        {
+          id: newId(),
+          entryId: reversalId,
+          side: 'debit',
+          accountCode: '3110',
+          amount: '999999',
+          amountIndexed: toIndexable('999999'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+      ]);
+      // 現に有効な繰越仕訳（正しい金額）
+      await db.journalEntries.add({
+        id: liveId,
+        date: '2026-01-01',
+        year: 2026,
+        description: '前期繰越（2025年から）',
+        status: 'confirmed',
+        source: 'carryover',
+        createdAt: now,
+        confirmedAt: now,
+      });
+      await db.journalLines.bulkAdd([
+        {
+          id: newId(),
+          entryId: liveId,
+          side: 'debit',
+          accountCode: '1130',
+          amount: '100000',
+          amountIndexed: toIndexable('100000'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+        {
+          id: newId(),
+          entryId: liveId,
+          side: 'credit',
+          accountCode: '3110',
+          amount: '100000',
+          amountIndexed: toIndexable('100000'),
+          taxRate: 0,
+          taxIncluded: false,
+          invoiceCompliant: false,
+        },
+      ]);
+    });
+
+    // 現に有効な繰越仕訳（100000）は前年度残高（100000）と一致しているため null。
+    // 反転済みの誤った仕訳（999999）が混入していれば誤検出になるはず。
+    expect(await detectStaleCarryover(2026)).toBeNull();
   });
 });

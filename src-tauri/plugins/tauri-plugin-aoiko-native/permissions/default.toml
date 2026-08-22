@@ -1,0 +1,22 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = """
+バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と
+アプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、
+受け取ったパスはその配下に収まることを検査してから使う。
+"""
+permissions = [
+  "allow-pick-folder",
+  "allow-resolve-folder",
+  "allow-print-page",
+  "allow-open-in-app",
+  "allow-confirm-discard",
+  "allow-backup-open",
+  "allow-backup-write-chunk",
+  "allow-backup-close",
+  "allow-backup-read",
+  "allow-backup-list",
+  "allow-backup-remove",
+  "allow-export-open",
+]

@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { hostOf, isLocalHost, listOpenAiModels, LlmError, OpenAICompatibleAdapter } from './llm';
+import {
+  describeLlmError,
+  hostOf,
+  isLocalHost,
+  listOpenAiModels,
+  LlmError,
+  OpenAICompatibleAdapter,
+} from './llm';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -28,8 +35,15 @@ describe('hostOf / isLocalHost', () => {
   test('ローカル判定', () => {
     expect(isLocalHost('localhost:11434')).toBe(true);
     expect(isLocalHost('127.0.0.1:1234')).toBe(true);
-    expect(isLocalHost('mybox.local')).toBe(true);
+    expect(isLocalHost('[::1]:11434')).toBe(true);
     expect(isLocalHost('api.openai.com')).toBe(false);
+  });
+  // mDNS の .local は LAN 上の別マシン。192.168.x.x と同じく端末外なので
+  // 送信前確認を省略してはいけない。
+  test('.local は端末外として扱う', () => {
+    expect(isLocalHost('mybox.local')).toBe(false);
+    expect(isLocalHost('mybox.local:11434')).toBe(false);
+    expect(isLocalHost('192.168.1.5:11434')).toBe(false);
   });
 });
 
@@ -86,5 +100,123 @@ describe('listOpenAiModels', () => {
       return { data: [{ id: 'mistral' }, { id: 'llama3' }, {}] };
     });
     expect(await listOpenAiModels('http://localhost:11434/v1/')).toEqual(['llama3', 'mistral']);
+  });
+});
+
+function mockErrorResponse(status: number, body: string) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: false,
+      status,
+      text: async () => body,
+    })),
+  );
+}
+
+describe('HTTP エラーの status 伝播', () => {
+  test('401 は LlmError.status に反映される', async () => {
+    mockErrorResponse(401, '{"error":"invalid api key"}');
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.toMatchObject({ status: 401 });
+  });
+
+  test('listOpenAiModels の 429 も status に反映される', async () => {
+    mockErrorResponse(429, 'rate limited');
+    await expect(listOpenAiModels('http://localhost:11434/v1')).rejects.toMatchObject({
+      status: 429,
+    });
+  });
+});
+
+describe('describeLlmError', () => {
+  test('401/403 は認証エラーの文言に変換される', () => {
+    const msg = describeLlmError(new LlmError('raw body', undefined, 401));
+    expect(msg).not.toBe('raw body');
+    expect(msg).toContain('raw body');
+  });
+
+  test('404 はエンドポイント/モデル誤りの文言に変換される', () => {
+    const msg = describeLlmError(new LlmError('not found body', undefined, 404));
+    expect(msg).toContain('not found body');
+  });
+
+  test('429 はレート制限の文言に変換される', () => {
+    const msg = describeLlmError(new LlmError('quota body', undefined, 429));
+    expect(msg).toContain('quota body');
+  });
+
+  test('5xx はサーバ側エラーの文言に変換される', () => {
+    const msg = describeLlmError(new LlmError('server body', undefined, 503));
+    expect(msg).toContain('server body');
+  });
+
+  test('status のない LlmError は message をそのまま返す', () => {
+    expect(describeLlmError(new LlmError('plain'))).toBe('plain');
+  });
+
+  test('LlmError 以外の Error は message をそのまま返す', () => {
+    expect(describeLlmError(new Error('boom'))).toBe('boom');
+  });
+
+  test('Error でない値は文字列化して返す', () => {
+    expect(describeLlmError('oops')).toBe('oops');
+  });
+});
+
+describe('オフライン時の fetch 失敗', () => {
+  test('navigator.onLine === false の場合はオフライン向け文言になる', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.toThrow(/インターネット/);
+  });
+});
+
+describe('接続失敗の理由の併記', () => {
+  // wrapper 版はネイティブ側の拒否理由をそのまま投げてくる。捨てると利用者は
+  // 「サーバ起動・CORS を確認」という、この状況では解決しない助言だけを見る。
+  test('下位のエラーメッセージを助言に併記する', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    const a = new OpenAICompatibleAdapter('http://192.168.1.50:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.toThrow(/許可されていない URL です/);
+    await expect(a.generateJson('x')).rejects.toThrow(/CORS/);
+  });
+
+  test('モデル一覧の取得でも併記する', async () => {
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    await expect(listOpenAiModels('http://192.168.1.50:11434/v1')).rejects.toThrow(
+      /許可されていない URL です/,
+    );
+  });
+  // オフラインの一次判定は今までどおり優先する。回線が落ちているときに
+  // 下位の理由を並べても、最初に見るべきものが埋もれる。
+  test('オフライン時は理由を併記せずオフライン文言のみ', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('許可されていない URL です: http://192.168.1.50');
+      }),
+    );
+    const a = new OpenAICompatibleAdapter('http://192.168.1.50:11434/v1', 'm');
+    await expect(a.generateJson('x')).rejects.not.toThrow(/許可されていない/);
   });
 });

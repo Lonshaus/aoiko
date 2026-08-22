@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
-import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
+import {
+  koa220AdditionalExpenseOverflow,
+  mapKoa220RepeatedValues,
+  mapKoa220Values,
+} from './xtx-mapping-koa220';
 import type { XtxContext } from './xtx';
 import type { FixedAsset } from '../../db/types';
 import type { PLReport } from '../../domain/reports';
@@ -377,7 +381,7 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     expect(repeats.ANF01260?.[0]?.ANF01310).toBe('5000');
   });
 
-  test('専用欄の無い経費科目（貸倒金・貸倒引当金繰入額）は追加科目（ANF00195）へ出力する', () => {
+  test('専用欄の無い経費科目（貸倒金・事業的規模の貸倒引当金繰入額）は追加科目（ANF00195）へ出力する', () => {
     const repeats = mapKoa220RepeatedValues(
       ctx({
         realEstatePl: realEstatePl({
@@ -398,12 +402,56 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
             },
           ],
         }),
+        personalDeductions: withRealEstate({ businessScale: true }),
       }),
     );
     expect(repeats.ANF00195).toHaveLength(2);
     expect(repeats.ANF00195?.[0]?.ANF00060).toBe('貸倒金');
     expect(repeats.ANF00195?.[0]?.ANF00200).toBe('30000');
     expect(repeats.ANF00195?.[1]?.ANF00060).toBe('貸倒引当金繰入額');
+  });
+
+  test('青色・非事業的規模の貸倒引当金繰入額（不動産）は所得へ加算し直す科目なので追加科目へ転記しない（issue#379のフォローアップ）', () => {
+    const pl = realEstatePl({
+      revenue: [
+        {
+          accountCode: '4210',
+          accountName: '賃貸料（不動産）',
+          category: 'revenue',
+          amount: '3000000',
+          displayOrder: 210,
+        },
+      ],
+      expense: [
+        {
+          accountCode: '5380',
+          accountName: '専従者給与（不動産）',
+          category: 'expense',
+          amount: '600000',
+          displayOrder: 1380,
+        },
+        {
+          accountCode: '5410',
+          accountName: '貸倒引当金繰入額（不動産）',
+          category: 'expense',
+          amount: '400000',
+          displayOrder: 1395,
+        },
+      ],
+      totalRevenue: '3000000',
+      totalExpense: '1000000',
+      netIncome: '2000000',
+    });
+    const input = ctx({
+      realEstatePl: pl,
+      personalDeductions: withRealEstate({ businessScale: false }),
+    });
+    const repeats = mapKoa220RepeatedValues(input);
+    expect(repeats.ANF00195 ?? []).toHaveLength(0);
+    const values = mapKoa220Values(input);
+    expect(Object.values(values)).not.toContain('400000');
+    // 3,000,000 − 0（転記経費なし）＝ 3,000,000（専従者給与・引当金とも加算し戻し済み）
+    expect(values.ANF00250).toBe('3000000');
   });
 
   test('専用欄がある経費科目（損害保険料等）は追加科目に重複して出さない', () => {
@@ -435,5 +483,22 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     }));
     const repeats = mapKoa220RepeatedValues(ctx({ realEstatePl: realEstatePl({ expense }) }));
     expect(repeats.ANF00195).toHaveLength(5);
+  });
+
+  test('公式上限5件を超えた分は koa220AdditionalExpenseOverflow で報告する（issue#379）', () => {
+    const expense: PLReport['expense'] = Array.from({ length: 7 }, (_, i) => ({
+      accountCode: `9${i}`,
+      accountName: `未対応科目${i}（不動産）`,
+      category: 'expense' as const,
+      amount: '1000',
+      displayOrder: i,
+    }));
+    const input = ctx({ realEstatePl: realEstatePl({ expense }) });
+    const overflow = koa220AdditionalExpenseOverflow(input);
+    expect(overflow).toHaveLength(2);
+    expect(overflow.map((o) => o.accountName)).toEqual([
+      '未対応科目5（不動産）',
+      '未対応科目6（不動産）',
+    ]);
   });
 });

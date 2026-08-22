@@ -1,18 +1,12 @@
 <script lang="ts">
   import { backup } from '../stores/backup.svelte';
+  import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
   import { link } from '../router.svelte';
   import { m } from '../paraglide/messages';
 
-  function daysSince(ts: number | null): number | null {
-    if (!ts) {
-      return null;
-    }
-    return Math.floor((Date.now() - ts) / (24 * 60 * 60 * 1000));
-  }
-
   const downloadDays = $derived(daysSince(backup.lastDownloadAt));
-  const opfsStale = $derived(
-    backup.adapterKind === 'opfs' && (downloadDays === null || downloadDays >= 7),
+  const noOffsiteBackup = $derived(
+    needsOffsiteBackupWarning(backup.adapterKind, backup.status, downloadDays),
   );
 </script>
 
@@ -21,8 +15,19 @@
     class="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2 bg-card text-card-foreground"
   >
     <span class="text-muted-foreground">{m.backup_notice_unconfigured()}</span>
-    <a href="/settings" use:link class="text-primary hover:underline"
+    <a href="/settings" use:link class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
       >{m.backup_notice_action_configure()}</a
+    >
+  </div>
+{:else if backup.status === 'reconfigure-required'}
+  <div
+    class="flex items-center justify-between gap-3 text-xs border border-destructive rounded-lg px-3 py-2 bg-card"
+  >
+    <span class="text-destructive"
+      >{m.backup_notice_reconfigure_required({ folderName: backup.folderName ?? '' })}</span
+    >
+    <a href="/settings" use:link class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
+      >{m.backup_notice_action_reconfigure()}</a
     >
   </div>
 {:else if backup.status === 'permission-required'}
@@ -32,7 +37,7 @@
     <span class="text-muted-foreground"
       >{m.backup_notice_permission_required({ folderName: backup.folderName ?? '' })}</span
     >
-    <a href="/settings" use:link class="text-primary hover:underline"
+    <a href="/settings" use:link class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
       >{m.backup_notice_action_grant()}</a
     >
   </div>
@@ -45,20 +50,22 @@
     class="flex items-center justify-between gap-3 text-xs border border-destructive rounded-lg px-3 py-2 bg-card"
   >
     <span class="text-destructive">{m.backup_notice_error({ error: backup.lastError ?? '' })}</span>
-    <a href="/settings" use:link class="text-primary hover:underline"
+    <a href="/settings" use:link class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
       >{m.backup_notice_action_settings()}</a
     >
   </div>
-{:else if opfsStale}
+{/if}
+
+{#if noOffsiteBackup}
   <div
     class="flex items-center justify-between gap-3 text-xs border border-destructive/50 rounded-lg px-3 py-2 bg-card"
   >
     <span class="text-destructive">
       {downloadDays === null
-        ? m.backup_notice_opfs_stale_never()
-        : m.backup_notice_opfs_stale_days({ days: downloadDays })}
+        ? m.backup_notice_no_offsite_never()
+        : m.backup_notice_no_offsite_days({ days: downloadDays })}
     </span>
-    <a href="/settings" use:link class="text-primary hover:underline"
+    <a href="/settings" use:link class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
       >{m.backup_notice_action_operate()}</a
     >
   </div>

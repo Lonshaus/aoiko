@@ -44,7 +44,7 @@ export async function recordPayment(id: string, amount: string): Promise<void> {
   await db.arApEntries.update(id, { paidAmount: newPaid.toString() });
 }
 
-export interface CashFlowMonthBucket {
+interface CashFlowMonthBucket {
   yearMonth: string; // 'YYYY-MM'
   expectedInflow: string;
   expectedOutflow: string;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { clearUnsavedGuard, link, router, setUnsavedGuard } from '../router.svelte';
+  import { router, link, clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
@@ -10,10 +10,14 @@
   import {
     computeConvertedAssetBasis,
     generateOpeningEntries,
+    removeOpeningEntries,
     type ExpenseAmortization,
     type OpeningCustomItem,
   } from '../domain/business-opening';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import type { DepreciationMethod } from '../db/types';
   import type { FilingType } from '../tax-schema/2026/xtx';
 
@@ -145,6 +149,8 @@
   let step = $state<'form' | 'preview' | 'done'>('form');
   let generating = $state(false);
   let error = $state('');
+  let canRedo = $state(false);
+  let redoConfirmOpen = $state(false);
 
   const hasAnyItem = $derived(
     expenses.length > 0 || convertedAssets.length > 0 || customItems.length > 0,
@@ -177,30 +183,73 @@
         accountCode: c.accountCode,
         side: c.side,
       }));
-      await generateOpeningEntries({
-        businessStartDate,
-        expenses,
-        expenseAmortization,
-        convertedAssets: convertedAssets.map((a) => ({
-          name: a.name,
-          acquisitionDate: a.acquisitionDate,
-          acquisitionCost: a.acquisitionCost,
-          usefulLifeYears: a.usefulLifeYears,
-          accountCode: a.accountCode,
-          // チェック後に取得日等を書き換えて不適格になった行の取りこぼし防止
-          depreciationMethod:
-            a.depreciationMethod === 'small-asset-special' && !smallAssetEligibleByAcquisition(a)
-              ? 'straight-line'
-              : a.depreciationMethod,
-        })),
-        customItems: items,
+      const year = Number(businessStartDate.slice(0, 4));
+      const detail = m.filed_year_warning_detail_opening({
+        expenses: expenses.length,
+        assets: convertedAssets.length,
+        custom: customItems.length,
       });
+      if (!(await filedYearGuard.confirm([year], { detail }))) {
+        return;
+      }
+      const result = await generateOpeningEntries(
+        {
+          businessStartDate,
+          expenses,
+          expenseAmortization,
+          convertedAssets: convertedAssets.map((a) => ({
+            name: a.name,
+            acquisitionDate: a.acquisitionDate,
+            acquisitionCost: a.acquisitionCost,
+            usefulLifeYears: a.usefulLifeYears,
+            accountCode: a.accountCode,
+            // チェック後に取得日等を書き換えて不適格になった行の取りこぼし防止
+            depreciationMethod:
+              a.depreciationMethod === 'small-asset-special' && !smallAssetEligibleByAcquisition(a)
+                ? 'straight-line'
+                : a.depreciationMethod,
+          })),
+          customItems: items,
+        },
+        { allowFiledYear: true },
+      );
+      if ('reason' in result) {
+        error = m.opening_already_exists();
+        canRedo = true;
+        return;
+      }
       step = 'done';
     } catch (e) {
-      error = e instanceof Error ? e.message : String(e);
+      error = describeStorageError(e);
     } finally {
       generating = false;
     }
+  }
+  // 既存の開業仕訳を打ち消してから、いまの入力で作り直す。打消しに失敗した場合は
+  // 作り直しへ進まない（打ち消せていない状態で generate すると二重計上になる）。
+  async function handleRedo() {
+    redoConfirmOpen = false;
+    generating = true;
+    error = '';
+    try {
+      // 作り直しは既存の開業仕訳を打ち消す書き込み。生成と同じく申告済み年度の確認を通す。
+      const redoYear = Number(businessStartDate.slice(0, 4));
+      if (!(await filedYearGuard.confirm([redoYear]))) {
+        return;
+      }
+      const removal = await removeOpeningEntries(redoYear, { allowFiledYear: true });
+      if ('reason' in removal) {
+        error = m.opening_redo_blocked({ assets: removal.assetNames.join('、') });
+        return;
+      }
+      canRedo = false;
+    } catch (e) {
+      error = describeStorageError(e);
+      return;
+    } finally {
+      generating = false;
+    }
+    await handleGenerate();
   }
 </script>
 
@@ -520,6 +569,16 @@
       {#if error}
         <p class="text-sm text-destructive">{error}</p>
       {/if}
+      {#if canRedo}
+        <button
+          type="button"
+          onclick={() => (redoConfirmOpen = true)}
+          disabled={generating}
+          class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+        >
+          {m.opening_redo_button()}
+        </button>
+      {/if}
       <div class="flex justify-end gap-2">
         <button
           type="button"
@@ -551,3 +610,27 @@
     </section>
   {/if}
 </div>
+
+<AlertDialog.Root
+  open={redoConfirmOpen}
+  onOpenChange={(o: boolean) => {
+    if (!o) {
+      redoConfirmOpen = false;
+    }
+  }}
+>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>{m.opening_redo_confirm_title()}</AlertDialog.Title>
+      <AlertDialog.Description>
+        {m.opening_redo_confirm_desc({ year: Number(businessStartDate.slice(0, 4)) })}
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={handleRedo}>
+        {m.opening_redo_confirm_action()}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>

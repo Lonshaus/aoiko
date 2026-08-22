@@ -4,7 +4,7 @@
 手で保守する EXTERNAL_ARTIFACTS から生成しています。直接編集せず、依存やビルド構成を
 変えたら再生成してください。
 
-対象：npm 依存として自動収集した 48 件 + npm 外から手動で追跡する 4 件。
+対象：npm 依存として自動収集した 50 件 + npm 外から手動で追跡する 4 件。
 npm の dependencies に加え、devDependencies に置かれていても実際に配られるもの
 （Svelte のランタイム・UI 部品・フォント・サービスワーカー等）とその依存を含む。
 ビルド時にしか動かないものは除く。バンドラの tree shaking で最終的に落ちるものも
@@ -18,7 +18,7 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   @floating-ui/dom@1.7.6  —  MIT
   @floating-ui/utils@0.2.11  —  MIT
   @fontsource-variable/inter@5.3.0  —  OFL-1.1
-  @inlang/paraglide-js@2.23.0  —  MIT
+  @inlang/paraglide-js@2.23.2  —  MIT
   @jridgewell/gen-mapping@0.3.13  —  MIT
   @jridgewell/remapping@2.3.5  —  MIT
   @jridgewell/resolve-uri@3.1.2  —  MIT
@@ -46,14 +46,16 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   locate-character@3.0.0  —  MIT
   lz-string@1.5.0  —  MIT
   magic-string@0.30.21  —  MIT
-  marked@18.0.7  —  MIT
+  marked@18.0.9  —  MIT
   runed@0.35.1  —  MIT
+  shadcn-svelte@1.5.0  —  MIT
   style-to-object@1.0.14  —  MIT
-  svelte@5.56.8  —  MIT
+  svelte@5.56.9  —  MIT
   svelte-toolbelt@0.10.6  —  MIT License（本文から判定）
   tabbable@6.4.0  —  MIT
   tailwind-merge@3.6.0  —  MIT
-  tailwind-variants@3.3.0  —  MIT
+  tailwind-variants@3.3.1  —  MIT
+  tailwindcss@4.3.3  —  MIT
   tesseract-wasm@0.11.0  —  BSD-2-Clause
   tw-animate-css@1.4.0  —  MIT
   workbox-core@7.4.1  —  MIT
@@ -209,7 +211,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：@inlang/paraglide-js@2.23.0
+対象：@inlang/paraglide-js@2.23.2
 
 MIT License
 
@@ -1232,7 +1234,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：marked@18.0.7
+対象：marked@18.0.9
 
 # License information
 
@@ -1308,6 +1310,38 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
+対象：shadcn-svelte@1.5.0, shadcn-svelte（vendor コンポーネント）（src/lib/components/ui/alert-dialog/, src/lib/components/ui/button/（bundle へ組み込み））
+
+── shadcn-svelte（vendor コンポーネント） の著作権表示（upstream: https://github.com/huntabyte/shadcn-svelte） ──
+
+  Copyright (c) 2023 Hunter Johnston / Copyright (c) 2023 CokaKoala / Copyright (c) 2023 shadcn
+
+MIT License
+
+Copyright (c) 2023 Hunter Johnston <https://github.com/huntabyte>
+Copyright (c) 2023 CokaKoala <https://github.com/adriangonz97>
+Copyright (c) 2023 shadcn
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+──────────────────────────────────────────────────────────────────────────────
+
 対象：style-to-object@1.0.14
 
 The MIT License (MIT)
@@ -1335,7 +1369,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：svelte@5.56.8
+対象：svelte@5.56.9
 
 Copyright (c) 2016-2025 [Svelte Contributors](https://github.com/sveltejs/svelte/graphs/contributors)
 
@@ -1399,11 +1433,37 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：tailwind-variants@3.3.0
+対象：tailwind-variants@3.3.1
 
 MIT License
 
 Copyright (c) 2020 Tailwid Variants
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+──────────────────────────────────────────────────────────────────────────────
+
+対象：tailwindcss@4.3.3
+
+MIT License
+
+Copyright (c) Tailwind Labs, Inc.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1960,38 +2020,6 @@ Apache License
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS
-
-──────────────────────────────────────────────────────────────────────────────
-
-対象：shadcn-svelte（vendor コンポーネント）（src/lib/components/ui/alert-dialog/, src/lib/components/ui/button/（bundle へ組み込み））
-
-── shadcn-svelte（vendor コンポーネント） の著作権表示（upstream: https://github.com/huntabyte/shadcn-svelte） ──
-
-  Copyright (c) 2023 Hunter Johnston / Copyright (c) 2023 CokaKoala / Copyright (c) 2023 shadcn
-
-MIT License
-
-Copyright (c) 2023 Hunter Johnston <https://github.com/huntabyte>
-Copyright (c) 2023 CokaKoala <https://github.com/adriangonz97>
-Copyright (c) 2023 shadcn
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 

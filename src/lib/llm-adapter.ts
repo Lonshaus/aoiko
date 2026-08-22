@@ -5,7 +5,7 @@
 import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../domain/llm';
 import { getSetting } from './settings';
 
-export type LlmPurpose = 'ocr' | 'classify';
+type LlmPurpose = 'ocr' | 'classify';
 
 export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter> {
   const engine = (await getSetting('ocrEngine')) ?? 'gemini';

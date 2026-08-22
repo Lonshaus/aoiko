@@ -1,8 +1,21 @@
 import { db } from '../db/db';
+import { sha256Hex } from '../lib/sha256';
 import type { Attachment } from '../db/types';
 import type { BackupPayload } from './types';
-// シリアライズ不可能な settings キー（常にバックアップ対象外）
-const SKIP_SETTING_KEYS = new Set(['backupFolderHandle']);
+// 常にバックアップ対象外の settings キー。除外理由は 2 種類ある。
+// - backupFolderHandle：FileSystemDirectoryHandle でシリアライズできない
+// - nativeBackupFolder：シリアライズはできるが端末固有（パス / security-scoped bookmark）で、
+//   別端末へ復元すると存在しない場所や他人のフォルダを指し得る
+const SKIP_SETTING_KEYS = new Set([
+  'backupFolderHandle',
+  'nativeBackupFolder',
+  // 支援者バッジ。商店から復元できるものなので、バックアップで運ぶと
+  // 買っていない端末へ持ち込めてしまう。
+  'supporterBadgeAt',
+]);
+// 常にバックアップ対象外のテーブル。
+// - stamps：この端末だけの記録だと画面で言っている。含めると復元で別端末へ引き継がれる
+const SKIP_TABLES = new Set(['stamps']);
 // API キー（平文）。既定では除外し、利用者が明示的に含めると選択した場合のみ書き出す。
 const SENSITIVE_SETTING_KEYS = new Set(['geminiApiKey', 'openaiApiKey']);
 // 申告者情報（利用者識別番号・氏名・住所・税務署）。個人情報のため既定で除外し、
@@ -18,7 +31,7 @@ export const FILER_INFO_SETTING_KEYS = new Set([
 
 export const PAYLOAD_VERSION = 1;
 
-export interface BuildPayloadOptions {
+interface BuildPayloadOptions {
   // API キーをバックアップに含めるか（既定 false）
   includeApiKeys?: boolean;
   // 申告者情報をバックアップに含めるか（既定 false）
@@ -32,9 +45,12 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
   // 全テーブルを1つの読み取りトランザクションで揃える。table ごとに await t.toArray()
   // すると Dexie がその都度独立トランザクションを開き、間に書き込みが割り込んで
   // 参照整合性が壊れたスナップショットになる（#316）。写真バイナリの読み出しは
-  // collectAttachmentBlobs で別途行うため、ここには含めない。
+  // iterateAttachmentBlobs で zip ストリーミング中に別途行うため、ここには含めない。
   await db.transaction('r', db.tables, async () => {
     for (const t of db.tables) {
+      if (SKIP_TABLES.has(t.name)) {
+        continue;
+      }
       let rows = await t.toArray();
       if (t.name === 'settings') {
         rows = rows.filter((r) => {
@@ -68,14 +84,42 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     tables,
   };
 }
-// 証憑写真（C7）の実体バイナリを id → bytes で収集する。zip 同梱用。
-export async function collectAttachmentBlobs(): Promise<Map<string, Uint8Array>> {
-  const rows = await db.attachments.toArray();
-  const entries = await Promise.all(
-    rows.map(async (r): Promise<[string, Uint8Array]> => [
-      r.id,
-      new Uint8Array(await r.blob.arrayBuffer()),
-    ]),
-  );
-  return new Map(entries);
+// 証憑写真（C7）の実体バイナリを id → bytes で1件ずつ生成する。zip 同梱用。
+// 主キーを先に取得してから1件ずつ get() することで、常に写真1枚分だけがメモリに乗る。
+export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string, Uint8Array]> {
+  const ids = await db.attachments.toCollection().primaryKeys();
+  for (const id of ids) {
+    const row = await db.attachments.get(id);
+    if (!row) {
+      continue;
+    }
+    yield [id, new Uint8Array(await row.blob.arrayBuffer())];
+  }
+}
+// 内容定址バックアップ用。id・SHA-256・大きさ・実体を 1 件ずつ生成する。
+// zip 同梱用の iterateAttachmentBlobs と分けてあるのは、あちらが id をファイル名に使う
+// のに対し、こちらは SHA-256 をファイル名に使うため（同じ写真は 1 つしか置かない）。
+//
+// sha256 は v10 の upgrade で全行に入るが、型の上では任意のままなので、欠けていれば
+// その場で計算する。ここで諦めると、その写真だけが復元できないバックアップになる。
+export async function* iterateAttachmentSources(): AsyncGenerator<{
+  id: string;
+  sha256: string;
+  bytes: number;
+  data: Uint8Array;
+}> {
+  const ids = await db.attachments.toCollection().primaryKeys();
+  for (const id of ids) {
+    const row = await db.attachments.get(id);
+    if (!row) {
+      continue;
+    }
+    const data = new Uint8Array(await row.blob.arrayBuffer());
+    yield {
+      id,
+      sha256: row.sha256 ?? (await sha256Hex(row.blob)),
+      bytes: data.byteLength,
+      data,
+    };
+  }
 }

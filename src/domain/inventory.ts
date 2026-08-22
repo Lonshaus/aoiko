@@ -15,7 +15,7 @@ import { countsTowardTotals } from './journal';
 const PURCHASE_ACCOUNT_CODE = '5020'; // 仕入
 const SALES_ACCOUNT_CODE = '4110'; // 売上高
 
-export interface ItemValuation {
+interface ItemValuation {
   itemId: string;
   quantity: Decimal;
   unitCost: Decimal;
