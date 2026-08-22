@@ -10,10 +10,24 @@ import { db } from '../db/db';
 let target: HTMLElement | null = null;
 let component: Record<string, unknown> | null = null;
 
-function render(): void {
+function render(onclose: () => void = () => {}): void {
   target = document.createElement('div');
   document.body.appendChild(target);
-  component = mount(SupportDialog, { target, props: { open: false, onclose: () => {} } });
+  component = mount(SupportDialog, { target, props: { open: false, onclose } });
+  flushSync();
+}
+
+// jsdom の <dialog> はレイアウトを持たず矩形が全て 0 になるので、判定に使う箱を差し替える。
+function clickDialog(at: { x: number; y: number }): void {
+  const dialog = target?.querySelector('dialog');
+  if (dialog === null || dialog === undefined) {
+    throw new Error('dialog が無い');
+  }
+  dialog.getBoundingClientRect = () =>
+    ({ left: 100, right: 300, top: 100, bottom: 300 }) as DOMRect;
+  dialog.dispatchEvent(
+    new MouseEvent('click', { bubbles: true, detail: 1, clientX: at.x, clientY: at.y }),
+  );
   flushSync();
 }
 
@@ -119,5 +133,36 @@ describe('スタンプ帳', () => {
     for (const shape of ['yarn', 'mouse', 'bell', 'feather', 'fish', 'butterfly', 'teaser']) {
       expect(target?.querySelector(`#stamp-${shape}`)).not.toBeNull();
     }
+  });
+});
+
+describe('閉じる', () => {
+  test('暗幕を押したら閉じる', () => {
+    let closed = 0;
+    render(() => {
+      closed += 1;
+    });
+    clickDialog({ x: 10, y: 10 });
+    expect(closed).toBe(1);
+  });
+
+  test('中身を押しても閉じない（padding も dialog が target になる）', () => {
+    let closed = 0;
+    render(() => {
+      closed += 1;
+    });
+    clickDialog({ x: 200, y: 200 });
+    expect(closed).toBe(0);
+  });
+
+  test('キーボード由来の click は座標を持たないので閉じない', () => {
+    let closed = 0;
+    render(() => {
+      closed += 1;
+    });
+    const dialog = target?.querySelector('dialog');
+    dialog?.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 0 }));
+    flushSync();
+    expect(closed).toBe(0);
   });
 });
