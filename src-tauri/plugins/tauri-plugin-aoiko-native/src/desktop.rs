@@ -142,25 +142,30 @@ pub(crate) fn resolve(handle: &str) -> Option<PathBuf> {
         None
     }
 }
-// OCR は macOS のみここで完結させる（iOS 側は Vision を呼ぶ Swift 実装へ委譲）。
+// iOS だけは Swift 実装へ委譲する（Vision の呼び出しがそちらにある）。
 #[cfg(target_os = "macos")]
 pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
     macos::recognize_text(image_data)
 }
 
+#[cfg(target_os = "windows")]
+pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
+    windows_ocr::recognize_text(image_data)
+}
+
 // 左右に分かれたセルは別々に返るので、まとめないと「合計」と金額が離れて拾えない。
 // 行内の区切りだけは環境で違うため呼び元が決める（一文字ずつ返す側で空白は挟めない）。
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn word_mid_y(word: &crate::RecognizedWord) -> f64 {
     word.y + word.height / 2.0
 }
 // 行の高さの半分より近ければ同じ行。実測では隣り合うセルの差が行高の 1/5 だった。
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn same_row(head: &crate::RecognizedWord, word: &crate::RecognizedWord) -> bool {
     (word_mid_y(head) - word_mid_y(word)).abs() <= head.height.max(word.height) / 2.0
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "windows"))]
 fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> crate::RecognizedText {
     words.sort_by(|a, b| word_mid_y(a).total_cmp(&word_mid_y(b)));
     let mut rows: Vec<Vec<crate::RecognizedWord>> = Vec::new();
@@ -186,9 +191,128 @@ pub(crate) fn is_text_recognition_available() -> bool {
     macos::supports_japanese()
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(target_os = "windows")]
+pub(crate) fn is_text_recognition_available() -> bool {
+    windows_ocr::supports_japanese()
+}
+
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
 pub(crate) fn is_text_recognition_available() -> bool {
     false
+}
+
+#[cfg(target_os = "windows")]
+mod windows_ocr {
+    use windows::{
+        Globalization::Language,
+        Graphics::Imaging::BitmapDecoder,
+        Media::Ocr::OcrEngine,
+        Storage::Streams::{DataWriter, InMemoryRandomAccessStream},
+        core::HSTRING,
+    };
+
+    use crate::{RecognizedText, RecognizedWord};
+
+    // 日本語の言語機能は既定で入っておらず、利用者が追加するまで読めない。
+    // 追加の有無は実行時にしか分からないので毎回問う。
+    pub(super) fn supports_japanese() -> bool {
+        let Ok(ja) = Language::CreateLanguage(&HSTRING::from("ja")) else {
+            return false;
+        };
+        OcrEngine::IsLanguageSupported(&ja).unwrap_or(false)
+    }
+
+    pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<RecognizedText> {
+        let bitmap = decode(image_data)?;
+        let width = f64::from(bitmap.PixelWidth().map_err(to_err)?);
+        let height = f64::from(bitmap.PixelHeight().map_err(to_err)?);
+        if width <= 0.0 || height <= 0.0 {
+            return Err(crate::Error::Ocr("画像の大きさを取れません".to_string()));
+        }
+        // 利用者の言語ではなく日本語で作る。表示言語が英語の端末でも領収書は日本語のため。
+        let mut words = read_with(&bitmap, "ja", width, height)?;
+        // この引擎は 1 言語しか持てない。英数の並びは日本語の引擎だと崩れやすいので、
+        // 英語の引擎でも読んで、日本語側が拾えなかった位置だけ足す。
+        if let Ok(en) = read_with(&bitmap, "en", width, height) {
+            for word in en {
+                if !words.iter().any(|w| overlaps(w, &word)) {
+                    words.push(word);
+                }
+            }
+        }
+        // 一文字ずつ矩形が返るため、行内に空白を挟むと日本語が全部ばらける。
+        let recognized = super::words_to_lines(words, "");
+        if recognized.lines.is_empty() {
+            return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
+        }
+        Ok(recognized)
+    }
+
+    fn read_with(
+        bitmap: &windows::Graphics::Imaging::SoftwareBitmap,
+        tag: &str,
+        width: f64,
+        height: f64,
+    ) -> crate::Result<Vec<RecognizedWord>> {
+        let language = Language::CreateLanguage(&HSTRING::from(tag))
+            .map_err(|e| crate::Error::Ocr(format!("言語を作れません: {e}")))?;
+        let engine = OcrEngine::TryCreateFromLanguage(&language)
+            .map_err(|e| crate::Error::Ocr(format!("文字認識を用意できません: {e}")))?;
+        let result = engine
+            .RecognizeAsync(bitmap)
+            .and_then(|op| op.get())
+            .map_err(|e| crate::Error::Ocr(format!("文字を認識できません: {e}")))?;
+
+        let mut words: Vec<RecognizedWord> = Vec::new();
+        for line in result.Lines().map_err(to_err)? {
+            for word in line.Words().map_err(to_err)? {
+                let text = word.Text().map_err(to_err)?.to_string();
+                if text.is_empty() {
+                    continue;
+                }
+                let r = word.BoundingRect().map_err(to_err)?;
+                words.push(RecognizedWord {
+                    text,
+                    // 画素の左上原点。0..1 へ正規化するだけで向きは合っている。
+                    x: f64::from(r.X) / width,
+                    y: f64::from(r.Y) / height,
+                    width: f64::from(r.Width) / width,
+                    height: f64::from(r.Height) / height,
+                    // この引擎は語ごとの自信度も次の候補も返さない。
+                    confidence: None,
+                    alternates: Vec::new(),
+                });
+            }
+        }
+        Ok(words)
+    }
+    // 同じ文字を 2 つの引擎が別々に読むので、重なっていれば同じ位置とみなす。
+    // 中心が相手の矩形の内側にあるかで見る。
+    fn overlaps(a: &RecognizedWord, b: &RecognizedWord) -> bool {
+        let cx = b.x + b.width / 2.0;
+        let cy = b.y + b.height / 2.0;
+        cx >= a.x && cx <= a.x + a.width && cy >= a.y && cy <= a.y + a.height
+    }
+
+    fn decode(image_data: &[u8]) -> crate::Result<windows::Graphics::Imaging::SoftwareBitmap> {
+        let stream = InMemoryRandomAccessStream::new().map_err(to_err)?;
+        let writer = DataWriter::CreateDataWriter(&stream).map_err(to_err)?;
+        writer.WriteBytes(image_data).map_err(to_err)?;
+        writer.StoreAsync().and_then(|op| op.get()).map_err(to_err)?;
+        writer.FlushAsync().and_then(|op| op.get()).map_err(to_err)?;
+        stream.Seek(0).map_err(to_err)?;
+        let decoder = BitmapDecoder::CreateAsync(&stream)
+            .and_then(|op| op.get())
+            .map_err(|e| crate::Error::Ocr(format!("画像を読めません: {e}")))?;
+        decoder
+            .GetSoftwareBitmapAsync()
+            .and_then(|op| op.get())
+            .map_err(to_err)
+    }
+
+    fn to_err(e: windows::core::Error) -> crate::Error {
+        crate::Error::Ocr(format!("文字認識に失敗しました: {e}"))
+    }
 }
 
 #[cfg(target_os = "macos")]
