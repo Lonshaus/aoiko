@@ -33,9 +33,14 @@ aoiko は以下からのみ公式に配布されます：
 
 ### BYOK モデル
 
+<!-- only:browser -->
 - 利用者が選択した OCR/LLM エンジン（Google Gemini API ／ OpenAI 互換 ／ Tesseract）の API キー・エンドポイント設定は **利用者自身が登録・自分のブラウザ IndexedDB に保管** します
+<!-- /only -->
+<!-- only:native -->
+- 利用者が選択した OCR/LLM エンジン（Google Gemini API ／ OpenAI 互換 ／ Tesseract ／ OS 内蔵の文字認識）の API キー・エンドポイント設定は **利用者自身が登録・自分のブラウザ IndexedDB に保管** します
+<!-- /only -->
 - 開発者・配布者は利用者の API キー・エンドポイント情報を **取得・転送・保管しません**
-- 外部 API 利用時のリクエストは **利用者のブラウザから直接、選択中のエンドポイントへ送信** されます（プロキシ無し）。Tesseract 選択時は LLM API 送信そのものが発生しません
+- 外部 API 利用時のリクエストは **利用者のブラウザから直接、選択中のエンドポイントへ送信** されます（プロキシ無し）。端末内で読み取るエンジンを選んだ場合は LLM API 送信そのものが発生しません
 
 ### ストレージ
 
@@ -62,6 +67,9 @@ aoiko は以下からのみ公式に配布されます：
   - **Gemini** → `generativelanguage.googleapis.com`（Google のデータ取り扱い方針に従い、学習利用の有無は契約形態による）
   - **OpenAI 互換**（Ollama 等） → 利用者が指定した baseURL。localhost 指定時は端末外送信なし
   - **Tesseract** → 送信なし（WASM で端末内処理。traineddata 初回 DL のみ）
+<!-- only:native -->
+  - **OS 内蔵の文字認識** → 送信なし（端末内処理のみで完結）
+<!-- /only -->
 - 機密度の高いデータの送信前に確認してください（外部エンジン使用時は送信直前に確認ダイアログを表示）
 - LLM/OCR 機能は **任意起動**（UI ボタン）であり、自動送信はしません
 

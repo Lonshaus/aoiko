@@ -10,7 +10,7 @@
 > - 處理值引行（負金額）讓它走貸方
 > - 確認・調整品項合計與訂單總額的差分
 >
-> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrllm-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容 endpoint**（Tesseract 不能用）。
+> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrllm-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容 endpoint**（Tesseract 這類在本機辨識的引擎不能用）。
 
 ## 1. 這個功能的意義
 

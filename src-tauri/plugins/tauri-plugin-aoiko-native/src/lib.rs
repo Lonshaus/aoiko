@@ -37,6 +37,8 @@ pub enum Error {
     TooManyOpenFiles,
     /// 書き込みチャンクの渡され方が違う（rid ヘッダーが無い、本文が生バイトでない）。
     BadChunkRequest(String),
+    /// 文字認識に失敗、または文字が 1 つも見つからなかった。
+    Ocr(String),
 }
 
 impl std::fmt::Display for Error {
@@ -57,6 +59,7 @@ impl std::fmt::Display for Error {
             Error::UnknownFile => write!(f, "対象のファイルは開かれていません"),
             Error::TooManyOpenFiles => write!(f, "同時に開けるファイルの上限を超えました"),
             Error::BadChunkRequest(e) => write!(f, "書き込みの指定が不正です: {e}"),
+            Error::Ocr(e) => write!(f, "文字を認識できません: {e}"),
         }
     }
 }
@@ -146,6 +149,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::backup_list,
             commands::backup_remove,
             commands::export_open,
+            commands::recognize_text,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

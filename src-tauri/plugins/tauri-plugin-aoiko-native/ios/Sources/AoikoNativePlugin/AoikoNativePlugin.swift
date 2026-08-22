@@ -2,6 +2,7 @@ import SafariServices
 import Tauri
 import UIKit
 import UniformTypeIdentifiers
+import Vision
 import WebKit
 
 // iOS/iPadOS 専用。デスクトップに OS の API で用意されている操作のうち、WKWebView や
@@ -154,6 +155,61 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             presenter.present(SFSafariViewController(url: url), animated: true)
             invoke.resolve()
         }
+    }
+
+    // perform は同期。呼び元の (async) がすでにワーカースレッドなので、ここは
+    // DispatchQueue.main へ乗せない（乗せると認識のあいだメインスレッドが止まる）。
+    @objc public func recognizeText(_ invoke: Invoke) throws {
+        // 形式は Vision が中身から判定する。呼び元から種別を渡す必要は無い。
+        struct Args: Decodable {
+            let imageBase64: String
+        }
+        let args = try invoke.parseArgs(Args.self)
+        guard let data = Data(base64Encoded: args.imageBase64) else {
+            invoke.reject("base64 を解けません")
+            return
+        }
+        let handler = VNImageRequestHandler(data: data, options: [:])
+        let request = VNRecognizeTextRequest()
+        request.revision = VNRecognizeTextRequestRevision3
+        request.recognitionLevel = .accurate
+        // ja-JP は revision 3 の .accurate でしか使えない（.fast は非対応）。
+        request.recognitionLanguages = ["ja-JP", "en-US"]
+        request.usesLanguageCorrection = true
+        do {
+            try handler.perform([request])
+        } catch {
+            invoke.reject("文字を認識できません: \(error.localizedDescription)")
+            return
+        }
+        guard let observations = request.results else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々の観測で返す。
+        // 1 観測 1 行にすると「合計」の行に金額が無くなるため、縦に重なるものを 1 行へまとめる。
+        let sorted = observations.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+        var rows: [[VNRecognizedTextObservation]] = []
+        for o in sorted {
+            if let head = rows.last?.first {
+                let limit = max(head.boundingBox.height, o.boundingBox.height) * 0.5
+                if abs(head.boundingBox.midY - o.boundingBox.midY) <= limit {
+                    rows[rows.count - 1].append(o)
+                    continue
+                }
+            }
+            rows.append([o])
+        }
+        let lines = rows.map { row in
+            row.sorted { $0.boundingBox.minX < $1.boundingBox.minX }
+                .compactMap { $0.topCandidates(1).first?.string }
+                .joined(separator: " ")
+        }.filter { !$0.isEmpty }
+        guard !lines.isEmpty else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        invoke.resolve(lines.joined(separator: "\n"))
     }
 
     private static func findWebView(_ view: UIView) -> WKWebView? {

@@ -142,14 +142,26 @@ pub(crate) fn resolve(handle: &str) -> Option<PathBuf> {
         None
     }
 }
+// OCR は macOS のみここで完結させる（iOS 側は Vision を呼ぶ Swift 実装へ委譲）。
+#[cfg(target_os = "macos")]
+pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<String> {
+    macos::recognize_text(image_data)
+}
 
 #[cfg(target_os = "macos")]
 mod macos {
     use std::path::{Path, PathBuf};
 
     use base64::{engine::general_purpose::STANDARD, Engine};
+    use objc2::{AnyThread, ClassType};
+    use objc2_core_foundation::CGRect;
     use objc2_foundation::{
-        NSData, NSString, NSURLBookmarkCreationOptions, NSURLBookmarkResolutionOptions, NSURL,
+        NSArray, NSData, NSDictionary, NSString, NSURLBookmarkCreationOptions,
+        NSURLBookmarkResolutionOptions, NSURL,
+    };
+    use objc2_vision::{
+        VNImageRequestHandler, VNRecognizeTextRequest, VNRecognizeTextRequestRevision3, VNRequest,
+        VNRequestTextRecognitionLevel,
     };
     // entitlement が無いビルドでは失敗する。呼び元がパス保存へ倒すので None を返すだけでよい。
     pub(super) fn create_bookmark(dir: &Path) -> Option<String> {
@@ -183,6 +195,119 @@ mod macos {
         // プロセスが終わるまで手放さない（stop は呼ばない）。
         std::mem::forget(url);
         Some(path)
+    }
+    struct Cell {
+        mid_y: f64,
+        height: f64,
+        min_x: f64,
+        text: String,
+    }
+    // 行の高さの半分より近ければ同じ行とみなす。実測のレシートでは「登録番号」と番号で
+    // 0.0027、行高は 0.013 ほどだった。
+    fn same_row(head: &Cell, cell: &Cell) -> bool {
+        (head.mid_y - cell.mid_y).abs() <= head.height.max(cell.height) / 2.0
+    }
+    #[cfg(test)]
+    mod row_tests {
+        use super::{same_row, Cell};
+
+        fn cell(mid_y: f64, height: f64) -> Cell {
+            Cell {
+                mid_y,
+                height,
+                min_x: 0.0,
+                text: String::new(),
+            }
+        }
+        // 実測のレシートの「登録番号」と番号。ここが分かれると登録番号を取り出せない。
+        #[test]
+        fn near_enough_is_one_row() {
+            assert!(same_row(&cell(0.8429, 0.0134), &cell(0.8406, 0.0142)));
+        }
+
+        #[test]
+        fn next_line_is_another_row() {
+            assert!(!same_row(&cell(0.7566, 0.0131), &cell(0.7442, 0.0117)));
+        }
+        // 高い方の文字に合わせないと、大きな見出しが次の行を巻き込む。
+        #[test]
+        fn threshold_follows_the_taller_cell() {
+            assert!(same_row(&cell(0.8500, 0.0300), &cell(0.8400, 0.0100)));
+            assert!(!same_row(&cell(0.8500, 0.0100), &cell(0.8400, 0.0100)));
+        }
+    }
+
+    // ja-JP は VNRecognizeTextRequestRevision3 の .accurate でしか使えない（.fast は非対応）。
+    // 圧縮バイト列のまま渡す。ビットマップへ先に展開すると Vision 側の対応形式判定を素通りする。
+    pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<String> {
+        let data = NSData::from_vec(image_data.to_vec());
+        let handler = VNImageRequestHandler::initWithData_options(
+            VNImageRequestHandler::alloc(),
+            &data,
+            &NSDictionary::new(),
+        );
+
+        let request = VNRecognizeTextRequest::new();
+        // revision は VNRequest 側のプロパティ。3 未満だと ja-JP 自体が候補に出ない。
+        unsafe {
+            request
+                .as_super()
+                .as_super()
+                .setRevision(VNRecognizeTextRequestRevision3);
+        }
+        request.setRecognitionLevel(VNRequestTextRecognitionLevel::Accurate);
+        let ja = NSString::from_str("ja-JP");
+        let en = NSString::from_str("en-US");
+        request.setRecognitionLanguages(&NSArray::from_slice(&[&*ja, &*en]));
+        request.setUsesLanguageCorrection(true);
+
+        let vn_request: &VNRequest = request.as_super().as_super();
+        handler
+            .performRequests_error(&NSArray::from_slice(&[vn_request]))
+            .map_err(|e| crate::Error::Ocr(e.to_string()))?;
+
+        let Some(results) = request.results() else {
+            return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
+        };
+        let mut cells: Vec<Cell> = (0..results.count())
+            .filter_map(|i| {
+                let obs = results.objectAtIndex(i);
+                let candidates = obs.topCandidates(1);
+                if candidates.count() == 0 {
+                    return None;
+                }
+                let r: CGRect = unsafe { obs.boundingBox() };
+                Some(Cell {
+                    mid_y: r.origin.y + r.size.height / 2.0,
+                    height: r.size.height,
+                    min_x: r.origin.x,
+                    text: candidates.objectAtIndex(0).string().to_string(),
+                })
+            })
+            .collect();
+        // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々に返す。
+        // 1 観測 1 行にすると「合計」の行から金額が消えるので、縦に重なるものを 1 行へまとめる。
+        cells.sort_by(|a, b| b.mid_y.total_cmp(&a.mid_y));
+        let mut rows: Vec<Vec<Cell>> = Vec::new();
+        for cell in cells {
+            match rows.last_mut() {
+                Some(row) if same_row(&row[0], &cell) => row.push(cell),
+                _ => rows.push(vec![cell]),
+            }
+        }
+
+        let lines: Vec<String> = rows
+            .into_iter()
+            .map(|mut row| {
+                row.sort_by(|a, b| a.min_x.total_cmp(&b.min_x));
+                row.into_iter().map(|c| c.text).collect::<Vec<_>>().join(" ")
+            })
+            .filter(|line| !line.is_empty())
+            .collect();
+        if lines.is_empty() {
+            return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
+        }
+        Ok(lines.join("\n"))
     }
 }
 

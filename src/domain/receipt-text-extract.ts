@@ -10,6 +10,7 @@ import type { ReceiptExtracted } from './ocr';
 //
 // 抽出対象：
 //   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、確定性高）
+//                   T が落ちた場合のみ、同じ行に「登録番号」等がある 13 桁を補う
 //   date          : 西暦 YYYY[/-.年]M[...]D / 和暦 令和N年M月D日 を最初に見つけた行
 //   totalAmount   : 「合計 / お買上げ / 総額 / ご請求」を含み、
 //                   「小計 / お預り / お釣り / 釣銭 / 現金 / ポイント / 還元」
@@ -17,9 +18,17 @@ import type { ReceiptExtracted } from './ocr';
 //   notes         : OCR 全文（プレフィル）
 
 const INVOICE_NUMBER_RE = /T\d{13}/;
-const WESTERN_DATE_RE = /(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
+// OS 内蔵の文字認識は `T1234567890123` の先頭 1 文字を落として返すことがある
+// （実測。しかも自信度は最大で、誤りとして扱えない）。同じ行に「登録番号」等がある
+// 13 桁だけを補う。行を限らないと領収書番号のような別の 13 桁を登録番号に化けさせる。
+const INVOICE_CONTEXT = ['登録番号', 'インボイス'];
+const BARE_INVOICE_NUMBER_RE = /(?<!\d)\d{13}(?!\d)/;
+// 年は 19xx / 20xx に限る。電話番号 `0422-29-0051` が「0422 年 29 月 00 日」として
+// 先に命中し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
+// g を付けて最初の 1 件で諦めないのも同じ理由で、妥当な日付が出るまで後ろを見る。
+const WESTERN_DATE_RE = /((?:19|20)\d{2})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
 const REIWA_DATE_RE =
-  /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
+  /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
 // 金額 token：¥1,500 / ￥1,500 / 1,500 / 1500円 / \1,500 等。
 // 整数部のみ採用（小数表記レシートは想定外）。
 // 桁区切りを `[,.]` の 1 文字以上として扱う。OCR は小さな `,` を安定して読めず、
@@ -49,29 +58,41 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
     items: [],
     notes: text,
   };
-  const invoice = INVOICE_NUMBER_RE.exec(text)?.[0];
+  const invoice = INVOICE_NUMBER_RE.exec(text)?.[0] ?? recoverInvoiceNumber(lines);
   if (invoice) {
     result.invoiceNumber = invoice;
   }
   return result;
 }
 
-function extractDate(text: string): string {
-  const reiwa = REIWA_DATE_RE.exec(text);
-  if (reiwa) {
-    const yToken = reiwa[1]!;
-    const reiwaYear = yToken === '元' ? 1 : Number(yToken);
-    if (reiwaYear >= 1 && reiwaYear <= 99) {
-      const y = 2018 + reiwaYear;
-      const m = Number(reiwa[2]!);
-      const d = Number(reiwa[3]!);
-      if (isValidYmd(y, m, d)) {
-        return formatYmd(y, m, d);
-      }
+function recoverInvoiceNumber(lines: string[]): string | undefined {
+  for (const line of lines) {
+    if (!INVOICE_CONTEXT.some((k) => line.includes(k))) {
+      continue;
+    }
+    const digits = BARE_INVOICE_NUMBER_RE.exec(line)?.[0];
+    if (digits) {
+      return `T${digits}`;
     }
   }
-  const western = WESTERN_DATE_RE.exec(text);
-  if (western) {
+  return undefined;
+}
+
+function extractDate(text: string): string {
+  for (const reiwa of text.matchAll(REIWA_DATE_RE)) {
+    const yToken = reiwa[1]!;
+    const reiwaYear = yToken === '元' ? 1 : Number(yToken);
+    if (reiwaYear < 1 || reiwaYear > 99) {
+      continue;
+    }
+    const y = 2018 + reiwaYear;
+    const m = Number(reiwa[2]!);
+    const d = Number(reiwa[3]!);
+    if (isValidYmd(y, m, d)) {
+      return formatYmd(y, m, d);
+    }
+  }
+  for (const western of text.matchAll(WESTERN_DATE_RE)) {
     const y = Number(western[1]!);
     const m = Number(western[2]!);
     const d = Number(western[3]!);

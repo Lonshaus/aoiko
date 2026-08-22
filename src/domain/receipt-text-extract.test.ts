@@ -12,6 +12,45 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBeUndefined();
   });
 
+  // OS 内蔵の文字認識が先頭の T を落として返す（実測）。空のままだと帳簿では
+  // 適格請求書でない扱いになり、仕入税額控除に効く。
+  test('T が落ちた登録番号を、同じ行に手掛かりがあれば補う', () => {
+    const r = extractFromOcrText('株式会社サンプル\n登録番号 1234567890123\n合計 ¥1,500');
+    expect(r.invoiceNumber).toBe('T1234567890123');
+  });
+
+  test('インボイスの語でも補う', () => {
+    const r = extractFromOcrText('インボイス番号 9876543210987\n合計 1000');
+    expect(r.invoiceNumber).toBe('T9876543210987');
+  });
+
+  test('手掛かりの無い 13 桁は登録番号にしない', () => {
+    const r = extractFromOcrText('レシート番号 1234567890123\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('13 桁ちょうどでなければ補わない', () => {
+    const r = extractFromOcrText('登録番号 123456789012345\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T 付きが読めていれば補正は働かない', () => {
+    const r = extractFromOcrText('登録番号 T1234567890123\n別番号 9999999999999\n合計 1000');
+    expect(r.invoiceNumber).toBe('T1234567890123');
+  });
+
+  // 実際のレシートで踏んだ：店の電話 `0422-29-0051` が「0422 年 29 月 00 日」として
+  // 先に命中し、後ろにある本物の日付まで届かなかった。
+  test('電話番号を日付と取り違えて諦めない', () => {
+    const r = extractFromOcrText('吉祥寺南町店 0422-29-0051\n2026年08月20日（木）13:01\n合計 ¥159');
+    expect(r.date).toBe('2026-08-20');
+  });
+
+  test('19xx/20xx 以外の 4 桁は年として採らない', () => {
+    const r = extractFromOcrText('注文 0422-29-0051\n合計 1000');
+    expect(r.date).toBe('');
+  });
+
   test('西暦日付（YYYY/MM/DD）を抽出', () => {
     const r = extractFromOcrText('2026/05/20\n合計 1000');
     expect(r.date).toBe('2026-05-20');

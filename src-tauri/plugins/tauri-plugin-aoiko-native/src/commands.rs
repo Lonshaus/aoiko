@@ -120,6 +120,33 @@ pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     }
 }
 
+// Vision の perform は同期。(async) がワーカースレッドへ逃がすので、DispatchQueue.main には
+// 乗せない（乗せると画像 1 枚ぶんの認識のあいだメインスレッド、ひいては UI が止まる）。
+#[tauri::command(async)]
+pub(crate) fn recognize_text<R: Runtime>(
+    app: AppHandle<R>,
+    image_base64: String,
+) -> Result<String> {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().recognize_text(image_base64)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &app;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let bytes = STANDARD
+            .decode(image_base64.as_bytes())
+            .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
+        crate::desktop::recognize_text(&bytes)
+    }
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    {
+        let _ = (app, image_base64);
+        Err(Error::UnsupportedPlatform)
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(target_os = "ios")]

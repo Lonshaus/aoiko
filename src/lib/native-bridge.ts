@@ -22,6 +22,9 @@ export type NativeBridge = {
   // 機種変更・再インストール後に、購入済みの非消耗型を取り戻す。
   // 戻り値は復元できた品目。消耗型（スタンプ）は対象外。
   restoreIapPurchases?(): Promise<IapProductKind[]>;
+  // OS 内蔵の文字認識。返すのは認識した行を上から並べた素のテキストで、構造化は
+  // web 側の receipt-text-extract が行う。読めなければ拒否する（空文字は返さない）。
+  recognizeText?(base64: string): Promise<string>;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';

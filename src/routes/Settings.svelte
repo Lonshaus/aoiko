@@ -9,7 +9,13 @@
   import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
-  import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
+  import {
+    DISCLAIMER_VERSION,
+    deleteSetting,
+    getSetting,
+    setSetting,
+    type OcrEngine,
+  } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
@@ -117,6 +123,9 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  // 文字認識も同じ二段構え。橋渡しが生えていない環境で選ばせると、読めない引擎が選ばれた
+  // まま設定がバックアップに乗って別の端末へ渡る。
+  const canUseNativeOcr = __NATIVE__ && typeof nativeBridge()?.recognizeText === 'function';
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -195,7 +204,7 @@
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
   let geminiTestStatus = $state('');
-  let ocrEngine = $state<'gemini' | 'openai-compatible' | 'tesseract'>('gemini');
+  let ocrEngine = $state<OcrEngine>('gemini');
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
@@ -2470,12 +2479,21 @@
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
           <option value="tesseract">{m.settings_engine_tesseract()}</option>
+          {#if canUseNativeOcr}
+            <option value="native">{m.settings_engine_native()}</option>
+          {/if}
         </select>
       </label>
 
       {#if ocrEngine === 'tesseract'}
         <p class="text-xs text-muted-foreground">
           {@html m.settings_tesseract_intro_html()}
+        </p>
+      {/if}
+
+      {#if ocrEngine === 'native'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_native_ocr_intro_html()}
         </p>
       {/if}
 

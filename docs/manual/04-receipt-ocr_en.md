@@ -6,7 +6,7 @@ Generate journal candidates from photos or images of paper receipts.
 
 > **By the end of this chapter you can**
 > - Extract date, vendor, total, and qualified invoice registration number from a receipt and turn it into a journal entry
-> - Choose between the three OCR engines (Gemini / OpenAI-compatible / Tesseract)
+> - Choose between the available OCR engines
 > - Understand the pre-send confirmation dialog and the "don't ask again" toggle
 >
 > **Prerequisites**: OCR/LLM engine is configured per [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
@@ -18,6 +18,9 @@ Generate journal candidates from photos or images of paper receipts.
 | **Gemini Vision** (default) | ◎ | Yes | Gemini API key |
 | **OpenAI-compatible** (Ollama etc.) | ◯〜◎ | None for localhost / Yes for remote | Endpoint + vision model |
 | **Tesseract** | △ | None | Just select in Settings |
+<!-- only:native -->
+| **The OS's built-in text recognition** | ◯ (few samples) | None | Just select in Settings |
+<!-- /only -->
 
 > Detailed setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
 
@@ -63,7 +66,12 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 > **Think twice before checking**: if you check it by mistake, undo it from Settings → "Basic info" → **"Restore hidden confirmations"**. "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
 <!-- /only -->
 
+<!-- only:browser -->
 #### Tesseract: no dialog
+<!-- /only -->
+<!-- only:native -->
+#### Tesseract and the OS's built-in text recognition: no dialog
+<!-- /only -->
 
 WASM-on-device, so no confirmation. The language data (`jpn.traineddata` / `eng.traineddata`, about 4.8 MB together) is served by aoiko itself and fetched only on your first scan.
 <!-- only:browser -->
@@ -71,6 +79,8 @@ The browser caches it afterwards, so no external request is ever made.
 <!-- /only -->
 <!-- only:native -->
 It's cached inside the app afterwards, so no external request is ever made.
+
+The OS's built-in text recognition shows no dialog either. Recognition runs on the device and nothing extra is fetched.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result
@@ -85,15 +95,30 @@ When done, **"2. Extracted result (editable)"** expands below:
 | Invoice number | Shown only when a T+13 number is recognized (informational) |
 | Items | Collapsible list if any (informational; not reflected in the entry) |
 
+<!-- only:browser -->
 > **Vision LLM vs Tesseract**:
 > - Vision LLM extracts vendor and total at high accuracy, and picks up line items
 > - Tesseract only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
+<!-- /only -->
+<!-- only:native -->
+> **Vision LLM vs Tesseract / the OS's built-in text recognition**:
+> - Vision LLM extracts vendor and total at high accuracy, and picks up line items
+> - Tesseract and the OS's built-in text recognition only extract **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
+<!-- /only -->
 
 #### Tesseract warning banner
 
 For Tesseract output, a yellow caution banner appears below the result header:
 
 > Result from purely-local OCR (Tesseract). Accuracy is limited; please verify and correct the total, date, and vendor before saving.
+<!-- only:native -->
+
+#### The OS's built-in text recognition warning banner
+
+Output from the OS's built-in text recognition also gets a caution banner below the result header:
+
+> Result from the OS's built-in text recognition. Please verify and correct the total, date, and vendor before saving. The raw OCR text is not saved into the note (shown on screen only).
+<!-- /only -->
 
 ### 2-4. Choose counterpart account and payment source
 
@@ -141,21 +166,29 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - T+13 invoice number is rock-solid (extracted by regex)
 - Date and total are best-effort. Always verify manually
 - The language data ships with aoiko, so it works fully offline after the first fetch. Only set a `traineddata` source in Settings if you want a different edition (e.g. the higher-accuracy best models)
+<!-- only:native -->
+
+### The OS's built-in text recognition
+
+- No LLM and no extra download. Extraction goes through the same layer as Tesseract, so vendor and items stay blank
+- Date and total read correctly on the receipts tried here, but the sample count is small. Always verify the total and date
+- The leading `T` of the invoice number is sometimes dropped. It is restored when the same line carries a label such as 登録番号, but layouts where other 13-digit numbers appear leave it blank
+<!-- /only -->
 
 ## 4. Troubleshooting
 
 | Symptom | Action |
 |---|---|
-| Total is off | Retake or edit manually. LLM rarely; Tesseract often (expected) |
+| Total is off | Retake or edit manually. LLM rarely; on-device recognition often (expected) |
 | Date is empty | Try both `YYYY/MM/DD` and Reiwa-format printing. Manual entry is fine |
-| Vendor garbled | LLM: improve photo quality. Tesseract: vendor extraction isn't supported, type it in |
+| Vendor garbled | LLM: improve photo quality. On-device recognition: vendor extraction isn't supported, type it in |
 | Invoice number not detected | Recapture with the number area well-lit. LLM can pick up even tiny print |
 | Connection error | Check API key / endpoint in Settings via **"Test connection"** |
 
 ## 5. Privacy notes
 
 - If a receipt shows third-party personal information (customer names, addresses), reconsider sending to a cloud engine
-- For highly confidential receipts (personal medical bills, sensitive client transactions), prefer Tesseract or Ollama on localhost
+- For highly confidential receipts (personal medical bills, sensitive client transactions), prefer on-device recognition or Ollama on localhost
 - See [PRIVACY_en.md](../../PRIVACY_en.md) for details
 
 ## 6. Next steps
