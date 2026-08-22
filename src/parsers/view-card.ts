@@ -1,5 +1,6 @@
 import { parseCsv } from '../lib/csv';
 import {
+  applySign,
   buildRawRow,
   findHeaderRow,
   isDateLike,
@@ -53,11 +54,9 @@ const viewCardParser: CsvParser = {
       let amount: string;
       let side: 'debit' | 'credit';
       if (useRaw) {
-        amount = stripComma(useRaw);
-        side = 'credit';
+        ({ amount, side } = applySign(stripComma(useRaw), 'credit'));
       } else if (refundRaw) {
-        amount = stripComma(refundRaw);
-        side = 'debit';
+        ({ amount, side } = applySign(stripComma(refundRaw), 'debit'));
       } else {
         continue;
       }

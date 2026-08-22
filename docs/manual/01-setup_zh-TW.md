@@ -10,7 +10,12 @@
 > - 登記輔助科目（例如各銀行帳戶分開）和交易對象
 > - 設定 OCR/LLM 的 API 金鑰／endpoint（要用到才需要）
 >
-> **前提**：照[主 README](../../README_zh-TW.md) 的步驟把 aoiko 跑起來、瀏覽器打開了。
+<!-- only:browser -->
+> **前提**：照 GitHub 上 README 的步驟把 aoiko 跑起來、瀏覽器打開了。
+<!-- /only -->
+<!-- only:native -->
+> **前提**：App 已經啟動。
+<!-- /only -->
 
 ## 1. 同意免責事項
 
@@ -160,18 +165,28 @@
 5. 「**儲存**」 → 「**連線測試**」
 
 > - OCR 必須選 **vision 對應模型**（gemma4 / ministral-3 / llama3.2-vision 等）
+<!-- only:browser -->
 > - 指向 localhost 的話、aoiko 本身也要**本機執行**（`npm run preview`）。HTTPS 配信版的 aoiko 連不到 localhost
 > - Ollama 那邊要設 `OLLAMA_ORIGINS` 把 aoiko 的 URL 加進白名單
+<!-- /only -->
+<!-- only:native -->
+> - 指向 localhost 也不用額外設定。通訊由 App 代為轉發
+<!-- /only -->
 
 ### 7-C. Tesseract（純本地 WASM OCR）
 
+<!-- only:browser -->
 不用 LLM、整個在瀏覽器跑完的 OCR。**精度有限**、要人工確認。
+<!-- /only -->
+<!-- only:native -->
+不用 LLM、整個在 App 內跑完的 OCR。**精度有限**、要人工確認。
+<!-- /only -->
 
 1. 引擎選「**Tesseract**」
 2. 「**儲存**」
-3. （選填）`traineddata` 的自架 URL 填到 **langPath**（預設用 CDN）
+3. （選填）只有想換別的版本的 `traineddata` 時才需要把來源填到 **langPath**（預設用 aoiko 內附的）
 
-> - 影像不會離開本機（只有 `traineddata` 第一次從 CDN 抓）
+> - 影像和語言資料都不會離開本機（語言資料由 aoiko 自己提供）
 > - 只抽 T+13 登錄號碼・日期・合計、店名與品項不會推測
 > - 收據 OCR 專用、CSV 分類與訂單取込用不到
 

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { db } from '../db';
-  import { reverseImportBatch } from '../domain/import-batch';
+  import { importBatchYears, reverseImportBatch } from '../domain/import-batch';
+  import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type { ImportBatch, JournalEntry } from '../db/types';
   import { findParser } from '../parsers';
   import { formatJPY } from '../lib/decimal';
   import { m } from '../paraglide/messages';
+  import { describeStorageError } from '../lib/storage-error';
 
   let batches = $state<ImportBatch[]>([]);
   let entriesByBatch = $state<Map<string, JournalEntry[]>>(new Map());
@@ -18,8 +20,13 @@
   $effect(() => {
     const sub1 = liveQuery(() =>
       db.importBatches.orderBy('importedAt').reverse().toArray(),
-    ).subscribe((v) => {
-      batches = v;
+    ).subscribe({
+      next: (v) => {
+        batches = v;
+      },
+      error: (e: unknown) => {
+        lastError = describeStorageError(e);
+      },
     });
     const sub2 = liveQuery(async () => {
       // sourceImportId 索引で走査（undefined キーの行はインデックスに載らないため、
@@ -35,8 +42,13 @@
         map.set(e.sourceImportId, arr);
       }
       return map;
-    }).subscribe((v) => {
-      entriesByBatch = v;
+    }).subscribe({
+      next: (v) => {
+        entriesByBatch = v;
+      },
+      error: (e: unknown) => {
+        lastError = describeStorageError(e);
+      },
     });
     return () => {
       sub1.unsubscribe();
@@ -56,8 +68,12 @@
     confirmingReverseId = null;
     lastError = '';
     lastSuccess = '';
+    const years = await importBatchYears(id);
+    if (!(await filedYearGuard.confirm(years))) {
+      return;
+    }
     try {
-      const r = await reverseImportBatch(id);
+      const r = await reverseImportBatch(id, { allowFiledYear: true });
       lastSuccess =
         r.alreadyReversedCount > 0
           ? m.import_history_reverse_success_with_skipped({
@@ -66,7 +82,7 @@
             })
           : m.import_history_reverse_success({ count: r.reversedCount });
     } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
+      lastError = describeStorageError(e);
     }
   }
 
@@ -114,7 +130,7 @@
     </div>
   {:else}
     <div class="bg-card text-card-foreground rounded-xl shadow-sm overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[640px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-4 py-3 w-8"></th>

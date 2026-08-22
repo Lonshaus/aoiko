@@ -36,6 +36,10 @@ export const PRIMARY_KEY: Record<string, string> = {
   arApEntries: 'id',
   invoices: 'id',
 };
+// 意図的に復元しないテーブル。PRIMARY_KEY に載せないことで「無視される」を利用している。
+// 載せてしまうと、手で書き換えたバックアップから別端末のスタンプを持ち込めてしまう。
+// backup/payload.ts の SKIP_TABLES（書き出し側）と対。
+export const NEVER_RESTORED = new Set(['stamps']);
 
 function validateJournalEntry(r: unknown, i: number): void {
   if (!isObject(r)) {
@@ -71,8 +75,15 @@ function validateJournalLine(r: unknown, i: number): void {
   if (typeof r.accountCode !== 'string' || r.accountCode.length === 0) {
     fail('journalLines', i, 'accountCode が不正');
   }
-  if (typeof r.amount !== 'string' || !/^-?\d+(\.\d+)?$/.test(r.amount)) {
-    fail('journalLines', i, `amount が数値文字列ではありません：${String(r.amount)}`);
+  // 負の金額は validateLines も toIndexable も禁じている。ここだけ通すと、改竄または
+  // 破損したバックアップ経由でしか作れない負金額の明細が DB に入る。
+  if (typeof r.amount !== 'string' || !/^\d+(\.\d+)?$/.test(r.amount)) {
+    fail('journalLines', i, `amount が非負の数値文字列ではありません：${String(r.amount)}`);
+  }
+  // toIndexable の出力形式（整数部ゼロ詰め + 小数部固定長）。索引の並びが壊れると
+  // 金額範囲検索が黙って誤った結果を返すため、形式まで見る。
+  if (typeof r.amountIndexed !== 'string' || !/^\d+\.\d+$/.test(r.amountIndexed)) {
+    fail('journalLines', i, `amountIndexed が不正：${String(r.amountIndexed)}`);
   }
   if (typeof r.taxRate !== 'number') {
     fail('journalLines', i, 'taxRate が数値ではありません');
@@ -87,6 +98,26 @@ function validateGeneric(table: string, keyField: string, r: unknown, i: number)
   if (typeof key !== 'string' && typeof key !== 'number') {
     fail(table, i, `主キー ${keyField} がありません`);
   }
+}
+/**
+ * 明細が実在する仕訳を指しているか。仕訳の無い明細を入れてしまうと、仕訳の一覧にも
+ * 修正の対象にも出てこないのに試算表の合計だけ狂うため、画面から追えなくなる。
+ *
+ * 書き込み側は 1 つのトランザクションで両方を書くのでこの状態は作れない。手で編集した
+ * バックアップや、途中で壊れたファイルへの備え。
+ */
+function validateLineReferences(entries: unknown[], lines: unknown[]): void {
+  const entryIds = new Set<string>();
+  for (const r of entries) {
+    if (isObject(r) && typeof r.id === 'string') {
+      entryIds.add(r.id);
+    }
+  }
+  lines.forEach((r, i) => {
+    if (isObject(r) && typeof r.entryId === 'string' && !entryIds.has(r.entryId)) {
+      fail('journalLines', i, `entryId に対応する仕訳がありません：${r.entryId}`);
+    }
+  });
 }
 // payload 全体を検証する。問題があれば BackupValidationError を投げる（呼出元は削除前に検証する）。
 export function validateBackupPayload(payload: BackupPayload): void {
@@ -110,5 +141,10 @@ export function validateBackupPayload(payload: BackupPayload): void {
         validateGeneric(name, keyField, r, i);
       }
     });
+  }
+  const entries = payload.tables.journalEntries;
+  const lines = payload.tables.journalLines;
+  if (Array.isArray(entries) && Array.isArray(lines)) {
+    validateLineReferences(entries, lines);
   }
 }

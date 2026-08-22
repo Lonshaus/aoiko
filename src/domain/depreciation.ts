@@ -3,6 +3,7 @@ import { newId } from '../lib/id';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 // 減価償却の計算と仕訳生成。
@@ -63,7 +64,7 @@ const DECLINING_RATE_TABLE: Record<
   20: { rate: 0.1, revisedRate: 0.112, guarantee: 0.03486 },
 };
 
-export interface DepreciationResult {
+interface DepreciationResult {
   /** その年度の償却額 */
   amount: string;
   /** その年度末時点の累計償却額 */
@@ -94,7 +95,6 @@ export function computeDepreciation(asset: FixedAsset, year: number): Depreciati
       depreciationBase: cost.toString(),
     };
   }
-
   // 一括償却資産は除却後も 3 年均等償却を継続する（未償却残高の一時損金算入は不可）ため、
   // 除却による打ち切りの対象外とする。
   if (asset.disposedDate && asset.depreciationMethod !== 'lump-sum') {
@@ -315,7 +315,7 @@ function computeDecliningBalance(
     depreciationBase: (revisedBase ?? bookValue).toString(),
   };
 }
-export interface YearEndDepreciationResult {
+interface YearEndDepreciationResult {
   /** 仕訳を新規作成した件数 */
   created: number;
   /** 既存仕訳があり重複回避でスキップした件数 */
@@ -338,7 +338,9 @@ function isSmallAssetSpecialForYear(asset: FixedAsset, year: number): boolean {
 //   要件外の指定（適用期限超過 / 取得価額が閾値以上）も仕訳未作成として返す。
 export async function generateYearEndDepreciation(
   year: number,
+  options?: { allowFiledYear?: boolean },
 ): Promise<YearEndDepreciationResult> {
+  await assertYearsWritable([year], options);
   const assets = await db.fixedAssets.toArray();
   const date = `${year}-12-31`;
   const now = Date.now();
@@ -411,6 +413,7 @@ export async function generateYearEndDepreciation(
       ? `減価償却（措法28の2）${asset.name} #${asset.id.slice(0, 8)}`
       : `減価償却 ${asset.name} #${asset.id.slice(0, 8)}`;
     await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      markConfirmedWrite(options);
       await db.journalEntries.add({
         id: entryId,
         date,

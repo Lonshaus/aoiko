@@ -1,7 +1,7 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
   import { D, formatJPY } from '../lib/decimal';
-  import { toISODateLocal } from '../lib/date';
+  import { toISODateLocal, todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import {
     buildAll,
@@ -18,6 +18,7 @@
     type PLReport,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
+  import { saveTextFile } from '../lib/save-file';
   import {
     getConsumptionTaxSnapshot,
     isYearLocked,
@@ -35,13 +36,16 @@
     type CashFlowForecast,
   } from '../domain/cash-flow';
   import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
+  import { detectStaleCarryover, type StaleCarryover } from '../domain/carryover';
   import {
     buildXtx2026,
     personalDeductionsToCtx,
     RealEstateIncomeInputMissingError,
+    xtxAdditionalExpenseOverflow,
     type FilingType,
   } from '../tax-schema/2026/xtx';
   import { getSetting } from '../lib/settings';
+  import { describeStorageError } from '../lib/storage-error';
   import {
     compareAll,
     computeTaxableSalesRatio,
@@ -105,6 +109,7 @@
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
   let amendment = $state<AmendmentDiff | null>(null);
+  let staleCarryover = $state<StaleCarryover | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
   let taxableSalesRatioPercent = $state('100.00');
   let taxableSalesRatioFullDeduction = $state(true);
@@ -115,6 +120,10 @@
   let confirmingLock = $state(false);
   let confirmingUnlock = $state(false);
   let lockError = $state('');
+  let reportsError = $state('');
+  // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
+  // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
+  let xtxOverflowWarning = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
   // 無ければ利用者が手入力する（fabricate しない——CLAUDE.md の監査履歴不変原則）
@@ -196,21 +205,22 @@
   let arApEntries = $state<ArApEntry[]>([]);
   let newArApType = $state<ArApType>('receivable');
   let newArApDescription = $state('');
-  let newArApDueDate = $state(todayISOForArAp());
+  let newArApDueDate = $state(todayISO());
   let newArApAmount = $state('');
   let arApError = $state('');
   let paymentDrafts = $state<Record<string, string>>({});
-  let cashFlowAsOfDate = $state(todayISOForArAp());
+  let cashFlowAsOfDate = $state(todayISO());
   let cashFlowHorizon = $state(6);
   let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
 
-  function todayISOForArAp(): string {
-    return toISODateLocal(new Date());
-  }
-
   $effect(() => {
-    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe((v) => {
-      arApEntries = v;
+    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe({
+      next: (v) => {
+        arApEntries = v;
+      },
+      error: (e: unknown) => {
+        arApError = describeStorageError(e);
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -231,7 +241,7 @@
       newArApDescription = '';
       newArApAmount = '';
     } catch (e) {
-      arApError = e instanceof Error ? e.message : String(e);
+      arApError = describeStorageError(e);
     }
   }
 
@@ -245,7 +255,7 @@
       await recordPayment(id, amount);
       paymentDrafts = { ...paymentDrafts, [id]: '' };
     } catch (e) {
-      arApError = e instanceof Error ? e.message : String(e);
+      arApError = describeStorageError(e);
     }
   }
 
@@ -310,6 +320,7 @@
       return {
         ...reports,
         amendment: await getAmendmentDiff(yr),
+        staleCarryover: await detectStaleCarryover(yr),
         consumptionTax: await compareAll(yr, cat, attributionMethod),
         taxRegistration: reg,
         simplifiedCategory: cat,
@@ -321,30 +332,49 @@
         budget,
         hasRealEstate,
       };
-    }).subscribe((v) => {
-      monthly = v.monthly;
-      pl = v.pl;
-      bs = v.bs;
-      hasRealEstate = v.hasRealEstate;
-      inventoryValuation = v.inventory;
-      monthlyPL = v.monthlyPL;
-      breakdown = v.breakdown;
-      amendment = v.amendment;
-      consumptionTax = v.consumptionTax;
-      taxRegistration = v.taxRegistration;
-      simplifiedCategory = v.simplifiedCategory;
-      taxableSalesRatioPercent = v.taxableSalesRatioPercent;
-      taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
-      filingType = v.filingType;
-      locked = v.locked;
-      budgetVsActual = v.budget;
-      // 予算編集欄（budgetDrafts）は年度切替時のみ同期する。ここは liveQuery の
-      // 全再発火（無関係な仕訳変更等でも起きる）を拾うため、編集中の入力を
-      // 上書きしないよう年度が変わった時だけ同期する。
-      if (lastBudgetDraftYear !== yr) {
-        lastBudgetDraftYear = yr;
-        syncBudgetDrafts(v.budget);
-      }
+    }).subscribe({
+      next: (v) => {
+        reportsError = '';
+        monthly = v.monthly;
+        pl = v.pl;
+        bs = v.bs;
+        hasRealEstate = v.hasRealEstate;
+        inventoryValuation = v.inventory;
+        monthlyPL = v.monthlyPL;
+        breakdown = v.breakdown;
+        amendment = v.amendment;
+        staleCarryover = v.staleCarryover;
+        consumptionTax = v.consumptionTax;
+        taxRegistration = v.taxRegistration;
+        simplifiedCategory = v.simplifiedCategory;
+        taxableSalesRatioPercent = v.taxableSalesRatioPercent;
+        taxableSalesRatioFullDeduction = v.taxableSalesRatioFullDeduction;
+        filingType = v.filingType;
+        locked = v.locked;
+        budgetVsActual = v.budget;
+        // 予算編集欄（budgetDrafts）は年度切替時のみ同期する。ここは liveQuery の
+        // 全再発火（無関係な仕訳変更等でも起きる）を拾うため、編集中の入力を
+        // 上書きしないよう年度が変わった時だけ同期する。
+        if (lastBudgetDraftYear !== yr) {
+          lastBudgetDraftYear = yr;
+          syncBudgetDrafts(v.budget);
+        }
+      },
+      // 申告に使う画面のため、失敗時は前年度の数字を残さず全部クリアする
+      // （見出しの年度だけ進んで数字が古いまま、という誤表示を避ける）。
+      error: (e: unknown) => {
+        reportsError = describeStorageError(e);
+        monthly = null;
+        pl = null;
+        bs = null;
+        inventoryValuation = null;
+        monthlyPL = null;
+        breakdown = null;
+        amendment = null;
+        staleCarryover = null;
+        consumptionTax = null;
+        budgetVsActual = null;
+      },
     });
     return () => sub.unsubscribe();
   });
@@ -395,7 +425,10 @@
     // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
     const lockYearTarget = year;
     const { monthly, pl, bs } = await buildAll(lockYearTarget, breakdownAxis);
+    // 裸で return すると確認ダイアログだけ閉じて、バッジもエラーも出ないまま
+    // 利用者はロックされたと思い込む。
     if (!monthly || !pl) {
+      lockError = m.reports_no_data_for_year({ year: lockYearTarget });
       return;
     }
     try {
@@ -448,7 +481,7 @@
         `${lockYearTarget}-12-31`,
       );
     } catch (e) {
-      lockError = e instanceof Error ? e.message : String(e);
+      lockError = describeStorageError(e);
     }
   }
 
@@ -458,10 +491,9 @@
     try {
       await unlockYear(year);
     } catch (e) {
-      lockError = e instanceof Error ? e.message : String(e);
+      lockError = describeStorageError(e);
     }
   }
-
   // 申告者情報を設定から読む。IT部 必須項目（税務署・利用者識別番号・氏名・住所）が
   // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
   async function loadFiler() {
@@ -484,18 +516,23 @@
     const filingYear = year;
     const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
+      lockError = m.reports_no_data_for_year({ year: filingYear });
+      xtxOverflowWarning = '';
       return;
     }
     if (filingYear !== 2026) {
       lockError = m.reports_xtx_unsupported_year({ year: filingYear });
+      xtxOverflowWarning = '';
       return;
     }
     const { filer, missing } = await loadFiler();
     if (missing) {
       lockError = m.reports_xtx_filer_incomplete();
+      xtxOverflowWarning = '';
       return;
     }
     lockError = '';
+    xtxOverflowWarning = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
@@ -506,25 +543,26 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
+    const xtxCtx = {
+      year: exportYear,
+      dataYear: filingYear,
+      businessName,
+      invoiceNumber,
+      monthly,
+      pl,
+      bs,
+      filer,
+      fixedAssets,
+      filingType,
+      aoiroDeductionKind,
+      ...(realEstatePl ? { realEstatePl } : {}),
+      ...(storedDeductions
+        ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
+        : {}),
+    };
     let xml: string;
     try {
-      xml = buildXtx2026({
-        year: exportYear,
-        dataYear: filingYear,
-        businessName,
-        invoiceNumber,
-        monthly,
-        pl,
-        bs,
-        filer,
-        fixedAssets,
-        filingType,
-        aoiroDeductionKind,
-        ...(realEstatePl ? { realEstatePl } : {}),
-        ...(storedDeductions
-          ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
-          : {}),
-      });
+      xml = buildXtx2026(xtxCtx);
     } catch (e) {
       if (e instanceof RealEstateIncomeInputMissingError) {
         lockError = m.reports_xtx_real_estate_input_missing();
@@ -532,26 +570,16 @@
       }
       throw e;
     }
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `aoiko-${exportYear}.xtx`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const overflow = xtxAdditionalExpenseOverflow(xtxCtx);
+    if (overflow.length > 0) {
+      xtxOverflowWarning = m.reports_xtx_additional_expense_overflow({
+        list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
+      });
+    }
+    await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
   }
-  function downloadXml(xml: string, filename: string): void {
-    const blob = new Blob([xml], { type: 'application/xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  async function downloadXml(xml: string, filename: string): Promise<void> {
+    await saveTextFile(xml, filename, 'application/xml');
   }
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
   // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。
@@ -581,7 +609,7 @@
       interimPaidNational: safeDecimal(interimPaidNationalInput),
       interimPaidLocal: safeDecimal(interimPaidLocalInput),
     });
-    downloadXml(xml, `aoiko-shohi-${year}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}.xtx`);
   }
   // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
@@ -612,7 +640,7 @@
             interimPaidLocal: safeDecimal(interimPaidLocalInput),
           }),
     });
-    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
   async function downloadGeneralXtx(period?: { start: string; end: string }) {
@@ -658,7 +686,7 @@
             interimPaidLocal: safeDecimal(interimPaidLocalInput),
           }),
     });
-    downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
+    await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 月別売上のバー高さ計算用、月内の最大売上を取る
   function maxSales(rep: MonthlyReport | null) {
@@ -678,7 +706,7 @@
   }
 </script>
 
-<div class="space-y-8">
+<div id="reports-page" class="space-y-8">
   <header class="flex items-end justify-between">
     <div>
       <h2 class="text-2xl font-bold">{m.reports_title()}</h2>
@@ -703,6 +731,14 @@
       class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
       {lockError}
+    </div>
+  {/if}
+
+  {#if reportsError}
+    <div
+      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+    >
+      {m.reports_load_error({ message: reportsError })}
     </div>
   {/if}
 
@@ -733,7 +769,7 @@
           {/if}
         </div>
       </header>
-      <div class="grid grid-cols-4 gap-6 text-sm">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
         <div>
           <div class="text-xs text-muted-foreground mb-1">{m.home_overview_revenue()}</div>
           <div class="text-2xl font-bold tabular-nums">{formatJPY(pl.totalRevenue)}</div>
@@ -981,9 +1017,9 @@
         </span>
       </header>
       <div class="overflow-x-auto">
-        <table class="w-full text-xs tabular-nums">
+        <table class="w-full min-w-[960px] text-xs tabular-nums border-separate border-spacing-0">
           <thead>
-            <tr class="text-muted-foreground border-b">
+            <tr class="text-muted-foreground [&>th]:border-b">
               <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card"
                 >{m.reports_monthly_pl_th_account()}</th
               >
@@ -1003,7 +1039,7 @@
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.revenue as row (row.accountCode)}
-                <tr class="border-b border-border/40">
+                <tr class="[&>td]:border-b [&>td]:border-border/40">
                   <td class="py-1 pr-2 sticky left-0 bg-card">{row.accountName}</td>
                   {#each row.monthly as v, i (i)}
                     <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
@@ -1013,7 +1049,7 @@
                   <td class="text-right px-2 font-medium">{formatJPY(row.total)}</td>
                 </tr>
               {/each}
-              <tr class="border-b font-medium">
+              <tr class="[&>td]:border-b font-medium">
                 <td class="py-1 pr-2 sticky left-0 bg-card"
                   >{m.reports_monthly_pl_revenue_total()}</td
                 >
@@ -1032,7 +1068,7 @@
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.expense as row (row.accountCode)}
-                <tr class="border-b border-border/40">
+                <tr class="[&>td]:border-b [&>td]:border-border/40">
                   <td class="py-1 pr-2 sticky left-0 bg-card">{row.accountName}</td>
                   {#each row.monthly as v, i (i)}
                     <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
@@ -1042,7 +1078,7 @@
                   <td class="text-right px-2 font-medium">{formatJPY(row.total)}</td>
                 </tr>
               {/each}
-              <tr class="border-b font-medium">
+              <tr class="[&>td]:border-b font-medium">
                 <td class="py-1 pr-2 sticky left-0 bg-card"
                   >{m.reports_monthly_pl_expense_total()}</td
                 >
@@ -1054,7 +1090,7 @@
                 <td class="text-right px-2">{formatJPY(monthlyPL.totalExpense)}</td>
               </tr>
             {/if}
-            <tr class="font-semibold border-t-2">
+            <tr class="font-semibold [&>td]:border-t-2">
               <td class="py-1 pr-2 sticky left-0 bg-card"
                 >{m.reports_monthly_pl_net_income_row()}</td
               >
@@ -1147,7 +1183,7 @@
   <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
     <header class="flex items-baseline justify-between flex-wrap gap-2">
       <h3 class="text-lg font-semibold">{m.reports_trend_title()}</h3>
-      <div class="flex items-end gap-2 text-xs">
+      <div class="flex flex-wrap items-end gap-2 text-xs">
         <label class="block">
           <span class="text-muted-foreground">{m.reports_trend_from()}</span>
           <input
@@ -1157,7 +1193,7 @@
             min="2020"
             max="2099"
             step="1"
-            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-24 h-7 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <label class="block">
@@ -1169,14 +1205,14 @@
             min="2020"
             max="2099"
             step="1"
-            class="mt-1 w-24 px-2 py-1 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-24 h-7 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <button
           type="button"
           onclick={loadTrend}
           disabled={trendLoading}
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+          class="h-7 px-3 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {trendLoading ? m.reports_trend_loading() : m.reports_trend_run()}
         </button>
@@ -1193,7 +1229,7 @@
 
     {#if multiYearPL}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
@@ -1269,7 +1305,7 @@
 
     {#if multiYearBS}
       <div class="overflow-x-auto pt-4 border-t border-border/50">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_trend_account()}</th>
@@ -1311,7 +1347,7 @@
   <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
     <h3 class="text-lg font-semibold">{m.reports_budget_title()}</h3>
     <div class="overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full min-w-[840px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
             <th class="text-left font-normal px-3 py-2">{m.reports_budget_month()}</th>
@@ -1393,7 +1429,7 @@
         <span class="text-muted-foreground">{m.reports_arap_type()}</span>
         <select
           bind:value={newArApType}
-          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground"
+          class="mt-1 h-8 px-2 bg-background border rounded text-foreground"
         >
           <option value="receivable">{m.reports_arap_type_receivable()}</option>
           <option value="payable">{m.reports_arap_type_payable()}</option>
@@ -1405,7 +1441,7 @@
           type="text"
           bind:value={newArApDescription}
           required
-          class="mt-1 w-full px-2 py-1.5 bg-background border rounded text-foreground"
+          class="mt-1 w-full h-8 px-2 bg-background border rounded text-foreground"
         />
       </label>
       <label class="block">
@@ -1414,7 +1450,7 @@
           type="date"
           bind:value={newArApDueDate}
           required
-          class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+          class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
         />
       </label>
       <label class="block">
@@ -1426,12 +1462,12 @@
           min="0"
           step="1"
           required
-          class="mt-1 w-28 px-2 py-1.5 bg-background border rounded text-foreground text-right tabular-nums"
+          class="mt-1 w-28 h-8 px-2 bg-background border rounded text-foreground text-right tabular-nums"
         />
       </label>
       <button
         type="submit"
-        class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+        class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
         {m.reports_arap_add()}
       </button>
@@ -1447,7 +1483,7 @@
 
     {#if arApEntries.length > 0}
       <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2">{m.reports_arap_type()}</th>
@@ -1473,7 +1509,7 @@
                 <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
                 <td class="px-3 py-1">
                   {#if remaining.isPositive()}
-                    <div class="flex gap-1">
+                    <div class="flex gap-1 print:hidden">
                       <input
                         type="number"
                         value={paymentDrafts[e.id] ?? ''}
@@ -1509,13 +1545,13 @@
 
     <div class="pt-4 border-t border-border/50 space-y-3">
       <h4 class="text-sm font-semibold">{m.reports_cashflow_title()}</h4>
-      <div class="flex flex-wrap items-end gap-2 text-xs">
+      <div class="flex flex-wrap items-end gap-2 text-xs print:hidden">
         <label class="block">
           <span class="text-muted-foreground">{m.reports_cashflow_asof()}</span>
           <input
             type="date"
             bind:value={cashFlowAsOfDate}
-            class="mt-1 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <label class="block">
@@ -1527,13 +1563,13 @@
             min="1"
             max="24"
             step="1"
-            class="mt-1 w-20 px-2 py-1.5 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-20 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
         </label>
         <button
           type="button"
           onclick={loadCashFlowForecast}
-          class="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:opacity-90"
+          class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
         >
           {m.reports_cashflow_run()}
         </button>
@@ -1541,7 +1577,7 @@
 
       {#if cashFlowForecastResult}
         <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+          <table class="w-full min-w-[480px] text-sm">
             <thead>
               <tr class="text-xs text-muted-foreground">
                 <th class="text-left font-normal px-3 py-2">{m.reports_cashflow_month()}</th>
@@ -1630,6 +1666,16 @@
     </section>
   {/if}
 
+  {#if staleCarryover}
+    <section
+      class="bg-card text-card-foreground rounded-2xl p-6 space-y-2 shadow-sm border-2 border-amber-500"
+    >
+      <p class="text-sm text-amber-600">
+        {m.reports_stale_carryover_warning({ year })}
+      </p>
+    </section>
+  {/if}
+
   {#if consumptionTax && consumptionTax.length > 0}
     {@const ct = consumptionTax}
     {@const cat = simplifiedCategory}
@@ -1651,7 +1697,7 @@
         {/if}
       </p>
       <div class="overflow-x-auto">
-        <table class="w-full text-sm tabular-nums">
+        <table class="w-full min-w-[720px] text-sm tabular-nums">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
               <th class="text-left font-normal py-2 pr-2"
@@ -1698,7 +1744,7 @@
           >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
         >
         <div class="overflow-x-auto mt-2">
-          <table class="w-full text-xs tabular-nums">
+          <table class="w-full min-w-[720px] text-xs tabular-nums">
             <thead>
               <tr class="text-muted-foreground border-b">
                 <th class="text-left font-normal py-1 pr-2"
@@ -1924,6 +1970,11 @@
           class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
         >
           {lockError}
+        </div>
+      {/if}
+      {#if xtxOverflowWarning}
+        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+          {xtxOverflowWarning}
         </div>
       {/if}
     </section>

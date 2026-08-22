@@ -10,7 +10,12 @@ What to do from launching aoiko to being ready to book transactions.
 > - Register sub-accounts (e.g. per bank account) and vendors
 > - Configure an API key / endpoint for OCR/LLM, if you want to use those
 >
-> **Prerequisites**: aoiko is started per the [main README](../../README_en.md) and open in your browser.
+<!-- only:browser -->
+> **Prerequisites**: aoiko is started per the README on GitHub and open in your browser.
+<!-- /only -->
+<!-- only:native -->
+> **Prerequisites**: the app is launched.
+<!-- /only -->
 
 ## 1. Accept the disclaimer
 
@@ -160,18 +165,28 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 5. **"Save"** → **"Test connection"**
 
 > - OCR requires a **vision-capable model** (gemma4 / ministral-3 / llama3.2-vision etc.)
+<!-- only:browser -->
 > - To use localhost, aoiko must also run **locally** (`npm run preview`); aoiko served over HTTPS cannot reach `http://localhost`
 > - Set `OLLAMA_ORIGINS` on the Ollama side to allow aoiko's URL
+<!-- /only -->
+<!-- only:native -->
+> - No extra setup needed for localhost either. The app relays the request for you
+<!-- /only -->
 
 ### 7-C. Tesseract (purely-local WASM OCR)
 
+<!-- only:browser -->
 OCR that runs entirely in the browser, with no LLM. **Accuracy is limited**; manual verification required.
+<!-- /only -->
+<!-- only:native -->
+OCR that runs entirely within the app, with no LLM. **Accuracy is limited**; manual verification required.
+<!-- /only -->
 
 1. Choose **"Tesseract"**
 2. **"Save"**
-3. (Optional) Specify a **self-hosted langPath URL** for `traineddata` (defaults to a CDN)
+3. (Optional) Set **langPath** only if you want a different edition of `traineddata` (defaults to the copy bundled with aoiko)
 
-> - Images never leave your device (only `traineddata` is fetched once from the CDN)
+> - Neither images nor language data leave your device (the language data is served by aoiko itself)
 > - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
 > - OCR only — not usable for CSV classification or order import
 
