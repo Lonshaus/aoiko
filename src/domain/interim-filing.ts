@@ -9,9 +9,9 @@
 import { D, Decimal } from '../lib/decimal';
 import { filingBreakdown, type ConsumptionTaxBreakdown } from './consumption-tax';
 
-export type InterimInstallmentCount = 0 | 1 | 3 | 11;
+type InterimInstallmentCount = 0 | 1 | 3 | 11;
 
-export interface InterimInstallment {
+interface InterimInstallment {
   /** 対象期間・開始日（ISO） */
   start: string;
   /** 対象期間・終了日（ISO） */
@@ -22,7 +22,7 @@ export interface InterimInstallment {
   amount: ConsumptionTaxBreakdown;
 }
 
-export interface InterimFilingObligation {
+interface InterimFilingObligation {
   installmentCount: InterimInstallmentCount;
   installments: InterimInstallment[];
 }

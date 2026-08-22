@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
 import {
   FILER_INFO_SETTING_KEYS,
   looksLikeZip,
@@ -8,6 +9,7 @@ import {
 } from '../backup';
 import { validateBackupPayload } from './restore-validate';
 import type { Attachment } from '../db/types';
+import { MAX_BACKUP_BYTES } from '../lib/file-limit';
 
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
@@ -17,24 +19,48 @@ export class IncompatibleBackupError extends Error {
     this.name = 'IncompatibleBackupError';
   }
 }
+export class BackupTooLargeError extends Error {
+  constructor(
+    public readonly fileSize: number,
+    public readonly limit: number,
+  ) {
+    super(`バックアップファイルが大きすぎます（${fileSize} バイト、上限 ${limit} バイト）`);
+    this.name = 'BackupTooLargeError';
+  }
+}
+// zip は payload.json（帳簿データの本体）だけをメモリに載せて写真は Blob.slice のビューで
+// 済ませるため写真枚数に関わらず軽い。旧 JSON 形式は file.text() でファイル全体を
+// メモリに読むため、そちらだけサイズ上限を適用する。
+export function isBackupTooLarge(isZip: boolean, size: number): boolean {
+  return !isZip && size > MAX_BACKUP_BYTES;
+}
 // アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
-export async function parseBackupFile(
-  file: File,
-): Promise<{ payload: BackupPayload; attachmentBlobs: Map<string, Uint8Array> }> {
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  if (looksLikeZip(bytes)) {
-    return parseBackupZip(bytes);
+export async function parseBackupFile(file: File): Promise<{
+  payload: BackupPayload;
+  attachmentBlobs: Map<string, Blob>;
+  corruptAttachmentNames: string[];
+}> {
+  const head = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+  const isZip = looksLikeZip(head);
+  if (isBackupTooLarge(isZip, file.size)) {
+    throw new BackupTooLargeError(file.size, MAX_BACKUP_BYTES);
   }
-  const text = new TextDecoder('utf-8').decode(bytes);
-  return { payload: parseBackupJson(text), attachmentBlobs: new Map() };
+  if (isZip) {
+    return parseBackupZip(file);
+  }
+  return {
+    payload: parseBackupJson(await file.text()),
+    attachmentBlobs: new Map(),
+    corruptAttachmentNames: [],
+  };
 }
 // バックアップの内容で IndexedDB を完全置換する。既存データはすべて削除されるため、
 // UI 側で必ず確認ダイアログを挟むこと。attachmentBlobs が空の場合（旧形式 JSON 等）は
 // 証憑写真の実体を復元しない（メタデータのみ残っていても blob は空になる）。
 export async function restoreFromPayload(
   payload: BackupPayload,
-  attachmentBlobs: Map<string, Uint8Array>,
+  attachmentBlobs: Map<string, Blob>,
 ): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   if (payload.version !== PAYLOAD_VERSION) {
     throw new IncompatibleBackupError(payload.version);
@@ -50,6 +76,13 @@ export async function restoreFromPayload(
   const preservedFilerSettings = (await db.settings.toArray()).filter(
     (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key),
   );
+  // スタンプ帳と支援者バッジはこの端末だけの記録で、バックアップにも入っていない
+  // （backup/payload.ts の SKIP_TABLES / SKIP_SETTING_KEYS）。全消去で巻き添えにすると、
+  // 復元しただけで消える。書き戻して残す。
+  const preservedStamps = await db.stamps.toArray();
+  const preservedBadge = (await db.settings.toArray()).filter(
+    (r) => r.key === 'supporterBadgeAt' && !restoredSettingKeys.has(r.key),
+  );
   // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
   // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
   const writes: { name: string; rows: unknown[] }[] = [];
@@ -62,26 +95,44 @@ export async function restoreFromPayload(
     if (table.name === 'attachments') {
       rows = rows.map((r) => {
         const meta = r as Omit<Attachment, 'blob'>;
-        const bytes = attachmentBlobs.get(meta.id);
-        // メタデータはあるが二進位が無い＝旧 JSON 形式や不完全な zip。空 Blob で復元し件数を記録。
-        if (!bytes) {
+        const blob = attachmentBlobs.get(meta.id);
+        // メタデータはあるが実体が無い＝旧 JSON 形式や不完全な zip。空 Blob で復元し件数を記録。
+        if (!blob) {
           missingBlobCount++;
         }
-        return { ...meta, blob: new Blob(bytes ? [bytes.slice()] : [], { type: meta.mimeType }) };
+        // Blob.slice は既存バイトのビューを返すだけでコピーしない。mimeType だけ張り替える。
+        return {
+          ...meta,
+          blob: blob
+            ? blob.slice(0, blob.size, meta.mimeType)
+            : new Blob([], { type: meta.mimeType }),
+        };
       });
     }
     writes.push({ name: table.name, rows });
   }
-
-  await db.delete();
-  await db.open();
-  // 全消去後の書き込みは全か無かにする。1 行でも失敗したら全ロールバックし半書き込みを残さない。
+  // 全消去と書き込みを 1 つのトランザクションに入れる。db.delete() でデータベースごと
+  // 消してから書き込むと、書き込みが失敗してもロールバック先が「空の状態」になり、
+  // 利用者の既存帳簿が復旧不能になる。clear() ならロールバックで元データが戻る。
   await db.transaction('rw', db.tables, async () => {
+    // 復元は全テーブルの置換で、申告済み年度の仕訳もそのまま書き戻す。書き込みの門
+    // （db/filed-year-guard.ts）はそれを止めるので、正当な経路であることを明示する。
+    // ここを外すと、申告済みの年度を含むバックアップが復元できなくなる。
+    allowFiledYearWriteInThisTransaction();
+    for (const table of db.tables) {
+      await table.clear();
+    }
     for (const w of writes) {
       await db.table(w.name).bulkPut(w.rows);
     }
     if (preservedFilerSettings.length > 0) {
       await db.settings.bulkPut(preservedFilerSettings);
+    }
+    if (preservedStamps.length > 0) {
+      await db.stamps.bulkPut(preservedStamps);
+    }
+    if (preservedBadge.length > 0) {
+      await db.settings.bulkPut(preservedBadge);
     }
   });
 

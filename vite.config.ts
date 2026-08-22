@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { fileURLToPath, URL } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { stripBuildOnly } from './src/lib/build-only';
 import { execSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
@@ -47,13 +48,38 @@ function dropUnusedTesseractAssets() {
   };
 }
 
+// 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は
+// `<!-- only:… -->` で囲み、ここで取り除く。表示時に隠すのでは産物に文章が残り、
+// console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
+function stripDocsForBuild(native: boolean) {
+  const MANUAL = /\/docs\/manual\/[^/]+\.md$/;
+  return {
+    name: 'aoiko-strip-docs-for-build',
+    enforce: 'pre' as const,
+    load(id: string) {
+      const [file, query] = id.split('?');
+      if (query !== 'raw' || file === undefined || !MANUAL.test(file)) {
+        return null;
+      }
+      const name = file.slice(file.lastIndexOf('/') + 1);
+      return `export default ${JSON.stringify(stripBuildOnly(readFileSync(file, 'utf-8'), native, name))}`;
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    // 同じソースから作る別の配布形態は独立したバージョン体系を持つため、環境変数で
+    // 上書きできるようにする。未設定なら package.json の値。
+    __APP_VERSION__: JSON.stringify(process.env.AOIKO_VERSION ?? pkg.version),
     __APP_COMMIT__: JSON.stringify(gitCommitShort()),
+    // ネイティブ版のビルドでだけ true。商店を持たない web に購入画面を含めないため、
+    // 実行時の判定ではなくここで畳む。false になった側は import ごと落ちる。
+    __NATIVE__: JSON.stringify(process.env.AOIKO_NATIVE === '1'),
   },
   plugins: [
+    stripDocsForBuild(process.env.AOIKO_NATIVE === '1'),
     dropUnusedTesseractAssets(),
     tailwindcss(),
     paraglideVitePlugin({
@@ -79,7 +105,7 @@ export default defineConfig({
         theme_color: '#15374a',
         background_color: '#15374a',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         scope: '/',
         start_url: '/',
         icons: [

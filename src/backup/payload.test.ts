@@ -1,7 +1,15 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
-import { buildPayload, collectAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+
+// happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
+// 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
+// テストだけ Node 組込みの Blob を使う。
+function nodeBlob(bytes: Uint8Array<ArrayBuffer>): Blob {
+  return new NodeBlob([bytes]) as unknown as Blob;
+}
 
 interface SettingRow {
   key: string;
@@ -25,6 +33,11 @@ beforeEach(async () => {
     { key: 'userFilerAddress', value: '東京都〇〇1-2-3', updatedAt: now },
     { key: 'userZeimushoCode', value: '01101', updatedAt: now },
     { key: 'backupFolderHandle', value: { not: 'serializable' }, updatedAt: now },
+    {
+      key: 'nativeBackupFolder',
+      value: { token: '/Users/someone/Dropbox/aoiko', name: 'aoiko' },
+      updatedAt: now,
+    },
   ]);
 });
 
@@ -42,6 +55,12 @@ describe('buildPayload', () => {
   test('backupFolderHandle は常に除外（シリアライズ不可）', async () => {
     const p = await buildPayload({ includeApiKeys: true });
     expect(settingKeys(p.tables)).not.toContain('backupFolderHandle');
+  });
+  // シリアライズはできてしまうため、除外を外すと端末固有のパスや bookmark が
+  // バックアップに混ざり、別端末で復元したときに存在しない場所や他人のフォルダを指す。
+  test('nativeBackupFolder は常に除外（端末固有）', async () => {
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(settingKeys(p.tables)).not.toContain('nativeBackupFolder');
   });
 
   test('既定では API キーを除外する', async () => {
@@ -103,10 +122,57 @@ describe('buildPayload', () => {
   });
 });
 
-describe('collectAttachmentBlobs', () => {
-  test('添付が無ければ空 Map', async () => {
-    const m = await collectAttachmentBlobs();
-    expect(m.size).toBe(0);
+// スタンプ帳はこの端末だけの記録だと画面で言っている。バックアップに入れると
+// 別端末での復元で引き継がれてしまい、その説明が嘘になる。
+describe('支援の記録は持ち出さない', () => {
+  test('stamps テーブルは payload に入らない', async () => {
+    await db.stamps.put({ id: 's1', shape: 'bell', color: 'blue', at: '2026-08-18', createdAt: 1 });
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(p.tables.stamps).toBeUndefined();
+  });
+
+  test('supporterBadgeAt は常に除外（商店から復元するもの）', async () => {
+    await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
+    const p = await buildPayload({ includeApiKeys: true });
+    expect(settingKeys(p.tables)).not.toContain('supporterBadgeAt');
+  });
+});
+
+describe('iterateAttachmentBlobs', () => {
+  test('添付が無ければ何も yield しない', async () => {
+    const results: Array<readonly [string, Uint8Array]> = [];
+    for await (const entry of iterateAttachmentBlobs()) {
+      results.push(entry);
+    }
+    expect(results).toHaveLength(0);
+  });
+
+  test('全ての添付を id とバイト列付きで yield する', async () => {
+    await db.attachments.bulkAdd([
+      {
+        id: 'a1',
+        entryId: 'e1',
+        blob: nodeBlob(new Uint8Array([1, 2, 3])),
+        mimeType: 'image/jpeg',
+        fileName: 'a.jpg',
+        createdAt: Date.now(),
+      },
+      {
+        id: 'a2',
+        entryId: 'e2',
+        blob: nodeBlob(new Uint8Array([4, 5])),
+        mimeType: 'image/jpeg',
+        fileName: 'b.jpg',
+        createdAt: Date.now(),
+      },
+    ]);
+    const results = new Map<string, Uint8Array>();
+    for await (const [id, bytes] of iterateAttachmentBlobs()) {
+      results.set(id, bytes);
+    }
+    expect(results.size).toBe(2);
+    expect(results.get('a1')).toEqual(new Uint8Array([1, 2, 3]));
+    expect(results.get('a2')).toEqual(new Uint8Array([4, 5]));
   });
 });
 

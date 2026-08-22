@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Used to photograph a receipt so its details can be read. Images are processed on this device, and are only sent out — after your confirmation — if you have chosen a cloud OCR engine.";
+"NSLocalNetworkUsageDescription" = "Used to reach an OCR or LLM server (such as Ollama) on the same network as this device. It connects only if you have set an endpoint in Settings.";

@@ -29,7 +29,6 @@ import {
 } from './aoiro-deduction';
 
 export const REAL_ESTATE_SENJUSHA_ACCOUNT_NAME = '専従者給与（不動産）';
-
 // XtxContext 側で使う不動産所得の入力形状。支払先明細（地代家賃・借入金利子・
 // 税理士等報酬）は KOA220/KOA130 へそのまま転記するだけの確定額のため、計算対象の
 // landLoanInterestAmount 以外は DB 保存形状（文字列）のまま持つ（putRow 側で直接使う、
@@ -42,7 +41,7 @@ export interface RealEstateIncomeCtx {
   professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
 }
 
-export interface CombinedBusinessRealEstateIncome {
+interface CombinedBusinessRealEstateIncome {
   /** 事業所得の所得金額（青色控除後）。赤字ならマイナス */
   businessIncome: Decimal;
   /** 不動産所得の所得金額（青色控除後）。赤字ならマイナス */
@@ -52,7 +51,6 @@ export interface CombinedBusinessRealEstateIncome {
   /** 事業所得 + 損益通算できる不動産所得（合計所得金額の算定に使う） */
   combinedIncome: Decimal;
 }
-
 // 事業所得と不動産所得（あれば）を合わせた所得金額。青色申告特別控除の共有枠配分・
 // 土地等負債利子額による損益通算制限まで含めて算定する。realEstatePl/realEstateInput が
 // 無ければ不動産所得ゼロ扱い（既存の単一事業所得の計算結果と完全に一致する）。
@@ -101,28 +99,42 @@ export function computeCombinedBusinessRealEstateIncome(
 }
 
 export const REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME = '貸倒引当金繰入額（不動産）';
-// 事業的規模でない場合、専従者給与（不動産）は全額不算入（控除前所得に戻す）。
-// 白色申告ではさらに貸倒引当金繰入額（不動産）も不算入（事業所得側の
-// whiteReturnAdjustedNetIncome と同じ扱い。収支内訳書に対応欄が無く転記もされない）。
-// pl.netIncome は通常の経費として控除済みのため、いずれもその分だけ加算し直す。
+// 専従者給与（不動産）と貸倒引当金繰入額（不動産）は不算入の要件が別物なので、
+// businessScale と filingType それぞれ別の役割で判定する（issue#378）。
+// - 専従者給与：所得税法57条1項は青色申告かつ事業的規模が要件。白色は実額を
+//   使えず定額の事業専従者控除に置き換わるため businessScale に関わらず不算入、
+//   青色でも非事業的規模なら不算入（タックスアンサー No.1370）。
+// - 貸倒引当金繰入額：52条1項は「事業を営む」ことのみが要件（青色限定は無い）。
+//   52条2項の青色限定は一括評価の話で、不動産所得は52条2項の対象外（事業所得
+//   限定）だから個別評価しかあり得ず、青白を問わず businessScale だけで決まる。
+// pl.netIncome は通常の経費として控除済みのため、不算入の分だけ加算し直す。
+// 所得計算（ここ）・KOA130（白色）・KOA220（青色）の3箇所で同じ判定が要る
+// （issue#379）。ここを唯一の定義元にし、他はこれを呼ぶだけにする。
+export function realEstateDisallowedExpenseAccounts(
+  businessScale: boolean,
+  filingType: 'blue' | 'white' = 'blue',
+): Set<string> {
+  const disallowedAccounts = new Set<string>();
+  if (filingType === 'white' || !businessScale) {
+    disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
+  }
+  if (!businessScale) {
+    disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
+  }
+  return disallowedAccounts;
+}
+
 export function realEstatePreDeductionIncome(
   pl: PLReport,
   businessScale: boolean,
   filingType: 'blue' | 'white' = 'blue',
 ): Decimal {
-  const disallowedAccounts = new Set<string>();
-  if (!businessScale) {
-    disallowedAccounts.add(REAL_ESTATE_SENJUSHA_ACCOUNT_NAME);
-  }
-  if (filingType === 'white') {
-    disallowedAccounts.add(REAL_ESTATE_BAD_DEBT_RESERVE_ACCOUNT_NAME);
-  }
+  const disallowedAccounts = realEstateDisallowedExpenseAccounts(businessScale, filingType);
   const disallowed = pl.expense
     .filter((r) => disallowedAccounts.has(r.accountName))
     .reduce((sum, r) => sum.plus(D(r.amount)), D(0));
   return D(pl.netIncome).plus(disallowed);
 }
-
 // 事業所得・不動産所得を合算した場合の青色申告特別控除に使う実効区分。
 // 事業所得が無く（またはゼロ以下）、かつ不動産所得が事業的規模でない場合、
 // 65万/55万は使えず 10万（simple）が上限になる。
@@ -137,12 +149,11 @@ export function combinedAoiroDeductionKind(
   return 'simple';
 }
 
-export interface CombinedAoiroDeductionResult {
+interface CombinedAoiroDeductionResult {
   realEstateDeduction: Decimal;
   businessDeduction: Decimal;
   totalDeduction: Decimal;
 }
-
 // 単一の共有枠を、不動産所得から先に・残りを事業所得から控除する形で配分する。
 // 基準額は両所得の黒字分の合計（赤字は0扱い）。
 export function allocateAoiroDeduction(
@@ -169,7 +180,6 @@ export function allocateAoiroDeduction(
   const businessDeduction = totalDeduction.minus(realEstateDeduction);
   return { realEstateDeduction, businessDeduction, totalDeduction };
 }
-
 // 不動産所得が赤字のとき、土地等取得に係る負債の利子の額に相当する部分は
 // 他の所得と損益通算できない。損益通算可能な金額（0以下）を返す。
 export function offsettableRealEstateLoss(

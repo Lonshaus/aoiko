@@ -13,8 +13,8 @@
 import { D, Decimal } from '../../lib/decimal';
 import type { FamilyEmployeeRelation, PersonalDeductionFamilyEmployee } from '../../db/types';
 
-export const SPOUSE_FAMILY_EMPLOYEE_DEDUCTION_AMOUNT = 860_000;
-export const OTHER_FAMILY_EMPLOYEE_DEDUCTION_AMOUNT = 500_000;
+const SPOUSE_FAMILY_EMPLOYEE_DEDUCTION_AMOUNT = 860_000;
+const OTHER_FAMILY_EMPLOYEE_DEDUCTION_AMOUNT = 500_000;
 // 事業専従者の要件（所法57条3項）：生計を一にする配偶者その他の親族で、年末時点15歳以上、
 // かつその年を通じて専ら従事した期間が6か月を超える者。
 export function isEligibleFamilyEmployee(employee: PersonalDeductionFamilyEmployee): boolean {
@@ -33,7 +33,7 @@ export function realEstateFamilyEmployees(
   return employees.filter((e) => e.incomeType === 'realEstate');
 }
 
-export interface FamilyEmployeeDeductionEntry {
+interface FamilyEmployeeDeductionEntry {
   id: string;
   name: string;
   relation: FamilyEmployeeRelation;
@@ -76,7 +76,7 @@ export function familyEmployeeDeduction(
   return { total, entries };
 }
 
-export interface FamilyEmployeeExclusion {
+interface FamilyEmployeeExclusion {
   spouseExcluded: boolean;
   excludedDependentIds: Set<string>;
 }

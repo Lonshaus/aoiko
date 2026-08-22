@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
   pull_request:
 
 jobs:
@@ -63,5 +63,36 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
-          path: playwright-report/
+          path: ${{ runner.temp }}/aoiko-playwright/report/
           retention-days: 7
+
+  # 打包（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
+  # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
+  # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
+  native:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - run: npm ci
+
+      # 依存の追加・更新でライセンス一覧が古くなったまま配られるのを防ぐ。
+      # cargo metadata しか使わないので、対象プラットフォームの toolchain は要らない。
+      - run: npm run licenses:native:check
+
+      # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
+      - run: npm run test:init
+
+      # mobile_entry_point のガードもここに入っている。
+      - run: npm run test:rust
