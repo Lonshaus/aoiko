@@ -108,6 +108,89 @@ impl ResolvedFolder {
         }
     }
 }
+
+/// 文字認識が返す 1 語。座標は 0..1 に正規化し、左上を原点として y を下向きに揃える。
+/// 環境ごとに座標系が違う（Vision は左下原点で上向き、Windows は画素の左上原点）ため、
+/// 吸収はネイティブ側で済ませる。web 側が環境を意識すると、その分岐が抽出の正しさに
+/// 直結してしまう。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedWord {
+    pub text: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    /// 認識の自信度（0..1）。返さない環境では None。
+    pub confidence: Option<f64>,
+    /// 第 2 候補以降を確からしい順に。返さない環境では空。
+    pub alternates: Vec<String>,
+}
+
+/// 縦に重なる語をまとめた 1 行。座標は行に含まれる語を囲む矩形。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedLine {
+    pub text: String,
+    pub words: Vec<RecognizedWord>,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+/// 文字認識の結果一式。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedText {
+    pub lines: Vec<RecognizedLine>,
+    /// 行を改行で繋いだ全文。座標を要らない抽出はこれだけで足りる。
+    pub text: String,
+}
+
+impl RecognizedLine {
+    /// 語から行を組み立てる。空の語は呼び元で除いてある前提。
+    // iOS では Swift 側がこの形を組んで返すため、Rust は受け取るだけで組み立てない。
+    #[cfg(target_os = "macos")]
+    pub(crate) fn from_words(words: Vec<RecognizedWord>, separator: &str) -> Option<Self> {
+        let first = words.first()?;
+        let mut left = first.x;
+        let mut top = first.y;
+        let mut right = first.x + first.width;
+        let mut bottom = first.y + first.height;
+        for w in &words[1..] {
+            left = left.min(w.x);
+            top = top.min(w.y);
+            right = right.max(w.x + w.width);
+            bottom = bottom.max(w.y + w.height);
+        }
+        let text = words
+            .iter()
+            .map(|w| w.text.as_str())
+            .collect::<Vec<_>>()
+            .join(separator);
+        Some(Self {
+            text,
+            words,
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+        })
+    }
+}
+
+impl RecognizedText {
+    #[cfg(target_os = "macos")]
+    pub(crate) fn from_lines(lines: Vec<RecognizedLine>) -> Self {
+        let text = lines
+            .iter()
+            .map(|l| l.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Self { lines, text }
+    }
+}
 // 解決は 1 回で済ませる。macOS の bookmark は解決のたびに新しい URL の権限を取り、
 // 手放さない実装（書き込み中に権限が消えないため）なので、毎回やると積み上がる。
 #[derive(Default)]

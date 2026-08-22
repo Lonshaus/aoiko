@@ -1,8 +1,8 @@
 // OS 内蔵の文字認識の包装層。engine 選択時のみ動的 import される。
 //
-// tesseract-engine と同じく、生テキストを receipt-text-extract に渡すだけ。
 // 認識そのものはネイティブ側が持ち、こちらは橋渡しを呼ぶのみ。画像は端末外に出ない。
-import { extractFromOcrText } from '../../domain/receipt-text-extract';
+// 返るのは座標付きの版面なので、素のテキストしか無い Tesseract とは別の抽出を通す。
+import { extractFromOcrLayout } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { nativeBridge } from '../native-bridge';
@@ -20,7 +20,7 @@ export function createNativeReceiptExtractor(): ReceiptExtractor {
       if (typeof recognize !== 'function') {
         throw new Error(m.ocr_native_unavailable());
       }
-      return extractFromOcrText(await recognize(image.base64));
+      return extractFromOcrLayout(await recognize(image.base64));
     },
   };
 }

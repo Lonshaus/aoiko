@@ -144,8 +144,46 @@ pub(crate) fn resolve(handle: &str) -> Option<PathBuf> {
 }
 // OCR は macOS のみここで完結させる（iOS 側は Vision を呼ぶ Swift 実装へ委譲）。
 #[cfg(target_os = "macos")]
-pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<String> {
+pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
     macos::recognize_text(image_data)
+}
+
+// 認識した語を行へまとめる。左右に分かれたセルを別々に返すのはどの環境の文字認識も
+// 同じで、まとめないと「合計」と金額、「登録番号」と番号が離れて抽出できない。
+// 座標は正規化済みなので、画素の大きさが違っても比率で判定できる。
+//
+// 行内をどう繋ぐかだけが環境で違う。語のまとまりで返す側は空白で繋ぎ、一文字ずつ返す
+// 側で空白を挟むと日本語が全部ばらけて抽出が効かなくなるため、区切りは呼び元が決める。
+#[cfg(target_os = "macos")]
+fn word_mid_y(word: &crate::RecognizedWord) -> f64 {
+    word.y + word.height / 2.0
+}
+// 行の高さの半分より近ければ同じ行とみなす。実測のレシートでは「登録番号」と番号で
+// 0.0027、行高は 0.013 ほどだった。
+#[cfg(target_os = "macos")]
+fn same_row(head: &crate::RecognizedWord, word: &crate::RecognizedWord) -> bool {
+    (word_mid_y(head) - word_mid_y(word)).abs() <= head.height.max(word.height) / 2.0
+}
+
+#[cfg(target_os = "macos")]
+fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> crate::RecognizedText {
+    words.sort_by(|a, b| word_mid_y(a).total_cmp(&word_mid_y(b)));
+    let mut rows: Vec<Vec<crate::RecognizedWord>> = Vec::new();
+    for word in words {
+        match rows.last_mut() {
+            Some(row) if same_row(&row[0], &word) => row.push(word),
+            _ => rows.push(vec![word]),
+        }
+    }
+    let lines = rows
+        .into_iter()
+        .filter_map(|mut row| {
+            row.sort_by(|a, b| a.x.total_cmp(&b.x));
+            crate::RecognizedLine::from_words(row, separator)
+        })
+        .filter(|line| !line.text.is_empty())
+        .collect();
+    crate::RecognizedText::from_lines(lines)
 }
 
 #[cfg(target_os = "macos")]
@@ -163,6 +201,8 @@ mod macos {
         VNImageRequestHandler, VNRecognizeTextRequest, VNRecognizeTextRequestRevision3, VNRequest,
         VNRequestTextRecognitionLevel,
     };
+
+    use crate::{RecognizedText, RecognizedWord};
     // entitlement が無いビルドでは失敗する。呼び元がパス保存へ倒すので None を返すだけでよい。
     pub(super) fn create_bookmark(dir: &Path) -> Option<String> {
         let url = NSURL::fileURLWithPath(&NSString::from_str(&dir.to_string_lossy()));
@@ -196,28 +236,26 @@ mod macos {
         std::mem::forget(url);
         Some(path)
     }
-    struct Cell {
-        mid_y: f64,
-        height: f64,
-        min_x: f64,
-        text: String,
-    }
-    // 行の高さの半分より近ければ同じ行とみなす。実測のレシートでは「登録番号」と番号で
-    // 0.0027、行高は 0.013 ほどだった。
-    fn same_row(head: &Cell, cell: &Cell) -> bool {
-        (head.mid_y - cell.mid_y).abs() <= head.height.max(cell.height) / 2.0
-    }
     #[cfg(test)]
     mod row_tests {
-        use super::{same_row, Cell};
+        use super::super::{same_row, word_mid_y};
+        use crate::RecognizedWord;
 
-        fn cell(mid_y: f64, height: f64) -> Cell {
-            Cell {
-                mid_y,
-                height,
-                min_x: 0.0,
+        fn cell(mid_y: f64, height: f64) -> RecognizedWord {
+            RecognizedWord {
                 text: String::new(),
+                x: 0.0,
+                y: mid_y - height / 2.0,
+                width: 0.0,
+                height,
+                confidence: None,
+                alternates: Vec::new(),
             }
+        }
+
+        #[test]
+        fn mid_y_is_the_centre() {
+            assert!((word_mid_y(&cell(0.5, 0.02)) - 0.5).abs() < 1e-12);
         }
         // 実測のレシートの「登録番号」と番号。ここが分かれると登録番号を取り出せない。
         #[test]
@@ -239,7 +277,7 @@ mod macos {
 
     // ja-JP は VNRecognizeTextRequestRevision3 の .accurate でしか使えない（.fast は非対応）。
     // 圧縮バイト列のまま渡す。ビットマップへ先に展開すると Vision 側の対応形式判定を素通りする。
-    pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<String> {
+    pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<RecognizedText> {
         let data = NSData::from_vec(image_data.to_vec());
         let handler = VNImageRequestHandler::initWithData_options(
             VNImageRequestHandler::alloc(),
@@ -269,45 +307,44 @@ mod macos {
         let Some(results) = request.results() else {
             return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
         };
-        let mut cells: Vec<Cell> = (0..results.count())
+        // 候補は 3 件まで貰う。先頭が誤っていても、桁数や形式で弾ける誤りなら
+        // 次の候補が正しいことがある（`T` の欠けは実測）。多く取るほど遅くなるので
+        // 実用域で止める。
+        let words: Vec<RecognizedWord> = (0..results.count())
             .filter_map(|i| {
                 let obs = results.objectAtIndex(i);
-                let candidates = obs.topCandidates(1);
+                let candidates = obs.topCandidates(3);
                 if candidates.count() == 0 {
                     return None;
                 }
+                let top = candidates.objectAtIndex(0);
+                let text = top.string().to_string();
+                if text.is_empty() {
+                    return None;
+                }
+                let alternates: Vec<String> = (1..candidates.count())
+                    .map(|n| candidates.objectAtIndex(n).string().to_string())
+                    .filter(|t| !t.is_empty() && *t != text)
+                    .collect();
                 let r: CGRect = unsafe { obs.boundingBox() };
-                Some(Cell {
-                    mid_y: r.origin.y + r.size.height / 2.0,
+                Some(RecognizedWord {
+                    text,
+                    x: r.origin.x,
+                    // Vision は左下原点で y が上向き。左上原点・下向きへ揃える。
+                    y: 1.0 - (r.origin.y + r.size.height),
+                    width: r.size.width,
                     height: r.size.height,
-                    min_x: r.origin.x,
-                    text: candidates.objectAtIndex(0).string().to_string(),
+                    confidence: Some(f64::from(top.confidence())),
+                    alternates,
                 })
             })
             .collect();
-        // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々に返す。
-        // 1 観測 1 行にすると「合計」の行から金額が消えるので、縦に重なるものを 1 行へまとめる。
-        cells.sort_by(|a, b| b.mid_y.total_cmp(&a.mid_y));
-        let mut rows: Vec<Vec<Cell>> = Vec::new();
-        for cell in cells {
-            match rows.last_mut() {
-                Some(row) if same_row(&row[0], &cell) => row.push(cell),
-                _ => rows.push(vec![cell]),
-            }
-        }
-
-        let lines: Vec<String> = rows
-            .into_iter()
-            .map(|mut row| {
-                row.sort_by(|a, b| a.min_x.total_cmp(&b.min_x));
-                row.into_iter().map(|c| c.text).collect::<Vec<_>>().join(" ")
-            })
-            .filter(|line| !line.is_empty())
-            .collect();
-        if lines.is_empty() {
+        // 語のまとまりで返るので、行内は空白で繋ぐ。
+        let recognized = super::words_to_lines(words, " ");
+        if recognized.lines.is_empty() {
             return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
         }
-        Ok(lines.join("\n"))
+        Ok(recognized)
     }
 }
 

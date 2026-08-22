@@ -186,30 +186,102 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             invoke.reject("テキストが見つかりません")
             return
         }
-        // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々の観測で返す。
-        // 1 観測 1 行にすると「合計」の行に金額が無くなるため、縦に重なるものを 1 行へまとめる。
-        let sorted = observations.sorted { $0.boundingBox.midY > $1.boundingBox.midY }
-        var rows: [[VNRecognizedTextObservation]] = []
-        for o in sorted {
-            if let head = rows.last?.first {
-                let limit = max(head.boundingBox.height, o.boundingBox.height) * 0.5
-                if abs(head.boundingBox.midY - o.boundingBox.midY) <= limit {
-                    rows[rows.count - 1].append(o)
-                    continue
-                }
+        // 候補は 3 件まで貰う。先頭が誤っていても、桁数や形式で弾ける誤りなら次の候補が
+        // 正しいことがある（`T` の欠けは実測）。多く取るほど遅くなるので実用域で止める。
+        let words: [RecognizedWord] = observations.compactMap { o in
+            let candidates = o.topCandidates(3)
+            guard let top = candidates.first, !top.string.isEmpty else {
+                return nil
             }
-            rows.append([o])
+            let box = o.boundingBox
+            return RecognizedWord(
+                text: top.string,
+                x: box.minX,
+                // Vision は左下原点で y が上向き。左上原点・下向きへ揃える。
+                y: 1.0 - box.maxY,
+                width: box.width,
+                height: box.height,
+                confidence: Double(top.confidence),
+                alternates: candidates.dropFirst().map { $0.string }
+                    .filter { !$0.isEmpty && $0 != top.string }
+            )
         }
-        let lines = rows.map { row in
-            row.sorted { $0.boundingBox.minX < $1.boundingBox.minX }
-                .compactMap { $0.topCandidates(1).first?.string }
-                .joined(separator: " ")
-        }.filter { !$0.isEmpty }
-        guard !lines.isEmpty else {
+        // 語のまとまりで返るので、行内は空白で繋ぐ。
+        let recognized = Self.wordsToLines(words, separator: " ")
+        guard !recognized.lines.isEmpty else {
             invoke.reject("テキストが見つかりません")
             return
         }
-        invoke.resolve(lines.joined(separator: "\n"))
+        invoke.resolve(recognized)
+    }
+
+    // 座標は 0..1 に正規化した左上原点・下向き y。デスクトップ側の words_to_lines と
+    // 同じ組み立てで、web 側はどちらから来たかを区別しない。
+    struct RecognizedWord: Encodable {
+        let text: String
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+        let confidence: Double?
+        let alternates: [String]
+    }
+
+    struct RecognizedLine: Encodable {
+        let text: String
+        let words: [RecognizedWord]
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+
+    struct RecognizedText: Encodable {
+        let lines: [RecognizedLine]
+        let text: String
+    }
+
+    // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々の観測で返す。
+    // 1 観測 1 行にすると「合計」の行に金額が無くなるため、縦に重なるものを 1 行へまとめる。
+    // 閾値は行の高さの半分。実測のレシートでは「登録番号」と番号で 0.0027、行高は 0.013。
+    private static func wordsToLines(_ words: [RecognizedWord], separator: String) -> RecognizedText {
+        let sorted = words.sorted { ($0.y + $0.height / 2) < ($1.y + $1.height / 2) }
+        var rows: [[RecognizedWord]] = []
+        for w in sorted {
+            if let head = rows.last?.first {
+                let limit = max(head.height, w.height) / 2
+                if abs((head.y + head.height / 2) - (w.y + w.height / 2)) <= limit {
+                    rows[rows.count - 1].append(w)
+                    continue
+                }
+            }
+            rows.append([w])
+        }
+        let lines: [RecognizedLine] = rows.compactMap { row in
+            let ordered = row.sorted { $0.x < $1.x }
+            guard let first = ordered.first else {
+                return nil
+            }
+            let text = ordered.map { $0.text }.joined(separator: separator)
+            if text.isEmpty {
+                return nil
+            }
+            var left = first.x
+            var top = first.y
+            var right = first.x + first.width
+            var bottom = first.y + first.height
+            for w in ordered.dropFirst() {
+                left = min(left, w.x)
+                top = min(top, w.y)
+                right = max(right, w.x + w.width)
+                bottom = max(bottom, w.y + w.height)
+            }
+            return RecognizedLine(
+                text: text, words: ordered,
+                x: left, y: top, width: right - left, height: bottom - top
+            )
+        }
+        return RecognizedText(lines: lines, text: lines.map { $0.text }.joined(separator: "\n"))
     }
 
     private static func findWebView(_ view: UIView) -> WKWebView? {

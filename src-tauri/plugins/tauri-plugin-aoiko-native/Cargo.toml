@@ -39,6 +39,8 @@ objc2-vision = { version = "0.3", default-features = false, features = [
   "VNRequestHandler",
   "VNRecognizeTextRequest",
   "VNObservation",
+  # VNRecognizedText::confidence の型（VNConfidence）がこの feature の下にある。
+  "VNTypes",
   "objc2-core-foundation",
 ] }
 objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }

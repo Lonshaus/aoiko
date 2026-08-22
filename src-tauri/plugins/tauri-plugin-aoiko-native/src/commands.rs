@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::backup::{self, OpenFiles};
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
-use crate::{Error, PickedFolder, Resolved, ResolvedFolder, Result};
+use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
 #[cfg(target_os = "ios")]
 use crate::ios::AoikoNativeExt;
@@ -126,7 +126,7 @@ pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
 pub(crate) fn recognize_text<R: Runtime>(
     app: AppHandle<R>,
     image_base64: String,
-) -> Result<String> {
+) -> Result<RecognizedText> {
     #[cfg(target_os = "ios")]
     {
         app.aoiko_native().recognize_text(image_base64)

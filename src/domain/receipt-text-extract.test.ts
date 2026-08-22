@@ -39,15 +39,15 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBe('T1234567890123');
   });
 
-  // 実際のレシートで踏んだ：店の電話 `0422-29-0051` が「0422 年 29 月 00 日」として
-  // 先に命中し、後ろにある本物の日付まで届かなかった。
+  // 実際のレシートで踏んだ形：店の電話が「0422 年 29 月 00 日」として先に命中し、
+  // 後ろにある本物の日付まで届かなかった。番号は作り物に置き換えてある。
   test('電話番号を日付と取り違えて諦めない', () => {
-    const r = extractFromOcrText('吉祥寺南町店 0422-29-0051\n2026年08月20日（木）13:01\n合計 ¥159');
-    expect(r.date).toBe('2026-08-20');
+    const r = extractFromOcrText('みどり町店 0499-99-9999\n2026年05月14日（水）09:32\n合計 ¥248');
+    expect(r.date).toBe('2026-05-14');
   });
 
   test('19xx/20xx 以外の 4 桁は年として採らない', () => {
-    const r = extractFromOcrText('注文 0422-29-0051\n合計 1000');
+    const r = extractFromOcrText('注文 0499-99-9999\n合計 1000');
     expect(r.date).toBe('');
   });
 

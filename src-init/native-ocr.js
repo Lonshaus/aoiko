@@ -7,7 +7,8 @@ export function createNativeOcr(invoke, platform) {
     return null;
   }
   return {
-    // 形式は認識側が中身から判定するため渡さない。
+    // 形式は認識側が中身から判定するため渡さない。返るのは行と 1 語ごとの座標を
+    // 含む版面。ここでは組み替えず、そのまま web 側へ渡す。
     async recognizeText(base64) {
       return invoke('plugin:aoiko-native|recognize_text', { imageBase64: base64 });
     },

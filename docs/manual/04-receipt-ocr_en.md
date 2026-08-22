@@ -103,7 +103,9 @@ When done, **"2. Extracted result (editable)"** expands below:
 <!-- only:native -->
 > **Vision LLM vs Tesseract / the OS's built-in text recognition**:
 > - Vision LLM extracts vendor and total at high accuracy, and picks up line items
-> - Tesseract and the OS's built-in text recognition only extract **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
+> - Tesseract only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - The OS's built-in text recognition also extracts the **vendor** and **line items**. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
+> - For both, raw OCR text is held internally but not auto-copied into the journal description
 <!-- /only -->
 
 #### Tesseract warning banner
@@ -170,9 +172,12 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 
 ### The OS's built-in text recognition
 
-- No LLM and no extra download. Extraction goes through the same layer as Tesseract, so vendor and items stay blank
+- No LLM and no extra download
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
+- Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right". Words containing separators, and rows whose left side is a date or digits only, are not treated as items. Better to skip than to guess wrong
 - Date and total read correctly on the receipts tried here, but the sample count is small. Always verify the total and date
-- The leading `T` of the invoice number is sometimes dropped. It is restored when the same line carries a label such as 登録番号, but layouts where other 13-digit numbers appear leave it blank
+- The leading `T` of the invoice number is sometimes dropped. Text recognition returns several candidates per word, so the candidates are searched in order for one matching `T` plus exactly 13 digits — in one measured case the third candidate was the correct one. If no candidate has the right digit count the field is left blank (a wrong number in the right format is one you cannot spot by looking)
 <!-- /only -->
 
 ## 4. Troubleshooting
