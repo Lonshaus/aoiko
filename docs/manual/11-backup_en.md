@@ -1,6 +1,11 @@
 # 11. Backup and restore
 
+<!-- only:browser -->
 File System Access API, OPFS, manual zip download / restore.
+<!-- /only -->
+<!-- only:native -->
+Pick a folder once, and it's written automatically from then on — plus how to do a manual export and restore.
+<!-- /only -->
 
 **Language**: [日本語](11-backup.md) | **English** | [繁體中文](11-backup_zh-TW.md)
 
@@ -14,15 +19,31 @@ File System Access API, OPFS, manual zip download / restore.
 
 ## 1. Why backups matter
 
+<!-- only:browser -->
 aoiko's data lives in the browser's **IndexedDB** (device-local). This means:
+<!-- /only -->
+<!-- only:native -->
+aoiko's data lives in **the app's own storage area** (device-local). This means:
+<!-- /only -->
 
 - ✅ No server transmission, no external leak (privacy)
+<!-- only:browser -->
 - ❌ Browser site-data clear → **complete loss**
+<!-- /only -->
+<!-- only:native -->
+- ❌ Removing the app → whether it's lost depends on the platform (Windows deletes it right along with the app; macOS keeps the storage area even across a reinstall)
+<!-- /only -->
 - ❌ Device failure → unrecoverable
+<!-- only:browser -->
 - ❌ Browser profile deletion → lost
+<!-- /only -->
+<!-- only:native -->
+- ❌ The backup folder gets moved, deleted, or loses access → automatic writes stop until you choose it again
+<!-- /only -->
 
 Regular backup is **the user's responsibility**. "I'll back up when I remember" is a path to disaster — set up automatic backups.
 
+<!-- only:browser -->
 ## 2. Backup mechanism comparison
 
 | Method | API | Browser support | Recommendation |
@@ -34,11 +55,18 @@ Regular backup is **the user's responsibility**. "I'll back up when I remember" 
 aoiko auto-falls back: FSA when available, otherwise OPFS, otherwise manual download only.
 
 > **Safari below 26 and iOS do not support automatic backup.** They lack `createWritable`, the API required to write into OPFS, so the backup status in Settings reads "⚠ Browser not supported". Rely on manual JSON download instead.
+<!-- /only -->
+<!-- only:native -->
+## 2. How backups work
+
+There's no method to choose between. Pick a destination folder once, and everything is written automatically from then on. The steps are the same on every supported platform, including iPad and iPhone.
+<!-- /only -->
 
 ## 3. Configure automatic backup (recommended)
 
 Settings → **"Backup"** section.
 
+<!-- only:browser -->
 ### 3-1. Chromium (FSA supported)
 
 1. Click **"Choose backup folder"**
@@ -52,7 +80,21 @@ From then on, on every entry add/edit, the ledger data is written automatically.
 > **Google Drive / iCloud / Dropbox integration tip**: if the FSA folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: `~/Google Drive/My Drive/aoiko-backup/` → local writes auto-sync to Google Drive.
 >
 > **Caution**: an iCloud Drive "Download On Demand" item as the FSA folder will trigger online sync on every backup write; for stability, choose a folder with ample local space.
+<!-- /only -->
+<!-- only:native -->
+### 3-1. Choose a folder
 
+1. Click **"Choose backup folder"**
+2. A folder picker opens
+3. Choose **any location**
+4. The Settings screen shows **"Current folder: 〇〇"** on success
+
+From then on, on every entry add/edit, the ledger data is written automatically. Instead of a zip, it's written as loose files: one snapshot (JSON) per backup under `snapshots/`, and receipt photos ([02. § 1-7](02-journal_en.md#1-7-attaching-a-receipt-photo)) under `attachments/`, each named by the SHA-256 of its content. A photo stored once is reused wherever it's attached, so pasting the same photo into several entries doesn't duplicate it, and a photo that hasn't changed is never rewritten by a later backup.
+
+> **Cloud-sync folder tip**: if the folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: choose `iCloud Drive/aoiko-backup/` → the written JSON auto-syncs to iCloud.
+<!-- /only -->
+
+<!-- only:browser -->
 ### 3-2. Firefox / Safari 26 and later (OPFS only)
 
 On non-FSA browsers, the only option is **OPFS**. OPFS is **a private storage managed internally by the browser** — you cannot inspect it from Finder or Explorer.
@@ -63,18 +105,31 @@ OPFS backup:
 - The "device/browser-independent" purpose of a backup is **not fulfilled**
 
 > OPFS users: strongly combine with **manual JSON download**.
+<!-- /only -->
 
+<!-- only:browser -->
 ### 3-3. Safari below 26 and iOS (manual only)
 
 Automatic backup does not run. Settings → "Backup" shows "⚠ Browser not supported" and offers no folder picker. Run [§ 4 Manual export](#4-manual-export) on a regular schedule.
 
 If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, quarterly — and download manually every time.
+<!-- /only -->
 
+<!-- only:browser -->
 ### 3-4. Confirming last backup time
+<!-- /only -->
+<!-- only:native -->
+### 3-2. Confirming last backup time
+<!-- /only -->
 
 Settings → "Backup" section shows **"Last backup: 2026-05-26 14:23"**. If it's stale for long, supplement with a manual export.
 
+<!-- only:browser -->
 ### 3-5. Deleting old backups and unused receipt photos
+<!-- /only -->
+<!-- only:native -->
+### 3-3. Deleting old backups and unused receipt photos
+<!-- /only -->
 
 Settings → "Backup" section has two independent deletion settings with different targets.
 
@@ -92,7 +147,12 @@ Settings → "Backup" section has two independent deletion settings with differe
 Settings → **"Backup"** section → **"Download backup"**:
 
 - All data (entries, sub-accounts, vendors, fixed assets, settings, receipt photos, etc.) bundled into one zip file
+<!-- only:browser -->
 - Saved to your browser's "Downloads" folder
+<!-- /only -->
+<!-- only:native -->
+- On desktop, a save dialog lets you choose the destination. On iPad/iPhone, it's saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- /only -->
 - Filename like `aoiko-ledger-{date}.zip` (no time component, so repeated exports on the same day all share one name)
 
 > **API keys and filer info are excluded by default**. Unless you turn on "Include API keys in backups" and "Include filer info", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
@@ -111,9 +171,19 @@ Then:
 
 ### 5-1. When to restore
 
+<!-- only:browser -->
 - Accidentally cleared the browser cache
+<!-- /only -->
+<!-- only:native -->
+- Accidentally removed the app
+<!-- /only -->
 - Migrating to a new PC
+<!-- only:browser -->
 - Switching browsers (Chrome → Safari etc.)
+<!-- /only -->
+<!-- only:native -->
+- Switching to a different device (e.g. iPad to iPhone)
+<!-- /only -->
 
 ### 5-2. Restore from the backup folder
 
@@ -160,9 +230,19 @@ Three layers:
 
 | Layer | Purpose | Implementation |
 |---|---|---|
+<!-- only:browser -->
 | **Layer 1**: Always automatic | Short-term (operational mistakes) | FSA pointing to a cloud-synced folder |
+<!-- /only -->
+<!-- only:native -->
+| **Layer 1**: Always automatic | Short-term (operational mistakes) | Point the backup folder at a cloud-synced location |
+<!-- /only -->
 | **Layer 2**: Milestone manual | Mid-term (month/year-end snapshots) | Manual JSON export → store separately |
+<!-- only:browser -->
 | **Layer 3**: Periodic check | Health verification | Twice a year, test a restore on a separate browser profile |
+<!-- /only -->
+<!-- only:native -->
+| **Layer 3**: Periodic check | Health verification | Twice a year, choose the folder again and test a restore |
+<!-- /only -->
 
 > Especially important for years you've already filed. Combine with year lock ([06. § 8](06-reports_en.md#8-year-lock-filed)) for change detection.
 

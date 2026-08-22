@@ -10,7 +10,12 @@ aoiko を起動してから記帳を始められる状態にするまでの手�
 > - 補助科目（口座区別など）と取引先を登録できる
 > - OCR/LLM を使う場合の API キー／エンドポイントを設定できる
 >
+<!-- only:browser -->
 > **前提**：GitHub 上の README の手順で aoiko を起動済み、ブラウザで開けている状態。
+<!-- /only -->
+<!-- only:native -->
+> **前提**：アプリを起動済みの状態。
+<!-- /only -->
 
 ## 1. 免責事項に同意する
 
@@ -160,12 +165,22 @@ Ollama / LM Studio / llama.cpp / vLLM などを自分の PC や任意サーバ�
 5. 「**保存**」 → 「**接続テスト**」
 
 > - OCR には **vision 対応モデル**が必須（gemma4 / ministral-3 / llama3.2-vision 等）
+<!-- only:browser -->
 > - localhost を指定する場合、aoiko も **ローカル実行版**（`npm run preview`）である必要があります（HTTPS で配信された aoiko は localhost に接続不可）
 > - Ollama 側で `OLLAMA_ORIGINS` の設定（aoiko の URL を許可）が必要
+<!-- /only -->
+<!-- only:native -->
+> - localhost を指定する場合も、追加の設定は不要です。通信はアプリが仲介します
+<!-- /only -->
 
 ### 7-C. Tesseract（純ローカル WASM OCR）
 
+<!-- only:browser -->
 LLM を使わず、ブラウザ内で完結する OCR。**精度は限定的**で、人手確認前提。
+<!-- /only -->
+<!-- only:native -->
+LLM を使わず、アプリ内で完結する OCR。**精度は限定的**で、人手確認前提。
+<!-- /only -->
 
 1. エンジン選択で 「**Tesseract**」
 2. 「**保存**」
