@@ -30,7 +30,12 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 - [08. Depreciation](08-depreciation_en.md) — fixed assets, straight-line / declining balance, ¥400k small-asset rule
 - [09. Prior-period carryover](09-carryover_en.md) — fiscal year transition, opening journal
 - [10. `.xtx` export](10-xtx-export_en.md) — e-Tax format generation and import verification
+<!-- only:browser -->
 - [11. Backup and restore](11-backup_en.md) — File System Access API, OPFS, JSON export
+<!-- /only -->
+<!-- only:native -->
+- [11. Backup and restore](11-backup_en.md) — pick a folder once for automatic writes, manual export, and restore
+<!-- /only -->
 - [12. Amended filing](12-amended_en.md) — filed snapshots, diff detection, submission steps
 - [13. Business opening setup (Opening Wizard)](13-opening-setup_en.md) — pre-opening expenses, converted-asset book value calculation, custom items
 - [14. Income & tax deductions](14-income-deductions_en.md) — entering family, insurance, medical expense, and donation data; estimating from the basic deduction through the special reconstruction income tax; reflecting the result in the `.xtx` export

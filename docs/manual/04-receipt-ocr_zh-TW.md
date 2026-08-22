@@ -30,7 +30,12 @@
 點「**1. 選擇圖像（亦可用相機拍攝）**」的檔案輸入：
 
 - PC：檔案對話框選 JPG / PNG / WebP / HEIC
+<!-- only:browser -->
 - 手機（裝 PWA）：相機選項會出現、可現場拍
+<!-- /only -->
+<!-- only:native -->
+- 手機（App）：相機選項會出現、可現場拍
+<!-- /only -->
 
 選好後下方會顯示預覽。
 
@@ -56,11 +61,22 @@
 - 「**取消**」中止
 - 勾「下次起不問」後送出，之後**所有引擎**（OCR・CSV・訂單取込的 LLM 送出共通）都不再跳對話框
 
+<!-- only:browser -->
 > **勾之前請三思**：這會存到 IndexedDB `skipExternalSendConfirm: true`（全引擎共通旗標），設定畫面沒有解除手段。誤勾的話請用瀏覽器開發者工具刪掉該 key（IndexedDB → `aoiko` 資料庫 → `settings` 表）。「設定 → 資料管理」的全資料刪除連帳簿一起消失，是最後手段。
+<!-- /only -->
+<!-- only:native -->
+> **勾之前請三思**：誤勾的話，可以從設定 → 「基本資訊」的 「**還原已隱藏的確認**」 復原。「設定 → 資料管理」的全資料刪除連帳簿一起消失，是最後手段。
+<!-- /only -->
 
 #### Tesseract：不跳對話框
 
-WASM 在本機處理、不需要確認。語言資料（`jpn.traineddata` / `eng.traineddata`，合計約 4.8MB）由 aoiko 自己提供，只在第一次辨識時取得，之後由瀏覽器快取，完全不會有對外連線。
+WASM 在本機處理、不需要確認。語言資料（`jpn.traineddata` / `eng.traineddata`，合計約 4.8MB）由 aoiko 自己提供，只在第一次辨識時取得，
+<!-- only:browser -->
+之後由瀏覽器快取，完全不會有對外連線。
+<!-- /only -->
+<!-- only:native -->
+之後由 App 快取，完全不會有對外連線。
+<!-- /only -->
 
 ### 2-3. 抽取結果確認・修正
 
@@ -115,8 +131,13 @@ Tesseract 路解析後、抽取結果 header 下方會跳黃色注意 banner：
 
 - **必須選 vision 模型**（純文字模型遇到圖片輸入會掛）
 - 推薦：`gemma4`、`ministral-3`、`llama3.2-vision` 等
+<!-- only:browser -->
 - Ollama 那邊：`OLLAMA_ORIGINS` 一定要把 aoiko 的 URL（例 `http://localhost:31527`）加進來
 - aoiko 自己也要本機起（`npm run preview`）。HTTPS 配信版連不到 localhost
+<!-- /only -->
+<!-- only:native -->
+- 指向 localhost 也不用額外設定，通訊由 App 代為轉發
+<!-- /only -->
 
 ### Tesseract
 
