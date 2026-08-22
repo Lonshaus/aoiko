@@ -277,7 +277,7 @@
   "order_title": "Order import (paste → LLM extract)",
   "order_subtitle": "Paste a full Amazon / 楽天 order page; an LLM extracts the line items → review → save as a journal entry. Resilient to site UI changes (no DOM scraping).",
   "order_step_paste": "1. Paste the order page text",
-  "order_paste_placeholder": "Select all on the order page (Cmd+A), copy (Cmd+C), then paste. Headers and recommendation noise are OK; the LLM will ignore them.",
+  "order_paste_placeholder": "Select all on the order page ({mod}+A), copy ({mod}+C), then paste. Headers and recommendation noise are OK; the LLM will ignore them.",
   "order_analyze_button": "Analyze",
   "order_analyze_running": "⏳ Analyzing…",
   "order_step_review": "2. Extracted result (editable)",

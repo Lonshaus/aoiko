@@ -277,7 +277,7 @@
   "order_title": "訂單取込（貼上→LLM 抽取）",
   "order_subtitle": "把 Amazon、楽天 等訂單頁全文貼進來，由 LLM 抽出品項明細 → 確認 → 轉成傳票。不透過解析 DOM，不怕網站改版。",
   "order_step_paste": "1. 貼上訂單頁文字",
-  "order_paste_placeholder": "在訂單頁 Cmd+A 全選 → Cmd+C 複製 → 貼進來。頁眉、推薦商品等雜訊 LLM 會自動忽略。",
+  "order_paste_placeholder": "在訂單頁 {mod}+A 全選 → {mod}+C 複製 → 貼進來。頁眉、推薦商品等雜訊 LLM 會自動忽略。",
   "order_analyze_button": "解析",
   "order_analyze_running": "⏳ 解析中…",
   "order_step_review": "2. 抽取結果（可編輯）",
