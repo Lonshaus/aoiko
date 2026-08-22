@@ -18,11 +18,11 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 //                   を含まない行から金額 token を抽出
 //   notes         : OCR 全文（プレフィル）
 
-const INVOICE_NUMBER_RE = /T\d{13}/;
-// OS 内蔵の文字認識は `T1234567890123` の先頭 1 文字を落として返すことがある
-// （実測。しかも自信度は最大で、誤りとして扱えない）。同じ行に「登録番号」等がある
-// 13 桁だけを補う。行を限らないと領収書番号のような別の 13 桁を登録番号に化けさせる。
-const INVOICE_CONTEXT = ['登録番号', 'インボイス'];
+// 右端を止めないと、1 桁多く読まれたときに先頭 13 桁を切り出して通してしまう（実測）。
+// 形式が合っているぶん、利用者は誤りに気付けない。桁数が違うなら空欄にする。
+const INVOICE_NUMBER_RE = /(?<!\d)T\d{13}(?!\d)/;
+// 登録番号を名乗る行の見出し。行を限らないと、別の 13 桁を登録番号に化けさせる。
+const INVOICE_LABELS = ['登録番号', 'インボイス'];
 const BARE_INVOICE_NUMBER_RE = /(?<!\d)\d{13}(?!\d)/;
 // 年は 19xx / 20xx に限る。市外局番から始まる電話番号が「0422 年 29 月 00 日」のように
 // 先に命中し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
@@ -68,9 +68,11 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
   return result;
 }
 
+// 先頭の `T` が落ちて返ることがある（実測。自信度は最大なので誤りと分からない）。
+// 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
 function recoverInvoiceNumber(lines: string[]): string | undefined {
   for (const line of lines) {
-    if (!INVOICE_CONTEXT.some((k) => line.includes(k))) {
+    if (!INVOICE_LABELS.some((k) => line.includes(k))) {
       continue;
     }
     const digits = BARE_INVOICE_NUMBER_RE.exec(line)?.[0];
@@ -187,8 +189,6 @@ export type OcrLayout = {
   lines: OcrLine[];
   text: string;
 };
-// ここから下は伝票の中身。店名は必ずこれより上にある。
-const HEADER_END_KEYWORDS = ['登録番号', 'インボイス'];
 // 大きく刷られるので、除かないと字の大きさで店名に勝つ。
 const NOT_A_VENDOR = [
   '領収証',
@@ -201,8 +201,6 @@ const NOT_A_VENDOR = [
   'ありがとう',
   'Help',
 ];
-// 右端を止めないと、14 桁から先頭 13 桁を切り出して通してしまう（実測）。
-const STRICT_INVOICE_RE = /(?<!\d)T\d{13}(?!\d)/;
 // 軽減税率の印など、品名そのものではない頭の記号。
 const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：]+/;
 // 電話番号や時刻を金額と取らないため。単単語の中に区切りがあれば金額ではない。
@@ -271,7 +269,7 @@ function meanConfidence(line: OcrLine): number {
 function headerEnd(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (HEADER_END_KEYWORDS.some((k) => text.includes(k))) {
+    if (INVOICE_LABELS.some((k) => text.includes(k))) {
       return i;
     }
     if (extractDate(text) !== '' || parseAmounts(text).length > 0) {
@@ -350,7 +348,7 @@ function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
   for (const line of lines) {
     for (const word of line.words) {
       for (const candidate of [word.text, ...(word.alternates ?? [])]) {
-        const hit = STRICT_INVOICE_RE.exec(candidate)?.[0];
+        const hit = INVOICE_NUMBER_RE.exec(candidate)?.[0];
         if (hit) {
           return hit;
         }
@@ -359,10 +357,10 @@ function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
     // `T` が「登録番号T」のように見出しの末尾へくっつく書式は、繋いでからでないと
     // 揃わない。見出しのある行に限らないと、`T` で終わる単語と 13 桁が隣り合った
     // だけで番号を作ってしまう（伝票番号や取引 ID が該当する）。
-    if (!HEADER_END_KEYWORDS.some((k) => line.text.includes(k))) {
+    if (!INVOICE_LABELS.some((k) => line.text.includes(k))) {
       continue;
     }
-    const joined = STRICT_INVOICE_RE.exec(line.text.replace(/\s+/g, ''))?.[0];
+    const joined = INVOICE_NUMBER_RE.exec(line.text.replace(/\s+/g, ''))?.[0];
     if (joined) {
       return joined;
     }

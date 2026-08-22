@@ -34,6 +34,23 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBeUndefined();
   });
 
+  // 実測で踏んだ形。同じ領収書を離れて撮ると 1 桁多く返ってきた。先頭 13 桁を
+  // 切り出すと形式は合ってしまい、別の番号でも利用者は誤りに気付けない。
+  test('T の後ろが 13 桁より長ければ採用しない', () => {
+    const r = extractFromOcrText('登録番号 T71803010169511\n合計 159');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T の後ろが 13 桁より短ければ採用しない', () => {
+    const r = extractFromOcrText('登録番号 T718030101695\n合計 159');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T の前に数字が続いていても採用しない', () => {
+    const r = extractFromOcrText('伝票 9T1234567890123\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
   test('T 付きが読めていれば補正は働かない', () => {
     const r = extractFromOcrText('登録番号 T1234567890123\n別番号 9999999999999\n合計 1000');
     expect(r.invoiceNumber).toBe('T1234567890123');
