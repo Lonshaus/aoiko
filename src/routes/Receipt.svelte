@@ -299,7 +299,7 @@
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
       <span class="mt-1 block">
-        <FilePicker accept="image/*" capture="environment" onchange={handleFile} />
+        <FilePicker accept="image/*" onchange={handleFile} />
       </span>
     </label>
 
