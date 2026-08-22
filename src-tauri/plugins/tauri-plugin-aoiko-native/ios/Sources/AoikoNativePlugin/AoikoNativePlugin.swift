@@ -2,6 +2,7 @@ import SafariServices
 import Tauri
 import UIKit
 import UniformTypeIdentifiers
+import Vision
 import WebKit
 
 // iOS/iPadOS 専用。デスクトップに OS の API で用意されている操作のうち、WKWebView や
@@ -154,6 +155,129 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             presenter.present(SFSafariViewController(url: url), animated: true)
             invoke.resolve()
         }
+    }
+
+    // perform は同期。呼び元の (async) がすでにワーカースレッドなので、ここは
+    // DispatchQueue.main へ乗せない（乗せると認識のあいだメインスレッドが止まる）。
+    @objc public func recognizeText(_ invoke: Invoke) throws {
+        // 形式は Vision が中身から判定する。呼び元から種別を渡す必要は無い。
+        struct Args: Decodable {
+            let imageBase64: String
+        }
+        let args = try invoke.parseArgs(Args.self)
+        guard let data = Data(base64Encoded: args.imageBase64) else {
+            invoke.reject("base64 を解けません")
+            return
+        }
+        let handler = VNImageRequestHandler(data: data, options: [:])
+        let request = VNRecognizeTextRequest()
+        request.revision = VNRecognizeTextRequestRevision3
+        request.recognitionLevel = .accurate
+        // ja-JP は revision 3 の .accurate でしか使えない（.fast は非対応）。
+        request.recognitionLanguages = ["ja-JP", "en-US"]
+        request.usesLanguageCorrection = true
+        do {
+            try handler.perform([request])
+        } catch {
+            invoke.reject("文字を認識できません: \(error.localizedDescription)")
+            return
+        }
+        guard let observations = request.results else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        // 先頭が誤っていても次の候補が正しいことがある（`T` の欠けは実測）。
+        let words: [RecognizedWord] = observations.compactMap { o in
+            let candidates = o.topCandidates(3)
+            guard let top = candidates.first, !top.string.isEmpty else {
+                return nil
+            }
+            let box = o.boundingBox
+            return RecognizedWord(
+                text: top.string,
+                x: box.minX,
+                // Vision は左下原点で y が上向き。左上原点・下向きへ揃える。
+                y: 1.0 - box.maxY,
+                width: box.width,
+                height: box.height,
+                confidence: Double(top.confidence),
+                alternates: candidates.dropFirst().map { $0.string }
+                    .filter { !$0.isEmpty && $0 != top.string }
+            )
+        }
+        // 単語のまとまりで返るので、行内は空白で繋ぐ。
+        let recognized = Self.wordsToLines(words, separator: " ")
+        guard !recognized.lines.isEmpty else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        invoke.resolve(recognized)
+    }
+
+    // デスクトップ側の words_to_lines と同じ形。web 側は出どころを区別しない。
+    struct RecognizedWord: Encodable {
+        let text: String
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+        let confidence: Double?
+        let alternates: [String]
+    }
+
+    struct RecognizedLine: Encodable {
+        let text: String
+        let words: [RecognizedWord]
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+
+    struct RecognizedText: Encodable {
+        let lines: [RecognizedLine]
+        let text: String
+    }
+
+    // Vision は読む順を保証せず、左右のセルを別々に返す。閾値は行の高さの半分。
+    private static func wordsToLines(_ words: [RecognizedWord], separator: String) -> RecognizedText {
+        let sorted = words.sorted { ($0.y + $0.height / 2) < ($1.y + $1.height / 2) }
+        var rows: [[RecognizedWord]] = []
+        for w in sorted {
+            if let head = rows.last?.first {
+                let limit = max(head.height, w.height) / 2
+                if abs((head.y + head.height / 2) - (w.y + w.height / 2)) <= limit {
+                    rows[rows.count - 1].append(w)
+                    continue
+                }
+            }
+            rows.append([w])
+        }
+        let lines: [RecognizedLine] = rows.compactMap { row in
+            let ordered = row.sorted { $0.x < $1.x }
+            guard let first = ordered.first else {
+                return nil
+            }
+            let text = ordered.map { $0.text }.joined(separator: separator)
+            if text.isEmpty {
+                return nil
+            }
+            var left = first.x
+            var top = first.y
+            var right = first.x + first.width
+            var bottom = first.y + first.height
+            for w in ordered.dropFirst() {
+                left = min(left, w.x)
+                top = min(top, w.y)
+                right = max(right, w.x + w.width)
+                bottom = max(bottom, w.y + w.height)
+            }
+            return RecognizedLine(
+                text: text, words: ordered,
+                x: left, y: top, width: right - left, height: bottom - top
+            )
+        }
+        return RecognizedText(lines: lines, text: lines.map { $0.text }.joined(separator: "\n"))
     }
 
     private static func findWebView(_ view: UIView) -> WKWebView? {
