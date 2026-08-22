@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { fileURLToPath, URL } from 'node:url';
 import { readFileSync } from 'node:fs';
+import { stripBuildOnly } from './src/lib/build-only';
 import { execSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
@@ -47,6 +48,25 @@ function dropUnusedTesseractAssets() {
   };
 }
 
+// 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は
+// `<!-- only:… -->` で囲み、ここで取り除く。表示時に隠すのでは産物に文章が残り、
+// console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
+function stripDocsForBuild(native: boolean) {
+  const MANUAL = /\/docs\/manual\/[^/]+\.md$/;
+  return {
+    name: 'aoiko-strip-docs-for-build',
+    enforce: 'pre' as const,
+    load(id: string) {
+      const [file, query] = id.split('?');
+      if (query !== 'raw' || file === undefined || !MANUAL.test(file)) {
+        return null;
+      }
+      const name = file.slice(file.lastIndexOf('/') + 1);
+      return `export default ${JSON.stringify(stripBuildOnly(readFileSync(file, 'utf-8'), native, name))}`;
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   define: {
@@ -59,6 +79,7 @@ export default defineConfig({
     __NATIVE__: JSON.stringify(process.env.AOIKO_NATIVE === '1'),
   },
   plugins: [
+    stripDocsForBuild(process.env.AOIKO_NATIVE === '1'),
     dropUnusedTesseractAssets(),
     tailwindcss(),
     paraglideVitePlugin({
