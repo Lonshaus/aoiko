@@ -6,9 +6,8 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
 //   （vision LLM 路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
-// - 素のテキストしか無い経路では店名・品目を推定しない。文字の大きさも位置も
-//   分からないため、当てずっぽうになって誤誘導する。座標が付いて来る経路
-//   （extractFromOcrLayout）はそれを使って取り出す
+// - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
+//   当てずっぽうになる
 //
 // 抽出対象：
 //   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、確定性高）
@@ -163,17 +162,15 @@ function formatYmd(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-/// 座標付きの認識結果。OS 内蔵の文字認識だけがここまで返す。
-/// 座標は 0..1 に正規化した左上原点・下向き y で、環境差はネイティブ側で吸収済み。
+/// 座標は 0..1 の正規化・左上原点・y 下向き。環境差はネイティブ側で吸収済み。
 export type OcrWord = {
   text: string;
   x: number;
   y: number;
   width: number;
   height: number;
-  /// 返さない環境では undefined。
   confidence?: number;
-  /// 第 2 候補以降。返さない環境では空。
+  /// 第 2 候補以降。確からしい順。
   alternates?: string[];
 };
 
@@ -190,9 +187,9 @@ export type OcrLayout = {
   lines: OcrLine[];
   text: string;
 };
-// 店名を探す範囲を決める区切り。ここから下は伝票の中身で、店名は必ずこれより上にある。
+// ここから下は伝票の中身。店名は必ずこれより上にある。
 const HEADER_END_KEYWORDS = ['登録番号', 'インボイス'];
-// 見出しに紛れる定型句。大きく刷られるので、除かないと字の大きさで店名に勝つ。
+// 大きく刷られるので、除かないと字の大きさで店名に勝つ。
 const NOT_A_VENDOR = [
   '領収証',
   '領収書',
@@ -204,12 +201,11 @@ const NOT_A_VENDOR = [
   'ありがとう',
   'Help',
 ];
-// 右端を止める。止めないと 14 桁から先頭 13 桁を切り出して通してしまい、形式は
-// 合っているので利用者は誤りに気付けない（実測。離れて撮ると 1 桁多く読まれた）。
+// 右端を止めないと、14 桁から先頭 13 桁を切り出して通してしまう（実測）。
 const STRICT_INVOICE_RE = /(?<!\d)T\d{13}(?!\d)/;
-// 品名の頭に付く区分記号。軽減税率の印などで、品名そのものではない。
+// 軽減税率の印など、品名そのものではない頭の記号。
 const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：]+/;
-// 電話番号や時刻は金額として読めてしまう。語の中に区切りがあれば金額ではない。
+// 電話番号や時刻を金額と取らないため。単単語の中に区切りがあれば金額ではない。
 const NOT_AN_AMOUNT = /[-ー–—:：]/;
 
 export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
@@ -227,8 +223,7 @@ export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
     result.totalAmount = total;
   }
   result.items = extractItems(rows, header, totalRow);
-  // 登録番号は版面側が持ち切る。素のテキストからの結果を残すと、候補を見て
-  // 「妥当な番号は無い」と判断した後にも古い誤りが残ってしまう。
+  // 版面側が持ち切る。残すと、候補を見て「無し」と決めた後に古い誤りが生き残る。
   const invoice = invoiceFromCandidates(rows);
   if (invoice) {
     result.invoiceNumber = invoice;
@@ -237,12 +232,7 @@ export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
   }
   return result;
 }
-// 店名は伝票の頭にあり、その中でいちばん大きく刷られる。実測 2 枚とも、店名の字の高さは
-// 同じ範囲の他の行の 2 倍以上あった（0.0684 対 0.0234・0.0312、0.0297 対 0.0138・0.0137）。
-//
-// 「頭」を割り出すのに位置の比率は使えない。近接で撮ると伝票が紙面の下寄りに写り、
-// 実測でも店名は上から 30% の位置に来た。代わりに登録番号の行を境にする。登録番号より
-// 上に品目や金額が来る書式は無い。境が無ければ最初の日付か金額の行を使う。
+// 頭でいちばん大きい行。位置の比率では決めない（近接で撮ると頭が紙面の 30% に来る）。
 function extractVendor(lines: OcrLine[], end: number): string {
   let best: OcrLine | undefined;
   for (const line of lines.slice(0, end)) {
@@ -257,8 +247,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
       best = line;
       continue;
     }
-    // 同じ高さで並んだときだけ自信度で決める。高さの差のほうが手掛かりとして強く、
-    // 実測の自信度は 0.3 / 0.5 / 1.0 の 3 段しか出ないので、主の基準には使えない。
+    // 自信度は実測で 3 段しか出ないため、高さが並んだときの決め手にだけ使う。
     if (line.height > best.height + 1e-9) {
       best = line;
     } else if (
@@ -291,8 +280,7 @@ function headerEnd(lines: OcrLine[]): number {
   }
   return lines.length;
 }
-// 合計の行。除外語のほうを先に見るのは「（税合計」のように合計を含みながら
-// 合計ではない行があるため。見つからなければ行数を返す（＝以降を品目にしない）。
+// 除外語を先に見るのは「（税合計」のように合計を含んで合計でない行があるため。
 function findTotalRow(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
@@ -305,9 +293,7 @@ function findTotalRow(lines: OcrLine[]): number {
   }
   return lines.length;
 }
-// 同じ行のいちばん右の金額を取る。素のテキストでは「行内の最後の数字」しか見られず、
-// 実測の「合計／ 1点 ¥159」では点数の 1 と合計の 159 が並んで出る。位置が分かれば
-// 右端の金額を選べる（伝票の金額は右寄せで刷られる）。
+// 右端の金額を取る。「合計／ 1点 ¥248」のように点数が並ぶ書式で取り違えないため。
 function totalFromRow(line: OcrLine | undefined): string {
   if (!line) {
     return '';
@@ -328,11 +314,8 @@ function rightmostAmount(line: OcrLine): number | undefined {
   }
   return undefined;
 }
-// 品目は伝票の頭より下、合計より上に並ぶ。左に品名、右に金額。
-//
-// 「右に数字がある行」だけでは足りない。実測では店の電話番号もレジ番号も右側に来る。
-// 語の中に区切りがある物を外し、左側が日付や数字だけの行も外す。
-// 取り違えるくらいなら拾わない。
+// 頭より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
+// 単語に区切りがある物と左が日付・数字だけの行は外す。取り違えるくらいなら拾わない。
 function extractItems(lines: OcrLine[], header: number, totalRow: number): ReceiptItem[] {
   const items: ReceiptItem[] = [];
   for (const line of lines.slice(header + 1, totalRow)) {
@@ -361,13 +344,8 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
   }
   return items;
 }
-// 先頭の候補が誤っていても、次の候補が正しいことがある。実測では近接で撮った 1 枚で
-// 先頭の候補から `T` が落ち、第 2 候補が正しかった。離れて撮った 1 枚では先頭と第 2 が
-// どちらも 1 桁多く、第 3 候補が正しかった。しかも先頭の自信度は最大で、
-// 自信度では誤りと分からない。
-//
-// 形式に合う候補が 1 つも無ければ空のまま返す。桁数が違う番号を通すより、
-// 空欄にして人手に委ねるほうが安全（形式が合っていると利用者は誤りに気付けない）。
+// 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
+// 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
 function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
   for (const line of lines) {
     for (const word of line.words) {
@@ -378,7 +356,12 @@ function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
         }
       }
     }
-    // 語が「登録番号」と番号に割れている書式では、繋いだ行でしか形式が揃わない。
+    // `T` が「登録番号T」のように見出しの末尾へくっつく書式は、繋いでからでないと
+    // 揃わない。見出しのある行に限らないと、`T` で終わる単語と 13 桁が隣り合った
+    // だけで番号を作ってしまう（伝票番号や取引 ID が該当する）。
+    if (!HEADER_END_KEYWORDS.some((k) => line.text.includes(k))) {
+      continue;
+    }
     const joined = STRICT_INVOICE_RE.exec(line.text.replace(/\s+/g, ''))?.[0];
     if (joined) {
       return joined;

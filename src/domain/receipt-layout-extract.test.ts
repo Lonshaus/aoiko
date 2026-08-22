@@ -229,19 +229,35 @@ describe('登録番号（候補から選ぶ）', () => {
     expect(extractFromOcrLayout(layout).invoiceNumber).toBeUndefined();
   });
 
-  // 「登録番号」と番号が別の語で返る書式。行として繋げば形式が揃う。
-  test('語が割れていても行として拾う', () => {
+  // `T` が見出しの末尾へくっついて返る書式。単語ごとに見ても揃わない。
+  test('T が見出しにくっついていても行として拾う', () => {
     const layout = toLayout([
       {
         y: 0.1,
         height: 0.02,
         cells: [
-          { text: '登録番号', x: 0.2 },
-          { text: 'T1234567890123', x: 0.36 },
+          { text: '登録番号T', x: 0.2 },
+          { text: '1234567890123', x: 0.36 },
         ],
       },
     ]);
     expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
+  });
+
+  // 繋いでからの照合を見出しのある行に限らないと、`T` で終わる単語と 13 桁が
+  // 隣り合っただけで番号を作ってしまう。
+  test('見出しの無い行では繋いで作らない', () => {
+    const layout = toLayout([
+      {
+        y: 0.1,
+        height: 0.02,
+        cells: [
+          { text: '注文T', x: 0.2 },
+          { text: '1234567890123', x: 0.36 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).invoiceNumber).toBeUndefined();
   });
 });
 

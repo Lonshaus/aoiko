@@ -186,8 +186,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             invoke.reject("テキストが見つかりません")
             return
         }
-        // 候補は 3 件まで貰う。先頭が誤っていても、桁数や形式で弾ける誤りなら次の候補が
-        // 正しいことがある（`T` の欠けは実測）。多く取るほど遅くなるので実用域で止める。
+        // 先頭が誤っていても次の候補が正しいことがある（`T` の欠けは実測）。
         let words: [RecognizedWord] = observations.compactMap { o in
             let candidates = o.topCandidates(3)
             guard let top = candidates.first, !top.string.isEmpty else {
@@ -206,7 +205,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
                     .filter { !$0.isEmpty && $0 != top.string }
             )
         }
-        // 語のまとまりで返るので、行内は空白で繋ぐ。
+        // 単語のまとまりで返るので、行内は空白で繋ぐ。
         let recognized = Self.wordsToLines(words, separator: " ")
         guard !recognized.lines.isEmpty else {
             invoke.reject("テキストが見つかりません")
@@ -215,8 +214,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         invoke.resolve(recognized)
     }
 
-    // 座標は 0..1 に正規化した左上原点・下向き y。デスクトップ側の words_to_lines と
-    // 同じ組み立てで、web 側はどちらから来たかを区別しない。
+    // デスクトップ側の words_to_lines と同じ形。web 側は出どころを区別しない。
     struct RecognizedWord: Encodable {
         let text: String
         let x: Double
@@ -241,9 +239,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         let text: String
     }
 
-    // Vision は読む順を保証せず、2 欄組みのレシートでは「合計」と金額を別々の観測で返す。
-    // 1 観測 1 行にすると「合計」の行に金額が無くなるため、縦に重なるものを 1 行へまとめる。
-    // 閾値は行の高さの半分。実測のレシートでは「登録番号」と番号で 0.0027、行高は 0.013。
+    // Vision は読む順を保証せず、左右のセルを別々に返す。閾値は行の高さの半分。
     private static func wordsToLines(_ words: [RecognizedWord], separator: String) -> RecognizedText {
         let sorted = words.sorted { ($0.y + $0.height / 2) < ($1.y + $1.height / 2) }
         var rows: [[RecognizedWord]] = []

@@ -109,10 +109,8 @@ impl ResolvedFolder {
     }
 }
 
-/// 文字認識が返す 1 語。座標は 0..1 に正規化し、左上を原点として y を下向きに揃える。
-/// 環境ごとに座標系が違う（Vision は左下原点で上向き、Windows は画素の左上原点）ため、
-/// 吸収はネイティブ側で済ませる。web 側が環境を意識すると、その分岐が抽出の正しさに
-/// 直結してしまう。
+/// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
+/// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecognizedWord {
@@ -121,13 +119,13 @@ pub struct RecognizedWord {
     pub y: f64,
     pub width: f64,
     pub height: f64,
-    /// 認識の自信度（0..1）。返さない環境では None。
+    /// 返さない環境では None。
     pub confidence: Option<f64>,
-    /// 第 2 候補以降を確からしい順に。返さない環境では空。
+    /// 第 2 候補以降を確からしい順に。
     pub alternates: Vec<String>,
 }
 
-/// 縦に重なる語をまとめた 1 行。座標は行に含まれる語を囲む矩形。
+/// 縦に重なる単語をまとめた 1 行。座標はそれらを囲む矩形。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecognizedLine {
@@ -144,13 +142,12 @@ pub struct RecognizedLine {
 #[serde(rename_all = "camelCase")]
 pub struct RecognizedText {
     pub lines: Vec<RecognizedLine>,
-    /// 行を改行で繋いだ全文。座標を要らない抽出はこれだけで足りる。
+    /// 行を改行で繋いだ全文。座標が要らない抽出はこれで足りる。
     pub text: String,
 }
 
 impl RecognizedLine {
-    /// 語から行を組み立てる。空の語は呼び元で除いてある前提。
-    // iOS では Swift 側がこの形を組んで返すため、Rust は受け取るだけで組み立てない。
+    // iOS では Swift 側が組んで返すため、Rust は受け取るだけ。
     #[cfg(target_os = "macos")]
     pub(crate) fn from_words(words: Vec<RecognizedWord>, separator: &str) -> Option<Self> {
         let first = words.first()?;

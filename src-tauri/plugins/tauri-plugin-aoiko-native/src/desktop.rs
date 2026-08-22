@@ -148,18 +148,13 @@ pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::Recogniz
     macos::recognize_text(image_data)
 }
 
-// 認識した語を行へまとめる。左右に分かれたセルを別々に返すのはどの環境の文字認識も
-// 同じで、まとめないと「合計」と金額、「登録番号」と番号が離れて抽出できない。
-// 座標は正規化済みなので、画素の大きさが違っても比率で判定できる。
-//
-// 行内をどう繋ぐかだけが環境で違う。語のまとまりで返す側は空白で繋ぎ、一文字ずつ返す
-// 側で空白を挟むと日本語が全部ばらけて抽出が効かなくなるため、区切りは呼び元が決める。
+// 左右に分かれたセルは別々に返るので、まとめないと「合計」と金額が離れて拾えない。
+// 行内の区切りだけは環境で違うため呼び元が決める（一文字ずつ返す側で空白は挟めない）。
 #[cfg(target_os = "macos")]
 fn word_mid_y(word: &crate::RecognizedWord) -> f64 {
     word.y + word.height / 2.0
 }
-// 行の高さの半分より近ければ同じ行とみなす。実測のレシートでは「登録番号」と番号で
-// 0.0027、行高は 0.013 ほどだった。
+// 行の高さの半分より近ければ同じ行。実測では隣り合うセルの差が行高の 1/5 だった。
 #[cfg(target_os = "macos")]
 fn same_row(head: &crate::RecognizedWord, word: &crate::RecognizedWord) -> bool {
     (word_mid_y(head) - word_mid_y(word)).abs() <= head.height.max(word.height) / 2.0
@@ -307,9 +302,7 @@ mod macos {
         let Some(results) = request.results() else {
             return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
         };
-        // 候補は 3 件まで貰う。先頭が誤っていても、桁数や形式で弾ける誤りなら
-        // 次の候補が正しいことがある（`T` の欠けは実測）。多く取るほど遅くなるので
-        // 実用域で止める。
+        // 先頭が誤っていても次の候補が正しいことがある（`T` の欠けは実測）。
         let words: Vec<RecognizedWord> = (0..results.count())
             .filter_map(|i| {
                 let obs = results.objectAtIndex(i);
@@ -339,7 +332,7 @@ mod macos {
                 })
             })
             .collect();
-        // 語のまとまりで返るので、行内は空白で繋ぐ。
+        // 単語のまとまりで返るので、行内は空白で繋ぐ。
         let recognized = super::words_to_lines(words, " ");
         if recognized.lines.is_empty() {
             return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
