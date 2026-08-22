@@ -40,15 +40,23 @@ describe('OS 内蔵の文字認識の選択肢', () => {
     expect(source).toMatch(/let nativeOcrAvailable = \$state\(false\)/);
   });
 
-  // 既に選ばれている状態で読めない端末へ移ったとき、選択肢ごと消すと画面から
-  // 消えた理由が分からない。残したうえで使えないことを伝える。
-  test('既に選ばれていれば、読めなくても選択肢は残す', () => {
-    expect(source).toMatch(
-      /\{#if nativeOcrAvailable \|\| ocrEngine === 'native'\}\s*\n\s*<option value="native">/,
-    );
+  // 選択肢ごと消すと、選べない理由が画面のどこにも出ないまま消える。読める端末かどうかで
+  // 出し分けるのではなく、この引擎を持つビルドなら常に出し、選んだ時点で可否を伝える。
+  test('読めない端末でも選択肢は出す', () => {
+    expect(source).toMatch(/\{#if __NATIVE__\}\s*\n\s*<option value="native">/);
+  });
+
+  test('可否で選択肢を出し分けていない', () => {
+    expect(source).not.toMatch(/\{#if nativeOcrAvailable[^}]*\}\s*\n\s*<option value="native">/);
+  });
+
+  // 案内も設定の説明も、この引擎を持たない側の産物には要らない。ocrEngine だけで
+  // 判定すると実行時の分岐になり、文言が残る（実際に残っていた）。
+  test('案内の一式が __NATIVE__ の内側にある', () => {
+    expect(source).toMatch(/\{#if __NATIVE__ && ocrEngine === 'native'\}/);
   });
 
   test('読めないときは案内を出す', () => {
-    expect(source).toMatch(/m\.ocr_native_unavailable\(\)/);
+    expect(source).toMatch(/\{:else\}[\s\S]{0,200}?m\.ocr_native_unavailable\(\)/);
   });
 });

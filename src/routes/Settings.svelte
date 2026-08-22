@@ -123,9 +123,9 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // 文字認識は三段構え。橋渡しが生えていても、その端末が日本語を読めるとは限らない
-  // （Windows は言語機能が既定で入っておらず、Apple 側も版と導入内容で変わる）。
-  // 推測せず onMount で実際に問い、返事が来るまでは出さない。
+  // 橋渡しが生えていても、その端末が日本語を読めるとは限らない（Windows は言語機能が
+  // 既定で入っておらず、Apple 側も版と導入内容で変わる）。推測せず onMount で実際に問う。
+  // 返事が来るまでは読めない側に倒す。使えるものを一瞬使えないと言うほうが、逆より軽い。
   let nativeOcrAvailable = $state(false);
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
@@ -2483,7 +2483,9 @@
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
           <option value="tesseract">{m.settings_engine_tesseract()}</option>
-          {#if nativeOcrAvailable || ocrEngine === 'native'}
+          <!-- 読めない端末でも選択肢は出す。消すと、選べない理由が画面のどこにも
+               出ないまま消える。選んだ時点で下に使えない旨を出して知らせる。 -->
+          {#if __NATIVE__}
             <option value="native">{m.settings_engine_native()}</option>
           {/if}
         </select>
@@ -2495,14 +2497,16 @@
         </p>
       {/if}
 
-      {#if ocrEngine === 'native'}
+      <!-- ocrEngine だけで見ると実行時の判定になり、この引擎を持たない側の産物にも
+           下の文言が残る（設定の説明も使えない旨も）。__NATIVE__ で丸ごと畳む。 -->
+      {#if __NATIVE__ && ocrEngine === 'native'}
         {#if nativeOcrAvailable}
           <p class="text-xs text-muted-foreground">
             {@html m.settings_native_ocr_intro_html()}
           </p>
         {:else}
-          <!-- 選ばれたまま読めない端末へ移ることがある（設定はバックアップに乗る）。
-               勝手に別の引擎へ落とさず、選び直しは利用者に委ねる。 -->
+          <!-- 勝手に別の引擎へ落とさず、選び直しは利用者に委ねる。設定はバックアップに
+               乗るので、読める端末から読めない端末へ選択ごと渡ることもある。 -->
           <p class="text-xs text-destructive">{m.ocr_native_unavailable()}</p>
         {/if}
       {/if}
