@@ -147,6 +147,21 @@ pub(crate) fn recognize_text<R: Runtime>(
     }
 }
 
+// 設定画面はこの答えで案内を出し分ける。選択肢自体は消さない（消すと、選べない
+// 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
+#[tauri::command(async)]
+pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().is_text_recognition_available()
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = &app;
+        crate::desktop::is_text_recognition_available()
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(target_os = "ios")]

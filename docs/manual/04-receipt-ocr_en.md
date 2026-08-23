@@ -178,6 +178,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right". Words containing separators, and rows whose left side is a date or digits only, are not treated as items. Better to skip than to guess wrong
 - Date and total read correctly on the receipts tried here, but the sample count is small. Always verify the total and date
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns several candidates per word, so the candidates are searched in order for one matching `T` plus exactly 13 digits — in one measured case the third candidate was the correct one. If no candidate has the right digit count the field is left blank (a wrong number in the right format is one you cannot spot by looking)
+- **Not every device can use it.** It needs Japanese text recognition present on the OS side. Selecting it in Settings checks right then, and a notice appears there if the device cannot. The option itself is never hidden, so you can add Japanese on the OS side and select it again
 <!-- /only -->
 
 ## 4. Troubleshooting
@@ -186,7 +187,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 |---|---|
 | Total is off | Retake or edit manually. LLM rarely; on-device recognition often (expected) |
 | Date is empty | Try both `YYYY/MM/DD` and Reiwa-format printing. Manual entry is fine |
-| Vendor garbled | LLM: improve photo quality. On-device recognition: vendor extraction isn't supported, type it in |
+| Vendor garbled | Improve photo quality and resolution. Tesseract does not extract the vendor, so type it in |
 | Invoice number not detected | Recapture with the number area well-lit. LLM can pick up even tiny print |
 | Connection error | Check API key / endpoint in Settings via **"Test connection"** |
 
