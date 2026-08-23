@@ -17,6 +17,8 @@
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
+  // 全選択・コピーの修飾キーは環境で違う。ある環境・ある環境 は Ctrl。
+  const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
 
   type ReviewItem = OrderItem & { accountCode: string };
 
@@ -262,7 +264,7 @@
       <span class="text-xs text-muted-foreground">{m.order_step_paste()}</span>
       <textarea
         bind:value={pastedText}
-        placeholder={m.order_paste_placeholder()}
+        placeholder={m.order_paste_placeholder({ mod: modKey })}
         rows="10"
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono"
       ></textarea>
