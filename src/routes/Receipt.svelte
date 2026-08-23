@@ -337,11 +337,13 @@
   {#if extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
-      {#if lastEngine === 'tesseract'}
+      {#if lastEngine === 'tesseract' || lastEngine === 'native'}
         <div
           class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
         >
-          {m.receipt_local_engine_notice()}
+          {__NATIVE__ && lastEngine === 'native'
+            ? m.receipt_native_engine_notice()
+            : m.receipt_local_engine_notice()}
         </div>
       {/if}
 

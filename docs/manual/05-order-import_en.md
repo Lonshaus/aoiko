@@ -10,7 +10,7 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 > - Handle discount lines (negative amounts) as credit-side adjustments
 > - Reconcile the item-sum / total mismatch
 >
-> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (Tesseract is not supported here).
+> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (engines that read on the device, such as Tesseract, are not supported here).
 
 ## 1. Why this feature exists
 

@@ -11,6 +11,7 @@ const COMMANDS: &[&str] = &[
     "backup_list",
     "backup_remove",
     "export_open",
+    "recognize_text",
 ];
 
 fn main() {

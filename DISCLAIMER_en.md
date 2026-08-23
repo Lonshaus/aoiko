@@ -40,6 +40,9 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
   - **Google Gemini (default, cloud)**: data sent (CSV rows, receipt images) is handled per **Google's privacy policy** and your API plan contract (the free tier may be used for training).
   - **OpenAI-compatible / Ollama etc. (local)**: when the endpoint is localhost, data does not leave your device. When a remote endpoint is specified, the policies of that service apply.
   - **Tesseract (purely-local WASM OCR, OCR only)**: images never leave your device. No LLM is used; only T+13-digit registration number, date, and total are extracted from OCR text by deterministic rules. Vendor and items are not guessed. **Accuracy is significantly lower than the other engines** — manual verification and correction by the user are mandatory. `jpn.traineddata` / `eng.traineddata` are served by aoiko itself, so no external request is made (a different source can still be configured in Settings).
+<!-- only:native -->
+  - **The OS's built-in text recognition (purely-local OCR, OCR only)**: images never leave your device. Text is read by the recognition your operating system provides, and the same deterministic extraction as Tesseract is applied to it. Vendor and items are not guessed. Nothing extra is downloaded and no external request is made. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
+<!-- /only -->
 - For cloud (external) engines, a confirmation dialog is shown right before sending. Always review the content beforehand if it may contain sensitive information or third-party personal information.
 - Local AI (Ollama etc.) requires **a vision-capable model for OCR**. aoiko must also run locally (HTTPS-served aoiko cannot reach localhost), and `OLLAMA_ORIGINS` must be configured on the Ollama side.
 - LLM output **may contain errors**. Always have a human verify before confirmation.
@@ -63,6 +66,9 @@ Corresponds to the version number shown in the consent status.
 | version | Date | Changes |
 | --- | --- | --- |
 | 5 | 2026-08-15 | Added a note that data can be deleted automatically with no action from the user, and corrected the period to match the implementation (30 days counted in days the browser or app actually ran). Stated that tracking prevention is also active in the app version, and that backing up to OPFS is not protection. Added the backup folder to the list of backup destinations (§6). Revised the Tesseract entry to state that no external request is made, now that the language data ships with aoiko (§5) |
+<!-- only:native -->
+| 6 | 2026-08-22 | Added the OS's built-in text recognition as an OCR engine (§5) |
+<!-- /only -->
 | 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
 | 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |
 | 2 | 2026-06-28 | `.xtx` revised from "provisional — do not use for actual filing" to "covers the business portion; loadable into e-Tax Software (download edition)" |

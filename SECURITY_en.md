@@ -33,9 +33,14 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 
 ### BYOK model
 
+<!-- only:browser -->
 - The API keys / endpoint settings of the OCR/LLM engine (Google Gemini API / OpenAI-compatible / Tesseract) chosen by the user are **registered by the user and kept in the user's browser IndexedDB**
+<!-- /only -->
+<!-- only:native -->
+- The API keys / endpoint settings of the OCR/LLM engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition) chosen by the user are **registered by the user and kept in the user's browser IndexedDB**
+<!-- /only -->
 - The developer / distributor **does not obtain, transmit, or retain** the user's API keys or endpoint information
-- External API requests are sent **directly from the user's browser to the chosen endpoint** (no proxy). Tesseract has no LLM API transmission at all
+- External API requests are sent **directly from the user's browser to the chosen endpoint** (no proxy). Engines that read on the device have no LLM API transmission at all
 
 ### Storage
 
@@ -62,6 +67,9 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
   - **Gemini** → `generativelanguage.googleapis.com` (handled per Google's data policy; training-use depends on plan)
   - **OpenAI-compatible** (Ollama etc.) → user-specified baseURL. No off-device transmission for localhost
   - **Tesseract** → no transmission (processed in WASM on-device; only traineddata fetched once)
+<!-- only:native -->
+  - **The OS's built-in text recognition** → no transmission (processed entirely on-device)
+<!-- /only -->
 - Always review content with high sensitivity before sending (a pre-send confirmation dialog is shown for external engines)
 - LLM/OCR features are **opt-in via UI buttons** — no automatic transmission
 

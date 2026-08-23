@@ -142,15 +142,62 @@ pub(crate) fn resolve(handle: &str) -> Option<PathBuf> {
         None
     }
 }
+// OCR は ある環境 のみここで完結させる（ある環境 側は Vision を呼ぶ ネイティブ側 実装へ委譲）。
+#[cfg(target_os = "macos")]
+pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
+    macos::recognize_text(image_data)
+}
+
+// 左右に分かれたセルは別々に返るので、まとめないと「合計」と金額が離れて拾えない。
+// 行内の区切りだけは環境で違うため呼び元が決める（一文字ずつ返す側で空白は挟めない）。
+#[cfg(target_os = "macos")]
+fn word_mid_y(word: &crate::RecognizedWord) -> f64 {
+    word.y + word.height / 2.0
+}
+// 行の高さの半分より近ければ同じ行。実測では隣り合うセルの差が行高の 1/5 だった。
+#[cfg(target_os = "macos")]
+fn same_row(head: &crate::RecognizedWord, word: &crate::RecognizedWord) -> bool {
+    (word_mid_y(head) - word_mid_y(word)).abs() <= head.height.max(word.height) / 2.0
+}
+
+#[cfg(target_os = "macos")]
+fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> crate::RecognizedText {
+    words.sort_by(|a, b| word_mid_y(a).total_cmp(&word_mid_y(b)));
+    let mut rows: Vec<Vec<crate::RecognizedWord>> = Vec::new();
+    for word in words {
+        match rows.last_mut() {
+            Some(row) if same_row(&row[0], &word) => row.push(word),
+            _ => rows.push(vec![word]),
+        }
+    }
+    let lines = rows
+        .into_iter()
+        .filter_map(|mut row| {
+            row.sort_by(|a, b| a.x.total_cmp(&b.x));
+            crate::RecognizedLine::from_words(row, separator)
+        })
+        .filter(|line| !line.text.is_empty())
+        .collect();
+    crate::RecognizedText::from_lines(lines)
+}
 
 #[cfg(target_os = "macos")]
 mod macos {
     use std::path::{Path, PathBuf};
 
     use base64::{engine::general_purpose::STANDARD, Engine};
+    use objc2::{AnyThread, ClassType};
+    use objc2_core_foundation::CGRect;
     use objc2_foundation::{
-        NSData, NSString, NSURLBookmarkCreationOptions, NSURLBookmarkResolutionOptions, NSURL,
+        NSArray, NSData, NSDictionary, NSString, NSURLBookmarkCreationOptions,
+        NSURLBookmarkResolutionOptions, NSURL,
     };
+    use objc2_vision::{
+        VNImageRequestHandler, VNRecognizeTextRequest, VNRecognizeTextRequestRevision3, VNRequest,
+        VNRequestTextRecognitionLevel,
+    };
+
+    use crate::{RecognizedText, RecognizedWord};
     // entitlement が無いビルドでは失敗する。呼び元がパス保存へ倒すので None を返すだけでよい。
     pub(super) fn create_bookmark(dir: &Path) -> Option<String> {
         let url = NSURL::fileURLWithPath(&NSString::from_str(&dir.to_string_lossy()));
@@ -183,6 +230,114 @@ mod macos {
         // プロセスが終わるまで手放さない（stop は呼ばない）。
         std::mem::forget(url);
         Some(path)
+    }
+    #[cfg(test)]
+    mod row_tests {
+        use super::super::{same_row, word_mid_y};
+        use crate::RecognizedWord;
+
+        fn cell(mid_y: f64, height: f64) -> RecognizedWord {
+            RecognizedWord {
+                text: String::new(),
+                x: 0.0,
+                y: mid_y - height / 2.0,
+                width: 0.0,
+                height,
+                confidence: None,
+                alternates: Vec::new(),
+            }
+        }
+
+        #[test]
+        fn mid_y_is_the_centre() {
+            assert!((word_mid_y(&cell(0.5, 0.02)) - 0.5).abs() < 1e-12);
+        }
+        // 実測のレシートの「登録番号」と番号。ここが分かれると登録番号を取り出せない。
+        #[test]
+        fn near_enough_is_one_row() {
+            assert!(same_row(&cell(0.8429, 0.0134), &cell(0.8406, 0.0142)));
+        }
+
+        #[test]
+        fn next_line_is_another_row() {
+            assert!(!same_row(&cell(0.7566, 0.0131), &cell(0.7442, 0.0117)));
+        }
+        // 高い方の文字に合わせないと、大きな見出しが次の行を巻き込む。
+        #[test]
+        fn threshold_follows_the_taller_cell() {
+            assert!(same_row(&cell(0.8500, 0.0300), &cell(0.8400, 0.0100)));
+            assert!(!same_row(&cell(0.8500, 0.0100), &cell(0.8400, 0.0100)));
+        }
+    }
+
+    // ja-JP は VNRecognizeTextRequestRevision3 の .accurate でしか使えない（.fast は非対応）。
+    // 圧縮バイト列のまま渡す。ビットマップへ先に展開すると Vision 側の対応形式判定を素通りする。
+    pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<RecognizedText> {
+        let data = NSData::from_vec(image_data.to_vec());
+        let handler = VNImageRequestHandler::initWithData_options(
+            VNImageRequestHandler::alloc(),
+            &data,
+            &NSDictionary::new(),
+        );
+
+        let request = VNRecognizeTextRequest::new();
+        // revision は VNRequest 側のプロパティ。3 未満だと ja-JP 自体が候補に出ない。
+        unsafe {
+            request
+                .as_super()
+                .as_super()
+                .setRevision(VNRecognizeTextRequestRevision3);
+        }
+        request.setRecognitionLevel(VNRequestTextRecognitionLevel::Accurate);
+        let ja = NSString::from_str("ja-JP");
+        let en = NSString::from_str("en-US");
+        request.setRecognitionLanguages(&NSArray::from_slice(&[&*ja, &*en]));
+        request.setUsesLanguageCorrection(true);
+
+        let vn_request: &VNRequest = request.as_super().as_super();
+        handler
+            .performRequests_error(&NSArray::from_slice(&[vn_request]))
+            .map_err(|e| crate::Error::Ocr(e.to_string()))?;
+
+        let Some(results) = request.results() else {
+            return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
+        };
+        // 先頭が誤っていても次の候補が正しいことがある（`T` の欠けは実測）。
+        let words: Vec<RecognizedWord> = (0..results.count())
+            .filter_map(|i| {
+                let obs = results.objectAtIndex(i);
+                let candidates = obs.topCandidates(3);
+                if candidates.count() == 0 {
+                    return None;
+                }
+                let top = candidates.objectAtIndex(0);
+                let text = top.string().to_string();
+                if text.is_empty() {
+                    return None;
+                }
+                let alternates: Vec<String> = (1..candidates.count())
+                    .map(|n| candidates.objectAtIndex(n).string().to_string())
+                    .filter(|t| !t.is_empty() && *t != text)
+                    .collect();
+                let r: CGRect = unsafe { obs.boundingBox() };
+                Some(RecognizedWord {
+                    text,
+                    x: r.origin.x,
+                    // Vision は左下原点で y が上向き。左上原点・下向きへ揃える。
+                    y: 1.0 - (r.origin.y + r.size.height),
+                    width: r.size.width,
+                    height: r.size.height,
+                    confidence: Some(f64::from(top.confidence())),
+                    alternates,
+                })
+            })
+            .collect();
+        // 単語のまとまりで返るので、行内は空白で繋ぐ。
+        let recognized = super::words_to_lines(words, " ");
+        if recognized.lines.is_empty() {
+            return Err(crate::Error::Ocr("テキストが見つかりません".to_string()));
+        }
+        Ok(recognized)
     }
 }
 

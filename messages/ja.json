@@ -270,6 +270,7 @@
   "receipt_default_description": "領収書 OCR",
   "receipt_success": "✓ 仕訳を登録しました（{name} {amount}）",
   "receipt_local_engine_notice": "純ローカル OCR（Tesseract）の結果です。精度は限定的なため、合計金額・日付・店名は必ずご確認のうえ修正してください。OCR 全文は備考に保存されません（画面表示のみ）。",
+  "receipt_native_engine_notice": "OS 内蔵の文字認識の結果です。合計金額・日付・店名は必ずご確認のうえ修正してください。OCR 全文は備考に保存されません（画面表示のみ）。",
   "receipt_amount_required": "合計金額を入力してください（半角整数）。",
   "order_title": "注文取込（貼り付け→LLM 抽出）",
   "order_subtitle": "Amazon・楽天 等の注文ページ全文を貼り付けて、LLM で品目内訳を抽出 → 確認 → 仕訳化。DOM を読み取らないため、サイト改修の影響を受けません。",
@@ -640,7 +641,9 @@
   "settings_engine_gemini": "Google Gemini（クラウド・既定）",
   "settings_engine_openai": "OpenAI 互換 / Ollama 等（ローカル可）",
   "settings_engine_tesseract": "Tesseract（純ローカル WASM OCR・精度限定）",
+  "settings_engine_native": "OS 内蔵の文字認識（端末内・LLM 不要）",
   "settings_tesseract_intro_html": "<strong class=\"text-foreground\">画像は端末外に出ません</strong>。LLM を使わず Tesseract（WASM）の OCR テキストから T+13 桁登録番号・日付・合計を確定性ベースで抽出します。店名・品目は推定せず、合計金額や日付は必ず人手で確認してください。<br />言語データ（<code>jpn.traineddata</code> / <code>eng.traineddata</code>、あわせて約 4.8MB）はアプリに同梱されています。初回の解析時に読み込まれ、外部への通信は発生しません。",
+  "settings_native_ocr_intro_html": "<strong class=\"text-foreground\">画像は端末外に出ません</strong>。OS が備える文字認識で読み取り、そのテキストから T+13 桁登録番号・日付・合計を確定性ベースで抽出します。店名・品目は推定しません。追加の読み込みは不要で、外部への通信も発生しません。",
   "settings_openai_intro_html": "Ollama / LM Studio / llama.cpp 等のローカル AI を使えます。<strong class=\"text-foreground\">OCR には vision 対応モデルが必須</strong>（gemma4・ministral-3・llama3.2-vision 等）。LLM 分類はテキストモデルで可。",
   "settings_openai_baseurl_label": "エンドポイント（baseURL）",
   "settings_openai_apikey_label": "API キー（任意）",
@@ -990,5 +993,6 @@
   "support_purchase_failed": "購入手続きを完了できませんでした。時間をおいて、もう一度お試しください。",
   "support_close": "閉じる",
   "support_open": "aoiko を支援する",
-  "file_picker_choose": "ファイルを選択"
+  "file_picker_choose": "ファイルを選択",
+  "ocr_native_unavailable": "この端末では OS 内蔵の文字認識を使えません。設定で別のエンジンを選んでください。"
 }

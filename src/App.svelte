@@ -34,7 +34,13 @@
   onMount(async () => {
     const acceptedAt = await getSetting('disclaimerAcceptedAt');
     const acceptedVersion = await getSetting('disclaimerAcceptedVersion');
-    if (acceptedAt && acceptedVersion === DISCLAIMER_VERSION) {
+    // 配布形態ごとに文面が進む速さが違い、こちらより新しい版に同意した記録が
+    // バックアップ経由で入ってくる。厳密一致だと同意済みの利用者へ再同意を求めてしまう。
+    if (
+      acceptedAt &&
+      typeof acceptedVersion === 'number' &&
+      acceptedVersion >= DISCLAIMER_VERSION
+    ) {
       consentState = 'granted';
     } else {
       consentState = 'required';

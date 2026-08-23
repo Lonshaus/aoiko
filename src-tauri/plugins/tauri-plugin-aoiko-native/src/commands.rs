@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::backup::{self, OpenFiles};
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
-use crate::{Error, PickedFolder, Resolved, ResolvedFolder, Result};
+use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
 #[cfg(target_os = "ios")]
 use crate::ios::AoikoNativeExt;
@@ -116,6 +116,33 @@ pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     #[cfg(not(target_os = "ios"))]
     {
         let _ = app;
+        Err(Error::UnsupportedPlatform)
+    }
+}
+
+// Vision の perform は同期。(async) がワーカースレッドへ逃がすので、DispatchQueue.main には
+// 乗せない（乗せると画像 1 枚ぶんの認識のあいだメインスレッド、ひいては UI が止まる）。
+#[tauri::command(async)]
+pub(crate) fn recognize_text<R: Runtime>(
+    app: AppHandle<R>,
+    image_base64: String,
+) -> Result<RecognizedText> {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().recognize_text(image_base64)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &app;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let bytes = STANDARD
+            .decode(image_base64.as_bytes())
+            .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
+        crate::desktop::recognize_text(&bytes)
+    }
+    #[cfg(not(any(target_os = "ios", target_os = "macos")))]
+    {
+        let _ = (app, image_base64);
         Err(Error::UnsupportedPlatform)
     }
 }

@@ -3,7 +3,7 @@ import { todayISO } from '../lib/date';
 // 領収書 OCR：画像 → 構造化された取引データ。
 // Gemini Vision を使用。BYOK モデル、ユーザー API キー必須。
 
-interface ReceiptItem {
+export interface ReceiptItem {
   description: string;
   amount: string;
 }

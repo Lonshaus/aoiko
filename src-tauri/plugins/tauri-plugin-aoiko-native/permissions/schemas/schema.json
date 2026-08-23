@@ -427,6 +427,18 @@
           "markdownDescription": "Denies the print_page command without any pre-configured scope."
         },
         {
+          "description": "Enables the recognize_text command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-recognize-text",
+          "markdownDescription": "Enables the recognize_text command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the recognize_text command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-recognize-text",
+          "markdownDescription": "Denies the recognize_text command without any pre-configured scope."
+        },
+        {
           "description": "Enables the resolve_folder command without any pre-configured scope.",
           "type": "string",
           "const": "allow-resolve-folder",
@@ -439,10 +451,10 @@
           "markdownDescription": "Denies the resolve_folder command without any pre-configured scope."
         },
         {
-          "description": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`",
+          "description": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`"
+          "markdownDescription": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`"
         }
       ]
     }

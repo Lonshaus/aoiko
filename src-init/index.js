@@ -11,6 +11,7 @@ import { openUrl } from '@tauri-apps/plugin-opener';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
+import { createNativeOcr } from './native-ocr.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -93,6 +94,8 @@ window.__aoikoNative = {
 // 受け取って決める。品目を作っていない環境では createIap が null を返し、購入の
 // 入口が生えない＝支援画面ごと出ない。
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
+// 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
+Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
 
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
