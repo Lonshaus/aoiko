@@ -34,6 +34,24 @@
     }
   });
 
+  // 背後の暗幕は dialog 自身が受け取るので、押された座標が箱の外かどうかで見分ける。
+  // padding の内側も target は dialog になるため、target の比較だけでは足りない。
+  function closeOnBackdrop(event: MouseEvent): void {
+    // detail が 0 なのはキーボード操作由来。座標を持たないので箱の外と誤判定する。
+    if (dialog === null || event.target !== dialog || event.detail === 0) {
+      return;
+    }
+    const box = dialog.getBoundingClientRect();
+    const outside =
+      event.clientX < box.left ||
+      event.clientX > box.right ||
+      event.clientY < box.top ||
+      event.clientY > box.bottom;
+    if (outside) {
+      onclose();
+    }
+  }
+
   async function buy(kind: IapProductKind): Promise<void> {
     notice = '';
     let result;
@@ -72,7 +90,7 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="support" {onclose}>
+<dialog bind:this={dialog} class="support" {onclose} onclick={closeOnBackdrop}>
   <svg style="display: none" aria-hidden="true">
     <!-- aoiko のロゴにある肉球。PNG の輪郭を実測して起こしたもの。 -->
     <symbol id="support-cat" viewBox="0 0 64 64">
