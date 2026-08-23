@@ -202,6 +202,7 @@ OCR that uses the text recognition the OS already provides. No LLM, no extra dow
 > - The image never leaves the device, and no network request is made
 > - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
 > - OCR only — not usable for CSV classification or order import
+> - The option does not appear when this device cannot perform the recognition
 
 <!-- /only -->
 

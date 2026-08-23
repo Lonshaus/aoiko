@@ -20,4 +20,5 @@ permissions = [
   "allow-backup-remove",
   "allow-export-open",
   "allow-recognize-text",
+  "allow-is-text-recognition-available",
 ]

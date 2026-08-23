@@ -19,6 +19,7 @@
 - `allow-backup-remove`
 - `allow-export-open`
 - `allow-recognize-text`
+- `allow-is-text-recognition-available`
 
 ## Permission Table
 
@@ -233,6 +234,32 @@ Enables the export_open command without any pre-configured scope.
 <td>
 
 Denies the export_open command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-is-text-recognition-available`
+
+</td>
+<td>
+
+Enables the is_text_recognition_available command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-is-text-recognition-available`
+
+</td>
+<td>
+
+Denies the is_text_recognition_available command without any pre-configured scope.
 
 </td>
 </tr>

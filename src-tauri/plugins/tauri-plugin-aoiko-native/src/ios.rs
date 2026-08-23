@@ -43,6 +43,12 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(Into::into)
     }
 
+    pub fn is_text_recognition_available(&self) -> bool {
+        self.0
+            .run_mobile_plugin("isTextRecognitionAvailable", ())
+            .unwrap_or(false)
+    }
+
     pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
         self.0
             .run_mobile_plugin(

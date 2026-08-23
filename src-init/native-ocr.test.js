@@ -38,3 +38,27 @@ test('命令名と引数名をそのまま渡す', async () => {
     { cmd: 'plugin:aoiko-native|recognize_text', args: { imageBase64: 'QUJD' } },
   ]);
 });
+
+// 可否の問い合わせも同じ理由で命令名を釘付けにする。ここが食い違うと、読める端末で
+// 選択肢が出なくなるか、読めない端末で出てしまうかのどちらかになる。
+test('可否の問い合わせも命令名をそのまま渡す', async () => {
+  const calls = [];
+  const invoke = async (cmd, args) => {
+    calls.push({ cmd, args });
+    return true;
+  };
+  const ocr = createNativeOcr(invoke, 'macos');
+  assert.equal(await ocr.isTextRecognitionAvailable(), true);
+  assert.deepEqual(calls, [
+    { cmd: 'plugin:aoiko-native|is_text_recognition_available', args: undefined },
+  ]);
+});
+
+test('入口が生える環境では可否の問い合わせも生える', () => {
+  for (const platform of ['macos', 'ios']) {
+    assert.equal(
+      typeof createNativeOcr(async () => {}, platform)?.isTextRecognitionAvailable,
+      'function',
+    );
+  }
+});

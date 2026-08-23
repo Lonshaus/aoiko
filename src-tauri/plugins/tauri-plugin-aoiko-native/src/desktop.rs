@@ -180,6 +180,16 @@ fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> cra
         .collect();
     crate::RecognizedText::from_lines(lines)
 }
+// 関数が生えていることと読めることは別。対応言語は OS の版や導入内容で変わる。
+#[cfg(target_os = "macos")]
+pub(crate) fn is_text_recognition_available() -> bool {
+    macos::supports_japanese()
+}
+
+#[cfg(not(target_os = "macos"))]
+pub(crate) fn is_text_recognition_available() -> bool {
+    false
+}
 
 #[cfg(target_os = "macos")]
 mod macos {
@@ -268,6 +278,24 @@ mod macos {
             assert!(same_row(&cell(0.8500, 0.0300), &cell(0.8400, 0.0100)));
             assert!(!same_row(&cell(0.8500, 0.0100), &cell(0.8400, 0.0100)));
         }
+    }
+
+    // 対応言語は認識の水準と revision の組で変わる。読み取りと同じ設定に揃えてから
+    // 問わないと、実際には使えない言語を「使える」と答えてしまう。
+    pub(super) fn supports_japanese() -> bool {
+        let request = VNRecognizeTextRequest::new();
+        unsafe {
+            request
+                .as_super()
+                .as_super()
+                .setRevision(VNRecognizeTextRequestRevision3);
+        }
+        request.setRecognitionLevel(VNRequestTextRecognitionLevel::Accurate);
+        let langs = match unsafe { request.supportedRecognitionLanguagesAndReturnError() } {
+            Ok(langs) => langs,
+            Err(_) => return false,
+        };
+        langs.iter().any(|l| l.to_string() == "ja-JP")
     }
 
     // ja-JP は VNRecognizeTextRequestRevision3 の .accurate でしか使えない（.fast は非対応）。
