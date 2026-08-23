@@ -24,7 +24,7 @@ const INVOICE_NUMBER_RE = /(?<!\d)T\d{13}(?!\d)/;
 // 登録番号を名乗る行の見出し。行を限らないと、別の 13 桁を登録番号に化けさせる。
 const INVOICE_LABELS = ['登録番号', 'インボイス'];
 const BARE_INVOICE_NUMBER_RE = /(?<!\d)\d{13}(?!\d)/;
-// 年は 19xx / 20xx に限る。市外局番から始まる電話番号が「0422 年 29 月 00 日」のように
+// 年は 19xx / 20xx に限る。市外局番から始まる電話番号が「0499 年 99 月 99 日」のように
 // 先に命中し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
 // g を付けて最初の 1 件で諦めないのも同じ理由で、妥当な日付が出るまで後ろを見る。
 const WESTERN_DATE_RE = /((?:19|20)\d{2})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
@@ -39,10 +39,33 @@ const REIWA_DATE_RE =
 // 小数との取り違えは起きない。
 const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]+\d{3})+|\d+)(?:\s*円)?/g;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
+// 語による判定が空振りしたときの保険で使う。合計ではないと確実に判る行を落とすためだけの
+// 一覧なので、主の判定より広く取る。
+const NOT_A_TOTAL = [
+  '小計',
+  '税率',
+  '対象',
+  '消費税',
+  '税合計',
+  '商品代金',
+  '値引',
+  '割引',
+  'お預り',
+  'お預かり',
+  'お釣',
+  '釣銭',
+  '現金',
+  'ポイント',
+  '還元',
+  '番号',
+];
 const TOTAL_KEYWORDS_EXCLUDE = [
   '小計',
   // 消費税の合計。合計を含むのに合計ではない（実測の「（税合計 ¥11）」）。
   '税合計',
+  // 値引きの合計。同じく合計を含むが合計ではない（実測の「（値引合計 -20）」）。
+  '値引合計',
+  '割引合計',
   'お預り',
   'お預かり',
   'お釣り',
@@ -203,9 +226,21 @@ const NOT_A_VENDOR = [
 ];
 // 軽減税率の印など、品名そのものではない頭の記号。
 const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：]+/;
-const ITEM_NAME_TAIL = /[\s¥￥\\]+$/;
-// 電話番号や時刻を金額と取らないため。単単語の中に区切りがあれば金額ではない。
-const NOT_AN_AMOUNT = /[-ー–—:：]/;
+const ITEM_NAME_TAIL = /[\s¥￥\\*＊]+$/;
+// 値引きの符号。長音符は入れない。カタカナの品名が長音符で終わると全部これに掛かる。
+const DISCOUNT_SIGN = /[-−－▲△]\s*$/;
+// 合計欄より上に並ぶ集計行。金額が右に立つ形は品目と同じなので、語で外す。
+const NOT_AN_ITEM = [
+  '小計',
+  '消費税',
+  '税率',
+  '対象',
+  '商品代金',
+  '合計',
+  'お預り',
+  'お釣',
+  '釣銭',
+];
 // 数字どうしが区切りで繋がる形。電話番号・時刻がこれに当たる。
 const DIGIT_SEPARATED_RE = /\d[-ー–—:：]\d/;
 
@@ -275,7 +310,9 @@ function headerEnd(lines: OcrLine[]): number {
     if (INVOICE_LABELS.some((k) => text.includes(k))) {
       return i;
     }
-    if (extractDate(text) !== '' || parseAmounts(text).length > 0) {
+    // 文中の数字では頭は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
+    // （実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
+    if (extractDate(text) !== '' || hasAmountOnTheRight(lines[i]!)) {
       return i;
     }
   }
@@ -288,32 +325,42 @@ function findTotalRow(lines: OcrLine[]): number {
     if (TOTAL_KEYWORDS_EXCLUDE.some((k) => text.includes(k))) {
       continue;
     }
-    if (TOTAL_KEYWORDS_INCLUDE.some((k) => text.includes(k))) {
+    // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
+    // ような案内文を掴む（実測）。
+    if (TOTAL_KEYWORDS_INCLUDE.some((k) => text.includes(k)) && parseAmounts(text).length > 0) {
       return i;
     }
   }
-  return lines.length;
+  return totalRowWithoutKeyword(lines);
 }
-// 右端の金額を取る。「合計／ 1点 ¥248」のように点数が並ぶ書式で取り違えないため。
+// 合計の語が読めないことがある（実測。ある環境 は「合 計」を「言十」と読み、金額だけが
+// 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
+function totalRowWithoutKeyword(lines: OcrLine[]): number {
+  let found = lines.length;
+  let largest = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (NOT_A_TOTAL.some((k) => line.text.includes(k)) || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    const amounts = parseAmounts(line.text);
+    const amount = amounts[amounts.length - 1];
+    if (amount !== undefined && amount > largest) {
+      largest = amount;
+      found = i;
+    }
+  }
+  return found;
+}
+// 行末の金額を取る。「合計／ 1点 ¥248」のように点数が並ぶ書式で取り違えないため。
+// 単語からは取らない。1 単語 = 1 文字で返す環境では右端が数字の断片になる（実測。
+// 「合計 ¥532」が 2 として通った）。行の文字列は環境ごとの正しい区切りで繋がれている。
 function totalFromRow(line: OcrLine | undefined): string {
   if (!line) {
     return '';
   }
-  const amount = rightmostAmount(line);
-  return amount === undefined ? '' : String(amount);
-}
-
-function rightmostAmount(line: OcrLine): number | undefined {
-  for (const word of [...line.words].sort((a, b) => b.x - a.x)) {
-    if (NOT_AN_AMOUNT.test(word.text)) {
-      continue;
-    }
-    const amounts = parseAmounts(word.text);
-    if (amounts.length > 0) {
-      return amounts[amounts.length - 1];
-    }
-  }
-  return undefined;
+  const amounts = parseAmounts(line.text);
+  return amounts.length === 0 ? '' : String(amounts[amounts.length - 1]);
 }
 // 行末の金額。単語からは組み立てない。1 単語 = 1 文字で返す環境があり、そこでは
 // 「最後の単語」が数字の断片になって電話番号が金額に化ける（実測。`0422ー29ー0051`
@@ -326,6 +373,9 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
   const items: ReceiptItem[] = [];
   for (const line of lines.slice(header + 1, totalRow)) {
     if (line.words.length < 2 || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    if (NOT_AN_ITEM.some((k) => line.text.includes(k))) {
       continue;
     }
     const m = TRAILING_AMOUNT_RE.exec(line.text.trim());
@@ -348,11 +398,19 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
     if (amounts.length === 0) {
       continue;
     }
-    const name = head.replace(ITEM_NAME_NOISE, '').replace(ITEM_NAME_TAIL, '').trim();
+    const name = head
+      .replace(ITEM_NAME_NOISE, '')
+      .replace(DISCOUNT_SIGN, '')
+      .replace(ITEM_NAME_TAIL, '')
+      .trim();
     if (name === '' || extractDate(name) !== '' || /^[\d\s,.]+$/.test(name)) {
       continue;
     }
-    items.push({ description: name, amount: String(amounts[amounts.length - 1]) });
+    // 符号を落とすと値引きが消費として入る（実測の「値引額 -20」が +20 になった）。
+    const signed = DISCOUNT_SIGN.test(head)
+      ? -amounts[amounts.length - 1]!
+      : amounts[amounts.length - 1]!;
+    items.push({ description: name, amount: String(signed) });
   }
   return items;
 }
@@ -361,7 +419,9 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
 function hasAmountOnTheRight(line: OcrLine): boolean {
   const ordered = [...line.words].sort((a, b) => a.x - b.x);
   const last = ordered[ordered.length - 1]!;
-  return parseAmounts(last.text).length > 0;
+  // 金額だけの欄であることまで見る。文中に数字があるだけの行を金額の行と取ると、
+  // 店名が頭から外れる（実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
+  return /^[¥￥\\*＊\s]*[-−－▲△]?\s*[\d,.]+$/.test(last.text);
 }
 // 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
 // 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。

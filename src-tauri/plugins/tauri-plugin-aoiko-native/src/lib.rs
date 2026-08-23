@@ -148,7 +148,7 @@ pub struct RecognizedText {
 
 impl RecognizedLine {
     // ある環境 では ネイティブ側 側が組んで返すため、Rust は受け取るだけ。
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub(crate) fn from_words(words: Vec<RecognizedWord>, separator: &str) -> Option<Self> {
         let first = words.first()?;
         let mut left = first.x;
@@ -178,7 +178,7 @@ impl RecognizedLine {
 }
 
 impl RecognizedText {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub(crate) fn from_lines(lines: Vec<RecognizedLine>) -> Self {
         let text = lines
             .iter()

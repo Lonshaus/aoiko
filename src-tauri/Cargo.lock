@@ -4080,6 +4080,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-plugin",
+ "windows",
 ]
 
 [[package]]

@@ -12,7 +12,7 @@ type Row = { y: number; height: number; cells: Cell[] };
 
 // ネイティブ側の words_to_lines と同じ組み立て。ここで再現しておかないと、抽出の試験が
 // ネイティブの実装を実行できる環境でしか回せなくなる。
-function toLayout(rows: Row[]): OcrLayout {
+function toLayout(rows: Row[], separator = ' '): OcrLayout {
   const words: OcrWord[] = [];
   for (const row of rows) {
     for (const cell of row.cells) {
@@ -45,7 +45,7 @@ function toLayout(rows: Row[]): OcrLayout {
     .map((row) => {
       const ordered = [...row].sort((a, b) => a.x - b.x);
       return {
-        text: ordered.map((w) => w.text).join(' '),
+        text: ordered.map((w) => w.text).join(separator),
         words: ordered,
         x: Math.min(...ordered.map((w) => w.x)),
         y: Math.min(...ordered.map((w) => w.y)),
@@ -392,5 +392,181 @@ describe('品目', () => {
       { description: 'ミネラルウォーター', amount: '120' },
       { description: 'ボールペン', amount: '128' },
     ]);
+  });
+  test('値引合計の行を合計と取らない', () => {
+    const layout = toLayout([
+      { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '（値引合計', x: 0.09 },
+          { text: '-20）', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥532', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
+  });
+
+  test('1 単語 = 1 文字で返る環境でも合計を取れる', () => {
+    const layout = toLayout(
+      [
+        { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+        {
+          y: 0.5,
+          height: 0.02,
+          cells: [...'合計¥532'].map((text, i) => ({ text, x: 0.09 + i * 0.05 })),
+        },
+      ],
+      '',
+    );
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
+  });
+
+  test('店名の行に数字が混じっても店名を取れる', () => {
+    const layout = toLayout([
+      { y: 0.3, height: 0.06, cells: [{ text: '3あおい薬局', x: 0.09 }] },
+      { y: 0.4, height: 0.02, cells: [{ text: 'みどり町店', x: 0.09 }] },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥532', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('3あおい薬局');
+  });
+
+  test('値引きの行は符号を保つ', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'ミネラルウォーター', x: 0.143 },
+            { text: '¥120', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: '値引額', x: 0.143 },
+            { text: '-20', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'ミネラルウォーター', amount: '120' },
+      { description: '値引額', amount: '-20' },
+    ]);
+  });
+
+  test('軽減税率の印は品名の末尾からも外す', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: 'ミネラルウォーター', x: 0.143 },
+            { text: '＊173', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'ミネラルウォーター', amount: '173' },
+    ]);
+  });
+
+  test('小計の行は品目にしない', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'ミネラルウォーター', x: 0.143 },
+            { text: '¥120', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: '小計（税抜8%）', x: 0.143 },
+            { text: '¥489', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'ミネラルウォーター', amount: '120' },
+    ]);
+  });
+  test('案内文を合計の行と取り違えない', () => {
+    const layout = toLayout([
+      { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥532', x: 0.6 },
+        ],
+      },
+      { y: 0.6, height: 0.02, cells: [{ text: 'お買上明細は上記のとおりです。', x: 0.09 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
+  });
+
+  test('合計の語が読めなくても、集計欄から合計を拾う', () => {
+    const layout = toLayout(
+      [
+        { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+        {
+          y: 0.4,
+          height: 0.02,
+          cells: [
+            { text: '小計(税抜8%)', x: 0.09 },
+            { text: '¥489', x: 0.6 },
+          ],
+        },
+        {
+          y: 0.45,
+          height: 0.02,
+          cells: [
+            { text: '税率8%対象', x: 0.09 },
+            { text: '¥528', x: 0.6 },
+          ],
+        },
+        {
+          y: 0.5,
+          height: 0.02,
+          cells: [
+            { text: '言十', x: 0.09 },
+            { text: '¥532', x: 0.6 },
+          ],
+        },
+        {
+          y: 0.55,
+          height: 0.02,
+          cells: [
+            { text: 'お預り', x: 0.09 },
+            { text: '¥540', x: 0.6 },
+          ],
+        },
+      ],
+      '',
+    );
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
   });
 });

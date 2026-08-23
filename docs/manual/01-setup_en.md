@@ -200,9 +200,9 @@ OCR that uses the text recognition the OS already provides. No LLM, no extra dow
 2. **Save**
 
 > - The image never leaves the device, and no network request is made
-> - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
+> - T+13 registration number, date, and total are extracted, and the vendor and items are taken from where the words sit on the receipt. Misreads carry through, so check the result
 > - OCR only — not usable for CSV classification or order import
-> - The option does not appear when this device cannot perform the recognition
+> - When this device cannot perform the recognition, the setting screen says so once you pick it. The option itself stays
 
 <!-- /only -->
 
