@@ -518,9 +518,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("aoiko")
-                .initialization_script(format!(
-                    "window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"
-                ))
+                .initialization_script(format!("window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"))
                 // マニュアルと UI の外部リンクは、そのままだとアプリのウィンドウごと外部サイトへ
                 // 遷移し、戻る手段が無くなる。OS 標準のブラウザへ渡してナビゲーションは中止する。
                 .on_navigation(move |url| {
