@@ -40,7 +40,7 @@ tauri-plugin-aoiko-native = { path = "plugins/tauri-plugin-aoiko-native" }
 # 支援（アプリ内購入）。iOS / macOS は StoreKit 2、Windows は Microsoft Store API。
 # 配る 3 つの環境にだけ入れる。
 [target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))'.dependencies]
-tauri-plugin-iap = "0.9"
+tauri-plugin-iap = "0.10.0-rc.8"
 
 # 印刷はネイティブ側で行う。WKWebView 上の window.print() は例外を投げるため
 # （tauri#3066）、WKWebView の printOperationWithPrintInfo: を直接呼ぶ。
