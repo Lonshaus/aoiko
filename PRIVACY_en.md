@@ -42,6 +42,9 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 
 - **Vision LLM path (Gemini / OpenAI-compatible)**: LLM classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
 - **Tesseract path (OCR only)**: no LLM. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` / `eng.traineddata` are served by aoiko itself, so no external request is made
+<!-- only:native -->
+- **The OS's built-in text recognition path (OCR only)**: no LLM. The image is processed on-device by the recognition your operating system provides — never sent externally. Nothing extra is downloaded either
+<!-- /only -->
 
 | Engine (selected in Settings) | Destination | Off-device transmission |
 |---|---|---|
@@ -49,12 +52,18 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 | OpenAI-compatible / Ollama etc. when localhost | On-device (e.g. `http://localhost:11434`) | **None** |
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
 | Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` / `eng.traineddata` are bundled too | **None** (no external request is made) |
+<!-- only:native -->
+| The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
+<!-- /only -->
 
 - Requests go **directly** from your browser to the destination — aoiko has no management server in the path
 - For **cloud (external) engines, a pre-send confirmation dialog** is shown
 - Gemini: data handling follows Google's privacy policy and your API plan contract; whether data is used for training depends on your plan (free vs. paid)
 - When using local (e.g. Ollama on localhost), data stays on-device — the most privacy-protective option (vision-capable model required for OCR)
 - Tesseract: no LLM is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Accuracy is limited; vendor and items are not guessed. Manual verification by the user is required
+<!-- only:native -->
+- The OS's built-in text recognition: no LLM is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
+<!-- /only -->
 
 ### Backup (your choice)
 

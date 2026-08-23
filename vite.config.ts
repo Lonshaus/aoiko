@@ -52,7 +52,7 @@ function dropUnusedTesseractAssets() {
 // `<!-- only:… -->` で囲み、ここで取り除く。表示時に隠すのでは産物に文章が残り、
 // console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
 function stripDocsForBuild(native: boolean) {
-  const MANUAL = /\/docs\/manual\/[^/]+\.md$/;
+  const MANUAL = /\/(docs\/manual\/[^/]+|DISCLAIMER|PRIVACY|SECURITY)(_[\w-]+)?\.md$/;
   return {
     name: 'aoiko-strip-docs-for-build',
     enforce: 'pre' as const,

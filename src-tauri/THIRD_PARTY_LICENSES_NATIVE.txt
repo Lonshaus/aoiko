@@ -3,7 +3,7 @@
 このファイルは scripts/gen-native-licenses.mjs が cargo metadata から生成しています。
 直接編集せず、依存を変えたら再生成してください。
 
-対象：配布物へリンクされる依存 343 件（macOS / iOS / Windows の通常依存の和集合）。
+対象：配布物へリンクされる依存 344 件（macOS / iOS / Windows の通常依存の和集合）。
 dev-dependencies（テスト専用）と build-dependencies（ビルド時にしか動かず自身のコードは
 リンクされない proc macro 等）は除く。
 aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参照してください。
@@ -169,6 +169,7 @@ aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参�
   objc2-security@0.3.2  —  Zlib OR Apache-2.0 OR MIT
   objc2-ui-kit@0.3.2  —  Zlib OR Apache-2.0 OR MIT
   objc2-user-notifications@0.3.2  —  Zlib OR Apache-2.0 OR MIT
+  objc2-vision@0.3.2  —  Zlib OR Apache-2.0 OR MIT
   objc2-web-kit@0.3.2  —  Zlib OR Apache-2.0 OR MIT
   once_cell@1.21.4  —  MIT OR Apache-2.0
   open@5.4.0  —  MIT
@@ -26630,7 +26631,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：objc2-app-kit@0.3.2, objc2-cloud-kit@0.3.2, objc2-core-data@0.3.2, objc2-core-foundation@0.3.2, objc2-core-graphics@0.3.2, objc2-core-image@0.3.2, objc2-core-location@0.3.2, objc2-core-text@0.3.2, objc2-core-video@0.3.2, objc2-io-surface@0.3.2, objc2-javascript-core@0.3.2, objc2-quartz-core@0.3.2, objc2-security@0.3.2, objc2-ui-kit@0.3.2, objc2-user-notifications@0.3.2, objc2-web-kit@0.3.2
+対象：objc2-app-kit@0.3.2, objc2-cloud-kit@0.3.2, objc2-core-data@0.3.2, objc2-core-foundation@0.3.2, objc2-core-graphics@0.3.2, objc2-core-image@0.3.2, objc2-core-location@0.3.2, objc2-core-text@0.3.2, objc2-core-video@0.3.2, objc2-io-surface@0.3.2, objc2-javascript-core@0.3.2, objc2-quartz-core@0.3.2, objc2-security@0.3.2, objc2-ui-kit@0.3.2, objc2-user-notifications@0.3.2, objc2-vision@0.3.2, objc2-web-kit@0.3.2
 
 宣言されたライセンスは「Zlib OR Apache-2.0 OR MIT」。このうち MIT の条件を選択して本文を掲げる。
 
