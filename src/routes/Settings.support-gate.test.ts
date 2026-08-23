@@ -1,5 +1,5 @@
-// web のビルドに購入画面を含めないための門。ここが緩むと、ブラウザの console で
-// window.__aoikoNative を生やすだけで購入画面を開けてしまう（実際に開けることを確認済み）。
+// web のビルドにネイティブ専用の画面・選択肢を含めないための門。ここが緩むと、
+// ブラウザの console で window.__aoikoNative を生やすだけで開けてしまう（確認済み）。
 // 実行時の判定だけでは足りないので、build 時に畳まれる __NATIVE__ を併用している。
 // 出力を実際に検めるのは build が要るので、ここでは畳める形が保たれているかだけ見る。
 
@@ -22,5 +22,15 @@ describe('購入画面の取り込み条件', () => {
     expect(source).toMatch(
       /__NATIVE__\s*\n?\s*\?\s*import\('\.\.\/components\/SupportDialog\.svelte'\)/,
     );
+  });
+});
+
+describe('OS 内蔵の文字認識の選択肢', () => {
+  test('入口の判定に __NATIVE__ が入っている', () => {
+    expect(source).toMatch(/const canUseNativeOcr = __NATIVE__ &&/);
+  });
+
+  test('選択肢が判定の内側にある', () => {
+    expect(source).toMatch(/\{#if canUseNativeOcr\}\s*\n\s*<option value="native">/);
   });
 });

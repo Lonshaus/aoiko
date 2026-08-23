@@ -271,6 +271,7 @@
   "receipt_default_description": "收據 OCR",
   "receipt_success": "✓ 已建立傳票（{name} {amount}）",
   "receipt_local_engine_notice": "這是純本地 OCR（Tesseract）的結果，精度有限。請務必確認並修正合計金額、日期與店名。OCR 全文僅顯示於畫面、不會自動寫入備考。",
+  "receipt_native_engine_notice": "這是作業系統內建文字辨識的結果。合計金額、日期、店名請務必確認後修正。OCR 全文不會存進備註欄（僅在畫面上顯示）。",
   "receipt_amount_required": "請輸入合計金額（半形整數）。",
   "order_title": "訂單取込（貼上→LLM 抽取）",
   "order_subtitle": "把 Amazon、楽天 等訂單頁全文貼進來，由 LLM 抽出品項明細 → 確認 → 轉成傳票。不透過解析 DOM，不怕網站改版。",
@@ -641,7 +642,9 @@
   "settings_engine_gemini": "Google Gemini（雲端・預設）",
   "settings_engine_openai": "OpenAI 相容 / Ollama 等（可本地）",
   "settings_engine_tesseract": "Tesseract（純本地 WASM OCR、精度有限）",
+  "settings_engine_native": "作業系統內建的文字辨識（裝置內・不需 LLM）",
   "settings_tesseract_intro_html": "<strong class=\"text-foreground\">影像不會離開本機</strong>。不使用 LLM，直接從 Tesseract（WASM）OCR 文字以確定性規則抽取 T+13 位登錄號碼、日期與合計。店名、品項不做推測；合計金額與日期請務必人工確認。<br />語言資料（<code>jpn.traineddata</code> / <code>eng.traineddata</code>，合計約 4.8MB）隨 App 一起安裝。第一次辨識時載入，不會有任何對外連線。",
+  "settings_native_ocr_intro_html": "<strong class=\"text-foreground\">圖片不會離開這台裝置</strong>。以作業系統提供的文字辨識讀取，再從辨識出的文字依固定規則取出 T+13 位登錄號碼、日期與合計。店名與品項不做推測。不需額外下載，也不會對外連線。",
   "settings_openai_intro_html": "可使用 Ollama / LM Studio / llama.cpp 等本地 AI。<strong class=\"text-foreground\">OCR 必須使用具 vision 能力的模型</strong>（gemma4・ministral-3・llama3.2-vision 等）；LLM 分類用文字模型即可。",
   "settings_openai_baseurl_label": "端點（baseURL）",
   "settings_openai_apikey_label": "API 金鑰（選填）",
@@ -991,5 +994,6 @@
   "support_purchase_failed": "購買未能完成。請稍後再試一次。",
   "support_close": "關閉",
   "support_open": "支援 aoiko",
-  "file_picker_choose": "選擇檔案"
+  "file_picker_choose": "選擇檔案",
+  "ocr_native_unavailable": "這台裝置無法使用作業系統內建的文字辨識。請在設定中改選其他引擎。"
 }

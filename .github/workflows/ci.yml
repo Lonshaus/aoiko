@@ -97,6 +97,13 @@ jobs:
       # prettier は .rs を読めず、cargo test は排版を見ない。入れるまで誰も見て
       # いなかったので、実際に 2 箇所ずれたまま既定の枝に入っていた。
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+      # tauri-plugin-iap は Swift の静的ライブラリを target/ ではなく自分の
+      # 原始ディレクトリ（~/.cargo/registry/src/…/macos/.build/）へ置く。
+      # rust-cache は保存時に registry/src を消すため、キャッシュが前方一致でしか
+      # 当たらなかった回は、build script の fingerprint だけが生き残って
+      # swift build が飛ばされ、リンク先のライブラリが無い状態になる。
+      # 逃げ道は build script を必ず走らせること。Swift のビルドは 1 分弱。
+      - run: cargo clean -p tauri-plugin-iap --manifest-path src-tauri/Cargo.toml
 
       # mobile_entry_point のガードもここに入っている。
       - run: npm run test:rust

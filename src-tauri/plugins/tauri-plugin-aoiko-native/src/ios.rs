@@ -42,6 +42,15 @@ impl<R: Runtime> AoikoNative<R> {
             .run_mobile_plugin("openInApp", serde_json::json!({ "url": url }))
             .map_err(Into::into)
     }
+
+    pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
+        self.0
+            .run_mobile_plugin(
+                "recognizeText",
+                serde_json::json!({ "imageBase64": image_base64 }),
+            )
+            .map_err(Into::into)
+    }
 }
 
 pub trait AoikoNativeExt<R: Runtime> {

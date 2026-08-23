@@ -1,3 +1,4 @@
+import type { OcrLayout } from '../domain/receipt-text-extract';
 // ネイティブのシェル（ある環境 / ある環境 / ある環境 / ある環境 の app）が起動時に注入する橋渡し。
 // ブラウザで開いたときは存在しないので、呼ぶ前に必ず関数の有無を見る。橋渡しの実装は
 // シェル側が持ち、こちらは SDK を import しない。
@@ -22,6 +23,9 @@ export type NativeBridge = {
   // 機種変更・再インストール後に、購入済みの非消耗型を取り戻す。
   // 戻り値は復元できた品目。消耗型（スタンプ）は対象外。
   restoreIapPurchases?(): Promise<IapProductKind[]>;
+  // OS 内蔵の文字認識。行に加えて 1 単語ごとの座標・自信度・次の候補まで返す。
+  // 構造化は receipt-text-extract が行う。読めなければ拒否する。
+  recognizeText?(base64: string): Promise<OcrLayout>;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';
