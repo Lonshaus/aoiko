@@ -337,7 +337,7 @@ fn save_ui_locale(app: &tauri::AppHandle, locale: menu_i18n::Locale) {
     }
 }
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(target_os = "windows")))]
 fn build_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     locale: menu_i18n::Locale,
@@ -397,6 +397,62 @@ fn build_menu<R: tauri::Runtime>(
         .build()?;
     MenuBuilder::new(app)
         .items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
+        .build()
+}
+// ある環境 にアプリケーションメニューという枠は無く、綴りもニーモニック（&）も ある環境 と
+// 違うので構成ごと分ける。Window サブメニューは作らない：Minimize の既定加速キーが
+// 無条件 Ctrl+M、Maximize は元に戻せない一方向で、どちらも ある環境 の慣習に無い。
+#[cfg(target_os = "windows")]
+fn build_menu<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    locale: menu_i18n::Locale,
+) -> tauri::Result<tauri::menu::Menu<R>> {
+    use menu_i18n::{tr, Key};
+    let print_item = MenuItemBuilder::with_id("print", tr(locale, Key::WinPrint))
+        .accelerator("CmdOrCtrl+P")
+        .build(app)?;
+    let reload_item = MenuItemBuilder::with_id("reload", tr(locale, Key::WinReload))
+        .accelerator("F5")
+        .build(app)?;
+    // 定義済みの Fullscreen は ある環境 で何もせず、しかも定義済み項目は MenuEvent を
+    // 発火しないので後から拾うこともできない。自前の項目にする。
+    let fullscreen_item = MenuItemBuilder::with_id("fullscreen", tr(locale, Key::WinFullScreen))
+        .accelerator("F11")
+        .build(app)?;
+    // 定義済みの Quit は PostQuitMessage(0) で WM_CLOSE を経由せず、未保存ガードを
+    // 迂回する。Alt+F4 と同じ CLOSE_SCRIPT 経路へ通すため自前の項目にする。
+    let exit_item = MenuItemBuilder::with_id("quit", tr(locale, Key::WinExit)).build(app)?;
+    let about_metadata = tauri::menu::AboutMetadataBuilder::new()
+        .name(Some(app.package_info().name.clone()))
+        .version(Some(app.package_info().version.to_string()))
+        .license(Some("AGPL-3.0-or-later"))
+        .website(Some("https://aoiko.pages.dev"))
+        .copyright(Some("Copyright (C) 2026 Lonshaus"))
+        .build();
+    let file_menu = SubmenuBuilder::new(app, tr(locale, Key::WinFileMenu))
+        .item(&print_item)
+        .separator()
+        .item(&exit_item)
+        .build()?;
+    let edit_menu = SubmenuBuilder::new(app, tr(locale, Key::WinEditMenu))
+        .undo_with_text(tr(locale, Key::WinUndo))
+        .redo_with_text(tr(locale, Key::WinRedo))
+        .separator()
+        .cut_with_text(tr(locale, Key::WinCut))
+        .copy_with_text(tr(locale, Key::WinCopy))
+        .paste_with_text(tr(locale, Key::WinPaste))
+        .select_all_with_text(tr(locale, Key::WinSelectAll))
+        .build()?;
+    let view_menu = SubmenuBuilder::new(app, tr(locale, Key::WinViewMenu))
+        .item(&reload_item)
+        .separator()
+        .item(&fullscreen_item)
+        .build()?;
+    let help_menu = SubmenuBuilder::new(app, tr(locale, Key::WinHelpMenu))
+        .about_with_text(tr(locale, Key::WinAbout), Some(about_metadata))
+        .build()?;
+    MenuBuilder::new(app)
+        .items(&[&file_menu, &edit_menu, &view_menu, &help_menu])
         .build()
 }
 // ネイティブメニューは WebView の外にあり、公開 repo のメッセージカタログを読めない。
@@ -518,6 +574,11 @@ pub fn run() {
                             tauri::async_runtime::spawn(async move {
                                 let _ = window.eval(CLOSE_SCRIPT);
                             });
+                        }
+                        #[cfg(target_os = "windows")]
+                        "fullscreen" => {
+                            let on = window.is_fullscreen().unwrap_or(false);
+                            let _ = window.set_fullscreen(!on);
                         }
                         _ => {}
                     }
