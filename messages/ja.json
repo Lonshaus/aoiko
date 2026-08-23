@@ -643,7 +643,7 @@
   "settings_engine_tesseract": "Tesseract（純ローカル WASM OCR・精度限定）",
   "settings_engine_native": "OS 内蔵の文字認識（端末内・LLM 不要）",
   "settings_tesseract_intro_html": "<strong class=\"text-foreground\">画像は端末外に出ません</strong>。LLM を使わず Tesseract（WASM）の OCR テキストから T+13 桁登録番号・日付・合計を確定性ベースで抽出します。店名・品目は推定せず、合計金額や日付は必ず人手で確認してください。<br />言語データ（<code>jpn.traineddata</code> / <code>eng.traineddata</code>、あわせて約 4.8MB）はアプリに同梱されています。初回の解析時に読み込まれ、外部への通信は発生しません。",
-  "settings_native_ocr_intro_html": "<strong class=\"text-foreground\">画像は端末外に出ません</strong>。OS が備える文字認識で読み取り、そのテキストから T+13 桁登録番号・日付・合計を確定性ベースで抽出します。店名・品目は推定しません。追加の読み込みは不要で、外部への通信も発生しません。",
+  "settings_native_ocr_intro_html": "<strong class=\"text-foreground\">画像は端末外に出ません</strong>。OS が備える文字認識で読み取り、T+13 桁登録番号・日付・合計に加えて、単語の位置から店名と品目も取り出します。読み違いはそのまま出るので必ずご確認ください。追加の読み込みは不要で、外部への通信も発生しません。",
   "settings_openai_intro_html": "Ollama / LM Studio / llama.cpp 等のローカル AI を使えます。<strong class=\"text-foreground\">OCR には vision 対応モデルが必須</strong>（gemma4・ministral-3・llama3.2-vision 等）。LLM 分類はテキストモデルで可。",
   "settings_openai_baseurl_label": "エンドポイント（baseURL）",
   "settings_openai_apikey_label": "API キー（任意）",
