@@ -1,6 +1,6 @@
 // OS 内蔵の文字認識。実装のある環境でだけ入口を生やす。ただし入口が在ることと
 // その端末が日本語を読めることは別なので、可否は下の問い合わせで別途決める。
-const PLATFORMS = ['macos', 'ios'];
+const PLATFORMS = ['macos', 'ios', 'windows'];
 
 export function createNativeOcr(invoke, platform) {
   if (!PLATFORMS.includes(platform)) {
