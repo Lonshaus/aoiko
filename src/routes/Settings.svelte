@@ -19,6 +19,7 @@
   import { BackupCorruptError } from '../backup';
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
   import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
+  import { takeSettingsTarget } from '../lib/settings-target';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -133,6 +134,7 @@
   let restoreProgressTotal = $state(0);
   // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
   let restoreSection = $state<HTMLElement | null>(null);
+  let backupSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
 
@@ -322,6 +324,7 @@
   onMount(async () => {
     // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
     const notice = takeRestoreNotice();
+    const target = takeSettingsTarget();
     if (notice) {
       restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
       restoreWarning =
@@ -359,12 +362,17 @@
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
-    // 復元の結果は設定画面のかなり下にあり、再読み込み後は先頭に戻ってしまう。
-    // 全置換という取り消せない操作の唯一の確認なので、見える位置まで戻す。
+    // 復元の結果もバックアップ欄も設定画面のかなり下にあり、着いた先は先頭。
+    // 復元は全置換という取り消せない操作の唯一の確認なので、そちらを優先する。
     // 上の読み込みで高さが変わるため、すべて終わってから測る。
     if (notice) {
       await tick();
       restoreSection?.scrollIntoView({ block: 'center' });
+    } else if (target === 'backup') {
+      await tick();
+      // center だと画面より高い欄は見出しが上へ外れる。start と scroll-mt で、
+      // 貼り付いたヘッダの下に見出しが来る位置へ寄せる。
+      backupSection?.scrollIntoView({ block: 'start' });
     }
   });
 
@@ -2583,7 +2591,9 @@
     </div>
   </section>
 
-  <BackupPanel />
+  <div bind:this={backupSection} class="scroll-mt-20">
+    <BackupPanel />
+  </div>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_accountant_export_title()}</h3>
