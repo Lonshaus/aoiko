@@ -94,5 +94,9 @@ jobs:
       # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
       - run: npm run test:init
 
+      # prettier は .rs を読めず、cargo test は排版を見ない。入れるまで誰も見て
+      # いなかったので、実際に 2 箇所ずれたまま既定の枝に入っていた。
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
+
       # mobile_entry_point のガードもここに入っている。
       - run: npm run test:rust
