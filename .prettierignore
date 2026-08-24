@@ -7,6 +7,7 @@ playwright-report/
 # 生成物（手で編集しない）
 src/paraglide/
 src/tax-schema/*/xtx-schema-*.generated.json
+project.inlang/.meta.json
 # shadcn-svelte vendor（CLI 再生成対象、手動整形禁止 — CLAUDE.md 参照）
 src/lib/components/ui/
 src/lib/utils.ts
