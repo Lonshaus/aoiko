@@ -36,7 +36,7 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   decimal.js@10.6.0  —  MIT
   dequal@2.0.3  —  MIT
   devalue@5.8.1  —  MIT
-  dexie@4.4.4  —  Apache-2.0
+  dexie@4.4.5  —  Apache-2.0
   encoding-japanese@2.2.0  —  MIT
   esm-env@1.2.2  —  MIT
   esrap@2.2.13  —  MIT
@@ -46,7 +46,7 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   locate-character@3.0.0  —  MIT
   lz-string@1.5.0  —  MIT
   magic-string@0.30.21  —  MIT
-  marked@18.0.9  —  MIT
+  marked@18.0.10  —  MIT
   runed@0.35.1  —  MIT
   shadcn-svelte@1.5.0  —  MIT
   style-to-object@1.0.14  —  MIT
@@ -882,7 +882,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：dexie@4.4.4
+対象：dexie@4.4.5
 
 Apache License
                            Version 2.0, January 2004
@@ -1234,7 +1234,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：marked@18.0.9
+対象：marked@18.0.10
 
 # License information
 
