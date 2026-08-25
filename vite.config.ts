@@ -11,6 +11,12 @@ import { execSync } from 'node:child_process';
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
   version: string;
 };
+// 言語の決め方。paraglide の生成物はこの並びで中身が変わる。
+const LOCALE_STRATEGY: NonNullable<Parameters<typeof paraglideVitePlugin>[0]['strategy']> = [
+  'localStorage',
+  'preferredLanguage',
+  'baseLocale',
+];
 // PWA キャッシュ版の識別用。git の無いビルド環境（tarball 展開等）でも落ちないようフォールバック
 function gitCommitShort(): string {
   try {
@@ -85,7 +91,11 @@ export default defineConfig({
     paraglideVitePlugin({
       project: './project.inlang',
       outdir: './src/paraglide',
-      strategy: ['localStorage', 'preferredLanguage', 'baseLocale'],
+      // package.json の paraglide:compile と同じ並びにする。strategy は
+      // project.inlang/settings.json に書けず、CLI と plugin がそれぞれ受け取る。
+      // 食い違うと同じ src/paraglide/ を違う意味で上書きし合う（runtime.js の
+      // TREE_SHAKE_*_STRATEGY_USED が変わる）。ずれは locale-strategy.test.ts が止める。
+      strategy: LOCALE_STRATEGY,
     }),
     svelte(),
     VitePWA({
