@@ -5,6 +5,14 @@ import type { OcrLayout } from '../domain/receipt-text-extract';
 //
 // 能力ごとに optional にしてあるのは、シェル側の実装が段階的に増えるため。オブジェクトが
 // あることと、目的の関数があることは別に確かめる。
+export type NativeDiscardText = {
+  closeMessage: string;
+  closeOk: string;
+  reloadMessage: string;
+  reloadOk: string;
+  cancel: string;
+};
+
 export type NativeBridge = {
   // 保存ダイアログを出してファイルを書く。false は利用者が取り消したことを表す。
   saveFile?(
@@ -14,6 +22,9 @@ export type NativeBridge = {
   // ネイティブのメニューへ今の表示言語を渡す。メニューは WebView の外にあり、
   // こちらのメッセージカタログを読めないため、シェル側が別の辞書を持っている。
   setUiLocale?(locale: string): Promise<void>;
+  // 未保存の破棄確認はネイティブのダイアログで出る。シェル側の初期化スクリプトは
+  // こちらのメッセージカタログを読めないので、訳した文言を渡す。渡すまでは日本語で出る。
+  setDiscardText?(text: NativeDiscardText): void;
   // 商店で売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
   // 通貨も表記も地域ごとに違うため。商店が返した文字列をそのまま出す。
   // 品目 ID は商店ごとに違う（ある環境 と ある環境 で別）ので、こちら側は kind でしか呼ばない。

@@ -8,6 +8,7 @@
 // window.__aoikoNative へ出す。プラグインごとの npm パッケージは入れず、invoke を直に叩く。
 import { invoke } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { createDiscardText } from './discard-text.js';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
@@ -40,6 +41,7 @@ async function backupFolderReady() {
 // 公開 repo の src/lib/save-file.ts から呼ぶ唯一の入口。
 // data は Uint8Array か ReadableStream。どちらもチャンクへ割って逐次書き込むので、
 // 数 GiB の zip 全体をメモリに載せない。
+const discardText = createDiscardText();
 window.__aoikoNative = {
   // デスクトップは保存ダイアログ、ある環境 はアプリの Documents 直下。どちらを通るかは
   // プラグイン側だけが決める（ある環境 には保存先を選ばせる仕組みが無い）。
@@ -52,6 +54,11 @@ window.__aoikoNative = {
   // 同じ言語なら Rust 側は何もしない。
   async setUiLocale(locale) {
     return invoke('set_ui_locale', { locale });
+  },
+
+  // 破棄確認はネイティブのダイアログで出すため、訳した文言をこちらへ渡してもらう。
+  setDiscardText(next) {
+    discardText.set(next);
   },
 
   // 取り消しは null。戻り値の token は web 側が保管するだけで、解決には使われない。
@@ -188,9 +195,9 @@ window.__aoikoRequestClose = async function () {
   if (event.defaultPrevented) {
     // 確認ダイアログもプラグイン側で出す。webview には dialog の権限を 1 つも渡していない。
     const discard = await invoke('plugin:aoiko-native|confirm_discard', {
-      message: '保存していない入力内容があります。破棄して終了しますか？',
-      okLabel: '破棄して終了',
-      cancelLabel: '編集を続ける',
+      message: discardText.get().closeMessage,
+      okLabel: discardText.get().closeOk,
+      cancelLabel: discardText.get().cancel,
     });
     if (!discard) {
       return;
@@ -211,9 +218,9 @@ window.__aoikoRequestReload = async function () {
   window.dispatchEvent(event);
   if (event.defaultPrevented) {
     const discard = await invoke('plugin:aoiko-native|confirm_discard', {
-      message: '保存していない入力内容があります。破棄して再読み込みしますか？',
-      okLabel: '破棄して再読み込み',
-      cancelLabel: '編集を続ける',
+      message: discardText.get().reloadMessage,
+      okLabel: discardText.get().reloadOk,
+      cancelLabel: discardText.get().cancel,
     });
     if (!discard) {
       return;

@@ -994,5 +994,10 @@
   "support_close": "閉じる",
   "support_open": "aoiko を支援する",
   "file_picker_choose": "ファイルを選択",
-  "ocr_native_unavailable": "この端末では OS 内蔵の文字認識を使えません。設定で別のエンジンを選んでください。"
+  "ocr_native_unavailable": "この端末では OS 内蔵の文字認識を使えません。設定で別のエンジンを選んでください。",
+  "native_discard_close_message": "保存していない入力内容があります。破棄して終了しますか？",
+  "native_discard_close_ok": "破棄して終了",
+  "native_discard_reload_message": "保存していない入力内容があります。破棄して再読み込みしますか？",
+  "native_discard_reload_ok": "破棄して再読み込み",
+  "native_discard_cancel": "編集を続ける"
 }
