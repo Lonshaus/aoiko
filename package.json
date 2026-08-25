@@ -12,7 +12,7 @@
     "prebuild": "node scripts/copy-tesseract-assets.js",
     "build": "vite build",
     "preview": "vite preview",
-    "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --silent",
+    "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy localStorage preferredLanguage baseLocale --silent",
     "check": "npm run paraglide:compile && svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
     "test": "npm run paraglide:compile && vitest run",
     "test:watch": "vitest",
