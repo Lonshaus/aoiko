@@ -995,5 +995,10 @@
   "support_close": "Close",
   "support_open": "Support aoiko",
   "file_picker_choose": "Choose file",
-  "ocr_native_unavailable": "This device cannot use the OS's built-in text recognition. Please choose another engine in Settings."
+  "ocr_native_unavailable": "This device cannot use the OS's built-in text recognition. Please choose another engine in Settings.",
+  "native_discard_close_message": "You have unsaved input. Discard it and quit?",
+  "native_discard_close_ok": "Discard and quit",
+  "native_discard_reload_message": "You have unsaved input. Discard it and reload?",
+  "native_discard_reload_ok": "Discard and reload",
+  "native_discard_cancel": "Keep editing"
 }
