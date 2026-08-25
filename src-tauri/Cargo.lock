@@ -51,6 +51,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 name = "aoiko-desktop"
 version = "1.0.0"
 dependencies = [
+ "http",
  "objc2",
  "objc2-app-kit",
  "objc2-web-kit",
@@ -63,6 +64,7 @@ dependencies = [
  "tauri-plugin-aoiko-native",
  "tauri-plugin-iap",
  "tauri-plugin-opener",
+ "url",
  "webview2-com",
  "windows-core 0.61.2",
 ]
