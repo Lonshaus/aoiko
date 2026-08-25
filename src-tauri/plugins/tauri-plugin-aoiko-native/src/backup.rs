@@ -93,7 +93,7 @@ impl OpenFiles {
 ///
 /// 書き出し先を決める手順だけ引数で受ける。AppHandle が要る部分を外へ出しておけば、
 /// 「file_name を検査してから書き出し先を決める」順序をテストで固定できる。
-/// デスクトップは保存ダイアログ、ある環境 は下の ios_export_target。
+/// デスクトップは保存ダイアログ、モバイルは下の mobile_export_target。
 pub(crate) fn export_open(
     files: &OpenFiles,
     file_name: &str,
@@ -105,12 +105,12 @@ pub(crate) fn export_open(
     };
     files.open_target(target).map(Some)
 }
-/// ある環境/ある環境 の台帳エクスポート先。保存先を選ばせる仕組みが無いので Documents 直下に固定する。
+/// モバイルの台帳エクスポート先。保存先を選ばせる仕組みが無いので Documents 直下に固定する。
 ///
 /// file_name は export_open の validate_single_segment を通ったものだけ。join は絶対パスを
 /// 渡されると documents ごと差し替えるので、区切りもドライブ指定も弾かれていることが前提。
-#[cfg(any(target_os = "ios", test))]
-pub(crate) fn ios_export_target(documents: &Path, file_name: &str) -> SafeTarget {
+#[cfg(any(target_os = "ios", target_os = "android", test))]
+pub(crate) fn mobile_export_target(documents: &Path, file_name: &str) -> SafeTarget {
     SafeTarget::from_os_chosen(documents.join(file_name))
 }
 /// [meta 長 4 バイト LE][meta JSON][本文]。aoiko_fetch と同じ枠。
@@ -422,9 +422,9 @@ mod tests {
     }
 
     #[test]
-    fn the_ios_export_target_sits_directly_under_documents() {
+    fn the_mobile_export_target_sits_directly_under_documents() {
         assert_eq!(
-            ios_export_target(Path::new("/var/mobile/Documents"), "aoiko-ledger.zip").as_path(),
+            mobile_export_target(Path::new("/var/mobile/Documents"), "aoiko-ledger.zip").as_path(),
             PathBuf::from("/var/mobile/Documents/aoiko-ledger.zip")
         );
     }
@@ -437,7 +437,7 @@ mod tests {
         // Documents の外を指す名前でもそのまま開いてしまう。
         for bad in ["../escape.zip", "/etc/passwd", "a/b.zip", "C:x", ".."] {
             let opened = export_open(&files, bad, |suggested| {
-                Ok(Some(ios_export_target(&documents, suggested)))
+                Ok(Some(mobile_export_target(&documents, suggested)))
             });
             assert!(
                 matches!(opened, Err(Error::InvalidPath(_))),
@@ -445,7 +445,7 @@ mod tests {
             );
         }
         let rid = export_open(&files, "aoiko-ledger.zip", |suggested| {
-            Ok(Some(ios_export_target(&documents, suggested)))
+            Ok(Some(mobile_export_target(&documents, suggested)))
         })
         .unwrap()
         .unwrap();

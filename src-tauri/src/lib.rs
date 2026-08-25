@@ -1,5 +1,7 @@
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use http::header::{HeaderMap, HeaderName, HeaderValue};
+use http::Method;
 use serde::{Deserialize, Serialize};
+#[cfg(not(target_os = "android"))]
 use std::sync::OnceLock;
 #[cfg(desktop)]
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
@@ -7,6 +9,7 @@ use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Manager;
 use tauri::{WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
+use url::Url;
 
 #[cfg(desktop)]
 mod menu_i18n;
@@ -175,7 +178,7 @@ fn split_frame(frame: &[u8]) -> Result<(&[u8], &[u8]), String> {
 }
 // 外向きの通信先を決める唯一の場所。capabilities の scope はプラグインのコマンドにしか効かず、
 // アプリ側で定義したこのコマンドは素通りするため、ここで自前に効かせる。
-fn is_allowed_url(url: &reqwest::Url) -> bool {
+fn is_allowed_url(url: &Url) -> bool {
     match url.scheme() {
         "https" => true,
         // 公開 repo の LOCAL_HOSTS（domain/llm.ts）と同じ集合。あちらが「この端末」とみなした
@@ -217,6 +220,7 @@ fn is_forbidden_header(name: &HeaderName) -> bool {
 }
 // 1 リクエストごとに Client を作ると root 証明書の読み込みも TLS ハンドシェイクも毎回やり直しに
 // なる。接続を使い回すため 1 個だけ持つ。
+#[cfg(not(target_os = "android"))]
 fn http_client() -> Result<&'static reqwest::Client, String> {
     static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
     CLIENT
@@ -241,42 +245,32 @@ fn http_client() -> Result<&'static reqwest::Client, String> {
 }
 
 #[tauri::command]
-async fn aoiko_fetch(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Response, String> {
+async fn aoiko_fetch(
+    app: tauri::AppHandle,
+    request: tauri::ipc::Request<'_>,
+) -> Result<tauri::ipc::Response, String> {
+    let _ = &app;
     let tauri::ipc::InvokeBody::Raw(frame) = request.body() else {
         return Err("aoiko_fetch には ArrayBuffer を渡してください".into());
     };
-    Ok(tauri::ipc::Response::new(fetch_frame(frame).await?))
+    #[cfg(target_os = "android")]
+    let out = fetch_frame(&app, frame).await?;
+    #[cfg(not(target_os = "android"))]
+    let out = fetch_frame(frame).await?;
+    Ok(tauri::ipc::Response::new(out))
 }
-// IPC の殻から切り離してあるのはテストのため。tauri::ipc::Request は組み立てられない。
-async fn fetch_frame(frame: &[u8]) -> Result<Vec<u8>, String> {
-    let (meta, body) = split_frame(frame)?;
-    let meta: FetchRequestMeta =
-        serde_json::from_slice(meta).map_err(|e| format!("meta を解釈できません: {e}"))?;
-    let url = reqwest::Url::parse(&meta.url).map_err(|e| format!("URL が不正です: {e}"))?;
-    if !is_allowed_url(&url) {
-        // Gemini は API キーを query に載せるため、URL をそのままエラー文へ入れない。
-        return Err(format!(
-            "許可されていない URL です: {}://{}",
-            url.scheme(),
-            url.host_str().unwrap_or("")
-        ));
-    }
-    let method = reqwest::Method::from_bytes(meta.method.as_bytes())
-        .map_err(|e| format!("メソッドが不正です: {e}"))?;
-    let mut headers = HeaderMap::new();
-    for (name, value) in &meta.headers {
-        let name = HeaderName::from_bytes(name.as_bytes())
-            .map_err(|e| format!("ヘッダー名が不正です: {e}"))?;
-        if is_forbidden_header(&name) {
-            continue;
-        }
-        let value =
-            HeaderValue::from_str(value).map_err(|e| format!("ヘッダー値が不正です: {e}"))?;
-        headers.append(name, value);
-    }
+// 検査を通った要求を実際に送る。ここだけが platform で分かれ、allowlist も禁止ヘッダーも
+// 呼び出し側に残る。
+#[cfg(not(target_os = "android"))]
+async fn send(
+    method: Method,
+    url: Url,
+    headers: HeaderMap,
+    body: Vec<u8>,
+) -> Result<(FetchResponseMeta, Vec<u8>), String> {
     let mut builder = http_client()?.request(method, url).headers(headers);
     if !body.is_empty() {
-        builder = builder.body(body.to_vec());
+        builder = builder.body(body);
     }
     // reqwest のエラー文には URL がそのまま入る。API キーごとログや画面へ流れないよう落とす。
     let response = builder
@@ -300,6 +294,114 @@ async fn fetch_frame(frame: &[u8]) -> Result<Vec<u8>, String> {
         .bytes()
         .await
         .map_err(|e| e.without_url().to_string())?;
+    Ok((meta, body.to_vec()))
+}
+// ある環境 は system TLS を Rust から借りられないので、送信だけ ネイティブ側 へ渡す。
+// リダイレクトは ネイティブ側 側で追わせず、1 跳ごとにここへ戻して allowlist に掛ける。
+#[cfg(target_os = "android")]
+async fn send(
+    app: &tauri::AppHandle,
+    method: Method,
+    url: Url,
+    headers: HeaderMap,
+    body: Vec<u8>,
+) -> Result<(FetchResponseMeta, Vec<u8>), String> {
+    use tauri_plugin_aoiko_native::{AoikoNativeExt, HttpRequest};
+    let mut url = url;
+    // 打ち切り回数は reqwest の既定と同じ 10 回。
+    for _ in 0..=10 {
+        let sent = app
+            .aoiko_native()
+            .http_send(HttpRequest {
+                method: method.as_str().to_string(),
+                url: url.to_string(),
+                headers: headers
+                    .iter()
+                    .filter_map(|(name, value)| {
+                        Some((name.as_str().to_string(), value.to_str().ok()?.to_string()))
+                    })
+                    .collect(),
+                body: body.clone(),
+            })
+            .map_err(|e| e.to_string())?;
+        let Some(location) = redirect_target(sent.status, &sent.headers) else {
+            return Ok((
+                FetchResponseMeta {
+                    status: sent.status,
+                    status_text: canonical_reason(sent.status),
+                    headers: sent.headers,
+                },
+                sent.body,
+            ));
+        };
+        let next = url
+            .join(&location)
+            .map_err(|_| "リダイレクト先が不正です".to_string())?;
+        if !is_allowed_url(&next) {
+            return Err(format!(
+                "許可されていない URL です: {}://{}",
+                next.scheme(),
+                next.host_str().unwrap_or("")
+            ));
+        }
+        url = next;
+    }
+    Err("リダイレクトが多すぎます".into())
+}
+// 追うべき転送かどうか。Location が無い 3xx は本文がそのまま応答なので追わない。
+#[cfg(target_os = "android")]
+fn redirect_target(status: u16, headers: &[(String, String)]) -> Option<String> {
+    if !(300..400).contains(&status) {
+        return None;
+    }
+    headers
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("location"))
+        .map(|(_, value)| value.clone())
+}
+// reqwest の canonical_reason に相当。JS の Response.statusText へそのまま載る。
+#[cfg(target_os = "android")]
+fn canonical_reason(status: u16) -> String {
+    http::StatusCode::from_u16(status)
+        .ok()
+        .and_then(|s| s.canonical_reason())
+        .unwrap_or_default()
+        .to_string()
+}
+// IPC の殻から切り離してあるのはテストのため。tauri::ipc::Request は組み立てられない。
+async fn fetch_frame(
+    #[cfg(target_os = "android")] app: &tauri::AppHandle,
+    frame: &[u8],
+) -> Result<Vec<u8>, String> {
+    let (meta, body) = split_frame(frame)?;
+    let meta: FetchRequestMeta =
+        serde_json::from_slice(meta).map_err(|e| format!("meta を解釈できません: {e}"))?;
+    let url = Url::parse(&meta.url).map_err(|e| format!("URL が不正です: {e}"))?;
+    if !is_allowed_url(&url) {
+        // Gemini は API キーを query に載せるため、URL をそのままエラー文へ入れない。
+        return Err(format!(
+            "許可されていない URL です: {}://{}",
+            url.scheme(),
+            url.host_str().unwrap_or("")
+        ));
+    }
+    let method = Method::from_bytes(meta.method.as_bytes())
+        .map_err(|e| format!("メソッドが不正です: {e}"))?;
+    let mut headers = HeaderMap::new();
+    for (name, value) in &meta.headers {
+        let name = HeaderName::from_bytes(name.as_bytes())
+            .map_err(|e| format!("ヘッダー名が不正です: {e}"))?;
+        if is_forbidden_header(&name) {
+            continue;
+        }
+        let value =
+            HeaderValue::from_str(value).map_err(|e| format!("ヘッダー値が不正です: {e}"))?;
+        headers.append(name, value);
+    }
+    #[cfg(target_os = "android")]
+    let (meta, body) = send(app, method, url, headers, body.to_vec()).await?;
+    #[cfg(not(target_os = "android"))]
+    let (meta, body) = send(method, url, headers, body.to_vec()).await?;
     let meta = serde_json::to_vec(&meta).map_err(|e| e.to_string())?;
     let mut frame = Vec::with_capacity(4 + meta.len() + body.len());
     frame.extend_from_slice(&(meta.len() as u32).to_le_bytes());
@@ -504,8 +606,8 @@ pub fn run() {
         // コマンドだけで、そちらは開く場所も文面も webview から指定できない。
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_aoiko_native::init())
-        // 支援（アプリ内購入）。配る 3 つの環境（ある環境 / ある環境 / ある環境）にしか依存を入れて
-        // いないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
+        // 支援（アプリ内購入）。配る 4 つの環境（ある環境 / ある環境 / ある環境 / ある環境）にしか依存を
+        // 入れていないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
         .plugin(tauri_plugin_iap::init())
         .invoke_handler(tauri::generate_handler![
             aoiko_fetch,
@@ -655,7 +757,7 @@ mod tests {
 
     #[test]
     fn allows_only_https_and_loopback() {
-        let allowed = |u: &str| is_allowed_url(&reqwest::Url::parse(u).unwrap());
+        let allowed = |u: &str| is_allowed_url(&url::Url::parse(u).unwrap());
         assert!(allowed(
             "https://generativelanguage.googleapis.com/v1beta/x"
         ));

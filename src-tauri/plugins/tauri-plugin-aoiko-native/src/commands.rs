@@ -7,6 +7,8 @@ use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
 use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
+#[cfg(target_os = "android")]
+use crate::android::AoikoNativeExt;
 #[cfg(target_os = "ios")]
 use crate::ios::AoikoNativeExt;
 // (async) が要る。同期コマンドはメインスレッドで走り、選択ダイアログも run_mobile_plugin も
@@ -26,7 +28,7 @@ pub(crate) fn pick_folder<R: Runtime>(app: AppHandle<R>) -> Result<Option<Picked
     }))
 }
 
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     let Some(picked) = app.aoiko_native().pick_folder()? else {
         return Ok(None);
@@ -37,7 +39,7 @@ fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     }))
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     let Some(dir) = crate::desktop::pick_folder(app) else {
         return Ok(None);
@@ -83,7 +85,7 @@ fn resolved_dir<R: Runtime>(app: &AppHandle<R>) -> Option<(String, PathBuf)> {
     dir.is_dir().then_some((path, dir))
 }
 
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 fn resolve<R: Runtime>(app: &AppHandle<R>, handle: &str) -> Option<String> {
     app.aoiko_native()
         .resolve_bookmark(handle.to_string())
@@ -91,7 +93,7 @@ fn resolve<R: Runtime>(app: &AppHandle<R>, handle: &str) -> Option<String> {
         .path
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn resolve<R: Runtime>(_app: &AppHandle<R>, handle: &str) -> Option<String> {
     Some(
         crate::desktop::resolve(handle)?
@@ -109,11 +111,11 @@ fn to_file_path(path: &str) -> std::path::PathBuf {
 
 #[tauri::command(async)]
 pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().print_page()
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = app;
         Err(Error::UnsupportedPlatform)
@@ -127,7 +129,7 @@ pub(crate) fn recognize_text<R: Runtime>(
     app: AppHandle<R>,
     image_base64: String,
 ) -> Result<RecognizedText> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().recognize_text(image_base64)
     }
@@ -149,7 +151,12 @@ pub(crate) fn recognize_text<R: Runtime>(
             .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
         crate::desktop::recognize_text(&bytes)
     }
-    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(
+        target_os = "ios",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "windows"
+    )))]
     {
         let _ = (app, image_base64);
         Err(Error::UnsupportedPlatform)
@@ -160,11 +167,11 @@ pub(crate) fn recognize_text<R: Runtime>(
 // 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
 #[tauri::command(async)]
 pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().is_text_recognition_available()
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = &app;
         crate::desktop::is_text_recognition_available()
@@ -173,11 +180,11 @@ pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bo
 
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().open_in_app(url)
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = (app, url);
         Err(Error::UnsupportedPlatform)
@@ -193,7 +200,7 @@ pub(crate) fn confirm_discard<R: Runtime>(
     ok_label: String,
     cancel_label: String,
 ) -> Result<bool> {
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         Ok(crate::desktop::confirm_discard(
             window,
@@ -205,7 +212,7 @@ pub(crate) fn confirm_discard<R: Runtime>(
     }
     // ある環境/ある環境 はウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
     // __aoikoRequestClose / __aoikoRequestReload へ届く経路が存在しない。
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         let _ = (window, message, ok_label, cancel_label);
         Err(Error::UnsupportedPlatform)
@@ -296,7 +303,7 @@ pub(crate) fn export_open<R: Runtime>(app: AppHandle<R>, file_name: String) -> R
 }
 // 保存ダイアログを開くのはここだけ。webview からは呼べない（JS が渡せるのは初期ファイル名
 // だけで、保存ダイアログ自体を開くコマンドは無い）。取り消しは Ok(None)。
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Option<SafeTarget>> {
     // 利用者がダイアログで指した先。IPC を通っていないので配下の検査は掛けない（掛けると
     // バックアップフォルダの外へ書き出せなくなる）。
@@ -306,13 +313,13 @@ fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Opti
 // 書き出す（plugins-workspace#1763）。アプリの Documents 直下へ固定し、Info.ios.plist の
 // UIFileSharingEnabled で「ファイル」アプリから取り出してもらう。選ばせないので
 // 取り消しも起きず、常に Some を返す。
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Option<SafeTarget>> {
     let documents = app
         .path()
         .document_dir()
         .map_err(|e| Error::Io(e.to_string()))?;
-    Ok(Some(backup::ios_export_target(&documents, file_name)))
+    Ok(Some(backup::mobile_export_target(&documents, file_name)))
 }
 
 #[tauri::command(async)]
