@@ -23,6 +23,8 @@ const PLATFORM: &str = if cfg!(target_os = "macos") {
     "ios"
 } else if cfg!(target_os = "windows") {
     "windows"
+} else if cfg!(target_os = "android") {
+    "android"
 } else {
     "other"
 };
@@ -53,6 +55,16 @@ const RELOAD_SCRIPT: &str = r#"
 // JS から明示的に呼ぶ必要がある。destroy() は CloseRequested を再発火しない。
 #[tauri::command]
 fn force_close(window: tauri::WebviewWindow) {
+    // ある環境 の destroy() は webview を畳むだけで Activity は残る。BACK で終了するには
+    // Activity 自体を終わらせる必要がある。
+    #[cfg(target_os = "android")]
+    {
+        use tauri::Manager;
+        use tauri_plugin_aoiko_native::AoikoNativeExt;
+        if window.app_handle().aoiko_native().close_app().is_ok() {
+            return;
+        }
+    }
     let _ = window.destroy();
 }
 // 題名欄と Alt+Tab のアイコンは exe に埋めた .ico が既定で、1 枚しか持てない。座布団なしの猫は
@@ -71,11 +83,11 @@ fn apply_titlebar_icon(window: &tauri::WebviewWindow) {
     };
     let _ = window.set_icon(tauri::image::Image::new(rgba, SIDE, SIDE));
 }
-// src-init/index.js が印刷と外部リンクの実装を出し分けるためのフラグ。ある環境/ある環境 だけ
+// src-init/index.js が印刷と外部リンクの実装を出し分けるためのフラグ。モバイルだけ
 // plugin-aoiko-native の print_page / open_in_app へ回す。
 #[tauri::command]
-fn is_ios() -> bool {
-    cfg!(target_os = "ios")
+fn is_mobile() -> bool {
+    cfg!(any(target_os = "ios", target_os = "android"))
 }
 // web view 上の window.print() は例外を投げる（tauri#3066）。印刷スタイルは公開 repo に
 // 揃っているので、出力そのものはネイティブの印刷機構へ渡せばよい。
@@ -237,6 +249,10 @@ fn http_client() -> Result<&'static reqwest::Client, String> {
                         attempt.follow()
                     }
                 }))
+                // 既定は無制限。応答の来ない相手に当たると支援画面や OCR がそのまま
+                // 戻らなくなる。ある環境 側（HttpSend.kt）と同じ値にしておく。
+                .connect_timeout(std::time::Duration::from_secs(30))
+                .read_timeout(std::time::Duration::from_secs(120))
                 .build()
                 .map_err(|e| e.to_string())
         })
@@ -250,8 +266,25 @@ async fn aoiko_fetch(
     request: tauri::ipc::Request<'_>,
 ) -> Result<tauri::ipc::Response, String> {
     let _ = &app;
-    let tauri::ipc::InvokeBody::Raw(frame) = request.body() else {
-        return Err("aoiko_fetch には ArrayBuffer を渡してください".into());
+    // ある環境 の IPC は addJavascriptInterface の String 一本で、request body を運べない
+    // （ある環境 の WebResourceRequest 自体に無い）。backup_write_chunk と同じく base64 も受ける。
+    // 数字の配列だと 3.57 倍に膨らみ、画像を載せたときに Java 側の文字列が持たない。
+    let decoded;
+    let frame: &[u8] = match request.body() {
+        tauri::ipc::InvokeBody::Raw(frame) => frame,
+        tauri::ipc::InvokeBody::Json(value) => {
+            #[derive(Deserialize)]
+            struct Base64Frame {
+                b64: String,
+            }
+            let parsed: Base64Frame = serde_json::from_value(value.clone())
+                .map_err(|_| "aoiko_fetch には ArrayBuffer を渡してください".to_string())?;
+            use base64::{engine::general_purpose::STANDARD, Engine};
+            decoded = STANDARD
+                .decode(parsed.b64.as_bytes())
+                .map_err(|e| format!("base64 を解けません: {e}"))?;
+            &decoded
+        }
     };
     #[cfg(target_os = "android")]
     let out = fetch_frame(&app, frame).await?;
@@ -612,7 +645,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             aoiko_fetch,
             force_close,
-            is_ios,
+            is_mobile,
             print_page,
             set_ui_locale
         ])

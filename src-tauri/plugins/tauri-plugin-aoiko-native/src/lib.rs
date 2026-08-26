@@ -217,6 +217,7 @@ impl RecognizedText {
 pub(crate) struct Resolved(Mutex<Option<(String, String)>>);
 
 impl Resolved {
+    #[cfg(not(target_os = "android"))]
     fn get(&self, handle: &str) -> Option<String> {
         let held = self.0.lock().ok()?;
         held.as_ref()
@@ -224,6 +225,7 @@ impl Resolved {
             .map(|(_, path)| path.clone())
     }
 
+    #[cfg(not(target_os = "android"))]
     fn set(&self, handle: &str, path: &str) {
         if let Ok(mut held) = self.0.lock() {
             *held = Some((handle.to_string(), path.to_string()));

@@ -32,9 +32,12 @@
     "ios:prepare": "node scripts/prepare-ios.mjs",
     "ios:dev": "npm run init:bundle && npm run ios:prepare && tauri ios dev",
     "ios:build": "npm run init:bundle && npm run ios:prepare && node scripts/build-frontend.mjs && tauri ios build",
+    "android:dev": "npm run init:bundle && tauri android dev",
+    "android:build": "npm run init:bundle && node scripts/build-frontend.mjs android && tauri android build",
     "test:init": "node --test \"src-init/*.test.js\"",
     "test:rust": "npm run init:bundle && cargo test --manifest-path src-tauri/Cargo.toml -p aoiko-desktop -p tauri-plugin-aoiko-native",
     "check:ios": "IPHONEOS_DEPLOYMENT_TARGET=16.4 cargo check --target aarch64-apple-ios --manifest-path src-tauri/Cargo.toml -p tauri-plugin-aoiko-native -p aoiko-desktop",
+    "check:android": "cargo check --target aarch64-linux-android --manifest-path src-tauri/Cargo.toml -p tauri-plugin-aoiko-native -p aoiko-desktop",
     "licenses:native:generate": "node scripts/gen-native-licenses.mjs",
     "licenses:native:check": "node scripts/gen-native-licenses.mjs --check",
     "dev:native": "node scripts/dev-native.mjs"

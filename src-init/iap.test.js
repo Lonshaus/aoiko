@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   createIap,
+  isPendingStatus,
   kindFor,
+  needsAcknowledge,
   productIdsFor,
   purchaseResultOf,
   purchaseResultOfError,
@@ -23,8 +25,8 @@ function fakeInvoke(handlers) {
   return { invoke, calls };
 }
 
-test('3 つの商店とも品目は 2 つだけ', () => {
-  for (const platform of ['macos', 'ios', 'windows']) {
+test('4 つの商店とも品目は 2 つだけ', () => {
+  for (const platform of ['macos', 'ios', 'windows', 'android']) {
     assert.deepEqual(Object.keys(productIdsFor(platform)), ['tip', 'supporter-badge']);
   }
 });
@@ -35,9 +37,14 @@ test('商店ごとに品目 ID が分かれている', () => {
   assert.equal(productIdsFor('windows').tip, 'net.lonshaus.aoiko.win.tip');
   assert.equal(productIdsFor('macos')['supporter-badge'], 'net.lonshaus.aoiko.mac.supporterbadge');
   assert.equal(productIdsFor('ios')['supporter-badge'], 'net.lonshaus.aoiko.ios.supporterbadge');
+  assert.equal(productIdsFor('android').tip, 'net.lonshaus.aoiko.android.tip');
   assert.equal(
     productIdsFor('windows')['supporter-badge'],
     'net.lonshaus.aoiko.win.supporterbadge',
+  );
+  assert.equal(
+    productIdsFor('android')['supporter-badge'],
+    'net.lonshaus.aoiko.android.supporterbadge',
   );
 });
 
@@ -196,13 +203,171 @@ test('知らない kind では商店を呼ばない', async () => {
 test('復元で戻すのは非消耗型だけ', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|restore_purchases': () => ({
+      // 3 つの商店とも purchaseState と isAcknowledged を必ず載せて返す。
       purchases: [
-        { productId: 'net.lonshaus.aoiko.mac.tip' },
-        { productId: 'net.lonshaus.aoiko.mac.supporterbadge' },
-        { productId: 'net.lonshaus.aoiko.ios.supporterbadge' },
+        { productId: 'net.lonshaus.aoiko.mac.tip', purchaseState: 0, isAcknowledged: true },
+        {
+          productId: 'net.lonshaus.aoiko.mac.supporterbadge',
+          purchaseState: 0,
+          isAcknowledged: true,
+        },
+        {
+          productId: 'net.lonshaus.aoiko.ios.supporterbadge',
+          purchaseState: 0,
+          isAcknowledged: true,
+        },
       ],
     }),
   });
   const iap = createIap(invoke, 'macos');
   assert.deepEqual(await iap.restoreIapPurchases(), ['supporter-badge']);
+});
+
+// Play は非消耗型を 3 日以内に acknowledge しないと自動で返金する。実機でも 3 日待たないと
+// 気付けないので、呼び出しの有無をここで固定する。
+const PLAY_DEPS = { sleep: async () => {}, backFromStore: async () => {} };
+
+test('acknowledge の要否は isAcknowledged で決まる', () => {
+  assert.equal(needsAcknowledge({ isAcknowledged: false, purchaseToken: 'tok' }), true);
+  assert.equal(needsAcknowledge({ isAcknowledged: true, purchaseToken: 'tok' }), false);
+  // 商店 は isAcknowledged を返さない。undefined を「未承認」と読むと毎回呼んでしまう。
+  assert.equal(needsAcknowledge({ purchaseToken: 'tok' }), false);
+  assert.equal(needsAcknowledge({ isAcknowledged: false }), false);
+});
+
+test('Play の非消耗型は acknowledge する', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|purchase': () => ({
+      purchaseState: 0,
+      purchaseToken: 'tok-ack',
+      isAcknowledged: false,
+    }),
+    'plugin:iap|acknowledge_purchase': () => undefined,
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.equal(await iap.purchaseIap('supporter-badge'), 'purchased');
+  assert.equal(calls[1].cmd, 'plugin:iap|acknowledge_purchase');
+  assert.equal(calls[1].args.payload.purchaseToken, 'tok-ack');
+});
+
+test('承認済みなら acknowledge を呼ばない', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|purchase': () => ({
+      purchaseState: 0,
+      purchaseToken: 'tok-done',
+      isAcknowledged: true,
+    }),
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.equal(await iap.purchaseIap('supporter-badge'), 'purchased');
+  assert.equal(calls.length, 1);
+});
+
+// 商店 と 商店 に acknowledge は無く、プラグインは no-op か拒否を返す。
+test('Play 以外では acknowledge を呼ばない', async () => {
+  for (const platform of ['macos', 'ios', 'windows']) {
+    const { invoke, calls } = fakeInvoke({
+      'plugin:iap|purchase': () => ({
+        purchaseState: 0,
+        purchaseToken: 'tok',
+        isAcknowledged: false,
+      }),
+    });
+    const iap = createIap(invoke, platform);
+    await iap.purchaseIap('supporter-badge');
+    assert.equal(calls.length, 1, platform);
+  }
+});
+
+test('Play の消耗型は consume だけで acknowledge を重ねない', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|purchase': () => ({
+      purchaseState: 0,
+      purchaseToken: 'tok-tip',
+      isAcknowledged: false,
+    }),
+    'plugin:iap|consume_purchase': () => undefined,
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.equal(await iap.purchaseIap('tip'), 'purchased');
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].cmd, 'plugin:iap|consume_purchase');
+});
+
+// プラグインの handlePurchase は PURCHASED のときしか応じない。保留のままだと
+// purchase の約束が解決も拒否もされず、支援画面が押したまま戻らなくなる。
+test('保留は purchase が決着しなくても pending になる', async () => {
+  const { invoke } = fakeInvoke({
+    'plugin:iap|purchase': () => new Promise(() => {}),
+    'plugin:iap|get_product_status': () => ({ isOwned: true, purchaseState: 2 }),
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.equal(await iap.purchaseIap('tip'), 'pending');
+});
+
+test('保留が見えないまま上限に達したら理由を付けて投げる', async () => {
+  const { invoke } = fakeInvoke({
+    'plugin:iap|purchase': () => new Promise(() => {}),
+    'plugin:iap|get_product_status': () => {
+      throw new Error('Billing client not ready');
+    },
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  await assert.rejects(
+    () => iap.purchaseIap('tip'),
+    /確認できませんでした.*Billing client not ready/,
+  );
+});
+
+test('保留の見張りは購入が決着したら商店を叩き続けない', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|purchase': () => ({ purchaseState: 0, purchaseToken: 'tok', isAcknowledged: true }),
+    'plugin:iap|get_product_status': () => ({ isOwned: false }),
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.equal(await iap.purchaseIap('supporter-badge'), 'purchased');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.ok(
+    calls.filter((c) => c.cmd === 'plugin:iap|get_product_status').length <= 1,
+    '決着後も問い合わせ続けている',
+  );
+});
+
+test('isPendingStatus は保有していない品目を保留と読まない', () => {
+  assert.equal(isPendingStatus({ isOwned: true, purchaseState: 2 }), true);
+  assert.equal(isPendingStatus({ isOwned: true, purchaseState: 0 }), false);
+  assert.equal(isPendingStatus({ isOwned: false, purchaseState: 2 }), false);
+  assert.equal(isPendingStatus(undefined), false);
+});
+
+// 支払い前にバッジが点くと、返金された後も点いたままになる。
+test('復元は保留の購入を持ち物に数えない', async () => {
+  const { invoke } = fakeInvoke({
+    'plugin:iap|restore_purchases': () => ({
+      purchases: [{ productId: 'net.lonshaus.aoiko.android.supporterbadge', purchaseState: 2 }],
+    }),
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.deepEqual(await iap.restoreIapPurchases(), []);
+});
+
+// 購入の途中でアプリが落ちると購入直後の acknowledge が飛ぶ。ここが最後の受け皿。
+test('復元で未承認の非消耗型を見つけたら acknowledge する', async () => {
+  const { invoke, calls } = fakeInvoke({
+    'plugin:iap|restore_purchases': () => ({
+      purchases: [
+        {
+          productId: 'net.lonshaus.aoiko.android.supporterbadge',
+          purchaseState: 0,
+          purchaseToken: 'tok-late',
+          isAcknowledged: false,
+        },
+      ],
+    }),
+    'plugin:iap|acknowledge_purchase': () => undefined,
+  });
+  const iap = createIap(invoke, 'android', PLAY_DEPS);
+  assert.deepEqual(await iap.restoreIapPurchases(), ['supporter-badge']);
+  assert.equal(calls[1].cmd, 'plugin:iap|acknowledge_purchase');
+  assert.equal(calls[1].args.payload.purchaseToken, 'tok-late');
 });
