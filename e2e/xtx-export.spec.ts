@@ -34,9 +34,8 @@ test('UIで播種した仕訳が .xtx 出力に反映され、年・売上・経
   await page.goto('/');
   await acceptDisclaimer(page);
 
-  // 申告者情報（IT部 必須）が欠けると downloadXtx は lockError を出して中断するため、先に播種する。
-  // これは検証対象（仕訳→数字）ではない前提設定なので、UI フォームの税務署コンボボックス等を
-  // 避けて設定テーブルへ直接入れる。ponytail: 前提設定は最短経路で、検証は本物のフローで。
+  // 申告者情報（IT部 必須）が欠けると downloadXtx は lockError を出して中断する。ここは
+  // 検証対象（仕訳→数字）ではない前提設定なので、UI を通さず設定テーブルへ直接入れる。
   await page.evaluate(async () => {
     await new Promise<void>((resolve, reject) => {
       const req = indexedDB.open('aoiko');
