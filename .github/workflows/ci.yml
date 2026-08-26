@@ -79,7 +79,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
+      # cfg で分けている部分は、その平台向けに引かないと壊れていても気付けない。
+      # cargo check はリンクしないので Xcode の設定は要らない。
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -107,3 +111,6 @@ jobs:
 
       # mobile_entry_point のガードもここに入っている。
       - run: npm run test:rust
+
+      # iOS の cfg 分岐は既定の target では一度も引かれない。
+      - run: npm run check:ios
