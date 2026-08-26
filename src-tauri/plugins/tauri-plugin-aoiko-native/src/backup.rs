@@ -3,6 +3,8 @@
 //
 // 実処理は base: &Path を取る素の関数に置いてある。tauri::command は AppHandle が要り
 // テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄い殻にする。
+// ある環境 は SAF 経由で ネイティブ側 側が入出力を持つので、この module のパス操作は通らない。
+#![cfg_attr(target_os = "android", allow(dead_code))]
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{ErrorKind, Write};
@@ -109,7 +111,7 @@ pub(crate) fn export_open(
 ///
 /// file_name は export_open の validate_single_segment を通ったものだけ。join は絶対パスを
 /// 渡されると documents ごと差し替えるので、区切りもドライブ指定も弾かれていることが前提。
-#[cfg(any(target_os = "ios", target_os = "android", test))]
+#[cfg(any(target_os = "ios", test))]
 pub(crate) fn mobile_export_target(documents: &Path, file_name: &str) -> SafeTarget {
     SafeTarget::from_os_chosen(documents.join(file_name))
 }
@@ -123,6 +125,16 @@ fn frame(meta: &[u8], body: &[u8]) -> Vec<u8> {
     framed.extend_from_slice(meta);
     framed.extend_from_slice(body);
     framed
+}
+
+/// SAF から読んだ本文を read と同じ枠に載せる。ある環境 はパスで開けないので
+/// 読み出しそのものは ネイティブ側 側にあり、枠だけこちらで揃える。
+#[cfg(target_os = "android")]
+pub(crate) fn frame_reply(body: Option<Vec<u8>>) -> Vec<u8> {
+    match body {
+        Some(body) => frame(META_FOUND, &body),
+        None => frame(META_NOT_FOUND, &[]),
+    }
 }
 
 pub(crate) fn read(base: &Path, rel_path: &str) -> Result<Vec<u8>> {

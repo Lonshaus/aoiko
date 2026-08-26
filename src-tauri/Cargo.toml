@@ -16,6 +16,8 @@ tauri-build = { version = "2", features = [] }
 png = { version = "0.18", default-features = false }
 
 [dependencies]
+# Android では IPC が生バイトを運べず、aoiko_fetch が base64 で受け取る。
+base64 = "0.22"
 # aoiko_fetch が扱う型。reqwest が再輸出しているのと同じ実体で、Android では
 # reqwest を入れないためここで直に持つ。
 http = "1"

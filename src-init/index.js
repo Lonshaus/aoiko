@@ -23,12 +23,12 @@ function isExternal(url) {
 
 // 印刷とリンクの扱いだけプラットフォームで分ける。値は起動後変わらないため
 // 一度だけ問い合わせて使い回す。
-let isIosCache;
-async function isIos() {
-  if (isIosCache === undefined) {
-    isIosCache = await invoke('is_ios');
+let isMobileCache;
+async function isMobile() {
+  if (isMobileCache === undefined) {
+    isMobileCache = await invoke('is_mobile');
   }
-  return isIosCache;
+  return isMobileCache;
 }
 // バックアップフォルダ（issue #38）。選択も記録も解決も、その配下の読み書きも
 // plugin-aoiko-native が持つ。こちらから場所を指定する手段が無いのが要点で、渡せるのは
@@ -104,13 +104,45 @@ Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ??
 // 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
 
+// ある環境 の IPC は生バイトを運べず、ArrayBuffer が JSON 化されて届かない。file-io.js の
+// チャンク送信と同じく、駄目だった経路は覚えて以後 base64 で載せる（膨張 1.33 倍。
+// 数字の配列は 3.57 倍で、領収書の画像を載せると持たない）。
+let rawFramesUnavailable = false;
+
+function frameToBase64(frame) {
+  let binary = '';
+  const STEP = 0x8000;
+  for (let offset = 0; offset < frame.length; offset += STEP) {
+    binary += String.fromCharCode(...frame.subarray(offset, offset + STEP));
+  }
+  return btoa(binary);
+}
+
+async function sendFrame(frame) {
+  if (!rawFramesUnavailable) {
+    try {
+      return await invoke('aoiko_fetch', frame);
+    } catch (rawError) {
+      // 経路が変わっただけなのか、本当に送れないのかはここでは区別できない。載せ方を
+      // 変えて一度だけ試し、それも駄目なら最初の失敗をそのまま返す。
+      try {
+        const reply = await invoke('aoiko_fetch', { b64: frameToBase64(frame) });
+        rawFramesUnavailable = true;
+        return reply;
+      } catch {
+        throw rawError;
+      }
+    }
+  }
+  return invoke('aoiko_fetch', { b64: frameToBase64(frame) });
+}
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
 //    同一 origin の取得（tesseract の worker・wasm・traineddata 等）は素のまま通す。
 async function rawIpcFetch(req, body) {
   let reply;
   try {
-    reply = new Uint8Array(await invoke('aoiko_fetch', frameRequest(requestMeta(req), body)));
+    reply = new Uint8Array(await sendFrame(frameRequest(requestMeta(req), body)));
   } catch (e) {
     // 素の fetch は通信の失敗を TypeError で投げる。公開 repo の判定（describeLlmError）が
     // それ前提で書かれているので、invoke の拒否をここで同じ形に揃える。
@@ -176,10 +208,11 @@ document.addEventListener(
   },
   true,
 );
-// ある環境/ある環境 は SFあるブラウザViewController でアプリの上に重ねる。あるブラウザ へ飛ばすと
-// アプリごと切り替わり、戻るのに手数が要る。mailto:/tel: は対象外なので OS へ渡す。
+// モバイルはアプリ内ブラウザで上に重ねる（ある環境 は SFあるブラウザViewController、ある環境 は
+// アプリ内ブラウザ）。外のブラウザへ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
+// mailto:/tel: は対象外なので OS へ渡す。
 async function openExternal(url, isMail) {
-  if (!isMail && (await isIos())) {
+  if (!isMail && (await isMobile())) {
     await invoke('plugin:aoiko-native|open_in_app', { url: url.href });
     return;
   }
@@ -233,9 +266,9 @@ window.__aoikoRequestReload = async function () {
 //    印刷スタイルは公開 repo に揃っているので、出力は web view 自身に描かせる。
 window.print = function () {
   void (async () => {
-    // デスクトップの print_page は web view / web view をそれぞれ直接叩く実装で、
-    // ある環境 には無い。ある環境 は plugin 側の UIPrintInteractionController へ回す。
-    await invoke((await isIos()) ? 'plugin:aoiko-native|print_page' : 'print_page');
+    // デスクトップの print_page は web view / web view を直接叩く実装で、モバイルには
+    // 無い。plugin 側の UIPrintInteractionController / PrintManager へ回す。
+    await invoke((await isMobile()) ? 'plugin:aoiko-native|print_page' : 'print_page');
   })();
 };
 // 5. 永続化ストレージの判定をこの環境の実情に合わせる。web view の persist() は免除リスト

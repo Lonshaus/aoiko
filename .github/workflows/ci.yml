@@ -80,10 +80,10 @@ jobs:
           cache: npm
 
       # cfg で分けている部分は、その平台向けに引かないと壊れていても気付けない。
-      # cargo check はリンクしないので Xcode の設定は要らない。
+      # cargo check はリンクしないので NDK も Xcode の設定も要らない。
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios
+          targets: aarch64-apple-ios, aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -114,3 +114,6 @@ jobs:
 
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios
+
+      # Android も同じ。
+      - run: npm run check:android
