@@ -13,6 +13,7 @@ import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
+import { createNativeCamera } from './native-camera.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -103,6 +104,8 @@ window.__aoikoNative = {
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
 // 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
+// 撮影の入口も同じ形。相機へ回せるのは ある環境 だけで、他は関数ごと生えない。
+Object.assign(window.__aoikoNative, createNativeCamera(invoke, window.__aoikoPlatform) ?? {});
 
 // ある環境 の IPC は生バイトを運べず、ArrayBuffer が JSON 化されて届かない。file-io.js の
 // チャンク送信と同じく、駄目だった経路は覚えて以後 base64 で載せる（膨張 1.33 倍。

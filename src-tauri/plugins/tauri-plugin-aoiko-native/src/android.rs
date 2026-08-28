@@ -152,6 +152,13 @@ impl<R: Runtime> AoikoNative<R> {
             .unwrap_or(false)
     }
 
+    // 相機の無い端末で押せないボタンを生やさないための問い合わせ。
+    pub fn is_camera_available(&self) -> bool {
+        self.0
+            .run_mobile_plugin("isCameraAvailable", ())
+            .unwrap_or(false)
+    }
+
     pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
         self.0
             .run_mobile_plugin(

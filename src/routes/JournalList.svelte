@@ -684,6 +684,7 @@
                         accept="image/*"
                         onchange={handleAttachmentFile}
                         onclick={(e: MouseEvent) => e.stopPropagation()}
+                        camera
                       />
                       {#if attachmentError}
                         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>

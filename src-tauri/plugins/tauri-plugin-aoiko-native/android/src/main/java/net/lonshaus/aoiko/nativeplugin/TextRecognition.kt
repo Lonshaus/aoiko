@@ -26,14 +26,17 @@ object TextRecognizer {
 
     fun recognize(
         bitmap: Bitmap,
+        rotationDegrees: Int,
         onSuccess: (JSONObject) -> Unit,
         onFailure: (String) -> Unit,
     ) {
         val recognizer =
             TextRecognition.getClient(JapaneseTextRecognizerOptions.Builder().build())
-        val image = InputImage.fromBitmap(bitmap, 0)
-        val width = bitmap.width.toDouble()
-        val height = bitmap.height.toDouble()
+        val image = InputImage.fromBitmap(bitmap, rotationDegrees)
+        // 座標は回した後の枠で返るので、正規化に使う縦横も入れ替える。
+        val turned = rotationDegrees == 90 || rotationDegrees == 270
+        val width = (if (turned) bitmap.height else bitmap.width).toDouble()
+        val height = (if (turned) bitmap.width else bitmap.height).toDouble()
         recognizer
             .process(image)
             .addOnSuccessListener { text ->
