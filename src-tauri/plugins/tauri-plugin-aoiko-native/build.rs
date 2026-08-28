@@ -13,6 +13,7 @@ const COMMANDS: &[&str] = &[
     "export_open",
     "recognize_text",
     "is_text_recognition_available",
+    "is_camera_available",
 ];
 
 fn main() {

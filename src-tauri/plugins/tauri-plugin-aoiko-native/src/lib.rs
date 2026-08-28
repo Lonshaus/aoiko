@@ -256,6 +256,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::export_open,
             commands::recognize_text,
             commands::is_text_recognition_available,
+            commands::is_camera_available,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

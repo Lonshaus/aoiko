@@ -2,8 +2,11 @@ package net.lonshaus.aoiko.nativeplugin
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.media.ExifInterface
 import android.net.Uri
+import android.provider.MediaStore
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.util.Base64
@@ -19,6 +22,7 @@ import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 import app.tauri.plugin.Plugin
+import java.io.ByteArrayInputStream
 import java.util.concurrent.Executors
 import org.json.JSONArray
 
@@ -196,6 +200,16 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolveObject(true)
     }
 
+    // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでも相機を
+    // 起こせなければ檔案選択へ退避するため、こちらも同じ resolveActivity で揃える。
+    @Command
+    fun isCameraAvailable(invoke: Invoke) {
+        val pm = activity.packageManager
+        val hasFeature = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        val canTake = Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(pm) != null
+        invoke.resolveObject(hasFeature && canTake)
+    }
+
     @Command
     fun recognizeText(invoke: Invoke) {
         val args = invoke.parseArgs(RecognizeTextArgs::class.java)
@@ -213,10 +227,29 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         }
         TextRecognizer.recognize(
             bitmap,
+            rotationDegrees = exifRotation(bytes),
             onSuccess = { json -> invoke.resolve(JSObject.fromJSONObject(json)) },
             onFailure = { message -> invoke.reject(message) },
         )
     }
+    // BitmapFactory は EXIF を見ないので、相機で撮った画像は寝たまま解ける。角度を
+    // 別に取り出して OS の文字認識 へ渡す（回さないと版面の行と列が入れ替わる。実機で踏んだ）。
+    private fun exifRotation(bytes: ByteArray): Int =
+        try {
+            when (
+                ExifInterface(ByteArrayInputStream(bytes))
+                    .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            ) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                else -> 0
+            }
+        } catch (e: Exception) {
+            // EXIF が無い・壊れている画像は珍しくない。読めないだけで認識ごと落とさない。
+            0
+        }
+
     // SAF で選ばせる。返る content:// はパスにならないので、配下の入出力も全てここで行う。
     @Command
     fun pickFolder(invoke: Invoke) {

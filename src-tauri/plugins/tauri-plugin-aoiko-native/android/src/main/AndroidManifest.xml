@@ -11,5 +11,10 @@
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
+        <!-- 撮影は系統の相機 app へ回す。宣言が無いと resolveActivity が null を返し、
+             wry の onShowFileChooser も相機を諦めて檔案選択へ退避する。 -->
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
     </queries>
 </manifest>

@@ -204,6 +204,20 @@ pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bo
     }
 }
 
+// 撮影の入口を生やしてよいか。ある環境 だけが撮影に回せるので、他は一律 false。
+#[tauri::command(async)]
+pub(crate) fn is_camera_available<R: Runtime>(app: AppHandle<R>) -> bool {
+    #[cfg(target_os = "android")]
+    {
+        app.aoiko_native().is_camera_available()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = &app;
+        false
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(any(target_os = "ios", target_os = "android"))]

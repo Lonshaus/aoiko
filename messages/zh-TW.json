@@ -995,6 +995,7 @@
   "support_close": "關閉",
   "support_open": "支援 aoiko",
   "file_picker_choose": "選擇檔案",
+  "file_picker_camera": "拍照",
   "ocr_native_unavailable": "這台裝置無法使用作業系統內建的文字辨識。請在設定中改選其他引擎。",
   "native_discard_close_message": "有尚未儲存的輸入內容。要捨棄並結束嗎？",
   "native_discard_close_ok": "捨棄並結束",
