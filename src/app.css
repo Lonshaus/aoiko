@@ -176,8 +176,8 @@
   body {
     @apply bg-background text-foreground;
     /* viewport-fit=cover + apple-mobile-web-app-status-bar-style=black-translucent で
-       コンテンツがノッチ／ステータスバー領域まで描画されるため、安全域分だけ余白を確保する */
-    padding-top: env(safe-area-inset-top);
+       コンテンツがノッチ／ステータスバー領域まで描画されるため、安全域分だけ余白を確保する。
+       上だけは貼り付く header が持つ（body に置くと捲った後に効かない） */
     padding-right: env(safe-area-inset-right);
     padding-bottom: env(safe-area-inset-bottom);
     padding-left: env(safe-area-inset-left);
