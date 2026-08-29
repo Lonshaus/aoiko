@@ -1,4 +1,5 @@
 import { LlmError } from './llm';
+import { m } from '../paraglide/messages';
 // EC サイト（Amazon、楽天等）の注文ページの貼り付けテキストから、
 // LLM で品目内訳を抽出する純ロジック。DOM scraping を使わないため
 // サイト改修に強い。Phase 3：ブラウザ拡張案を本方式に置き換え。
@@ -55,7 +56,7 @@ export function buildOrderPrompt(): string {
 
 export function parseOrderResponse(raw: unknown): OrderExtracted {
   if (!raw || typeof raw !== 'object') {
-    throw new LlmError('注文解析レスポンスが想定外の形式');
+    throw new LlmError(m.error_order_response_shape());
   }
   const r = raw as Record<string, unknown>;
 
@@ -63,7 +64,7 @@ export function parseOrderResponse(raw: unknown): OrderExtracted {
   const vendor = typeof r.vendor === 'string' ? r.vendor : '';
   const totalAmount = typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
   if (!totalAmount) {
-    throw new LlmError('注文の合計金額を抽出できませんでした');
+    throw new LlmError(m.error_order_total_missing());
   }
 
   const items: OrderItem[] = [];
@@ -81,7 +82,7 @@ export function parseOrderResponse(raw: unknown): OrderExtracted {
     }
   }
   if (items.length === 0) {
-    throw new LlmError('注文の品目を 1 件も抽出できませんでした');
+    throw new LlmError(m.error_order_items_missing());
   }
 
   const result: OrderExtracted = {

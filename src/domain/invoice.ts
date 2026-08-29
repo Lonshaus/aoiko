@@ -10,6 +10,7 @@ import type {
   JournalEntry,
   JournalLine,
 } from '../db/types';
+import { m } from '../paraglide/messages';
 
 const RECEIVABLE_ACCOUNT_CODE = '1310'; // 売掛金
 const SALES_ACCOUNT_CODE = '4110'; // 売上高
@@ -113,17 +114,17 @@ function newJournalLine(
 // 発行済みとして番号確定・ロックする。見積書は仕訳・ArApEntry を生成しない（成立前の提案のため）。
 export async function issueInvoice(invoice: Invoice, prefix: string): Promise<Invoice> {
   if (invoice.status !== 'draft') {
-    throw new InvoiceError('下書きの文書のみ発行できます');
+    throw new InvoiceError(m.error_invoice_draft_only_issue());
   }
   if (!invoice.vendorId) {
-    throw new InvoiceError('宛先の取引先を選択してください');
+    throw new InvoiceError(m.error_invoice_no_recipient());
   }
   if (invoice.lineItems.length === 0) {
-    throw new InvoiceError('明細が1件もありません');
+    throw new InvoiceError(m.error_invoice_no_lines());
   }
   const year = Number(invoice.date.slice(0, 4));
   if (await isYearLocked(year)) {
-    throw new InvoiceError(`${year} 年は申告済みのためロックされています。発行できません。`);
+    throw new InvoiceError(m.error_invoice_year_filed({ year }));
   }
 
   const groups = groupLineItemsByTaxRate(invoice.lineItems);
@@ -145,7 +146,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
       // 未保存の新規下書きは DB に無い。存在する場合だけ現在値で判定する。
       const current = await db.invoices.get(invoice.id);
       if (current && current.status !== 'draft') {
-        throw new InvoiceError('下書きの文書のみ発行できます');
+        throw new InvoiceError(m.error_invoice_draft_only_issue());
       }
       const number = await nextDocumentNumber(invoice.documentType, year, prefix);
       if (invoice.documentType === 'quote') {
@@ -214,10 +215,10 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
 export async function voidInvoice(invoiceId: string): Promise<void> {
   const invoice = await db.invoices.get(invoiceId);
   if (!invoice) {
-    throw new InvoiceError('対象の文書が見つかりません');
+    throw new InvoiceError(m.error_invoice_not_found());
   }
   if (invoice.status !== 'issued') {
-    throw new InvoiceError('発行済みの文書のみ取消できます');
+    throw new InvoiceError(m.error_invoice_issued_only_cancel());
   }
 
   if (invoice.arApEntryId) {
@@ -240,7 +241,7 @@ export async function voidInvoice(invoiceId: string): Promise<void> {
 // 見積書 → 請求書のワンクリック変換：明細をコピーした新規請求書の下書きを作成する。
 export function convertQuoteToInvoiceDraft(quote: Invoice, date: string): Invoice {
   if (quote.documentType !== 'quote') {
-    throw new InvoiceError('見積書のみ請求書に変換できます');
+    throw new InvoiceError(m.error_invoice_quote_only_convert());
   }
   return {
     id: newId(),

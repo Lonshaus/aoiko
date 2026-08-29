@@ -4,6 +4,7 @@ import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
 const CAPITAL_CODE = '3110'; // 元入金
@@ -123,7 +124,7 @@ function extendedUsefulLife(usefulLifeYears: number): number {
 export function oldStraightLineRate(usefulLifeYears: number): Decimal {
   const rate = OLD_STRAIGHT_LINE_RATE[usefulLifeYears];
   if (rate === undefined) {
-    throw new Error(`旧定額法償却率が未定義の耐用年数です：${usefulLifeYears}`);
+    throw new Error(m.error_old_straight_line_rate_undefined({ years: usefulLifeYears }));
   }
   return D(rate);
 }

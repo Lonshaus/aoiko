@@ -1,6 +1,7 @@
 import { D } from '../lib/decimal';
 import { newId } from '../lib/id';
 import type { InputUsageCategory, TaxCategory } from '../db/types';
+import { m } from '../paraglide/messages';
 // 家事按分の自動分解。借方明細で homeOfficeRatio が 1 未満の場合、
 // 「事業使用分（経費）」と「個人使用分（1610 事業主貸）」の 2 行に分解する。
 // 個人使用分は複数行から合算して 1 行にまとめる（仕訳全体の可読性向上）。
@@ -38,13 +39,13 @@ function parseRatio(ratio: string): { apply: boolean; value: ReturnType<typeof D
   try {
     d = D(trimmed);
   } catch {
-    throw new HomeOfficeRatioError(`家事按分比率の値が不正です: ${ratio}`);
+    throw new HomeOfficeRatioError(m.error_home_office_ratio_invalid({ value: ratio }));
   }
   if (d.lessThan(0) || d.greaterThan(1)) {
-    throw new HomeOfficeRatioError(`家事按分比率は 0 〜 1 の範囲で指定してください: ${ratio}`);
+    throw new HomeOfficeRatioError(m.error_home_office_ratio_range({ value: ratio }));
   }
   if (d.isZero()) {
-    throw new HomeOfficeRatioError('家事按分比率が 0% の行は意味がないため登録できません');
+    throw new HomeOfficeRatioError(m.error_home_office_ratio_zero());
   }
   return { apply: true, value: d };
 }

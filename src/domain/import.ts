@@ -5,6 +5,7 @@ import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalLine } from '../db/types';
 import type { ParsedTransaction } from '../parsers/types';
+import { m } from '../paraglide/messages';
 
 export interface ImportRow {
   transaction: ParsedTransaction;
@@ -53,7 +54,7 @@ export async function commitImport(
 
   const validRows = rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0);
   if (validRows.length === 0) {
-    throw new Error('登録対象の行がありません');
+    throw new Error(m.error_import_no_rows());
   }
   // 行ごとに年度が違いうるので、実際に書く年度を全部集めて判定する。
   await assertYearsWritable(
