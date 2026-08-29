@@ -10,6 +10,7 @@ import {
 import { validateBackupPayload } from './restore-validate';
 import type { Attachment } from '../db/types';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
+import { m } from '../paraglide/messages';
 
 export class IncompatibleBackupError extends Error {
   constructor(public readonly backupVersion: number) {
@@ -151,10 +152,10 @@ export function parseBackupJson(text: string): BackupPayload {
   try {
     parsed = JSON.parse(text);
   } catch {
-    throw new Error('JSON として読み込めませんでした');
+    throw new Error(m.error_backup_not_json());
   }
   if (!parsed || typeof parsed !== 'object' || !('version' in parsed) || !('tables' in parsed)) {
-    throw new Error('バックアップ形式ではありません');
+    throw new Error(m.error_backup_not_backup_format());
   }
   return parsed as BackupPayload;
 }

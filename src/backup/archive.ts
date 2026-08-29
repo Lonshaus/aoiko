@@ -2,6 +2,7 @@ import { inflateSync } from 'fflate';
 import { createCrc32, crc32 } from './crc32';
 import { ZipStoreWriter } from './zip-writer';
 import type { BackupPayload } from './types';
+import { m } from '../paraglide/messages';
 
 const PAYLOAD_ENTRY_NAME = 'payload.json';
 const ATTACHMENT_PREFIX = 'attachments/';
@@ -365,7 +366,7 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
       try {
         payload = JSON.parse(await blob.text()) as BackupPayload;
       } catch {
-        throw new Error(`zip 内の ${PAYLOAD_ENTRY_NAME} が JSON として読み込めませんでした`);
+        throw new Error(m.error_backup_payload_unreadable({ name: PAYLOAD_ENTRY_NAME }));
       }
     } else {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
@@ -378,7 +379,7 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
     throw new BackupCorruptError(corruptNames);
   }
   if (!payload) {
-    throw new Error(`zip 内に ${PAYLOAD_ENTRY_NAME} が見つかりません`);
+    throw new Error(m.error_backup_payload_missing({ name: PAYLOAD_ENTRY_NAME }));
   }
   return { payload, attachmentBlobs, corruptAttachmentNames: corruptNames };
 }

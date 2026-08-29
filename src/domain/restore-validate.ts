@@ -1,4 +1,5 @@
 import type { BackupPayload } from '../backup';
+import { m } from '../paraglide/messages';
 // 復元前のスキーマ検証。db.delete() で全消去する前に呼び、不正なバックアップで
 // 既存データを失うのを防ぐ。会計の根幹（仕訳・明細）は型まで検証し、
 // その他の既知テーブルは「オブジェクトで主キーを持つ」ことだけ確認する。
@@ -15,7 +16,9 @@ function isObject(v: unknown): v is Record<string, unknown> {
 }
 
 function fail(table: string, index: number, detail: string): never {
-  throw new BackupValidationError(`バックアップの ${table} ${index + 1} 件目が不正です：${detail}`);
+  throw new BackupValidationError(
+    m.error_backup_record_invalid({ table, index: index + 1, detail }),
+  );
 }
 // 既知テーブルの主キー列。ここに無いテーブル名は復元時に無視される（破壊はしない）。
 export const PRIMARY_KEY: Record<string, string> = {
@@ -122,11 +125,11 @@ function validateLineReferences(entries: unknown[], lines: unknown[]): void {
 // payload 全体を検証する。問題があれば BackupValidationError を投げる（呼出元は削除前に検証する）。
 export function validateBackupPayload(payload: BackupPayload): void {
   if (!isObject(payload.tables)) {
-    throw new BackupValidationError('tables がオブジェクトではありません');
+    throw new BackupValidationError(m.error_backup_tables_not_object());
   }
   for (const [name, rows] of Object.entries(payload.tables)) {
     if (!Array.isArray(rows)) {
-      throw new BackupValidationError(`${name} が配列ではありません`);
+      throw new BackupValidationError(m.error_backup_table_not_array({ name }));
     }
     const keyField = PRIMARY_KEY[name];
     if (!keyField) {

@@ -1,4 +1,5 @@
 import { crc32 } from './crc32';
+import { m } from '../paraglide/messages';
 // 無圧縮（store）専用の zip 書き出し。自前で持つ理由は #396——fflate の書き出しは zip64 を
 // 出さず、4GiB 超のオフセットを例外なしに巻き戻して書く。
 const LOCAL_FILE_HEADER_SIGNATURE = 0x04034b50;
@@ -52,7 +53,7 @@ export class ZipStoreWriter {
   // 実体をコピーしないよう、ヘッダと実体を分けて返す。
   addEntry(name: string, bytes: Uint8Array): readonly Uint8Array[] {
     if (this.finished) {
-      throw new Error('finish() の後にエントリは追加できません');
+      throw new Error(m.error_zip_entry_after_finish());
     }
     const nameBytes = new TextEncoder().encode(name);
     const size = bytes.length;
@@ -127,7 +128,7 @@ export class ZipStoreWriter {
   }
   finish(): Uint8Array {
     if (this.finished) {
-      throw new Error('finish() は 1 回だけ呼べます');
+      throw new Error(m.error_zip_finish_twice());
     }
     this.finished = true;
 

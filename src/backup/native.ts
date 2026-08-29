@@ -1,5 +1,6 @@
 import { splitBackupPath } from './content-store';
 import type { BackupAdapter } from './types';
+import { m } from '../paraglide/messages';
 // wrapper 版が注入するネイティブのフォルダ書き込み。
 //
 // showDirectoryPicker が無く、今後も入らない環境がある（実装側が反対の立場を表明して
@@ -88,13 +89,13 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
   async configure(): Promise<void> {
     const api = bridge();
     if (!api) {
-      throw new Error('ネイティブのフォルダ選択が利用できません');
+      throw new Error(m.error_native_folder_picker_unavailable());
     }
     const chosen = await api.backupChooseFolder();
     if (!chosen) {
       // 取り消しを FSA と同じ形で返す。呼出元（backup.svelte.ts）は AbortError を
       // 「利用者が選択をやめた」として無視するため、状態遷移を共通にできる。
-      throw new DOMException('フォルダ選択が取り消されました', 'AbortError');
+      throw new DOMException(m.error_folder_selection_cancelled(), 'AbortError');
     }
     await this.setFolder(chosen);
   }
@@ -104,7 +105,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     await api.backupWrite(folder.token, path, stream);
     return { fileName: path };
@@ -121,7 +122,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     }
     splitBackupPath(subdir);
     if (typeof api.backupListDir !== 'function') {
-      throw new Error('ネイティブ側の backupListDir が未実装のため、サブフォルダを一覧できません');
+      throw new Error(m.error_native_list_dir_unimplemented());
     }
     return api.backupListDir(folder.token, subdir);
   }
@@ -132,10 +133,10 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     if (typeof api.backupRead !== 'function') {
-      throw new Error('ネイティブ側の backupRead が未実装のため、バックアップを読み出せません');
+      throw new Error(m.error_native_read_unimplemented());
     }
     return api.backupRead(folder.token, path);
   }

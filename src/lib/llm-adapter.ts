@@ -4,6 +4,7 @@
 
 import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../domain/llm';
 import { getSetting } from './settings';
+import { m } from '../paraglide/messages';
 
 type LlmPurpose = 'ocr' | 'classify';
 
@@ -34,7 +35,7 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
 
   const geminiKey = (await getSetting('geminiApiKey'))?.trim();
   if (!geminiKey) {
-    throw new Error('Gemini API キーが未設定です。設定画面で入力してください');
+    throw new Error(m.error_gemini_key_unset());
   }
   return new GeminiAdapter(geminiKey);
 }

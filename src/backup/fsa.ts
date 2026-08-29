@@ -1,6 +1,7 @@
 import { splitBackupPath } from './content-store';
 import { descendDir, isNotFoundError, listFileNames, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
+import { m } from '../paraglide/messages';
 
 type GetHandle = () => Promise<FileSystemDirectoryHandle | null>;
 type SetHandle = (handle: FileSystemDirectoryHandle) => Promise<void>;
@@ -50,10 +51,10 @@ export class FsaBackupAdapter implements BackupAdapter {
   async backup(stream: ReadableStream<Uint8Array>, path: string): Promise<{ fileName: string }> {
     const h = await this.getHandle();
     if (!h) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     if (!(await this.ensurePermission())) {
-      throw new Error('フォルダへのアクセス許可が拒否されました');
+      throw new Error(m.error_folder_permission_denied());
     }
     const { dir, name } = await resolveParent(h, path, true);
     const fileHandle = await dir.getFileHandle(name, { create: true });
@@ -89,10 +90,10 @@ export class FsaBackupAdapter implements BackupAdapter {
   async read(path: string): Promise<Uint8Array<ArrayBuffer> | null> {
     const h = await this.getHandle();
     if (!h) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     if (!(await this.ensurePermission())) {
-      throw new Error('フォルダへのアクセス許可が拒否されました');
+      throw new Error(m.error_folder_permission_denied());
     }
     try {
       const { dir, name } = await resolveParent(h, path, false);

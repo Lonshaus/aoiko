@@ -6,6 +6,7 @@ import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { computeDepreciation } from './depreciation';
 import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
 // 固定資産の除却・売却（B6）。
 //
 // 除却（対価なし）：帳簿価額（未償却残高）全額を必要経費「固定資産除却損」に計上する。
@@ -49,7 +50,7 @@ export function disposalBookValue(asset: FixedAsset): {
   bookValueEnd: string;
 } {
   if (!asset.disposedDate) {
-    throw new Error('disposedDate が未設定です');
+    throw new Error(m.error_disposed_date_unset());
   }
   const disposedYear = Number(asset.disposedDate.slice(0, 4));
   const result = computeDepreciation(asset, disposedYear);
@@ -61,7 +62,7 @@ export function buildDisposalLines(
   cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
 ): DisposalLineSpec[] {
   if (asset.depreciationMethod === 'lump-sum') {
-    throw new Error('一括償却資産の除却・売却仕訳には対応していません');
+    throw new Error(m.error_lump_sum_disposal_unsupported());
   }
   const { accumulatedEnd, bookValueEnd } = disposalBookValue(asset);
   const cost = D(asset.acquisitionCost);
@@ -69,7 +70,7 @@ export function buildDisposalLines(
 
   if (disposalType === 'sale') {
     if (!asset.salePrice) {
-      throw new Error('売却には salePrice が必要です');
+      throw new Error(m.error_sale_price_required());
     }
     const salePrice = D(asset.salePrice);
     const diff = salePrice.minus(bookValueEnd);

@@ -1,5 +1,6 @@
 import type { Account, AccountCategory } from '../db/types';
 import { LlmError, type LlmAdapter } from './llm';
+import { m } from '../paraglide/messages';
 
 export interface ClassifyInput {
   /** 並び順識別。レスポンスとの対応を保証するために必須 */
@@ -79,11 +80,11 @@ function parseResponse(
   candidates: Account[],
 ): ClassifySuggestion[] {
   if (!raw || typeof raw !== 'object' || !('classifications' in raw)) {
-    throw new LlmError('レスポンス形式が想定外（classifications がない）');
+    throw new LlmError(m.error_classify_response_shape());
   }
   const list = (raw as { classifications: unknown }).classifications;
   if (!Array.isArray(list)) {
-    throw new LlmError('classifications が配列ではありません');
+    throw new LlmError(m.error_classify_not_array());
   }
 
   const codeSet = new Set(candidates.map((a) => a.code));
