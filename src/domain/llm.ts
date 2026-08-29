@@ -79,7 +79,7 @@ export class GeminiAdapter implements LlmAdapter {
 
   async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
     if (!this.apiKey) {
-      throw new LlmError('Gemini API キーが設定されていません');
+      throw new LlmError(m.error_gemini_key_unconfigured());
     }
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
     const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
@@ -106,7 +106,7 @@ export class GeminiAdapter implements LlmAdapter {
         body: JSON.stringify(body),
       });
     } catch (e) {
-      throw new LlmError(connectionErrorMessage('Gemini API への接続に失敗しました', e), e);
+      throw new LlmError(connectionErrorMessage(m.error_gemini_connection_failed(), e), e);
     }
 
     if (!response.ok) {
@@ -125,12 +125,12 @@ export class GeminiAdapter implements LlmAdapter {
     };
     const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      throw new LlmError('Gemini レスポンスに想定外の構造');
+      throw new LlmError(m.error_gemini_response_shape());
     }
     try {
       return JSON.parse(text);
     } catch (e) {
-      throw new LlmError(`Gemini レスポンスを JSON として解析できません: ${text.slice(0, 200)}`, e);
+      throw new LlmError(m.error_gemini_response_not_json({ text: text.slice(0, 200) }), e);
     }
   }
 }
@@ -193,7 +193,7 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
 
   async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
     if (!this.model) {
-      throw new LlmError('モデルが選択されていません');
+      throw new LlmError(m.error_model_not_selected());
     }
     const content: unknown = image
       ? [
@@ -242,12 +242,12 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     };
     const text = payload.choices?.[0]?.message?.content;
     if (!text) {
-      throw new LlmError('LLM レスポンスに想定外の構造');
+      throw new LlmError(m.error_llm_response_shape());
     }
     try {
       return parseLooseJson(text);
     } catch (e) {
-      throw new LlmError(`LLM レスポンスを JSON として解析できません: ${text.slice(0, 200)}`, e);
+      throw new LlmError(m.error_llm_response_not_json({ text: text.slice(0, 200) }), e);
     }
   }
 }
@@ -271,7 +271,11 @@ export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Pr
     );
   }
   if (!response.ok) {
-    throw new LlmError(`モデル一覧取得エラー ${response.status}`, undefined, response.status);
+    throw new LlmError(
+      m.error_model_list_failed({ status: response.status }),
+      undefined,
+      response.status,
+    );
   }
   const payload = (await response.json()) as {
     data?: Array<{ id?: string }>;

@@ -1,6 +1,7 @@
 import { parseCsv } from '../lib/csv';
 import { applySign, buildRawRow, isDateLike, normalizeDate, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
+import { m } from '../paraglide/messages';
 // 三井住友カード（NL / Olive 含む）Vpass の利用明細 CSV（実データ確認済）。
 // この CSV には表頭行が無く、1 行目はカード会員情報（氏名 / 番号 / 種別）。
 // 2 行目以降がデータで、列は位置で解釈する（1 サンプルからの推定。
@@ -41,7 +42,9 @@ const smbcCardParser: CsvParser = {
     // 1 行目はカード会員情報（日付ではない）。先頭が日付なら別形式とみなす。
     const firstNonEmpty = rows.find((r) => r.some((c) => c.trim() !== ''));
     if (firstNonEmpty && isDateLike((firstNonEmpty[COL.date] ?? '').trim())) {
-      throw new Error(`${DISPLAY} の CSV 形式と一致しません（カード会員情報の行が見つかりません）`);
+      throw new Error(
+        m.error_csv_shape_mismatch({ name: DISPLAY, detail: m.error_csv_detail_no_member_row() }),
+      );
     }
 
     const result: ParsedTransaction[] = [];
@@ -52,7 +55,12 @@ const smbcCardParser: CsvParser = {
       }
       // 位置で列を解釈するため、データ行には最低 6 列（利用日〜今回お支払額）が必要。
       if (row.length < 6) {
-        throw new Error(`${DISPLAY} の CSV 形式と一致しません（列数が不足しています）`);
+        throw new Error(
+          m.error_csv_shape_mismatch({
+            name: DISPLAY,
+            detail: m.error_csv_detail_too_few_columns(),
+          }),
+        );
       }
       const description = (row[COL.desc] ?? '').trim();
       const useRaw = (row[COL.amount] ?? '').trim();

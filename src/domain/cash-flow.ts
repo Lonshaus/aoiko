@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { newId } from '../lib/id';
 import type { ArApEntry, ArApType } from '../db/types';
+import { m } from '../paraglide/messages';
 
 export function remainingBalance(entry: ArApEntry): Decimal {
   return D(entry.originalAmount).minus(entry.paidAmount);
@@ -35,7 +36,7 @@ export class OverpaymentError extends Error {
 export async function recordPayment(id: string, amount: string): Promise<void> {
   const entry = await db.arApEntries.get(id);
   if (!entry) {
-    throw new Error('対象の売掛金/買掛金が見つかりません');
+    throw new Error(m.error_receivable_not_found());
   }
   const newPaid = D(entry.paidAmount).plus(amount);
   if (newPaid.greaterThan(entry.originalAmount)) {

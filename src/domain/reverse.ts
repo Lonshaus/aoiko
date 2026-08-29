@@ -3,6 +3,7 @@ import { newId } from '../lib/id';
 import { todayISO } from '../lib/date';
 import { isYearLocked } from './snapshots';
 import { markConfirmedWrite } from './year-lock';
+import { m } from '../paraglide/messages';
 // 訂正仕訳：原仕訳の借方/貸方を入れ替えた打消し仕訳を新規作成し、
 // 原仕訳を status='reversed' に変更する。元データは削除しない（電子帳簿保存法の要件）。
 // 集計は成対排除方式（countsTowardTotals 参照）：原仕訳・訂正仕訳とも集計から除外され、
@@ -18,10 +19,10 @@ export async function reverseEntry(
 ): Promise<string> {
   const orig = await db.journalEntries.get(entryId);
   if (!orig) {
-    throw new Error('対象の仕訳が見つかりません');
+    throw new Error(m.error_journal_not_found());
   }
   if (orig.status === 'reversed') {
-    throw new Error('すでに訂正済みの仕訳です');
+    throw new Error(m.error_journal_already_reversed());
   }
   if (orig.originalEntryId !== undefined) {
     throw new Error(
@@ -40,7 +41,7 @@ export async function reverseEntry(
 
   const lines = await db.journalLines.where('entryId').equals(entryId).toArray();
   if (lines.length === 0) {
-    throw new Error('明細が存在しない仕訳です');
+    throw new Error(m.error_journal_no_lines());
   }
   const newEntryId = newId();
   const now = Date.now();
