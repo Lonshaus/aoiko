@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 import Vision
 import WebKit
 
-// ある環境/ある環境 専用。デスクトップに OS の API で用意されている操作のうち、web view や
+// モバイル専用。デスクトップに OS の API で用意されている操作のうち、web view や
 // OS の UI を直接触らないと届かないものをまとめる（フォルダ選択・印刷・外部リンク表示）。
 //
 // フォルダ選択は UIDocumentPickerViewController で選ばせ、security-scoped bookmark を
@@ -103,7 +103,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             scopedFolders.removeValue(forKey: token)
         }
     }
-    // web view の window.print() は web view が例外を投げるだけで何も起きない（tauri#3066）。
+    // web view の window.print() は例外を投げるだけで何も起きない。
     // 印刷用のスタイルは web 側に揃っているので、描画は viewPrintFormatter に任せる。
     @objc public func printPage(_ invoke: Invoke) {
         DispatchQueue.main.async {
@@ -126,7 +126,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
                     invoke.resolve()
                 }
             }
-            // ある端末 は present(animated:) が例外になる。ポップオーバーの起点が要る。
+            // 画面の広い端末では present(animated:) が例外になる。ポップオーバーの起点が要る。
             if UIDevice.current.userInterfaceIdiom == .pad {
                 let anchor = CGRect(x: host.bounds.midX, y: host.bounds.midY, width: 1, height: 1)
                 controller.present(from: anchor, in: host, animated: true, completionHandler: done)
@@ -135,14 +135,14 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             }
         }
     }
-    // 外部リンクを あるブラウザ へ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
-    // ある環境 の作法どおりアプリ内に重ねて表示し、閉じれば元の画面へ戻る。
+    // 外部リンクを外のブラウザへ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
+    // この環境の作法どおりアプリ内に重ねて表示し、閉じれば元の画面へ戻る。
     @objc public func openInApp(_ invoke: Invoke) throws {
         struct Args: Decodable {
             let url: String
         }
         let args = try invoke.parseArgs(Args.self)
-        // SFあるブラウザViewController は http/https しか受け付けず、それ以外は実行時に落ちる。
+        // アプリ内ブラウザは http/https しか受け付けず、それ以外は実行時に落ちる。
         guard let url = URL(string: args.url), url.scheme == "http" || url.scheme == "https" else {
             invoke.reject("アプリ内で開けない URL です")
             return
