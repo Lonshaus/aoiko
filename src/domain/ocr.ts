@@ -1,5 +1,6 @@
 import { LlmError, type LlmAdapter, type LlmImageInput } from './llm';
 import { todayISO } from '../lib/date';
+import { m } from '../paraglide/messages';
 // 領収書 OCR：画像 → 構造化された取引データ。
 // Gemini Vision を使用。BYOK モデル、ユーザー API キー必須。
 
@@ -62,7 +63,7 @@ export function buildOcrPrompt(): string {
 
 function parseOcrResponse(raw: unknown): ReceiptExtracted {
   if (!raw || typeof raw !== 'object') {
-    throw new LlmError('OCR レスポンスが想定外の形式');
+    throw new LlmError(m.error_ocr_response_shape());
   }
   const r = raw as Record<string, unknown>;
   // 形式まで見る。YYYY-MM-DD でない値は <input type="date"> が空表示にするため、
@@ -72,7 +73,7 @@ function parseOcrResponse(raw: unknown): ReceiptExtracted {
   const vendorName = typeof r.vendorName === 'string' ? r.vendorName : '';
   const totalAmount = typeof r.totalAmount === 'string' ? sanitizeAmount(r.totalAmount) : '';
   if (!totalAmount) {
-    throw new LlmError('合計金額を抽出できませんでした');
+    throw new LlmError(m.error_ocr_total_missing());
   }
 
   const items: ReceiptItem[] = [];

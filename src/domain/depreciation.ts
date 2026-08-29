@@ -6,6 +6,7 @@ import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import { SMALL_ASSET_ANNUAL_CAP, isSmallAssetEligible } from '../tax-schema/2026/limits';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
 // 減価償却の計算と仕訳生成。
 // 直接法（straight-line）と 200% 定率法（declining-balance）に加え、
 // 少額減価償却資産の特例（措法28の2、small-asset-special）に対応。
@@ -21,7 +22,7 @@ const RESIDUAL_VALUE = 1;
 // 例：3年→0.334、6年→0.167、7年→0.143、9年→0.112（単純な 1/N とは一致しない）。
 export function straightLineRate(usefulLifeYears: number): Decimal {
   if (usefulLifeYears < 1) {
-    throw new Error(`耐用年数が不正です：${usefulLifeYears}`);
+    throw new Error(m.error_useful_life_invalid({ years: usefulLifeYears }));
   }
   return D(1).dividedBy(usefulLifeYears).toDecimalPlaces(3, Decimal.ROUND_UP);
 }
@@ -122,7 +123,7 @@ export function computeDepreciation(asset: FixedAsset, year: number): Depreciati
   } else if (asset.depreciationMethod === 'lump-sum') {
     return computeLumpSum(year, acqYear, cost);
   }
-  throw new Error(`未対応の償却方法：${asset.depreciationMethod}`);
+  throw new Error(m.error_depreciation_method_unsupported({ method: asset.depreciationMethod }));
 }
 // 一括償却資産（施行令139条）：取得価額を 3 年で均等償却。取得月による月按分は無く、
 // 除却・売却後も未償却残高の一時損金算入はできず 3 年間の償却を継続する。
