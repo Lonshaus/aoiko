@@ -1,6 +1,6 @@
 // ネイティブ版の dev server。`tauri dev` の beforeDevCommand から呼ばれる。
 //
-// AOIKO_NATIVE を立てるためだけに居る。npm script の `VAR=x cmd` は ある環境 の
+// AOIKO_NATIVE を立てるためだけに居る。npm script の `VAR=x cmd` は一部の
 // cmd で動かず、beforeDevCommand も同じ制約を受けるため、ここで環境を作って渡す。
 // build 側は scripts/build-frontend.mjs が同じことをしている。
 import { spawn } from 'node:child_process';

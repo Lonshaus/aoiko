@@ -1,5 +1,5 @@
 // 注文ページ貼り付けテキスト → 構造化された注文情報。
-// Phase 3 の方針：あるブラウザ 拡張による DOM scraping ではなく、貼り付け＋LLM 抽出を採用。
+// Phase 3 の方針：ブラウザ拡張による DOM scraping ではなく、貼り付け＋LLM 抽出を採用。
 // classify 用途の LLM Adapter を流用（テキストのみ、画像不要）。
 
 import { buildOrderPrompt, parseOrderResponse, type OrderExtracted } from '../domain/order-extract';
