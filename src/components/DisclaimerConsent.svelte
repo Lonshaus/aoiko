@@ -23,7 +23,7 @@
   }
 </script>
 
-<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと iPhone のステータスバーに隠れる（#457） -->
+<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと端末のステータスバーに隠れる（#457） -->
 <div
   class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
   role="dialog"

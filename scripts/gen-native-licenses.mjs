@@ -1,7 +1,7 @@
 // 同梱している Rust クレートの著作権表示を 1 ファイルへ集める。理由・出力形式は
 // aoiko 本体の scripts/gen-third-party-licenses.js（JS 側の第三者ライセンス一覧）に揃えている。
 //
-// 一覧の出所は `cargo metadata`。ある環境・ある環境・ある環境（x64/arm64）でクレート集合が
+// 一覧の出所は `cargo metadata`。対象ごと（x64/arm64 を含む）にクレート集合が
 // 変わる（windows-sys 等がプラットフォーム限定依存のため）ので、配布対象の全プラットフォームで
 // 取得して和集合を取る。1 枚だけでは載せ漏れが出る。
 import { execFileSync } from 'node:child_process';

@@ -1,5 +1,5 @@
 import { m } from '../paraglide/messages';
-// あるブラウザ は歴史的に NS_ERROR_DOM_QUOTA_REACHED を使う（現行仕様は QuotaExceededError）。
+// 歴史的に NS_ERROR_DOM_QUOTA_REACHED を使うブラウザがある（現行仕様は QuotaExceededError）。
 const QUOTA_ERROR_NAMES = new Set(['QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED']);
 
 export function isQuotaExceededError(e: unknown): boolean {

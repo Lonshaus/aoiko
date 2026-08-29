@@ -99,7 +99,7 @@ fn resolve<R: Runtime>(_app: &AppHandle<R>, handle: &str) -> Option<String> {
             .into_owned(),
     )
 }
-// ある環境 の解決結果は file:// URL、デスクトップは素のパス。存在確認も入出力もパスで行う。
+// モバイルの解決結果は file:// URL、デスクトップは素のパス。存在確認も入出力もパスで行う。
 fn to_file_path(path: &str) -> std::path::PathBuf {
     tauri::Url::parse(path)
         .ok()
@@ -203,7 +203,7 @@ pub(crate) fn confirm_discard<R: Runtime>(
             cancel_label,
         ))
     }
-    // ある環境/ある環境 はウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
+    // モバイルはウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
     // __aoikoRequestClose / __aoikoRequestReload へ届く経路が存在しない。
     #[cfg(target_os = "ios")]
     {
@@ -214,9 +214,9 @@ pub(crate) fn confirm_discard<R: Runtime>(
 // 以降の入出力が受け取る base はここでしか作れない。JS が渡せるのはこの base からの
 // 相対パスだけで、実パスへ解くのは path.rs の resolve_within に限る。
 //
-// ある環境 も同じ経路で足りる。resolved_dir が file:// URL を実パスへ解いており、ネイティブ側 側は
-// resolveBookmark で取った security-scoped のスコープを選び直しまで手放さないので、
-// Rust の std::fs はそのスコープの下で走る。バイト列を ネイティブ側 へ渡す必要は無い。
+// モバイルも同じ経路で足りる。resolved_dir が file:// URL を実パスへ解いており、ネイティブ側は
+// bookmark で取った security-scoped のスコープを選び直しまで手放さないので、
+// Rust の std::fs はそのスコープの下で走る。バイト列をネイティブ側へ渡す必要は無い。
 fn backup_base<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
     resolved_dir(app)
         .map(|(_, dir)| dir)
@@ -232,7 +232,7 @@ pub(crate) fn backup_open<R: Runtime>(app: AppHandle<R>, rel_path: String) -> Re
 // チャンクは殻を被せず生バイトで受ける。JSON へ載せると 1 バイトが数字 1 個へ膨らみ、
 // 行き先の rid だけをヘッダーで渡す。
 //
-// 生バイトが届かない経路もある。シェル の custom protocol IPC が一度でも失敗すると
+// 生バイトが届かない経路もある。custom protocol IPC が一度でも失敗すると
 // customProtocolIpcFailed が立ち、以降そのページでは postMessage へ固定される
 // （tauri/scripts/ipc-protocol.js）。その状態では ArrayBuffer が JSON 化されて
 // InvokeBody::Raw にならない。落とさず書き切れるよう、base64 で載せた形も受ける。
@@ -302,7 +302,7 @@ fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Opti
     // バックアップフォルダの外へ書き出せなくなる）。
     Ok(crate::desktop::save_file(app, file_name).map(SafeTarget::from_os_chosen))
 }
-// ある環境/ある環境 には保存先を選ばせる仕組みが無く、plugin-dialog の save() は空ファイルを
+// モバイルには保存先を選ばせる仕組みが無く、plugin-dialog の save() は空ファイルを
 // 書き出す（plugins-workspace#1763）。アプリの Documents 直下へ固定し、Info.ios.plist の
 // UIFileSharingEnabled で「ファイル」アプリから取り出してもらう。選ばせないので
 // 取り消しも起きず、常に Some を返す。

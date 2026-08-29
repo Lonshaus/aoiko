@@ -1,5 +1,5 @@
 import type { OcrLayout } from '../domain/receipt-text-extract';
-// ネイティブのシェル（ある環境 / ある環境 / ある環境 / ある環境 の app）が起動時に注入する橋渡し。
+// ネイティブのシェルが起動時に注入する橋渡し。
 // ブラウザで開いたときは存在しないので、呼ぶ前に必ず関数の有無を見る。橋渡しの実装は
 // シェル側が持ち、こちらは SDK を import しない。
 //
@@ -27,7 +27,7 @@ export type NativeBridge = {
   setDiscardText?(text: NativeDiscardText): void;
   // 商店で売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
   // 通貨も表記も地域ごとに違うため。商店が返した文字列をそのまま出す。
-  // 品目 ID は商店ごとに違う（ある環境 と ある環境 で別）ので、こちら側は kind でしか呼ばない。
+  // 品目 ID はこちら側では決められない（シェル側が環境に合わせて持つ）ので、kind でしか呼ばない。
   listIapProducts?(): Promise<IapProduct[]>;
   // 購入。'pending' は「家族の承認待ち」等、その場で確定しない状態。
   purchaseIap?(kind: IapProductKind): Promise<IapPurchaseResult>;

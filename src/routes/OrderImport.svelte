@@ -17,7 +17,7 @@
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import { m } from '../paraglide/messages';
-  // 全選択・コピーの修飾キーは環境で違う。ある環境・ある環境 は Ctrl。
+  // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
   const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
 
   type ReviewItem = OrderItem & { accountCode: string };
