@@ -62,8 +62,8 @@ fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
 // （web 側は理由を問わず「選び直し」へ倒す）。
 #[tauri::command(async)]
 pub(crate) fn resolve_folder<R: Runtime>(app: AppHandle<R>) -> Result<ResolvedFolder> {
-    // ある環境 の tree URI はパスにならず、is_dir で確かめられない。生きているかどうかは
-    // 権限が残っているかで、ネイティブ側 側の Saf.isUsable が見る。
+    // この環境のフォルダ参照はパスにならず、is_dir で確かめられない。生きているかどうかは
+    // 権限が残っているかで、ネイティブ側が見る。
     #[cfg(target_os = "android")]
     {
         let Some(folder) = store::load(&app) else {
@@ -204,7 +204,7 @@ pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bo
     }
 }
 
-// 撮影の入口を生やしてよいか。ある環境 だけが撮影に回せるので、他は一律 false。
+// 撮影の入口を生やしてよいか。撮影に回せる環境だけ true で、他は一律 false。
 #[tauri::command(async)]
 pub(crate) fn is_camera_available<R: Runtime>(app: AppHandle<R>) -> bool {
     #[cfg(target_os = "android")]
@@ -280,7 +280,7 @@ fn backup_base<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
         .map(|(_, dir)| dir)
         .ok_or(Error::FolderUnavailable)
 }
-// ある環境 の SAF は content:// しか返さず、パスにならない。配下の入出力は ネイティブ側 側で
+// この環境のフォルダ選択は content:// しか返さず、パスにならない。配下の入出力はネイティブ側で
 // 行うので、こちらは記録した tree URI を取り出すだけ。
 #[cfg(target_os = "android")]
 fn backup_token<R: Runtime>(app: &AppHandle<R>) -> Result<String> {
@@ -390,7 +390,7 @@ pub(crate) fn backup_close<R: Runtime>(app: AppHandle<R>, rid: u32) -> Result<()
 // ask_save_path だけで、web 側から渡せるのは初期ファイル名だけ。取り消しは Ok(None)。
 #[tauri::command(async)]
 pub(crate) fn export_open<R: Runtime>(app: AppHandle<R>, file_name: String) -> Result<Option<u32>> {
-    // ある環境 の rid は ネイティブ側 側の登記簿にある。書き込みも close も既にそちらへ回るので、
+    // この環境の rid はネイティブ側の登記簿にある。書き込みも close も既にそちらへ回るので、
     // 開くところだけ Rust に残すと rid が噛み合わない。
     #[cfg(target_os = "android")]
     {

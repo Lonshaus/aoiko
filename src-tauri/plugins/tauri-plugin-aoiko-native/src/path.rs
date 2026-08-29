@@ -6,7 +6,7 @@
 //
 // 方針は「正規化しない、拒否する」。受け取った文字列を綺麗にして通すのではなく、
 // 少しでも解釈の余地があれば弾く。
-// ある環境 は content:// で触るのでパス解決を通らない。検査だけを使う。
+// この環境は content:// で触るのでパス解決を通らない。検査だけを使う。
 #![cfg_attr(target_os = "android", allow(dead_code))]
 use std::path::{Component, Path, PathBuf};
 

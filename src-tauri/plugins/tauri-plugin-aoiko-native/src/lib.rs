@@ -87,7 +87,7 @@ impl Serialize for Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
-/// ある環境 だけが通る送信要求。検査は本体 crate 側で済んでいる前提で、ここは運ぶだけ。
+/// この環境だけが通る送信要求。検査は本体 crate 側で済んでいる前提で、ここは運ぶだけ。
 #[cfg(target_os = "android")]
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

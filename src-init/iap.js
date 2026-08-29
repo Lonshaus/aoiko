@@ -28,7 +28,7 @@ const PURCHASE_STATE = { 0: 'purchased', 1: 'cancelled', 2: 'pending' };
 // 消耗しない品目。買い切りで、consume はしない。
 const NON_CONSUMABLE = 'supporter-badge';
 // Play だけの後始末が要る商店。非消耗型を 3 日以内に acknowledge しないと自動返金される
-// （消耗型は consume が acknowledge を兼ねる）。商店 と 商店 に同じ仕組みは
+// （消耗型は consume が acknowledge を兼ねる）。ほかの商店に同じ仕組みは
 // 無く、プラグイン側も no-op か「未対応」で拒否する。
 const PLAY = 'android';
 // Play の保留（コンビニ払い等）を見つけるための間隔と上限。

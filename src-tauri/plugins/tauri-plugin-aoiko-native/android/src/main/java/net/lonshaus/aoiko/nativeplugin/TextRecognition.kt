@@ -9,7 +9,7 @@ import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
 
-// 他の平台（Vision / ある環境.Media.Ocr / tesseract）と同じ形へ揃える。web 側は出どころを
+// 他の実装と同じ形へ揃える。web 側は出どころを
 // 区別しない。座標は 0..1 の正規化・左上原点・y 下向き。
 object TextRecognizer {
     private class Word(
@@ -53,9 +53,9 @@ object TextRecognizer {
                 onFailure("文字を認識できません: ${e.message ?: e.javaClass.simpleName}")
             }
     }
-    // OS の文字認識 の Line は見た目の塊で切れる。領収書のように品名と金額が左右へ離れていると
+    // 認識結果の Line は見た目の塊で切れる。領収書のように品名と金額が左右へ離れていると
     // 別々の行として返り、金額が品名から切り離される（実測）。使うのは Element だけにして、
-    // 行は ある環境 と同じく y の中心で組み直す。
+    // 行はもう一方と同じく y の中心で組み直す。
     private fun toRecognizedText(text: Text, width: Double, height: Double): JSONObject {
         val words = ArrayList<Word>()
         for (block in text.textBlocks) {
@@ -80,7 +80,7 @@ object TextRecognizer {
         }
         return wordsToLines(words)
     }
-    // 閾値は行の高さの半分。ある環境 の wordsToLines と同じ。
+    // 閾値は行の高さの半分。もう一方の wordsToLines と同じ。
     private fun wordsToLines(words: List<Word>): JSONObject {
         val sorted = words.sortedBy { it.centerY }
         val rows = ArrayList<ArrayList<Word>>()
@@ -128,7 +128,7 @@ object TextRecognizer {
         }
         return JSONObject().put("lines", lines).put("text", whole.toString())
     }
-    // OS の文字認識 に候補の第 2 案は無い。alternates は空で返す（Vision だけが持つ）。
+    // ここの認識に候補の第 2 案は無い。alternates は空で返す（持つ実装もある）。
     private fun word(w: Word): JSONObject {
         val out =
             JSONObject()

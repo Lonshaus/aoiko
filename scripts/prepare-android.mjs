@@ -1,5 +1,5 @@
 // gen/android は生成物で git に入っていない。tauri android init はランチャーアイコンを
-// シェル 既定のロゴで置き、こちらから差し替える口も無い（CLI は出力先を
+// 既定のロゴで置き、こちらから差し替える口も無い（CLI は出力先を
 // gen/android/app/src/main/res/ に固定していて、出所ディレクトリという概念が無い）。
 // prepare-ios.mjs と同じ形で、icons/android を出所として毎回上書きし直す。
 import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
