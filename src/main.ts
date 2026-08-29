@@ -4,7 +4,7 @@ import App from './App.svelte';
 import { seedAndReconcileAccounts } from './db';
 import { getSetting, setSetting } from './lib/settings';
 import { applyUiLanguage } from './lib/ui-language';
-// IndexedDB が使えない環境（あるブラウザ プライベートモード・ストレージ拒否・容量枯渇）では
+// IndexedDB が使えない環境（プライベートモード・ストレージ拒否・容量枯渇）では
 // シードや設定読み書きが失敗する。例外を握りつぶして白画面にせず、状況を表示する。
 // paraglide（多言語メッセージ）はまだ読み込まれておらず、失敗の理由次第では
 // ロケール判定自体が動く保証もないため、この画面だけは日本語・英語・繁體中文を

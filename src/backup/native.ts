@@ -1,10 +1,10 @@
 import { splitBackupPath } from './content-store';
 import type { BackupAdapter } from './types';
-// wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）が注入するネイティブのフォルダ書き込み。
+// wrapper 版が注入するネイティブのフォルダ書き込み。
 //
-// web view に showDirectoryPicker は無く、今後も入らない（web view の standards-positions#28
-// が oppose でクローズ済み、preference も存在しない）。web API に頼る限り一部の環境の app は
-// 同期フォルダへの自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
+// showDirectoryPicker が無く、今後も入らない環境がある（実装側が反対の立場を表明して
+// 議論は終わっており、有効化する設定も無い）。web API に頼る限りそこでは同期フォルダへの
+// 自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
 //
 // ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
 // 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
@@ -78,7 +78,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     }
     return api.backupIsReady(folder.token);
   }
-  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。ある環境 の bookmark が
+  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。保存先への参照が
   // 解決できなくなった場合も、フォルダを移動・削除された場合も回復動線は同じなので、
   // 権限の再取得を独立した操作にはせず configure に一本化する。
   async ensurePermission(): Promise<boolean> {

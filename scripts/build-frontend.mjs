@@ -1,4 +1,4 @@
-// ネイティブ版（シェル）向けにフロントエンドを建て、出力へネイティブ側の
+// ネイティブ版向けにフロントエンドを建て、出力へネイティブ側の
 // ライセンス一覧を足す。`tauri build` の前に通す。
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';

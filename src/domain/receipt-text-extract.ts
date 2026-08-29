@@ -333,7 +333,7 @@ function findTotalRow(lines: OcrLine[]): number {
   }
   return totalRowWithoutKeyword(lines);
 }
-// 合計の語が読めないことがある（実測。ある環境 は「合 計」を「言十」と読み、金額だけが
+// 合計の語が読めないことがある（実測。「合 計」を「言十」と読み、金額だけが
 // 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
 function totalRowWithoutKeyword(lines: OcrLine[]): number {
   let found = lines.length;

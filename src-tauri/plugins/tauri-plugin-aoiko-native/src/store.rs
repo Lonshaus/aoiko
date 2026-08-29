@@ -15,7 +15,7 @@ const LAST_DIR_FILE: &str = "last-dir";
 pub(crate) struct StoredFolder {
     /// 画面に出すフォルダ名。
     pub name: String,
-    /// OS が発行した security-scoped bookmark（ある環境/ある環境）か、素のパス（ある環境）。
+    /// OS が発行した security-scoped bookmark か、素のパス。
     /// 中身の見分けは platform 側の resolve に任せる。
     pub handle: String,
 }

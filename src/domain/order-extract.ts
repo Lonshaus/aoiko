@@ -1,7 +1,7 @@
 import { LlmError } from './llm';
 // EC サイト（Amazon、楽天等）の注文ページの貼り付けテキストから、
 // LLM で品目内訳を抽出する純ロジック。DOM scraping を使わないため
-// サイト改修に強い。Phase 3：「あるブラウザ 拡張」案を本方式に置き換え。
+// サイト改修に強い。Phase 3：ブラウザ拡張案を本方式に置き換え。
 
 export interface OrderItem {
   /** 品目名（型番・規格含む） */

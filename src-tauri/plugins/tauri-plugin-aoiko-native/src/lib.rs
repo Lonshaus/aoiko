@@ -1,4 +1,4 @@
-// バックアップフォルダの選択・記録・解決と、ある環境/ある環境 の印刷とアプリ内ブラウザ表示。
+// バックアップフォルダの選択・記録・解決と、モバイルの印刷とアプリ内ブラウザ表示。
 //
 // 選んだフォルダの記録はこのプラグインが持ち、読み書きの起点になる場所もここでしか決めない。
 // JS から受け取れるのはその起点からの相対パスだけで、実パスへ解くのは path.rs の
@@ -119,7 +119,7 @@ pub struct PickedFolder {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedFolder {
     pub ready: bool,
-    /// ready のときだけ入る。ある環境 は file:// URL、デスクトップは素のパス。
+    /// ready のときだけ入る。モバイルは file:// URL、デスクトップは素のパス。
     pub path: Option<String>,
 }
 
@@ -170,7 +170,7 @@ pub struct RecognizedText {
 }
 
 impl RecognizedLine {
-    // ある環境 では ネイティブ側 側が組んで返すため、Rust は受け取るだけ。
+    // モバイルではネイティブ側が組んで返すため、Rust は受け取るだけ。
     #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub(crate) fn from_words(words: Vec<RecognizedWord>, separator: &str) -> Option<Self> {
         let first = words.first()?;
@@ -211,7 +211,7 @@ impl RecognizedText {
         Self { lines, text }
     }
 }
-// 解決は 1 回で済ませる。ある環境 の bookmark は解決のたびに新しい URL の権限を取り、
+// 解決は 1 回で済ませる。bookmark は解決のたびに新しい URL の権限を取り、
 // 手放さない実装（書き込み中に権限が消えないため）なので、毎回やると積み上がる。
 #[derive(Default)]
 pub(crate) struct Resolved(Mutex<Option<(String, String)>>);
