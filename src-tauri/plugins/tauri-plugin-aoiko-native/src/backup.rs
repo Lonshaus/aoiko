@@ -445,7 +445,7 @@ mod tests {
     fn the_ios_export_cannot_leave_documents() {
         let documents = temp_dir("ios-export");
         let files = OpenFiles::default();
-        // ある環境 の ask は取り消しが無く必ず Some を返すので、検査が先に立たないと
+        // モバイルの ask は取り消しが無く必ず Some を返すので、検査が先に立たないと
         // Documents の外を指す名前でもそのまま開いてしまう。
         for bad in ["../escape.zip", "/etc/passwd", "a/b.zip", "C:x", ".."] {
             let opened = export_open(&files, bad, |suggested| {

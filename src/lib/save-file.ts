@@ -3,16 +3,16 @@ import { nativeBridge } from './native-bridge';
 // 複製されていたため 1 箇所へ集約する。呼出側はファイルの中身と名前だけを渡す。
 //
 // 戻り値は「利用者が保存を完了したことを観測できたか」。既定は <a> のダウンロードで、
-// 完了も取消も観測できないため常に 'unknown' を返す（あるブラウザ / あるブラウザ）。
+// 完了も取消も観測できないため常に 'unknown' を返す（FSA を持たないブラウザ）。
 //
 // confirmCompletion を指定した場合だけ、File System Access が使える環境で保存先の確定まで
 // 待ち、'saved'／'cancelled' を区別する。保存済みを主張する記録（バックアップの最終ダウンロード
 // 時刻）を残す呼出側のためのオプションで、既定にはしない：picker を挟むと保存ダイアログの
 // 挙動が変わり、.xtx や CSV の書き出しまで UX が変わってしまうため。
 //
-// ⚠ showSaveFilePicker は一時的なユーザー操作（transient activation、あるブラウザ ではおよそ
+// ⚠ showSaveFilePicker は一時的なユーザー操作（transient activation、実装によってはおよそ
 // 5秒）の間しか開けない。中身を先に用意すると大きな帳簿・証憑写真で活性化が切れ、
-// SecurityError で保存できなくなる（chromium issue 40175286）。そのため picker を最初に
+// SecurityError で保存できなくなる。そのため picker を最初に
 // 呼び、保存先が確定してから中身を作る。データを遅延生成する関数も受け取れるのはこのため。
 export type SaveFileData = Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
 export type SaveFileResult = 'saved' | 'cancelled' | 'unknown';
@@ -23,8 +23,8 @@ export async function saveFile(
   mimeType: string,
   options?: { confirmCompletion?: boolean },
 ): Promise<SaveFileResult> {
-  // ネイティブのシェルがあるときは、そちらの保存ダイアログへ渡す。ある環境 の web view では
-  // <a download> + blob URL が何も起こさない（ファイルもエラーも出ない・tauri#8452）ため、
+  // ネイティブのシェルがあるときは、そちらの保存ダイアログへ渡す。web view によっては
+  // <a download> + blob URL が何も起こさない（ファイルもエラーも出ない）ため、
   // 下の既定経路はそもそも成立しない。
   //
   // ネイティブの保存ダイアログは完了と取消を常に区別できるので 'unknown' は返らず、

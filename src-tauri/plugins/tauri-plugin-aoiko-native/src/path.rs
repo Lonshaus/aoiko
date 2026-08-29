@@ -54,7 +54,7 @@ fn check_segment(segment: &str) -> Result<()> {
     if segment.chars().any(|c| (c as u32) < 0x20) {
         return Err(invalid("制御文字は使えません"));
     }
-    // "C:" や "C:foo"。ある環境 ではドライブ相対パスとして解釈され得る。
+    // "C:" や "C:foo"。ドライブ相対パスとして解釈され得る環境がある。
     let bytes = segment.as_bytes();
     if bytes.len() >= 2 && bytes[1] == b':' && (bytes[0] as char).is_ascii_alphabetic() {
         return Err(invalid("ドライブ指定は使えません"));

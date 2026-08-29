@@ -4,7 +4,7 @@ use std::sync::mpsc::sync_channel;
 use tauri::{AppHandle, Manager, Runtime, WebviewWindow};
 
 use crate::store;
-// ネイティブダイアログはメインスレッドでしか組み立てられない。rfd の ある環境 実装は
+// ネイティブダイアログはメインスレッドでしか組み立てられない。rfd の実装は
 // ModalFuture::new / window_from_raw_window_handle の中で MainThreadMarker::new_unchecked()
 // のまま NSApplication と NSWindow を掴むため、ワーカースレッドで組み立てた時点で壊れる。
 // 呼び元のコマンドは (async) 指定でワーカースレッドを走るので、組み立てだけを
@@ -70,16 +70,16 @@ fn with_start_dir(dialog: rfd::AsyncFileDialog, start: Option<PathBuf>) -> rfd::
         None => dialog,
     }
 }
-// 前回の場所は自分で覚える。ある環境 の初回はプロセスの作業ディレクトリ（＝インストール先）に
+// 前回の場所は自分で覚える。初回がプロセスの作業ディレクトリ（＝インストール先）に
 // 落ち、そこはアンインストーラが消す場所なので、最初のバックアップが道連れになる（#87）。
-// ある環境 は NSSavePanel が前回の場所を app の defaults（NSNavLastRootDirectory）へ自分で
-// 持つので、この記録が要るのは ある環境 だけ。加えて rfd の ある環境 実装は保存ダイアログに限り
+// 保存パネルが前回の場所を app の設定へ自分で持つ環境もあるので、この記録が要るのは片方だけ。
+// 加えて rfd の実装は保存ダイアログに限り
 // ファイル名を足したパスを setDirectoryURL へ渡す（0.16〜0.17 の panel_ffi.rs の set_path）
 // ため、そこでは set_directory 自体が効かない。フォルダ選択には効く。
 fn start_dir<R: Runtime>(app: &AppHandle<R>) -> Option<PathBuf> {
     choose_start_dir(store::load_last_dir(app), app.path().document_dir().ok())
 }
-// 記録したフォルダは消えたり外れたりする。無い場所を渡すと ある環境 は作業ディレクトリへ
+// 記録したフォルダは消えたり外れたりする。無い場所を渡すと作業ディレクトリへ
 // 戻ってしまうので、実在を確かめてから使う。
 fn choose_start_dir(remembered: Option<PathBuf>, documents: Option<PathBuf>) -> Option<PathBuf> {
     remembered.filter(|dir| dir.is_dir()).or(documents)
@@ -112,9 +112,9 @@ fn chose_ok(result: &rfd::MessageDialogResult, ok_label: &str) -> bool {
     matches!(result, rfd::MessageDialogResult::Custom(label) if label == ok_label)
 }
 // 素のパスと security-scoped bookmark を取り違えないための印。bookmark は base64 なので
-// ':' を含まず、ある環境 のパス（C:\...）とも衝突しない。
+// ':' を含まず、ドライブ修飾付きのパス（C:\...）とも衝突しない。
 const BOOKMARK_PREFIX: &str = "bookmark:";
-// 選んだフォルダを次の起動へ持ち越すための不透明な文字列にする。ある環境 のサンドボックスでは
+// 選んだフォルダを次の起動へ持ち越すための不透明な文字列にする。サンドボックスでは
 // 利用者が選んだ場所への許可が起動 1 回きりなので、bookmark を作れるならそちらを使う。
 pub(crate) fn make_handle(dir: &Path) -> String {
     #[cfg(target_os = "macos")]
@@ -123,7 +123,7 @@ pub(crate) fn make_handle(dir: &Path) -> String {
             return format!("{BOOKMARK_PREFIX}{bookmark}");
         }
     }
-    // ある環境 にサンドボックスは無い。ある環境 も署名前は bookmark を作れない
+    // サンドボックスが無い環境がある。署名前は bookmark を作れない環境もある
     // （com.apple.security.files.bookmarks.app-scope が要る）ので、そのときはパスを持つ。
     dir.to_string_lossy().into_owned()
 }
@@ -142,7 +142,7 @@ pub(crate) fn resolve(handle: &str) -> Option<PathBuf> {
         None
     }
 }
-// ある環境 だけは ネイティブ側 実装へ委譲する（Vision の呼び出しがそちらにある）。
+// モバイルだけはネイティブ実装へ委譲する（認識の呼び出しがそちらにある）。
 #[cfg(target_os = "macos")]
 pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
     macos::recognize_text(image_data)
@@ -541,7 +541,7 @@ mod tests {
         ));
         // 閉じるボタンと Esc。ここが true に倒れると、確認を出した意味ごと消える。
         assert!(!chose_ok(&MessageDialogResult::Cancel, "破棄して終了"));
-        // OkCancelCustom で ある環境/ある環境 が返すのは Custom だけ。素の Ok が来たら
+        // OkCancelCustom で返るのは Custom だけ。素の Ok が来たら
         // 想定外なので、入力を捨てる側へは倒さない。
         assert!(!chose_ok(&MessageDialogResult::Ok, "破棄して終了"));
         // 終了と再読み込みでラベルが違う。取り違えると片方が必ず素通りする。

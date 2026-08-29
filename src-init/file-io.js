@@ -1,14 +1,14 @@
 // window.__aoikoNative のファイル入出力。プラグインのコマンドを呼ぶだけの層だが、
 // チャンク分割・rid の後始末・見つからないファイルの扱いはここにしか無い。
-// invoke を引数で受けるのは、window も シェル も無い node --test から回すため（frame.js と同じ）。
+// invoke を引数で受けるのは、window も橋渡しも無い node --test から回すため（frame.js と同じ）。
 //
-// Rust の引数名は snake_case だが、JS から渡す名前は シェル が camelCase へ寄せた側。
+// Rust の引数名は snake_case だが、JS から渡す名前は橋渡しが camelCase へ寄せた側。
 // commands.rs の rel_path / file_name は relPath / fileName で送る。
 import { parseReplyFrame } from './frame.js';
 // IPC 1 往復ぶんの大きさ。1 本にまとめると数百 MiB のコピーが webview 側と Rust 側に
 // 同時に載り、細かすぎると往復回数だけが増える。
 //
-// ある環境 の実機で 300 MiB を書いて測った結果、頭打ちはこの幅で来ている。
+// 実機で 300 MiB を書いて測った結果、頭打ちはこの幅で来ている。
 // 256 KiB=520 MB/s（1200 往復）、1 MiB=2013 MB/s（300 往復）、4 MiB=3000 MB/s（75 往復）、
 // 16 MiB=3000 MB/s（19 往復）。16 MiB へ上げても速度は変わらず、1 往復あたりの
 // 山だけが 4 倍になる。
@@ -51,7 +51,7 @@ async function* chunksOf(data) {
     yield data.subarray(offset, offset + CHUNK_SIZE);
   }
 }
-// シェル の custom protocol IPC は一度失敗すると customProtocolIpcFailed が立ち、以降
+// custom protocol IPC は一度失敗すると customProtocolIpcFailed が立ち、以降
 // そのページでは postMessage へ固定される（tauri/scripts/ipc-protocol.js）。旗は閉包の
 // 中なので消せず、再読込まで戻らない。その状態では ArrayBuffer が JSON 化されて Rust に
 // 生バイトとして届かず、書き出しが全部落ちる。

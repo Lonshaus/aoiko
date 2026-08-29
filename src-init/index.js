@@ -2,7 +2,7 @@
 // src-tauri/init.js を生成し、Rust 側が include_str! で読み込んでページの
 // スクリプトより前に実行する。
 //
-// プラグインの JS API は npm パッケージとして別配布で、`withGlobalシェル` では注入されない
+// プラグインの JS API は npm パッケージとして別配布で、シェルの一括注入では入らない
 // （実機で確認：window.__TAURI__ に入るのは app/core/dpi/event/image/menu/mocks/
 // path/tray/webview/webviewWindow/window だけ）。そのためここで束ねて、必要な入口だけを
 // window.__aoikoNative へ出す。プラグインごとの npm パッケージは入れず、invoke を直に叩く。
@@ -44,8 +44,8 @@ async function backupFolderReady() {
 // 数 GiB の zip 全体をメモリに載せない。
 const discardText = createDiscardText();
 window.__aoikoNative = {
-  // デスクトップは保存ダイアログ、ある環境 はアプリの Documents 直下。どちらを通るかは
-  // プラグイン側だけが決める（ある環境 には保存先を選ばせる仕組みが無い）。
+  // 保存ダイアログを出せる環境と、アプリの Documents 直下へ固定する環境がある。
+  // どちらを通るかはプラグイン側だけが決める（保存先を選ばせる仕組みが無い環境があるため）。
   async saveFile(data, filename) {
     return exportFile(invoke, data, filename);
   },
@@ -177,8 +177,8 @@ window.fetch = function (input, init) {
   } catch {
     return browserFetch(input, init);
   }
-  // ある環境 の IPC は http://ipc.localhost を通るため isExternal では外部扱いになる。素の
-  // fetch へ戻さないと invoke がこの上書きを再入して止まらない（ある環境 の ipc://localhost は
+  // IPC が http://ipc.localhost を通る環境があり、isExternal では外部扱いになる。素の
+  // fetch へ戻さないと invoke がこの上書きを再入して止まらない（ipc://localhost を通る側は
   // protocol の時点で外れる）。
   if (!isExternal(url) || url.host === 'ipc.localhost') {
     return browserFetch(input, init);
@@ -211,9 +211,8 @@ document.addEventListener(
   },
   true,
 );
-// モバイルはアプリ内ブラウザで上に重ねる（ある環境 は SFあるブラウザViewController、ある環境 は
-// アプリ内ブラウザ）。外のブラウザへ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
-// mailto:/tel: は対象外なので OS へ渡す。
+// モバイルはアプリ内ブラウザでアプリの上に重ねる。外のブラウザへ飛ばすと
+// アプリごと切り替わり、戻るのに手数が要る。mailto:/tel: は対象外なので OS へ渡す。
 async function openExternal(url, isMail) {
   if (!isMail && (await isMobile())) {
     await invoke('plugin:aoiko-native|open_in_app', { url: url.href });
@@ -222,7 +221,7 @@ async function openExternal(url, isMail) {
   await openUrl(url.href);
 }
 
-// 3. ネイティブのウィンドウ終了要求を web 版の未保存ガードへ繋ぐ。シェル の終了では beforeunload が
+// 3. ネイティブのウィンドウ終了要求を web 版の未保存ガードへ繋ぐ。シェル側の終了では beforeunload が
 //    発火しない。router.svelte.ts が登録済みのリスナーをそのまま使えるよう、合成
 //    イベントを投げて preventDefault の有無を見る。判定をデスクトップ版で書き直さない。
 window.__aoikoRequestClose = async function () {
@@ -241,7 +240,7 @@ window.__aoikoRequestClose = async function () {
   }
   await invoke('force_close');
 };
-// CLOSE_SCRIPT が未保存ガードを経ずに直接終了するときの入口。以前は withGlobalシェル で
+// CLOSE_SCRIPT が未保存ガードを経ずに直接終了するときの入口。以前はシェルの一括注入で
 // 注入される window.__TAURI__.core.invoke を直接呼んでいたが、この関数を出すだけで足りるため
 // tauri.conf.json 側のフラグごと不要になった（__aoikoRequestClose と同じタイミングで定義される）。
 window.__aoikoForceClose = function () {
@@ -264,17 +263,17 @@ window.__aoikoRequestReload = async function () {
   }
   location.reload();
 };
-// 4. 印刷をネイティブへ回す。web view の window.print() は例外を投げるため（tauri#3066）、
+// 4. 印刷をネイティブへ回す。web view の window.print() が例外を投げる環境があるため、
 //    請求書の印刷ボタンを押してもダイアログが開かず、未捕捉例外のバナーが出るだけだった。
 //    印刷スタイルは公開 repo に揃っているので、出力は web view 自身に描かせる。
 window.print = function () {
   void (async () => {
-    // デスクトップの print_page は web view / web view を直接叩く実装で、モバイルには
-    // 無い。plugin 側の UIPrintInteractionController / PrintManager へ回す。
+    // デスクトップの print_page は web view を直接叩く実装で、モバイルには無い。
+    // モバイルは plugin 側の印刷機構へ回す。
     await invoke((await isMobile()) ? 'plugin:aoiko-native|print_page' : 'print_page');
   })();
 };
-// 5. 永続化ストレージの判定をこの環境の実情に合わせる。web view の persist() は免除リスト
+// 5. 永続化ストレージの判定をこの環境の実情に合わせる。persist() が免除リスト
 //    （app-bound / managed / persisted / standalone）にある origin にしか true を返さず、
 //    app-bound は死んでおり残り 2 つは SPI なので、第三者アプリは公開 API では到達できない。
 //    false は「破棄される」ではなく「リストに入れない」でしかないため、web 版の警告文は

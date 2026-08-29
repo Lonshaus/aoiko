@@ -115,7 +115,7 @@ export function missingBlobs(snapshot: Snapshot, present: ReadonlySet<string>): 
   }
   return result;
 }
-// バックスラッシュ・NUL を含む制御文字・ある環境 のドライブ修飾（`C:`）を拒む。
+// バックスラッシュ・NUL を含む制御文字・ドライブ修飾（`C:`）を拒む。
 const INVALID_SEGMENT_PATTERN = /[\\\u0000-\u001F]|^[A-Za-z]:/;
 // 保存先ルートからの相対パスをセグメントへ分解する。ここは信頼境界で、同期フォルダから
 // 読んだファイル名がそのままパスへ合成される。壊れた名前・細工された名前で保存先の外を

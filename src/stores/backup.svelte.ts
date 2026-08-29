@@ -41,7 +41,7 @@ type BackupStatus =
   | 'unsupported'
   | 'unconfigured'
   // 保存先が失われ、選び直す以外に回復手段が無い状態。FSA 時代の handle しか無い
-  // wrapper 版と、ある環境 の bookmark が失効した場合の両方で使う（回復動線が同じため）。
+  // wrapper 版と、保存先への参照が失効した場合の両方で使う（回復動線が同じため）。
   | 'reconfigure-required'
   | 'permission-required'
   | 'idle'
@@ -128,8 +128,8 @@ class BackupManager {
 
   private async initAdapter(): Promise<void> {
     await this.requestPersistentStorage();
-    // web view に showDirectoryPicker は無いため、wrapper 版はネイティブ層を先に見る。
-    // これが無いと ある環境 / ある環境 / ある環境 の app は opfs 止まりになり、同期フォルダへの
+    // showDirectoryPicker が無い環境があるため、wrapper 版はネイティブ層を先に見る。
+    // これが無いとそこでは opfs 止まりになり、同期フォルダへの
     // 自動書き出しに到達できない。
     const native = new NativeFolderBackupAdapter(
       async () => (await getSetting('nativeBackupFolder')) ?? null,
@@ -182,7 +182,7 @@ class BackupManager {
     this.lastBackupAt = (await getSetting('lastBackupAt')) ?? null;
     this.lastDownloadAt = (await getSetting('lastDownloadAt')) ?? null;
     this.folderName = folder?.name ?? legacy?.name ?? null;
-    // token が解決できない場合（ある環境 の bookmark 失効・フォルダの削除や移動）も、ネイティブ層に
+    // token が解決できない場合（保存先への参照の失効・フォルダの削除や移動）も、ネイティブ層に
     // 権限を取り直す手段は無く回復は選び直しだけ。permission-required には倒さない。
     this.status = decideNativeState({
       hasFolder: folder !== null && folder !== undefined,
@@ -340,7 +340,7 @@ class BackupManager {
     );
   }
   // 「全データ削除」から呼ぶ。OPFS のバックアップは帳簿と証憑写真の完全な複製で
-  // ありながら、利用者が ファイル管理 / ファイル管理から見ることも消すこともできない。
+  // ありながら、利用者が端末のファイル管理から見ることも消すこともできない。
   // IndexedDB だけ消して放置すると、譲渡・廃棄した端末に帳簿が丸ごと残る。
   // FSA・ネイティブの保存先は利用者自身が選んだフォルダなので、こちらからは消さない。
   async clearStoredBackups(): Promise<void> {
@@ -409,7 +409,7 @@ class BackupManager {
     this.lastDownloadAt = Date.now();
     await setSetting('lastDownloadAt', this.lastDownloadAt);
   }
-  // <a download> 経路（あるブラウザ / あるブラウザ）は保存できたか観測できないため、利用者に
+  // <a download> 経路（FSA を持たないブラウザ）は保存できたか観測できないため、利用者に
   // 「保存できましたか？」の確認を出した後にこちらを呼んで刻む（issue#390）。
   async confirmDownloadSaved(): Promise<void> {
     await this.stampDownloadedNow();

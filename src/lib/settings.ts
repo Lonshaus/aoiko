@@ -14,7 +14,7 @@ export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native';
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）で選んだバックアップ先。token は端末固有の
+  // wrapper 版で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
@@ -86,7 +86,7 @@ export type SettingsMap = {
   // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
-  // <a download> 経路（あるブラウザ / あるブラウザ）で保存できたかの確認ダイアログをスキップ
+  // <a download> 経路（完了を観測できないブラウザ）で保存できたかの確認ダイアログをスキップ
   // （利用者が「次回から確認しない」を選択）。
   skipDownloadSavedConfirm: boolean;
   // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
@@ -102,7 +102,7 @@ export type SettingsMap = {
 // v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
-// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・あるブラウザ の非訪問 7 日消去）を追記。
+// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・長期未訪問での消去）を追記。
 // v6: OCR エンジンに OS 内蔵の文字認識を追加（この引擎を持つ側だけ）。
 // v6 で足したのは片方にしか無い引擎の免責なので、もう片方の本文は 1 字も変わらない。
 // 見えない内容のために同意を取り直させる理由が無く、そちらは 5 で据え置く。次に本文を

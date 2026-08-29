@@ -20,7 +20,7 @@ if (!existsSync(dest)) {
   process.exit(0);
 }
 
-// 1. 最低 ある環境 バージョン。tauri ios init は既存の project.yml を上書きしないため、
+// 1. 最低 OS バージョン。tauri ios init は既存の project.yml を上書きしないため、
 // tauri.conf.json だけ直しても古い値のまま建ってしまう。黙って通すと、宣言より低い
 // 端末へ入るビルドが出来上がる。
 const conf = JSON.parse(
@@ -80,7 +80,7 @@ if (applied.length > 0) {
   });
 }
 
-// 3. アイコン。tauri ios init は Assets.xcassets を シェル 既定のロゴで作り直す。
+// 3. アイコン。tauri ios init は Assets.xcassets を既定のロゴで作り直す。
 // 新規 clone でも同じことが起きるので、icons/ios を出所として毎回上書きし直す。
 const icons = readdirSync(src).filter((f) => f.endsWith('.png'));
 if (icons.length === 0) {
@@ -88,7 +88,7 @@ if (icons.length === 0) {
   process.exit(1);
 }
 // Contents.json は init が作ったものを使う。差し替えるのは PNG の中身だけ。
-// 名前が食い違っていれば ビルドツール のビルドが落ちるので、ここで黙って通さない。
+// 名前が食い違っていればビルドが落ちるので、ここで黙って通さない。
 const listed = new Set(readdirSync(dest).filter((f) => f.endsWith('.png')));
 const missing = icons.filter((f) => !listed.has(f));
 if (missing.length > 0) {

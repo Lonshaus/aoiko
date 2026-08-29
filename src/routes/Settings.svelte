@@ -124,8 +124,8 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // 橋渡しが生えていても、その端末が日本語を読めるとは限らない（ある環境 は言語機能が
-  // 既定で入っておらず、環境も版と導入内容で変わる）。推測せず onMount で実際に問う。
+  // 橋渡しが生えていても、その端末が日本語を読めるとは限らない（言語機能が既定では入って
+  // いない環境があり、入っていても版と導入内容で変わる）。推測せず onMount で実際に問う。
   // 返事が来るまでは読めない側に倒す。使えるものを一瞬使えないと言うほうが、逆より軽い。
   let nativeOcrAvailable = $state(false);
   const SupportDialog = __NATIVE__
