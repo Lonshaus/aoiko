@@ -104,10 +104,10 @@ window.__aoikoNative = {
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
 // 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
-// 撮影の入口も同じ形。相機へ回せるのは ある環境 だけで、他は関数ごと生えない。
+// 撮影の入口も同じ形。相機へ回せる環境だけで、他は関数ごと生えない。
 Object.assign(window.__aoikoNative, createNativeCamera(invoke, window.__aoikoPlatform) ?? {});
 
-// ある環境 の IPC は生バイトを運べず、ArrayBuffer が JSON 化されて届かない。file-io.js の
+// IPC が生バイトを運べず、ArrayBuffer が JSON 化されて届く環境がある。file-io.js の
 // チャンク送信と同じく、駄目だった経路は覚えて以後 base64 で載せる（膨張 1.33 倍。
 // 数字の配列は 3.57 倍で、領収書の画像を載せると持たない）。
 let rawFramesUnavailable = false;

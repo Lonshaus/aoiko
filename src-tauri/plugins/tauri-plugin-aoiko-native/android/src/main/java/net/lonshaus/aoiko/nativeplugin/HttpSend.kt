@@ -5,7 +5,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-// ある環境 には Rust から借りられる system TLS が無い。ここは OS の TLS を使うためだけに在り、
+// この環境には Rust から借りられる system TLS が無い。ここは OS の TLS を使うためだけに在り、
 // 宛先の検査もリダイレクトの判断も Rust 側に残してある。
 object HttpSend {
     private const val CONNECT_TIMEOUT_MS = 30_000

@@ -40,7 +40,7 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS の版や導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
-  // 撮影の入口を出してよいか。ある環境 以外では生えない。
+  // 撮影の入口を出してよいか。備えていない環境では生えない。
   isCameraAvailable?(): Promise<boolean>;
 };
 

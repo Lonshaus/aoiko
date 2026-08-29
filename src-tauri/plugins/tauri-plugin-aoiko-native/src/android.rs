@@ -53,7 +53,7 @@ impl<R: Runtime> AoikoNative<R> {
             )
             .map_err(Into::into)
     }
-    // 以下は SAF 配下の入出力。パスで触れないので ネイティブ側 側で完結させる。
+    // 以下は選ばれたフォルダ配下の入出力。パスで触れないのでネイティブ側で完結させる。
     // 見つからないのは正常な分岐なので None。frame の found に translate するのは呼出側。
     pub fn backup_read(&self, token: &str, rel_path: &str) -> Result<Option<Vec<u8>>> {
         #[derive(serde::Deserialize)]
@@ -108,7 +108,7 @@ impl<R: Runtime> AoikoNative<R> {
             )
             .map_err(Into::into)
     }
-    // チャンクは base64 で渡す。ある環境 の IPC は生バイトを運べない。
+    // チャンクは base64 で渡す。この環境の IPC は生バイトを運べない。
     pub fn backup_write_chunk(&self, rid: u32, chunk: &[u8]) -> Result<()> {
         use base64::{engine::general_purpose::STANDARD, Engine};
         self.0
@@ -167,7 +167,7 @@ impl<R: Runtime> AoikoNative<R> {
             )
             .map_err(Into::into)
     }
-    // ある環境 には Rust から借りられる system TLS が無い。送信だけ ネイティブ側 へ渡し、
+    // この環境には Rust から借りられる system TLS が無い。送信だけネイティブへ渡し、
     // 宛先の検査もリダイレクトの判断も本体 crate 側に残す。
     pub fn http_send(&self, request: HttpRequest) -> Result<HttpResponse> {
         self.0

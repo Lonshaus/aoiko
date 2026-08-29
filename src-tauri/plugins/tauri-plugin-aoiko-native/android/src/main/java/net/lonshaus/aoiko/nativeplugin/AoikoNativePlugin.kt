@@ -181,7 +181,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             }
         }
     }
-    // 外部ブラウザへ飛ばすと戻り先が保証されない。アプリ内ブラウザ なら同じ画面の上に開く。
+    // 外部ブラウザへ飛ばすと戻り先が保証されない。アプリ内ブラウザなら同じ画面の上に開く。
     @Command
     fun openInApp(invoke: Invoke) {
         val args = invoke.parseArgs(OpenInAppArgs::class.java)
@@ -233,7 +233,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         )
     }
     // BitmapFactory は EXIF を見ないので、相機で撮った画像は寝たまま解ける。角度を
-    // 別に取り出して OS の文字認識 へ渡す（回さないと版面の行と列が入れ替わる。実機で踏んだ）。
+    // 別に取り出して認識へ渡す（回さないと版面の行と列が入れ替わる。実機で踏んだ）。
     private fun exifRotation(bytes: ByteArray): Int =
         try {
             when (
@@ -299,7 +299,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         io(invoke) { invoke.resolveObject(Saf.openPicked(activity, uri)) }
     }
 
-    // 破棄が選ばれたあとの終了。シェル の window.destroy() は ある環境 の Activity を
+    // 破棄が選ばれたあとの終了。window.destroy() は画面の器を
     // 終わらせないので、こちらで畳む。webview から直に呼べる口は生やさない。
     @Command
     fun closeApp(invoke: Invoke) {
@@ -328,7 +328,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
     fun resolveBookmark(invoke: Invoke) {
         val args = invoke.parseArgs(ResolveBookmarkArgs::class.java)
         val uri = Uri.parse(args.token)
-        // path は返せない（content:// はパスではない）。Rust 側は ある環境 のとき path を見ない。
+        // path は返せない（content:// はパスではない）。Rust 側はこの環境で path を見ない。
         invoke.resolve(JSObject().put("ready", Saf.isUsable(activity, uri)))
     }
 
@@ -370,7 +370,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             invoke.resolveObject(Saf.openForWrite(activity, tree, args.relPath))
         }
     }
-    // チャンクは base64 で受ける。ある環境 の IPC は生バイトを運べない。
+    // チャンクは base64 で受ける。この環境の IPC は生バイトを運べない。
     @Command
     fun backupWriteChunk(invoke: Invoke) {
         val args = invoke.parseArgs(BackupChunkArgs::class.java)

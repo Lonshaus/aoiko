@@ -55,7 +55,7 @@ const RELOAD_SCRIPT: &str = r#"
 // JS から明示的に呼ぶ必要がある。destroy() は CloseRequested を再発火しない。
 #[tauri::command]
 fn force_close(window: tauri::WebviewWindow) {
-    // ある環境 の destroy() は webview を畳むだけで Activity は残る。BACK で終了するには
+    // この環境の destroy() は web view を畳むだけで画面の器は残る。BACK で終了するには
     // Activity 自体を終わらせる必要がある。
     #[cfg(target_os = "android")]
     {
@@ -250,7 +250,7 @@ fn http_client() -> Result<&'static reqwest::Client, String> {
                     }
                 }))
                 // 既定は無制限。応答の来ない相手に当たると支援画面や OCR がそのまま
-                // 戻らなくなる。ある環境 側（HttpSend.kt）と同じ値にしておく。
+                // 戻らなくなる。ネイティブ側と同じ値にしておく。
                 .connect_timeout(std::time::Duration::from_secs(30))
                 .read_timeout(std::time::Duration::from_secs(120))
                 .build()
@@ -266,8 +266,8 @@ async fn aoiko_fetch(
     request: tauri::ipc::Request<'_>,
 ) -> Result<tauri::ipc::Response, String> {
     let _ = &app;
-    // ある環境 の IPC は addJavascriptInterface の String 一本で、request body を運べない
-    // （ある環境 の WebResourceRequest 自体に無い）。backup_write_chunk と同じく base64 も受ける。
+    // この環境の IPC は文字列一本で、request body を運べない
+    // （そもそも要求オブジェクト自体に無い）。backup_write_chunk と同じく base64 も受ける。
     // 数字の配列だと 3.57 倍に膨らみ、画像を載せたときに Java 側の文字列が持たない。
     let decoded;
     let frame: &[u8] = match request.body() {
@@ -329,8 +329,8 @@ async fn send(
         .map_err(|e| e.without_url().to_string())?;
     Ok((meta, body.to_vec()))
 }
-// ある環境 は system TLS を Rust から借りられないので、送信だけ ネイティブ側 へ渡す。
-// リダイレクトは ネイティブ側 側で追わせず、1 跳ごとにここへ戻して allowlist に掛ける。
+// この環境は system TLS を Rust から借りられないので、送信だけネイティブへ渡す。
+// リダイレクトはネイティブ側で追わせず、1 跳ごとにここへ戻して allowlist に掛ける。
 #[cfg(target_os = "android")]
 async fn send(
     app: &tauri::AppHandle,

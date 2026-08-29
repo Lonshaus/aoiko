@@ -7,7 +7,7 @@ import android.provider.DocumentsContract
 import java.io.ByteArrayOutputStream
 
 // SAF は content:// しか返さず、ファイルパスにならない。Rust 側の入出力はパス前提なので、
-// ある環境 のバックアップ入出力はここで完結させる。
+// この環境のバックアップ入出力はここで完結させる。
 object Saf {
     class Entry(val name: String, val isDirectory: Boolean)
 
