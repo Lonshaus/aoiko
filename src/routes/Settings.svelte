@@ -1480,7 +1480,9 @@
                   }}
                   class="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
                 >
-                  <span class="text-foreground">{e.name || '（局・事務所）'}</span>
+                  <span class="text-foreground"
+                    >{e.name || m.settings_filer_zeimusho_fallback()}</span
+                  >
                   <span class="ml-2 font-mono text-xs text-muted-foreground">{e.code}</span>
                 </button>
               </li>
@@ -2537,7 +2539,7 @@
           <input
             type="password"
             bind:value={openaiApiKey}
-            placeholder="(Ollama 等ローカルでは不要)"
+            placeholder={m.settings_openai_apikey_placeholder()}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
           />
         </label>
@@ -2598,7 +2600,7 @@
             <input
               type="text"
               bind:value={openaiClassifyModel}
-              placeholder="任意のテキストモデル"
+              placeholder={m.settings_openai_classify_model_placeholder()}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
             />
           {/if}
