@@ -12,6 +12,62 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBeUndefined();
   });
 
+  // OS 内蔵の文字認識が先頭の T を落として返す（実測）。空のままだと帳簿では
+  // 適格請求書でない扱いになり、仕入税額控除に効く。
+  test('T が落ちた登録番号を、同じ行に手掛かりがあれば補う', () => {
+    const r = extractFromOcrText('株式会社サンプル\n登録番号 1234567890123\n合計 ¥1,500');
+    expect(r.invoiceNumber).toBe('T1234567890123');
+  });
+
+  test('インボイスの語でも補う', () => {
+    const r = extractFromOcrText('インボイス番号 9876543210987\n合計 1000');
+    expect(r.invoiceNumber).toBe('T9876543210987');
+  });
+
+  test('手掛かりの無い 13 桁は登録番号にしない', () => {
+    const r = extractFromOcrText('レシート番号 1234567890123\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('13 桁ちょうどでなければ補わない', () => {
+    const r = extractFromOcrText('登録番号 123456789012345\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  // 実測で踏んだ形。同じ領収書を離れて撮ると 1 桁多く返ってきた。先頭 13 桁を
+  // 切り出すと形式は合ってしまい、別の番号でも利用者は誤りに気付けない。
+  test('T の後ろが 13 桁より長ければ採用しない', () => {
+    const r = extractFromOcrText('登録番号 T12345678901234\n合計 159');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T の後ろが 13 桁より短ければ採用しない', () => {
+    const r = extractFromOcrText('登録番号 T718030101695\n合計 159');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T の前に数字が続いていても採用しない', () => {
+    const r = extractFromOcrText('伝票 9T1234567890123\n合計 1000');
+    expect(r.invoiceNumber).toBeUndefined();
+  });
+
+  test('T 付きが読めていれば補正は働かない', () => {
+    const r = extractFromOcrText('登録番号 T1234567890123\n別番号 9999999999999\n合計 1000');
+    expect(r.invoiceNumber).toBe('T1234567890123');
+  });
+
+  // 実際のレシートで踏んだ形：店の電話が「0499 年 99 月 99 日」として先に命中し、
+  // 後ろにある本物の日付まで届かなかった。番号は作り物に置き換えてある。
+  test('電話番号を日付と取り違えて諦めない', () => {
+    const r = extractFromOcrText('みどり町店 0499-99-9999\n2026年05月14日（水）09:32\n合計 ¥248');
+    expect(r.date).toBe('2026-05-14');
+  });
+
+  test('19xx/20xx 以外の 4 桁は年として採らない', () => {
+    const r = extractFromOcrText('注文 0499-99-9999\n合計 1000');
+    expect(r.date).toBe('');
+  });
+
   test('西暦日付（YYYY/MM/DD）を抽出', () => {
     const r = extractFromOcrText('2026/05/20\n合計 1000');
     expect(r.date).toBe('2026-05-20');
@@ -126,5 +182,39 @@ describe('extractFromOcrText', () => {
 
   test('3 桁ちょうどでない . は桁区切りとみなさない', () => {
     expect(extractFromOcrText('合計 2.20 円').totalAmount).toBe('20');
+  });
+});
+
+// ある環境 の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
+// 単語ごとに矩形が返るため空白を挟むと一文字ずつばらける点と、通貨記号が半角の
+// `\\` で返り `円` が一度も出ない点は実測どおりに写してある。
+describe('OS 内蔵の文字認識で一文字ずつ返る環境の形', () => {
+  const sample = [
+    'あおい薬局',
+    '【領収証】',
+    '登録番号T1234567890123',
+    'ご利用ありがとうございます',
+    'みどり町店0499ー99ー9999',
+    '2026年05月14日(水)0932い。0001',
+    '責N。00000000',
+    '*#!ミネラルウォーター\\248',
+    '合計/1点\\248',
+    '(8%税対象\\248)',
+    '(8%税*18)',
+    '(税合計*18)',
+    'クレジット\\248',
+  ].join('\n');
+
+  test('登録番号・日付・合計をそのまま取り出せる', () => {
+    const r = extractFromOcrText(sample);
+    expect(r.invoiceNumber).toBe('T1234567890123');
+    expect(r.date).toBe('2026-05-14');
+    expect(r.totalAmount).toBe('248');
+  });
+
+  // 店の電話が日付より前に出る。年を 19xx / 20xx に限っていないと
+  // `0499ー99ー9999` が日付として先に当たる。
+  test('店の電話番号を日付と取り違えない', () => {
+    expect(extractFromOcrText(sample).date).toBe('2026-05-14');
   });
 });

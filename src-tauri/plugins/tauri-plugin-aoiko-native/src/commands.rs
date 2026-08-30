@@ -5,7 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::backup::{self, OpenFiles};
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
-use crate::{Error, PickedFolder, Resolved, ResolvedFolder, Result};
+use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
 #[cfg(target_os = "ios")]
 use crate::ios::AoikoNativeExt;
@@ -99,7 +99,7 @@ fn resolve<R: Runtime>(_app: &AppHandle<R>, handle: &str) -> Option<String> {
             .into_owned(),
     )
 }
-// ある環境 の解決結果は file:// URL、デスクトップは素のパス。存在確認も入出力もパスで行う。
+// モバイルの解決結果は file:// URL、デスクトップは素のパス。存在確認も入出力もパスで行う。
 fn to_file_path(path: &str) -> std::path::PathBuf {
     tauri::Url::parse(path)
         .ok()
@@ -117,6 +117,57 @@ pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
     {
         let _ = app;
         Err(Error::UnsupportedPlatform)
+    }
+}
+
+// Vision の perform は同期。(async) がワーカースレッドへ逃がすので、DispatchQueue.main には
+// 乗せない（乗せると画像 1 枚ぶんの認識のあいだメインスレッド、ひいては UI が止まる）。
+#[tauri::command(async)]
+pub(crate) fn recognize_text<R: Runtime>(
+    app: AppHandle<R>,
+    image_base64: String,
+) -> Result<RecognizedText> {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().recognize_text(image_base64)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let _ = &app;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let bytes = STANDARD
+            .decode(image_base64.as_bytes())
+            .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
+        crate::desktop::recognize_text(&bytes)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let _ = &app;
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        let bytes = STANDARD
+            .decode(image_base64.as_bytes())
+            .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
+        crate::desktop::recognize_text(&bytes)
+    }
+    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "windows")))]
+    {
+        let _ = (app, image_base64);
+        Err(Error::UnsupportedPlatform)
+    }
+}
+
+// 設定画面はこの答えで案内を出し分ける。選択肢自体は消さない（消すと、選べない
+// 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
+#[tauri::command(async)]
+pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
+    #[cfg(target_os = "ios")]
+    {
+        app.aoiko_native().is_text_recognition_available()
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = &app;
+        crate::desktop::is_text_recognition_available()
     }
 }
 
@@ -152,7 +203,7 @@ pub(crate) fn confirm_discard<R: Runtime>(
             cancel_label,
         ))
     }
-    // ある環境/ある環境 はウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
+    // モバイルはウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
     // __aoikoRequestClose / __aoikoRequestReload へ届く経路が存在しない。
     #[cfg(target_os = "ios")]
     {
@@ -163,9 +214,9 @@ pub(crate) fn confirm_discard<R: Runtime>(
 // 以降の入出力が受け取る base はここでしか作れない。JS が渡せるのはこの base からの
 // 相対パスだけで、実パスへ解くのは path.rs の resolve_within に限る。
 //
-// ある環境 も同じ経路で足りる。resolved_dir が file:// URL を実パスへ解いており、ネイティブ側 側は
-// resolveBookmark で取った security-scoped のスコープを選び直しまで手放さないので、
-// Rust の std::fs はそのスコープの下で走る。バイト列を ネイティブ側 へ渡す必要は無い。
+// モバイルも同じ経路で足りる。resolved_dir が file:// URL を実パスへ解いており、ネイティブ側は
+// bookmark で取った security-scoped のスコープを選び直しまで手放さないので、
+// Rust の std::fs はそのスコープの下で走る。バイト列をネイティブ側へ渡す必要は無い。
 fn backup_base<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
     resolved_dir(app)
         .map(|(_, dir)| dir)
@@ -181,7 +232,7 @@ pub(crate) fn backup_open<R: Runtime>(app: AppHandle<R>, rel_path: String) -> Re
 // チャンクは殻を被せず生バイトで受ける。JSON へ載せると 1 バイトが数字 1 個へ膨らみ、
 // 行き先の rid だけをヘッダーで渡す。
 //
-// 生バイトが届かない経路もある。シェル の custom protocol IPC が一度でも失敗すると
+// 生バイトが届かない経路もある。custom protocol IPC が一度でも失敗すると
 // customProtocolIpcFailed が立ち、以降そのページでは postMessage へ固定される
 // （tauri/scripts/ipc-protocol.js）。その状態では ArrayBuffer が JSON 化されて
 // InvokeBody::Raw にならない。落とさず書き切れるよう、base64 で載せた形も受ける。
@@ -251,7 +302,7 @@ fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Opti
     // バックアップフォルダの外へ書き出せなくなる）。
     Ok(crate::desktop::save_file(app, file_name).map(SafeTarget::from_os_chosen))
 }
-// ある環境/ある環境 には保存先を選ばせる仕組みが無く、plugin-dialog の save() は空ファイルを
+// モバイルには保存先を選ばせる仕組みが無く、plugin-dialog の save() は空ファイルを
 // 書き出す（plugins-workspace#1763）。アプリの Documents 直下へ固定し、Info.ios.plist の
 // UIFileSharingEnabled で「ファイル」アプリから取り出してもらう。選ばせないので
 // 取り消しも起きず、常に Some を返す。

@@ -4,8 +4,7 @@
 // `tr` は Key と Locale の両方で網羅 match になっている。Key を足して訳を書き忘れると
 // コンパイルが通らない。訳抜けのままメニューへ出る事故はこれで防ぐ。
 //
-// 繁體中文の文言は ある環境 自身が出しているものに合わせてある（Ventura 13.3 の あるブラウザ の
-// メニューを読み出して確認）。省略記号は日本語と英語が … (U+2026)、繁體中文は ⋯ (U+22EF) で、
+// 繁體中文の文言は OS 自身が出しているものに合わせてある（実機のメニューを読み出して確認）。省略記号は日本語と英語が … (U+2026)、繁體中文は ⋯ (U+22EF) で、
 // システムの表記がそうなっている。
 
 /// UI 言語。タグは公開 repo の paraglide の locales（`src/paraglide/runtime.js` の
@@ -39,6 +38,10 @@ impl Locale {
 }
 
 /// メニューに出る文字列の種類。
+// 環境によってメニューの構成そのものが違うため、どちらの側でも使われない
+// 種類が必ず残る。cfg で切ると使わない側の訳がテストの網羅から漏れるので、
+// 全部そろえたまま未使用の警告だけ黙らせる。
+#[allow(dead_code)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Key {
     About,
@@ -63,6 +66,24 @@ pub enum Key {
     WindowMenu,
     Minimize,
     Zoom,
+    // ここからもう一方の環境用。同じ操作でも既定の綴りが違い（元に戻す／取り消す、
+    // 檢視／顯示方式）、`&` の後ろ 1 文字がニーモニックとして下線付きで出る。
+    // もう一方の文言に `&` を混ぜられないので、種類ごと分ける。
+    WinFileMenu,
+    WinEditMenu,
+    WinViewMenu,
+    WinHelpMenu,
+    WinPrint,
+    WinExit,
+    WinReload,
+    WinFullScreen,
+    WinAbout,
+    WinUndo,
+    WinRedo,
+    WinCut,
+    WinCopy,
+    WinPaste,
+    WinSelectAll,
 }
 
 pub fn tr(locale: Locale, key: Key) -> &'static str {
@@ -177,6 +198,81 @@ pub fn tr(locale: Locale, key: Key) -> &'static str {
             Locale::ZhTw => "縮放",
             Locale::En => "Zoom",
         },
+        Key::WinFileMenu => match locale {
+            Locale::Ja => "ファイル(&F)",
+            Locale::ZhTw => "檔案(&F)",
+            Locale::En => "&File",
+        },
+        Key::WinEditMenu => match locale {
+            Locale::Ja => "編集(&E)",
+            Locale::ZhTw => "編輯(&E)",
+            Locale::En => "&Edit",
+        },
+        Key::WinViewMenu => match locale {
+            Locale::Ja => "表示(&V)",
+            Locale::ZhTw => "檢視(&V)",
+            Locale::En => "&View",
+        },
+        Key::WinHelpMenu => match locale {
+            Locale::Ja => "ヘルプ(&H)",
+            Locale::ZhTw => "說明(&H)",
+            Locale::En => "&Help",
+        },
+        Key::WinPrint => match locale {
+            Locale::Ja => "印刷(&P)…",
+            Locale::ZhTw => "列印(&P)⋯",
+            Locale::En => "&Print…",
+        },
+        Key::WinExit => match locale {
+            Locale::Ja => "終了(&X)",
+            Locale::ZhTw => "結束(&X)",
+            Locale::En => "E&xit",
+        },
+        Key::WinReload => match locale {
+            Locale::Ja => "再読み込み(&R)",
+            Locale::ZhTw => "重新載入(&R)",
+            Locale::En => "&Reload",
+        },
+        Key::WinFullScreen => match locale {
+            Locale::Ja => "全画面表示(&U)",
+            Locale::ZhTw => "全螢幕(&U)",
+            Locale::En => "F&ull Screen",
+        },
+        Key::WinAbout => match locale {
+            Locale::Ja => "aoiko について(&A)",
+            Locale::ZhTw => "關於 aoiko(&A)",
+            Locale::En => "&About aoiko",
+        },
+        Key::WinUndo => match locale {
+            Locale::Ja => "元に戻す(&U)",
+            Locale::ZhTw => "復原(&U)",
+            Locale::En => "&Undo",
+        },
+        Key::WinRedo => match locale {
+            Locale::Ja => "やり直し(&R)",
+            Locale::ZhTw => "重做(&R)",
+            Locale::En => "&Redo",
+        },
+        Key::WinCut => match locale {
+            Locale::Ja => "切り取り(&T)",
+            Locale::ZhTw => "剪下(&T)",
+            Locale::En => "Cu&t",
+        },
+        Key::WinCopy => match locale {
+            Locale::Ja => "コピー(&C)",
+            Locale::ZhTw => "複製(&C)",
+            Locale::En => "&Copy",
+        },
+        Key::WinPaste => match locale {
+            Locale::Ja => "貼り付け(&P)",
+            Locale::ZhTw => "貼上(&P)",
+            Locale::En => "&Paste",
+        },
+        Key::WinSelectAll => match locale {
+            Locale::Ja => "すべて選択(&A)",
+            Locale::ZhTw => "全選(&A)",
+            Locale::En => "Select &All",
+        },
     }
 }
 
@@ -185,7 +281,7 @@ mod tests {
     use super::{tr, Key, Locale};
 
     const LOCALES: [Locale; 3] = [Locale::Ja, Locale::ZhTw, Locale::En];
-    const KEYS: [Key; 22] = [
+    const KEYS: [Key; 37] = [
         Key::About,
         Key::Services,
         Key::Hide,
@@ -208,6 +304,21 @@ mod tests {
         Key::WindowMenu,
         Key::Minimize,
         Key::Zoom,
+        Key::WinFileMenu,
+        Key::WinEditMenu,
+        Key::WinViewMenu,
+        Key::WinHelpMenu,
+        Key::WinPrint,
+        Key::WinExit,
+        Key::WinReload,
+        Key::WinFullScreen,
+        Key::WinAbout,
+        Key::WinUndo,
+        Key::WinRedo,
+        Key::WinCut,
+        Key::WinCopy,
+        Key::WinPaste,
+        Key::WinSelectAll,
     ];
 
     #[test]
@@ -223,7 +334,7 @@ mod tests {
     }
 
     /// 訳し忘れて日本語のまま置いた項目を拾う。同じ語が別言語で一致するのは
-    /// 英語と繁體中文の綴りが同じになる場合だけで、この 22 項目には無い。
+    /// 英語と繁體中文の綴りが同じになる場合だけで、この 37 項目には無い。
     #[test]
     fn no_locale_reuses_another_locales_string() {
         for key in KEYS {

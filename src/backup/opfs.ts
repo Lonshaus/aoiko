@@ -2,14 +2,14 @@ import { splitBackupPath } from './content-store';
 import { descendDir, isNotFoundError, listFileNames, resolveParent } from './fs-handle';
 import type { BackupAdapter } from './types';
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
-// FSA API 非対応（あるブラウザ / あるブラウザ / ある環境）の主要な永続化フォルバック。
+// FSA API 非対応のブラウザにおける主要な永続化フォルバック。
 // 同期フォルダではないため、ブラウザのデータ削除で失われる。
 // 定期的な JSON ダウンロードでユーザーが iCloud 等に手動コピーする運用前提。
 export class OpfsBackupAdapter implements BackupAdapter {
   readonly name = 'opfs';
   // getDirectory だけでは足りない。書き込みに使う createWritable は後から実装された
-  // API で、あるブラウザ は getDirectory が 15.2、createWritable が 26。判定を getDirectory
-  // だけにすると、書けない環境で status が idle のまま「動いているように見えて一度も
+  // API で、getDirectory だけ先に実装して createWritable は何年も後というブラウザがある。
+  // 判定を getDirectory だけにすると、書けない環境で status が idle のまま「動いているように見えて一度も
   // 保存されない」状態になる。
   async isAvailable(): Promise<boolean> {
     return (

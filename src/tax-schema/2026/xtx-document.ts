@@ -21,6 +21,7 @@
 
 import type { XtxSchema } from './xtx-schema';
 import { todayISO } from '../../lib/date';
+import { m } from '../../paraglide/messages';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
 // 申告者情報（IT部 定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
@@ -533,7 +534,7 @@ export function buildXtxBundle(forms: XtxFormInput[], options: XtxDocumentOption
   const attrs = resolveFormAttrs(options);
   const catalogSchema = forms[0]?.schema;
   if (!catalogSchema) {
-    throw new Error('buildXtxBundle: forms が空です');
+    throw new Error(m.error_xtx_forms_empty());
   }
   // IT部：全様式の values を統合（同名は後勝ち）。定義カタログは共通なので
   // catalogSchema で採番すれば全様式の IDREF が解決する。

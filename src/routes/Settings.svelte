@@ -9,7 +9,13 @@
   import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
-  import { DISCLAIMER_VERSION, deleteSetting, getSetting, setSetting } from '../lib/settings';
+  import {
+    DISCLAIMER_VERSION,
+    deleteSetting,
+    getSetting,
+    setSetting,
+    type OcrEngine,
+  } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
@@ -19,6 +25,7 @@
   import { BackupCorruptError } from '../backup';
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
   import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
+  import { takeSettingsTarget } from '../lib/settings-target';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
@@ -117,6 +124,10 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  // 橋渡しが生えていても、その端末が日本語を読めるとは限らない（言語機能が既定では入って
+  // いない環境があり、入っていても版と導入内容で変わる）。推測せず onMount で実際に問う。
+  // 返事が来るまでは読めない側に倒す。使えるものを一瞬使えないと言うほうが、逆より軽い。
+  let nativeOcrAvailable = $state(false);
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -133,6 +144,7 @@
   let restoreProgressTotal = $state(0);
   // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
   let restoreSection = $state<HTMLElement | null>(null);
+  let backupSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
 
@@ -195,7 +207,7 @@
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
   let geminiTestStatus = $state('');
-  let ocrEngine = $state<'gemini' | 'openai-compatible' | 'tesseract'>('gemini');
+  let ocrEngine = $state<OcrEngine>('gemini');
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
@@ -322,6 +334,7 @@
   onMount(async () => {
     // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
     const notice = takeRestoreNotice();
+    const target = takeSettingsTarget();
     if (notice) {
       restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
       restoreWarning =
@@ -336,6 +349,9 @@
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    // 関数の有無だけでは足りない。読めるかどうかはネイティブ側にしか分からない。
+    const ask = __NATIVE__ ? nativeBridge()?.isTextRecognitionAvailable : undefined;
+    nativeOcrAvailable = typeof ask === 'function' ? await ask().catch(() => false) : false;
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -359,12 +375,17 @@
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
-    // 復元の結果は設定画面のかなり下にあり、再読み込み後は先頭に戻ってしまう。
-    // 全置換という取り消せない操作の唯一の確認なので、見える位置まで戻す。
+    // 復元の結果もバックアップ欄も設定画面のかなり下にあり、着いた先は先頭。
+    // 復元は全置換という取り消せない操作の唯一の確認なので、そちらを優先する。
     // 上の読み込みで高さが変わるため、すべて終わってから測る。
     if (notice) {
       await tick();
       restoreSection?.scrollIntoView({ block: 'center' });
+    } else if (target === 'backup') {
+      await tick();
+      // center だと画面より高い欄は見出しが上へ外れる。start と scroll-mt で、
+      // 貼り付いたヘッダの下に見出しが来る位置へ寄せる。
+      backupSection?.scrollIntoView({ block: 'start' });
     }
   });
 
@@ -1459,7 +1480,9 @@
                   }}
                   class="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
                 >
-                  <span class="text-foreground">{e.name || '（局・事務所）'}</span>
+                  <span class="text-foreground"
+                    >{e.name || m.settings_filer_zeimusho_fallback()}</span
+                  >
                   <span class="ml-2 font-mono text-xs text-muted-foreground">{e.code}</span>
                 </button>
               </li>
@@ -2470,6 +2493,11 @@
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
           <option value="tesseract">{m.settings_engine_tesseract()}</option>
+          <!-- 読めない端末でも選択肢は出す。消すと、選べない理由が画面のどこにも
+               出ないまま消える。選んだ時点で下に使えない旨を出して知らせる。 -->
+          {#if __NATIVE__}
+            <option value="native">{m.settings_engine_native()}</option>
+          {/if}
         </select>
       </label>
 
@@ -2477,6 +2505,20 @@
         <p class="text-xs text-muted-foreground">
           {@html m.settings_tesseract_intro_html()}
         </p>
+      {/if}
+
+      <!-- ocrEngine だけで見ると実行時の判定になり、この引擎を持たない側の産物にも
+           下の文言が残る（設定の説明も使えない旨も）。__NATIVE__ で丸ごと畳む。 -->
+      {#if __NATIVE__ && ocrEngine === 'native'}
+        {#if nativeOcrAvailable}
+          <p class="text-xs text-muted-foreground">
+            {@html m.settings_native_ocr_intro_html()}
+          </p>
+        {:else}
+          <!-- 勝手に別の引擎へ落とさず、選び直しは利用者に委ねる。設定はバックアップに
+               乗るので、読める端末から読めない端末へ選択ごと渡ることもある。 -->
+          <p class="text-xs text-destructive">{m.ocr_native_unavailable()}</p>
+        {/if}
       {/if}
 
       {#if ocrEngine === 'openai-compatible'}
@@ -2497,7 +2539,7 @@
           <input
             type="password"
             bind:value={openaiApiKey}
-            placeholder="(Ollama 等ローカルでは不要)"
+            placeholder={m.settings_openai_apikey_placeholder()}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
           />
         </label>
@@ -2558,7 +2600,7 @@
             <input
               type="text"
               bind:value={openaiClassifyModel}
-              placeholder="任意のテキストモデル"
+              placeholder={m.settings_openai_classify_model_placeholder()}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
             />
           {/if}
@@ -2583,7 +2625,9 @@
     </div>
   </section>
 
-  <BackupPanel />
+  <div bind:this={backupSection} class="scroll-mt-20">
+    <BackupPanel />
+  </div>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_accountant_export_title()}</h3>
@@ -2731,12 +2775,15 @@
           version: disclaimerAcceptedVersion ?? 0,
         })}
       </p>
-      <p class="text-xs text-muted-foreground">
+      <div class="text-xs text-muted-foreground">
         {m.settings_disclaimer_full_text_label()}
-        <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
-        ／
-        <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
-      </p>
+        <PolicyDocViewer
+          docs={[
+            { doc: 'DISCLAIMER', label: 'DISCLAIMER.md' },
+            { doc: 'THIRD_PARTY', label: 'THIRD_PARTY_LICENSES.txt' },
+          ]}
+        />
+      </div>
       <div>
         <button
           type="button"
