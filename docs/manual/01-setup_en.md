@@ -190,6 +190,22 @@ OCR that runs entirely within the app, with no LLM. **Accuracy is limited**; man
 > - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
 > - OCR only — not usable for CSV classification or order import
 
+<!-- only:native -->
+
+### 7-D. The OS's built-in text recognition
+
+OCR that uses the text recognition the OS already provides. No LLM, no extra download.
+
+1. Pick **the OS's built-in text recognition** as the engine
+2. **Save**
+
+> - The image never leaves the device, and no network request is made
+> - T+13 registration number, date, and total are extracted, and the vendor and items are taken from where the words sit on the receipt. Misreads carry through, so check the result
+> - OCR only — not usable for CSV classification or order import
+> - When this device cannot perform the recognition, the setting screen says so once you pick it. The option itself stays
+
+<!-- /only -->
+
 ## 8. Optional: other Settings sections
 
 The following Settings sections have their own dedicated chapters and are covered when you need them:

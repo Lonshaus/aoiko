@@ -11,7 +11,7 @@ aoiko 只透過以下管道正式發布：
 - 原始碼：<https://github.com/Lonshaus/aoiko>
 - 線上試用版：<https://aoiko.pages.dev>
 
-如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的,**在輸入 API 金鑰或任何機微資訊之前,請務必回來上述其中一個管道核對內容**。aoiko 是用 AGPL-3.0 發布,任何人都可以合法 fork、自己架設,但這不代表可以排除有人拿這個名字去偽裝散布釣魚或惡意程式。有疑慮時,可以去 GitHub repo 的 commit 歷史、issue 核對真偽。
+如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的，**在輸入 API 金鑰或任何機微資訊之前，請務必回來上述其中一個管道核對內容**。aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork、自己架設，但這不代表可以排除有人拿這個名字去偽裝散布釣魚或惡意程式。有疑慮時，可以去 GitHub repo 的 commit 歷史、issue 核對真偽。
 
 ## 支援版本
 
@@ -33,9 +33,14 @@ aoiko 只透過以下管道正式發布：
 
 ### BYOK 模式
 
+<!-- only:browser -->
 - 利用者選的 OCR/LLM 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
+<!-- /only -->
+<!-- only:native -->
+- 利用者選的 OCR/LLM 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
+<!-- /only -->
 - 開發者・發布者**不取得・轉發・保存**利用者的 API 金鑰・endpoint 資訊
-- 外部 API 使用時的 request **從利用者瀏覽器直接送到選中的 endpoint**（不經 proxy）。選 Tesseract 時根本不會發生 LLM API 送出
+- 外部 API 使用時的 request **從利用者瀏覽器直接送到選中的 endpoint**（不經 proxy）。選在本機辨識的引擎時根本不會發生 LLM API 送出
 
 ### 儲存
 
@@ -62,6 +67,9 @@ aoiko 只透過以下管道正式發布：
   - **Gemini** → `generativelanguage.googleapis.com`（依 Google 資料處理方針，學習利用與否看合約）
   - **OpenAI 相容**（Ollama 等）→ 利用者指定的 baseURL。localhost 時不離開本機
   - **Tesseract** → 不送（WASM 在本機處理。只首次 DL traineddata）
+<!-- only:native -->
+  - **作業系統內建的文字辨識** → 不送（全程在本機處理）
+<!-- /only -->
 - 機密度高的資料送出前請確認（外部引擎使用時送出前會跳確認對話框）
 - LLM/OCR 機能是 **opt-in（UI 按鈕觸發）**，不自動送出
 

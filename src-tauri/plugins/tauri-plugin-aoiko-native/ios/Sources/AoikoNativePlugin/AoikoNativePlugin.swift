@@ -2,9 +2,10 @@ import SafariServices
 import Tauri
 import UIKit
 import UniformTypeIdentifiers
+import Vision
 import WebKit
 
-// ある環境/ある環境 専用。デスクトップに OS の API で用意されている操作のうち、web view や
+// モバイル専用。デスクトップに OS の API で用意されている操作のうち、web view や
 // OS の UI を直接触らないと届かないものをまとめる（フォルダ選択・印刷・外部リンク表示）。
 //
 // フォルダ選択は UIDocumentPickerViewController で選ばせ、security-scoped bookmark を
@@ -102,7 +103,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             scopedFolders.removeValue(forKey: token)
         }
     }
-    // web view の window.print() は web view が例外を投げるだけで何も起きない（tauri#3066）。
+    // web view の window.print() は例外を投げるだけで何も起きない。
     // 印刷用のスタイルは web 側に揃っているので、描画は viewPrintFormatter に任せる。
     @objc public func printPage(_ invoke: Invoke) {
         DispatchQueue.main.async {
@@ -125,7 +126,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
                     invoke.resolve()
                 }
             }
-            // ある端末 は present(animated:) が例外になる。ポップオーバーの起点が要る。
+            // 画面の広い端末では present(animated:) が例外になる。ポップオーバーの起点が要る。
             if UIDevice.current.userInterfaceIdiom == .pad {
                 let anchor = CGRect(x: host.bounds.midX, y: host.bounds.midY, width: 1, height: 1)
                 controller.present(from: anchor, in: host, animated: true, completionHandler: done)
@@ -134,14 +135,14 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             }
         }
     }
-    // 外部リンクを あるブラウザ へ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
-    // ある環境 の作法どおりアプリ内に重ねて表示し、閉じれば元の画面へ戻る。
+    // 外部リンクを外のブラウザへ飛ばすとアプリごと切り替わり、戻るのに手数が要る。
+    // この環境の作法どおりアプリ内に重ねて表示し、閉じれば元の画面へ戻る。
     @objc public func openInApp(_ invoke: Invoke) throws {
         struct Args: Decodable {
             let url: String
         }
         let args = try invoke.parseArgs(Args.self)
-        // SFあるブラウザViewController は http/https しか受け付けず、それ以外は実行時に落ちる。
+        // アプリ内ブラウザは http/https しか受け付けず、それ以外は実行時に落ちる。
         guard let url = URL(string: args.url), url.scheme == "http" || url.scheme == "https" else {
             invoke.reject("アプリ内で開けない URL です")
             return
@@ -154,6 +155,139 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             presenter.present(SFSafariViewController(url: url), animated: true)
             invoke.resolve()
         }
+    }
+
+    // perform は同期。呼び元の (async) がすでにワーカースレッドなので、ここは
+    // DispatchQueue.main へ乗せない（乗せると認識のあいだメインスレッドが止まる）。
+    // 対応言語は認識の水準と revision の組で変わる。読み取りと同じ設定へ揃えてから
+    // 問わないと、実際には使えない言語を「使える」と答えてしまう。
+    @objc public func isTextRecognitionAvailable(_ invoke: Invoke) {
+        let request = VNRecognizeTextRequest()
+        request.revision = VNRecognizeTextRequestRevision3
+        request.recognitionLevel = .accurate
+        let langs = (try? request.supportedRecognitionLanguages()) ?? []
+        invoke.resolve(langs.contains("ja-JP"))
+    }
+
+    @objc public func recognizeText(_ invoke: Invoke) throws {
+        // 形式は Vision が中身から判定する。呼び元から種別を渡す必要は無い。
+        struct Args: Decodable {
+            let imageBase64: String
+        }
+        let args = try invoke.parseArgs(Args.self)
+        guard let data = Data(base64Encoded: args.imageBase64) else {
+            invoke.reject("base64 を解けません")
+            return
+        }
+        let handler = VNImageRequestHandler(data: data, options: [:])
+        let request = VNRecognizeTextRequest()
+        request.revision = VNRecognizeTextRequestRevision3
+        request.recognitionLevel = .accurate
+        // ja-JP は revision 3 の .accurate でしか使えない（.fast は非対応）。
+        request.recognitionLanguages = ["ja-JP", "en-US"]
+        request.usesLanguageCorrection = true
+        do {
+            try handler.perform([request])
+        } catch {
+            invoke.reject("文字を認識できません: \(error.localizedDescription)")
+            return
+        }
+        guard let observations = request.results else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        // 先頭が誤っていても次の候補が正しいことがある（`T` の欠けは実測）。
+        let words: [RecognizedWord] = observations.compactMap { o in
+            let candidates = o.topCandidates(3)
+            guard let top = candidates.first, !top.string.isEmpty else {
+                return nil
+            }
+            let box = o.boundingBox
+            return RecognizedWord(
+                text: top.string,
+                x: box.minX,
+                // Vision は左下原点で y が上向き。左上原点・下向きへ揃える。
+                y: 1.0 - box.maxY,
+                width: box.width,
+                height: box.height,
+                confidence: Double(top.confidence),
+                alternates: candidates.dropFirst().map { $0.string }
+                    .filter { !$0.isEmpty && $0 != top.string }
+            )
+        }
+        // 単語のまとまりで返るので、行内は空白で繋ぐ。
+        let recognized = Self.wordsToLines(words, separator: " ")
+        guard !recognized.lines.isEmpty else {
+            invoke.reject("テキストが見つかりません")
+            return
+        }
+        invoke.resolve(recognized)
+    }
+
+    // デスクトップ側の words_to_lines と同じ形。web 側は出どころを区別しない。
+    struct RecognizedWord: Encodable {
+        let text: String
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+        let confidence: Double?
+        let alternates: [String]
+    }
+
+    struct RecognizedLine: Encodable {
+        let text: String
+        let words: [RecognizedWord]
+        let x: Double
+        let y: Double
+        let width: Double
+        let height: Double
+    }
+
+    struct RecognizedText: Encodable {
+        let lines: [RecognizedLine]
+        let text: String
+    }
+
+    // Vision は読む順を保証せず、左右のセルを別々に返す。閾値は行の高さの半分。
+    private static func wordsToLines(_ words: [RecognizedWord], separator: String) -> RecognizedText {
+        let sorted = words.sorted { ($0.y + $0.height / 2) < ($1.y + $1.height / 2) }
+        var rows: [[RecognizedWord]] = []
+        for w in sorted {
+            if let head = rows.last?.first {
+                let limit = max(head.height, w.height) / 2
+                if abs((head.y + head.height / 2) - (w.y + w.height / 2)) <= limit {
+                    rows[rows.count - 1].append(w)
+                    continue
+                }
+            }
+            rows.append([w])
+        }
+        let lines: [RecognizedLine] = rows.compactMap { row in
+            let ordered = row.sorted { $0.x < $1.x }
+            guard let first = ordered.first else {
+                return nil
+            }
+            let text = ordered.map { $0.text }.joined(separator: separator)
+            if text.isEmpty {
+                return nil
+            }
+            var left = first.x
+            var top = first.y
+            var right = first.x + first.width
+            var bottom = first.y + first.height
+            for w in ordered.dropFirst() {
+                left = min(left, w.x)
+                top = min(top, w.y)
+                right = max(right, w.x + w.width)
+                bottom = max(bottom, w.y + w.height)
+            }
+            return RecognizedLine(
+                text: text, words: ordered,
+                x: left, y: top, width: right - left, height: bottom - top
+            )
+        }
+        return RecognizedText(lines: lines, text: lines.map { $0.text }.joined(separator: "\n"))
     }
 
     private static func findWebView(_ view: UIView) -> WKWebView? {

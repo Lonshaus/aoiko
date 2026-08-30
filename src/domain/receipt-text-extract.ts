@@ -1,4 +1,4 @@
-import type { ReceiptExtracted } from './ocr';
+import type { ReceiptExtracted, ReceiptItem } from './ocr';
 // Tesseract（純ローカル OCR）が吐く生テキストから領収書の構造化情報を
 // 確定性ベースで取り出す純関数。ブラウザ非依存・Vitest で網羅可能。
 //
@@ -6,20 +6,30 @@ import type { ReceiptExtracted } from './ocr';
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
 //   （vision LLM 路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
-// - 店名・品目の弱推定は行わない。誤誘導を避けるため空のまま返す
+// - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
+//   当てずっぽうになる
 //
 // 抽出対象：
 //   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、確定性高）
+//                   T が落ちた場合のみ、同じ行に「登録番号」等がある 13 桁を補う
 //   date          : 西暦 YYYY[/-.年]M[...]D / 和暦 令和N年M月D日 を最初に見つけた行
 //   totalAmount   : 「合計 / お買上げ / 総額 / ご請求」を含み、
 //                   「小計 / お預り / お釣り / 釣銭 / 現金 / ポイント / 還元」
 //                   を含まない行から金額 token を抽出
 //   notes         : OCR 全文（プレフィル）
 
-const INVOICE_NUMBER_RE = /T\d{13}/;
-const WESTERN_DATE_RE = /(\d{4})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
+// 右端を止めないと、1 桁多く読まれたときに先頭 13 桁を切り出して通してしまう（実測）。
+// 形式が合っているぶん、利用者は誤りに気付けない。桁数が違うなら空欄にする。
+const INVOICE_NUMBER_RE = /(?<!\d)T\d{13}(?!\d)/;
+// 登録番号を名乗る行の見出し。行を限らないと、別の 13 桁を登録番号に化けさせる。
+const INVOICE_LABELS = ['登録番号', 'インボイス'];
+const BARE_INVOICE_NUMBER_RE = /(?<!\d)\d{13}(?!\d)/;
+// 年は 19xx / 20xx に限る。市外局番から始まる電話番号が「0499 年 99 月 99 日」のように
+// 先に命中し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
+// g を付けて最初の 1 件で諦めないのも同じ理由で、妥当な日付が出るまで後ろを見る。
+const WESTERN_DATE_RE = /((?:19|20)\d{2})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
 const REIWA_DATE_RE =
-  /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/;
+  /(?:令和|R)\s*(元|\d{1,2})\s*[/\-.年]?\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
 // 金額 token：¥1,500 / ￥1,500 / 1,500 / 1500円 / \1,500 等。
 // 整数部のみ採用（小数表記レシートは想定外）。
 // 桁区切りを `[,.]` の 1 文字以上として扱う。OCR は小さな `,` を安定して読めず、
@@ -29,8 +39,33 @@ const REIWA_DATE_RE =
 // 小数との取り違えは起きない。
 const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]+\d{3})+|\d+)(?:\s*円)?/g;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
+// 語による判定が空振りしたときの保険で使う。合計ではないと確実に判る行を落とすためだけの
+// 一覧なので、主の判定より広く取る。
+const NOT_A_TOTAL = [
+  '小計',
+  '税率',
+  '対象',
+  '消費税',
+  '税合計',
+  '商品代金',
+  '値引',
+  '割引',
+  'お預り',
+  'お預かり',
+  'お釣',
+  '釣銭',
+  '現金',
+  'ポイント',
+  '還元',
+  '番号',
+];
 const TOTAL_KEYWORDS_EXCLUDE = [
   '小計',
+  // 消費税の合計。合計を含むのに合計ではない（実測の「（税合計 ¥11）」）。
+  '税合計',
+  // 値引きの合計。同じく合計を含むが合計ではない（実測の「（値引合計 -20）」）。
+  '値引合計',
+  '割引合計',
   'お預り',
   'お預かり',
   'お釣り',
@@ -49,29 +84,43 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
     items: [],
     notes: text,
   };
-  const invoice = INVOICE_NUMBER_RE.exec(text)?.[0];
+  const invoice = INVOICE_NUMBER_RE.exec(text)?.[0] ?? recoverInvoiceNumber(lines);
   if (invoice) {
     result.invoiceNumber = invoice;
   }
   return result;
 }
 
-function extractDate(text: string): string {
-  const reiwa = REIWA_DATE_RE.exec(text);
-  if (reiwa) {
-    const yToken = reiwa[1]!;
-    const reiwaYear = yToken === '元' ? 1 : Number(yToken);
-    if (reiwaYear >= 1 && reiwaYear <= 99) {
-      const y = 2018 + reiwaYear;
-      const m = Number(reiwa[2]!);
-      const d = Number(reiwa[3]!);
-      if (isValidYmd(y, m, d)) {
-        return formatYmd(y, m, d);
-      }
+// 先頭の `T` が落ちて返ることがある（実測。自信度は最大なので誤りと分からない）。
+// 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
+function recoverInvoiceNumber(lines: string[]): string | undefined {
+  for (const line of lines) {
+    if (!INVOICE_LABELS.some((k) => line.includes(k))) {
+      continue;
+    }
+    const digits = BARE_INVOICE_NUMBER_RE.exec(line)?.[0];
+    if (digits) {
+      return `T${digits}`;
     }
   }
-  const western = WESTERN_DATE_RE.exec(text);
-  if (western) {
+  return undefined;
+}
+
+function extractDate(text: string): string {
+  for (const reiwa of text.matchAll(REIWA_DATE_RE)) {
+    const yToken = reiwa[1]!;
+    const reiwaYear = yToken === '元' ? 1 : Number(yToken);
+    if (reiwaYear < 1 || reiwaYear > 99) {
+      continue;
+    }
+    const y = 2018 + reiwaYear;
+    const m = Number(reiwa[2]!);
+    const d = Number(reiwa[3]!);
+    if (isValidYmd(y, m, d)) {
+      return formatYmd(y, m, d);
+    }
+  }
+  for (const western of text.matchAll(WESTERN_DATE_RE)) {
     const y = Number(western[1]!);
     const m = Number(western[2]!);
     const d = Number(western[3]!);
@@ -136,4 +185,266 @@ function isValidYmd(y: number, m: number, d: number): boolean {
 
 function formatYmd(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/// 座標は 0..1 の正規化・左上原点・y 下向き。環境差はネイティブ側で吸収済み。
+export type OcrWord = {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence?: number;
+  /// 第 2 候補以降。確からしい順。
+  alternates?: string[];
+};
+
+export type OcrLine = {
+  text: string;
+  words: OcrWord[];
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type OcrLayout = {
+  lines: OcrLine[];
+  text: string;
+};
+// 大きく刷られるので、除かないと字の大きさで店名に勝つ。
+const NOT_A_VENDOR = [
+  '領収証',
+  '領収書',
+  'レシート',
+  'お問合せ',
+  'お問い合わせ',
+  '明細',
+  '控え',
+  'ありがとう',
+  'Help',
+];
+// 軽減税率の印など、品名そのものではない頭の記号。
+const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：]+/;
+const ITEM_NAME_TAIL = /[\s¥￥\\*＊]+$/;
+// 値引きの符号。長音符は入れない。カタカナの品名が長音符で終わると全部これに掛かる。
+const DISCOUNT_SIGN = /[-−－▲△]\s*$/;
+// 合計欄より上に並ぶ集計行。金額が右に立つ形は品目と同じなので、語で外す。
+const NOT_AN_ITEM = [
+  '小計',
+  '消費税',
+  '税率',
+  '対象',
+  '商品代金',
+  '合計',
+  'お預り',
+  'お釣',
+  '釣銭',
+];
+// 数字どうしが区切りで繋がる形。電話番号・時刻がこれに当たる。
+const DIGIT_SEPARATED_RE = /\d[-ー–—:：]\d/;
+
+export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
+  const result = extractFromOcrText(layout.text);
+  const rows = layout.lines;
+  const header = headerEnd(rows);
+  const totalRow = findTotalRow(rows);
+
+  const vendor = extractVendor(rows, header);
+  if (vendor) {
+    result.vendorName = vendor;
+  }
+  const total = totalFromRow(rows[totalRow]);
+  if (total) {
+    result.totalAmount = total;
+  }
+  result.items = extractItems(rows, header, totalRow);
+  // 版面側が持ち切る。残すと、候補を見て「無し」と決めた後に古い誤りが生き残る。
+  const invoice = invoiceFromCandidates(rows);
+  if (invoice) {
+    result.invoiceNumber = invoice;
+  } else {
+    delete result.invoiceNumber;
+  }
+  return result;
+}
+// 頭でいちばん大きい行。位置の比率では決めない（近接で撮ると頭が紙面の 30% に来る）。
+function extractVendor(lines: OcrLine[], end: number): string {
+  let best: OcrLine | undefined;
+  for (const line of lines.slice(0, end)) {
+    const text = line.text.trim();
+    if (text.length < 2) {
+      continue;
+    }
+    if (NOT_A_VENDOR.some((k) => text.includes(k))) {
+      continue;
+    }
+    if (!best) {
+      best = line;
+      continue;
+    }
+    // 自信度は実測で 3 段しか出ないため、高さが並んだときの決め手にだけ使う。
+    if (line.height > best.height + 1e-9) {
+      best = line;
+    } else if (
+      Math.abs(line.height - best.height) < 1e-9 &&
+      meanConfidence(line) > meanConfidence(best)
+    ) {
+      best = line;
+    }
+  }
+  return best ? best.text.trim() : '';
+}
+
+function meanConfidence(line: OcrLine): number {
+  const scored = line.words.filter((w) => w.confidence !== undefined);
+  if (scored.length === 0) {
+    return 0;
+  }
+  return scored.reduce((sum, w) => sum + w.confidence!, 0) / scored.length;
+}
+
+function headerEnd(lines: OcrLine[]): number {
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i]!.text;
+    if (INVOICE_LABELS.some((k) => text.includes(k))) {
+      return i;
+    }
+    // 文中の数字では頭は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
+    // （実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
+    if (extractDate(text) !== '' || hasAmountOnTheRight(lines[i]!)) {
+      return i;
+    }
+  }
+  return lines.length;
+}
+// 除外語を先に見るのは「（税合計」のように合計を含んで合計でない行があるため。
+function findTotalRow(lines: OcrLine[]): number {
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i]!.text;
+    if (TOTAL_KEYWORDS_EXCLUDE.some((k) => text.includes(k))) {
+      continue;
+    }
+    // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
+    // ような案内文を掴む（実測）。
+    if (TOTAL_KEYWORDS_INCLUDE.some((k) => text.includes(k)) && parseAmounts(text).length > 0) {
+      return i;
+    }
+  }
+  return totalRowWithoutKeyword(lines);
+}
+// 合計の語が読めないことがある（実測。「合 計」を「言十」と読み、金額だけが
+// 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
+function totalRowWithoutKeyword(lines: OcrLine[]): number {
+  let found = lines.length;
+  let largest = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i]!;
+    if (NOT_A_TOTAL.some((k) => line.text.includes(k)) || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    const amounts = parseAmounts(line.text);
+    const amount = amounts[amounts.length - 1];
+    if (amount !== undefined && amount > largest) {
+      largest = amount;
+      found = i;
+    }
+  }
+  return found;
+}
+// 行末の金額を取る。「合計／ 1点 ¥248」のように点数が並ぶ書式で取り違えないため。
+// 単語からは取らない。1 単語 = 1 文字で返す環境では右端が数字の断片になる（実測。
+// 「合計 ¥532」が 2 として通った）。行の文字列は環境ごとの正しい区切りで繋がれている。
+function totalFromRow(line: OcrLine | undefined): string {
+  if (!line) {
+    return '';
+  }
+  const amounts = parseAmounts(line.text);
+  return amounts.length === 0 ? '' : String(amounts[amounts.length - 1]);
+}
+// 行末の金額。単語からは組み立てない。1 単語 = 1 文字で返す環境があり、そこでは
+// 「最後の単語」が数字の断片になって電話番号が金額に化ける（実測。`0422ー29ー0051`
+// の末尾が `51` として通った）。行の文字列は環境ごとの正しい区切りで繋がれている。
+const TRAILING_AMOUNT_RE = /^(.*?)[\s]*([¥￥\\]?\s*\d{1,3}(?:[,.]+\d{3})*|[¥￥\\]?\s*\d+)\s*$/;
+
+// 頭より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
+// 数字の直前に区切りがある物と、左が日付・数字だけの行は外す。取り違えるくらいなら拾わない。
+function extractItems(lines: OcrLine[], header: number, totalRow: number): ReceiptItem[] {
+  const items: ReceiptItem[] = [];
+  for (const line of lines.slice(header + 1, totalRow)) {
+    if (line.words.length < 2 || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    if (NOT_AN_ITEM.some((k) => line.text.includes(k))) {
+      continue;
+    }
+    const m = TRAILING_AMOUNT_RE.exec(line.text.trim());
+    if (!m) {
+      continue;
+    }
+    const head = m[1]!;
+    // 電話番号・時刻は数字と数字が区切りで繋がる。直前の 1 文字で見てはいけない。
+    // カタカナの品名は長音符で終わることが多く、それを区切りと取ると全部落ちる
+    // （`ミネラルウォーター` で踏んだ）。
+    if (DIGIT_SEPARATED_RE.test(line.text)) {
+      continue;
+    }
+    // 金額は 0 で始まらない。伝票番号やレジ番号は 0 詰めで並ぶので、ここで落ちる
+    // （実測の `責No00891337` が 891337 円の品目になっていた）。単独の 0 は通す。
+    if (/^0\d/.test(m[2]!.replace(/[¥￥\\\s]/g, ''))) {
+      continue;
+    }
+    const amounts = parseAmounts(m[2]!);
+    if (amounts.length === 0) {
+      continue;
+    }
+    const name = head
+      .replace(ITEM_NAME_NOISE, '')
+      .replace(DISCOUNT_SIGN, '')
+      .replace(ITEM_NAME_TAIL, '')
+      .trim();
+    if (name === '' || extractDate(name) !== '' || /^[\d\s,.]+$/.test(name)) {
+      continue;
+    }
+    // 符号を落とすと値引きが消費として入る（実測の「値引額 -20」が +20 になった）。
+    const signed = DISCOUNT_SIGN.test(head)
+      ? -amounts[amounts.length - 1]!
+      : amounts[amounts.length - 1]!;
+    items.push({ description: name, amount: String(signed) });
+  }
+  return items;
+}
+// 金額が右の欄にあることは座標で確かめる。行の文字列だけで見ると、文中の数字を
+// 拾ってしまう。
+function hasAmountOnTheRight(line: OcrLine): boolean {
+  const ordered = [...line.words].sort((a, b) => a.x - b.x);
+  const last = ordered[ordered.length - 1]!;
+  // 金額だけの欄であることまで見る。文中に数字があるだけの行を金額の行と取ると、
+  // 店名が頭から外れる（実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
+  return /^[¥￥\\*＊\s]*[-−－▲△]?\s*[\d,.]+$/.test(last.text);
+}
+// 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
+// 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
+function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
+  for (const line of lines) {
+    for (const word of line.words) {
+      for (const candidate of [word.text, ...(word.alternates ?? [])]) {
+        const hit = INVOICE_NUMBER_RE.exec(candidate)?.[0];
+        if (hit) {
+          return hit;
+        }
+      }
+    }
+    // `T` が「登録番号T」のように見出しの末尾へくっつく書式は、繋いでからでないと
+    // 揃わない。見出しのある行に限らないと、`T` で終わる単語と 13 桁が隣り合った
+    // だけで番号を作ってしまう（伝票番号や取引 ID が該当する）。
+    if (!INVOICE_LABELS.some((k) => line.text.includes(k))) {
+      continue;
+    }
+    const joined = INVOICE_NUMBER_RE.exec(line.text.replace(/\s+/g, ''))?.[0];
+    if (joined) {
+      return joined;
+    }
+  }
+  return undefined;
 }

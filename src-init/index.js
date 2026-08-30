@@ -2,15 +2,17 @@
 // src-tauri/init.js を生成し、Rust 側が include_str! で読み込んでページの
 // スクリプトより前に実行する。
 //
-// プラグインの JS API は npm パッケージとして別配布で、`withGlobalシェル` では注入されない
+// プラグインの JS API は npm パッケージとして別配布で、シェルの一括注入では入らない
 // （実機で確認：window.__TAURI__ に入るのは app/core/dpi/event/image/menu/mocks/
 // path/tray/webview/webviewWindow/window だけ）。そのためここで束ねて、必要な入口だけを
 // window.__aoikoNative へ出す。プラグインごとの npm パッケージは入れず、invoke を直に叩く。
 import { invoke } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { createDiscardText } from './discard-text.js';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
+import { createNativeOcr } from './native-ocr.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -39,9 +41,10 @@ async function backupFolderReady() {
 // 公開 repo の src/lib/save-file.ts から呼ぶ唯一の入口。
 // data は Uint8Array か ReadableStream。どちらもチャンクへ割って逐次書き込むので、
 // 数 GiB の zip 全体をメモリに載せない。
+const discardText = createDiscardText();
 window.__aoikoNative = {
-  // デスクトップは保存ダイアログ、ある環境 はアプリの Documents 直下。どちらを通るかは
-  // プラグイン側だけが決める（ある環境 には保存先を選ばせる仕組みが無い）。
+  // 保存ダイアログを出せる環境と、アプリの Documents 直下へ固定する環境がある。
+  // どちらを通るかはプラグイン側だけが決める（保存先を選ばせる仕組みが無い環境があるため）。
   async saveFile(data, filename) {
     return exportFile(invoke, data, filename);
   },
@@ -51,6 +54,11 @@ window.__aoikoNative = {
   // 同じ言語なら Rust 側は何もしない。
   async setUiLocale(locale) {
     return invoke('set_ui_locale', { locale });
+  },
+
+  // 破棄確認はネイティブのダイアログで出すため、訳した文言をこちらへ渡してもらう。
+  setDiscardText(next) {
+    discardText.set(next);
   },
 
   // 取り消しは null。戻り値の token は web 側が保管するだけで、解決には使われない。
@@ -93,6 +101,8 @@ window.__aoikoNative = {
 // 受け取って決める。品目を作っていない環境では createIap が null を返し、購入の
 // 入口が生えない＝支援画面ごと出ない。
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
+// 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
+Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
 
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
@@ -132,8 +142,8 @@ window.fetch = function (input, init) {
   } catch {
     return browserFetch(input, init);
   }
-  // ある環境 の IPC は http://ipc.localhost を通るため isExternal では外部扱いになる。素の
-  // fetch へ戻さないと invoke がこの上書きを再入して止まらない（ある環境 の ipc://localhost は
+  // IPC が http://ipc.localhost を通る環境があり、isExternal では外部扱いになる。素の
+  // fetch へ戻さないと invoke がこの上書きを再入して止まらない（ipc://localhost を通る側は
   // protocol の時点で外れる）。
   if (!isExternal(url) || url.host === 'ipc.localhost') {
     return browserFetch(input, init);
@@ -166,7 +176,7 @@ document.addEventListener(
   },
   true,
 );
-// ある環境/ある環境 は SFあるブラウザViewController でアプリの上に重ねる。あるブラウザ へ飛ばすと
+// モバイルはアプリ内ブラウザでアプリの上に重ねる。外のブラウザへ飛ばすと
 // アプリごと切り替わり、戻るのに手数が要る。mailto:/tel: は対象外なので OS へ渡す。
 async function openExternal(url, isMail) {
   if (!isMail && (await isIos())) {
@@ -176,7 +186,7 @@ async function openExternal(url, isMail) {
   await openUrl(url.href);
 }
 
-// 3. ネイティブのウィンドウ終了要求を web 版の未保存ガードへ繋ぐ。シェル の終了では beforeunload が
+// 3. ネイティブのウィンドウ終了要求を web 版の未保存ガードへ繋ぐ。シェル側の終了では beforeunload が
 //    発火しない。router.svelte.ts が登録済みのリスナーをそのまま使えるよう、合成
 //    イベントを投げて preventDefault の有無を見る。判定をデスクトップ版で書き直さない。
 window.__aoikoRequestClose = async function () {
@@ -185,9 +195,9 @@ window.__aoikoRequestClose = async function () {
   if (event.defaultPrevented) {
     // 確認ダイアログもプラグイン側で出す。webview には dialog の権限を 1 つも渡していない。
     const discard = await invoke('plugin:aoiko-native|confirm_discard', {
-      message: '保存していない入力内容があります。破棄して終了しますか？',
-      okLabel: '破棄して終了',
-      cancelLabel: '編集を続ける',
+      message: discardText.get().closeMessage,
+      okLabel: discardText.get().closeOk,
+      cancelLabel: discardText.get().cancel,
     });
     if (!discard) {
       return;
@@ -195,7 +205,7 @@ window.__aoikoRequestClose = async function () {
   }
   await invoke('force_close');
 };
-// CLOSE_SCRIPT が未保存ガードを経ずに直接終了するときの入口。以前は withGlobalシェル で
+// CLOSE_SCRIPT が未保存ガードを経ずに直接終了するときの入口。以前はシェルの一括注入で
 // 注入される window.__TAURI__.core.invoke を直接呼んでいたが、この関数を出すだけで足りるため
 // tauri.conf.json 側のフラグごと不要になった（__aoikoRequestClose と同じタイミングで定義される）。
 window.__aoikoForceClose = function () {
@@ -208,9 +218,9 @@ window.__aoikoRequestReload = async function () {
   window.dispatchEvent(event);
   if (event.defaultPrevented) {
     const discard = await invoke('plugin:aoiko-native|confirm_discard', {
-      message: '保存していない入力内容があります。破棄して再読み込みしますか？',
-      okLabel: '破棄して再読み込み',
-      cancelLabel: '編集を続ける',
+      message: discardText.get().reloadMessage,
+      okLabel: discardText.get().reloadOk,
+      cancelLabel: discardText.get().cancel,
     });
     if (!discard) {
       return;
@@ -218,17 +228,17 @@ window.__aoikoRequestReload = async function () {
   }
   location.reload();
 };
-// 4. 印刷をネイティブへ回す。web view の window.print() は例外を投げるため（tauri#3066）、
+// 4. 印刷をネイティブへ回す。web view の window.print() が例外を投げる環境があるため、
 //    請求書の印刷ボタンを押してもダイアログが開かず、未捕捉例外のバナーが出るだけだった。
 //    印刷スタイルは公開 repo に揃っているので、出力は web view 自身に描かせる。
 window.print = function () {
   void (async () => {
-    // デスクトップの print_page は web view / web view をそれぞれ直接叩く実装で、
-    // ある環境 には無い。ある環境 は plugin 側の UIPrintInteractionController へ回す。
+    // デスクトップの print_page は web view を直接叩く実装で、モバイルには無い。
+    // モバイルは plugin 側の印刷機構へ回す。
     await invoke((await isIos()) ? 'plugin:aoiko-native|print_page' : 'print_page');
   })();
 };
-// 5. 永続化ストレージの判定をこの環境の実情に合わせる。web view の persist() は免除リスト
+// 5. 永続化ストレージの判定をこの環境の実情に合わせる。persist() が免除リスト
 //    （app-bound / managed / persisted / standalone）にある origin にしか true を返さず、
 //    app-bound は死んでおり残り 2 つは SPI なので、第三者アプリは公開 API では到達できない。
 //    false は「破棄される」ではなく「リストに入れない」でしかないため、web 版の警告文は

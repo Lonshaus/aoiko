@@ -4,6 +4,7 @@
 
 import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../domain/llm';
 import { getSetting } from './settings';
+import { m } from '../paraglide/messages';
 
 type LlmPurpose = 'ocr' | 'classify';
 
@@ -13,9 +14,7 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
   if (engine === 'openai-compatible') {
     const baseUrl = (await getSetting('openaiBaseUrl'))?.trim();
     if (!baseUrl) {
-      throw new Error(
-        'OpenAI 互換エンドポイント（baseURL）が未設定です。設定画面で入力してください',
-      );
+      throw new Error(m.error_openai_base_url_unset());
     }
     const model =
       purpose === 'ocr'
@@ -24,8 +23,8 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
     if (!model) {
       throw new Error(
         purpose === 'ocr'
-          ? 'OCR 用モデル（vision 対応必須）が未選択です。設定画面で選択してください'
-          : 'LLM 分類用モデルが未選択です。設定画面で選択してください',
+          ? m.error_openai_ocr_model_unset()
+          : m.error_openai_classify_model_unset(),
       );
     }
     const apiKey = (await getSetting('openaiApiKey')) ?? '';
@@ -34,7 +33,7 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
 
   const geminiKey = (await getSetting('geminiApiKey'))?.trim();
   if (!geminiKey) {
-    throw new Error('Gemini API キーが未設定です。設定画面で入力してください');
+    throw new Error(m.error_gemini_key_unset());
   }
   return new GeminiAdapter(geminiKey);
 }

@@ -23,7 +23,11 @@ fn expand_titlebar_icons() {
         let mut reader = decoder.read_info().expect("PNG ヘッダ");
         let mut buffer = vec![0; reader.output_buffer_size().expect("PNG の大きさ")];
         let info = reader.next_frame(&mut buffer).expect("PNG 本体");
-        assert_eq!(info.color_type, png::ColorType::Rgba, "{src} は RGBA ではない");
+        assert_eq!(
+            info.color_type,
+            png::ColorType::Rgba,
+            "{src} は RGBA ではない"
+        );
         buffer.truncate(info.buffer_size());
         fs::write(Path::new(&out).join(format!("{name}.rgba")), &buffer).expect("書き出し");
     }

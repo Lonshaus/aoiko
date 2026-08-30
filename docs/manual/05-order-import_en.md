@@ -10,7 +10,7 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 > - Handle discount lines (negative amounts) as credit-side adjustments
 > - Reconcile the item-sum / total mismatch
 >
-> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (Tesseract is not supported here).
+> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (engines that read on the device, such as Tesseract, are not supported here).
 
 ## 1. Why this feature exists
 
@@ -30,13 +30,13 @@ Open the **individual order detail** page (not the order history list). Examples
 - **Rakuten Ichiba**: Purchase history → detail page for each order
 - **Yahoo! Shopping**: Order history → click an order ID
 
-On that page, `Cmd+A` (Win: `Ctrl+A`) to select all → `Cmd+C` to copy.
+On that page, `Cmd+A` (`Ctrl+A` on Windows and Linux) to select all → `Cmd+C` (`Ctrl+C`) to copy.
 
 > Headers, navigation, recommendations, footers, etc. are fine in the clipboard. The LLM filters out noise. You don't need to be precise about selection range.
 
 ### 2-2. Paste and analyze
 
-Paste with `Cmd+V` into the textarea under **"1. Paste the order page text"**.
+Paste with `Cmd+V` (`Ctrl+V`) into the textarea under **"1. Paste the order page text"**.
 
 Click **"Analyze"** to send to the selected LLM engine.
 

@@ -16,7 +16,7 @@ const PRODUCT_IDS = {
     'supporter-badge': 'net.lonshaus.aoiko.win.supporterbadge',
   },
 };
-// 商店 も Play も、消耗しない品目と分けるためにこの区別を要求する。
+// どの商店も、消耗しない品目と分けるためにこの区別を要求する。
 // 定期購読は扱わないので inapp 固定。
 const PRODUCT_TYPE = 'inapp';
 // プラグインが返す purchaseState（0/1/2）。web 側の語彙へ移す。
@@ -42,7 +42,7 @@ export function purchaseResultOf(purchase) {
 // エラーバナーが点く。
 export function purchaseResultOfError(error) {
   // プラグインは Error を文字列へ直列化して寄越すので、判るのは文面だけ。
-  // 商店 は「cancelled by user」、商店 は「[purchaseNotCompleted] - ...」。
+  // 商店ごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
   const message = String(error?.message ?? error ?? '').toLowerCase();
   if (message.includes('cancel') || message.includes('notcompleted')) {
     return 'cancelled';
@@ -55,7 +55,7 @@ export function purchaseResultOfError(error) {
 
 export function createIap(invoke, platform) {
   const ids = productIdsFor(platform);
-  // ある環境 の品目はまだ商店に作っていない。表が無ければ入口ごと生やさず、
+  // 品目をまだ商店に作っていない環境がある。表が無ければ入口ごと生やさず、
   // 支援画面が出ないままにする（能力判定は関数の有無で行われる）。
   if (ids === null) {
     return null;

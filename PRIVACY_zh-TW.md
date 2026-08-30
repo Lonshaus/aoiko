@@ -42,6 +42,9 @@ Hosting 提供商（公開時預定 GitHub Pages / Vercel / Cloudflare Pages 等
 
 - **vision LLM 路（Gemini / OpenAI 相容）**：LLM 分類＝CSV 行文字（金額・摘要等）＋ 勘定科目一覽／OCR＝收據圖片（Base64）＋ 抽取指示 prompt
 - **Tesseract 路（OCR 限定）**：不用 LLM。圖片在 WASM 內本機處理、不外送。`jpn.traineddata` / `eng.traineddata` 也由 aoiko 自己提供，不會有對外連線
+<!-- only:native -->
+- **作業系統內建的文字辨識 路（OCR 限定）**：不用 LLM。圖片由作業系統提供的文字辨識在本機處理、不外送。也不需額外下載任何資料
+<!-- /only -->
 
 | 引擎（設定中選擇） | 送出目的地 | 是否離開本機 |
 |---|---|---|
@@ -49,12 +52,18 @@ Hosting 提供商（公開時預定 GitHub Pages / Vercel / Cloudflare Pages 等
 | OpenAI 相容 / Ollama 等：指定 localhost 時 | 本機內（例 `http://localhost:11434`） | **否** |
 | OpenAI 相容 / Ollama 等：指定遠端時 | 利用者指定的 host | 是 |
 | Tesseract（純本地 WASM OCR） | 圖片不離開本機。`jpn.traineddata` / `eng.traineddata` 也內附 | **無**（不會有對外連線）|
+<!-- only:native -->
+| 作業系統內建的文字辨識 | 圖片不離開本機 | **無**（不會有對外連線）|
+<!-- /only -->
 
 - 送出是利用者瀏覽器**直接**進行，不經由 aoiko 的管理伺服器（不存在）
 - **外部（雲端）送出引擎使用時送出前會跳確認對話框**
 - Gemini：送出內容依 Google 隱私政策與利用者 API 方案合約處理，是否用於訓練看合約形態（免費 vs 付費）
 - 本地（Ollama 等以 localhost）使用時資料不離開本機、隱私保護最強（OCR 必須 vision 對應模型）
 - Tesseract：不用 LLM，從 WASM OCR 文字以確定性規則抽取（只 T+13 位登錄番号・日期・合計）。精度有限、店名與品項不推測。利用者務必人工確認
+<!-- only:native -->
+- 作業系統內建的文字辨識：不用 LLM，從作業系統辨識出的文字以固定規則抽取（只 T+13 位登錄號碼・日期・合計）。店名與品項不推測。利用者務必人工確認
+<!-- /only -->
 
 ### 備份（利用者選擇）
 

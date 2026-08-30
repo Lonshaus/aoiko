@@ -13,7 +13,7 @@ mod menu_i18n;
 
 const INIT_SCRIPT: &str = include_str!("../init.js");
 // 商店ごとに品目 ID が違うので、走っている場所を init.js へ渡す。JS 側から OS を
-// 見分ける手段（userAgent 等）は web view だと ある環境 と ある環境 の区別が付かない。
+// 見分ける手段（userAgent 等）は web view によって区別が付かない組み合わせがある。
 const PLATFORM: &str = if cfg!(target_os = "macos") {
     "macos"
 } else if cfg!(target_os = "ios") {
@@ -68,13 +68,13 @@ fn apply_titlebar_icon(window: &tauri::WebviewWindow) {
     };
     let _ = window.set_icon(tauri::image::Image::new(rgba, SIDE, SIDE));
 }
-// src-init/index.js が印刷と外部リンクの実装を出し分けるためのフラグ。ある環境/ある環境 だけ
+// src-init/index.js が印刷と外部リンクの実装を出し分けるためのフラグ。モバイルだけ
 // plugin-aoiko-native の print_page / open_in_app へ回す。
 #[tauri::command]
 fn is_ios() -> bool {
     cfg!(target_os = "ios")
 }
-// web view 上の window.print() は例外を投げる（tauri#3066）。印刷スタイルは公開 repo に
+// web view 上の window.print() は例外を投げる。印刷スタイルは公開 repo に
 // 揃っているので、出力そのものはネイティブの印刷機構へ渡せばよい。
 #[tauri::command]
 fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -119,9 +119,9 @@ fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
                 };
                 use windows_core::Interface;
 
-                // controller() が返すのは基底の ICoreweb view で、ShowPrintUI は
-                // ICoreweb view_16 で追加された。QueryInterface で降りる必要がある。
-                // クロージャは Send + 'static のため、ある環境 側と同じく内部の失敗を
+                // controller() が返すのは基底のインタフェースで、印刷 UI の呼び出しは
+                // 後の版で追加された。QueryInterface で降りる必要がある。
+                // クロージャは Send + 'static のため、もう一方と同じく内部の失敗を
                 // コマンドの戻り値へは返せない。失敗した場合はダイアログが出ないだけになる。
                 unsafe {
                     let Ok(core) = webview.controller().CoreWebView2() else {
@@ -130,7 +130,7 @@ fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
                     let Ok(printable) = core.cast::<ICoreWebView2_16>() else {
                         return;
                     };
-                    // BROWSER は web view 自身の印刷プレビューを出す。あるブラウザ の Ctrl+P と同じで、
+                    // BROWSER は web view 自身の印刷プレビューを出す。ブラウザの Ctrl+P と同じで、
                     // 用紙に載った結果をページ送りごと確認してから印刷できる。SYSTEM だと
                     // OS の印刷ダイアログのみでプレビューが無い。
                     let _ = printable.ShowPrintUI(COREWEBVIEW2_PRINT_DIALOG_KIND_BROWSER);
@@ -337,7 +337,7 @@ fn save_ui_locale(app: &tauri::AppHandle, locale: menu_i18n::Locale) {
     }
 }
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(target_os = "windows")))]
 fn build_menu<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     locale: menu_i18n::Locale,
@@ -351,13 +351,13 @@ fn build_menu<R: tauri::Runtime>(
     let reload_item = MenuItemBuilder::with_id("reload", tr(locale, Key::Reload))
         .accelerator("CmdOrCtrl+R")
         .build(app)?;
-    // quit_with_text() は OS の UI の terminate: にマップされ、windowShouldClose: を
+    // quit_with_text() は OS の終了要求にマップされ、ウィンドウを閉じる判定を
     // 経由しない（CloseRequested が発火しない）ため未保存ガードを迂回できてしまう。
     // 赤い閉じるボタンと同じ CLOSE_SCRIPT 経路へ通すため自前の項目にする。
     let quit_item = MenuItemBuilder::with_id("quit", tr(locale, Key::Quit))
         .accelerator("CmdOrCtrl+Q")
         .build(app)?;
-    // ある環境 は先頭の submenu をアプリケーションメニューとして扱い、名前も
+    // 先頭の submenu をアプリケーションメニューとして扱う環境があり、名前も
     // アプリ名で上書きする。ここを省くと「ファイル」がアプリメニューに化け、
     // 終了や環境設定の定位置が無くなる。
     let app_menu = SubmenuBuilder::new(app, "aoiko")
@@ -399,6 +399,62 @@ fn build_menu<R: tauri::Runtime>(
         .items(&[&app_menu, &file_menu, &edit_menu, &view_menu, &window_menu])
         .build()
 }
+// アプリケーションメニューという枠が無く、綴りもニーモニック（&）も違う環境があるので
+// 構成ごと分ける。Window サブメニューは作らない：Minimize の既定加速キーが
+// 無条件 Ctrl+M、Maximize は元に戻せない一方向で、どちらもそちらの慣習に無い。
+#[cfg(target_os = "windows")]
+fn build_menu<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    locale: menu_i18n::Locale,
+) -> tauri::Result<tauri::menu::Menu<R>> {
+    use menu_i18n::{tr, Key};
+    let print_item = MenuItemBuilder::with_id("print", tr(locale, Key::WinPrint))
+        .accelerator("CmdOrCtrl+P")
+        .build(app)?;
+    let reload_item = MenuItemBuilder::with_id("reload", tr(locale, Key::WinReload))
+        .accelerator("F5")
+        .build(app)?;
+    // 定義済みの Fullscreen は何もしない環境があり、しかも定義済み項目は MenuEvent を
+    // 発火しないので後から拾うこともできない。自前の項目にする。
+    let fullscreen_item = MenuItemBuilder::with_id("fullscreen", tr(locale, Key::WinFullScreen))
+        .accelerator("F11")
+        .build(app)?;
+    // 定義済みの Quit は PostQuitMessage(0) で WM_CLOSE を経由せず、未保存ガードを
+    // 迂回する。Alt+F4 と同じ CLOSE_SCRIPT 経路へ通すため自前の項目にする。
+    let exit_item = MenuItemBuilder::with_id("quit", tr(locale, Key::WinExit)).build(app)?;
+    let about_metadata = tauri::menu::AboutMetadataBuilder::new()
+        .name(Some(app.package_info().name.clone()))
+        .version(Some(app.package_info().version.to_string()))
+        .license(Some("AGPL-3.0-or-later"))
+        .website(Some("https://aoiko.pages.dev"))
+        .copyright(Some("Copyright (C) 2026 Lonshaus"))
+        .build();
+    let file_menu = SubmenuBuilder::new(app, tr(locale, Key::WinFileMenu))
+        .item(&print_item)
+        .separator()
+        .item(&exit_item)
+        .build()?;
+    let edit_menu = SubmenuBuilder::new(app, tr(locale, Key::WinEditMenu))
+        .undo_with_text(tr(locale, Key::WinUndo))
+        .redo_with_text(tr(locale, Key::WinRedo))
+        .separator()
+        .cut_with_text(tr(locale, Key::WinCut))
+        .copy_with_text(tr(locale, Key::WinCopy))
+        .paste_with_text(tr(locale, Key::WinPaste))
+        .select_all_with_text(tr(locale, Key::WinSelectAll))
+        .build()?;
+    let view_menu = SubmenuBuilder::new(app, tr(locale, Key::WinViewMenu))
+        .item(&reload_item)
+        .separator()
+        .item(&fullscreen_item)
+        .build()?;
+    let help_menu = SubmenuBuilder::new(app, tr(locale, Key::WinHelpMenu))
+        .about_with_text(tr(locale, Key::WinAbout), Some(about_metadata))
+        .build()?;
+    MenuBuilder::new(app)
+        .items(&[&file_menu, &edit_menu, &view_menu, &help_menu])
+        .build()
+}
 // ネイティブメニューは WebView の外にあり、公開 repo のメッセージカタログを読めない。
 // 言語を切り替えると web 側はページを再読み込みするので、読み込みのたびに現在の言語が
 // ここへ渡ってくる。同じなら何もしないため、通常の再読み込みでは作り直さない。
@@ -433,7 +489,7 @@ fn set_ui_locale(app: tauri::AppHandle, locale: String) {
     }
     #[cfg(not(desktop))]
     {
-        // ある環境/ある環境 には tauri::menu 自体が無い。web 側は同じ呼び出しをするので受けるだけ。
+        // モバイルにはメニューの枠組み自体が無い。web 側は同じ呼び出しをするので受けるだけ。
         let _ = (&app, &locale);
     }
 }
@@ -448,7 +504,7 @@ pub fn run() {
         // コマンドだけで、そちらは開く場所も文面も webview から指定できない。
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_aoiko_native::init())
-        // 支援（アプリ内購入）。配る 3 つの環境（ある環境 / ある環境 / ある環境）にしか依存を入れて
+        // 支援（アプリ内購入）。商店を持つ環境にしか依存を入れて
         // いないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
         .plugin(tauri_plugin_iap::init())
         .invoke_handler(tauri::generate_handler![
@@ -462,9 +518,7 @@ pub fn run() {
             let handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("aoiko")
-                .initialization_script(format!(
-                    "window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"
-                ))
+                .initialization_script(format!("window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"))
                 // マニュアルと UI の外部リンクは、そのままだとアプリのウィンドウごと外部サイトへ
                 // 遷移し、戻る手段が無くなる。OS 標準のブラウザへ渡してナビゲーションは中止する。
                 .on_navigation(move |url| {
@@ -488,7 +542,7 @@ pub fn run() {
                 .inner_size(1280.0, 860.0)
                 .min_inner_size(400.0, 560.0);
             let window = builder.build()?;
-            // メニューは desktop 専用。ある環境/ある環境 には tauri::menu 自体が無い。
+            // メニューは desktop 専用。モバイルにはメニューの枠組み自体が無い。
             #[cfg(desktop)]
             {
                 let locale = load_ui_locale(app.handle());
@@ -501,7 +555,7 @@ pub fn run() {
                     };
                     match event.id().as_ref() {
                         "print" => {
-                            // OS の UI のモーダルを回すので、メニューのコールバックから抜けてから実行する。
+                            // OS のモーダルを回すので、メニューのコールバックから抜けてから実行する。
                             tauri::async_runtime::spawn(async move {
                                 let _ = print_page(window);
                             });
@@ -518,6 +572,11 @@ pub fn run() {
                             tauri::async_runtime::spawn(async move {
                                 let _ = window.eval(CLOSE_SCRIPT);
                             });
+                        }
+                        #[cfg(target_os = "windows")]
+                        "fullscreen" => {
+                            let on = window.is_fullscreen().unwrap_or(false);
+                            let _ = window.set_fullscreen(!on);
                         }
                         _ => {}
                     }
@@ -554,8 +613,8 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::{is_allowed_url, split_frame};
-    // 属性が run() から離れると ある環境 だけ「required runtime symbols が無い」で落ち、desktop の
-    // check も ある環境 の CI も通ってしまう（#88）。Apple SDK が要らない形で並びだけ見る。
+    // 属性が run() から離れるとモバイルだけ「required runtime symbols が無い」で落ち、
+    // desktop の check も CI も通ってしまう（#88）。専用 SDK が要らない形で並びだけ見る。
     #[test]
     fn mobile_entry_point_stays_on_run() {
         let source = include_str!("lib.rs");

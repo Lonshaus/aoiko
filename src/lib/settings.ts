@@ -6,10 +6,15 @@ import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
 
+// 引擎の綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
+// native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
+// 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
+export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native';
+
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）で選んだバックアップ先。token は端末固有の
+  // wrapper 版で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
@@ -33,7 +38,8 @@ export type SettingsMap = {
   // OCR/LLM エンジン選択（既定 gemini）。
   // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
   // - tesseract：WASM の純ローカル OCR（LLM 不要・通信無し。精度は限定的、人手確認前提）
-  ocrEngine: 'gemini' | 'openai-compatible' | 'tesseract';
+  // - native：OS 内蔵の文字認識（対応環境のみ・通信無し）
+  ocrEngine: OcrEngine;
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
   openaiBaseUrl: string;
   // OCR 用モデル（vision 必須）／LLM 分類用モデル（テキストのみで可）
@@ -80,7 +86,7 @@ export type SettingsMap = {
   // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
-  // <a download> 経路（あるブラウザ / あるブラウザ）で保存できたかの確認ダイアログをスキップ
+  // <a download> 経路（完了を観測できないブラウザ）で保存できたかの確認ダイアログをスキップ
   // （利用者が「次回から確認しない」を選択）。
   skipDownloadSavedConfirm: boolean;
   // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
@@ -96,8 +102,12 @@ export type SettingsMap = {
 // v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
-// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・あるブラウザ の非訪問 7 日消去）を追記。
-export const DISCLAIMER_VERSION = 5;
+// v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・長期未訪問での消去）を追記。
+// v6: OCR エンジンに OS 内蔵の文字認識を追加（この引擎を持つ側だけ）。
+// v6 で足したのは片方にしか無い引擎の免責なので、もう片方の本文は 1 字も変わらない。
+// 見えない内容のために同意を取り直させる理由が無く、そちらは 5 で据え置く。次に本文を
+// 直すときは「どちらの本文が変わったか」で決める。両方に出る内容なら両方を上げる。
+export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 5;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

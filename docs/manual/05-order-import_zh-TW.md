@@ -10,7 +10,7 @@
 > - 處理值引行（負金額）讓它走貸方
 > - 確認・調整品項合計與訂單總額的差分
 >
-> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrllm-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容 endpoint**（Tesseract 不能用）。
+> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrllm-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容 endpoint**（Tesseract 這類在本機辨識的引擎不能用）。
 
 ## 1. 這個功能的意義
 
@@ -30,13 +30,13 @@
 - **楽天市場**：購入歷史 → 各訂單的詳細頁
 - **Yahoo! ショッピング**：訂單歷史 → 點訂單號
 
-頁面上 `Cmd+A`（Win: `Ctrl+A`）全選 → `Cmd+C` 複製。
+頁面上 `Cmd+A`（Windows、Linux 是 `Ctrl+A`）全選 → `Cmd+C`（`Ctrl+C`）複製。
 
 > 頁眉・導覽・推薦商品・頁尾等雜訊一起進剪貼簿沒關係、LLM 會判別只抓需要的。不必神經質精準選範圍。
 
 ### 2-2. 貼上然後解析
 
-aoiko 的「**1. 貼上訂單頁文字**」textarea 用 `Cmd+V` 貼。
+aoiko 的「**1. 貼上訂單頁文字**」textarea 用 `Cmd+V`（`Ctrl+V`）貼上。
 
 按「**解析**」送到選中的 LLM 引擎解析。
 

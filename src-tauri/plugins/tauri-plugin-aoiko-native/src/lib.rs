@@ -1,4 +1,4 @@
-// バックアップフォルダの選択・記録・解決と、ある環境/ある環境 の印刷とアプリ内ブラウザ表示。
+// バックアップフォルダの選択・記録・解決と、モバイルの印刷とアプリ内ブラウザ表示。
 //
 // 選んだフォルダの記録はこのプラグインが持ち、読み書きの起点になる場所もここでしか決めない。
 // JS から受け取れるのはその起点からの相対パスだけで、実パスへ解くのは path.rs の
@@ -37,6 +37,8 @@ pub enum Error {
     TooManyOpenFiles,
     /// 書き込みチャンクの渡され方が違う（rid ヘッダーが無い、本文が生バイトでない）。
     BadChunkRequest(String),
+    /// 文字認識に失敗、または文字が 1 つも見つからなかった。
+    Ocr(String),
 }
 
 impl std::fmt::Display for Error {
@@ -57,6 +59,7 @@ impl std::fmt::Display for Error {
             Error::UnknownFile => write!(f, "対象のファイルは開かれていません"),
             Error::TooManyOpenFiles => write!(f, "同時に開けるファイルの上限を超えました"),
             Error::BadChunkRequest(e) => write!(f, "書き込みの指定が不正です: {e}"),
+            Error::Ocr(e) => write!(f, "文字を認識できません: {e}"),
         }
     }
 }
@@ -93,7 +96,7 @@ pub struct PickedFolder {
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedFolder {
     pub ready: bool,
-    /// ready のときだけ入る。ある環境 は file:// URL、デスクトップは素のパス。
+    /// ready のときだけ入る。モバイルは file:// URL、デスクトップは素のパス。
     pub path: Option<String>,
 }
 
@@ -105,7 +108,87 @@ impl ResolvedFolder {
         }
     }
 }
-// 解決は 1 回で済ませる。ある環境 の bookmark は解決のたびに新しい URL の権限を取り、
+
+/// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
+/// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedWord {
+    pub text: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    /// 返さない環境では None。
+    pub confidence: Option<f64>,
+    /// 第 2 候補以降を確からしい順に。
+    pub alternates: Vec<String>,
+}
+
+/// 縦に重なる単語をまとめた 1 行。座標はそれらを囲む矩形。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedLine {
+    pub text: String,
+    pub words: Vec<RecognizedWord>,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+}
+
+/// 文字認識の結果一式。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RecognizedText {
+    pub lines: Vec<RecognizedLine>,
+    /// 行を改行で繋いだ全文。座標が要らない抽出はこれで足りる。
+    pub text: String,
+}
+
+impl RecognizedLine {
+    // モバイルではネイティブ側が組んで返すため、Rust は受け取るだけ。
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub(crate) fn from_words(words: Vec<RecognizedWord>, separator: &str) -> Option<Self> {
+        let first = words.first()?;
+        let mut left = first.x;
+        let mut top = first.y;
+        let mut right = first.x + first.width;
+        let mut bottom = first.y + first.height;
+        for w in &words[1..] {
+            left = left.min(w.x);
+            top = top.min(w.y);
+            right = right.max(w.x + w.width);
+            bottom = bottom.max(w.y + w.height);
+        }
+        let text = words
+            .iter()
+            .map(|w| w.text.as_str())
+            .collect::<Vec<_>>()
+            .join(separator);
+        Some(Self {
+            text,
+            words,
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+        })
+    }
+}
+
+impl RecognizedText {
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
+    pub(crate) fn from_lines(lines: Vec<RecognizedLine>) -> Self {
+        let text = lines
+            .iter()
+            .map(|l| l.text.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        Self { lines, text }
+    }
+}
+// 解決は 1 回で済ませる。bookmark は解決のたびに新しい URL の権限を取り、
 // 手放さない実装（書き込み中に権限が消えないため）なので、毎回やると積み上がる。
 #[derive(Default)]
 pub(crate) struct Resolved(Mutex<Option<(String, String)>>);
@@ -146,6 +229,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::backup_list,
             commands::backup_remove,
             commands::export_open,
+            commands::recognize_text,
+            commands::is_text_recognition_available,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

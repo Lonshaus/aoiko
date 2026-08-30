@@ -291,7 +291,8 @@
   <header>
     <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      {m.receipt_subtitle()}
+      <!-- OS 内蔵の文字認識は原生版にしか無い引擎なので、説明も同じ旗で分ける。 -->
+      {__NATIVE__ ? m.receipt_subtitle_native() : m.receipt_subtitle()}
     </p>
   </header>
 
@@ -337,11 +338,13 @@
   {#if extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
-      {#if lastEngine === 'tesseract'}
+      {#if lastEngine === 'tesseract' || lastEngine === 'native'}
         <div
           class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
         >
-          {m.receipt_local_engine_notice()}
+          {__NATIVE__ && lastEngine === 'native'
+            ? m.receipt_native_engine_notice()
+            : m.receipt_local_engine_notice()}
         </div>
       {/if}
 

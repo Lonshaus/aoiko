@@ -1,22 +1,24 @@
 // CSV パーサー間で共有される小さなユーティリティ。
 // YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日 を 'YYYY-MM-DD' に正規化。
 // 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
+// 月を m という名前で分解しているので、こちらは別名で受ける。
+import { m as msg } from '../paraglide/messages';
 export function normalizeDate(s: string): string {
   const dateOnly = (s.trim().split(/[ \t]/)[0] ?? '').replace(/年|月/g, '/').replace(/日/g, '');
   const parts = dateOnly.split(/[/\-.]/).map((p) => p.trim());
   if (parts.length !== 3) {
-    throw new Error(`日付形式が認識できません: ${s}`);
+    throw new Error(msg.error_date_format_unrecognized({ value: s }));
   }
   const [y, m, d] = parts;
   // 年は 4 桁、月日は 1〜2 桁の数字に限定する。2 桁年や非数字を弾き、
   // year 欄が NaN になる・無効な日付が通るのを防ぐ（確認済みの実フォーマットはすべて西暦）。
   if (!y || !/^\d{4}$/.test(y) || !m || !/^\d{1,2}$/.test(m) || !d || !/^\d{1,2}$/.test(d)) {
-    throw new Error(`日付形式が認識できません: ${s}`);
+    throw new Error(msg.error_date_format_unrecognized({ value: s }));
   }
   const mn = Number(m);
   const dn = Number(d);
   if (mn < 1 || mn > 12 || dn < 1 || dn > 31) {
-    throw new Error(`日付の範囲が不正です: ${s}`);
+    throw new Error(msg.error_date_out_of_range({ value: s }));
   }
   return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }

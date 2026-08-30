@@ -1,3 +1,4 @@
+import { m } from '../paraglide/messages';
 import { getLocale } from '../paraglide/runtime';
 import { nativeBridge } from './native-bridge';
 // 解決済みのロケールを `<html lang>` へ反映する。`index.html` の `lang="ja"` は paraglide が
@@ -21,5 +22,16 @@ export function applyUiLanguage(): void {
   if (typeof bridge?.setUiLocale === 'function') {
     // メニューが作り直せなくても画面は動く。起動を止めるほどの失敗ではない。
     void bridge.setUiLocale(locale).catch(() => {});
+  }
+  // 破棄確認のダイアログもシェル側が出す。こちらはメニューと違い WebView から呼ぶので、
+  // 辞書を持たせるのではなく訳した文言を渡す。渡すまではシェル側の既定（日本語）が出る。
+  if (typeof bridge?.setDiscardText === 'function') {
+    bridge.setDiscardText({
+      closeMessage: m.native_discard_close_message(),
+      closeOk: m.native_discard_close_ok(),
+      reloadMessage: m.native_discard_reload_message(),
+      reloadOk: m.native_discard_reload_ok(),
+      cancel: m.native_discard_cancel(),
+    });
   }
 }

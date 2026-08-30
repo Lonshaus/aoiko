@@ -34,7 +34,13 @@
   onMount(async () => {
     const acceptedAt = await getSetting('disclaimerAcceptedAt');
     const acceptedVersion = await getSetting('disclaimerAcceptedVersion');
-    if (acceptedAt && acceptedVersion === DISCLAIMER_VERSION) {
+    // 配布形態ごとに文面が進む速さが違い、こちらより新しい版に同意した記録が
+    // バックアップ経由で入ってくる。厳密一致だと同意済みの利用者へ再同意を求めてしまう。
+    if (
+      acceptedAt &&
+      typeof acceptedVersion === 'number' &&
+      acceptedVersion >= DISCLAIMER_VERSION
+    ) {
       consentState = 'granted';
     } else {
       consentState = 'required';
@@ -107,80 +113,82 @@
 </script>
 
 <div class="min-h-screen flex flex-col">
-  {#if showErrorBanner}
-    <div
-      class="print:hidden sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive pt-[calc(0.5rem+env(safe-area-inset-top))]"
-    >
-      <span>{m.error_banner_message()}</span>
-      <button
-        type="button"
-        class="shrink-0 rounded px-2 py-1 hover:bg-destructive/20"
-        onclick={() => (showErrorBanner = false)}
-      >
-        {m.common_close()}
-      </button>
-    </div>
-  {/if}
-  <header
-    class="print:hidden sticky top-0 z-10 border-b bg-card text-card-foreground pt-[env(safe-area-inset-top)]"
+  <!-- 警告帯と header は両方 top-0 に貼るので、重ならないよう一枚にまとめる。
+       安全域の上余白もここが一度だけ持つ（body 側に置くと捲った後に効かない）。 -->
+  <div
+    class="print:hidden sticky top-0 z-20 bg-card text-card-foreground pt-[env(safe-area-inset-top)]"
   >
-    <div
-      class="container mx-auto max-w-5xl px-4 md:px-8 py-4 flex items-center justify-between gap-6"
-    >
-      <a href="/" use:link class="shrink-0 hover:opacity-80">
-        <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
-      </a>
-      <nav class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
-        {#each NAV_ITEMS as item (item.href)}
-          <a
-            href={item.href}
-            use:link
-            class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
-            >{item.label()}</a
-          >
-        {/each}
-      </nav>
-      <button
-        type="button"
-        class="md:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
-        aria-label={m.nav_menu()}
-        aria-expanded={mobileNavOpen}
-        onclick={() => (mobileNavOpen = !mobileNavOpen)}
+    {#if showErrorBanner}
+      <div
+        class="flex items-center justify-between gap-4 border-b border-destructive/40 bg-destructive/10 px-4 md:px-8 py-2 text-sm text-destructive"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
+        <span>{m.error_banner_message()}</span>
+        <button
+          type="button"
+          class="shrink-0 rounded px-2 py-1 hover:bg-destructive/20"
+          onclick={() => (showErrorBanner = false)}
         >
-          {#if mobileNavOpen}
-            <path d="M18 6 6 18M6 6l12 12" />
-          {:else}
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          {/if}
-        </svg>
-      </button>
-    </div>
-    {#if mobileNavOpen}
-      <nav class="md:hidden border-t px-4 py-2 flex flex-col text-sm">
-        {#each NAV_ITEMS as item (item.href)}
-          <a
-            href={item.href}
-            use:link
-            class="rounded px-2 py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-            onclick={() => (mobileNavOpen = false)}>{item.label()}</a
-          >
-        {/each}
-      </nav>
+          {m.common_close()}
+        </button>
+      </div>
     {/if}
-  </header>
-  <main
-    class="flex-1 container mx-auto px-4 md:px-8 py-8 pb-[calc(2rem+env(safe-area-inset-bottom))] {mainMaxWidth}"
-  >
+    <header class="border-b">
+      <div
+        class="container mx-auto max-w-5xl px-4 md:px-8 py-4 flex items-center justify-between gap-6"
+      >
+        <a href="/" use:link class="shrink-0 hover:opacity-80">
+          <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
+        </a>
+        <nav class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
+          {#each NAV_ITEMS as item (item.href)}
+            <a
+              href={item.href}
+              use:link
+              class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
+              >{item.label()}</a
+            >
+          {/each}
+        </nav>
+        <button
+          type="button"
+          class="md:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
+          aria-label={m.nav_menu()}
+          aria-expanded={mobileNavOpen}
+          onclick={() => (mobileNavOpen = !mobileNavOpen)}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            {#if mobileNavOpen}
+              <path d="M18 6 6 18M6 6l12 12" />
+            {:else}
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            {/if}
+          </svg>
+        </button>
+      </div>
+      {#if mobileNavOpen}
+        <nav class="md:hidden border-t px-4 py-2 flex flex-col text-sm">
+          {#each NAV_ITEMS as item (item.href)}
+            <a
+              href={item.href}
+              use:link
+              class="rounded px-2 py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              onclick={() => (mobileNavOpen = false)}>{item.label()}</a
+            >
+          {/each}
+        </nav>
+      {/if}
+    </header>
+  </div>
+  <main class="flex-1 container mx-auto px-4 md:px-8 py-8 {mainMaxWidth}">
     {#if helpChapter}
       <div class="print:hidden mb-4 flex justify-end">
         <a
