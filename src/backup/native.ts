@@ -1,10 +1,11 @@
 import { splitBackupPath } from './content-store';
 import type { BackupAdapter } from './types';
-// wrapper 版（ある環境 / ある環境 / ある環境 / ある環境）が注入するネイティブのフォルダ書き込み。
+import { m } from '../paraglide/messages';
+// wrapper 版が注入するネイティブのフォルダ書き込み。
 //
-// web view に showDirectoryPicker は無く、今後も入らない（web view の standards-positions#28
-// が oppose でクローズ済み、preference も存在しない）。web API に頼る限り Apple 側の app は
-// 同期フォルダへの自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
+// showDirectoryPicker が無く、今後も入らない環境がある（実装側が反対の立場を表明して
+// 議論は終わっており、有効化する設定も無い）。web API に頼る限りそこでは同期フォルダへの
+// 自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
 //
 // ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
 // 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
@@ -78,7 +79,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     }
     return api.backupIsReady(folder.token);
   }
-  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。ある環境 の bookmark が
+  // ネイティブ側には「選び直す」以外に権限を取り戻す手段が無い。保存先への参照が
   // 解決できなくなった場合も、フォルダを移動・削除された場合も回復動線は同じなので、
   // 権限の再取得を独立した操作にはせず configure に一本化する。
   async ensurePermission(): Promise<boolean> {
@@ -88,13 +89,13 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
   async configure(): Promise<void> {
     const api = bridge();
     if (!api) {
-      throw new Error('ネイティブのフォルダ選択が利用できません');
+      throw new Error(m.error_native_folder_picker_unavailable());
     }
     const chosen = await api.backupChooseFolder();
     if (!chosen) {
       // 取り消しを FSA と同じ形で返す。呼出元（backup.svelte.ts）は AbortError を
       // 「利用者が選択をやめた」として無視するため、状態遷移を共通にできる。
-      throw new DOMException('フォルダ選択が取り消されました', 'AbortError');
+      throw new DOMException(m.error_folder_selection_cancelled(), 'AbortError');
     }
     await this.setFolder(chosen);
   }
@@ -104,7 +105,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     await api.backupWrite(folder.token, path, stream);
     return { fileName: path };
@@ -121,7 +122,7 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     }
     splitBackupPath(subdir);
     if (typeof api.backupListDir !== 'function') {
-      throw new Error('ネイティブ側の backupListDir が未実装のため、サブフォルダを一覧できません');
+      throw new Error(m.error_native_list_dir_unimplemented());
     }
     return api.backupListDir(folder.token, subdir);
   }
@@ -132,10 +133,10 @@ export class NativeFolderBackupAdapter implements BackupAdapter {
     const api = bridge();
     const folder = await this.getFolder();
     if (!api || !folder) {
-      throw new Error('バックアップフォルダが未設定です');
+      throw new Error(m.error_backup_folder_unset());
     }
     if (typeof api.backupRead !== 'function') {
-      throw new Error('ネイティブ側の backupRead が未実装のため、バックアップを読み出せません');
+      throw new Error(m.error_native_read_unimplemented());
     }
     return api.backupRead(folder.token, path);
   }

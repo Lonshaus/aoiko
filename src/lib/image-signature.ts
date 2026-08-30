@@ -1,5 +1,5 @@
 // ファイル拡張子や File.type は容易に偽装・欠落しうる（ドラッグ&ドロップや
-// 「すべてのファイル」選択、ある環境 あるブラウザ の HEIC で type が空になる既知の挙動など）ため、
+// 「すべてのファイル」選択、HEIC で type が空になる既知の挙動など）ため、
 // 先頭バイト（マジックナンバー）で実体が画像かどうかを判定する。
 export function isImageSignature(bytes: Uint8Array): boolean {
   if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {

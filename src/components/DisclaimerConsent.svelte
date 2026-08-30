@@ -23,7 +23,7 @@
   }
 </script>
 
-<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと iPhone のステータスバーに隠れる（#457） -->
+<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと端末のステータスバーに隠れる（#457） -->
 <div
   class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
   role="dialog"
@@ -64,18 +64,18 @@
       </ul>
 
       <div class="text-xs text-muted-foreground pt-2 border-t space-y-1">
-        <p>
+        <div>
           {m.disclaimer_docs_prefix()}
-          <PolicyDocViewer doc="DISCLAIMER" label="DISCLAIMER.md" />
-          ／
-          <PolicyDocViewer doc="PRIVACY" label="PRIVACY.md" />
-          ／
-          <PolicyDocViewer doc="SECURITY" label="SECURITY.md" />
-          ／
-          <PolicyDocViewer doc="LICENSE" label="LICENSE (AGPL-3.0)" />
-          ／
-          <PolicyDocViewer doc="THIRD_PARTY" label="THIRD_PARTY_LICENSES.txt" />
-        </p>
+          <PolicyDocViewer
+            docs={[
+              { doc: 'DISCLAIMER', label: 'DISCLAIMER.md' },
+              { doc: 'PRIVACY', label: 'PRIVACY.md' },
+              { doc: 'SECURITY', label: 'SECURITY.md' },
+              { doc: 'LICENSE', label: 'LICENSE (AGPL-3.0)' },
+              { doc: 'THIRD_PARTY', label: 'THIRD_PARTY_LICENSES.txt' },
+            ]}
+          />
+        </div>
       </div>
     </section>
 

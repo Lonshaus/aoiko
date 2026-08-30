@@ -22,13 +22,39 @@ tauri = { version = "2" }
 # サンドボックス下の macOS は、選んだ場所への許可が起動 1 回きり。次の起動へ持ち越す
 # security-scoped bookmark は Foundation にしか無い。
 [target.'cfg(target_os = "macos")'.dependencies]
+# alloc() (AnyThread トレイト) を直に呼ぶために必要。objc2-foundation/objc2-vision 経由の
+# 間接依存では呼び出し側のスコープにトレイトが入らない。
+objc2 = "0.6"
 objc2-foundation = { version = "0.3", features = [
   "NSArray",
   "NSData",
+  "NSDictionary",
   "NSError",
   "NSString",
   "NSURL",
 ] }
+objc2-vision = { version = "0.3", default-features = false, features = [
+  "std",
+  "VNRequest",
+  "VNRequestHandler",
+  "VNRecognizeTextRequest",
+  "VNObservation",
+  # VNRecognizedText::confidence の型（VNConfidence）がこの feature の下にある。
+  "VNTypes",
+  "objc2-core-foundation",
+] }
+objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
+# 文字認識。Windows の OCR は WinRT にあり、windows クレートは既に tao 経由で依存グラフに
+# 入っているため、ここでは要る feature を足すだけでクレートは増えない。
+# 日本語の言語機能は既定で入っていないので、使えるかは実行時に問う。
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = [
+  "Media_Ocr",
+  "Graphics_Imaging",
+  "Storage_Streams",
+  "Globalization",
+] }
+
 # フォルダ選択・保存先の指定・未保存確認はこのプラグインの中で完結させる。デスクトップの
 # plugin-dialog は rfd の薄い殻でしかないので、その rfd を直接持って plugin-dialog ごと外す。
 # 外れていれば dialog:* はどの権限マニフェストにも無く、capabilities に 1 行足しても

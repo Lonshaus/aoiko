@@ -12,7 +12,7 @@
   let updateFn: ((reloadPage?: boolean) => Promise<void>) | null = null;
 
   onMount(() => {
-    // ネイティブのシェルの中では Service Worker を登録しない。tauri:// のような
+    // ネイティブのシェルの中では Service Worker を登録しない。シェルが使う
     // HTTP family 以外のスキームでは web view が登録を明確に拒否するため、登録を試みると
     // 起動のたびに onRegisterError の警告が出る。更新は配布元（ストア）が担うので、
     // ここでの更新提示自体が要らない。
