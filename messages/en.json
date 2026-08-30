@@ -254,7 +254,7 @@
   "import_history_reverse_success": "Reversed {count} entries",
   "import_history_reverse_success_with_skipped": "Reversed {count} entries ({skipped} already reversed)",
   "receipt_title": "Receipt OCR",
-  "receipt_subtitle": "Extract transaction info from a receipt image → confirm → save as a journal entry (choose engine in Settings: cloud LLM, local LLM, or purely-local Tesseract)",
+  "receipt_subtitle": "Extract transaction info from a receipt image → confirm → save as a journal entry (choose engine in Settings: cloud LLM, local LLM, purely-local Tesseract, or the OS's built-in text recognition)",
   "receipt_step_image": "1. Choose an image (camera also OK)",
   "receipt_preview_alt": "Preview",
   "receipt_analyze_button": "Analyze",
