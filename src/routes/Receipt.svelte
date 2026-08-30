@@ -291,7 +291,8 @@
   <header>
     <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      {m.receipt_subtitle()}
+      <!-- OS 内蔵の文字認識は原生版にしか無い引擎なので、説明も同じ旗で分ける。 -->
+      {__NATIVE__ ? m.receipt_subtitle_native() : m.receipt_subtitle()}
     </p>
   </header>
 
