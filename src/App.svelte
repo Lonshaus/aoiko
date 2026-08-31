@@ -112,6 +112,14 @@
   let mobileNavOpen = $state(false);
 </script>
 
+<svelte:window
+  onkeydown={(event) => {
+    if (event.key === 'Escape') {
+      mobileNavOpen = false;
+    }
+  }}
+/>
+
 <div class="min-h-screen flex flex-col">
   <!-- 警告帯と header は両方 top-0 に貼るので、重ならないよう一枚にまとめる。
        安全域の上余白もここが一度だけ持つ（body 側に置くと捲った後に効かない）。 -->
@@ -188,6 +196,16 @@
       {/if}
     </header>
   </div>
+  {#if mobileNavOpen}
+    <!-- 暗幕は header（z-20）より下に敷く。上へ重ねるとハンバーガー自身が押せなくなる。 -->
+    <button
+      type="button"
+      tabindex="-1"
+      aria-hidden="true"
+      class="md:hidden fixed inset-0 z-10"
+      onclick={() => (mobileNavOpen = false)}
+    ></button>
+  {/if}
   <main class="flex-1 container mx-auto px-4 md:px-8 py-8 {mainMaxWidth}">
     {#if helpChapter}
       <div class="print:hidden mb-4 flex justify-end">
