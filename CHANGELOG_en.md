@@ -4,6 +4,25 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.1.1] - 2026-08-30
+
+A round-up of places the display language did not reach. No new features.
+
+### Changed
+
+- The support screen can now be dismissed by clicking outside it
+- Going to Settings from the notice on the home screen now lands on the backup section
+
+### Fixed
+
+- Error messages still appearing in Japanese on the English and Traditional Chinese screens
+- Some input hints in Settings not matching the display language
+- A confirmation prompt not matching the display language
+- The full-text link in the disclaimer being split mid-sentence
+- The order-import instructions not matching the actual modifier keys
+- Numbers that are not 13 digits being accepted as a registration number
+- On some mobile browsers, the header being hidden behind the top of the screen after scrolling
+
 ## [1.1.0] - 2026-08-22
 
 Backups are now written as loose files inside a folder instead of one archive, and a year you have already filed can no longer be rewritten by accident. Ledger speed has also been improved across the board.
