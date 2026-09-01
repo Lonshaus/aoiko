@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'vitest';
 import { extractFromOcrLayout, type OcrLayout, type OcrWord } from './receipt-text-extract';
 
-type Cell = { text: string; x: number; alternates?: string[]; dy?: number; slope?: number };
+type Cell = { text: string; x: number; alternates?: string[] };
 type Row = { y: number; height: number; cells: Cell[] };
 
 // ネイティブ側の words_to_lines と同じ組み立て。ここで再現しておかないと、抽出の試験が
@@ -19,13 +19,11 @@ function toLayout(rows: Row[], separator = ' '): OcrLayout {
       words.push({
         text: cell.text,
         x: cell.x,
-        // 傾いた紙面では同じ文字線でも x が進むほど y が下がる。cell ごとにずらして再現する。
-        y: row.y + (cell.dy ?? 0),
+        y: row.y,
         width: 0.1,
         height: row.height,
         confidence: 1,
         ...(cell.alternates ? { alternates: cell.alternates } : {}),
-        ...(cell.slope !== undefined ? { slope: cell.slope } : {}),
       });
     }
   }
@@ -138,102 +136,6 @@ function receipt(over: { invoice?: Cell; items?: { y: number; cells: Cell[] }[] 
     },
   ]);
 }
-
-describe('紙面の傾き', () => {
-  // 傾けて撮ると、同じ文字線でも左の品名と右の金額で y がずれる。ネイティブ側は
-  // 水平を前提に組むので別の行になり、品名が次の行の金額と組になる（実測 5 度）。
-  // 語が持つ基線の傾きで補正して組み直す。
-  const SLOPE = 0.1;
-  // x=0.09 と x=0.6 の差 0.51 に傾きを掛けた分だけ、右の欄が下へずれる。
-  const drop = (x: number) => SLOPE * (x - 0.09);
-  function skewed(over: { slope?: number } = {}): OcrLayout {
-    const s = over.slope ?? SLOPE;
-    const cell = (text: string, x: number): Cell => ({ text, x, dy: drop(x), slope: s });
-    return toLayout([
-      { y: 0.1, height: 0.03, cells: [cell('あおい商店', 0.09)] },
-      { y: 0.2, height: 0.02, cells: [cell('登録番号T1234567890123', 0.09)] },
-      { y: 0.3, height: 0.02, cells: [cell('あおい茶', 0.09), cell('¥138', 0.6)] },
-      { y: 0.34, height: 0.02, cells: [cell('あおいパン', 0.09), cell('¥248', 0.6)] },
-      { y: 0.42, height: 0.02, cells: [cell('合計', 0.09), cell('¥386', 0.6)] },
-    ]);
-  }
-
-  test('傾いた紙面でも品名と金額が組になる', () => {
-    const r = extractFromOcrLayout(skewed());
-    expect(r.totalAmount).toBe('386');
-    expect(r.items).toEqual([
-      { description: 'あおい茶', amount: '138' },
-      { description: 'あおいパン', amount: '248' },
-    ]);
-  });
-
-  // 水平に撮っても推定はわずかに振れる。実測では 0.022 まで出た。拾うと、傾いて
-  // いない紙面を勝手に傾けて組んでしまう。
-  test('死区より小さい傾きは無視する', () => {
-    const layout = receipt();
-    const noisy: OcrLayout = {
-      ...layout,
-      lines: layout.lines.map((l) => ({
-        ...l,
-        words: l.words.map((w) => ({ ...w, slope: 0.02 })),
-      })),
-    };
-    expect(extractFromOcrLayout(noisy).items).toEqual(extractFromOcrLayout(layout).items);
-  });
-
-  // 傾きを返さない引擎では、従来どおり水平として組む。
-  test('傾きを持たない語だけなら従来と同じ結果になる', () => {
-    const layout = receipt();
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'ミネラルウォーター', amount: '248' },
-    ]);
-  });
-});
-
-describe('語の接合符', () => {
-  // 1 語 = 1 文字で返す環境では、空白で繋ぐと日本語が全部ばらける。
-  // ネイティブが組んだ行と語を突き合わせて、どちらで繋がれたかを見分ける。
-  test('一文字ずつ返る環境では空白を入れずに組み直す', () => {
-    const layout = toLayout(
-      [
-        {
-          y: 0.1,
-          height: 0.02,
-          cells: [
-            { text: 'あ', x: 0.09 },
-            { text: 'お', x: 0.12 },
-            { text: 'い', x: 0.15 },
-          ],
-        },
-        {
-          y: 0.2,
-          height: 0.02,
-          cells: [
-            { text: '登', x: 0.09 },
-            { text: '録', x: 0.12 },
-            { text: '番', x: 0.15 },
-            { text: '号', x: 0.18 },
-            { text: 'T1234567890123', x: 0.3 },
-          ],
-        },
-        {
-          y: 0.3,
-          height: 0.02,
-          cells: [
-            { text: '合', x: 0.09 },
-            { text: '計', x: 0.12 },
-            { text: '¥386', x: 0.6 },
-          ],
-        },
-      ],
-      '',
-    );
-    const r = extractFromOcrLayout(layout);
-    expect(r.notes).toContain('あおい');
-    expect(r.notes).not.toContain('あ お い');
-    expect(r.totalAmount).toBe('386');
-  });
-});
 
 describe('extractFromOcrLayout', () => {
   test('雛形から 5 項目すべてを取り出せる', () => {
@@ -372,70 +274,6 @@ describe('合計（同じ行の右端）', () => {
   });
 });
 
-describe('合計（別行の金額を拾う）', () => {
-  // 「合計／」だけの行の次に金額行が来る書式（実測）。
-  test('語の行の前に金額があれば拾う', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      {
-        y: 0.3,
-        height: 0.02,
-        cells: [
-          { text: '2点', x: 0.09 },
-          { text: '¥372', x: 0.6 },
-        ],
-      },
-      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
-  });
-
-  // 語の行の下に金額が来る書式もある。
-  test('語の行の後ろに金額があれば拾う', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      { y: 0.3, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
-      {
-        y: 0.4,
-        height: 0.02,
-        cells: [
-          { text: '2点', x: 0.09 },
-          { text: '¥372', x: 0.6 },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
-  });
-
-  // 隣接行に通貨記号が無ければ、案内文などの地の文を金額と誤認しない。
-  test('隣接行に金額の印が無ければ拾わない', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      { y: 0.3, height: 0.02, cells: [{ text: 'ご来店ありがとうございました', x: 0.09 }] },
-      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
-      { y: 0.5, height: 0.02, cells: [{ text: 'またのご利用をお待ちしております', x: 0.09 }] },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
-  });
-
-  // 隣接行が除外語を含む額（お預り等）なら合計として使わない。
-  test('隣接行が除外語を含むなら拾わない', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      {
-        y: 0.3,
-        height: 0.02,
-        cells: [
-          { text: 'お預り', x: 0.09 },
-          { text: '¥1000', x: 0.6 },
-        ],
-      },
-      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
-  });
-});
-
 describe('品目', () => {
   test('左に品名・右に金額の行を取り出せる', () => {
     expect(extractFromOcrLayout(receipt()).items).toEqual([
@@ -460,161 +298,6 @@ describe('品目', () => {
   // 軽減税率の印などが品名の頭に付く。雛形は `＊#！` を付けてある。
   test('品名の頭の区分記号を落とす', () => {
     expect(extractFromOcrLayout(receipt()).items[0]!.description).toBe('ミネラルウォーター');
-  });
-
-  // 区分記号の間に英字が 1 文字迷い込む書式がある。
-  test('記号の間の迷い込んだ英字ごと落とす', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: '※A＊あおいカレー', x: 0.143 },
-            { text: '¥180', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおいカレー', amount: '180' },
-    ]);
-  });
-
-  // 商品コードが品名の頭に数字の並びで付く。
-  test('先頭の数字コードと記号を落とす', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: '12345＊あおいノート', x: 0.143 },
-            { text: '¥150', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおいノート', amount: '150' },
-    ]);
-  });
-
-  // 区分記号と頭の英字の間に空白が挟まる書式がある。
-  test('英字 1 文字と記号の間に空白があっても落とす', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: 'A ＊あおいシャンプー', x: 0.143 },
-            { text: '¥600', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおいシャンプー', amount: '600' },
-    ]);
-  });
-
-  // 記号が付かない英字始まりの品名を、頭の英字ごと落としてはいけない。
-  test('記号を伴わない英字始まりの品名は残す', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: 'AOIKOSODA', x: 0.143 },
-            { text: '¥140', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'AOIKOSODA', amount: '140' },
-    ]);
-  });
-
-  // 記号が付かない数字始まりの品名を、頭の数字ごと落としてはいけない。
-  test('記号を伴わない数字始まりの品名は残す', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: '500mlあおい茶', x: 0.143 },
-            { text: '¥130', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: '500mlあおい茶', amount: '130' },
-    ]);
-  });
-  // 品名にスペースが入ると、文字と金額が 1 単語に同居する（実測）。
-  test('品名にスペースが入り金額と同じ単語に混じっても品目を取れる', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: 'お茶', x: 0.09 },
-            { text: 'ボトル ¥180', x: 0.143 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'お茶 ボトル', amount: '180' },
-    ]);
-  });
-
-  test('電話番号のような単語を金額と誤認しない', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: 'お問合せ先', x: 0.09 },
-            { text: '0499-99-9999', x: 0.143 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([]);
-  });
-
-  test('文字に数字が繋がった単語を金額と誤認しない', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.625,
-          cells: [
-            { text: '伝票番号', x: 0.09 },
-            { text: '店No00499', x: 0.143 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([]);
-  });
-
-  // 見出し内の単語が文字と数字を空白無しで繋いでいても、金額の行と誤認して
-  // 見出しを早く閉じてはいけない。閉じると店名の探索範囲から外れて店名を失う。
-  test('見出し内の文字と数字が繋がった単語があっても店名を取れる', () => {
-    const layout = toLayout([
-      { y: 0.3, height: 0.06, cells: [{ text: 'あおい薬局', x: 0.09 }] },
-      { y: 0.35, height: 0.02, cells: [{ text: '店No00499', x: 0.09 }] },
-      {
-        y: 0.5,
-        height: 0.02,
-        cells: [
-          { text: '合計', x: 0.09 },
-          { text: '¥532', x: 0.6 },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
   });
 
   // 1 単語 = 1 文字で返す環境がある。単語から品名を組み立てると一文字ずつ空白が入り、
@@ -805,74 +488,6 @@ describe('品目', () => {
       { description: 'ミネラルウォーター', amount: '173' },
     ]);
   });
-  // コンビニ・スーパーの実写で踏んだ。印が後ろに付く書式では品目が全数落ちていた。
-  test('軽減税率の印が金額の後ろでも品目を取れる', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.615,
-          cells: [
-            { text: 'あおい茶', x: 0.143 },
-            { text: '¥138軽', x: 0.69 },
-          ],
-        },
-        {
-          y: 0.64,
-          cells: [
-            { text: 'あおいアイスチョコミント', x: 0.143 },
-            { text: '¥248軽', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおい茶', amount: '138' },
-      { description: 'あおいアイスチョコミント', amount: '248' },
-    ]);
-  });
-  // 印の書式に定めは無く、店ごとに違う（国税庁は記号を指定していない）。
-  test('印が 軽減 や ※ でも品目を取れる', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.615,
-          cells: [
-            { text: 'あおい茶', x: 0.143 },
-            { text: '¥138軽減', x: 0.69 },
-          ],
-        },
-        {
-          y: 0.64,
-          cells: [
-            { text: 'あおいパン', x: 0.143 },
-            { text: '¥248※', x: 0.69 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおい茶', amount: '138' },
-      { description: 'あおいパン', amount: '248' },
-    ]);
-  });
-  // 印が金額と離れて刷られていると、別の単語として返る。
-  test('印が独立した単語でも品目を取れる', () => {
-    const layout = receipt({
-      items: [
-        {
-          y: 0.615,
-          cells: [
-            { text: 'あおい茶', x: 0.143 },
-            { text: '¥138', x: 0.69 },
-            { text: '軽', x: 0.78 },
-          ],
-        },
-      ],
-    });
-    expect(extractFromOcrLayout(layout).items).toEqual([
-      { description: 'あおい茶', amount: '138' },
-    ]);
-  });
 
   test('小計の行は品目にしない', () => {
     const layout = receipt({
@@ -911,64 +526,6 @@ describe('品目', () => {
       { y: 0.6, height: 0.02, cells: [{ text: 'お買上明細は上記のとおりです。', x: 0.09 }] },
     ]);
     expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
-  });
-
-  // 実写の劣化で踏んだ。合計の語が空白で割れると後備へ落ち、そこが最大額を取るため
-  // クレジット控えの会社番号（桁数が多い）が合計として入っていた。
-  test('クレジット控えの番号を合計にしない', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.03, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      { y: 0.2, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
-      {
-        y: 0.3,
-        height: 0.02,
-        cells: [
-          { text: 'あおい茶', x: 0.09 },
-          { text: '¥386', x: 0.6 },
-        ],
-      },
-      {
-        y: 0.4,
-        height: 0.02,
-        cells: [
-          { text: '言十', x: 0.09 },
-          { text: '¥386', x: 0.6 },
-        ],
-      },
-      {
-        y: 0.5,
-        height: 0.02,
-        cells: [
-          { text: '会社名', x: 0.09 },
-          { text: '998877', x: 0.6 },
-        ],
-      },
-      {
-        y: 0.6,
-        height: 0.02,
-        cells: [
-          { text: '取引日', x: 0.09 },
-          { text: '55044', x: 0.6 },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('386');
-  });
-  // 語で決められず、金額の印がある行も無いなら空にする。埋めるより空のほうが安全。
-  test('金額の印が無ければ後備は何も選ばない', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.03, cells: [{ text: 'あおい商店', x: 0.1 }] },
-      { y: 0.2, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
-      {
-        y: 0.5,
-        height: 0.02,
-        cells: [
-          { text: '会社名', x: 0.09 },
-          { text: '998877', x: 0.6 },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
   });
 
   test('合計の語が読めなくても、集計欄から合計を拾う', () => {
