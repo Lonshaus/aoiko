@@ -365,7 +365,14 @@ function totalFromRow(line: OcrLine | undefined): string {
 // 行末の金額。単語からは組み立てない。1 単語 = 1 文字で返す環境があり、そこでは
 // 「最後の単語」が数字の断片になって電話番号が金額に化ける（実測。`0422ー29ー0051`
 // の末尾が `51` として通った）。行の文字列は環境ごとの正しい区切りで繋がれている。
-const TRAILING_AMOUNT_RE = /^(.*?)[\s]*([¥￥\\]?\s*\d{1,3}(?:[,.]+\d{3})*|[¥￥\\]?\s*\d+)\s*$/;
+const TRAILING_AMOUNT_RE =
+  /^(.*?)[\s]*([¥￥\\]?\s*\d{1,3}(?:[,.]+\d{3})*|[¥￥\\]?\s*\d+)[\s軽減※*＊#＃]*$/;
+// 軽減税率の印は金額の直後に付く（実測の `¥138軽`）。数字で終わることを求めると、
+// 食品を買ったレシートの品目が行ごと落ちる。印の書式に定めは無く、店ごとに
+// 軽 / 軽減 / ※ / * が使われる。括弧付きは数字を含む欄と紛れるので入れない。
+const TAX_RATE_MARK_TAIL = /[\s軽減※*＊#＃]+$/;
+// 印だけが独立した単語で返る環境がある（`¥162 軽`）。右端を見る前に落とす。
+const TAX_RATE_MARK_ONLY = /^[\s軽減※*＊#＃]+$/;
 
 // 頭より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
 // 数字の直前に区切りがある物と、左が日付・数字だけの行は外す。取り違えるくらいなら拾わない。
@@ -418,10 +425,13 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
 // 拾ってしまう。
 function hasAmountOnTheRight(line: OcrLine): boolean {
   const ordered = [...line.words].sort((a, b) => a.x - b.x);
+  while (ordered.length > 1 && TAX_RATE_MARK_ONLY.test(ordered[ordered.length - 1]!.text)) {
+    ordered.pop();
+  }
   const last = ordered[ordered.length - 1]!;
   // 金額だけの欄であることまで見る。文中に数字があるだけの行を金額の行と取ると、
   // 店名が頭から外れる（実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
-  return /^[¥￥\\*＊\s]*[-−－▲△]?\s*[\d,.]+$/.test(last.text);
+  return /^[¥￥\\*＊\s]*[-−－▲△]?\s*[\d,.]+$/.test(last.text.replace(TAX_RATE_MARK_TAIL, ''));
 }
 // 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
 // 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
