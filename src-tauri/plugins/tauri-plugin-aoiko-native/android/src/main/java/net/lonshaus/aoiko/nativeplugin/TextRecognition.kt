@@ -19,6 +19,7 @@ object TextRecognizer {
         val width: Double,
         val height: Double,
         val confidence: Double?,
+        val slope: Double?,
     ) {
         val centerY: Double
             get() = y + height / 2
@@ -73,6 +74,10 @@ object TextRecognizer {
                             box.width() / width,
                             box.height() / height,
                             element.confidence?.toDouble(),
+                            // 外接矩形は軸に平行なので、傾けて撮ると基線の向きが失われる。
+                            // 角度は度・時計回りで返るので、こちらの正規化座標での傾きへ直す
+                            // （軸ごとに 0..1 へ潰しているぶん、縦横比を掛ける）。
+                            Math.tan(Math.toRadians(element.angle.toDouble())) * (width / height),
                         ),
                     )
                 }
@@ -140,6 +145,9 @@ object TextRecognizer {
                 .put("alternates", JSONArray())
         if (w.confidence != null) {
             out.put("confidence", w.confidence)
+        }
+        if (w.slope != null) {
+            out.put("slope", w.slope)
         }
         return out
     }
