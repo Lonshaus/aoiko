@@ -38,6 +38,41 @@ const REIWA_DATE_RE =
 // `200` を合計と誤認する。3 桁ちょうどの群に限れば、円には補助単位が無いので
 // 小数との取り違えは起きない。
 const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]+\d{3})+|\d+)(?:\s*円)?/g;
+// OCR は字間に空白を挟むことがある（実測の `合 計 ¥460`）。潰してから見ないと見出しの
+// 一致が外れ、合計が後備へ落ちて番号を掴む。
+function includesAny(text: string, words: string[]): boolean {
+  const flat = text.replace(/\s+/g, '');
+  return words.some((w) => flat.includes(w));
+}
+// 除外判定専用。誤って除外しても欄が空になるだけだが、誤って含めると誤った値を書いてしまう
+// ので、除外側だけ 1 文字誤読を許す。2 文字語は対象外（「小計」と「合計」が 1 文字違いで
+// 判定の両側にいるため、緩めると取り違える）。
+function includesAnyLoosely(text: string, words: string[]): boolean {
+  const flat = text.replace(/\s+/g, '');
+  return words.some((w) => {
+    if (flat.includes(w)) {
+      return true;
+    }
+    if (w.length < 3 || /^[\x00-\x7f]*$/.test(w)) {
+      return false;
+    }
+    for (let i = 0; i + w.length <= flat.length; i += 1) {
+      const slice = flat.slice(i, i + w.length);
+      let diff = 0;
+      for (let j = 0; j < w.length; j += 1) {
+        if (slice[j] !== w[j]) {
+          diff += 1;
+        }
+      }
+      if (diff === 1) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
+// 金額の印。番号の類には付かないので、語で決められないときの裏付けに使う。
+const CURRENCY_MARK_RE = /[¥￥\\]|円/;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
 // 語による判定が空振りしたときの保険で使う。合計ではないと確実に判る行を落とすためだけの
 // 一覧なので、主の判定より広く取る。
@@ -58,6 +93,13 @@ const NOT_A_TOTAL = [
   'ポイント',
   '還元',
   '番号',
+  // クレジット控えの見出し。番号は桁数が多く、少額決済では実額より大きくなる。
+  '会社名',
+  '承認',
+  '取引日',
+  '伝票',
+  '一括',
+  'AID',
 ];
 const TOTAL_KEYWORDS_EXCLUDE = [
   '小計',
@@ -95,7 +137,7 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
 // 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
 function recoverInvoiceNumber(lines: string[]): string | undefined {
   for (const line of lines) {
-    if (!INVOICE_LABELS.some((k) => line.includes(k))) {
+    if (!includesAny(line, INVOICE_LABELS)) {
       continue;
     }
     const digits = BARE_INVOICE_NUMBER_RE.exec(line)?.[0];
@@ -138,10 +180,10 @@ function extractTotal(lines: string[]): string {
     if (!line) {
       continue;
     }
-    if (TOTAL_KEYWORDS_EXCLUDE.some((k) => line.includes(k))) {
+    if (includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
-    if (!TOTAL_KEYWORDS_INCLUDE.some((k) => line.includes(k))) {
+    if (!includesAny(line, TOTAL_KEYWORDS_INCLUDE)) {
       continue;
     }
     const amounts = parseAmounts(line);
@@ -157,7 +199,14 @@ function extractTotal(lines: string[]): string {
   return String(Math.max(...candidates));
 }
 
-function parseAmounts(s: string): number[] {
+// 金額の末尾の 0 が大文字の O として返ることがある（実測の `¥460` → `f46O`）。
+// 数字が途中で切れて金額が一桁少なくなり、しかも空欄ではなく誤った値が入る。
+// 数字に挟まれた位置と、数字の後の語尾だけを直す。`責No.999` のような見出しは
+// O の前が数字でないため触らない。
+const OCR_ZERO_AS_LETTER_RE = /(?<=\d)[Oo〇Ｏ](?=\d|$)/g;
+
+function parseAmounts(raw: string): number[] {
+  const s = raw.replace(OCR_ZERO_AS_LETTER_RE, '0');
   const result: number[] = [];
   AMOUNT_TOKEN_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
@@ -197,6 +246,10 @@ export type OcrWord = {
   confidence?: number;
   /// 第 2 候補以降。確からしい順。
   alternates?: string[];
+  /// 文字の基線の傾き（この正規化座標での dy/dx）。向きを返せる引擎だけが入れる。
+  /// 角度ではなく傾きで渡すのは、角度からの換算に画素の縦横比が要り、それを知っている
+  /// のはネイティブ側だけのため。
+  slope?: number;
 };
 
 export type OcrLine = {
@@ -224,8 +277,10 @@ const NOT_A_VENDOR = [
   'ありがとう',
   'Help',
 ];
-// 軽減税率の印など、品名そのものではない頭の記号。
-const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：]+/;
+// 品名の前に刷られる区分記号と商品コード。印は店ごとに違い `※` も使われる。
+// 記号で終わる並びだけを落とす。英数を無条件に落とすと `COKE` のような品名が
+// 丸ごと消え、品名が空になった品目は捨てられてしまう。
+const ITEM_NAME_NOISE = /^[\s*＊#＃!！・:：※A-Za-z0-9]*[*＊#＃!！・:：※]/;
 const ITEM_NAME_TAIL = /[\s¥￥\\*＊]+$/;
 // 値引きの符号。長音符は入れない。カタカナの品名が長音符で終わると全部これに掛かる。
 const DISCOUNT_SIGN = /[-−－▲△]\s*$/;
@@ -244,7 +299,92 @@ const NOT_AN_ITEM = [
 // 数字どうしが区切りで繋がる形。電話番号・時刻がこれに当たる。
 const DIGIT_SEPARATED_RE = /\d[-ー–—:：]\d/;
 
-export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
+// 幅の狭い語は基線が短く、傾きが出ない。短い語では 0 がそのまま返ることが多く、
+// 混ぜると中央値が 0 へ寄る。
+const SKEW_MIN_WORD_WIDTH = 0.05;
+// これを下回る傾きは補正しない。手持ちで撮った実写は 2 度ほど傾いており、そこまで直すと
+// 別の劣化（ぼかし）で店名を取り違えた。浅い傾きは直さないほうが総じて良い、という
+// 実測に基づく値。5 度の傾きは 0.03 を超えるので拾える。
+const SKEW_DEAD_ZONE = 0.03;
+const SKEW_MIN_SAMPLES = 5;
+// ネイティブ側の行組み立ては文字線が水平である前提で、傾けて撮ると左右で列が割れる
+// （実測 5 度で品名と金額が別の行になった）。語まで戻し、紙面の傾きを見込んで組み直す。
+export function regroupWithSkew(layout: OcrLayout): OcrLayout {
+  const words = layout.lines.flatMap((l) => l.words);
+  if (words.length === 0) {
+    return layout;
+  }
+  const separator = detectSeparator(layout);
+  const slope = pageSkew(words);
+  const key = (w: OcrWord): number => w.y + w.height / 2 - slope * (w.x + w.width / 2);
+  // 傾いた文字を軸に平行な矩形で囲むと、横に長い語ほど枠が縦に伸びる。伸びた分を引かない
+  // と閾値が広がり、上下の別の行まで吸い込む。伸びを引き切って 0 にはしない。
+  const band = (w: OcrWord): number => Math.max(w.height - w.width * Math.abs(slope), w.height / 3);
+  const sorted = [...words].sort((a, b) => key(a) - key(b));
+  const rows: OcrWord[][] = [];
+  for (const w of sorted) {
+    const head = rows[rows.length - 1]?.[0];
+    if (head && Math.abs(key(head) - key(w)) <= Math.max(band(head), band(w)) / 2) {
+      rows[rows.length - 1]!.push(w);
+      continue;
+    }
+    rows.push([w]);
+  }
+  const lines: OcrLine[] = [];
+  for (const row of rows) {
+    const ordered = [...row].sort((a, b) => a.x - b.x);
+    const text = ordered.map((w) => w.text).join(separator);
+    if (text === '') {
+      continue;
+    }
+    const left = Math.min(...ordered.map((w) => w.x));
+    const top = Math.min(...ordered.map((w) => w.y));
+    lines.push({
+      text,
+      words: ordered,
+      x: left,
+      y: top,
+      width: Math.max(...ordered.map((w) => w.x + w.width)) - left,
+      height: Math.max(...ordered.map((w) => w.y + w.height)) - top,
+    });
+  }
+  return { lines, text: lines.map((l) => l.text).join('\n') };
+}
+// 語ごとの傾きの中央値。平均だと 1 語の誤りで紙面全体がずれる。
+function pageSkew(words: OcrWord[]): number {
+  const samples = words
+    .filter((w) => w.slope !== undefined && w.width > SKEW_MIN_WORD_WIDTH)
+    .map((w) => w.slope!)
+    .sort((a, b) => a - b);
+  if (samples.length < SKEW_MIN_SAMPLES) {
+    return 0;
+  }
+  const mid = Math.floor(samples.length / 2);
+  const value = samples.length % 2 === 1 ? samples[mid]! : (samples[mid - 1]! + samples[mid]!) / 2;
+  return Math.abs(value) < SKEW_DEAD_ZONE ? 0 : value;
+}
+// 語の接合符は環境で違う（1 語 = 1 文字で返す環境では空文字で繋がれている）。
+// ネイティブが組んだ行と語を突き合わせれば判るので、橋渡しに欄を足さずに済む。
+// 1 語の行では区別が付かないため、2 語以上の行だけで多数決を取る。
+function detectSeparator(layout: OcrLayout): string {
+  let spaced = 0;
+  let joined = 0;
+  for (const line of layout.lines) {
+    if (line.words.length < 2) {
+      continue;
+    }
+    const texts = line.words.map((w) => w.text);
+    if (line.text === texts.join(' ')) {
+      spaced += 1;
+    } else if (line.text === texts.join('')) {
+      joined += 1;
+    }
+  }
+  return joined > spaced ? '' : ' ';
+}
+
+export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
+  const layout = regroupWithSkew(input);
   const result = extractFromOcrText(layout.text);
   const rows = layout.lines;
   const header = headerEnd(rows);
@@ -276,7 +416,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
     if (text.length < 2) {
       continue;
     }
-    if (NOT_A_VENDOR.some((k) => text.includes(k))) {
+    if (includesAnyLoosely(text, NOT_A_VENDOR)) {
       continue;
     }
     if (!best) {
@@ -307,7 +447,7 @@ function meanConfidence(line: OcrLine): number {
 function headerEnd(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (INVOICE_LABELS.some((k) => text.includes(k))) {
+    if (includesAny(text, INVOICE_LABELS)) {
       return i;
     }
     // 文中の数字では頭は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
@@ -322,16 +462,47 @@ function headerEnd(lines: OcrLine[]): number {
 function findTotalRow(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (TOTAL_KEYWORDS_EXCLUDE.some((k) => text.includes(k))) {
+    if (includesAnyLoosely(text, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
     // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
     // ような案内文を掴む（実測）。
-    if (TOTAL_KEYWORDS_INCLUDE.some((k) => text.includes(k)) && parseAmounts(text).length > 0) {
+    if (includesAny(text, TOTAL_KEYWORDS_INCLUDE) && parseAmounts(text).length > 0) {
       return i;
     }
   }
-  return totalRowWithoutKeyword(lines);
+  const adjacent = findTotalRowFromAdjacentLine(lines);
+  return adjacent ?? totalRowWithoutKeyword(lines);
+}
+// 語だけの行に金額が別行で並ぶ書式がある（実測の「合計／」の次行に「¥372」）。
+// 語の行と同一視できるのは前後 1 行だけで、前行を優先する（見出しの下に額が来る書式が多い）。
+function findTotalRowFromAdjacentLine(lines: OcrLine[]): number | undefined {
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i]!.text;
+    if (includesAny(text, TOTAL_KEYWORDS_EXCLUDE) || !includesAny(text, TOTAL_KEYWORDS_INCLUDE)) {
+      continue;
+    }
+    if (parseAmounts(text).length > 0) {
+      continue;
+    }
+    const prev = i - 1;
+    if (prev >= 0 && isUsableAmountLine(lines[prev]!)) {
+      return prev;
+    }
+    const next = i + 1;
+    if (next < lines.length && isUsableAmountLine(lines[next]!)) {
+      return next;
+    }
+  }
+  return undefined;
+}
+// 隣接行を額として使う条件。除外語が無く、通貨記号があり、実際に金額が取れること。
+function isUsableAmountLine(line: OcrLine): boolean {
+  return (
+    !includesAny(line.text, TOTAL_KEYWORDS_EXCLUDE) &&
+    CURRENCY_MARK_RE.test(line.text) &&
+    parseAmounts(line.text).length > 0
+  );
 }
 // 合計の語が読めないことがある（実測。「合 計」を「言十」と読み、金額だけが
 // 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
@@ -340,7 +511,11 @@ function totalRowWithoutKeyword(lines: OcrLine[]): number {
   let largest = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!;
-    if (NOT_A_TOTAL.some((k) => line.text.includes(k)) || !hasAmountOnTheRight(line)) {
+    if (includesAnyLoosely(line.text, NOT_A_TOTAL) || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    // 語で決められない以上、金額であることの裏付けが要る。番号に通貨記号は付かない。
+    if (!CURRENCY_MARK_RE.test(line.text)) {
       continue;
     }
     const amounts = parseAmounts(line.text);
@@ -382,7 +557,7 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
     if (line.words.length < 2 || !hasAmountOnTheRight(line)) {
       continue;
     }
-    if (NOT_AN_ITEM.some((k) => line.text.includes(k))) {
+    if (includesAnyLoosely(line.text, NOT_AN_ITEM)) {
       continue;
     }
     const m = TRAILING_AMOUNT_RE.exec(line.text.trim());
@@ -429,9 +604,13 @@ function hasAmountOnTheRight(line: OcrLine): boolean {
     ordered.pop();
   }
   const last = ordered[ordered.length - 1]!;
-  // 金額だけの欄であることまで見る。文中に数字があるだけの行を金額の行と取ると、
-  // 店名が頭から外れる（実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
-  return /^[¥￥\\*＊\s]*[-−－▲△]?\s*[\d,.]+$/.test(last.text.replace(TAX_RATE_MARK_TAIL, ''));
+  // 品名にスペースが入ると、文字と金額が 1 単語に同居する（実測の `玉 ¥150`）。
+  // 単語全体を金額と求めると行ごと落ちるので、区切りに続く末尾だけを見る。区切りを
+  // 外して文中の数字まで拾うと、店名が頭から外れる（実測。商標が `3` と読まれ
+  // `3セブン-イレブン` になった）。
+  return /(?:^|\s)[¥￥\\*＊]*\s*[-−－▲△]?\s*[\d,.]+$/.test(
+    last.text.replace(TAX_RATE_MARK_TAIL, ''),
+  );
 }
 // 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
 // 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
