@@ -372,6 +372,70 @@ describe('合計（同じ行の右端）', () => {
   });
 });
 
+describe('合計（別行の金額を拾う）', () => {
+  // 「合計／」だけの行の次に金額行が来る書式（実測）。
+  test('語の行の前に金額があれば拾う', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: '2点', x: 0.09 },
+          { text: '¥372', x: 0.6 },
+        ],
+      },
+      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
+  });
+
+  // 語の行の下に金額が来る書式もある。
+  test('語の行の後ろに金額があれば拾う', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '2点', x: 0.09 },
+          { text: '¥372', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
+  });
+
+  // 隣接行に通貨記号が無ければ、案内文などの地の文を金額と誤認しない。
+  test('隣接行に金額の印が無ければ拾わない', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: 'ご来店ありがとうございました', x: 0.09 }] },
+      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
+      { y: 0.5, height: 0.02, cells: [{ text: 'またのご利用をお待ちしております', x: 0.09 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
+  });
+
+  // 隣接行が除外語を含む額（お預り等）なら合計として使わない。
+  test('隣接行が除外語を含むなら拾わない', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: 'お預り', x: 0.09 },
+          { text: '¥1000', x: 0.6 },
+        ],
+      },
+      { y: 0.4, height: 0.02, cells: [{ text: '合計／', x: 0.09 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
+  });
+});
+
 describe('品目', () => {
   test('左に品名・右に金額の行を取り出せる', () => {
     expect(extractFromOcrLayout(receipt()).items).toEqual([
