@@ -173,30 +173,67 @@ function extractDate(text: string): string {
   return '';
 }
 
+// 座標が無い経路でも、小計の誤読を品目合計で見分けたい（extractFromOcrLayout の
+// resolveTotalRow と同じ理屈）。品目は座標が無いと名前が当てずっぽうになるため
+// result.items には出さないが、金額だけは合計候補を選ぶ材料として使える。
 function extractTotal(lines: string[]): string {
-  const candidates: number[] = [];
-  for (const raw of lines) {
+  const candidates: { index: number; amount: number }[] = [];
+  const itemAmounts: { index: number; amount: number }[] = [];
+  lines.forEach((raw, index) => {
     const line = raw.trim();
     if (!line) {
-      continue;
+      return;
     }
-    if (includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE)) {
-      continue;
+    if (
+      !includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE) &&
+      includesAny(line, TOTAL_KEYWORDS_INCLUDE)
+    ) {
+      const amounts = parseAmounts(line);
+      if (amounts.length > 0) {
+        // 同一行に複数金額がある場合は最後（キーワード後ろ）を優先
+        candidates.push({ index, amount: amounts[amounts.length - 1]! });
+        return;
+      }
     }
-    if (!includesAny(line, TOTAL_KEYWORDS_INCLUDE)) {
-      continue;
+    if (includesAnyLoosely(line, NOT_AN_ITEM)) {
+      return;
     }
-    const amounts = parseAmounts(line);
-    if (amounts.length > 0) {
-      // 同一行に複数金額がある場合は最後（キーワード後ろ）を優先
-      candidates.push(amounts[amounts.length - 1]!);
+    // 円表記（テキスト経路）は末尾記号の前に付くだけなので、外して座標経路と同じ判定に乗せる。
+    const yenStripped = line.replace(/円(?=[\s軽減※*＊#＃]*$)/, '');
+    const m = TRAILING_AMOUNT_RE.exec(yenStripped);
+    if (!m) {
+      return;
     }
-  }
+    const head = m[1]!;
+    if (/^[\d\s,.]*$/.test(head)) {
+      return;
+    }
+    const amounts = parseAmounts(m[2]!);
+    if (amounts.length === 0) {
+      return;
+    }
+    const value = amounts[amounts.length - 1]!;
+    itemAmounts.push({ index, amount: DISCOUNT_SIGN.test(head) ? -value : value });
+  });
   if (candidates.length === 0) {
     return '';
   }
+  if (itemAmounts.length > 0) {
+    let agreed: number | undefined;
+    for (const candidate of candidates) {
+      const sum = itemAmounts
+        .filter((item) => item.index < candidate.index)
+        .reduce((total, item) => total + item.amount, 0);
+      if (sum === candidate.amount) {
+        agreed = candidate.amount;
+      }
+    }
+    if (agreed !== undefined) {
+      return String(agreed);
+    }
+  }
   // 複数行で抽出できた場合は最大値（割引・税抜小計より税込合計が大きい想定）
-  return String(Math.max(...candidates));
+  return String(Math.max(...candidates.map((c) => c.amount)));
 }
 
 // 金額の末尾の 0 が大文字の O として返ることがある（実測の `¥460` → `f46O`）。
@@ -388,7 +425,7 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
   const result = extractFromOcrText(layout.text);
   const rows = layout.lines;
   const header = headerEnd(rows);
-  const totalRow = findTotalRow(rows);
+  const totalRow = resolveTotalRow(rows, header);
 
   const vendor = extractVendor(rows, header);
   if (vendor) {
@@ -459,17 +496,46 @@ function headerEnd(lines: OcrLine[]): number {
   return lines.length;
 }
 // 除外語を先に見るのは「（税合計」のように合計を含んで合計でない行があるため。
-function findTotalRow(lines: OcrLine[]): number {
+// 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
+// ような案内文を掴む（実測）。
+function findTotalRowCandidates(lines: OcrLine[]): number[] {
+  const candidates: number[] = [];
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
     if (includesAnyLoosely(text, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
-    // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
-    // ような案内文を掴む（実測）。
     if (includesAny(text, TOTAL_KEYWORDS_INCLUDE) && parseAmounts(text).length > 0) {
-      return i;
+      candidates.push(i);
     }
+  }
+  return candidates;
+}
+// 小計を合計と誤読した行が先に来ると、値引きのある領収書で税抜小計を合計として
+// 拾ってしまう。候補を全部試し、品目の合計と一致する行を選ぶ。
+// 小計は定義上つねに「その前の品目の合計」に一致するため、先勝ちにすると値引き前の
+// 誤読小計が先に一致してしまう。値引き行を挟んだ後ろの本当の合計も同じ条件で一致する
+// ので、一致した最後の候補を採る。どれも一致しなければ、これまでどおり最初の候補
+//（無ければ隣接行・保険探索）へ戻す。
+function resolveTotalRow(lines: OcrLine[], header: number): number {
+  const candidates = findTotalRowCandidates(lines);
+  let agreed: number | undefined;
+  for (const candidate of candidates) {
+    const items = extractItems(lines, header, candidate);
+    if (items.length === 0) {
+      continue;
+    }
+    const rowTotal = totalFromRow(lines[candidate]);
+    const itemSum = items.reduce((sum, item) => sum + Number(item.amount), 0);
+    if (rowTotal !== '' && Number(rowTotal) === itemSum) {
+      agreed = candidate;
+    }
+  }
+  if (agreed !== undefined) {
+    return agreed;
+  }
+  if (candidates.length > 0) {
+    return candidates[0]!;
   }
   const adjacent = findTotalRowFromAdjacentLine(lines);
   return adjacent ?? totalRowWithoutKeyword(lines);

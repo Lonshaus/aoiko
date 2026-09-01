@@ -436,6 +436,153 @@ describe('合計（別行の金額を拾う）', () => {
   });
 });
 
+describe('合計（小計の誤読を品目合計で見分ける）', () => {
+  // 「小計」が「合計」に誤読されると、値引きのある領収書では税抜小計が
+  // 合計として拾われてしまう（実測）。小計は定義上つねに直前の品目の合計と
+  // 一致するため、最初に一致した行ではなく、値引きも含めて一致する行を選ぶ。
+  test('値引き後の本当の合計を選ぶ', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.09 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '2026年05月14日', x: 0.09 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: 'コーヒー豆', x: 0.09 },
+          { text: '¥3000', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.35,
+        height: 0.02,
+        cells: [
+          { text: '紅茶', x: 0.09 },
+          { text: '¥2000', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥5000', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.45,
+        height: 0.02,
+        cells: [
+          { text: '値引', x: 0.09 },
+          { text: '-1000', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥4000', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('4000');
+  });
+
+  // どの候補も品目合計と一致しなければ、これまでどおり最初の候補を使う。
+  test('どの候補も品目合計と一致しなければ最初の候補を使う', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.09 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '2026年05月14日', x: 0.09 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: 'コーヒー豆', x: 0.09 },
+          { text: '¥300', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥999', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.45,
+        height: 0.02,
+        cells: [
+          { text: '値引', x: 0.09 },
+          { text: '-100', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥888', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('999');
+  });
+
+  // 品目が 1 つも取れない候補は品目合計と比べようが無く、一致とは扱わない。
+  // どちらも取れなければ、これまでどおり最初の候補を使う。
+  test('品目が取れない候補は最初の候補にとどまる', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.09 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '2026年05月14日', x: 0.09 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥5000', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥4000', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('5000');
+  });
+
+  // 候補が 1 つしか無い、いつもの単一の合計行も変わらず取れる。
+  test('単一の合計行はいつもどおり取れる', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.02, cells: [{ text: 'あおい商店', x: 0.09 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '2026年05月14日', x: 0.09 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: 'コーヒー豆', x: 0.09 },
+          { text: '¥300', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥300', x: 0.6 },
+        ],
+      },
+    ]);
+    const result = extractFromOcrLayout(layout);
+    expect(result.totalAmount).toBe('300');
+    expect(result.items).toEqual([{ description: 'コーヒー豆', amount: '300' }]);
+  });
+});
+
 describe('品目', () => {
   test('左に品名・右に金額の行を取り出せる', () => {
     expect(extractFromOcrLayout(receipt()).items).toEqual([
