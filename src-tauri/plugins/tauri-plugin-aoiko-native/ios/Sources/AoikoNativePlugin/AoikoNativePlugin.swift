@@ -203,6 +203,11 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
                 return nil
             }
             let box = o.boundingBox
+            // 外接矩形は軸に平行なので、傾けて撮ると基線の向きが失われる。四隅は実際に
+            // 回るので、下辺から傾きを取る。y を反転すればこちらの正規化座標での傾きに
+            // なり、画素の縦横比を掛け戻す必要は無い（角度が要るときだけ）。
+            let dx = o.bottomRight.x - o.bottomLeft.x
+            let slope = abs(dx) < 1e-6 ? nil : (o.bottomLeft.y - o.bottomRight.y) / dx
             return RecognizedWord(
                 text: top.string,
                 x: box.minX,
@@ -212,7 +217,8 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
                 height: box.height,
                 confidence: Double(top.confidence),
                 alternates: candidates.dropFirst().map { $0.string }
-                    .filter { !$0.isEmpty && $0 != top.string }
+                    .filter { !$0.isEmpty && $0 != top.string },
+                slope: slope
             )
         }
         // 単語のまとまりで返るので、行内は空白で繋ぐ。
@@ -233,6 +239,8 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         let height: Double
         let confidence: Double?
         let alternates: [String]
+        /// 文字の基線の傾き（この正規化座標での dy/dx）。取れないときは nil。
+        let slope: Double?
     }
 
     struct RecognizedLine: Encodable {

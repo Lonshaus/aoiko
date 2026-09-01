@@ -212,6 +212,10 @@ export type OcrWord = {
   confidence?: number;
   /// 第 2 候補以降。確からしい順。
   alternates?: string[];
+  /// 文字の基線の傾き（この正規化座標での dy/dx）。向きを返せる引擎だけが入れる。
+  /// 角度ではなく傾きで渡すのは、角度からの換算に画素の縦横比が要り、それを知っている
+  /// のはネイティブ側だけのため。
+  slope?: number;
 };
 
 export type OcrLine = {
@@ -259,7 +263,92 @@ const NOT_AN_ITEM = [
 // 数字どうしが区切りで繋がる形。電話番号・時刻がこれに当たる。
 const DIGIT_SEPARATED_RE = /\d[-ー–—:：]\d/;
 
-export function extractFromOcrLayout(layout: OcrLayout): ReceiptExtracted {
+// 幅の狭い語は基線が短く、傾きが出ない。短い語では 0 がそのまま返ることが多く、
+// 混ぜると中央値が 0 へ寄る。
+const SKEW_MIN_WORD_WIDTH = 0.05;
+// これを下回る傾きは補正しない。手持ちで撮った実写は 2 度ほど傾いており、そこまで直すと
+// 別の劣化（ぼかし）で店名を取り違えた。浅い傾きは直さないほうが総じて良い、という
+// 実測に基づく値。5 度の傾きは 0.03 を超えるので拾える。
+const SKEW_DEAD_ZONE = 0.03;
+const SKEW_MIN_SAMPLES = 5;
+// ネイティブ側の行組み立ては文字線が水平である前提で、傾けて撮ると左右で列が割れる
+// （実測 5 度で品名と金額が別の行になった）。語まで戻し、紙面の傾きを見込んで組み直す。
+export function regroupWithSkew(layout: OcrLayout): OcrLayout {
+  const words = layout.lines.flatMap((l) => l.words);
+  if (words.length === 0) {
+    return layout;
+  }
+  const separator = detectSeparator(layout);
+  const slope = pageSkew(words);
+  const key = (w: OcrWord): number => w.y + w.height / 2 - slope * (w.x + w.width / 2);
+  // 傾いた文字を軸に平行な矩形で囲むと、横に長い語ほど枠が縦に伸びる。伸びた分を引かない
+  // と閾値が広がり、上下の別の行まで吸い込む。伸びを引き切って 0 にはしない。
+  const band = (w: OcrWord): number => Math.max(w.height - w.width * Math.abs(slope), w.height / 3);
+  const sorted = [...words].sort((a, b) => key(a) - key(b));
+  const rows: OcrWord[][] = [];
+  for (const w of sorted) {
+    const head = rows[rows.length - 1]?.[0];
+    if (head && Math.abs(key(head) - key(w)) <= Math.max(band(head), band(w)) / 2) {
+      rows[rows.length - 1]!.push(w);
+      continue;
+    }
+    rows.push([w]);
+  }
+  const lines: OcrLine[] = [];
+  for (const row of rows) {
+    const ordered = [...row].sort((a, b) => a.x - b.x);
+    const text = ordered.map((w) => w.text).join(separator);
+    if (text === '') {
+      continue;
+    }
+    const left = Math.min(...ordered.map((w) => w.x));
+    const top = Math.min(...ordered.map((w) => w.y));
+    lines.push({
+      text,
+      words: ordered,
+      x: left,
+      y: top,
+      width: Math.max(...ordered.map((w) => w.x + w.width)) - left,
+      height: Math.max(...ordered.map((w) => w.y + w.height)) - top,
+    });
+  }
+  return { lines, text: lines.map((l) => l.text).join('\n') };
+}
+// 語ごとの傾きの中央値。平均だと 1 語の誤りで紙面全体がずれる。
+function pageSkew(words: OcrWord[]): number {
+  const samples = words
+    .filter((w) => w.slope !== undefined && w.width > SKEW_MIN_WORD_WIDTH)
+    .map((w) => w.slope!)
+    .sort((a, b) => a - b);
+  if (samples.length < SKEW_MIN_SAMPLES) {
+    return 0;
+  }
+  const mid = Math.floor(samples.length / 2);
+  const value = samples.length % 2 === 1 ? samples[mid]! : (samples[mid - 1]! + samples[mid]!) / 2;
+  return Math.abs(value) < SKEW_DEAD_ZONE ? 0 : value;
+}
+// 語の接合符は環境で違う（1 語 = 1 文字で返す環境では空文字で繋がれている）。
+// ネイティブが組んだ行と語を突き合わせれば判るので、橋渡しに欄を足さずに済む。
+// 1 語の行では区別が付かないため、2 語以上の行だけで多数決を取る。
+function detectSeparator(layout: OcrLayout): string {
+  let spaced = 0;
+  let joined = 0;
+  for (const line of layout.lines) {
+    if (line.words.length < 2) {
+      continue;
+    }
+    const texts = line.words.map((w) => w.text);
+    if (line.text === texts.join(' ')) {
+      spaced += 1;
+    } else if (line.text === texts.join('')) {
+      joined += 1;
+    }
+  }
+  return joined > spaced ? '' : ' ';
+}
+
+export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
+  const layout = regroupWithSkew(input);
   const result = extractFromOcrText(layout.text);
   const rows = layout.lines;
   const header = headerEnd(rows);
