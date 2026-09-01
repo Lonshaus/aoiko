@@ -551,6 +551,71 @@ describe('品目', () => {
       { description: '500mlあおい茶', amount: '130' },
     ]);
   });
+  // 品名にスペースが入ると、文字と金額が 1 単語に同居する（実測）。
+  test('品名にスペースが入り金額と同じ単語に混じっても品目を取れる', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: 'お茶', x: 0.09 },
+            { text: 'ボトル ¥180', x: 0.143 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'お茶 ボトル', amount: '180' },
+    ]);
+  });
+
+  test('電話番号のような単語を金額と誤認しない', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: 'お問合せ先', x: 0.09 },
+            { text: '0499-99-9999', x: 0.143 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([]);
+  });
+
+  test('文字に数字が繋がった単語を金額と誤認しない', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: '伝票番号', x: 0.09 },
+            { text: '店No00499', x: 0.143 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([]);
+  });
+
+  // 見出し内の単語が文字と数字を空白無しで繋いでいても、金額の行と誤認して
+  // 見出しを早く閉じてはいけない。閉じると店名の探索範囲から外れて店名を失う。
+  test('見出し内の文字と数字が繋がった単語があっても店名を取れる', () => {
+    const layout = toLayout([
+      { y: 0.3, height: 0.06, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+      { y: 0.35, height: 0.02, cells: [{ text: '店No00499', x: 0.09 }] },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '合計', x: 0.09 },
+          { text: '¥532', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
+  });
 
   // 1 単語 = 1 文字で返す環境がある。単語から品名を組み立てると一文字ずつ空白が入り、
   // 「最後の単語」で見る電話番号の判定も数字の断片しか見ないので通ってしまう（実測）。
