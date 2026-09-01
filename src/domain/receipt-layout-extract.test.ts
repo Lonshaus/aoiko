@@ -596,6 +596,64 @@ describe('品目', () => {
     expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
   });
 
+  // 実写の劣化で踏んだ。合計の語が空白で割れると後備へ落ち、そこが最大額を取るため
+  // クレジット控えの会社番号（桁数が多い）が合計として入っていた。
+  test('クレジット控えの番号を合計にしない', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.03, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+      {
+        y: 0.3,
+        height: 0.02,
+        cells: [
+          { text: 'あおい茶', x: 0.09 },
+          { text: '¥386', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.4,
+        height: 0.02,
+        cells: [
+          { text: '言十', x: 0.09 },
+          { text: '¥386', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '会社名', x: 0.09 },
+          { text: '998877', x: 0.6 },
+        ],
+      },
+      {
+        y: 0.6,
+        height: 0.02,
+        cells: [
+          { text: '取引日', x: 0.09 },
+          { text: '55044', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('386');
+  });
+  // 語で決められず、金額の印がある行も無いなら空にする。埋めるより空のほうが安全。
+  test('金額の印が無ければ後備は何も選ばない', () => {
+    const layout = toLayout([
+      { y: 0.1, height: 0.03, cells: [{ text: 'あおい商店', x: 0.1 }] },
+      { y: 0.2, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+      {
+        y: 0.5,
+        height: 0.02,
+        cells: [
+          { text: '会社名', x: 0.09 },
+          { text: '998877', x: 0.6 },
+        ],
+      },
+    ]);
+    expect(extractFromOcrLayout(layout).totalAmount).toBe('');
+  });
+
   test('合計の語が読めなくても、集計欄から合計を拾う', () => {
     const layout = toLayout(
       [
