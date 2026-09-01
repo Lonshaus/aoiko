@@ -217,4 +217,13 @@ describe('OS 内蔵の文字認識（Windows）を通した形', () => {
   test('店の電話番号を日付と取り違えない', () => {
     expect(extractFromOcrText(sample).date).toBe('2026-05-14');
   });
+  // 劣化した画像では字間に空白が入る（実測の `合 計 ¥460`）。潰さずに語で見ると
+  // 一致が外れる。
+  test('合計の字間に空白が入っても取れる', () => {
+    expect(extractFromOcrText('あおい商店\n合 計 ¥386').totalAmount).toBe('386');
+  });
+  // 除外語も同じ扱いにしないと、字間に空白が入った集計行が合計をすり抜ける。
+  test('字間に空白が入った税合計を合計にしない', () => {
+    expect(extractFromOcrText('あおい商店\n（税 合 計 ¥35）').totalAmount).toBe('');
+  });
 });
