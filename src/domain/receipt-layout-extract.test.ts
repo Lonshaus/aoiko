@@ -936,6 +936,58 @@ describe('品目', () => {
     ]);
   });
 
+  // 符号は通貨記号の前後どちらにも来る。順序で行ごと落ちていたのが実際のバグ。
+  test.each([
+    ['-1000', '-1000'],
+    ['¥-1000', '-1000'],
+    ['▲1000', '-1000'],
+    ['-¥1000', '-1000'],
+    ['-￥1000', '-1000'],
+  ])('値引きの符号（%s）を保つ', (amountText, expected) => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'ミネラルウォーター', x: 0.143 },
+            { text: '¥120', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: '値引', x: 0.143 },
+            { text: amountText, x: 0.69 },
+          ],
+        },
+      ],
+    });
+    const items = extractFromOcrLayout(layout).items;
+    expect(items).toContainEqual({ description: '値引', amount: expected });
+  });
+
+  test('値引きの符号入り金額があっても店名は変わらない', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'ミネラルウォーター', x: 0.143 },
+            { text: '¥120', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: '値引', x: 0.143 },
+            { text: '-¥1000', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
+  });
+
   test('軽減税率の印は品名の末尾からも外す', () => {
     const layout = receipt({
       items: [
