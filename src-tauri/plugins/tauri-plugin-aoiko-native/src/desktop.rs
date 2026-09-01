@@ -281,6 +281,8 @@ mod windows_ocr {
                     // この引擎は語ごとの自信度も次の候補も返さない。
                     confidence: None,
                     alternates: Vec::new(),
+                    // 向きは `OcrResult.TextAngle` に紙面で 1 つだけ乗る。語ごとには無い。
+                    slope: None,
                 });
             }
         }
@@ -385,6 +387,7 @@ mod macos {
                 height,
                 confidence: None,
                 alternates: Vec::new(),
+                slope: None,
             }
         }
 
@@ -478,6 +481,17 @@ mod macos {
                     .filter(|t| !t.is_empty() && *t != text)
                     .collect();
                 let r: CGRect = unsafe { obs.boundingBox() };
+                // 外接矩形は軸に平行なので、傾けて撮ると基線の向きが失われる。四隅は
+                // 実際に回るので、下辺から傾きを取る。y を反転すればこちらの正規化座標
+                // での傾きになり、画素の縦横比を掛け戻す必要は無い（角度が要るときだけ）。
+                let bl = unsafe { obs.bottomLeft() };
+                let br = unsafe { obs.bottomRight() };
+                let dx = br.x - bl.x;
+                let slope = if dx.abs() < 1e-6 {
+                    None
+                } else {
+                    Some((bl.y - br.y) / dx)
+                };
                 Some(RecognizedWord {
                     text,
                     x: r.origin.x,
@@ -487,6 +501,7 @@ mod macos {
                     height: r.size.height,
                     confidence: Some(f64::from(top.confidence())),
                     alternates,
+                    slope,
                 })
             })
             .collect();

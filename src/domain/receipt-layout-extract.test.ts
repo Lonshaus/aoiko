@@ -7,7 +7,7 @@
 import { describe, expect, test } from 'vitest';
 import { extractFromOcrLayout, type OcrLayout, type OcrWord } from './receipt-text-extract';
 
-type Cell = { text: string; x: number; alternates?: string[] };
+type Cell = { text: string; x: number; alternates?: string[]; dy?: number; slope?: number };
 type Row = { y: number; height: number; cells: Cell[] };
 
 // ネイティブ側の words_to_lines と同じ組み立て。ここで再現しておかないと、抽出の試験が
@@ -19,11 +19,13 @@ function toLayout(rows: Row[], separator = ' '): OcrLayout {
       words.push({
         text: cell.text,
         x: cell.x,
-        y: row.y,
+        // 傾いた紙面では同じ文字線でも x が進むほど y が下がる。cell ごとにずらして再現する。
+        y: row.y + (cell.dy ?? 0),
         width: 0.1,
         height: row.height,
         confidence: 1,
         ...(cell.alternates ? { alternates: cell.alternates } : {}),
+        ...(cell.slope !== undefined ? { slope: cell.slope } : {}),
       });
     }
   }
@@ -136,6 +138,102 @@ function receipt(over: { invoice?: Cell; items?: { y: number; cells: Cell[] }[] 
     },
   ]);
 }
+
+describe('紙面の傾き', () => {
+  // 傾けて撮ると、同じ文字線でも左の品名と右の金額で y がずれる。ネイティブ側は
+  // 水平を前提に組むので別の行になり、品名が次の行の金額と組になる（実測 5 度）。
+  // 語が持つ基線の傾きで補正して組み直す。
+  const SLOPE = 0.1;
+  // x=0.09 と x=0.6 の差 0.51 に傾きを掛けた分だけ、右の欄が下へずれる。
+  const drop = (x: number) => SLOPE * (x - 0.09);
+  function skewed(over: { slope?: number } = {}): OcrLayout {
+    const s = over.slope ?? SLOPE;
+    const cell = (text: string, x: number): Cell => ({ text, x, dy: drop(x), slope: s });
+    return toLayout([
+      { y: 0.1, height: 0.03, cells: [cell('あおい商店', 0.09)] },
+      { y: 0.2, height: 0.02, cells: [cell('登録番号T1234567890123', 0.09)] },
+      { y: 0.3, height: 0.02, cells: [cell('あおい茶', 0.09), cell('¥138', 0.6)] },
+      { y: 0.34, height: 0.02, cells: [cell('あおいパン', 0.09), cell('¥248', 0.6)] },
+      { y: 0.42, height: 0.02, cells: [cell('合計', 0.09), cell('¥386', 0.6)] },
+    ]);
+  }
+
+  test('傾いた紙面でも品名と金額が組になる', () => {
+    const r = extractFromOcrLayout(skewed());
+    expect(r.totalAmount).toBe('386');
+    expect(r.items).toEqual([
+      { description: 'あおい茶', amount: '138' },
+      { description: 'あおいパン', amount: '248' },
+    ]);
+  });
+
+  // 水平に撮っても推定はわずかに振れる。実測では 0.022 まで出た。拾うと、傾いて
+  // いない紙面を勝手に傾けて組んでしまう。
+  test('死区より小さい傾きは無視する', () => {
+    const layout = receipt();
+    const noisy: OcrLayout = {
+      ...layout,
+      lines: layout.lines.map((l) => ({
+        ...l,
+        words: l.words.map((w) => ({ ...w, slope: 0.02 })),
+      })),
+    };
+    expect(extractFromOcrLayout(noisy).items).toEqual(extractFromOcrLayout(layout).items);
+  });
+
+  // 傾きを返さない引擎では、従来どおり水平として組む。
+  test('傾きを持たない語だけなら従来と同じ結果になる', () => {
+    const layout = receipt();
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'ミネラルウォーター', amount: '248' },
+    ]);
+  });
+});
+
+describe('語の接合符', () => {
+  // 1 語 = 1 文字で返す環境では、空白で繋ぐと日本語が全部ばらける。
+  // ネイティブが組んだ行と語を突き合わせて、どちらで繋がれたかを見分ける。
+  test('一文字ずつ返る環境では空白を入れずに組み直す', () => {
+    const layout = toLayout(
+      [
+        {
+          y: 0.1,
+          height: 0.02,
+          cells: [
+            { text: 'あ', x: 0.09 },
+            { text: 'お', x: 0.12 },
+            { text: 'い', x: 0.15 },
+          ],
+        },
+        {
+          y: 0.2,
+          height: 0.02,
+          cells: [
+            { text: '登', x: 0.09 },
+            { text: '録', x: 0.12 },
+            { text: '番', x: 0.15 },
+            { text: '号', x: 0.18 },
+            { text: 'T1234567890123', x: 0.3 },
+          ],
+        },
+        {
+          y: 0.3,
+          height: 0.02,
+          cells: [
+            { text: '合', x: 0.09 },
+            { text: '計', x: 0.12 },
+            { text: '¥386', x: 0.6 },
+          ],
+        },
+      ],
+      '',
+    );
+    const r = extractFromOcrLayout(layout);
+    expect(r.notes).toContain('あおい');
+    expect(r.notes).not.toContain('あ お い');
+    expect(r.totalAmount).toBe('386');
+  });
+});
 
 describe('extractFromOcrLayout', () => {
   test('雛形から 5 項目すべてを取り出せる', () => {
