@@ -44,6 +44,33 @@ function includesAny(text: string, words: string[]): boolean {
   const flat = text.replace(/\s+/g, '');
   return words.some((w) => flat.includes(w));
 }
+// 除外判定専用。誤って除外しても欄が空になるだけだが、誤って含めると誤った値を書いてしまう
+// ので、除外側だけ 1 文字誤読を許す。2 文字語は対象外（「小計」と「合計」が 1 文字違いで
+// 判定の両側にいるため、緩めると取り違える）。
+function includesAnyLoosely(text: string, words: string[]): boolean {
+  const flat = text.replace(/\s+/g, '');
+  return words.some((w) => {
+    if (flat.includes(w)) {
+      return true;
+    }
+    if (w.length < 3 || /^[\x00-\x7f]*$/.test(w)) {
+      return false;
+    }
+    for (let i = 0; i + w.length <= flat.length; i += 1) {
+      const slice = flat.slice(i, i + w.length);
+      let diff = 0;
+      for (let j = 0; j < w.length; j += 1) {
+        if (slice[j] !== w[j]) {
+          diff += 1;
+        }
+      }
+      if (diff === 1) {
+        return true;
+      }
+    }
+    return false;
+  });
+}
 // 金額の印。番号の類には付かないので、語で決められないときの裏付けに使う。
 const CURRENCY_MARK_RE = /[¥￥\\]|円/;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
@@ -153,7 +180,7 @@ function extractTotal(lines: string[]): string {
     if (!line) {
       continue;
     }
-    if (includesAny(line, TOTAL_KEYWORDS_EXCLUDE)) {
+    if (includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
     if (!includesAny(line, TOTAL_KEYWORDS_INCLUDE)) {
@@ -389,7 +416,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
     if (text.length < 2) {
       continue;
     }
-    if (includesAny(text, NOT_A_VENDOR)) {
+    if (includesAnyLoosely(text, NOT_A_VENDOR)) {
       continue;
     }
     if (!best) {
@@ -435,7 +462,7 @@ function headerEnd(lines: OcrLine[]): number {
 function findTotalRow(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (includesAny(text, TOTAL_KEYWORDS_EXCLUDE)) {
+    if (includesAnyLoosely(text, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
     // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
@@ -484,7 +511,7 @@ function totalRowWithoutKeyword(lines: OcrLine[]): number {
   let largest = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!;
-    if (includesAny(line.text, NOT_A_TOTAL) || !hasAmountOnTheRight(line)) {
+    if (includesAnyLoosely(line.text, NOT_A_TOTAL) || !hasAmountOnTheRight(line)) {
       continue;
     }
     // 語で決められない以上、金額であることの裏付けが要る。番号に通貨記号は付かない。
@@ -530,7 +557,7 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
     if (line.words.length < 2 || !hasAmountOnTheRight(line)) {
       continue;
     }
-    if (includesAny(line.text, NOT_AN_ITEM)) {
+    if (includesAnyLoosely(line.text, NOT_AN_ITEM)) {
       continue;
     }
     const m = TRAILING_AMOUNT_RE.exec(line.text.trim());
