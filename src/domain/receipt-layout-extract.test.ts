@@ -488,6 +488,74 @@ describe('品目', () => {
       { description: 'ミネラルウォーター', amount: '173' },
     ]);
   });
+  // コンビニ・スーパーの実写で踏んだ。印が後ろに付く書式では品目が全数落ちていた。
+  test('軽減税率の印が金額の後ろでも品目を取れる', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'あおい茶', x: 0.143 },
+            { text: '¥138軽', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: 'あおいアイスチョコミント', x: 0.143 },
+            { text: '¥248軽', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおい茶', amount: '138' },
+      { description: 'あおいアイスチョコミント', amount: '248' },
+    ]);
+  });
+  // 印の書式に定めは無く、店ごとに違う（国税庁は記号を指定していない）。
+  test('印が 軽減 や ※ でも品目を取れる', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'あおい茶', x: 0.143 },
+            { text: '¥138軽減', x: 0.69 },
+          ],
+        },
+        {
+          y: 0.64,
+          cells: [
+            { text: 'あおいパン', x: 0.143 },
+            { text: '¥248※', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおい茶', amount: '138' },
+      { description: 'あおいパン', amount: '248' },
+    ]);
+  });
+  // 印が金額と離れて刷られていると、別の単語として返る。
+  test('印が独立した単語でも品目を取れる', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.615,
+          cells: [
+            { text: 'あおい茶', x: 0.143 },
+            { text: '¥138', x: 0.69 },
+            { text: '軽', x: 0.78 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおい茶', amount: '138' },
+    ]);
+  });
 
   test('小計の行は品目にしない', () => {
     const layout = receipt({
