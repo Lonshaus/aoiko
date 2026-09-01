@@ -444,7 +444,38 @@ function findTotalRow(lines: OcrLine[]): number {
       return i;
     }
   }
-  return totalRowWithoutKeyword(lines);
+  const adjacent = findTotalRowFromAdjacentLine(lines);
+  return adjacent ?? totalRowWithoutKeyword(lines);
+}
+// 語だけの行に金額が別行で並ぶ書式がある（実測の「合計／」の次行に「¥372」）。
+// 語の行と同一視できるのは前後 1 行だけで、前行を優先する（見出しの下に額が来る書式が多い）。
+function findTotalRowFromAdjacentLine(lines: OcrLine[]): number | undefined {
+  for (let i = 0; i < lines.length; i += 1) {
+    const text = lines[i]!.text;
+    if (includesAny(text, TOTAL_KEYWORDS_EXCLUDE) || !includesAny(text, TOTAL_KEYWORDS_INCLUDE)) {
+      continue;
+    }
+    if (parseAmounts(text).length > 0) {
+      continue;
+    }
+    const prev = i - 1;
+    if (prev >= 0 && isUsableAmountLine(lines[prev]!)) {
+      return prev;
+    }
+    const next = i + 1;
+    if (next < lines.length && isUsableAmountLine(lines[next]!)) {
+      return next;
+    }
+  }
+  return undefined;
+}
+// 隣接行を額として使う条件。除外語が無く、通貨記号があり、実際に金額が取れること。
+function isUsableAmountLine(line: OcrLine): boolean {
+  return (
+    !includesAny(line.text, TOTAL_KEYWORDS_EXCLUDE) &&
+    CURRENCY_MARK_RE.test(line.text) &&
+    parseAmounts(line.text).length > 0
+  );
 }
 // 合計の語が読めないことがある（実測。「合 計」を「言十」と読み、金額だけが
 // 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
