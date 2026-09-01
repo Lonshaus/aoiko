@@ -398,6 +398,96 @@ describe('品目', () => {
     expect(extractFromOcrLayout(receipt()).items[0]!.description).toBe('ミネラルウォーター');
   });
 
+  // 区分記号の間に英字が 1 文字迷い込む書式がある。
+  test('記号の間の迷い込んだ英字ごと落とす', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: '※A＊あおいカレー', x: 0.143 },
+            { text: '¥180', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおいカレー', amount: '180' },
+    ]);
+  });
+
+  // 商品コードが品名の頭に数字の並びで付く。
+  test('先頭の数字コードと記号を落とす', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: '12345＊あおいノート', x: 0.143 },
+            { text: '¥150', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおいノート', amount: '150' },
+    ]);
+  });
+
+  // 区分記号と頭の英字の間に空白が挟まる書式がある。
+  test('英字 1 文字と記号の間に空白があっても落とす', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: 'A ＊あおいシャンプー', x: 0.143 },
+            { text: '¥600', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'あおいシャンプー', amount: '600' },
+    ]);
+  });
+
+  // 記号が付かない英字始まりの品名を、頭の英字ごと落としてはいけない。
+  test('記号を伴わない英字始まりの品名は残す', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: 'AOIKOSODA', x: 0.143 },
+            { text: '¥140', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: 'AOIKOSODA', amount: '140' },
+    ]);
+  });
+
+  // 記号が付かない数字始まりの品名を、頭の数字ごと落としてはいけない。
+  test('記号を伴わない数字始まりの品名は残す', () => {
+    const layout = receipt({
+      items: [
+        {
+          y: 0.625,
+          cells: [
+            { text: '500mlあおい茶', x: 0.143 },
+            { text: '¥130', x: 0.69 },
+          ],
+        },
+      ],
+    });
+    expect(extractFromOcrLayout(layout).items).toEqual([
+      { description: '500mlあおい茶', amount: '130' },
+    ]);
+  });
+
   // 1 単語 = 1 文字で返す環境がある。単語から品名を組み立てると一文字ずつ空白が入り、
   // 「最後の単語」で見る電話番号の判定も数字の断片しか見ないので通ってしまう（実測）。
   test('1 文字ずつ返る環境でも品名と電話番号を取り違えない', () => {
