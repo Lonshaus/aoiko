@@ -217,6 +217,19 @@ describe('OS 内蔵の文字認識（Windows）を通した形', () => {
   test('店の電話番号を日付と取り違えない', () => {
     expect(extractFromOcrText(sample).date).toBe('2026-05-14');
   });
+  // 金額の末尾の 0 が大文字の O として返る（実測の `¥460` → `f46O`）。数字が途中で
+  // 切れて一桁少なくなる。
+  test('金額末尾の O を 0 として読む', () => {
+    expect(extractFromOcrText('あおい商店\n合計 f46O').totalAmount).toBe('460');
+  });
+  // 数字に挟まれた位置も直す。
+  test('数字に挟まれた O も 0 として読む', () => {
+    expect(extractFromOcrText('あおい商店\n合計 ¥1O0').totalAmount).toBe('100');
+  });
+  // O の前が数字でなければ触らない。伝票番号やレジ番号を金額に化けさせない。
+  test('見出しの O は直さない', () => {
+    expect(extractFromOcrText('あおい商店\n責No.999\n合計 ¥386').totalAmount).toBe('386');
+  });
   // 劣化した画像では字間に空白が入る（実測の `合 計 ¥460`）。潰さずに語で見ると
   // 一致が外れる。
   test('合計の字間に空白が入っても取れる', () => {
