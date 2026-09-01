@@ -172,7 +172,14 @@ function extractTotal(lines: string[]): string {
   return String(Math.max(...candidates));
 }
 
-function parseAmounts(s: string): number[] {
+// 金額の末尾の 0 が大文字の O として返ることがある（実測の `¥460` → `f46O`）。
+// 数字が途中で切れて金額が一桁少なくなり、しかも空欄ではなく誤った値が入る。
+// 数字に挟まれた位置と、数字の後の語尾だけを直す。`責No.999` のような見出しは
+// O の前が数字でないため触らない。
+const OCR_ZERO_AS_LETTER_RE = /(?<=\d)[Oo〇Ｏ](?=\d|$)/g;
+
+function parseAmounts(raw: string): number[] {
+  const s = raw.replace(OCR_ZERO_AS_LETTER_RE, '0');
   const result: number[] = [];
   AMOUNT_TOKEN_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
