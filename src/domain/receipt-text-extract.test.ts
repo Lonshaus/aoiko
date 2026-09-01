@@ -183,6 +183,26 @@ describe('extractFromOcrText', () => {
   test('3 桁ちょうどでない . は桁区切りとみなさない', () => {
     expect(extractFromOcrText('合計 2.20 円').totalAmount).toBe('20');
   });
+
+  test('除外語の 1 文字誤読（税→柷）でも除外され、誤った値を合計にしない', () => {
+    const r = extractFromOcrText('柷合計 ¥9999\n合計 ¥500');
+    expect(r.totalAmount).toBe('500');
+  });
+
+  test('濁点が分離した誤読（ポ→ホ。）でも除外語として効く', () => {
+    const r = extractFromOcrText('ホ。イント還元 200円\n合計 700円');
+    expect(r.totalAmount).toBe('700');
+  });
+
+  test('2 文字の除外語は誤読を許さない（小計とは別語として扱う）', () => {
+    expect(extractFromOcrText('小計 ¥100').totalAmount).toBe('');
+    expect(extractFromOcrText('合計 ¥500').totalAmount).toBe('500');
+  });
+
+  test('通常の品名は誤って除外されない', () => {
+    const r = extractFromOcrText('からあげ弁当 480円\n合計 480円');
+    expect(r.totalAmount).toBe('480');
+  });
 });
 
 // ある環境 の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
