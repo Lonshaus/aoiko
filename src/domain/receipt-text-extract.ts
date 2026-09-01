@@ -38,6 +38,14 @@ const REIWA_DATE_RE =
 // `200` を合計と誤認する。3 桁ちょうどの群に限れば、円には補助単位が無いので
 // 小数との取り違えは起きない。
 const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]+\d{3})+|\d+)(?:\s*円)?/g;
+// OCR は字間に空白を挟むことがある（実測の `合 計 ¥460`）。潰してから見ないと見出しの
+// 一致が外れ、合計が後備へ落ちて番号を掴む。
+function includesAny(text: string, words: string[]): boolean {
+  const flat = text.replace(/\s+/g, '');
+  return words.some((w) => flat.includes(w));
+}
+// 金額の印。番号の類には付かないので、語で決められないときの裏付けに使う。
+const CURRENCY_MARK_RE = /[¥￥\\]|円/;
 const TOTAL_KEYWORDS_INCLUDE = ['合計', 'お買上げ', 'お買上', '総額', 'ご請求'];
 // 語による判定が空振りしたときの保険で使う。合計ではないと確実に判る行を落とすためだけの
 // 一覧なので、主の判定より広く取る。
@@ -58,6 +66,13 @@ const NOT_A_TOTAL = [
   'ポイント',
   '還元',
   '番号',
+  // クレジット控えの見出し。番号は桁数が多く、少額決済では実額より大きくなる。
+  '会社名',
+  '承認',
+  '取引日',
+  '伝票',
+  '一括',
+  'AID',
 ];
 const TOTAL_KEYWORDS_EXCLUDE = [
   '小計',
@@ -95,7 +110,7 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
 // 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
 function recoverInvoiceNumber(lines: string[]): string | undefined {
   for (const line of lines) {
-    if (!INVOICE_LABELS.some((k) => line.includes(k))) {
+    if (!includesAny(line, INVOICE_LABELS)) {
       continue;
     }
     const digits = BARE_INVOICE_NUMBER_RE.exec(line)?.[0];
@@ -138,10 +153,10 @@ function extractTotal(lines: string[]): string {
     if (!line) {
       continue;
     }
-    if (TOTAL_KEYWORDS_EXCLUDE.some((k) => line.includes(k))) {
+    if (includesAny(line, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
-    if (!TOTAL_KEYWORDS_INCLUDE.some((k) => line.includes(k))) {
+    if (!includesAny(line, TOTAL_KEYWORDS_INCLUDE)) {
       continue;
     }
     const amounts = parseAmounts(line);
@@ -276,7 +291,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
     if (text.length < 2) {
       continue;
     }
-    if (NOT_A_VENDOR.some((k) => text.includes(k))) {
+    if (includesAny(text, NOT_A_VENDOR)) {
       continue;
     }
     if (!best) {
@@ -307,7 +322,7 @@ function meanConfidence(line: OcrLine): number {
 function headerEnd(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (INVOICE_LABELS.some((k) => text.includes(k))) {
+    if (includesAny(text, INVOICE_LABELS)) {
       return i;
     }
     // 文中の数字では頭は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
@@ -322,12 +337,12 @@ function headerEnd(lines: OcrLine[]): number {
 function findTotalRow(lines: OcrLine[]): number {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
-    if (TOTAL_KEYWORDS_EXCLUDE.some((k) => text.includes(k))) {
+    if (includesAny(text, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
     // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
     // ような案内文を掴む（実測）。
-    if (TOTAL_KEYWORDS_INCLUDE.some((k) => text.includes(k)) && parseAmounts(text).length > 0) {
+    if (includesAny(text, TOTAL_KEYWORDS_INCLUDE) && parseAmounts(text).length > 0) {
       return i;
     }
   }
@@ -340,7 +355,11 @@ function totalRowWithoutKeyword(lines: OcrLine[]): number {
   let largest = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!;
-    if (NOT_A_TOTAL.some((k) => line.text.includes(k)) || !hasAmountOnTheRight(line)) {
+    if (includesAny(line.text, NOT_A_TOTAL) || !hasAmountOnTheRight(line)) {
+      continue;
+    }
+    // 語で決められない以上、金額であることの裏付けが要る。番号に通貨記号は付かない。
+    if (!CURRENCY_MARK_RE.test(line.text)) {
       continue;
     }
     const amounts = parseAmounts(line.text);
@@ -382,7 +401,7 @@ function extractItems(lines: OcrLine[], header: number, totalRow: number): Recei
     if (line.words.length < 2 || !hasAmountOnTheRight(line)) {
       continue;
     }
-    if (NOT_AN_ITEM.some((k) => line.text.includes(k))) {
+    if (includesAny(line.text, NOT_AN_ITEM)) {
       continue;
     }
     const m = TRAILING_AMOUNT_RE.exec(line.text.trim());
