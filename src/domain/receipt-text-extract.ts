@@ -445,6 +445,16 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
   }
   return result;
 }
+// 傾いた紙面で罫線が店名の行に混ざる（実測の `- FamilyMart`）。記号だけに絞るのは、
+// 英数を落とすと店名そのものが消えかねないため。`＆` は商標に使われる例があり対象外。
+// 後ろに空白を要求するのは、行頭の `ー` が折り返した語の続きであることがあるため
+// （実測の `ーンの詳細は、`）。空白が無ければ罫線ではなく本文と見なす。
+const VENDOR_NAME_NOISE_RE = /^\s*[\-−－ー=＝_~〜]+\s+/;
+function stripVendorNoise(text: string): string {
+  const stripped = text.replace(VENDOR_NAME_NOISE_RE, '');
+  return stripped === '' ? text : stripped;
+}
+
 // 頭でいちばん大きい行。位置の比率では決めない（近接で撮ると頭が紙面の 30% に来る）。
 function extractVendor(lines: OcrLine[], end: number): string {
   let best: OcrLine | undefined;
@@ -470,7 +480,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
       best = line;
     }
   }
-  return best ? best.text.trim() : '';
+  return best ? stripVendorNoise(best.text.trim()) : '';
 }
 
 function meanConfidence(line: OcrLine): number {

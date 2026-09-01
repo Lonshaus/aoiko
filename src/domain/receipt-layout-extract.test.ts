@@ -290,6 +290,48 @@ describe('店名', () => {
     ]);
     expect(extractFromOcrLayout(layout).vendorName).toBe('');
   });
+
+  // 傾いた紙面で罫線が店名の行に混ざる（実測。`- FamilyMart` `= FamilyMart`）。
+  test('先頭の罫線記号を落とす', () => {
+    const layout = toLayout([
+      { y: 0.02, height: 0.04, cells: [{ text: '- FamilyMart', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('FamilyMart');
+  });
+
+  test('先頭の全角罫線記号を落とす', () => {
+    const layout = toLayout([
+      { y: 0.02, height: 0.04, cells: [{ text: '= FamilyMart', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('FamilyMart');
+  });
+
+  test('先頭の長音符に似た罫線記号を落とす', () => {
+    const layout = toLayout([
+      { y: 0.02, height: 0.04, cells: [{ text: 'ー FamilyMart', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('FamilyMart');
+  });
+
+  test('通常の店名は変わらない', () => {
+    const layout = toLayout([
+      { y: 0.02, height: 0.04, cells: [{ text: 'あおい薬局', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
+  });
+
+  // 記号だけの行を全部剥がすと店名欄が空になり、より悪化する。元の文字列を残す。
+  test('記号だけの行は空にしない', () => {
+    const layout = toLayout([
+      { y: 0.02, height: 0.04, cells: [{ text: '---', x: 0.1 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: '登録番号T1234567890123', x: 0.1 }] },
+    ]);
+    expect(extractFromOcrLayout(layout).vendorName).toBe('---');
+  });
 });
 
 describe('登録番号（候補から選ぶ）', () => {
