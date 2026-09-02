@@ -173,30 +173,67 @@ function extractDate(text: string): string {
   return '';
 }
 
+// 座標が無い経路でも、小計の誤読を品目合計で見分けたい（extractFromOcrLayout の
+// resolveTotalRow と同じ理屈）。品目は座標が無いと名前が当てずっぽうになるため
+// result.items には出さないが、金額だけは合計候補を選ぶ材料として使える。
 function extractTotal(lines: string[]): string {
-  const candidates: number[] = [];
-  for (const raw of lines) {
+  const candidates: { index: number; amount: number }[] = [];
+  const itemAmounts: { index: number; amount: number }[] = [];
+  lines.forEach((raw, index) => {
     const line = raw.trim();
     if (!line) {
-      continue;
+      return;
     }
-    if (includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE)) {
-      continue;
+    if (
+      !includesAnyLoosely(line, TOTAL_KEYWORDS_EXCLUDE) &&
+      includesAny(line, TOTAL_KEYWORDS_INCLUDE)
+    ) {
+      const amounts = parseAmounts(line);
+      if (amounts.length > 0) {
+        // 同一行に複数金額がある場合は最後（キーワード後ろ）を優先
+        candidates.push({ index, amount: amounts[amounts.length - 1]! });
+        return;
+      }
     }
-    if (!includesAny(line, TOTAL_KEYWORDS_INCLUDE)) {
-      continue;
+    if (includesAnyLoosely(line, NOT_AN_ITEM)) {
+      return;
     }
-    const amounts = parseAmounts(line);
-    if (amounts.length > 0) {
-      // 同一行に複数金額がある場合は最後（キーワード後ろ）を優先
-      candidates.push(amounts[amounts.length - 1]!);
+    // 円表記（テキスト経路）は末尾記号の前に付くだけなので、外して座標経路と同じ判定に乗せる。
+    const yenStripped = line.replace(/円(?=[\s軽減※*＊#＃]*$)/, '');
+    const m = TRAILING_AMOUNT_RE.exec(yenStripped);
+    if (!m) {
+      return;
     }
-  }
+    const head = m[1]!;
+    if (/^[\d\s,.]*$/.test(head)) {
+      return;
+    }
+    const amounts = parseAmounts(m[2]!);
+    if (amounts.length === 0) {
+      return;
+    }
+    const value = amounts[amounts.length - 1]!;
+    itemAmounts.push({ index, amount: DISCOUNT_SIGN.test(head) ? -value : value });
+  });
   if (candidates.length === 0) {
     return '';
   }
+  if (itemAmounts.length > 0) {
+    let agreed: number | undefined;
+    for (const candidate of candidates) {
+      const sum = itemAmounts
+        .filter((item) => item.index < candidate.index)
+        .reduce((total, item) => total + item.amount, 0);
+      if (sum === candidate.amount) {
+        agreed = candidate.amount;
+      }
+    }
+    if (agreed !== undefined) {
+      return String(agreed);
+    }
+  }
   // 複数行で抽出できた場合は最大値（割引・税抜小計より税込合計が大きい想定）
-  return String(Math.max(...candidates));
+  return String(Math.max(...candidates.map((c) => c.amount)));
 }
 
 // 金額の末尾の 0 が大文字の O として返ることがある（実測の `¥460` → `f46O`）。
@@ -388,7 +425,7 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
   const result = extractFromOcrText(layout.text);
   const rows = layout.lines;
   const header = headerEnd(rows);
-  const totalRow = findTotalRow(rows);
+  const totalRow = resolveTotalRow(rows, header);
 
   const vendor = extractVendor(rows, header);
   if (vendor) {
@@ -408,6 +445,16 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
   }
   return result;
 }
+// 傾いた紙面で罫線が店名の行に混ざる（実測の `- FamilyMart`）。記号だけに絞るのは、
+// 英数を落とすと店名そのものが消えかねないため。`＆` は商標に使われる例があり対象外。
+// 後ろに空白を要求するのは、行頭の `ー` が折り返した語の続きであることがあるため
+// （実測の `ーンの詳細は、`）。空白が無ければ罫線ではなく本文と見なす。
+const VENDOR_NAME_NOISE_RE = /^\s*[\-−－ー=＝_~〜]+\s+/;
+function stripVendorNoise(text: string): string {
+  const stripped = text.replace(VENDOR_NAME_NOISE_RE, '');
+  return stripped === '' ? text : stripped;
+}
+
 // 頭でいちばん大きい行。位置の比率では決めない（近接で撮ると頭が紙面の 30% に来る）。
 function extractVendor(lines: OcrLine[], end: number): string {
   let best: OcrLine | undefined;
@@ -433,7 +480,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
       best = line;
     }
   }
-  return best ? best.text.trim() : '';
+  return best ? stripVendorNoise(best.text.trim()) : '';
 }
 
 function meanConfidence(line: OcrLine): number {
@@ -459,24 +506,62 @@ function headerEnd(lines: OcrLine[]): number {
   return lines.length;
 }
 // 除外語を先に見るのは「（税合計」のように合計を含んで合計でない行があるため。
-function findTotalRow(lines: OcrLine[]): number {
+// 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
+// ような案内文を掴む（実測）。
+function findTotalRowCandidates(lines: OcrLine[]): number[] {
+  const candidates: number[] = [];
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
     if (includesAnyLoosely(text, TOTAL_KEYWORDS_EXCLUDE)) {
       continue;
     }
-    // 金額の無い行は合計ではない。語だけで見ると「お買上明細は上記のとおりです。」の
-    // ような案内文を掴む（実測）。
     if (includesAny(text, TOTAL_KEYWORDS_INCLUDE) && parseAmounts(text).length > 0) {
-      return i;
+      candidates.push(i);
     }
   }
-  const adjacent = findTotalRowFromAdjacentLine(lines);
-  return adjacent ?? totalRowWithoutKeyword(lines);
+  return candidates;
+}
+// 小計を合計と誤読した行が先に来ると、値引きのある領収書で税抜小計を合計として
+// 拾ってしまう。候補を全部試し、品目の合計と一致する行を選ぶ。
+// 小計は定義上つねに「その前の品目の合計」に一致するため、先勝ちにすると値引き前の
+// 誤読小計が先に一致してしまう。値引き行を挟んだ後ろの本当の合計も同じ条件で一致する
+// ので、一致した最後の候補を採る。どれも一致しなければ、これまでどおり最初の候補
+//（無ければ隣接行・保険探索）へ戻す。
+function resolveTotalRow(lines: OcrLine[], header: number): number {
+  const candidates = findTotalRowCandidates(lines);
+  let agreed: number | undefined;
+  for (const candidate of candidates) {
+    if (agreedTotalAt(lines, header, candidate) !== '') {
+      agreed = candidate;
+    }
+  }
+  if (agreed !== undefined) {
+    return agreed;
+  }
+  if (candidates.length > 0) {
+    return candidates[0]!;
+  }
+  const adjacent = findTotalRowFromAdjacentLine(lines, header);
+  return adjacent ?? totalRowWithoutKeyword(lines, header);
+}
+// 語推測の裏付けに使う一致判定。品目合計と一致しない行は合計として使わない
+// （語彙で除外するより、伝票番号などの誤爆を確実に防げる）。
+function agreedTotalAt(lines: OcrLine[], header: number, index: number): string {
+  const rowTotal = totalFromRow(lines[index]);
+  if (rowTotal === '') {
+    return '';
+  }
+  const items = extractItems(lines, header, index);
+  if (items.length === 0) {
+    return '';
+  }
+  const itemSum = items.reduce((sum, item) => sum + Number(item.amount), 0);
+  return Number(rowTotal) === itemSum ? rowTotal : '';
 }
 // 語だけの行に金額が別行で並ぶ書式がある（実測の「合計／」の次行に「¥372」）。
 // 語の行と同一視できるのは前後 1 行だけで、前行を優先する（見出しの下に額が来る書式が多い）。
-function findTotalRowFromAdjacentLine(lines: OcrLine[]): number | undefined {
+// 隣接行は語彙で選ぶだけでは伝票番号等を拾うので、品目合計と一致する側だけ採る。
+function findTotalRowFromAdjacentLine(lines: OcrLine[], header: number): number | undefined {
   for (let i = 0; i < lines.length; i += 1) {
     const text = lines[i]!.text;
     if (includesAny(text, TOTAL_KEYWORDS_EXCLUDE) || !includesAny(text, TOTAL_KEYWORDS_INCLUDE)) {
@@ -486,11 +571,19 @@ function findTotalRowFromAdjacentLine(lines: OcrLine[]): number | undefined {
       continue;
     }
     const prev = i - 1;
-    if (prev >= 0 && isUsableAmountLine(lines[prev]!)) {
+    if (
+      prev >= 0 &&
+      isUsableAmountLine(lines[prev]!) &&
+      agreedTotalAt(lines, header, prev) !== ''
+    ) {
       return prev;
     }
     const next = i + 1;
-    if (next < lines.length && isUsableAmountLine(lines[next]!)) {
+    if (
+      next < lines.length &&
+      isUsableAmountLine(lines[next]!) &&
+      agreedTotalAt(lines, header, next) !== ''
+    ) {
       return next;
     }
   }
@@ -505,10 +598,10 @@ function isUsableAmountLine(line: OcrLine): boolean {
   );
 }
 // 合計の語が読めないことがある（実測。「合 計」を「言十」と読み、金額だけが
-// 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としてから最大額を取る。
-function totalRowWithoutKeyword(lines: OcrLine[]): number {
+// 正しく残った）。語で見つからないときだけ、合計ではないと判る行を落としたうえで、
+// 品目合計と一致する行を採る。一致する行が無ければ空にする（最大額への後退はしない）。
+function totalRowWithoutKeyword(lines: OcrLine[], header: number): number {
   let found = lines.length;
-  let largest = 0;
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]!;
     if (includesAnyLoosely(line.text, NOT_A_TOTAL) || !hasAmountOnTheRight(line)) {
@@ -518,10 +611,7 @@ function totalRowWithoutKeyword(lines: OcrLine[]): number {
     if (!CURRENCY_MARK_RE.test(line.text)) {
       continue;
     }
-    const amounts = parseAmounts(line.text);
-    const amount = amounts[amounts.length - 1];
-    if (amount !== undefined && amount > largest) {
-      largest = amount;
+    if (agreedTotalAt(lines, header, i) !== '') {
       found = i;
     }
   }
@@ -608,7 +698,8 @@ function hasAmountOnTheRight(line: OcrLine): boolean {
   // 単語全体を金額と求めると行ごと落ちるので、区切りに続く末尾だけを見る。区切りを
   // 外して文中の数字まで拾うと、店名が頭から外れる（実測。商標が `3` と読まれ
   // `3セブン-イレブン` になった）。
-  return /(?:^|\s)[¥￥\\*＊]*\s*[-−－▲△]?\s*[\d,.]+$/.test(
+  // 符号の位置を通貨記号の後ろに固定すると、`-¥1000` の値引き行が丸ごと落ちる。
+  return /(?:^|\s)(?:[-−－▲△]\s*[¥￥\\*＊]*|[¥￥\\*＊]*\s*[-−－▲△]?)\s*[\d,.]+$/.test(
     last.text.replace(TAX_RATE_MARK_TAIL, ''),
   );
 }
