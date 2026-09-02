@@ -183,6 +183,73 @@ describe('extractFromOcrText', () => {
   test('3 桁ちょうどでない . は桁区切りとみなさない', () => {
     expect(extractFromOcrText('合計 2.20 円').totalAmount).toBe('20');
   });
+
+  test('除外語の 1 文字誤読（税→柷）でも除外され、誤った値を合計にしない', () => {
+    const r = extractFromOcrText('柷合計 ¥9999\n合計 ¥500');
+    expect(r.totalAmount).toBe('500');
+  });
+
+  test('濁点が分離した誤読（ポ→ホ。）でも除外語として効く', () => {
+    const r = extractFromOcrText('ホ。イント還元 200円\n合計 700円');
+    expect(r.totalAmount).toBe('700');
+  });
+
+  test('2 文字の除外語は誤読を許さない（小計とは別語として扱う）', () => {
+    expect(extractFromOcrText('小計 ¥100').totalAmount).toBe('');
+    expect(extractFromOcrText('合計 ¥500').totalAmount).toBe('500');
+  });
+
+  test('通常の品名は誤って除外されない', () => {
+    const r = extractFromOcrText('からあげ弁当 480円\n合計 480円');
+    expect(r.totalAmount).toBe('480');
+  });
+});
+
+describe('合計（小計の誤読を品目合計で見分ける・座標無し経路）', () => {
+  // 座標が無くても、行の並び順から品目らしい金額を拾って検算できる。
+  test('値引き後の本当の合計を選ぶ', () => {
+    const r = extractFromOcrText(
+      'コーヒー豆 ¥3000\n紅茶 ¥2000\n合計 ¥5000\n値引 -1000\n合計 ¥4000',
+    );
+    expect(r.totalAmount).toBe('4000');
+  });
+
+  // 品目らしい行が無ければ検算のしようが無く、これまでどおり最大値を採る。
+  test('品目らしい行が無ければ最大値のまま', () => {
+    const r = extractFromOcrText('あおい商店\n合計（税抜）1,000円\n合計（税込）1,100円');
+    expect(r.totalAmount).toBe('1100');
+  });
+
+  // どの候補も品目の合計と一致しなければ、これまでどおり最大値を採る。
+  test('どの候補も品目合計と一致しなければ最大値のまま', () => {
+    const r = extractFromOcrText('ジュース ¥500\n合計 ¥300\n合計 ¥999');
+    expect(r.totalAmount).toBe('999');
+  });
+
+  test('単一の合計行はいつもどおり取れる', () => {
+    const r = extractFromOcrText('コーヒー ¥300\n合計 ¥300');
+    expect(r.totalAmount).toBe('300');
+  });
+
+  // 円表記の品目行でも検算が働くこと（¥ 表記専用だった不具合の再発防止）。
+  test('円表記でも値引き後の本当の合計を選ぶ', () => {
+    const r = extractFromOcrText(
+      'コーヒー豆 3,000円\n紅茶 2,000円\n合計 5,000円\n値引 -1,000円\n合計 4,000円',
+    );
+    expect(r.totalAmount).toBe('4000');
+  });
+
+  test('¥表記と円表記が混在していても検算が働く', () => {
+    const r = extractFromOcrText(
+      'コーヒー豆 ¥3000\n紅茶 2,000円\n合計 ¥5000\n値引 -1000円\n合計 4,000円',
+    );
+    expect(r.totalAmount).toBe('4000');
+  });
+
+  test('円表記で値引きが無ければ単一の合計を取れる', () => {
+    const r = extractFromOcrText('コーヒー ¥300\n紅茶 ¥400\n合計 700円');
+    expect(r.totalAmount).toBe('700');
+  });
 });
 
 // ある環境 の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
@@ -216,5 +283,27 @@ describe('OS 内蔵の文字認識で一文字ずつ返る環境の形', () => {
   // `0499ー99ー9999` が日付として先に当たる。
   test('店の電話番号を日付と取り違えない', () => {
     expect(extractFromOcrText(sample).date).toBe('2026-05-14');
+  });
+  // 金額の末尾の 0 が大文字の O として返る（実測の `¥460` → `f46O`）。数字が途中で
+  // 切れて一桁少なくなる。
+  test('金額末尾の O を 0 として読む', () => {
+    expect(extractFromOcrText('あおい商店\n合計 f46O').totalAmount).toBe('460');
+  });
+  // 数字に挟まれた位置も直す。
+  test('数字に挟まれた O も 0 として読む', () => {
+    expect(extractFromOcrText('あおい商店\n合計 ¥1O0').totalAmount).toBe('100');
+  });
+  // O の前が数字でなければ触らない。伝票番号やレジ番号を金額に化けさせない。
+  test('見出しの O は直さない', () => {
+    expect(extractFromOcrText('あおい商店\n責No.999\n合計 ¥386').totalAmount).toBe('386');
+  });
+  // 劣化した画像では字間に空白が入る（実測の `合 計 ¥460`）。潰さずに語で見ると
+  // 一致が外れる。
+  test('合計の字間に空白が入っても取れる', () => {
+    expect(extractFromOcrText('あおい商店\n合 計 ¥386').totalAmount).toBe('386');
+  });
+  // 除外語も同じ扱いにしないと、字間に空白が入った集計行が合計をすり抜ける。
+  test('字間に空白が入った税合計を合計にしない', () => {
+    expect(extractFromOcrText('あおい商店\n（税 合 計 ¥35）').totalAmount).toBe('');
   });
 });
