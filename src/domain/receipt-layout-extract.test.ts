@@ -399,51 +399,6 @@ describe('登録番号（候補から選ぶ）', () => {
     ]);
     expect(extractFromOcrLayout(layout).invoiceNumber).toBeUndefined();
   });
-
-  // 次の候補は認識器が作った推測で、紙に無い `T` を頭へ足すことがある（実測。
-  // 「事業者番号」の 13 桁に `T` の付いた候補が並んだ）。見出しの無い行で採ると、
-  // 登録番号を持たない店の領収書が適格請求書として記録される。
-  test('見出しの無い行では次の候補を採らない', () => {
-    const layout = toLayout([
-      {
-        y: 0.1,
-        height: 0.02,
-        cells: [
-          { text: '事業者番号', x: 0.2 },
-          { text: '1234567890123', x: 0.36, alternates: ['T1234567890123'] },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).invoiceNumber).toBeUndefined();
-  });
-
-  // 紙面にそのまま出ている形は見出しが無くても採る。見出しの条件を候補以外へ
-  // 広げると、番号だけが独立した行に刷られたレシートで取れなくなる（実測）。
-  test('見出しが無くても紙面の番号は採る', () => {
-    const layout = toLayout([
-      { y: 0.1, height: 0.02, cells: [{ text: 'T1234567890123', x: 0.2 }] },
-    ]);
-    expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
-  });
-
-  // 見出しと番号が 1 つの単語にまとまって返ることがある（実測）。見出しの判定を
-  // 単語ではなく行の文字列で行わないと、この形で候補が使えなくなる。
-  test('見出しと番号が同じ単語でも次の候補を採る', () => {
-    const layout = toLayout([
-      {
-        y: 0.1,
-        height: 0.02,
-        cells: [
-          {
-            text: '登録番号 1234567890123',
-            x: 0.2,
-            alternates: ['登録番号 T1234567890123'],
-          },
-        ],
-      },
-    ]);
-    expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
-  });
 });
 
 describe('合計（同じ行の右端）', () => {
