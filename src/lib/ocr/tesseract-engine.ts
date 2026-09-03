@@ -3,13 +3,13 @@
 //
 // 役割は薄い：
 //   1) base64 を ImageBitmap に復号して tesseract-wasm に渡す
-//   2) 生テキストを receipt-text-extract に渡して構造化する
+//   2) 生テキストを抽出段へ渡して構造化する
 //
 // 前処理（リサイズ・二値化等）は本最小版では未実装。精度が問題になれば後追い。
 // 画像は端末外に出ない。worker・コア WASM・日本語モデルはすべて同一オリジンから
 // 配るため、通信そのものが発生しない（scripts/copy-tesseract-assets.js が複製する）。
 import { OCRClient } from 'tesseract-wasm';
-import { extractFromOcrText } from '../../domain/receipt-text-extract';
+import { ruleExtractionStage, type ExtractionStage } from './extraction-stage';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { isOffline } from '../network-status';
@@ -27,7 +27,9 @@ function toBlob(image: LlmImageInput): Blob {
   return new Blob([bytes], { type: image.mimeType });
 }
 
-export function createTesseractReceiptExtractor(): ReceiptExtractor {
+export function createTesseractReceiptExtractor(
+  stage: ExtractionStage = ruleExtractionStage,
+): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
@@ -49,7 +51,7 @@ export function createTesseractReceiptExtractor(): ReceiptExtractor {
           throw e;
         }
         await client.loadImage(bitmap);
-        return extractFromOcrText(await client.getText());
+        return stage({ text: await client.getText() });
       } finally {
         bitmap.close();
         // worker を残すと WASM のヒープが解放されない（tesseract-wasm の既知の制約）。

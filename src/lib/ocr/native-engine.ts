@@ -1,14 +1,16 @@
 // OS 内蔵の文字認識の包装層。engine 選択時のみ動的 import される。
 //
 // 認識はネイティブ側が持つ。画像は端末外に出ない。
-// 返るのは座標付きの版面なので、Tesseract とは別の抽出を通す。
-import { extractFromOcrLayout } from '../../domain/receipt-text-extract';
+// 返るのは座標付きの版面。抽出は差し替えられる（extraction-stage）。
+import { ruleExtractionStage, type ExtractionStage } from './extraction-stage';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { nativeBridge } from '../native-bridge';
 import { m } from '../../paraglide/messages';
 
-export function createNativeReceiptExtractor(): ReceiptExtractor {
+export function createNativeReceiptExtractor(
+  stage: ExtractionStage = ruleExtractionStage,
+): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
@@ -20,7 +22,7 @@ export function createNativeReceiptExtractor(): ReceiptExtractor {
       if (typeof recognize !== 'function') {
         throw new Error(m.ocr_native_unavailable());
       }
-      return extractFromOcrLayout(await recognize(image.base64));
+      return stage({ layout: await recognize(image.base64) });
     },
   };
 }
