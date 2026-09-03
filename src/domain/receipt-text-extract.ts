@@ -707,25 +707,19 @@ function hasAmountOnTheRight(line: OcrLine): boolean {
 // 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
 function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
   for (const line of lines) {
-    // 紙面にそのまま出ている形。ここだけは見出しが無くても信じてよい。
     for (const word of line.words) {
-      const hit = INVOICE_NUMBER_RE.exec(word.text)?.[0];
-      if (hit) {
-        return hit;
-      }
-    }
-    // 以下は紙面に無い `T` を作れる（次の候補は認識器の推測、連結は隣の単語との偶然）。
-    // 見出しのある行に限らないと、法人番号や取引 ID がそのまま登録番号になる。
-    if (!INVOICE_LABELS.some((k) => line.text.includes(k))) {
-      continue;
-    }
-    for (const word of line.words) {
-      for (const candidate of word.alternates ?? []) {
+      for (const candidate of [word.text, ...(word.alternates ?? [])]) {
         const hit = INVOICE_NUMBER_RE.exec(candidate)?.[0];
         if (hit) {
           return hit;
         }
       }
+    }
+    // `T` が「登録番号T」のように見出しの末尾へくっつく書式は、繋いでからでないと
+    // 揃わない。見出しのある行に限らないと、`T` で終わる単語と 13 桁が隣り合った
+    // だけで番号を作ってしまう（伝票番号や取引 ID が該当する）。
+    if (!INVOICE_LABELS.some((k) => line.text.includes(k))) {
+      continue;
     }
     const joined = INVOICE_NUMBER_RE.exec(line.text.replace(/\s+/g, ''))?.[0];
     if (joined) {
