@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "iap",
   "description": "支援（アプリ内購入）。商店を持つ 3 つの環境（macOS / iOS / Windows）にだけ適用する",
-  "platforms": ["macOS", "iOS", "windows"],
+  "platforms": ["macOS", "iOS", "windows", "android"],
   "windows": ["main"],
   "permissions": ["iap:default"]
 }

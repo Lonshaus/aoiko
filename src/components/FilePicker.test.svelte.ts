@@ -8,6 +8,18 @@ import FilePicker from './FilePicker.svelte';
 let target: HTMLElement | null = null;
 let component: Record<string, unknown> | null = null;
 
+type Bridged = { __aoikoNative?: { isCameraAvailable?: () => Promise<boolean> } };
+
+// 橋そのものを差し替える。相機の有無は端末の事情で、部品の都合では決まらない。
+function withCamera(available: boolean | null): void {
+  const w = window as unknown as Bridged;
+  if (available === null) {
+    delete w.__aoikoNative;
+    return;
+  }
+  w.__aoikoNative = { isCameraAvailable: async () => available };
+}
+
 function render(props: Record<string, unknown> = {}): HTMLInputElement {
   target = document.createElement('div');
   document.body.appendChild(target);
@@ -23,6 +35,13 @@ function render(props: Record<string, unknown> = {}): HTMLInputElement {
   return input;
 }
 
+// $effect の中の await が片付くまで待つ。flushSync だけでは足りない。
+async function settle(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+  flushSync();
+}
+
 afterEach(() => {
   if (component !== null) {
     unmount(component);
@@ -30,6 +49,7 @@ afterEach(() => {
   }
   target?.remove();
   target = null;
+  withCamera(null);
 });
 
 describe('FilePicker', () => {
@@ -78,5 +98,52 @@ describe('FilePicker', () => {
     const input = render({ onclick: () => (stopped = true) });
     input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(stopped).toBe(true);
+  });
+
+  // 撮影の入口は足すだけで、選ぶ側の入口を置き換えない。片方に寄せると
+  // 撮り溜めた画像が使えなくなるか、その場で撮れなくなるかのどちらかになる。
+  test('camera を渡さなければ入口は 1 つのまま', async () => {
+    withCamera(true);
+    render();
+    await settle();
+    expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
+    expect(target?.querySelector('input[capture]')).toBeNull();
+  });
+
+  test('camera かつ相機が在れば入口が 2 つになる', async () => {
+    withCamera(true);
+    render({ camera: true, accept: 'image/*' });
+    await settle();
+    const inputs = target?.querySelectorAll('input[type=file]');
+    expect(inputs?.length).toBe(2);
+    const shot = target?.querySelector('input[capture]');
+    expect(shot?.getAttribute('capture')).toBe('environment');
+    // 撮った画像も選んだ画像も同じ受け口へ入る。
+    expect(shot?.getAttribute('accept')).toBe('image/*');
+  });
+
+  test('camera でも相機が無ければ入口は 1 つ', async () => {
+    withCamera(false);
+    render({ camera: true });
+    await settle();
+    expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
+  });
+
+  // 橋の無い環境（web 版・桌面版）で撮影のボタンを生やさない。
+  test('橋が無ければ入口は 1 つ', async () => {
+    withCamera(null);
+    render({ camera: true });
+    await settle();
+    expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
+  });
+
+  test('撮影側にも onchange が繋がっている', async () => {
+    withCamera(true);
+    let calls = 0;
+    render({ camera: true, onchange: () => (calls += 1) });
+    await settle();
+    const shot = target?.querySelector('input[capture]');
+    shot?.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(calls).toBe(1);
   });
 });

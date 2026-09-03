@@ -1,7 +1,7 @@
 // ネイティブ版向けにフロントエンドを建て、出力へネイティブ側の
 // ライセンス一覧を足す。`tauri build` の前に通す。
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -9,7 +9,22 @@ const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // 設定画面に出るバージョンを package.json ではなくネイティブ版のものにする。
 // 商店は提出のたびに繰り上げを要求するため、両者は連動しない。vite.config.ts は
 // AOIKO_VERSION があればそちらを使う。
-const tauriConf = JSON.parse(readFileSync(resolve(root, 'src-tauri', 'tauri.conf.json'), 'utf8'));
+//
+// 商店ごとに版が分かれる面は tauri.<platform>.conf.json が上書きする。tauri 自身は
+// ビルド時に自動で重ねるが、この script は別に走るので同じ順で読み直す。
+const platform = process.argv[2] ?? '';
+const confPaths = ['tauri.conf.json'];
+if (platform !== '') {
+  confPaths.push(`tauri.${platform}.conf.json`);
+}
+const tauriConf = {};
+for (const name of confPaths) {
+  const path = resolve(root, 'src-tauri', name);
+  if (!existsSync(path)) {
+    continue;
+  }
+  Object.assign(tauriConf, JSON.parse(readFileSync(path, 'utf8')));
+}
 
 for (const script of ['check', 'build']) {
   const result = spawnSync('npm', ['run', script], {

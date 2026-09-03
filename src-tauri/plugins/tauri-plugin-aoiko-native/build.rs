@@ -13,8 +13,12 @@ const COMMANDS: &[&str] = &[
     "export_open",
     "recognize_text",
     "is_text_recognition_available",
+    "is_camera_available",
 ];
 
 fn main() {
-    tauri_plugin::Builder::new(COMMANDS).ios_path("ios").build();
+    tauri_plugin::Builder::new(COMMANDS)
+        .android_path("android")
+        .ios_path("ios")
+        .build();
 }

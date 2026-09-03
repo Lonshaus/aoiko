@@ -4,7 +4,7 @@ import { createNativeOcr } from './native-ocr.js';
 // 生やす環境を間違えると、読めない引擎が設定画面に並ぶ。設定はバックアップに乗って
 // 別の端末へ渡るので、選べてしまうこと自体が事故になる。
 test('実装のある環境でだけ入口が生える', () => {
-  for (const platform of ['macos', 'ios', 'windows']) {
+  for (const platform of ['macos', 'ios', 'windows', 'android']) {
     assert.equal(typeof createNativeOcr(async () => {}, platform)?.recognizeText, 'function');
   }
   assert.equal(
@@ -52,7 +52,7 @@ test('可否の問い合わせも命令名をそのまま渡す', async () => {
 });
 
 test('入口が生える環境では可否の問い合わせも生える', () => {
-  for (const platform of ['macos', 'ios', 'windows']) {
+  for (const platform of ['macos', 'ios', 'windows', 'android']) {
     assert.equal(
       typeof createNativeOcr(async () => {}, platform)?.isTextRecognitionAvailable,
       'function',

@@ -1,12 +1,18 @@
+#[cfg(not(target_os = "android"))]
 use std::path::PathBuf;
 
 use tauri::{AppHandle, Manager, Runtime};
 
-use crate::backup::{self, OpenFiles};
+#[cfg(not(target_os = "android"))]
+use crate::backup::OpenFiles;
+use crate::backup::{self};
+#[cfg(not(target_os = "android"))]
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
 use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
+#[cfg(target_os = "android")]
+use crate::android::AoikoNativeExt;
 #[cfg(target_os = "ios")]
 use crate::ios::AoikoNativeExt;
 // (async) が要る。同期コマンドはメインスレッドで走り、選択ダイアログも run_mobile_plugin も
@@ -26,7 +32,7 @@ pub(crate) fn pick_folder<R: Runtime>(app: AppHandle<R>) -> Result<Option<Picked
     }))
 }
 
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     let Some(picked) = app.aoiko_native().pick_folder()? else {
         return Ok(None);
@@ -37,7 +43,7 @@ fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     }))
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
     let Some(dir) = crate::desktop::pick_folder(app) else {
         return Ok(None);
@@ -56,17 +62,38 @@ fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Option<StoredFolder>> {
 // （web 側は理由を問わず「選び直し」へ倒す）。
 #[tauri::command(async)]
 pub(crate) fn resolve_folder<R: Runtime>(app: AppHandle<R>) -> Result<ResolvedFolder> {
-    let Some((path, _dir)) = resolved_dir(&app) else {
-        return Ok(ResolvedFolder::unavailable());
-    };
-    Ok(ResolvedFolder {
-        ready: true,
-        path: Some(path),
-    })
+    // この環境のフォルダ参照はパスにならず、is_dir で確かめられない。生きているかどうかは
+    // 権限が残っているかで、ネイティブ側が見る。
+    #[cfg(target_os = "android")]
+    {
+        let Some(folder) = store::load(&app) else {
+            return Ok(ResolvedFolder::unavailable());
+        };
+        return Ok(
+            match app.aoiko_native().resolve_bookmark(folder.handle)?.ready {
+                true => ResolvedFolder {
+                    ready: true,
+                    path: None,
+                },
+                false => ResolvedFolder::unavailable(),
+            },
+        );
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let Some((path, _dir)) = resolved_dir(&app) else {
+            return Ok(ResolvedFolder::unavailable());
+        };
+        Ok(ResolvedFolder {
+            ready: true,
+            path: Some(path),
+        })
+    }
 }
 // 記録済みのフォルダを実パスへ解くのはここだけにする。ready の判定と実際に読み書きする
 // 場所が別々の手順で決まると、片方だけ検査が抜けても気付けない。
 // 解決できなければ None（web 側は理由を問わず「選び直し」へ倒す）。
+#[cfg(not(target_os = "android"))]
 fn resolved_dir<R: Runtime>(app: &AppHandle<R>) -> Option<(String, PathBuf)> {
     let folder = store::load(app)?;
     let cache = app.state::<Resolved>();
@@ -91,7 +118,7 @@ fn resolve<R: Runtime>(app: &AppHandle<R>, handle: &str) -> Option<String> {
         .path
 }
 
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn resolve<R: Runtime>(_app: &AppHandle<R>, handle: &str) -> Option<String> {
     Some(
         crate::desktop::resolve(handle)?
@@ -100,6 +127,7 @@ fn resolve<R: Runtime>(_app: &AppHandle<R>, handle: &str) -> Option<String> {
     )
 }
 // モバイルの解決結果は file:// URL、デスクトップは素のパス。存在確認も入出力もパスで行う。
+#[cfg(not(target_os = "android"))]
 fn to_file_path(path: &str) -> std::path::PathBuf {
     tauri::Url::parse(path)
         .ok()
@@ -109,11 +137,11 @@ fn to_file_path(path: &str) -> std::path::PathBuf {
 
 #[tauri::command(async)]
 pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().print_page()
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = app;
         Err(Error::UnsupportedPlatform)
@@ -127,7 +155,7 @@ pub(crate) fn recognize_text<R: Runtime>(
     app: AppHandle<R>,
     image_base64: String,
 ) -> Result<RecognizedText> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().recognize_text(image_base64)
     }
@@ -149,7 +177,12 @@ pub(crate) fn recognize_text<R: Runtime>(
             .map_err(|e| Error::Ocr(format!("base64 を解けません: {e}")))?;
         crate::desktop::recognize_text(&bytes)
     }
-    #[cfg(not(any(target_os = "ios", target_os = "macos", target_os = "windows")))]
+    #[cfg(not(any(
+        target_os = "ios",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "windows"
+    )))]
     {
         let _ = (app, image_base64);
         Err(Error::UnsupportedPlatform)
@@ -160,24 +193,38 @@ pub(crate) fn recognize_text<R: Runtime>(
 // 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
 #[tauri::command(async)]
 pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bool {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().is_text_recognition_available()
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = &app;
         crate::desktop::is_text_recognition_available()
     }
 }
 
+// 撮影の入口を生やしてよいか。撮影に回せる環境だけ true で、他は一律 false。
+#[tauri::command(async)]
+pub(crate) fn is_camera_available<R: Runtime>(app: AppHandle<R>) -> bool {
+    #[cfg(target_os = "android")]
+    {
+        app.aoiko_native().is_camera_available()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = &app;
+        false
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     {
         app.aoiko_native().open_in_app(url)
     }
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         let _ = (app, url);
         Err(Error::UnsupportedPlatform)
@@ -193,7 +240,7 @@ pub(crate) fn confirm_discard<R: Runtime>(
     ok_label: String,
     cancel_label: String,
 ) -> Result<bool> {
-    #[cfg(not(target_os = "ios"))]
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
     {
         Ok(crate::desktop::confirm_discard(
             window,
@@ -202,6 +249,16 @@ pub(crate) fn confirm_discard<R: Runtime>(
             ok_label,
             cancel_label,
         ))
+    }
+    // BACK は既定だと確認なしで Activity を終わらせる環境がある（発火するのは
+    // visibilitychange だけで beforeunload は来ない）。プラグイン側で BACK を捕まえて
+    // __aoikoRequestClose へ回しているので、その先のダイアログをここで出す。
+    #[cfg(target_os = "android")]
+    {
+        window
+            .app_handle()
+            .aoiko_native()
+            .confirm_discard(&message, &ok_label, &cancel_label)
     }
     // モバイルはウィンドウを閉じる操作もメニューの再読み込みも無く、これを呼ぶ
     // __aoikoRequestClose / __aoikoRequestReload へ届く経路が存在しない。
@@ -217,17 +274,47 @@ pub(crate) fn confirm_discard<R: Runtime>(
 // モバイルも同じ経路で足りる。resolved_dir が file:// URL を実パスへ解いており、ネイティブ側は
 // bookmark で取った security-scoped のスコープを選び直しまで手放さないので、
 // Rust の std::fs はそのスコープの下で走る。バイト列をネイティブ側へ渡す必要は無い。
+#[cfg(not(target_os = "android"))]
 fn backup_base<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf> {
     resolved_dir(app)
         .map(|(_, dir)| dir)
         .ok_or(Error::FolderUnavailable)
 }
+// この環境のフォルダ選択は content:// しか返さず、パスにならない。配下の入出力はネイティブ側で
+// 行うので、こちらは記録した tree URI を取り出すだけ。
+#[cfg(target_os = "android")]
+fn backup_token<R: Runtime>(app: &AppHandle<R>) -> Result<String> {
+    let folder = store::load(app).ok_or(Error::FolderUnavailable)?;
+    if !app
+        .aoiko_native()
+        .resolve_bookmark(folder.handle.clone())?
+        .ready
+    {
+        return Err(Error::FolderUnavailable);
+    }
+    Ok(folder.handle)
+}
+// SAF は tree の外へ出られないが、拒む条件はデスクトップと揃える。'..' が「見つからない」
+// で済むと、同じ入力でプラットフォームごとに結果が変わる。
+#[cfg(target_os = "android")]
+fn backup_token_for<R: Runtime>(app: &AppHandle<R>, rel_path: &str) -> Result<String> {
+    crate::path::validate_rel_path(rel_path)?;
+    backup_token(app)
+}
 // ファイル入出力も (async) にする。同期コマンドはメインスレッドで走るので、数十 MB の
 // バックアップを書いている間ずっと UI が止まる。
 #[tauri::command(async)]
 pub(crate) fn backup_open<R: Runtime>(app: AppHandle<R>, rel_path: String) -> Result<u32> {
-    let base = backup_base(&app)?;
-    app.state::<OpenFiles>().open(&base, &rel_path)
+    #[cfg(target_os = "android")]
+    {
+        let token = backup_token_for(&app, &rel_path)?;
+        return app.aoiko_native().backup_open(&token, &rel_path);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let base = backup_base(&app)?;
+        app.state::<OpenFiles>().open(&base, &rel_path)
+    }
 }
 // チャンクは殻を被せず生バイトで受ける。JSON へ載せると 1 バイトが数字 1 個へ膨らみ、
 // 行き先の rid だけをヘッダーで渡す。
@@ -247,7 +334,14 @@ pub(crate) fn backup_write_chunk<R: Runtime>(
         .get("x-aoiko-rid")
         .and_then(|value| value.to_str().ok());
     let (rid, chunk) = parse_chunk(request.body(), rid_header)?;
-    app.state::<OpenFiles>().write_chunk(rid, &chunk)
+    #[cfg(target_os = "android")]
+    {
+        return app.aoiko_native().backup_write_chunk(rid, &chunk);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        app.state::<OpenFiles>().write_chunk(rid, &chunk)
+    }
 }
 
 #[derive(serde::Deserialize)]
@@ -283,20 +377,37 @@ fn parse_chunk(body: &tauri::ipc::InvokeBody, rid_header: Option<&str>) -> Resul
 
 #[tauri::command(async)]
 pub(crate) fn backup_close<R: Runtime>(app: AppHandle<R>, rid: u32) -> Result<()> {
-    app.state::<OpenFiles>().close(rid)
+    #[cfg(target_os = "android")]
+    {
+        return app.aoiko_native().backup_close(rid);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        app.state::<OpenFiles>().close(rid)
+    }
 }
 // 台帳エクスポートはバックアップフォルダの外へ書く。保存先を決められるのは下の
 // ask_save_path だけで、web 側から渡せるのは初期ファイル名だけ。取り消しは Ok(None)。
 #[tauri::command(async)]
 pub(crate) fn export_open<R: Runtime>(app: AppHandle<R>, file_name: String) -> Result<Option<u32>> {
-    let files = app.state::<OpenFiles>();
-    backup::export_open(&files, &file_name, |suggested| {
-        ask_save_path(&app, suggested)
-    })
+    // この環境の rid はネイティブ側の登記簿にある。書き込みも close も既にそちらへ回るので、
+    // 開くところだけ Rust に残すと rid が噛み合わない。
+    #[cfg(target_os = "android")]
+    {
+        let suggested = crate::path::validate_single_segment(&file_name)?;
+        return app.aoiko_native().export_open(suggested);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let files = app.state::<OpenFiles>();
+        backup::export_open(&files, &file_name, |suggested| {
+            ask_save_path(&app, suggested)
+        })
+    }
 }
 // 保存ダイアログを開くのはここだけ。webview からは呼べない（JS が渡せるのは初期ファイル名
 // だけで、保存ダイアログ自体を開くコマンドは無い）。取り消しは Ok(None)。
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Option<SafeTarget>> {
     // 利用者がダイアログで指した先。IPC を通っていないので配下の検査は掛けない（掛けると
     // バックアップフォルダの外へ書き出せなくなる）。
@@ -312,7 +423,7 @@ fn ask_save_path<R: Runtime>(app: &AppHandle<R>, file_name: &str) -> Result<Opti
         .path()
         .document_dir()
         .map_err(|e| Error::Io(e.to_string()))?;
-    Ok(Some(backup::ios_export_target(&documents, file_name)))
+    Ok(Some(backup::mobile_export_target(&documents, file_name)))
 }
 
 #[tauri::command(async)]
@@ -320,8 +431,18 @@ pub(crate) fn backup_read<R: Runtime>(
     app: AppHandle<R>,
     rel_path: String,
 ) -> Result<tauri::ipc::Response> {
-    let base = backup_base(&app)?;
-    Ok(tauri::ipc::Response::new(backup::read(&base, &rel_path)?))
+    #[cfg(target_os = "android")]
+    {
+        let token = backup_token_for(&app, &rel_path)?;
+        return Ok(tauri::ipc::Response::new(backup::frame_reply(
+            app.aoiko_native().backup_read(&token, &rel_path)?,
+        )));
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let base = backup_base(&app)?;
+        Ok(tauri::ipc::Response::new(backup::read(&base, &rel_path)?))
+    }
 }
 
 #[tauri::command(async)]
@@ -329,14 +450,33 @@ pub(crate) fn backup_list<R: Runtime>(
     app: AppHandle<R>,
     subdir: Option<String>,
 ) -> Result<Vec<String>> {
-    let base = backup_base(&app)?;
-    backup::list(&base, subdir.as_deref())
+    #[cfg(target_os = "android")]
+    {
+        if let Some(subdir) = subdir.as_deref() {
+            crate::path::validate_rel_path(subdir)?;
+        }
+        let token = backup_token(&app)?;
+        return app.aoiko_native().backup_list(&token, subdir.as_deref());
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let base = backup_base(&app)?;
+        backup::list(&base, subdir.as_deref())
+    }
 }
 
 #[tauri::command(async)]
 pub(crate) fn backup_remove<R: Runtime>(app: AppHandle<R>, rel_path: String) -> Result<()> {
-    let base = backup_base(&app)?;
-    backup::remove(&base, &rel_path)
+    #[cfg(target_os = "android")]
+    {
+        let token = backup_token_for(&app, &rel_path)?;
+        return app.aoiko_native().backup_remove(&token, &rel_path);
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let base = backup_base(&app)?;
+        backup::remove(&base, &rel_path)
+    }
 }
 
 #[cfg(test)]

@@ -16,19 +16,12 @@ tauri-build = { version = "2", features = [] }
 png = { version = "0.18", default-features = false }
 
 [dependencies]
-# aoiko_fetch 用。cookie は使わないので入れない（送る先は OCR/LLM の API だけ）。
-# TLS は native-tls＝OS のもの（macOS は Security.framework、Windows は Schannel）を使う。
-# rustls だと自前の暗号実装を同梱することになり、App Store の
-# ITSAppUsesNonExemptEncryption が true になって毎年 BIS へ自己分類報告が要る（#97）。
-# native-tls だけだと ALPN を要求しないので h2 が選ばれず、http2 を有効にしていても
-# 実際の接続は HTTP/1.1 へ落ちる（実測）。native-tls-alpn は ALPN を有効にするだけで、
-# 自前の暗号実装は持ち込まない。
-reqwest = { version = "0.12", default-features = false, features = [
-  "charset",
-  "http2",
-  "macos-system-configuration",
-  "native-tls-alpn",
-] }
+# Android では IPC が生バイトを運べず、aoiko_fetch が base64 で受け取る。
+base64 = "0.22"
+# aoiko_fetch が扱う型。reqwest が再輸出しているのと同じ実体で、Android では
+# reqwest を入れないためここで直に持つ。
+http = "1"
+url = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { version = "2", features = [] }
@@ -37,9 +30,9 @@ tauri-plugin-opener = "2"
 # plugin-fs の代わりで、全プラットフォームがこれを通る。
 tauri-plugin-aoiko-native = { path = "plugins/tauri-plugin-aoiko-native" }
 
-# 支援（アプリ内購入）。iOS / macOS は StoreKit 2、Windows は Microsoft Store API。
-# 配る 3 つの環境にだけ入れる。
-[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows"))'.dependencies]
+# 支援（アプリ内購入）。iOS / macOS は StoreKit 2、Windows は Microsoft Store API、
+# Android は Play Billing。配る 4 つの環境にだけ入れる。
+[target.'cfg(any(target_os = "macos", target_os = "ios", target_os = "windows", target_os = "android"))'.dependencies]
 tauri-plugin-iap = "0.10.0-rc.8"
 
 # 印刷はネイティブ側で行う。WKWebView 上の window.print() は例外を投げるため
@@ -69,3 +62,18 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# aoiko_fetch 用。cookie は使わないので入れない（送る先は OCR/LLM の API だけ）。
+# TLS は native-tls＝OS のもの（macOS は Security.framework、Windows は Schannel）を使う。
+# 自前の暗号実装を同梱すると輸出管理上の分類が変わるため持ち込まない。
+# native-tls だけだと ALPN を要求しないので h2 が選ばれず、http2 を有効にしていても
+# 実際の接続は HTTP/1.1 へ落ちる（実測）。native-tls-alpn は ALPN を有効にするだけ。
+# Android には借りられる system TLS が無く native-tls が OpenSSL を要求するので、
+# 送信そのものを Kotlin の HttpsURLConnection へ回し、reqwest ごと外す。
+[target.'cfg(not(target_os = "android"))'.dependencies]
+reqwest = { version = "0.12", default-features = false, features = [
+  "charset",
+  "http2",
+  "macos-system-configuration",
+  "native-tls-alpn",
+] }

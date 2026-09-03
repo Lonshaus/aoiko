@@ -441,7 +441,7 @@
     <label class="block sm:col-span-3">
       <span class="text-xs text-muted-foreground">{m.journal_form_label_attachment()}</span>
       <span class="mt-1 block">
-        <FilePicker accept="image/*" onchange={handleAttachmentFile} />
+        <FilePicker accept="image/*" onchange={handleAttachmentFile} camera />
       </span>
       {#if attachmentError}
         <p class="mt-1 text-xs text-destructive">{attachmentError}</p>
