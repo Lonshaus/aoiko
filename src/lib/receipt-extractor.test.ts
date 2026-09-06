@@ -14,6 +14,7 @@ describe('createReceiptExtractor', () => {
 
   test('gemini：API キー設定済みなら external=true / 該当ホスト', async () => {
     await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
     const ex = await createReceiptExtractor();
     expect(ex.engine).toBe('gemini');
     expect(ex.external).toBe(true);

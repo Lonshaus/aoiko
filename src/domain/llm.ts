@@ -68,13 +68,14 @@ function connectionErrorMessage(fallback: string, cause?: unknown): string {
   return detail === '' ? fallback : `${fallback}：${detail}`;
 }
 // Google Gemini API アダプター（無料枠あり、レイテンシ・コストともに低い）。
-// 2026 時点で gemini-2.5-flash 推奨。設定で他モデルも可能。
+// モデルは設定に保存した物を使う。既定を焼き込むと、そのモデルが新規利用者へ配られなく
+// なった時点で鍵が正しくても 404 になり、画面に直す場所が無い（実測）。
 export class GeminiAdapter implements LlmAdapter {
   readonly external = true;
   readonly destinationHost = 'generativelanguage.googleapis.com';
   constructor(
     private readonly apiKey: string,
-    private readonly model: string = 'gemini-2.5-flash',
+    private readonly model: string,
   ) {}
 
   async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
@@ -251,6 +252,47 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     }
   }
 }
+// Gemini の利用可能モデル一覧。`generateContent` を持ち、番号付き flash/pro のみ（画像生成・TTS・preview 等を除外）を名前順で返す。
+export async function listGeminiModels(apiKey: string): Promise<string[]> {
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`,
+    );
+  } catch (e) {
+    throw new LlmError(
+      connectionErrorMessage('generativelanguage.googleapis.com への接続に失敗しました', e),
+      e,
+    );
+  }
+  if (!response.ok) {
+    throw new LlmError(
+      m.error_model_list_failed({ status: response.status }),
+      undefined,
+      response.status,
+    );
+  }
+  const payload = (await response.json()) as {
+    models?: Array<{ name?: string; supportedGenerationMethods?: string[] }>;
+  };
+  return (payload.models ?? [])
+    .filter((model) => model.supportedGenerationMethods?.includes('generateContent'))
+    .map((model) => model.name?.replace(/^models\//, ''))
+    .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    .filter((id) => /^gemini-\d+\.\d+-(flash|pro)$/.test(id))
+    .sort();
+}
+
+// 一覧から既定を 1 つ選ぶ。preview / exp は予告なく消えるので避け、OCR と分類には
+// pro の能力が要らないため flash を優先する。版番号は数値として比べる（10 と 9 の順序）。
+export function pickDefaultGeminiModel(models: string[]): string | undefined {
+  const stable = models.filter((id) => !/preview|exp/i.test(id));
+  const version = (id: string): number => Number(/gemini-([\d.]+)/i.exec(id)?.[1] ?? 0);
+  const newest = (list: string[]): string | undefined =>
+    [...list].sort((a, b) => version(b) - version(a))[0];
+  return newest(stable.filter((id) => id.includes('flash'))) ?? newest(stable) ?? models[0];
+}
+
 // OpenAI 互換 /models からインストール済モデル ID 一覧を取得（Page Assist 方式）
 export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Promise<string[]> {
   const base = baseUrl.replace(/\/+$/, '');

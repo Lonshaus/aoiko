@@ -3,9 +3,11 @@ import {
   describeLlmError,
   hostOf,
   isLocalHost,
+  listGeminiModels,
   listOpenAiModels,
   LlmError,
   OpenAICompatibleAdapter,
+  pickDefaultGeminiModel,
 } from './llm';
 
 afterEach(() => {
@@ -90,6 +92,75 @@ describe('OpenAICompatibleAdapter', () => {
   test('モデル未指定はエラー', async () => {
     const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', '');
     await expect(a.generateJson('x')).rejects.toBeInstanceOf(LlmError);
+  });
+});
+
+describe('listGeminiModels', () => {
+  test('generateContent を持たないモデルを除外して名前順に返す', async () => {
+    mockFetch(() => ({
+      models: [
+        { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+        { name: 'models/embedding-001', supportedGenerationMethods: ['embedContent'] },
+        { name: 'models/gemini-1.5-pro', supportedGenerationMethods: ['generateContent'] },
+      ],
+    }));
+    expect(await listGeminiModels('key')).toEqual(['gemini-1.5-pro', 'gemini-2.5-flash']);
+  });
+
+  test('番号付き flash/pro 以外（画像生成・TTS・preview・gemma・lyria 等）を除外する', async () => {
+    const gen = ['generateContent'];
+    mockFetch(() => ({
+      models: [
+        { name: 'models/gemini-3.8-flash', supportedGenerationMethods: gen },
+        { name: 'models/gemini-2.5-pro', supportedGenerationMethods: gen },
+        { name: 'models/gemini-3.1-flash-lite', supportedGenerationMethods: gen },
+        { name: 'models/gemini-3.1-flash-image', supportedGenerationMethods: gen },
+        { name: 'models/gemini-2.5-flash-preview-tts', supportedGenerationMethods: gen },
+        { name: 'models/gemini-3-flash-preview', supportedGenerationMethods: gen },
+        { name: 'models/gemini-flash-latest', supportedGenerationMethods: gen },
+        { name: 'models/gemma-4-31b-it', supportedGenerationMethods: gen },
+        { name: 'models/lyria-3.5', supportedGenerationMethods: gen },
+      ],
+    }));
+    expect(await listGeminiModels('key')).toEqual(['gemini-2.5-pro', 'gemini-3.8-flash']);
+  });
+});
+
+describe('pickDefaultGeminiModel', () => {
+  test('flash を pro より優先する', () => {
+    expect(pickDefaultGeminiModel(['gemini-2.5-pro', 'gemini-2.5-flash'])).toBe('gemini-2.5-flash');
+  });
+
+  test('preview / exp は避ける', () => {
+    expect(
+      pickDefaultGeminiModel([
+        'gemini-2.5-flash-preview',
+        'gemini-2.0-flash-exp',
+        'gemini-2.0-flash',
+      ]),
+    ).toBe('gemini-2.0-flash');
+  });
+
+  test('版番号は数値として比較する（10 が 9 に勝つ）', () => {
+    expect(pickDefaultGeminiModel(['gemini-9.0-flash', 'gemini-10.0-flash'])).toBe(
+      'gemini-10.0-flash',
+    );
+  });
+
+  test('flash が無ければ安定版の非 flash モデルに落ちる', () => {
+    expect(pickDefaultGeminiModel(['gemini-2.5-pro-preview', 'gemini-1.5-pro'])).toBe(
+      'gemini-1.5-pro',
+    );
+  });
+
+  test('全て preview なら先頭を返す', () => {
+    expect(pickDefaultGeminiModel(['gemini-2.5-pro-preview', 'gemini-2.5-flash-preview'])).toBe(
+      'gemini-2.5-pro-preview',
+    );
+  });
+
+  test('空配列は undefined', () => {
+    expect(pickDefaultGeminiModel([])).toBeUndefined();
   });
 });
 

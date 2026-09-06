@@ -15,9 +15,15 @@ describe('createLlmAdapter', () => {
 
   test('gemini：キー有りで GeminiAdapter', async () => {
     await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
     const a = await createLlmAdapter('ocr');
     expect(a).toBeInstanceOf(GeminiAdapter);
     expect(a.external).toBe(true);
+  });
+
+  test('gemini：モデル未設定はエラー', async () => {
+    await setSetting('geminiApiKey', 'sk-test');
+    await expect(createLlmAdapter('ocr')).rejects.toThrow(/モデル/);
   });
 
   test('openai-compatible：用途別モデルで OpenAICompatibleAdapter', async () => {
