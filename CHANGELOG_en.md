@@ -4,6 +4,22 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.1.2] - 2026-09-06
+
+This release lets you pick the LLM model used for reading receipts.
+
+### Changed
+
+- The Gemini part of the LLM integration now lets you choose a model. After choosing one, press "Test connection" — only a model that passes is confirmed to work
+- The OCR engines still need tuning, so they have been taken off the list for now. If you had one selected, you are returned to the default, Gemini
+
+### Fixed
+
+- The model ID could not be changed from the screen, leaving you stuck once that model was retired
+- The save result and the error message sat side by side and squeezed each other when the text was long
+- The warning symbol on errors had no colour, making it hard to tell apart from a success
+- On the browsers of some devices, the menu could not be closed by tapping outside it or pressing Escape
+
 ## [1.1.1] - 2026-08-30
 
 A round-up of places the display language did not reach. No new features.
