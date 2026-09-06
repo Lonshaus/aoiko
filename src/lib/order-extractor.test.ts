@@ -14,6 +14,7 @@ describe('createOrderExtractor', () => {
 
   test('gemini：キー有りで external=true / 該当ホスト', async () => {
     await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
     const ex = await createOrderExtractor();
     expect(ex.external).toBe(true);
     expect(ex.destinationHost).toBe('generativelanguage.googleapis.com');

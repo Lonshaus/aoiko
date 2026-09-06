@@ -35,6 +35,8 @@ export type SettingsMap = {
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
+  // 使う Gemini のモデル ID。焼き込みだと提供終了時に画面から直せない。
+  geminiModel: string;
   // OCR/LLM エンジン選択（既定 gemini）。
   // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
   // - tesseract：WASM の純ローカル OCR（LLM 不要・通信無し。精度は限定的、人手確認前提）
