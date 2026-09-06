@@ -124,10 +124,6 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // 橋渡しが生えていても、その端末が日本語を読めるとは限らない（言語機能が既定では入って
-  // いない環境があり、入っていても版と導入内容で変わる）。推測せず onMount で実際に問う。
-  // 返事が来るまでは読めない側に倒す。使えるものを一瞬使えないと言うほうが、逆より軽い。
-  let nativeOcrAvailable = $state(false);
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -207,6 +203,9 @@
   let geminiKey = $state('');
   let geminiKeySaved = $state('');
   let geminiTestStatus = $state('');
+  let geminiTestFailed = $state(false);
+  let geminiModel = $state('');
+  let geminiModels = $state<string[]>([]);
   let ocrEngine = $state<OcrEngine>('gemini');
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
@@ -214,6 +213,7 @@
   let openaiApiKey = $state('');
   let openaiModels = $state<string[]>([]);
   let openaiStatus = $state('');
+  let openaiTestFailed = $state(false);
   let openaiSaved = $state('');
 
   let carryoverPreview = $state<CarryoverPreview | null>(null);
@@ -348,10 +348,8 @@
     invoiceNumberPrefix = (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX;
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
+    geminiModel = (await getSetting('geminiModel')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
-    // 関数の有無だけでは足りない。読めるかどうかはネイティブ側にしか分からない。
-    const ask = __NATIVE__ ? nativeBridge()?.isTextRecognitionAvailable : undefined;
-    nativeOcrAvailable = typeof ask === 'function' ? await ask().catch(() => false) : false;
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -930,6 +928,34 @@
   async function saveGeminiKey() {
     await setSetting('geminiApiKey', geminiKey.trim());
     geminiKeySaved = m.settings_llm_saved();
+    geminiTestStatus = '';
+    geminiTestFailed = false;
+    if (geminiKey.trim() === '') {
+      return;
+    }
+    // 焼き込んだモデルは提供終了で 404 になる。鍵を保存した時点で一覧を引き、
+    // 使える物を選んでおく（利用者は下の選択欄で変えられる）。
+    try {
+      const { listGeminiModels, pickDefaultGeminiModel } = await import('../domain/llm');
+      geminiModels = await listGeminiModels(geminiKey.trim());
+      geminiKeySaved = m.settings_llm_models_loaded({ count: geminiModels.length });
+      if (geminiModel === '' || !geminiModels.includes(geminiModel)) {
+        const picked = pickDefaultGeminiModel(geminiModels);
+        if (picked !== undefined) {
+          geminiModel = picked;
+          await setSetting('geminiModel', picked);
+          geminiKeySaved = m.settings_llm_model_picked({ model: picked });
+        }
+      }
+    } catch (e) {
+      geminiTestStatus = describeLlmError(e);
+      geminiTestFailed = true;
+    }
+  }
+
+  async function saveGeminiModel() {
+    await setSetting('geminiModel', geminiModel);
+    geminiKeySaved = m.settings_llm_saved();
     setTimeout(() => {
       geminiKeySaved = '';
     }, 2000);
@@ -937,15 +963,21 @@
 
   async function testGeminiKey() {
     geminiTestStatus = m.settings_llm_testing();
+    geminiTestFailed = false;
     try {
+      if (geminiModel.trim() === '') {
+        throw new Error(m.error_gemini_model_unset());
+      }
       const { GeminiAdapter } = await import('../domain/llm');
-      const adapter = new GeminiAdapter(geminiKey.trim());
+      const adapter = new GeminiAdapter(geminiKey.trim(), geminiModel.trim());
       await adapter.generateJson(
         '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。',
       );
       geminiTestStatus = m.settings_llm_test_success();
+      geminiTestFailed = false;
     } catch (e) {
       geminiTestStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
+      geminiTestFailed = true;
     }
   }
 
@@ -963,19 +995,22 @@
 
   async function fetchOpenaiModels() {
     openaiStatus = m.settings_llm_testing();
+    openaiTestFailed = false;
     try {
       const { listOpenAiModels } = await import('../domain/llm');
       openaiModels = await listOpenAiModels(openaiBaseUrl.trim(), openaiApiKey.trim());
-      openaiStatus = m.settings_openai_models_loaded({
+      openaiStatus = m.settings_llm_models_loaded({
         count: openaiModels.length,
       });
     } catch (e) {
       openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
+      openaiTestFailed = true;
     }
   }
 
   async function testOpenai() {
     openaiStatus = m.settings_llm_testing();
+    openaiTestFailed = false;
     try {
       const { OpenAICompatibleAdapter } = await import('../domain/llm');
       const adapter = new OpenAICompatibleAdapter(
@@ -987,8 +1022,10 @@
         '日本語で "ok" だけを JSON 形式 {"status":"ok"} で返してください。',
       );
       openaiStatus = m.settings_llm_test_success();
+      openaiTestFailed = false;
     } catch (e) {
       openaiStatus = m.settings_llm_test_error({ message: describeLlmError(e) });
+      openaiTestFailed = true;
     }
   }
 
@@ -2463,7 +2500,7 @@
         onclick={saveGeminiKey}
         class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
       >
-        {m.settings_llm_save()}
+        {m.settings_llm_fetch_models()}
       </button>
       <button
         type="button"
@@ -2474,14 +2511,43 @@
         {m.settings_llm_test()}
       </button>
     </div>
-    <div class="flex gap-3 text-xs">
+    <div class="space-y-1 text-xs">
       {#if geminiKeySaved}
-        <span>{geminiKeySaved}</span>
+        <p>{geminiKeySaved}</p>
       {/if}
       {#if geminiTestStatus}
-        <span>{geminiTestStatus}</span>
+        <p>
+          {#if geminiTestFailed}
+            <span class="text-destructive" aria-hidden="true">⚠</span>
+          {/if}
+          {geminiTestStatus}
+        </p>
       {/if}
     </div>
+
+    <label class="block">
+      <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
+      {#if geminiModels.length > 0}
+        <select
+          bind:value={geminiModel}
+          onchange={saveGeminiModel}
+          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
+        >
+          {#each geminiModels as model (model)}
+            <option value={model}>{model}</option>
+          {/each}
+        </select>
+      {:else}
+        <input
+          type="text"
+          readonly
+          bind:value={geminiModel}
+          placeholder={m.settings_llm_model_fetch_hint()}
+          class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
+        />
+      {/if}
+    </label>
+    <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
 
     <div class="border-t pt-4 space-y-3">
       <label class="block">
@@ -2492,34 +2558,8 @@
         >
           <option value="gemini">{m.settings_engine_gemini()}</option>
           <option value="openai-compatible">{m.settings_engine_openai()}</option>
-          <option value="tesseract">{m.settings_engine_tesseract()}</option>
-          <!-- 読めない端末でも選択肢は出す。消すと、選べない理由が画面のどこにも
-               出ないまま消える。選んだ時点で下に使えない旨を出して知らせる。 -->
-          {#if __NATIVE__}
-            <option value="native">{m.settings_engine_native()}</option>
-          {/if}
         </select>
       </label>
-
-      {#if ocrEngine === 'tesseract'}
-        <p class="text-xs text-muted-foreground">
-          {@html m.settings_tesseract_intro_html()}
-        </p>
-      {/if}
-
-      <!-- ocrEngine だけで見ると実行時の判定になり、この引擎を持たない側の産物にも
-           下の文言が残る（設定の説明も使えない旨も）。__NATIVE__ で丸ごと畳む。 -->
-      {#if __NATIVE__ && ocrEngine === 'native'}
-        {#if nativeOcrAvailable}
-          <p class="text-xs text-muted-foreground">
-            {@html m.settings_native_ocr_intro_html()}
-          </p>
-        {:else}
-          <!-- 勝手に別の引擎へ落とさず、選び直しは利用者に委ねる。設定はバックアップに
-               乗るので、読める端末から読めない端末へ選択ごと渡ることもある。 -->
-          <p class="text-xs text-destructive">{m.ocr_native_unavailable()}</p>
-        {/if}
-      {/if}
 
       {#if ocrEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">
@@ -2550,7 +2590,7 @@
             disabled={!openaiBaseUrl.trim()}
             class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
           >
-            {m.settings_openai_fetch_models()}
+            {m.settings_llm_fetch_models()}
           </button>
           <button
             type="button"
@@ -2576,9 +2616,10 @@
           {:else}
             <input
               type="text"
+              readonly
               bind:value={openaiOcrModel}
-              placeholder="llama3.2-vision 等（vision 必須）"
-              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+              placeholder={m.settings_llm_model_fetch_hint()}
+              class="mt-1 w-full px-3 py-2 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
             />
           {/if}
         </label>
@@ -2599,15 +2640,16 @@
           {:else}
             <input
               type="text"
+              readonly
               bind:value={openaiClassifyModel}
-              placeholder={m.settings_openai_classify_model_placeholder()}
-              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
+              placeholder={m.settings_llm_model_fetch_hint()}
+              class="mt-1 w-full px-3 py-2 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
             />
           {/if}
         </label>
       {/if}
 
-      <div class="flex gap-3 items-center">
+      <div>
         <button
           type="button"
           onclick={saveOcrEngine}
@@ -2615,11 +2657,18 @@
         >
           {m.settings_llm_save()}
         </button>
+      </div>
+      <div class="space-y-1 text-xs">
         {#if openaiSaved}
-          <span class="text-xs">{openaiSaved}</span>
+          <p>{openaiSaved}</p>
         {/if}
         {#if openaiStatus}
-          <span class="text-xs">{openaiStatus}</span>
+          <p>
+            {#if openaiTestFailed}
+              <span class="text-destructive" aria-hidden="true">⚠</span>
+            {/if}
+            {openaiStatus}
+          </p>
         {/if}
       </div>
     </div>
