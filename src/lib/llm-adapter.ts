@@ -35,5 +35,9 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
   if (!geminiKey) {
     throw new Error(m.error_gemini_key_unset());
   }
-  return new GeminiAdapter(geminiKey);
+  const geminiModel = (await getSetting('geminiModel'))?.trim();
+  if (!geminiModel) {
+    throw new Error(m.error_gemini_model_unset());
+  }
+  return new GeminiAdapter(geminiKey, geminiModel);
 }
