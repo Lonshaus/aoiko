@@ -115,6 +115,10 @@ export async function getSetting<K extends keyof SettingsMap>(
   key: K,
 ): Promise<SettingsMap[K] | undefined> {
   const row = await db.settings.get(key);
+  // 選べなくなった引擎が保存に残っている端末がある。読み出しで既定へ落とす。
+  if (key === 'ocrEngine' && (row?.value === 'tesseract' || row?.value === 'native')) {
+    return 'gemini' as SettingsMap[K];
+  }
   return row?.value as SettingsMap[K] | undefined;
 }
 
