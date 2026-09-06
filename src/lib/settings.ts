@@ -35,6 +35,8 @@ export type SettingsMap = {
   userBusinessName: string;
   userInvoiceNumber: string;
   geminiApiKey: string;
+  // 使う Gemini のモデル ID。焼き込みだと提供終了時に画面から直せない。
+  geminiModel: string;
   // OCR/LLM エンジン選択（既定 gemini）。
   // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
   // - tesseract：WASM の純ローカル OCR（LLM 不要・通信無し。精度は限定的、人手確認前提）
@@ -113,6 +115,10 @@ export async function getSetting<K extends keyof SettingsMap>(
   key: K,
 ): Promise<SettingsMap[K] | undefined> {
   const row = await db.settings.get(key);
+  // 選べなくなった引擎が保存に残っている端末がある。読み出しで既定へ落とす。
+  if (key === 'ocrEngine' && (row?.value === 'tesseract' || row?.value === 'native')) {
+    return 'gemini' as SettingsMap[K];
+  }
   return row?.value as SettingsMap[K] | undefined;
 }
 

@@ -14,6 +14,7 @@ describe('createReceiptExtractor', () => {
 
   test('gemini：API キー設定済みなら external=true / 該当ホスト', async () => {
     await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
     const ex = await createReceiptExtractor();
     expect(ex.engine).toBe('gemini');
     expect(ex.external).toBe(true);
@@ -29,16 +30,16 @@ describe('createReceiptExtractor', () => {
     expect(ex.external).toBe(false);
   });
 
-  test('tesseract：external=false / host 空 / engine ラベル', async () => {
-    await setSetting('ocrEngine', 'tesseract');
-    const ex = await createReceiptExtractor();
-    expect(ex.engine).toBe('tesseract');
-    expect(ex.external).toBe(false);
-    expect(ex.destinationHost).toBe('');
-  });
-
-  test('tesseract：openai 設定が無くてもエラーにならない', async () => {
-    await setSetting('ocrEngine', 'tesseract');
-    await expect(createReceiptExtractor()).resolves.toBeDefined();
+  // 選べなくなった引擎が保存に残っている端末がある。既定へ落ちないと、画面から
+  // 戻せないまま OCR がその経路を走り続ける。
+  test('選べなくなった引擎が残っていても gemini 路になる', async () => {
+    await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
+    for (const retired of ['tesseract', 'native'] as const) {
+      await setSetting('ocrEngine', retired);
+      const ex = await createReceiptExtractor();
+      expect(ex.engine).toBe('gemini');
+      expect(ex.destinationHost).toBe('generativelanguage.googleapis.com');
+    }
   });
 });

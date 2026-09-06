@@ -123,6 +123,10 @@ pub struct RecognizedWord {
     pub confidence: Option<f64>,
     /// 第 2 候補以降を確からしい順に。
     pub alternates: Vec<String>,
+    /// 文字の基線の傾き（この正規化座標での dy/dx）。向きを返せる引擎だけが入れる。
+    /// 角度ではなく傾きで渡すのは、角度からの換算に画素の縦横比が要るため。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slope: Option<f64>,
 }
 
 /// 縦に重なる単語をまとめた 1 行。座標はそれらを囲む矩形。
