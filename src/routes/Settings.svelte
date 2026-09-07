@@ -124,6 +124,18 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
+  // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web の産物に
+  // この経路の文言・問い合わせを残さないため。
+  let appleAiAvailability = $state<number | null>(null);
+  // 1（機種非対応）と 4（OS が古い）は利用者側でどうにもならないので選択肢ごと隠す。
+  // 2/3/5 は選び直せる余地があるので選択肢を disabled で残し、理由を出し分ける。
+  const APPLE_AI_UNAVAILABLE_MESSAGES: Record<number, () => string> = {
+    2: m.settings_apple_ai_unavailable_2,
+    3: m.settings_apple_ai_unavailable_3,
+    5: m.settings_apple_ai_unavailable_5,
+  };
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -350,6 +362,10 @@
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     geminiModel = (await getSetting('geminiModel')) ?? '';
     ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    // 理由コードは環境が返すまで分からない。関数が無い側は 1/4 と同じ「隠す」扱いにする。
+    const askAppleAi = __NATIVE__ ? nativeBridge()?.appleAiAvailability : undefined;
+    appleAiAvailability =
+      typeof askAppleAi === 'function' ? await askAppleAi().catch(() => null) : null;
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -2485,81 +2501,104 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_llm_intro_html()}
     </p>
-    <div class="flex flex-wrap gap-3 items-end">
-      <label class="block flex-1">
-        <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
-        <input
-          type="password"
-          bind:value={geminiKey}
-          placeholder="AIza..."
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
-        />
-      </label>
-      <button
-        type="button"
-        onclick={saveGeminiKey}
-        class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
-      >
-        {m.settings_llm_fetch_models()}
-      </button>
-      <button
-        type="button"
-        onclick={testGeminiKey}
-        disabled={!geminiKey.trim()}
-        class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
-      >
-        {m.settings_llm_test()}
-      </button>
-    </div>
-    <div class="space-y-1 text-xs">
-      {#if geminiKeySaved}
-        <p>{geminiKeySaved}</p>
-      {/if}
-      {#if geminiTestStatus}
-        <p>
-          {#if geminiTestFailed}
-            <span class="text-destructive" aria-hidden="true">⚠</span>
-          {/if}
-          {geminiTestStatus}
-        </p>
-      {/if}
-    </div>
 
     <label class="block">
-      <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
-      {#if geminiModels.length > 0}
-        <select
-          bind:value={geminiModel}
-          onchange={saveGeminiModel}
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
-        >
-          {#each geminiModels as model (model)}
-            <option value={model}>{model}</option>
-          {/each}
-        </select>
-      {:else}
-        <input
-          type="text"
-          readonly
-          bind:value={geminiModel}
-          placeholder={m.settings_llm_model_fetch_hint()}
-          class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
-        />
-      {/if}
+      <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
+      <select
+        bind:value={ocrEngine}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+      >
+        <option value="gemini">{m.settings_engine_gemini()}</option>
+        <option value="openai-compatible">{m.settings_engine_openai()}</option>
+        <!-- 1/4 は利用者側でどうにもならないので選択肢ごと隠す。2/3/5 は選び直せるので
+             disabled で残し、下に理由を出す。__NATIVE__ で畳むのは web の産物に
+             この経路の文言を残さないため。 -->
+        {#if __NATIVE__ && (appleAiAvailability === 0 || appleAiAvailability === 2 || appleAiAvailability === 3 || appleAiAvailability === 5)}
+          <option value="apple-ai" disabled={appleAiAvailability !== 0}>
+            {m.settings_engine_apple_ai()}
+          </option>
+        {/if}
+      </select>
     </label>
-    <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
 
     <div class="border-t pt-4 space-y-3">
-      <label class="block">
-        <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
-        <select
-          bind:value={ocrEngine}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
-        >
-          <option value="gemini">{m.settings_engine_gemini()}</option>
-          <option value="openai-compatible">{m.settings_engine_openai()}</option>
-        </select>
-      </label>
+      {#if __NATIVE__ && appleAiAvailability !== null && appleAiAvailability in APPLE_AI_UNAVAILABLE_MESSAGES}
+        <p class="text-xs text-destructive">
+          {APPLE_AI_UNAVAILABLE_MESSAGES[appleAiAvailability]?.()}
+        </p>
+      {/if}
+
+      {#if ocrEngine === 'gemini'}
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="block flex-1">
+            <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
+            <input
+              type="password"
+              bind:value={geminiKey}
+              placeholder="AIza..."
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onclick={saveGeminiKey}
+            class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
+          >
+            {m.settings_llm_fetch_models()}
+          </button>
+          <button
+            type="button"
+            onclick={testGeminiKey}
+            disabled={!geminiKey.trim()}
+            class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.settings_llm_test()}
+          </button>
+        </div>
+        <div class="space-y-1 text-xs">
+          {#if geminiKeySaved}
+            <p>{geminiKeySaved}</p>
+          {/if}
+          {#if geminiTestStatus}
+            <p>
+              {#if geminiTestFailed}
+                <span class="text-destructive" aria-hidden="true">⚠</span>
+              {/if}
+              {geminiTestStatus}
+            </p>
+          {/if}
+        </div>
+
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
+          {#if geminiModels.length > 0}
+            <select
+              bind:value={geminiModel}
+              onchange={saveGeminiModel}
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
+            >
+              {#each geminiModels as model (model)}
+                <option value={model}>{model}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              readonly
+              bind:value={geminiModel}
+              placeholder={m.settings_llm_model_fetch_hint()}
+              class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
+            />
+          {/if}
+        </label>
+        <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
+      {/if}
+
+      {#if __NATIVE__ && ocrEngine === 'apple-ai'}
+        <p class="text-xs text-muted-foreground">{m.settings_apple_ai_intro()}</p>
+        <!-- 米国外へ配る物には記号を付けず、この帰属表示を出す（Apple の第三者向け規定）。 -->
+        <p class="text-[10px] text-muted-foreground">{m.settings_apple_ai_trademark()}</p>
+      {/if}
 
       {#if ocrEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">
