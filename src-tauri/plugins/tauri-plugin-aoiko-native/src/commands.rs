@@ -194,21 +194,24 @@ pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
 #[tauri::command(async)]
 pub(crate) fn apple_ai_extract<R: Runtime>(
     app: AppHandle<R>,
-    path: String,
+    image_base64: String,
 ) -> std::result::Result<String, u8> {
     let _ = &app;
+    // recognize_text と同じ decode。フロントは path ではなく base64 しか持たない。
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let bytes = STANDARD.decode(image_base64.as_bytes()).map_err(|_| 3u8)?;
     #[cfg(target_os = "ios")]
     {
-        crate::ios::apple_intelligence::extract(&path)
+        crate::ios::apple_intelligence::extract(&bytes)
     }
     #[cfg(target_os = "macos")]
     {
-        crate::desktop::apple_intelligence::extract(&path)
+        crate::desktop::apple_intelligence::extract(&bytes)
     }
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     {
         // Swift 側の「OS が古すぎる」と同じ意味で使う（apple_ai_availability と揃える）。
-        let _ = path;
+        let _ = bytes;
         Err(4)
     }
 }

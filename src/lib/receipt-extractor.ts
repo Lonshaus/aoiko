@@ -1,13 +1,15 @@
 // 設定（ocrEngine）から領収書 OCR の実体を生成するファクトリ。
 //
-// 4 つの引擎（gemini / openai-compatible / tesseract / native）を共通の
+// 5 つの引擎（gemini / openai-compatible / tesseract / native / apple-ai）を共通の
 // ReceiptExtractor インターフェースで包む。
 // - gemini / openai-compatible：vision LLM。既存の createLlmAdapter+extractReceipt を包装
 // - tesseract：純ローカル WASM OCR（tesseract-wasm）。動的 import で読み込み、確定性抽出層に渡す
 // - native：OS 内蔵の文字認識。ネイティブ側の橋渡しを呼び、同じ確定性抽出層に渡す
+// - apple-ai：OS 内蔵の AI。ネイティブ側が構造化まで終えて返すので、
+//   確定性抽出層は通さない
 //
 // 送信先（external / destinationHost）は確認ダイアログ（CloudSendConfirmDialog）の
-// 表示要否判定に使う。tesseract と native は常に external=false。
+// 表示要否判定に使う。tesseract と native と apple-ai は常に external=false。
 
 import { extractReceipt, type ReceiptExtracted } from '../domain/ocr';
 import type { LlmImageInput } from '../domain/llm';
@@ -43,6 +45,16 @@ export async function createReceiptExtractor(): Promise<ReceiptExtractor> {
     // 端末内で読むつもりの利用者の画像が外へ出る。黙って引擎を差し替えない。
     // 文言はカタログから引かない。引くと、この経路を持たない側の産物にも文字列が残る。
     throw new Error('native OCR is unavailable in this build');
+  }
+
+  if (engine === 'apple-ai') {
+    // native と同じ理由で build 時に畳む。
+    if (__NATIVE__) {
+      const { createAppleAiReceiptExtractor } = await import('./ocr/apple-ai-engine');
+      return createAppleAiReceiptExtractor();
+    }
+    // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
+    throw new Error('apple-ai OCR is unavailable in this build');
   }
 
   const adapter = await createLlmAdapter('ocr');

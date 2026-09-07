@@ -9,7 +9,7 @@ import type { NativeBackupFolder } from '../backup/native';
 // 引擎の綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
-export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native';
+export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native' | 'apple-ai';
 
 export type SettingsMap = {
   currentYear: number;
@@ -41,6 +41,7 @@ export type SettingsMap = {
   // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
   // - tesseract：WASM の純ローカル OCR（LLM 不要・通信無し。精度は限定的、人手確認前提）
   // - native：OS 内蔵の文字認識（対応環境のみ・通信無し）
+  // - apple-ai：OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）
   ocrEngine: OcrEngine;
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
   openaiBaseUrl: string;

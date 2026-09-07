@@ -30,6 +30,14 @@ describe('createReceiptExtractor', () => {
     expect(ex.external).toBe(false);
   });
 
+  test('apple-ai：OS 内蔵の Vision + FoundationModels 路、常に external=false', async () => {
+    await setSetting('ocrEngine', 'apple-ai');
+    const ex = await createReceiptExtractor();
+    expect(ex.engine).toBe('apple-ai');
+    expect(ex.external).toBe(false);
+    expect(ex.destinationHost).toBe('');
+  });
+
   // 選べなくなった引擎が保存に残っている端末がある。既定へ落ちないと、画面から
   // 戻せないまま OCR がその経路を走り続ける。
   test('選べなくなった引擎が残っていても gemini 路になる', async () => {

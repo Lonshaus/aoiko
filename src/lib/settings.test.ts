@@ -67,7 +67,7 @@ describe('ocrEngine の読み出し', () => {
   });
 
   test('選べる引擎はそのまま返る', async () => {
-    for (const engine of ['gemini', 'openai-compatible'] as const) {
+    for (const engine of ['gemini', 'openai-compatible', 'apple-ai'] as const) {
       await setSetting('ocrEngine', engine);
       expect(await getSetting('ocrEngine')).toBe(engine);
     }

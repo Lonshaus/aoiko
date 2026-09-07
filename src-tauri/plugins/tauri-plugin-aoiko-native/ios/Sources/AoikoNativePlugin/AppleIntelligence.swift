@@ -71,8 +71,8 @@ private let receiptInstructions = """
 
 // EXIF の向きを読まないと、スマホで撮った写真は縦横が入れ替わったまま認識される。
 @available(macOS 26, iOS 26, *)
-private func exifOrientation(of url: URL) -> CGImagePropertyOrientation {
-    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+private func exifOrientation(of data: Data) -> CGImagePropertyOrientation {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil),
         let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
         let raw = properties[kCGImagePropertyOrientation] as? UInt32,
         let orientation = CGImagePropertyOrientation(rawValue: raw)
@@ -100,8 +100,8 @@ private func readingOrder(
 }
 
 @available(macOS 26, iOS 26, *)
-private func recognizeReceiptText(at url: URL) -> String? {
-    let handler = VNImageRequestHandler(url: url, orientation: exifOrientation(of: url), options: [:])
+private func recognizeReceiptText(from data: Data) -> String? {
+    let handler = VNImageRequestHandler(data: data, orientation: exifOrientation(of: data), options: [:])
     let request = VNRecognizeTextRequest()
     request.revision = VNRecognizeTextRequestRevision3
     request.recognitionLevel = .accurate
@@ -154,14 +154,14 @@ private func runExtraction(text: String) -> (json: String?, err: Int32) {
 
 @_cdecl("aoiko_ai_extract")
 func aoiko_ai_extract(
-    _ path: UnsafePointer<CChar>, _ outErr: UnsafeMutablePointer<Int32>
+    _ bytes: UnsafePointer<UInt8>, _ length: Int, _ outErr: UnsafeMutablePointer<Int32>
 ) -> UnsafeMutablePointer<CChar>? {
     guard #available(macOS 26, iOS 26, *) else {
         outErr.pointee = 4
         return nil
     }
-    let url = URL(fileURLWithPath: String(cString: path))
-    guard let text = recognizeReceiptText(at: url) else {
+    let data = Data(bytes: bytes, count: length)
+    guard let text = recognizeReceiptText(from: data) else {
         outErr.pointee = 2
         return nil
     }

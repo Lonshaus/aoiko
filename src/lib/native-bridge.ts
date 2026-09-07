@@ -40,6 +40,12 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS の版や導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
+  // OS 内蔵の AI が使えるか。0..5 の意味はネイティブ側のコメントに揃える
+  // （0 が「使える」）。
+  appleAiAvailability?(): Promise<number>;
+  // OS 内蔵の AI でレシートを構造化 JSON にして返す。
+  // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 文字が読めない / 3 その他 / 4 OS が古い）。
+  appleAiExtract?(base64: string): Promise<string>;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';
