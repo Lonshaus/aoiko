@@ -326,13 +326,33 @@ mod windows_ocr {
 // 別の枠組みなので、既存の macos モジュールへは混ぜない。
 #[cfg(target_os = "macos")]
 pub(crate) mod apple_intelligence {
+    use std::ffi::{c_char, CStr, CString};
+
     extern "C" {
         fn aoiko_ai_availability() -> i32;
+        fn aoiko_ai_extract(path: *const c_char, out_err: *mut i32) -> *mut c_char;
+        fn aoiko_ai_free(p: *mut c_char);
     }
     // Swift 側の @_cdecl の戻り値と 1:1 対応。0 が「使える」。
     pub(crate) fn availability() -> u8 {
         // Swift 側は 0..=5 の範囲でしか返さない値を返す。
         unsafe { aoiko_ai_availability() as u8 }
+    }
+    // 戻り値のポインタは Swift 側の strdup で確保される。中身を Rust の String へ
+    // 写し終えたら、成功・失敗のどちらの経路でも aoiko_ai_free で解放する
+    // （呼び忘れるとレシート 1 枚ごとにリークする）。
+    pub(crate) fn extract(path: &str) -> Result<String, u8> {
+        let path = CString::new(path).map_err(|_| 3u8)?;
+        let mut err: i32 = 0;
+        let ptr = unsafe { aoiko_ai_extract(path.as_ptr(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
     }
 }
 

@@ -72,10 +72,29 @@ impl<R: Runtime, T: Manager<R>> AoikoNativeExt<R> for T {
 // リンクされる（ios_plugin_binding! の init_plugin_aoiko_native と同じ経路）。
 // Plugin クラスの invoke を介さず、desktop.rs の macOS 版と同じく直接呼べる。
 pub(crate) mod apple_intelligence {
+    use std::ffi::{c_char, CStr, CString};
+
     extern "C" {
         fn aoiko_ai_availability() -> i32;
+        fn aoiko_ai_extract(path: *const c_char, out_err: *mut i32) -> *mut c_char;
+        fn aoiko_ai_free(p: *mut c_char);
     }
     pub(crate) fn availability() -> u8 {
         unsafe { aoiko_ai_availability() as u8 }
+    }
+    // desktop.rs 側と同じ橋渡し。ポインタは中身を写し終えた後、成功・失敗どちらの経路でも
+    // aoiko_ai_free で解放する。
+    pub(crate) fn extract(path: &str) -> Result<String, u8> {
+        let path = CString::new(path).map_err(|_| 3u8)?;
+        let mut err: i32 = 0;
+        let ptr = unsafe { aoiko_ai_extract(path.as_ptr(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
     }
 }

@@ -189,6 +189,30 @@ pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
     }
 }
 
+// FoundationModels でのレシート抽出。失敗の理由は AppleIntelligence.swift の
+// aoiko_ai_extract のコメントに揃えた数値でフロントへ返す（0 は成功なのでここには来ない）。
+#[tauri::command(async)]
+pub(crate) fn apple_ai_extract<R: Runtime>(
+    app: AppHandle<R>,
+    path: String,
+) -> std::result::Result<String, u8> {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::extract(&path)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::extract(&path)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        // Swift 側の「OS が古すぎる」と同じ意味で使う（apple_ai_availability と揃える）。
+        let _ = path;
+        Err(4)
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(target_os = "ios")]
