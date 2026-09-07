@@ -322,6 +322,19 @@ mod windows_ocr {
         crate::Error::Ocr(format!("文字認識に失敗しました: {e}"))
     }
 }
+// FoundationModels の可否だけを問う。文字認識（recognize_text / macos::recognize_text）とは
+// 別の枠組みなので、既存の macos モジュールへは混ぜない。
+#[cfg(target_os = "macos")]
+pub(crate) mod apple_intelligence {
+    extern "C" {
+        fn aoiko_ai_availability() -> i32;
+    }
+    // Swift 側の @_cdecl の戻り値と 1:1 対応。0 が「使える」。
+    pub(crate) fn availability() -> u8 {
+        // Swift 側は 0..=5 の範囲でしか返さない値を返す。
+        unsafe { aoiko_ai_availability() as u8 }
+    }
+}
 
 #[cfg(target_os = "macos")]
 mod macos {

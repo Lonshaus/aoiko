@@ -68,3 +68,14 @@ impl<R: Runtime, T: Manager<R>> AoikoNativeExt<R> for T {
         self.state::<AoikoNative<R>>().inner()
     }
 }
+// SwiftPM の tauri-plugin-aoiko-native ターゲットは Rust と 1 つの静的ライブラリへ
+// リンクされる（ios_plugin_binding! の init_plugin_aoiko_native と同じ経路）。
+// Plugin クラスの invoke を介さず、desktop.rs の macOS 版と同じく直接呼べる。
+pub(crate) mod apple_intelligence {
+    extern "C" {
+        fn aoiko_ai_availability() -> i32;
+    }
+    pub(crate) fn availability() -> u8 {
+        unsafe { aoiko_ai_availability() as u8 }
+    }
+}

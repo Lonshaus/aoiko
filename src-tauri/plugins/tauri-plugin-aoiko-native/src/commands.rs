@@ -170,6 +170,24 @@ pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bo
         crate::desktop::is_text_recognition_available()
     }
 }
+// 実行時に問うだけの薄い橋渡し。0..=5 の意味は AppleIntelligence.swift 側のコメントに揃える。
+#[tauri::command(async)]
+pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::availability()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::availability()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        // Swift 側の「OS が古すぎる」と同じ意味で使う。
+        4
+    }
+}
 
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
