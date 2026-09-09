@@ -140,9 +140,9 @@ In the **"Vendors"** section:
 
 ## 7. Prepare OCR / AI (if needed)
 
-Only needed if you'll use OCR (receipts), AI classification (CSV auto-classification), or order import (paste Amazon / 楽天 etc.). Skip otherwise.
+Needed for AI classification (CSV auto-classification), order import (paste Amazon / 楽天 etc.), or reading receipts with AI OCR. Skip otherwise (receipt OCR alone can always use the AI-free built-in rule engine).
 
-In the **"AI features"** section of Settings, choose an **OCR/AI engine**:
+In the **"AI features"** section of Settings, choose the AI vendor (Gemini or OpenAI-compatible):
 
 ### 7-A. Google Gemini (default, cloud)
 
@@ -173,38 +173,16 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 > - No extra setup needed for localhost either. The app relays the request for you
 <!-- /only -->
 
-### 7-C. Tesseract (purely-local WASM OCR)
+### If you don't want AI: the built-in rule engine
 
 <!-- only:browser -->
-OCR that runs entirely in the browser, with no AI. **Accuracy is limited**; manual verification required.
+None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract) is always available, and neither images nor language data leave your device (the language data is served by aoiko itself). **Accuracy is limited**; manual verification required.
 <!-- /only -->
 <!-- only:native -->
-OCR that runs entirely within the app, with no AI. **Accuracy is limited**; manual verification required.
+None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or on supported devices the OS's built-in text recognition) is always available, and images never leave your device. Tesseract's **accuracy is limited** and needs manual verification; the OS's built-in recognition also extracts vendor and items, but misreads carry through.
 <!-- /only -->
 
-1. Choose **"Tesseract"**
-2. **"Save"**
-3. (Optional) Set **langPath** only if you want a different edition of `traineddata` (defaults to the copy bundled with aoiko)
-
-> - Neither images nor language data leave your device (the language data is served by aoiko itself)
-> - Only T+13 registration number, date, and total are extracted; vendor and items are NOT guessed
-> - OCR only — not usable for CSV classification or order import
-
-<!-- only:native -->
-
-### 7-D. The OS's built-in text recognition
-
-OCR that uses the text recognition the OS already provides. No AI, no extra download.
-
-1. Pick **the OS's built-in text recognition** as the engine
-2. **Save**
-
-> - The image never leaves the device, and no network request is made
-> - T+13 registration number, date, and total are extracted, and the vendor and items are taken from where the words sit on the receipt. Misreads carry through, so check the result
-> - OCR only — not usable for CSV classification or order import
-> - When this device cannot perform the recognition, the setting screen says so once you pick it. The option itself stays
-
-<!-- /only -->
+You choose the engine, and its sub-engine, on the `Receipt` page itself, not in Settings. See [04. Receipt OCR](04-receipt-ocr_en.md) for details.
 
 ## 8. Optional: other Settings sections
 

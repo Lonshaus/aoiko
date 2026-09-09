@@ -1,4 +1,4 @@
-// 設定（ocrEngine 等）から用途別の LlmAdapter を生成するファクトリ。
+// 設定（aiEngine 等）から用途別の LlmAdapter を生成するファクトリ。
 // Receipt（OCR）/ Import（LLM 分類）はこれ経由で adapter を得る。
 // OCR は vision 対応モデル必須（openai-compatible 時）。
 
@@ -9,7 +9,7 @@ import { m } from '../paraglide/messages';
 type LlmPurpose = 'ocr' | 'classify';
 
 export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter> {
-  const engine = (await getSetting('ocrEngine')) ?? 'gemini';
+  const engine = (await getSetting('aiEngine')) ?? 'gemini';
 
   if (engine === 'openai-compatible') {
     const baseUrl = (await getSetting('openaiBaseUrl'))?.trim();
