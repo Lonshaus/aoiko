@@ -8,7 +8,7 @@ What to do from launching aoiko to being ready to book transactions.
 > - Accept the disclaimer and register your trade name, fiscal year, and consumption-tax method
 > - Register the filer info, filing type (blue or white return), and blue-return deduction type required for `.xtx` submission
 > - Register sub-accounts (e.g. per bank account) and vendors
-> - Configure an API key / endpoint for OCR/LLM, if you want to use those
+> - Configure an API key / endpoint for OCR/AI, if you want to use those
 >
 <!-- only:browser -->
 > **Prerequisites**: aoiko is started per the README on GitHub and open in your browser.
@@ -138,11 +138,11 @@ In the **"Vendors"** section:
 
 > Vendor-based aggregates and journal-list filtering also reference these vendors.
 
-## 7. Prepare OCR / LLM (if needed)
+## 7. Prepare OCR / AI (if needed)
 
-Only needed if you'll use OCR (receipts), LLM classification (CSV auto-classification), or order import (paste Amazon / 楽天 etc.). Skip otherwise.
+Only needed if you'll use OCR (receipts), AI classification (CSV auto-classification), or order import (paste Amazon / 楽天 etc.). Skip otherwise.
 
-In the **"LLM integration"** section of Settings, choose an **OCR/LLM engine**:
+In the **"AI features"** section of Settings, choose an **OCR/AI engine**:
 
 ### 7-A. Google Gemini (default, cloud)
 
@@ -176,10 +176,10 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 ### 7-C. Tesseract (purely-local WASM OCR)
 
 <!-- only:browser -->
-OCR that runs entirely in the browser, with no LLM. **Accuracy is limited**; manual verification required.
+OCR that runs entirely in the browser, with no AI. **Accuracy is limited**; manual verification required.
 <!-- /only -->
 <!-- only:native -->
-OCR that runs entirely within the app, with no LLM. **Accuracy is limited**; manual verification required.
+OCR that runs entirely within the app, with no AI. **Accuracy is limited**; manual verification required.
 <!-- /only -->
 
 1. Choose **"Tesseract"**
@@ -194,7 +194,7 @@ OCR that runs entirely within the app, with no LLM. **Accuracy is limited**; man
 
 ### 7-D. The OS's built-in text recognition
 
-OCR that uses the text recognition the OS already provides. No LLM, no extra download.
+OCR that uses the text recognition the OS already provides. No AI, no extra download.
 
 1. Pick **the OS's built-in text recognition** as the engine
 2. **Save**
