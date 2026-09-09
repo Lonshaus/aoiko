@@ -33,7 +33,6 @@ import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { FixedAsset } from '../../db/types';
 import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
 // OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
@@ -68,7 +67,6 @@ function xmllintAvailable(): boolean {
   const r = spawnSync('xmllint', ['--version']);
   return r.error === undefined && r.status === 0;
 }
-
 // 第一ページの最初の直接値 leaf に値を入れる（様式出力ゲート通過用）。
 function firstPageLeaf(s: XtxSchema): XtxLeafValues {
   let pages = 0;

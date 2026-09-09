@@ -3,7 +3,6 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
-
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -121,7 +120,6 @@ describe('buildPayload', () => {
     expect(() => JSON.stringify(p)).not.toThrow();
   });
 });
-
 // スタンプ帳はこの端末だけの記録だと画面で言っている。バックアップに入れると
 // 別端末での復元で引き継がれてしまい、その説明が嘘になる。
 describe('支援の記録は持ち出さない', () => {

@@ -15,7 +15,7 @@ export function createNativeReceiptExtractor(): ReceiptExtractor {
     engine: 'native',
     async extract(image: LlmImageInput) {
       // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、
-      // 端末内で読むつもりの利用者の画像が外へ出る。黙って引擎を差し替えない。
+      // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。
       const recognize = nativeBridge()?.recognizeText;
       if (typeof recognize !== 'function') {
         throw new Error(m.ocr_native_unavailable());

@@ -5,8 +5,7 @@ import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
-
-// 引擎の綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
+// エンジンの綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
 export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native';
@@ -78,7 +77,7 @@ export type SettingsMap = {
   backupIncludeFilerInfo: boolean;
   // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
   // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
-  // 所得控除画面の不動産所得区分が表示される（切っている間は既存ユーザーの画面は変わらない）。
+  // 所得控除画面の不動産所得区分が表示される（切っている間は既存利用者の画面は変わらない）。
   realEstateIncomeEnabled: boolean;
   // 簡易在庫管理（C4）の期末棚卸高自動計算（最終仕入原価法）を使うか。
   // 未設定時は true 扱い（届出をしていない事業者は法定デフォルトの最終仕入原価法が
@@ -105,8 +104,8 @@ export type SettingsMap = {
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
 // v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・長期未訪問での消去）を追記。
-// v6: OCR エンジンに OS 内蔵の文字認識を追加（この引擎を持つ側だけ）。
-// v6 で足したのは片方にしか無い引擎の免責なので、もう片方の本文は 1 字も変わらない。
+// v6: OCR エンジンに OS 内蔵の文字認識を追加（このエンジンを持つ側だけ）。
+// v6 で足したのは片方にしか無いエンジンの免責なので、もう片方の本文は 1 字も変わらない。
 // 見えない内容のために同意を取り直させる理由が無く、そちらは 5 で据え置く。次に本文を
 // 直すときは「どちらの本文が変わったか」で決める。両方に出る内容なら両方を上げる。
 export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 5;
@@ -115,7 +114,7 @@ export async function getSetting<K extends keyof SettingsMap>(
   key: K,
 ): Promise<SettingsMap[K] | undefined> {
   const row = await db.settings.get(key);
-  // 選べなくなった引擎が保存に残っている端末がある。読み出しで既定へ落とす。
+  // 選べなくなったエンジンが保存に残っている端末がある。読み出しで既定へ落とす。
   if (key === 'ocrEngine' && (row?.value === 'tesseract' || row?.value === 'native')) {
     return 'gemini' as SettingsMap[K];
   }

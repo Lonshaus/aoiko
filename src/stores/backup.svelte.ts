@@ -414,7 +414,7 @@ class BackupManager {
   async confirmDownloadSaved(): Promise<void> {
     await this.stampDownloadedNow();
   }
-  // ブラウザのダウンロード機能でユーザーの「ダウンロード」フォルダへ zip を書き出す
+  // ブラウザのダウンロード機能で利用者の「ダウンロード」フォルダへ zip を書き出す
   // （帳簿データ + 証憑写真原本を同梱）。全環境で動作。
   // OPFS 使用環境では iCloud Drive 等への手動コピーの起点となる。
   //
@@ -433,7 +433,7 @@ class BackupManager {
     );
     try {
       // zip の組み立ては saveFile が保存先を確定させた後に走らせる。先にやると
-      // showSaveFilePicker のユーザー操作の有効時間が切れる（issue#386）。
+      // showSaveFilePicker の利用者操作の有効時間が切れる（issue#386）。
       const result = await saveFile(
         async () => {
           const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;

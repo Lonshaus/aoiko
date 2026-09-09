@@ -365,7 +365,6 @@ describe('buildMultiYearPL / buildMultiYearBS（C8）', () => {
     expect(sales).toBeDefined();
     expect(sales!.amounts).toEqual(['100000', '150000']);
     expect(sales!.total).toBe('250000');
-
     // 2025 年に無い科目は '0' で埋める
     const comm = r.expense.find((row) => row.accountCode === '5150');
     expect(comm).toBeDefined();

@@ -16,7 +16,6 @@ import { isOffline } from '../network-status';
 import { m } from '../../paraglide/messages';
 const WORKER_URL = '/tesseract/tesseract-worker.js';
 const MODEL_URL = '/tesseract/jpn.traineddata';
-
 // data URL を fetch すると connect-src（'self' のみ）に阻まれるため自前で復号する。
 function toBlob(image: LlmImageInput): Blob {
   const binary = atob(image.base64);

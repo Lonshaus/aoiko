@@ -4,7 +4,7 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 //
 // 設計方針：
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
-//   （vision LLM 路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
+//   （vision LLM 経路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
 // - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
 //   当てずっぽうになる
@@ -17,7 +17,6 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 //                   「小計 / お預り / お釣り / 釣銭 / 現金 / ポイント / 還元」
 //                   を含まない行から金額 token を抽出
 //   notes         : OCR 全文（プレフィル）
-
 // 右端を止めないと、1 桁多く読まれたときに先頭 13 桁を切り出して通してしまう（実測）。
 // 形式が合っているぶん、利用者は誤りに気付けない。桁数が違うなら空欄にする。
 const INVOICE_NUMBER_RE = /(?<!\d)T\d{13}(?!\d)/;
@@ -132,7 +131,6 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
   }
   return result;
 }
-
 // 先頭の `T` が落ちて返ることがある（実測。自信度は最大なので誤りと分からない）。
 // 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
 function recoverInvoiceNumber(lines: string[]): string | undefined {
@@ -198,7 +196,6 @@ function extractTotal(lines: string[]): string {
   // 複数行で抽出できた場合は最大値（割引・税抜小計より税込合計が大きい想定）
   return String(Math.max(...candidates));
 }
-
 // 金額の末尾の 0 が大文字の O として返ることがある（実測の `¥460` → `f46O`）。
 // 数字が途中で切れて金額が一桁少なくなり、しかも空欄ではなく誤った値が入る。
 // 数字に挟まれた位置と、数字の後の語尾だけを直す。`責No.999` のような見出しは
@@ -235,7 +232,6 @@ function isValidYmd(y: number, m: number, d: number): boolean {
 function formatYmd(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
-
 /// 座標は 0..1 の正規化・左上原点・y 下向き。環境差はネイティブ側で吸収済み。
 export type OcrWord = {
   text: string;
@@ -246,7 +242,7 @@ export type OcrWord = {
   confidence?: number;
   /// 第 2 候補以降。確からしい順。
   alternates?: string[];
-  /// 文字の基線の傾き（この正規化座標での dy/dx）。向きを返せる引擎だけが入れる。
+  /// 文字の基線の傾き（この正規化座標での dy/dx）。向きを返せるエンジンだけが入れる。
   /// 角度ではなく傾きで渡すのは、角度からの換算に画素の縦横比が要り、それを知っている
   /// のはネイティブ側だけのため。
   slope?: number;
@@ -298,7 +294,6 @@ const NOT_AN_ITEM = [
 ];
 // 数字どうしが区切りで繋がる形。電話番号・時刻がこれに当たる。
 const DIGIT_SEPARATED_RE = /\d[-ー–—:：]\d/;
-
 // 幅の狭い語は基線が短く、傾きが出ない。短い語では 0 がそのまま返ることが多く、
 // 混ぜると中央値が 0 へ寄る。
 const SKEW_MIN_WORD_WIDTH = 0.05;
@@ -548,7 +543,6 @@ const TRAILING_AMOUNT_RE =
 const TAX_RATE_MARK_TAIL = /[\s軽減※*＊#＃]+$/;
 // 印だけが独立した単語で返る環境がある（`¥162 軽`）。右端を見る前に落とす。
 const TAX_RATE_MARK_ONLY = /^[\s軽減※*＊#＃]+$/;
-
 // 頭より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
 // 数字の直前に区切りがある物と、左が日付・数字だけの行は外す。取り違えるくらいなら拾わない。
 function extractItems(lines: OcrLine[], header: number, totalRow: number): ReceiptItem[] {

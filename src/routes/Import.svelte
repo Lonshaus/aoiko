@@ -178,7 +178,7 @@
 
   function onCounterpartAccountChange(row: RowState) {
     row.counterpartSubAccountId = '';
-    // ユーザーが上書きしたら自動分類の出所を解除
+    // 利用者が上書きしたら自動分類の出所を解除
     row.matchedRuleId = '';
     row.llmConfidence = '';
     // 科目変更時は税区分由来の既定税率に追従する

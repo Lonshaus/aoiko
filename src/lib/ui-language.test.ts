@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { applyUiLanguage } from './ui-language';
 
 const { current } = vi.hoisted(() => ({ current: { locale: 'ja' } }));
-
 // paraglide のメッセージ関数も runtime から読む。丸ごと差し替えるとそちらが動かなく
 // なるので、getLocale だけ差し替える。
 vi.mock(import('../paraglide/runtime'), async (importOriginal) => ({
@@ -28,7 +27,6 @@ describe('applyUiLanguage', () => {
     applyUiLanguage();
     expect(document.documentElement.lang).toBe('ja');
   });
-
   // 破棄確認はネイティブのダイアログで出る。シェル側は公開 repo のメッセージカタログを
   // 読めないので、訳した文言をここから渡す。渡し忘れると日本語のまま出る。
   it('破棄確認の文言を今の言語で橋へ渡す', () => {
