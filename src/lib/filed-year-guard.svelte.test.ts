@@ -69,7 +69,6 @@ describe('filedYearGuard.confirm', () => {
 
     await expect(filedYearGuard.confirm([2026], { suppressible: true })).resolves.toBe(true);
     expect(filedYearGuard.pending).toBeNull();
-
     // 抑制対象外の経路（既定）は設定に関係なく確認を出す
     const p2 = filedYearGuard.confirm([2026]);
     await vi.waitFor(() => expect(filedYearGuard.pending).not.toBeNull());

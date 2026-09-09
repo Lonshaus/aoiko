@@ -8,7 +8,7 @@ afterEach(async () => {
 });
 
 describe('createReceiptExtractor', () => {
-  test('既定（未設定）は gemini 路で、キー無しならエラー', async () => {
+  test('既定（未設定）は gemini 経路で、キー無しならエラー', async () => {
     await expect(createReceiptExtractor()).rejects.toThrow(/Gemini API キー/);
   });
 
@@ -29,10 +29,9 @@ describe('createReceiptExtractor', () => {
     expect(ex.engine).toBe('openai-compatible');
     expect(ex.external).toBe(false);
   });
-
-  // 選べなくなった引擎が保存に残っている端末がある。既定へ落ちないと、画面から
+  // 選べなくなったエンジンが保存に残っている端末がある。既定へ落ちないと、画面から
   // 戻せないまま OCR がその経路を走り続ける。
-  test('選べなくなった引擎が残っていても gemini 路になる', async () => {
+  test('選べなくなったエンジンが残っていても gemini 経路になる', async () => {
     await setSetting('geminiApiKey', 'sk-test');
     await setSetting('geminiModel', 'gemini-2.5-flash');
     for (const retired of ['tesseract', 'native'] as const) {

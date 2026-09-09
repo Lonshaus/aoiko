@@ -4,7 +4,7 @@ import type { BackupAdapter } from './types';
 // Origin Private File System によるブラウザ内サンドボックス書き込み。
 // FSA API 非対応のブラウザにおける主要な永続化フォルバック。
 // 同期フォルダではないため、ブラウザのデータ削除で失われる。
-// 定期的な JSON ダウンロードでユーザーが iCloud 等に手動コピーする運用前提。
+// 定期的な JSON ダウンロードで利用者が iCloud 等に手動コピーする運用前提。
 export class OpfsBackupAdapter implements BackupAdapter {
   readonly name = 'opfs';
   // getDirectory だけでは足りない。書き込みに使う createWritable は後から実装された
@@ -24,7 +24,7 @@ export class OpfsBackupAdapter implements BackupAdapter {
   async isReady(): Promise<boolean> {
     return this.isAvailable();
   }
-  // OPFS は明示的なユーザー許可不要。永続化ストレージの要求は
+  // OPFS は明示的な利用者許可不要。永続化ストレージの要求は
   // アダプタ非依存の関心事なので BackupManager 側が一括で行う。
   async ensurePermission(): Promise<boolean> {
     return this.isAvailable();

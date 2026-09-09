@@ -53,7 +53,6 @@ async function seedEntry(opts: {
   });
   return entryId;
 }
-
 // 前年末の繰入仕訳（借方 繰入額／貸方 2170 貸倒引当金）。
 async function seedAccrual(year: number, accrualCode: string, amount: string): Promise<string> {
   return seedEntry({

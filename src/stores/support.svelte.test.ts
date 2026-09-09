@@ -127,7 +127,6 @@ describe('load', () => {
     expect(support.products).toHaveLength(2);
   });
 });
-
 // at は日付までしか無く id は UUID v4 なので、この 2 つでは押した順に戻せない。
 // 順序が崩れると nextStampFace が見る「直前の何個」が狂い、7 種の輪ごと壊れる。
 describe('押した順', () => {
