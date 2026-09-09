@@ -2485,81 +2485,84 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_llm_intro_html()}
     </p>
-    <div class="flex flex-wrap gap-3 items-end">
-      <label class="block flex-1">
-        <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
-        <input
-          type="password"
-          bind:value={geminiKey}
-          placeholder="AIza..."
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
-        />
-      </label>
-      <button
-        type="button"
-        onclick={saveGeminiKey}
-        class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
-      >
-        {m.settings_llm_fetch_models()}
-      </button>
-      <button
-        type="button"
-        onclick={testGeminiKey}
-        disabled={!geminiKey.trim()}
-        class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
-      >
-        {m.settings_llm_test()}
-      </button>
-    </div>
-    <div class="space-y-1 text-xs">
-      {#if geminiKeySaved}
-        <p>{geminiKeySaved}</p>
-      {/if}
-      {#if geminiTestStatus}
-        <p>
-          {#if geminiTestFailed}
-            <span class="text-destructive" aria-hidden="true">⚠</span>
-          {/if}
-          {geminiTestStatus}
-        </p>
-      {/if}
-    </div>
 
     <label class="block">
-      <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
-      {#if geminiModels.length > 0}
-        <select
-          bind:value={geminiModel}
-          onchange={saveGeminiModel}
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
-        >
-          {#each geminiModels as model (model)}
-            <option value={model}>{model}</option>
-          {/each}
-        </select>
-      {:else}
-        <input
-          type="text"
-          readonly
-          bind:value={geminiModel}
-          placeholder={m.settings_llm_model_fetch_hint()}
-          class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
-        />
-      {/if}
+      <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
+      <select
+        bind:value={aiEngine}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+      >
+        <option value="gemini">{m.settings_engine_gemini()}</option>
+        <option value="openai-compatible">{m.settings_engine_openai()}</option>
+      </select>
     </label>
-    <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
 
     <div class="border-t pt-4 space-y-3">
-      <label class="block">
-        <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
-        <select
-          bind:value={aiEngine}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
-        >
-          <option value="gemini">{m.settings_engine_gemini()}</option>
-          <option value="openai-compatible">{m.settings_engine_openai()}</option>
-        </select>
-      </label>
+      {#if aiEngine === 'gemini'}
+        <div class="flex flex-wrap gap-3 items-end">
+          <label class="block flex-1">
+            <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
+            <input
+              type="password"
+              bind:value={geminiKey}
+              placeholder="AIza..."
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
+            />
+          </label>
+          <button
+            type="button"
+            onclick={saveGeminiKey}
+            class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
+          >
+            {m.settings_llm_fetch_models()}
+          </button>
+          <button
+            type="button"
+            onclick={testGeminiKey}
+            disabled={!geminiKey.trim()}
+            class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {m.settings_llm_test()}
+          </button>
+        </div>
+        <div class="space-y-1 text-xs">
+          {#if geminiKeySaved}
+            <p>{geminiKeySaved}</p>
+          {/if}
+          {#if geminiTestStatus}
+            <p>
+              {#if geminiTestFailed}
+                <span class="text-destructive" aria-hidden="true">⚠</span>
+              {/if}
+              {geminiTestStatus}
+            </p>
+          {/if}
+        </div>
+
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
+          {#if geminiModels.length > 0}
+            <select
+              bind:value={geminiModel}
+              onchange={saveGeminiModel}
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
+            >
+              {#each geminiModels as model (model)}
+                <option value={model}>{model}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              readonly
+              bind:value={geminiModel}
+              placeholder={m.settings_llm_model_fetch_hint()}
+              class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
+            />
+          {/if}
+        </label>
+        <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
+      {/if}
 
       {#if aiEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">
