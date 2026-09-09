@@ -119,7 +119,6 @@ function realEstateFamilyEmployeeDeductionResult(ctx: XtxContext): FamilyEmploye
   const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
 }
-
 // 固定欄（EXPENSE_ALIAS）に対応しない経費科目のうち、追加科目欄（1組のみ）に載せる
 // 候補を優先順位順に並べる：貸倒引当金繰入額（不動産）を最優先、以降は金額の大きい順。
 // 所得計算で加算し直す科目（realEstateDisallowedExpenseAccounts、専従者給与・事業的

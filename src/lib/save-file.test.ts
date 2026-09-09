@@ -123,7 +123,6 @@ describe('保存の完了判定', () => {
     expect(result).toBe('saved');
     expect(written).toHaveLength(1);
   });
-
   // picker が無い環境（<a> ダウンロード）は完了も取消も観測できないため unknown。
   // ここを saved にすると、取消したダウンロードが「保存済み」として記録される（issue#390）。
   test('picker が無い環境（<a> ダウンロード）は unknown', async () => {

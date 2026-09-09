@@ -310,7 +310,6 @@ describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () 
     const out = mapKoa110RepeatedValues(ctx({}, [asset({ name: longName })]));
     expect(out.AIM00010![0]!.AIM00020).toBe('あ'.repeat(16));
   });
-
   // 賃貸物件は収支内訳書(不動産所得用) KOA130 側で出力される。両方に出すと
   // 明細の合計が本表の減価償却費と合わなくなる。
   test('不動産所得の資産は明細に含めない（KOA130 側で出力する）', () => {

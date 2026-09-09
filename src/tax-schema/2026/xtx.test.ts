@@ -9,7 +9,6 @@ import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { PersonalDeductionInput } from '../../db/types';
 import { D } from '../../lib/decimal';
 import type { RealEstateIncomeCtx } from './real-estate-income';
-
 // personalDeductions は各種 IncomeDeductionInput 系の必須項目を含む交差型のため、
 // realEstateIncome だけの部分オブジェクトは型を満たさない（xtx-mapping-koa220.test.ts と同じ事情）。
 function withRealEstate(

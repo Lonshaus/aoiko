@@ -193,7 +193,7 @@
 - 請求書・見積書の作成（発行時の売掛金仕訳自動生成・打消し仕訳による訂正・見積書 → 請求書変換）
 - 修正申告ガイド（申告済スナップショットとの差分表示）
 - JSON バックアップ・復元（File System Access API／OPFS 自動フォールバック）
-- PWA オフライン動作・三言語 UI（日本語・English・繁體中文）
+- PWA オフライン動作・三言語 UI（日本語・英語・繁体中国語）
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

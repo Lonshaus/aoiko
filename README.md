@@ -43,7 +43,7 @@
 
 ## 使い方
 
-操作手順は [docs/manual/](docs/manual/README.md) を参照。初回設定・仕訳作成・CSV 取込・レポートを章ごとに説明（英語・繁體中文版もあり）。
+操作手順は [docs/manual/](docs/manual/README.md) を参照。初回設定・仕訳作成・CSV 取込・レポートを章ごとに説明（英語・繁体中国語版もあり）。
 
 ## ライセンス
 
