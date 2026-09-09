@@ -16,7 +16,6 @@ function render(onclose: () => void = () => {}): void {
   component = mount(SupportDialog, { target, props: { open: false, onclose } });
   flushSync();
 }
-
 // jsdom の <dialog> はレイアウトを持たず矩形が全て 0 になるので、判定に使う箱を差し替える。
 function clickDialog(at: { x: number; y: number }): void {
   const dialog = target?.querySelector('dialog');
@@ -99,7 +98,6 @@ describe('スタンプ帳', () => {
     flushSync();
     expect(target?.querySelector('.stamp .date')?.textContent).toBe('2026.08.18');
   });
-
   // 絵柄は保存されたものを描く。ここが位置や乱数で決まっていると、同じスタンプの
   // 見た目が再読み込みのたびに変わる。
   test('保存された絵柄と色をそのまま描く', () => {
@@ -126,7 +124,6 @@ describe('スタンプ帳', () => {
     );
     expect(refs).toEqual(['#stamp-yarn', '#stamp-bell']);
   });
-
   // 7 種すべてに図形が要る。1 つでも欠けると、その絵柄のスタンプだけ空白で押される。
   test('7 種すべての図形が定義されている', () => {
     support.products = [{ kind: 'tip', displayPrice: '¥150' }];
@@ -168,7 +165,6 @@ describe('閉じる', () => {
     expect(closed).toBe(0);
   });
 });
-
 // 商店が片方しか返さないことが実機で起きた（#491）。黙って隠すと、審査員には
 // 宣言した品目が画面に無い状態が見える。
 describe('品目が揃わないとき', () => {
@@ -204,7 +200,6 @@ describe('品目が揃わないとき', () => {
     render();
     expect(missing()).toBeNull();
   });
-
   // 実機で起きたのはこの順序：最初に開くと片方だけ、開き直すと両方。
   test('押すと商店へ問い合わせ直し、揃えば表示が消える', async () => {
     const both = [

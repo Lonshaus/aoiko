@@ -26,7 +26,7 @@ export class FsaBackupAdapter implements BackupAdapter {
     const perm = await h.queryPermission({ mode: 'readwrite' });
     return perm === 'granted';
   }
-  // ユーザージェスチャー直後に呼ぶこと（許可ダイアログを表示する）
+  // 利用者のジェスチャー直後に呼ぶこと（許可ダイアログを表示する）
   async ensurePermission(): Promise<boolean> {
     const h = await this.getHandle();
     if (!h) {

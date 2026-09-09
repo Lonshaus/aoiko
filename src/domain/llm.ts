@@ -1,6 +1,6 @@
 // LLM API クライアント。
-// BYOK モデル：API キーはユーザーが Settings 画面で自分のものを入れる。
-// aoiko はキーを使用者のブラウザ内のみで保持し、Google の API エンドポイントに直接送る。
+// BYOK モデル：API キーは利用者が Settings 画面で自分のものを入れる。
+// aoiko はキーを利用者のブラウザ内のみで保持し、Google の API エンドポイントに直接送る。
 // サーバーサイドの中継なし。
 
 import { m } from '../paraglide/messages';
@@ -55,7 +55,7 @@ export function describeLlmError(e: unknown): string {
   return detail;
 }
 // fetch 自体が失敗した場合、まず「オフラインだから」を疑わせる。
-// キー設定ミスと誤認させてユーザーに無駄なデバッグをさせないための一次判定。
+// キー設定ミスと誤認させて利用者に無駄なデバッグをさせないための一次判定。
 //
 // 理由の粒度は環境によって違う。ブラウザの fetch は `Load failed` 程度しか返さないので
 // 助言のほうが役に立つが、wrapper 版は「許可されていない URL です」のように原因そのものを
@@ -282,7 +282,6 @@ export async function listGeminiModels(apiKey: string): Promise<string[]> {
     .filter((id) => /^gemini-\d+\.\d+-(flash|pro)$/.test(id))
     .sort();
 }
-
 // 一覧から既定を 1 つ選ぶ。preview / exp は予告なく消えるので避け、OCR と分類には
 // pro の能力が要らないため flash を優先する。版番号は数値として比べる（10 と 9 の順序）。
 export function pickDefaultGeminiModel(models: string[]): string | undefined {
@@ -292,7 +291,6 @@ export function pickDefaultGeminiModel(models: string[]): string | undefined {
     [...list].sort((a, b) => version(b) - version(a))[0];
   return newest(stable.filter((id) => id.includes('flash'))) ?? newest(stable) ?? models[0];
 }
-
 // OpenAI 互換 /models からインストール済モデル ID 一覧を取得（Page Assist 方式）
 export async function listOpenAiModels(baseUrl: string, apiKey: string = ''): Promise<string[]> {
   const base = baseUrl.replace(/\/+$/, '');

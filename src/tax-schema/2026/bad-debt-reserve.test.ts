@@ -21,7 +21,6 @@ describe('badDebtReserveEvaluation', () => {
     expect(badDebtReserveEvaluation('')).toBeNull();
     expect(badDebtReserveEvaluation('9999')).toBeNull();
   });
-
   // 科目コードを直接持っているので、accounts.ts 側の改称・削除で無言の空振りになりうる。
   it('対象コードは 2026 年分の勘定科目に実在する', () => {
     const codes = new Set(ACCOUNTS_2026.map((a) => a.code));

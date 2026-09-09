@@ -193,7 +193,7 @@ Initial release.
 - Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)
 - Amended filing guide (diff between filed snapshot and current values)
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
-- PWA offline operation, trilingual UI (日本語 / English / 繁體中文)
+- PWA offline operation, trilingual UI (Japanese / English / Traditional Chinese)
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

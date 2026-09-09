@@ -24,14 +24,12 @@ describe('createNativeReceiptExtractor', () => {
     expect(result.totalAmount).toBe('1500');
     expect(result.invoiceNumber).toBe('T1234567890123');
   });
-
   // 座標を素通しにすると店名が空のまま返る。ここが繋がっているかを見る。
   test('版面から店名も取り出す', async () => {
     vi.stubGlobal('window', { __aoikoNative: { recognizeText: async () => layout() } });
     const result = await createNativeReceiptExtractor().extract(IMAGE);
     expect(result.vendorName).toBe('あおい商店');
   });
-
   // 設定はバックアップに乗って別の端末へ渡る。落とさずに下の LLM へ流れると、
   // 端末内で読むつもりの画像が外へ出る。
   test('橋渡しが無ければ拒否する', async () => {
@@ -44,7 +42,6 @@ describe('createNativeReceiptExtractor', () => {
     await expect(createNativeReceiptExtractor().extract(IMAGE)).rejects.toThrow();
   });
 });
-
 // 行の順は上から下。店名は頭でいちばん大きい行。
 function layout() {
   const line = (text: string, y: number, height: number) => ({

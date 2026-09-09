@@ -14,7 +14,6 @@ import {
   restoreFromPayload,
 } from './restore';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
-
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -239,7 +238,6 @@ describe('restoreFromJson', () => {
     expect((await db.settings.get('userRiyoshaId'))?.value).toBe('NEW');
   });
 });
-
 // 復元は全テーブルを clear してから書き戻す。スタンプ帳とバッジはバックアップに
 // 入っていないので、素通りさせると「復元しただけで消える」ことになる。
 describe('支援の記録は復元で消えない', () => {

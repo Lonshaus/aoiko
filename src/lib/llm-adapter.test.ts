@@ -27,7 +27,7 @@ describe('createLlmAdapter', () => {
   });
 
   test('openai-compatible：用途別モデルで OpenAICompatibleAdapter', async () => {
-    await setSetting('ocrEngine', 'openai-compatible');
+    await setSetting('aiEngine', 'openai-compatible');
     await setSetting('openaiBaseUrl', 'http://localhost:11434/v1');
     await setSetting('openaiOcrModel', 'llama3.2-vision');
     await setSetting('openaiClassifyModel', 'llama3');
@@ -39,12 +39,12 @@ describe('createLlmAdapter', () => {
   });
 
   test('openai-compatible：baseURL 未設定でエラー', async () => {
-    await setSetting('ocrEngine', 'openai-compatible');
+    await setSetting('aiEngine', 'openai-compatible');
     await expect(createLlmAdapter('ocr')).rejects.toThrow(/baseURL/);
   });
 
   test('openai-compatible：OCR モデル未選択でエラー', async () => {
-    await setSetting('ocrEngine', 'openai-compatible');
+    await setSetting('aiEngine', 'openai-compatible');
     await setSetting('openaiBaseUrl', 'http://localhost:11434/v1');
     await expect(createLlmAdapter('ocr')).rejects.toThrow(/OCR 用モデル/);
   });

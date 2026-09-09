@@ -61,7 +61,6 @@ describe('FilePicker', () => {
     const input = render();
     expect(input.closest('label')).not.toBeNull();
   });
-
   // display:none だと一部のブラウザでキーボードから到達できなくなる。
   // sr-only は視覚的に隠すだけで、focus は残る。
   test('隠し方は display:none ではない', () => {

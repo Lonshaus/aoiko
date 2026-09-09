@@ -39,7 +39,6 @@ const CURRENT_YEAR = new Date().getFullYear();
 
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
-
 // 文言で探さない。テスト環境では読み込みの途中で表示言語が切り替わることがある。
 function reversalButton(): HTMLButtonElement | undefined {
   return (
@@ -47,7 +46,6 @@ function reversalButton(): HTMLButtonElement | undefined {
     undefined
   );
 }
-
 // onMount の直列読みが終わる前に db.delete() すると DatabaseClosedError が未処理の rejection
 // として残り、テストは通るのに vitest が exit 1 になる。最後に読む homeOfficeAccountRatios に
 // 他へ出てこない科目コードを仕込み、画面に出るまで待って読み込み完了を確かめる。

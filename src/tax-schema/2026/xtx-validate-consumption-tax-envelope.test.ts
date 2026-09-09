@@ -49,7 +49,6 @@ const filer = {
   zeimushoCode: '01101',
   zeimushoName: '麹町',
 };
-
 // 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
 function zeroExtras() {
   return {
@@ -69,7 +68,6 @@ function zeroExtras() {
     ...badDebtZeroExtras(),
   };
 }
-
 // 貸倒れ・貸倒回収なしを前提とするテスト用の既定値（mapTwoWari/mapSimplified 共通）
 function badDebtZeroExtras() {
   return {
@@ -132,7 +130,6 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
   });
-
   // 逆検証：SHA020 系統を RSH0010（一般・個人）に流し込むと拒否されることを確認する。
   // 今回の実機不具合（procedure_CD の取り違え）を二度と作り込まないための回帰テスト。
   maybe('buildTwoWariXtx を誤って RSH0010 の xsd で検証すると失敗する（回帰確認）', () => {

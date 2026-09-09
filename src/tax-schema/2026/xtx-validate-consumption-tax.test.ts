@@ -21,7 +21,6 @@ import shb017 from './xtx-schema-shb017.generated.json';
 import shb033 from './xtx-schema-shb033.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import { D } from '../../lib/decimal';
-
 // 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
 function zeroExtras() {
   return {
@@ -41,7 +40,6 @@ function zeroExtras() {
     ...badDebtZeroExtras(),
   };
 }
-
 // 貸倒れ・貸倒回収なしを前提とするテスト用の既定値（mapTwoWari/mapSimplified 共通）
 function badDebtZeroExtras() {
   return {
