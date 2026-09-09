@@ -9,7 +9,7 @@ Generate journal candidates from photos or images of paper receipts.
 > - Choose between the available OCR engines
 > - Understand the pre-send confirmation dialog and the "don't ask again" toggle
 >
-> **Prerequisites**: OCR/LLM engine is configured per [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
+> **Prerequisites**: OCR/LLM engine is configured per [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
 
 ## 1. Picking an engine (summary)
 
@@ -22,7 +22,7 @@ Generate journal candidates from photos or images of paper receipts.
 | **The OS's built-in text recognition** | ◯ (few samples) | None | Just select in Settings |
 <!-- /only -->
 
-> Detailed setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed).
+> Detailed setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
 
 ## 2. Import flow
 
