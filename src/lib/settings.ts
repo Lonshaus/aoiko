@@ -5,10 +5,17 @@ import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
-// エンジンの綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
+// 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
+export type AiEngine = 'gemini' | 'openai-compatible';
+export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
-export type OcrEngine = 'gemini' | 'openai-compatible' | 'tesseract' | 'native';
+export type ReceiptRuleEngine = 'native' | 'tesseract';
+// __NATIVE__ は build 時の define で、vitest 実行全体では true に畳まれる
+// （vitest.config.ts）。false 側を試験できるよう、判定を引数で渡す形にしておく。
+export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
+  return isNative ? 'native' : 'tesseract';
+}
 
 export type SettingsMap = {
   currentYear: number;
@@ -36,11 +43,14 @@ export type SettingsMap = {
   geminiApiKey: string;
   // 使う Gemini のモデル ID。焼き込みだと提供終了時に画面から直せない。
   geminiModel: string;
-  // OCR/LLM エンジン選択（既定 gemini）。
-  // - openai-compatible：Ollama 等のローカル / OpenAI 互換 vision LLM
-  // - tesseract：WASM の純ローカル OCR（LLM 不要・通信無し。精度は限定的、人手確認前提）
+  // OCR・分類・注文取込に使う AI ベンダー（既定 gemini）。
+  aiEngine: AiEngine;
+  // 領収書の読み取り方法。ai = 上の aiEngine、rule = 下の receiptRuleEngine（人手確認前提）。
+  receiptMethod: ReceiptMethod;
+  // receiptMethod = rule のときに使う確定性抽出エンジン。
+  // - tesseract：WASM の純ローカル OCR（通信無し）
   // - native：OS 内蔵の文字認識（対応環境のみ・通信無し）
-  ocrEngine: OcrEngine;
+  receiptRuleEngine: ReceiptRuleEngine;
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
   openaiBaseUrl: string;
   // OCR 用モデル（vision 必須）／LLM 分類用モデル（テキストのみで可）
@@ -114,10 +124,6 @@ export async function getSetting<K extends keyof SettingsMap>(
   key: K,
 ): Promise<SettingsMap[K] | undefined> {
   const row = await db.settings.get(key);
-  // 選べなくなったエンジンが保存に残っている端末がある。読み出しで既定へ落とす。
-  if (key === 'ocrEngine' && (row?.value === 'tesseract' || row?.value === 'native')) {
-    return 'gemini' as SettingsMap[K];
-  }
   return row?.value as SettingsMap[K] | undefined;
 }
 
