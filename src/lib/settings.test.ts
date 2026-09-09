@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { stripBuildOnly } from './build-only';
-import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
+import { DISCLAIMER_VERSION } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
 // テストは native 扱いで走る（vitest.config.ts の __NATIVE__）。
@@ -51,23 +51,6 @@ describe('DISCLAIMER_VERSION', () => {
       expect(Math.max(...rows), `${doc} の据え置く側に v${NATIVE_VERSION} の行が残っている`).toBe(
         BROWSER_VERSION,
       );
-    }
-  });
-});
-// 選べなくなったエンジンが保存に残っている端末がある。読み出しで落とさないと、
-// 画面から戻せないまま OCR がその経路を走り続ける。
-describe('ocrEngine の読み出し', () => {
-  test('選べなくなったエンジンは既定へ落ちる', async () => {
-    for (const retired of ['tesseract', 'native'] as const) {
-      await setSetting('ocrEngine', retired);
-      expect(await getSetting('ocrEngine')).toBe('gemini');
-    }
-  });
-
-  test('選べるエンジンはそのまま返る', async () => {
-    for (const engine of ['gemini', 'openai-compatible'] as const) {
-      await setSetting('ocrEngine', engine);
-      expect(await getSetting('ocrEngine')).toBe(engine);
     }
   });
 });

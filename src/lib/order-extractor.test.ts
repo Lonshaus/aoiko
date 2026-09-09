@@ -21,17 +21,10 @@ describe('createOrderExtractor', () => {
   });
 
   test('openai-compatible localhost：external=false', async () => {
-    await setSetting('ocrEngine', 'openai-compatible');
+    await setSetting('aiEngine', 'openai-compatible');
     await setSetting('openaiBaseUrl', 'http://localhost:11434/v1');
     await setSetting('openaiClassifyModel', 'llama3');
     const ex = await createOrderExtractor();
     expect(ex.external).toBe(false);
-  });
-
-  test('tesseract 選択時でも classify Adapter が要求されるため tesseract は無関係', async () => {
-    // ocrEngine=tesseract は OCR 経路のみ。classify は依然として LLM が必要なため
-    // gemini キー or openai 設定どちらかが必須
-    await setSetting('ocrEngine', 'tesseract');
-    await expect(createOrderExtractor()).rejects.toThrow(/Gemini API キー/);
   });
 });

@@ -14,7 +14,7 @@
     deleteSetting,
     getSetting,
     setSetting,
-    type OcrEngine,
+    type AiEngine,
   } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
@@ -206,7 +206,7 @@
   let geminiTestFailed = $state(false);
   let geminiModel = $state('');
   let geminiModels = $state<string[]>([]);
-  let ocrEngine = $state<OcrEngine>('gemini');
+  let aiEngine = $state<AiEngine>('gemini');
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
@@ -349,7 +349,7 @@
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     geminiModel = (await getSetting('geminiModel')) ?? '';
-    ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    aiEngine = (await getSetting('aiEngine')) ?? 'gemini';
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -982,7 +982,7 @@
   }
 
   async function saveOcrEngine() {
-    await setSetting('ocrEngine', ocrEngine);
+    await setSetting('aiEngine', aiEngine);
     await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
     await setSetting('openaiOcrModel', openaiOcrModel.trim());
     await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
@@ -2553,7 +2553,7 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
         <select
-          bind:value={ocrEngine}
+          bind:value={aiEngine}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="gemini">{m.settings_engine_gemini()}</option>
@@ -2561,7 +2561,7 @@
         </select>
       </label>
 
-      {#if ocrEngine === 'openai-compatible'}
+      {#if aiEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">
           {@html m.settings_openai_intro_html()}
         </p>
