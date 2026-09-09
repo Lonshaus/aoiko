@@ -11,7 +11,7 @@ export interface ImportRow {
   transaction: ParsedTransaction;
   counterpartAccountCode: string;
   counterpartSubAccountId?: string;
-  description?: string; // ユーザーが上書きした摘要（空なら parser 由来を使用）
+  description?: string; // 利用者が上書きした摘要（空なら parser 由来を使用）
   skip?: boolean;
   // 相手科目（費用・収益）側の税区分。未指定なら 0（非課税扱い）。
   // 本則課税では仕入税額控除・売上税額の基礎になるため、確定前に正しく設定する。

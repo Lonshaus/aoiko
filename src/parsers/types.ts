@@ -1,6 +1,6 @@
 // CSV パーサーの返り値の単位。1 トランザクション = 将来の 1 仕訳の片側。
 // CSV ソースから既知の側（普通預金から出た / 入った）を `side` で表す。
-// 反対側の科目はユーザーが確認時に決定する。
+// 反対側の科目は利用者が確認時に決定する。
 export interface ParsedTransaction {
   date: string; // 'YYYY-MM-DD'
   description: string;

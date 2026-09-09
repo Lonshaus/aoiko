@@ -193,7 +193,7 @@
 - 請求書與見積書製作（發行時自動產生売掛金傳票、以沖銷傳票訂正、見積書 → 請求書轉換）
 - 修正申告引導（申告済 snapshot 與目前值的差分顯示）
 - JSON 備份與還原（File System Access API，自動 fallback 到 OPFS）
-- PWA 離線運作、三語 UI（日本語／English／繁體中文）
+- PWA 離線運作、三語 UI（日文／英文／繁體中文）
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

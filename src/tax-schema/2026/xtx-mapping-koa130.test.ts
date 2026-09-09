@@ -9,7 +9,6 @@ import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import type { FixedAsset, PersonalDeductionFamilyEmployee } from '../../db/types';
 import type { PLReport } from '../../domain/reports';
-
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
 // OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。

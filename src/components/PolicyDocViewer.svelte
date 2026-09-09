@@ -8,7 +8,6 @@
     docs: { doc: DocId; label: string }[];
   };
   let { docs }: Props = $props();
-
   // 開いている文書は常に 1 つ。本文は見出しの列とは別の行へ出す。同じ要素に入れると
   // 展開した瞬間に後続の見出しが本文の下へ押し出され、列が切れて見える。
   let openDoc = $state<DocId | null>(null);

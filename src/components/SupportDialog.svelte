@@ -13,14 +13,12 @@
   let { open, onclose }: Props = $props();
   let dialog = $state<HTMLDialogElement | null>(null);
   let notice = $state('');
-
   // 投げっぱなしにすると未捕捉の例外としてエラーバナーが点く。
   onMount(() => {
     void support.load().catch(() => {
       notice = m.support_purchase_failed();
     });
   });
-
   // showModal / close は命令的な API しか無く、宣言的に開閉できない。open を唯一の
   // 真とし、DOM 側をそれに合わせる一方向だけにする。
   $effect(() => {
@@ -33,7 +31,6 @@
       dialog.close();
     }
   });
-
   // 背後の暗幕は dialog 自身が受け取るので、押された座標が箱の外かどうかで見分ける。
   // padding の内側も target は dialog になるため、target の比較だけでは足りない。
   function closeOnBackdrop(event: MouseEvent): void {

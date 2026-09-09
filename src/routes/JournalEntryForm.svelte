@@ -781,7 +781,6 @@
       {/if}
     </div>
   </div>
-
   <!-- 科目を選んだ瞬間に差し込まれる注意なので、読み上げにも届くよう role="status" を付ける。 -->
   {#if badDebtEvaluations.has('lumpSum')}
     <div role="status" class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
