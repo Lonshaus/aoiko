@@ -26,12 +26,24 @@ function stubAppleAiAvailability(resolve: number | null): void {
   vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { appleAiAvailability } }));
 }
 
+// onMount の直列読みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が
+// 未処理の rejection として残り、テストは通るのに vitest が exit 1 になる。最後に読む
+// homeOfficeAccountRatios に他へ出てこない科目コードを仕込み、画面に出るまで待って
+// 読み込み完了を確かめる。
+const MOUNT_SENTINEL = 'ZZZ9';
+
 async function renderSettings(): Promise<HTMLElement> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
   const el = container;
   await waitFor(() => el.querySelector('select') !== null);
+  await waitFor(() => el.textContent.includes(MOUNT_SENTINEL));
   return el;
 }
 
@@ -70,14 +82,12 @@ describe('OS 内蔵の AI: 選択肢の出し分け', () => {
   test('code 1（機種非対応）: 選択肢が出ない', async () => {
     stubAppleAiAvailability(1);
     const el = await renderSettings();
-    await new Promise((r) => setTimeout(r, 50));
     expect(findOption(el)).toBeNull();
   });
 
   test('code 4（OS が古い）: 選択肢が出ない', async () => {
     stubAppleAiAvailability(4);
     const el = await renderSettings();
-    await new Promise((r) => setTimeout(r, 50));
     expect(findOption(el)).toBeNull();
   });
 
@@ -113,7 +123,6 @@ describe('OS 内蔵の AI: 選択肢の出し分け', () => {
   test('橋渡しに appleAiAvailability が無い: 1/4 と同じく選択肢が出ない', async () => {
     stubAppleAiAvailability(null);
     const el = await renderSettings();
-    await new Promise((r) => setTimeout(r, 50));
     expect(findOption(el)).toBeNull();
   });
 });

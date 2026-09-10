@@ -4,7 +4,7 @@
 // `tr` は Key と Locale の両方で網羅 match になっている。Key を足して訳を書き忘れると
 // コンパイルが通らない。訳抜けのままメニューへ出る事故はこれで防ぐ。
 //
-// 繁體中文の文言は OS 自身が出しているものに合わせてある（実機のメニューを読み出して確認）。省略記号は日本語と英語が … (U+2026)、繁體中文は ⋯ (U+22EF) で、
+// 繁体中国語の文言は OS 自身が出しているものに合わせてある（実機のメニューを読み出して確認）。省略記号は日本語と英語が … (U+2026)、繁体中国語は ⋯ (U+22EF) で、
 // システムの表記がそうなっている。
 
 /// UI 言語。タグは公開 repo の paraglide の locales（`src/paraglide/runtime.js` の
@@ -334,16 +334,16 @@ mod tests {
     }
 
     /// 訳し忘れて日本語のまま置いた項目を拾う。同じ語が別言語で一致するのは
-    /// 英語と繁體中文の綴りが同じになる場合だけで、この 37 項目には無い。
+    /// 英語と繁体中国語の綴りが同じになる場合だけで、この 37 項目には無い。
     #[test]
     fn no_locale_reuses_another_locales_string() {
         for key in KEYS {
             let ja = tr(Locale::Ja, key);
             let zh = tr(Locale::ZhTw, key);
             let en = tr(Locale::En, key);
-            assert_ne!(ja, zh, "{key:?} の繁體中文が日本語のまま");
+            assert_ne!(ja, zh, "{key:?} の繁体中国語が日本語のまま");
             assert_ne!(ja, en, "{key:?} の英語が日本語のまま");
-            assert_ne!(zh, en, "{key:?} の英語が繁體中文のまま");
+            assert_ne!(zh, en, "{key:?} の英語が繁体中国語のまま");
         }
     }
 

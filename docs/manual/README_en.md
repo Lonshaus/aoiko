@@ -14,7 +14,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 
 ### A. Basics (read first)
 
-- [01. Initial setup](01-setup_en.md) — disclaimer, trade name, year, consumption tax method, sub-accounts, vendors, OCR/LLM engine
+- [01. Initial setup](01-setup_en.md) — disclaimer, trade name, year, consumption tax method, sub-accounts, vendors, OCR/AI engine
 - [02. Creating journal entries](02-journal_en.md) — manual entry, correcting (reversing) entries, composite search on the journal list
 - [03. CSV import](03-csv-import_en.md) — bulk-create entries from bank/card statements, auto-classification rules, import history
 - [06. Reports](06-reports_en.md) — monthly sales, P/L, balance sheet, monthly P/L, vendor breakdown, consumption-tax 4-method comparison
@@ -22,7 +22,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 ### B. Additional import paths (as needed)
 
 - [04. Receipt OCR](04-receipt-ocr_en.md) — paper receipt → journal candidate
-- [05. Order import](05-order-import_en.md) — paste Amazon / 楽天 etc. → LLM extract
+- [05. Order import](05-order-import_en.md) — paste Amazon / 楽天 etc. → AI extract
 
 ### C. Advanced features (as needed)
 

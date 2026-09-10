@@ -16,7 +16,6 @@ describe('DISCLAIMER_VERSION', () => {
   test('走っている側の版が定数と一致する', () => {
     expect(DISCLAIMER_VERSION).toBe(NATIVE_VERSION);
   });
-
   // 試験は片側でしか走らないため、値を見るだけでは分岐そのものを守れない。
   // 分岐を畳んで両方を同じ版にしても、この試験以外は全部通ってしまう。
   test('版は build 時の分岐で決まる（実行時の値だけでは守れない）', () => {
@@ -56,20 +55,20 @@ describe('DISCLAIMER_VERSION', () => {
   });
 });
 
-// 選べなくなった引擎が保存に残っている端末がある。読み出しで落とさないと、
-// 画面から戻せないまま OCR がその経路を走り続ける。
-describe('ocrEngine の読み出し', () => {
-  test('選べなくなった引擎は既定へ落ちる', async () => {
+// 判定はファクトリ側に一本化した。getSetting は素通しでないと、
+// ここで既定へ落としたつもりが実は素通しという食い違いに気付けない。
+describe('getSetting は加工しない', () => {
+  test('選べなくなった値もそのまま返す', async () => {
     for (const retired of ['tesseract', 'native'] as const) {
-      await setSetting('ocrEngine', retired);
-      expect(await getSetting('ocrEngine')).toBe('gemini');
+      await setSetting('aiEngine', retired as never);
+      expect(await getSetting('aiEngine')).toBe(retired);
     }
   });
 
-  test('選べる引擎はそのまま返る', async () => {
+  test('現行の値もそのまま返る', async () => {
     for (const engine of ['gemini', 'openai-compatible', 'apple-ai'] as const) {
-      await setSetting('ocrEngine', engine);
-      expect(await getSetting('ocrEngine')).toBe(engine);
+      await setSetting('aiEngine', engine);
+      expect(await getSetting('aiEngine')).toBe(engine);
     }
   });
 });

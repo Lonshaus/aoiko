@@ -42,7 +42,6 @@ describe('stripBuildOnly', () => {
     const plain = '# ただの文書\n\n本文\n';
     expect(stripBuildOnly(plain, false)).toBe(plain);
   });
-
   // 閉じ忘れ 1 つで反対側の文章が web へ出るので、黙って通さない。
   test('閉じ忘れは例外', () => {
     expect(() => stripBuildOnly('<!-- only:browser -->\n本文\n', false, '11-backup.md')).toThrow(
@@ -63,12 +62,10 @@ describe('stripBuildOnly', () => {
     expect(stripBuildOnly(doc, true)).toContain('B');
     expect(stripBuildOnly(doc, false)).toBe('ま\n');
   });
-
   // 印を行の途中に書くと拾えない。気付かず通ると反対側の文章が残る。
   test('行の途中の印は認めない（例外になる）', () => {
     expect(() => stripBuildOnly('<!-- only:native -->A<!-- /only -->\n', false)).toThrow();
   });
-
   // 引用の中で実際に起きた。数だけ見ると釣り合うので、行頭かどうかを別に見る。
   test('引用の中に置いた印は例外（数は釣り合って見える）', () => {
     const doc = '> 本文\n> <!-- only:browser -->\n> ブラウザの話\n> <!-- /only -->\n';
@@ -80,7 +77,6 @@ describe('stripBuildOnly', () => {
     expect(() => stripBuildOnly(doc, true)).toThrow();
   });
 });
-
 // 剥がす側が外れると、web の産物へ反対側の文章がそのまま出る。実際に剥がれることは
 // ビルドしないと確かめられないので、ここでは配線が残っているかだけ見る。
 describe('ビルドへの配線', () => {

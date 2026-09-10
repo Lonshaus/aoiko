@@ -9,7 +9,6 @@ import { extractFromOcrLayout, type OcrLayout, type OcrWord } from './receipt-te
 
 type Cell = { text: string; x: number; alternates?: string[]; dy?: number; slope?: number };
 type Row = { y: number; height: number; cells: Cell[] };
-
 // ネイティブ側の words_to_lines と同じ組み立て。ここで再現しておかないと、抽出の試験が
 // ネイティブの実装を実行できる環境でしか回せなくなる。
 function toLayout(rows: Row[], separator = ' '): OcrLayout {
@@ -60,7 +59,6 @@ function toLayout(rows: Row[], separator = ' '): OcrLayout {
     .filter((l) => l.text !== '');
   return { lines, text: lines.map((l) => l.text).join('\n') };
 }
-
 // よくある小売のレシートの雛形。行の並びと座標は実測に合わせ、中身は作り物。
 // 電話・レジ番号・伝票番号の 3 行を入れてあるのは、これらが品目と同じ
 // 「左に文字・右に数字」の形で並ぶため。品目の判定はここを外せないと成立しない。
@@ -166,7 +164,6 @@ describe('紙面の傾き', () => {
       { description: 'あおいパン', amount: '248' },
     ]);
   });
-
   // 水平に撮っても推定はわずかに振れる。実測では 0.022 まで出た。拾うと、傾いて
   // いない紙面を勝手に傾けて組んでしまう。
   test('死区より小さい傾きは無視する', () => {
@@ -180,8 +177,7 @@ describe('紙面の傾き', () => {
     };
     expect(extractFromOcrLayout(noisy).items).toEqual(extractFromOcrLayout(layout).items);
   });
-
-  // 傾きを返さない引擎では、従来どおり水平として組む。
+  // 傾きを返さないエンジンでは、従来どおり水平として組む。
   test('傾きを持たない語だけなら従来と同じ結果になる', () => {
     const layout = receipt();
     expect(extractFromOcrLayout(layout).items).toEqual([
@@ -253,7 +249,6 @@ describe('店名', () => {
     const line = receipt().lines.find((l) => l.text.includes('あおい薬局'));
     expect(line!.y).toBeGreaterThan(0.25);
   });
-
   // 「【領収証】」は店名より下だが大きく刷られる。除かないと字の大きさで競り勝つ。
   test('定型の見出しを店名にしない', () => {
     const layout = toLayout([
@@ -263,7 +258,6 @@ describe('店名', () => {
     ]);
     expect(extractFromOcrLayout(layout).vendorName).toBe('あおい商店');
   });
-
   // 登録番号より下は伝票の中身。品目名が大きく刷られていても店名ではない。
   test('登録番号より下は見ない', () => {
     const layout = toLayout([
@@ -273,7 +267,6 @@ describe('店名', () => {
     ]);
     expect(extractFromOcrLayout(layout).vendorName).toBe('あおい商店');
   });
-
   // 登録番号が無いレシートも多い。最初の日付か金額を境にする。
   test('登録番号が無ければ最初の日付を境にする', () => {
     const layout = toLayout([
@@ -305,7 +298,6 @@ describe('登録番号（候補から選ぶ）', () => {
     });
     expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
   });
-
   // 離れて撮ると 1 桁多く読まれることがある。実測では 3 番目の候補が正しかった。
   test('第 3 候補まで見る', () => {
     const layout = receipt({
@@ -317,7 +309,6 @@ describe('登録番号（候補から選ぶ）', () => {
     });
     expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
   });
-
   // 桁数が合っている物が 1 つも無ければ空。形式が合った誤りを通すと、利用者は
   // 見ても気付けない。
   test('形式に合う候補が無ければ空のまま返す', () => {
@@ -326,7 +317,6 @@ describe('登録番号（候補から選ぶ）', () => {
     });
     expect(extractFromOcrLayout(layout).invoiceNumber).toBeUndefined();
   });
-
   // `T` が見出しの末尾へくっついて返る書式。単語ごとに見ても揃わない。
   test('T が見出しにくっついていても行として拾う', () => {
     const layout = toLayout([
@@ -341,7 +331,6 @@ describe('登録番号（候補から選ぶ）', () => {
     ]);
     expect(extractFromOcrLayout(layout).invoiceNumber).toBe('T1234567890123');
   });
-
   // 繋いでからの照合を見出しのある行に限らないと、`T` で終わる単語と 13 桁が
   // 隣り合っただけで番号を作ってしまう。
   test('見出しの無い行では繋いで作らない', () => {
@@ -365,7 +354,6 @@ describe('合計（同じ行の右端）', () => {
   test('点数が並んでいても金額を取る', () => {
     expect(extractFromOcrLayout(receipt()).totalAmount).toBe('248');
   });
-
   // 「（税合計 ¥18）」は合計を含むが合計ではない。実測の伝票に載っている書式。
   test('税合計を合計にしない', () => {
     expect(extractFromOcrLayout(receipt()).totalAmount).not.toBe('18');
@@ -389,7 +377,6 @@ describe('合計（別行の金額を拾う）', () => {
     ]);
     expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
   });
-
   // 語の行の下に金額が来る書式もある。
   test('語の行の後ろに金額があれば拾う', () => {
     const layout = toLayout([
@@ -406,7 +393,6 @@ describe('合計（別行の金額を拾う）', () => {
     ]);
     expect(extractFromOcrLayout(layout).totalAmount).toBe('372');
   });
-
   // 隣接行に通貨記号が無ければ、案内文などの地の文を金額と誤認しない。
   test('隣接行に金額の印が無ければ拾わない', () => {
     const layout = toLayout([
@@ -417,7 +403,6 @@ describe('合計（別行の金額を拾う）', () => {
     ]);
     expect(extractFromOcrLayout(layout).totalAmount).toBe('');
   });
-
   // 隣接行が除外語を含む額（お預り等）なら合計として使わない。
   test('隣接行が除外語を含むなら拾わない', () => {
     const layout = toLayout([
@@ -442,26 +427,22 @@ describe('品目', () => {
       { description: 'ミネラルウォーター', amount: '248' },
     ]);
   });
-
   // 電話番号・レジ番号・伝票番号を品目にすると、身に覚えの無い経費が黙って作られる。
   test('電話番号・レジ番号・伝票番号を品目にしない', () => {
     const items = extractFromOcrLayout(receipt()).items;
     expect(items).toHaveLength(1);
     expect(items[0]!.description).toBe('ミネラルウォーター');
   });
-
   // 合計より下は税の内訳や支払方法。品目ではない。
   test('合計より下は品目にしない', () => {
     expect(
       extractFromOcrLayout(receipt()).items.some((i) => i.description.includes('クレジット')),
     ).toBe(false);
   });
-
   // 軽減税率の印などが品名の頭に付く。雛形は `＊#！` を付けてある。
   test('品名の頭の区分記号を落とす', () => {
     expect(extractFromOcrLayout(receipt()).items[0]!.description).toBe('ミネラルウォーター');
   });
-
   // 区分記号の間に英字が 1 文字迷い込む書式がある。
   test('記号の間の迷い込んだ英字ごと落とす', () => {
     const layout = receipt({
@@ -479,7 +460,6 @@ describe('品目', () => {
       { description: 'あおいカレー', amount: '180' },
     ]);
   });
-
   // 商品コードが品名の頭に数字の並びで付く。
   test('先頭の数字コードと記号を落とす', () => {
     const layout = receipt({
@@ -497,7 +477,6 @@ describe('品目', () => {
       { description: 'あおいノート', amount: '150' },
     ]);
   });
-
   // 区分記号と頭の英字の間に空白が挟まる書式がある。
   test('英字 1 文字と記号の間に空白があっても落とす', () => {
     const layout = receipt({
@@ -515,7 +494,6 @@ describe('品目', () => {
       { description: 'あおいシャンプー', amount: '600' },
     ]);
   });
-
   // 記号が付かない英字始まりの品名を、頭の英字ごと落としてはいけない。
   test('記号を伴わない英字始まりの品名は残す', () => {
     const layout = receipt({
@@ -533,7 +511,6 @@ describe('品目', () => {
       { description: 'AOIKOSODA', amount: '140' },
     ]);
   });
-
   // 記号が付かない数字始まりの品名を、頭の数字ごと落としてはいけない。
   test('記号を伴わない数字始まりの品名は残す', () => {
     const layout = receipt({
@@ -598,7 +575,6 @@ describe('品目', () => {
     });
     expect(extractFromOcrLayout(layout).items).toEqual([]);
   });
-
   // 見出し内の単語が文字と数字を空白無しで繋いでいても、金額の行と誤認して
   // 見出しを早く閉じてはいけない。閉じると店名の探索範囲から外れて店名を失う。
   test('見出し内の文字と数字が繋がった単語があっても店名を取れる', () => {
@@ -616,7 +592,6 @@ describe('品目', () => {
     ]);
     expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
   });
-
   // 1 単語 = 1 文字で返す環境がある。単語から品名を組み立てると一文字ずつ空白が入り、
   // 「最後の単語」で見る電話番号の判定も数字の断片しか見ないので通ってしまう（実測）。
   test('1 文字ずつ返る環境でも品名と電話番号を取り違えない', () => {
@@ -634,7 +609,6 @@ describe('品目', () => {
     const r = extractFromOcrLayout({ lines: joined, text: joined.map((l) => l.text).join('\n') });
     expect(r.items).toEqual([{ description: 'ミネラルウォーター', amount: '248' }]);
   });
-
   // カタカナの品名は長音符で終わることが多い。区切りの判定を数字の直前の 1 文字で
   // やると、`ミネラルウォーター` の `ー` を区切りと見て品目が全部落ちる。
   test('長音符で終わる品名を落とさない', () => {
@@ -661,7 +635,6 @@ describe('品目', () => {
       { description: 'コーヒー', amount: '380' },
     ]);
   });
-
   // 金額は 0 で始まらない。伝票番号は 0 詰めなので、これが無いと品目に化ける。
   test('0 で始まる数字を金額にしない', () => {
     const layout = toLayout([
@@ -912,7 +885,6 @@ describe('品目', () => {
     ]);
     expect(extractFromOcrLayout(layout).totalAmount).toBe('532');
   });
-
   // 実写の劣化で踏んだ。合計の語が空白で割れると後備へ落ち、そこが最大額を取るため
   // クレジット控えの会社番号（桁数が多い）が合計として入っていた。
   test('クレジット控えの番号を合計にしない', () => {

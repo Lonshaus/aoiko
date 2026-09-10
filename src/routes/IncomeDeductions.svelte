@@ -143,7 +143,7 @@
   let loadedYear = $state<number | null>(null);
   // 素早い年度往復で後着の旧 promise が新年度の表示を上書きしないための世代トークン。
   let loadToken = 0;
-  // 年度ごとに DB/設定から読み込む値（ユーザーの入力欄とは独立、年度切替時のみ再取得）。
+  // 年度ごとに DB/設定から読み込む値（利用者の入力欄とは独立、年度切替時のみ再取得）。
   let plCache = $state<Awaited<ReturnType<typeof buildPL>> | null>(null);
   let realEstatePlCache = $state<Awaited<ReturnType<typeof buildPL>> | undefined>(undefined);
   let filingTypeCache = $state<FilingType>('blue');

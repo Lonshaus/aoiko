@@ -63,9 +63,43 @@ describe('LLM 連動: エンジンごとの入力欄の出し分け', () => {
   });
 
   test('openai-compatible 選択時: Gemini API キー欄は出ない', async () => {
-    await setSetting('ocrEngine', 'openai-compatible');
+    await setSetting('aiEngine', 'openai-compatible');
     const el = await renderSettings();
     await waitFor(() => findGeminiKeyInput(el) === null);
     expect(findGeminiKeyInput(el)).toBeNull();
+  });
+});
+
+describe('LLM 連動: 選択肢の無い値が保存に残っている場合', () => {
+  test('disabled の選択肢として生値を出す', async () => {
+    await setSetting('aiEngine', 'tesseract' as never);
+    const el = await renderSettings();
+    await waitFor(() => el.querySelector('option[value="tesseract"]') !== null);
+    const option = el.querySelector<HTMLOptionElement>('option[value="tesseract"]');
+    expect(option).not.toBeNull();
+    expect(option?.disabled).toBe(true);
+  });
+
+  test('選び直さずに保存しても disabled の選択肢は残り、select は空欄にならない', async () => {
+    await setSetting('aiEngine', 'tesseract' as never);
+    const el = await renderSettings();
+    await waitFor(() => el.querySelector('option[value="tesseract"]') !== null);
+    const section = Array.from(el.querySelectorAll('section')).find((s) =>
+      (s.textContent ?? '').includes('AI 機能'),
+    );
+    if (section === undefined) {
+      throw new Error('AI 機能セクションが見つからない');
+    }
+    const saveButton = Array.from(section.querySelectorAll('button')).find((b) =>
+      (b.textContent ?? '').includes('保存'),
+    );
+    if (saveButton === undefined) {
+      throw new Error('保存ボタンが見つからない');
+    }
+    saveButton.click();
+    await waitFor(() => (el.textContent ?? '').includes('保存しました'));
+    const select = section.querySelector('select') as HTMLSelectElement;
+    expect(section.querySelector('option[value="tesseract"]')).not.toBeNull();
+    expect(select.value).toBe('tesseract');
   });
 });

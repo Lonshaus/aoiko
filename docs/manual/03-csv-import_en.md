@@ -8,7 +8,7 @@ How to bulk-create journal entries from bank or credit card CSV statements.
 > - Download a supported bank/card CSV and import it
 > - Understand how duplicate-file detection works
 > - Set up auto-classification rules to pre-fill counterpart accounts
-> - Use LLM auto-classification
+> - Use AI classification
 > - Reverse an entire batch from import history when needed
 >
 > **Prerequisites**: [01. Initial setup](01-setup_en.md) is done. If you use card-specific sub-accounts (e.g. `2120 Accounts payable / Rakuten Card`), register them first.
@@ -89,17 +89,17 @@ The header shows **"{valid} / {total} planned"** and each row may show one of th
 | Badge | Meaning |
 |---|---|
 | **Rule** | Matched an auto-classification rule (see [§ 6](#6-auto-classification-rules)) |
-| **LLM↑** | LLM suggested a counterpart with high confidence |
-| **LLM↓** | LLM suggested with low confidence — please verify |
+| **AI↑** | AI suggested a counterpart with high confidence |
+| **AI↓** | AI suggested with low confidence — please verify |
 | (no badge) | Not auto-filled; pick manually |
 
-Hover over a badge for details. LLM badges appear only when LLM integration is enabled.
+Hover over a badge for details. AI badges appear only when AI features are enabled.
 
 #### Review pattern
 
 - **Rule**: usually trustworthy as-is
-- **LLM↑**: glance at it and confirm
-- **LLM↓**: always verify
+- **AI↑**: glance at it and confirm
+- **AI↓**: always verify
 - No badge: pick the counterpart yourself
 
 ### 3-4. Submit
@@ -110,18 +110,18 @@ Click **"{count} entries"** to import all unticked rows at once.
 
 A success message **"{count} entries imported"** appears at the top.
 
-## 4. LLM auto-classification (optional)
+## 4. AI classification (optional)
 
-If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed), then during CSV import:
+If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
 
-- Rows that **didn't match any rule** are sent to the LLM, which proposes a counterpart account
-- Badges **"LLM↑"** / **"LLM↓"** indicate confidence
+- Rows that **didn't match any rule** are sent to the AI, which proposes a counterpart account
+- Badges **"AI↑"** / **"AI↓"** indicate confidence
 
 > **What's sent**: CSV row text (amount, description) + list of accounts
 > **Where it goes**: the selected engine (`generativelanguage.googleapis.com` for Gemini, your baseURL for local)
 > **Confirmation**: a pre-send dialog is shown for cloud engines (with a "don't ask again" option)
 
-Leaving LLM off is fine — you just see more "no badge" rows that you fill in by hand.
+Leaving AI off is fine — you just see more "no badge" rows that you fill in by hand.
 
 ## 5. Import history and batch reverse
 
@@ -175,7 +175,7 @@ The **"Auto-classification rules"** section of Settings lets you register rules 
 ### 6-3. Where rules apply
 
 - **On CSV import**: matched rows get the **Rule** badge and the counterpart pre-filled
-- Rule matches **skip the LLM** (saves cost, speed, and accuracy)
+- Rule matches **skip the AI** (saves cost, speed, and accuracy)
 
 > The more rules you register, the less manual work you do. Add them based on what shows up most often.
 

@@ -65,13 +65,22 @@ fn build_apple_intelligence_lib() {
         .arg(APPLE_INTELLIGENCE_SWIFT)
         .status()
         .expect("swiftc を起動できません");
-    assert!(status.success(), "AppleIntelligence.swift のビルドに失敗しました");
+    assert!(
+        status.success(),
+        "AppleIntelligence.swift のビルドに失敗しました"
+    );
     println!("cargo:rustc-link-lib=static={lib_name}");
     println!("cargo:rustc-link-search=native={out_dir}");
 }
 
 fn xcrun_output(args: &[&str]) -> String {
-    let output = Command::new("xcrun").args(args).output().expect("xcrun を起動できません");
+    let output = Command::new("xcrun")
+        .args(args)
+        .output()
+        .expect("xcrun を起動できません");
     assert!(output.status.success(), "xcrun {args:?} に失敗しました");
-    String::from_utf8(output.stdout).expect("xcrun の出力が UTF-8 ではありません").trim().to_string()
+    String::from_utf8(output.stdout)
+        .expect("xcrun の出力が UTF-8 ではありません")
+        .trim()
+        .to_string()
 }

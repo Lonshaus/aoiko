@@ -7,7 +7,7 @@ describe('getPolicyDoc', () => {
     expect(content).toContain('免責事項');
   });
 
-  it('繁體中文版を返す', () => {
+  it('繁体中国語版を返す', () => {
     const content = getPolicyDoc('DISCLAIMER', 'zh-TW');
     expect(content).toContain('免責事項');
     expect(content).not.toContain('本ツールは日本の');
