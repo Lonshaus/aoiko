@@ -117,43 +117,42 @@ private func recognizeReceiptText(from data: Data) -> String? {
     return text.isEmpty ? nil : text
 }
 
-// ジェネリック関数の中には型を定義できない（Swift の制約）ので、runGeneration の外に出す。
-private final class GenerationResultBox: @unchecked Sendable {
-    var json: String?
-    var err: Int32 = 3
-}
+// 実測値（このMac）: レシート抽出 3.32 秒。iOS は非力な端末もあり、もっと掛かる想定で
+// 見繕った判断値。ゲート確保・締め切り付きの待ち・見捨てる判断は Concurrency.swift の
+// runSingleFlight に集約されており、ここは body を組み立てて渡すだけ。
+@available(macOS 26, iOS 26, *)
+private let appleAIDeadlineSeconds: TimeInterval = 60
 // respond(to:generating:) は async。@_cdecl は C ABI なので async のまま公開できず、
-// ここで同期に落とす（呼び元は tauri の (async) コマンドでワーカースレッドから来るので、
-// ここで止めても UI スレッドは止まらない）。レシートと分類・注文の 3 経路が同じ形で
-// 生成→JSON エンコードを行うので、ここへ集約する。
+// runSingleFlight の中で同期に落とす（呼び元は tauri の (async) コマンドでワーカー
+// スレッドから来るので、ここで止めても UI スレッドは止まらない）。レシートと分類・注文の
+// 3 経路が同じ形で生成→JSON エンコードを行うので、ここへ集約する。
 @available(macOS 26, iOS 26, *)
 private func runGeneration<T: Generable & Encodable>(
     instructions: String, content: String, generating: T.Type
 ) -> (json: String?, err: Int32) {
-    let box = GenerationResultBox()
-    let semaphore = DispatchSemaphore(value: 0)
-    Task {
-        defer { semaphore.signal() }
+    let outcome = runSingleFlight(deadline: appleAIDeadlineSeconds) {
         do {
             let session = LanguageModelSession(instructions: instructions)
             let response = try await session.respond(to: content, generating: T.self)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.withoutEscapingSlashes]
             let data = try encoder.encode(response.content)
-            box.json = String(data: data, encoding: .utf8)
-            box.err = 0
+            // String(data:encoding:) は failable。ここで err = 0 を決め打ちすると、
+            // 「変換に失敗して中身は無い」が成功として外へ漏れる。
+            guard let json = String(data: data, encoding: .utf8) else {
+                return AppleAIOutcome(json: nil, err: 3)
+            }
+            return AppleAIOutcome(json: json, err: 0)
         } catch let e as LanguageModelSession.GenerationError {
             if case .exceededContextWindowSize = e {
-                box.err = 1
-            } else {
-                box.err = 3
+                return AppleAIOutcome(json: nil, err: 1)
             }
+            return AppleAIOutcome(json: nil, err: 3)
         } catch {
-            box.err = 3
+            return AppleAIOutcome(json: nil, err: 3)
         }
     }
-    semaphore.wait()
-    return (box.json, box.err)
+    return (outcome.json, outcome.err)
 }
 
 @available(macOS 26, iOS 26, *)

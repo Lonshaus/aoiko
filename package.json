@@ -33,6 +33,7 @@
     "ios:dev": "npm run init:bundle && npm run ios:prepare && tauri ios dev",
     "ios:build": "npm run init:bundle && npm run ios:prepare && node scripts/build-frontend.mjs && tauri ios build",
     "test:init": "node --test \"src-init/*.test.js\"",
+    "test:swift": "node scripts/test-swift.mjs",
     "test:rust": "npm run init:bundle && cargo test --manifest-path src-tauri/Cargo.toml -p aoiko-desktop -p tauri-plugin-aoiko-native",
     "check:ios": "IPHONEOS_DEPLOYMENT_TARGET=16.4 cargo check --target aarch64-apple-ios --manifest-path src-tauri/Cargo.toml -p tauri-plugin-aoiko-native -p aoiko-desktop",
     "licenses:native:generate": "node scripts/gen-native-licenses.mjs",

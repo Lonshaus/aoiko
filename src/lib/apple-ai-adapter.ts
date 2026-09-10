@@ -16,6 +16,9 @@ const RUN_ERROR_MESSAGES: Record<number, () => string> = {
   2: m.error_apple_ai_run_2,
   3: m.error_apple_ai_run_3,
   4: m.error_apple_ai_run_4,
+  5: m.error_apple_ai_run_5,
+  6: m.error_apple_ai_run_6,
+  7: m.error_apple_ai_run_7,
 };
 // invoke の拒否は 2 通りの形で来る：ネイティブ側の数値コードなら承知の失敗（モデルの限界・
 // OS が古い等）。文字列（権限不足・未知コマンド）はこちら側の配線ミスで、

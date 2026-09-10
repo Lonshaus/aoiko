@@ -28,6 +28,9 @@ const ERROR_MESSAGES: Record<number, () => string> = {
   2: m.ocr_apple_ai_error_2,
   3: m.ocr_apple_ai_error_3,
   4: m.ocr_apple_ai_error_4,
+  5: m.ocr_apple_ai_error_5,
+  6: m.ocr_apple_ai_error_6,
+  7: m.ocr_apple_ai_error_7,
 };
 
 // aoiko_ai_availability 専用の表。extract の理由コードとは別の意味体系（1 端末非対応 /

@@ -189,10 +189,32 @@ pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
     }
 }
 
+// 実測（このMac）：8064x6048・最大画質 JPEG はレシート相当の内容で 2.0MB、
+// 同じ画素数の純ノイズという病的な内容でも 41.3MB。この画素数・画質での実用上限。
+const APPLE_AI_IMAGE_CEILING_BYTES: usize = 64 * 1024 * 1024;
+// 分類・注文取込に渡す JSON テキスト。通常の使い方でここまで大きくなることは無い。
+const APPLE_AI_DATA_CEILING_BYTES: usize = 8 * 1024 * 1024;
+
+// 空はデコードできても中身が無く、Swift 側は長さ 0 の非 null ポインタ（何も指していない
+// ダングリングポインタ）を渡されることになる。上限は、この経路が画像を downscale せずに
+// 素通しする（する経路は receipt-text-extract.ts 側だけ）ことへの歯止め。
+fn check_apple_ai_payload_len(len: usize, ceiling: usize) -> std::result::Result<(), u8> {
+    if len == 0 {
+        return Err(2);
+    }
+    if len > ceiling {
+        return Err(7);
+    }
+    Ok(())
+}
+
 // FoundationModels でのレシート抽出。失敗の理由は AppleIntelligence.swift の
 // aoiko_ai_extract のコメントに揃えた数値でフロントへ返す（0 は成功なのでここには来ない）。
+// ネイティブ側は最大 60 秒のブロッキング待ち（appleAIDeadlineSeconds）を持つので、
+// tokio のワーカースレッドで直に待たず spawn_blocking へ逃がす。ワーカーで直に待つと、
+// その間バックアップ書き込みやフォルダ解決等、無関係な IPC まで詰まる。
 #[tauri::command(async)]
-pub(crate) fn apple_ai_extract<R: Runtime>(
+pub(crate) async fn apple_ai_extract<R: Runtime>(
     app: AppHandle<R>,
     image_base64: String,
 ) -> std::result::Result<String, u8> {
@@ -200,13 +222,20 @@ pub(crate) fn apple_ai_extract<R: Runtime>(
     // recognize_text と同じ decode。フロントは path ではなく base64 しか持たない。
     use base64::{engine::general_purpose::STANDARD, Engine};
     let bytes = STANDARD.decode(image_base64.as_bytes()).map_err(|_| 3u8)?;
+    check_apple_ai_payload_len(bytes.len(), APPLE_AI_IMAGE_CEILING_BYTES)?;
+    tauri::async_runtime::spawn_blocking(move || apple_ai_extract_native(&bytes))
+        .await
+        .unwrap_or(Err(3))
+}
+
+fn apple_ai_extract_native(bytes: &[u8]) -> std::result::Result<String, u8> {
     #[cfg(target_os = "ios")]
     {
-        crate::ios::apple_intelligence::extract(&bytes)
+        crate::ios::apple_intelligence::extract(bytes)
     }
     #[cfg(target_os = "macos")]
     {
-        crate::desktop::apple_intelligence::extract(&bytes)
+        crate::desktop::apple_intelligence::extract(bytes)
     }
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     {
@@ -218,20 +247,28 @@ pub(crate) fn apple_ai_extract<R: Runtime>(
 
 // FoundationModels での分類・注文取込。task は 1 = 分類、2 = 注文で Swift 側と揃える。
 // エラーの意味は apple_ai_extract と同じ数値（0 は成功なのでここには来ない）。
+// spawn_blocking へ逃がす理由も apple_ai_extract と同じ。
 #[tauri::command(async)]
-pub(crate) fn apple_ai_run<R: Runtime>(
+pub(crate) async fn apple_ai_run<R: Runtime>(
     app: AppHandle<R>,
     task: i32,
     data: String,
 ) -> std::result::Result<String, u8> {
     let _ = &app;
+    check_apple_ai_payload_len(data.len(), APPLE_AI_DATA_CEILING_BYTES)?;
+    tauri::async_runtime::spawn_blocking(move || apple_ai_run_native(task, &data))
+        .await
+        .unwrap_or(Err(3))
+}
+
+fn apple_ai_run_native(task: i32, data: &str) -> std::result::Result<String, u8> {
     #[cfg(target_os = "ios")]
     {
-        crate::ios::apple_intelligence::run(task, &data)
+        crate::ios::apple_intelligence::run(task, data)
     }
     #[cfg(target_os = "macos")]
     {
-        crate::desktop::apple_intelligence::run(task, &data)
+        crate::desktop::apple_intelligence::run(task, data)
     }
     #[cfg(not(any(target_os = "macos", target_os = "ios")))]
     {
@@ -412,6 +449,48 @@ pub(crate) fn backup_remove<R: Runtime>(app: AppHandle<R>, rel_path: String) -> 
 mod tests {
     use super::*;
     use tauri::ipc::InvokeBody;
+
+    // 実測（このMac）：8064x6048 の最大画質 JPEG はレシート相当の内容で 2.0MB、
+    // 純ノイズという病的な内容でも 41.3MB。どちらも 64MiB の上限内。
+    #[test]
+    fn image_payload_within_the_measured_range_is_accepted() {
+        assert!(check_apple_ai_payload_len(2 * 1024 * 1024, APPLE_AI_IMAGE_CEILING_BYTES).is_ok());
+        assert!(check_apple_ai_payload_len(42 * 1024 * 1024, APPLE_AI_IMAGE_CEILING_BYTES).is_ok());
+    }
+
+    #[test]
+    fn image_payload_over_64_mib_is_rejected_with_code_7() {
+        assert_eq!(
+            check_apple_ai_payload_len(
+                APPLE_AI_IMAGE_CEILING_BYTES + 1,
+                APPLE_AI_IMAGE_CEILING_BYTES
+            ),
+            Err(7)
+        );
+    }
+
+    #[test]
+    fn empty_payload_is_rejected_with_code_2() {
+        assert_eq!(
+            check_apple_ai_payload_len(0, APPLE_AI_IMAGE_CEILING_BYTES),
+            Err(2)
+        );
+        assert_eq!(
+            check_apple_ai_payload_len(0, APPLE_AI_DATA_CEILING_BYTES),
+            Err(2)
+        );
+    }
+
+    #[test]
+    fn data_payload_over_8_mib_is_rejected_with_code_7() {
+        assert_eq!(
+            check_apple_ai_payload_len(
+                APPLE_AI_DATA_CEILING_BYTES + 1,
+                APPLE_AI_DATA_CEILING_BYTES
+            ),
+            Err(7)
+        );
+    }
 
     #[test]
     fn takes_raw_bytes_with_the_rid_header() {

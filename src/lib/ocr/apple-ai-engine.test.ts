@@ -86,6 +86,9 @@ describe('createAppleAiReceiptExtractor', () => {
     [2, 'no text recognised'],
     [3, 'other failure'],
     [4, 'OS too old'],
+    [5, 'timed out'],
+    [6, 'previous request still running'],
+    [7, 'input too large'],
   ])('エラーコード %i（%s）はコード別の文言で拒否する', async (code) => {
     vi.stubGlobal('window', {
       __aoikoNative: {
@@ -229,6 +232,9 @@ function expectedMessageFor(code: number): RegExp {
     2: '読み取れませんでした',
     3: '抽出に失敗しました',
     4: 'AI 抽出を使えません',
+    5: '時間内に読み取れませんでした',
+    6: 'まだ終わっていません',
+    7: '大きすぎて処理できません',
   };
   return new RegExp(texts[code] ?? '');
 }

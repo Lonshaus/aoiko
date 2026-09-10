@@ -40,16 +40,21 @@ describe('AppleAiAdapter', () => {
     await expect(adapter.runDataTask('classify', {})).rejects.toThrow();
   });
 
-  test('数値コードの拒否はコード別の文言になる', async () => {
+  test.each([
+    [1, /情報量が多すぎて/],
+    [5, /時間内に処理できませんでした/],
+    [6, /まだ終わっていません/],
+    [7, /大きすぎて処理できません/],
+  ])('数値コード %i の拒否はコード別の文言になる', async (code, expected) => {
     vi.stubGlobal('window', {
       __aoikoNative: {
         appleAiRun: vi.fn(async () => {
-          throw 1;
+          throw code;
         }),
       },
     });
     const adapter = new AppleAiAdapter();
-    await expect(adapter.runDataTask('classify', {})).rejects.toThrow(/情報量が多すぎて/);
+    await expect(adapter.runDataTask('classify', {})).rejects.toThrow(expected);
   });
 
   // 権限不足・未知コマンドは tauri が文字列で reject する。モデルの不調（数値コード）と
