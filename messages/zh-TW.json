@@ -218,7 +218,7 @@
   "import_step_review": "3. 為各列選擇對應科目",
   "import_planned_count": "{valid} / {total} 筆 將建立",
   "import_llm_button_running": "⏳ AI 分類中…",
-  "import_llm_button": "用 AI 分類剩餘項目",
+  "import_llm_button": "用 AI 補上未設定的科目",
   "import_th_counterpart": "對應科目",
   "import_th_skip": "排除",
   "import_overlap_notice": "已自動排除 {count} 筆可能與先前匯入重複的資料。請確認內容，必要時取消「排除」。",

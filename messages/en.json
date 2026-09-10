@@ -218,7 +218,7 @@
   "import_step_review": "3. Choose the counterpart account for each row",
   "import_planned_count": "{valid} / {total} rows to be registered",
   "import_llm_button_running": "⏳ AI classifying…",
-  "import_llm_button": "Classify the rest with AI",
+  "import_llm_button": "Fill missing accounts with AI",
   "import_th_counterpart": "Counterpart account",
   "import_th_skip": "Skip",
   "import_overlap_notice": "Auto-excluded {count} row(s) that may duplicate a previous import. Review and uncheck Skip if needed.",

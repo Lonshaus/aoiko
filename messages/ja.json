@@ -217,7 +217,7 @@
   "import_step_review": "3. 各行の対方科目を選ぶ",
   "import_planned_count": "{valid} / {total} 件 登録予定",
   "import_llm_button_running": "⏳ AI で分類中…",
-  "import_llm_button": "AI で残りを分類",
+  "import_llm_button": "未設定の科目を AI で埋める",
   "import_th_counterpart": "対方科目",
   "import_th_skip": "除外",
   "import_overlap_notice": "過去のインポートと重複する可能性のある {count} 件を自動で除外しました。内容を確認し、必要なら「除外」を外してください。",
