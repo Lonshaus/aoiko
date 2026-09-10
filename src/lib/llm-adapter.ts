@@ -44,9 +44,14 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       return new GeminiAdapter(geminiKey, geminiModel);
     }
     case 'apple-ai':
+      // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由で build 時に畳む。
+      // __NATIVE__ を持たない側の産物には包装層も文言も残らない。
+      if (__NATIVE__) {
+        const { AppleAiAdapter } = await import('./apple-ai-adapter');
+        return new AppleAiAdapter();
+      }
       // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
       // 文言はカタログから引かない。引くと、この経路を持たない側の産物にも文字列が残る。
-      // __NATIVE__ 側の実装差し替えは次スライス。
       throw new Error('apple-ai is unavailable in this build');
     default:
       // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、

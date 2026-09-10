@@ -237,6 +237,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::is_text_recognition_available,
             commands::apple_ai_availability,
             commands::apple_ai_extract,
+            commands::apple_ai_run,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

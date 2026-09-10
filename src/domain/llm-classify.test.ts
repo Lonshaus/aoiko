@@ -1,7 +1,8 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { buildPrompt, classifyWithLlm, type ClassifyInput } from './llm-classify';
 import type { LlmAdapter } from './llm';
 import type { Account } from '../db/types';
+import { AppleAiAdapter } from '../lib/apple-ai-adapter';
 
 const ACCOUNTS: Account[] = [
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
@@ -132,5 +133,45 @@ describe('classifyWithLlm', () => {
     });
     expect(r).toEqual([]);
     expect(called).toBe(false);
+  });
+});
+// runDataTask を持つアダプター（apple-ai）経由の分類。プロンプトではなくデータを渡し、
+// Swift 側の @Generable が返す形の JSON（classifications 配列、accountCode は非対応時は空文字）
+// を受け取る経路。
+describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('アダプターが送るバイト列と Swift 側が返す JSON の形で対方科目が反映される', async () => {
+    const appleAiRun = vi.fn(async (task: number, data: string) => {
+      expect(task).toBe(1);
+      expect(JSON.parse(data)).toEqual({
+        knownAccountCode: '1130',
+        knownSide: 'credit',
+        candidates: [
+          { code: '4110', name: '売上高', category: 'revenue' },
+          { code: '5150', name: '通信費', category: 'expense' },
+          { code: '5200', name: '消耗品費', category: 'expense' },
+        ],
+        transactions: [{ ref: 'r1', description: 'amazon', amount: '2500' }],
+      });
+      // JSONEncoder(.withoutEscapingSlashes) が返す形。accountCode 非対応時は空文字。
+      return JSON.stringify({
+        classifications: [
+          { ref: 'r1', accountCode: '5200', confidence: 'high', reason: 'EC サイト' },
+        ],
+      });
+    });
+    vi.stubGlobal('window', { __aoikoNative: { appleAiRun } });
+
+    const r = await classifyWithLlm(
+      new AppleAiAdapter(),
+      [{ ref: 'r1', description: 'amazon', amount: '2500' }],
+      { knownAccountCode: '1130', knownSide: 'credit', candidateAccounts: ACCOUNTS },
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0]?.accountCode).toBe('5200');
+    expect(r[0]?.confidence).toBe('high');
   });
 });

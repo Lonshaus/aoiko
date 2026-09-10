@@ -25,8 +25,13 @@ test('命令名と引数名をそのまま渡す', async () => {
   const ai = createAppleAi(invoke, 'macos');
   assert.equal(await ai.appleAiAvailability(), 0);
   assert.equal(await ai.appleAiExtract('QUJD'), '{"vendor":"店"}');
+  assert.equal(await ai.appleAiRun(1, '{"transactions":[]}'), '{"vendor":"店"}');
   assert.deepEqual(calls, [
     { cmd: 'plugin:aoiko-native|apple_ai_availability', args: undefined },
     { cmd: 'plugin:aoiko-native|apple_ai_extract', args: { imageBase64: 'QUJD' } },
+    {
+      cmd: 'plugin:aoiko-native|apple_ai_run',
+      args: { task: 1, data: '{"transactions":[]}' },
+    },
   ]);
 });

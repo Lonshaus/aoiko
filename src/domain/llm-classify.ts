@@ -33,9 +33,24 @@ export async function classifyWithLlm(
   if (inputs.length === 0) {
     return [];
   }
-  const prompt = buildPrompt(inputs, options);
-  const raw = await adapter.generateJson(prompt);
+  const raw = adapter.runDataTask
+    ? await adapter.runDataTask('classify', buildClassifyData(inputs, options))
+    : await adapter.generateJson(buildPrompt(inputs, options));
   return parseResponse(raw, inputs, options.candidateAccounts);
+}
+// データだけを渡す端末内経路用のペイロード。buildPrompt と違い会計コンテキストの説明文は
+// 持たない（指示は実装側に固定で埋め込まれているため、ここではデータだけを渡す）。
+function buildClassifyData(inputs: ClassifyInput[], options: ClassifyOptions) {
+  return {
+    knownAccountCode: options.knownAccountCode,
+    knownSide: options.knownSide,
+    candidates: options.candidateAccounts.map((a) => ({
+      code: a.code,
+      name: a.name,
+      category: a.category,
+    })),
+    transactions: inputs.map((t) => ({ ref: t.ref, description: t.description, amount: t.amount })),
+  };
 }
 // プロンプト生成：日本語で会計コンテキストを明示し、JSON 出力を要求する
 export function buildPrompt(inputs: ClassifyInput[], options: ClassifyOptions): string {

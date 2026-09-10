@@ -331,6 +331,12 @@ pub(crate) mod apple_intelligence {
     extern "C" {
         fn aoiko_ai_availability() -> i32;
         fn aoiko_ai_extract(bytes: *const u8, length: usize, out_err: *mut i32) -> *mut c_char;
+        fn aoiko_ai_run(
+            task: i32,
+            bytes: *const u8,
+            length: usize,
+            out_err: *mut i32,
+        ) -> *mut c_char;
         fn aoiko_ai_free(p: *mut c_char);
     }
     // Swift 側の @_cdecl の戻り値と 1:1 対応。0 が「使える」。
@@ -344,6 +350,21 @@ pub(crate) mod apple_intelligence {
     pub(crate) fn extract(image_data: &[u8]) -> Result<String, u8> {
         let mut err: i32 = 0;
         let ptr = unsafe { aoiko_ai_extract(image_data.as_ptr(), image_data.len(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
+    }
+    // 分類・注文取込。data は JSON 文字列（UTF-8）で、Swift 側が task に応じて
+    // 指示と出力の型を選ぶ。ポインタの所有権は extract と同じ。
+    pub(crate) fn run(task: i32, data: &str) -> Result<String, u8> {
+        let mut err: i32 = 0;
+        let bytes = data.as_bytes();
+        let ptr = unsafe { aoiko_ai_run(task, bytes.as_ptr(), bytes.len(), &mut err) };
         if ptr.is_null() {
             return Err(err as u8);
         }

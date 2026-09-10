@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import { createLlmAdapter } from './llm-adapter';
 import { setSetting } from './settings';
 import { GeminiAdapter, OpenAICompatibleAdapter } from '../domain/llm';
+import { AppleAiAdapter } from './apple-ai-adapter';
 
 afterEach(async () => {
   await db.settings.clear();
@@ -49,13 +50,16 @@ describe('createLlmAdapter', () => {
     await expect(createLlmAdapter('ocr')).rejects.toThrow(/OCR 用モデル/);
   });
 
-  // apple-ai は端末内完結の経路であって createLlmAdapter が返す LlmAdapter とは別物。
-  // Gemini キーが設定済みでも、黙ってクラウドへ差し替えず拒否する。
-  test('apple-ai：Gemini キー設定済みでも拒否する（gemini に落ちない）', async () => {
+  // apple-ai は端末内完結の経路。__NATIVE__（テスト全体で true）では AppleAiAdapter を返し、
+  // Gemini キーが設定済みでも黙ってクラウドへ差し替えない。
+  test('apple-ai：__NATIVE__ では AppleAiAdapter を返す（Gemini キー設定済みでも gemini に落ちない）', async () => {
     await setSetting('aiEngine', 'apple-ai');
     await setSetting('geminiApiKey', 'sk-test');
     await setSetting('geminiModel', 'gemini-2.5-flash');
-    await expect(createLlmAdapter('classify')).rejects.toThrow();
+    const a = await createLlmAdapter('classify');
+    expect(a).toBeInstanceOf(AppleAiAdapter);
+    expect(a.external).toBe(false);
+    expect(a.destinationHost).toBe('');
   });
 
   // 設定はバックアップに乗って別の環境へ渡る。選べなくなった値・未知の値を

@@ -216,6 +216,30 @@ pub(crate) fn apple_ai_extract<R: Runtime>(
     }
 }
 
+// FoundationModels での分類・注文取込。task は 1 = 分類、2 = 注文で Swift 側と揃える。
+// エラーの意味は apple_ai_extract と同じ数値（0 は成功なのでここには来ない）。
+#[tauri::command(async)]
+pub(crate) fn apple_ai_run<R: Runtime>(
+    app: AppHandle<R>,
+    task: i32,
+    data: String,
+) -> std::result::Result<String, u8> {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::run(task, &data)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::run(task, &data)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        let _ = (task, data);
+        Err(4)
+    }
+}
+
 #[tauri::command(async)]
 pub(crate) fn open_in_app<R: Runtime>(app: AppHandle<R>, url: String) -> Result<()> {
     #[cfg(target_os = "ios")]
