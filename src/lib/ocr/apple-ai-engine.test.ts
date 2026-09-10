@@ -100,6 +100,129 @@ describe('createAppleAiReceiptExtractor', () => {
   });
 });
 
+describe('appleAiAvailability', () => {
+  test.each([
+    [1, '対応していません'],
+    [2, '有効になっていません'],
+    [3, '準備中です'],
+    [4, 'AI 抽出を使えません'],
+    [5, '確認できませんでした'],
+  ])('code %i は専用の文言で拒否し extract コード2の文言にはならない', async (code, text) => {
+    vi.stubGlobal('window', {
+      __aoikoNative: {
+        appleAiAvailability: vi.fn(async () => code),
+        appleAiExtract: vi.fn(async () => receipt()),
+      },
+    });
+    const error = await createAppleAiReceiptExtractor()
+      .extract(IMAGE)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toMatch(new RegExp(text));
+    expect((error as Error).message).not.toMatch(/読み取れませんでした/);
+  });
+
+  test('code 0 は抽出へ進む', async () => {
+    const appleAiExtract = vi.fn(async () => receipt());
+    vi.stubGlobal('window', {
+      __aoikoNative: { appleAiAvailability: vi.fn(async () => 0), appleAiExtract },
+    });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(appleAiExtract).toHaveBeenCalled();
+    expect(result.vendorName).toBe('あおい商店');
+  });
+
+  test('橋渡しに appleAiAvailability が無ければ抽出へ進む', async () => {
+    const appleAiExtract = vi.fn(async () => receipt());
+    vi.stubGlobal('window', { __aoikoNative: { appleAiExtract } });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(result.vendorName).toBe('あおい商店');
+  });
+
+  test('appleAiAvailability が reject しても抽出へ進む', async () => {
+    const appleAiExtract = vi.fn(async () => receipt());
+    vi.stubGlobal('window', {
+      __aoikoNative: {
+        appleAiAvailability: vi.fn(async () => {
+          throw 'permission denied';
+        }),
+        appleAiExtract,
+      },
+    });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(result.vendorName).toBe('あおい商店');
+  });
+
+  test('1..5 の外の値は「確認できない」文言に丸める', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: {
+        appleAiAvailability: vi.fn(async () => 7),
+        appleAiExtract: vi.fn(async () => receipt()),
+      },
+    });
+    await expect(createAppleAiReceiptExtractor().extract(IMAGE)).rejects.toThrow(
+      /確認できませんでした/,
+    );
+  });
+});
+
+describe('インボイス番号の先頭 T 補修', () => {
+  test('T 付きはそのまま', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: { appleAiExtract: async () => receipt({ invoiceNumber: 'T1234567890123' }) },
+    });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(result.invoiceNumber).toBe('T1234567890123');
+  });
+
+  test('T が落ちていれば補う', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: { appleAiExtract: async () => receipt({ invoiceNumber: '1234567890123' }) },
+    });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(result.invoiceNumber).toBe('T1234567890123');
+  });
+
+  test('桁数が違えば補わず落とす', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: { appleAiExtract: async () => receipt({ invoiceNumber: '12345' }) },
+    });
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE);
+    expect(result).not.toHaveProperty('invoiceNumber');
+  });
+});
+
+describe('ネイティブ JSON の防御', () => {
+  test('items が配列でなければ拒否する', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: {
+        appleAiExtract: async () =>
+          JSON.stringify({
+            vendor: 'あおい商店',
+            date: '2026-08-21',
+            total: '1500',
+            invoiceNumber: '',
+            amount8: '',
+            amount10: '1500',
+            items: 'お茶',
+          }),
+      },
+    });
+    await expect(createAppleAiReceiptExtractor().extract(IMAGE)).rejects.toThrow(
+      /抽出に失敗しました/,
+    );
+  });
+
+  test('JSON が壊れていれば拒否する', async () => {
+    vi.stubGlobal('window', {
+      __aoikoNative: { appleAiExtract: async () => '{not json' },
+    });
+    await expect(createAppleAiReceiptExtractor().extract(IMAGE)).rejects.toThrow(
+      /抽出に失敗しました/,
+    );
+  });
+});
+
 function expectedMessageFor(code: number): RegExp {
   const texts: Record<number, string> = {
     1: '情報量が多すぎて',
