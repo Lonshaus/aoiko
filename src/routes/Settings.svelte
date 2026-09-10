@@ -2499,8 +2499,8 @@
 
     <div class="border-t pt-4 space-y-3">
       {#if aiEngine === 'gemini'}
-        <div class="flex flex-wrap gap-3 items-end">
-          <label class="block flex-1">
+        <div class="space-y-3">
+          <label class="block">
             <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
             <input
               type="password"
@@ -2509,21 +2509,23 @@
               class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
             />
           </label>
-          <button
-            type="button"
-            onclick={saveGeminiKey}
-            class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
-          >
-            {m.settings_llm_fetch_models()}
-          </button>
-          <button
-            type="button"
-            onclick={testGeminiKey}
-            disabled={!geminiKey.trim()}
-            class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
-          >
-            {m.settings_llm_test()}
-          </button>
+          <div class="flex gap-3">
+            <button
+              type="button"
+              onclick={saveGeminiKey}
+              class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
+            >
+              {m.settings_llm_fetch_models()}
+            </button>
+            <button
+              type="button"
+              onclick={testGeminiKey}
+              disabled={!geminiKey.trim()}
+              class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
+            >
+              {m.settings_llm_test()}
+            </button>
+          </div>
         </div>
         <div class="space-y-1 text-xs">
           {#if geminiKeySaved}
