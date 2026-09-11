@@ -31,7 +31,11 @@ vi.mock('../parsers', () => ({
   findParser: (name: string) => [parserA, parserB].find((p) => p.name === name) ?? null,
 }));
 
-const { default: Import, computeInventoryLive } = await import('./Import.svelte');
+const {
+  default: Import,
+  computeInventoryLive,
+  shouldFillSuggestion,
+} = await import('./Import.svelte');
 const { counterpartCandidates } = await import('../domain/llm-classify');
 const { setSetting } = await import('../lib/settings');
 
@@ -190,5 +194,19 @@ describe('computeInventoryLive: 在庫運用の有無判定', () => {
     await expect(computeInventoryLive()).resolves.toBe(false);
     await setSetting('inventoryAutoValuationEnabled', false);
     await expect(computeInventoryLive()).resolves.toBe(false);
+  });
+});
+
+describe('shouldFillSuggestion: 対方科目の自動入力可否', () => {
+  test('confidence が low の提案は行を埋める', () => {
+    expect(shouldFillSuggestion({ accountCode: '5200', confidence: 'low' })).toBe(true);
+  });
+
+  test('confidence が none の提案は行を埋めない', () => {
+    expect(shouldFillSuggestion({ accountCode: '5200', confidence: 'none' })).toBe(false);
+  });
+
+  test('confidence が high でも accountCode が無ければ埋めない', () => {
+    expect(shouldFillSuggestion({ accountCode: null, confidence: 'high' })).toBe(false);
   });
 });

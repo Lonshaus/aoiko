@@ -9,6 +9,12 @@
     const line = await inventoryDb.journalLines.filter((l) => l.itemId !== undefined).first();
     return line !== undefined;
   }
+  // LLM の提案を自動入力するかどうかの唯一の判定点（実行部からもテストからもここを通す）。
+  export function shouldFillSuggestion<
+    T extends { accountCode: string | null; confidence: 'high' | 'low' | 'none' },
+  >(s: T): s is T & { accountCode: string; confidence: 'high' | 'low' } {
+    return Boolean(s.accountCode) && s.confidence !== 'none';
+  }
 </script>
 
 <script lang="ts">
@@ -275,7 +281,7 @@
           if (!row) {
             continue;
           }
-          if (s.accountCode && s.confidence !== 'none') {
+          if (shouldFillSuggestion(s)) {
             row.counterpartAccountCode = s.accountCode;
             row.taxRate = defaultTaxRateFor(s.accountCode);
             row.llmConfidence = s.confidence;
