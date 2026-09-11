@@ -25,6 +25,8 @@ const APPLE_INTELLIGENCE_SWIFT: &str = "ios/Sources/AoikoNativePlugin/AppleIntel
 // ゲート・締め切り付きの待ちは FoundationModels に依存しないので、この 1 ファイルへ
 // 切り出してある。SwiftPM 側はディレクトリ配下を丸ごと拾うので、ここでも両方渡す。
 const CONCURRENCY_SWIFT: &str = "ios/Sources/AoikoNativePlugin/Concurrency.swift";
+// 分類ループの中核。同じ理由（FoundationModels 非依存・単体テスト対象）で切り出してある。
+const CLASSIFY_LOOP_SWIFT: &str = "ios/Sources/AoikoNativePlugin/ClassifyLoop.swift";
 
 fn main() {
     // build.rs は host 向けに構築されるため cfg!(target_os) は host を指す。
@@ -42,6 +44,7 @@ fn main() {
 fn build_apple_intelligence_lib() {
     println!("cargo:rerun-if-changed={APPLE_INTELLIGENCE_SWIFT}");
     println!("cargo:rerun-if-changed={CONCURRENCY_SWIFT}");
+    println!("cargo:rerun-if-changed={CLASSIFY_LOOP_SWIFT}");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR");
     let arch = match env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
         Ok("aarch64") => "arm64",
@@ -74,11 +77,12 @@ fn build_apple_intelligence_lib() {
         .arg(format!("{out_dir}/lib{lib_name}.a"))
         .arg(APPLE_INTELLIGENCE_SWIFT)
         .arg(CONCURRENCY_SWIFT)
+        .arg(CLASSIFY_LOOP_SWIFT)
         .status()
         .expect("swiftc を起動できません");
     assert!(
         status.success(),
-        "AppleIntelligence.swift / Concurrency.swift のビルドに失敗しました"
+        "AppleIntelligence.swift / Concurrency.swift / ClassifyLoop.swift のビルドに失敗しました"
     );
     println!("cargo:rustc-link-lib=static={lib_name}");
     println!("cargo:rustc-link-search=native={out_dir}");

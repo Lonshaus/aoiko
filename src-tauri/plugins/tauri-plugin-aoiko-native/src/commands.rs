@@ -542,4 +542,68 @@ mod tests {
         let body = InvokeBody::Json(serde_json::json!({ "rid": 1, "b64": "" }));
         assert_eq!(parse_chunk(&body, None).unwrap(), (1, Vec::new()));
     }
+    // レシート抽出・注文取込の締め切りは 60 秒のまま、分類の締め切りは budget と対で
+    // 動く別の値。どちらかを書き換えたときに気付けるよう固定値を焼き込む。
+    #[test]
+    fn apple_ai_deadlines_are_pinned() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        assert!(
+            source.contains("private let appleAIDeadlineSeconds: TimeInterval = 60"),
+            "レシート抽出・注文取込の締め切りが 60 秒から変わっている"
+        );
+        assert!(
+            source.contains("private let appleAIClassifyDeadlineSeconds: TimeInterval = 120"),
+            "分類の締め切りが 120 秒から変わっている"
+        );
+        assert!(
+            source.contains("private let classifyLoopBudgetSeconds: TimeInterval = 105"),
+            "分類ループの budget が 105 秒から変わっている"
+        );
+    }
+    // ClassifyLoop.swift のテストが test-swift.mjs の実行対象から漏れる退行を検知する。
+    #[test]
+    fn test_swift_wiring_covers_both_suites() {
+        let source = include_str!("../../../../scripts/test-swift.mjs");
+        assert!(
+            source.contains("ConcurrencyTests.swift"),
+            "test-swift.mjs が ConcurrencyTests.swift を参照していない"
+        );
+        assert!(
+            source.contains("ClassifyLoopTests.swift"),
+            "test-swift.mjs が ClassifyLoopTests.swift を参照していない"
+        );
+    }
+    // 分類の @Generable 型が配列プロパティを持たない単一オブジェクトである退行を検知する
+    // （配列出力はコンテキスト窓を埋め切る暴走の原因だった＝実測済み）。
+    #[test]
+    fn classify_answer_is_a_single_object_with_no_array_property() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        let body = source
+            .split("struct ClassifyAnswer: Encodable {")
+            .nth(1)
+            .and_then(|rest| rest.split("}").next())
+            .expect("ClassifyAnswer が見つからない");
+        assert!(
+            body.contains("var accountName: String"),
+            "accountName が無い"
+        );
+        assert!(body.contains("var confidence: String"), "confidence が無い");
+        assert!(body.contains("var reason: String"), "reason が無い");
+        assert!(!body.contains("["), "ClassifyAnswer に配列プロパティがある");
+    }
+    // request.knownSide が runClassifyLoop へ渡らない退行を検知する（渡らないと質問文言が
+    // 既知側を無視し、返金行にも支出の質問が出る誤答へ戻る）。
+    #[test]
+    fn classify_generation_passes_known_side_into_the_loop() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        let call = source
+            .split("let loopOutcome = await runClassifyLoop(")
+            .nth(1)
+            .and_then(|rest| rest.split(")").next())
+            .expect("runClassifyLoop 呼び出しが見つからない");
+        assert!(
+            call.contains("knownSide: knownSide"),
+            "runClassifyLoop の呼び出しが knownSide を渡していない"
+        );
+    }
 }
