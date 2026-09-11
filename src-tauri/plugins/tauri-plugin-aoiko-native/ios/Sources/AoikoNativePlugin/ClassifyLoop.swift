@@ -96,8 +96,7 @@ private func classifyLoopQuestion(for form: ClassifyQuestionForm, knownSide: Cla
         return "これはどの資金移動ですか。"
     }
 }
-// 会計の借方・貸方の説明を排し、支出/収入の対象を素朴に尋ねる形にすると精度が上がる
-// （実測）ので、候補一覧の名前を渡して選ばせるだけの形にする。
+// 会計の借方・貸方の説明を排し、支出/収入の対象を素朴に尋ねる形にする。
 func classifyLoopInstructions(for pass: ClassifyLoopPass, knownSide: ClassifyLoopKnownSide = .credit) -> String {
     let names = pass.vocabulary.map { "- \($0.name)" }.joined(separator: "\n")
     return """
@@ -158,10 +157,13 @@ func runClassifyLoop(
         let content = classifyLoopContent(tx)
         var accepted: (code: String, confidence: String, reason: String)?
         var terminalErrorCode: Int32?
+        // パス1が語彙を持って実際に答えた（空文字を含む）なら資産パスは温存しない。
+        var pass1Answered = false
 
         if let pass1Instructions {
             do {
                 let answer = try await call(pass1Instructions, content)
+                pass1Answered = true
                 if let code = codeByName[answer.accountName] {
                     accepted = (code, answer.confidence, answer.reason)
                 }
@@ -171,9 +173,7 @@ func runClassifyLoop(
                 terminalErrorCode = nil
             }
         }
-        // パス1が無い・答えなし・一覧のどの名前にも合致しない場合のみパス2へ進む。
-        // 一覧のどこかの名前に合致していれば（パス2の語彙でも）ここで既に確定している。
-        if accepted == nil, let pass2Instructions, clock() < deadline {
+        if accepted == nil, !pass1Answered, let pass2Instructions, clock() < deadline {
             do {
                 let answer = try await call(pass2Instructions, content)
                 if let code = codeByName[answer.accountName] {

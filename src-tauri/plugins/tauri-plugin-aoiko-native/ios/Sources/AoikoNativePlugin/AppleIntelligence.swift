@@ -227,8 +227,8 @@ struct ClassifyRequest: Decodable {
     var transactions: [ClassifyTransaction]
 }
 
-// ClassifyLoop.swift の分類本体は knownAccountCode を使わない（借方・貸方の説明を排した方が
-// 精度が上がるという実測に基づく設計）。knownSide だけは質問文言の選択に使われる。
+// knownAccountCode はリクエストに含まれるが分類本体（ClassifyLoop.swift）は使わない。
+// knownSide だけが質問文言の選択に使われる。
 
 // ClassifyLoop.swift 側からは FoundationModels が見えないので、モデルを実際に叩く
 // closure はここに置く。qa のハーネスから直接差し替えて呼べるよう private にしない
