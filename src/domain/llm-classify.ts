@@ -16,6 +16,41 @@ interface ClassifySuggestion {
   confidence: 'high' | 'low' | 'none';
   reason?: string;
 }
+// 在庫運用が無い帳簿では売上原価が成立せず、これらは対方になり得ない
+const INVENTORY_ACCOUNT_CODES = ['1340', '5010', '5020', '5030'];
+// 対方候補の絞り込み：事業所得のみ・既知科目を除外・既知側の性質に応じたカテゴリ・在庫運用の有無
+export function counterpartCandidates(
+  accounts: Account[],
+  knownAccountCode: string,
+  knownSide: 'debit' | 'credit',
+  inventoryLive: boolean,
+): Account[] {
+  const known = accounts.find((a) => a.code === knownAccountCode);
+  const categories = counterpartCategories(known?.category, knownSide);
+  return accounts.filter(
+    (a) =>
+      (a.incomeType ?? 'business') === 'business' &&
+      a.code !== knownAccountCode &&
+      categories.includes(a.category) &&
+      (inventoryLive || !INVENTORY_ACCOUNT_CODES.includes(a.code)),
+  );
+}
+// 負債（未払金等）は借方・貸方どちらも対方は費用/資産：貸方＝計上、借方＝取消（戻し）や返済
+function counterpartCategories(
+  knownCategory: AccountCategory | undefined,
+  knownSide: 'debit' | 'credit',
+): AccountCategory[] {
+  if (knownCategory === 'liability') {
+    return ['expense', 'asset'];
+  }
+  if (knownCategory === 'asset' && knownSide === 'debit') {
+    return ['revenue', 'asset'];
+  }
+  if (knownCategory === 'asset' && knownSide === 'credit') {
+    return ['expense', 'asset'];
+  }
+  return knownSide === 'debit' ? ['revenue', 'asset'] : ['expense', 'asset'];
+}
 
 interface ClassifyOptions {
   knownAccountCode: string;

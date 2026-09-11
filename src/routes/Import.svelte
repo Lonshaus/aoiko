@@ -1,3 +1,16 @@
+<script module lang="ts">
+  import { db as inventoryDb } from '../db';
+  // 確定仕訳は不可逆なので、分類器が書き得る科目コードを在庫運用の判定材料にしない
+  export async function computeInventoryLive(): Promise<boolean> {
+    const itemCount = await inventoryDb.inventoryItems.count();
+    if (itemCount > 0) {
+      return true;
+    }
+    const line = await inventoryDb.journalLines.filter((l) => l.itemId !== undefined).first();
+    return line !== undefined;
+  }
+</script>
+
 <script lang="ts">
   import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
@@ -10,7 +23,11 @@
   } from '../domain/import';
   import { findMatchingRule, loadRules, recordRuleHit } from '../domain/rules';
   import { describeLlmError, type LlmAdapter } from '../domain/llm';
-  import { classifyWithLlm, type ClassifyInput } from '../domain/llm-classify';
+  import {
+    classifyWithLlm,
+    counterpartCandidates,
+    type ClassifyInput,
+  } from '../domain/llm-classify';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
@@ -25,7 +42,6 @@
   import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
   import { CsvEncodingError, decodeCsv } from '../lib/encoding';
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
-  import type { Account } from '../db/types';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
@@ -185,16 +201,6 @@
     row.taxRate = defaultTaxRateFor(row.counterpartAccountCode);
   }
 
-  function counterpartCandidates(knownSide: 'debit' | 'credit'): Account[] {
-    // 既知側の反対側として妥当な科目を選ぶ
-    if (knownSide === 'debit') {
-      // 既知が借方（入金等）→ 対方は貸方：収益 or 資産（振替）
-      return ledger.accounts.filter((a) => a.category === 'revenue' || a.category === 'asset');
-    }
-    // 既知が貸方（出金等）→ 対方は借方：費用 or 資産（振替・前払）
-    return ledger.accounts.filter((a) => a.category === 'expense' || a.category === 'asset');
-  }
-
   async function classifyRemainingWithLlm() {
     if (!currentParser) {
       return;
@@ -245,6 +251,7 @@
       let highCount = 0;
       let lowCount = 0;
       let noneCount = 0;
+      const inventoryLive = await computeInventoryLive();
 
       for (const [knownSide, group] of bySide) {
         const inputs: ClassifyInput[] = group.map((g) => ({
@@ -255,7 +262,12 @@
         const suggestions = await classifyWithLlm(adapter, inputs, {
           knownAccountCode: currentParser.accountCode,
           knownSide,
-          candidateAccounts: counterpartCandidates(knownSide),
+          candidateAccounts: counterpartCandidates(
+            ledger.accounts,
+            currentParser.accountCode,
+            knownSide,
+            inventoryLive,
+          ),
         });
         for (const s of suggestions) {
           const idx = Number(s.ref);

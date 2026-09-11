@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { buildPrompt, classifyWithLlm, type ClassifyInput } from './llm-classify';
+import {
+  buildPrompt,
+  classifyWithLlm,
+  counterpartCandidates,
+  type ClassifyInput,
+} from './llm-classify';
 import type { LlmAdapter } from './llm';
 import type { Account } from '../db/types';
 import { AppleAiAdapter } from '../lib/apple-ai-adapter';
@@ -8,6 +13,30 @@ const ACCOUNTS: Account[] = [
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
   { code: '5150', year: 2026, name: '通信費', category: 'expense', displayOrder: 150 },
   { code: '5200', year: 2026, name: '消耗品費', category: 'expense', displayOrder: 200 },
+];
+
+const CANDIDATE_ACCOUNTS: Account[] = [
+  { code: '2120', year: 2026, name: '未払金', category: 'liability', displayOrder: 120 },
+  { code: '1130', year: 2026, name: '普通預金', category: 'asset', displayOrder: 130 },
+  { code: '1110', year: 2026, name: '現金', category: 'asset', displayOrder: 110 },
+  { code: '5200', year: 2026, name: '消耗品費', category: 'expense', displayOrder: 200 },
+  { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
+  {
+    code: '5210',
+    year: 2026,
+    name: '不動産管理費',
+    category: 'expense',
+    incomeType: 'realEstate',
+    displayOrder: 210,
+  },
+  {
+    code: '4210',
+    year: 2026,
+    name: '賃貸料収入',
+    category: 'revenue',
+    incomeType: 'realEstate',
+    displayOrder: 210,
+  },
 ];
 
 function fakeAdapter(response: unknown): LlmAdapter {
@@ -173,5 +202,90 @@ describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
     expect(r).toHaveLength(1);
     expect(r[0]?.accountCode).toBe('5200');
     expect(r[0]?.confidence).toBe('high');
+  });
+});
+
+describe('counterpartCandidates', () => {
+  test('liability known, credit side: expense/asset, no revenue, no realEstate', () => {
+    const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '2120', 'credit', true);
+    const codes = r.map((a) => a.code);
+    expect(codes).toContain('5200');
+    expect(codes).toContain('1110');
+    expect(r.some((a) => a.incomeType === 'realEstate')).toBe(false);
+    expect(r.some((a) => a.category === 'revenue')).toBe(false);
+  });
+
+  test('liability known, debit side (refund/repayment): expense/asset, no revenue, no realEstate', () => {
+    const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '2120', 'debit', true);
+    const codes = r.map((a) => a.code);
+    expect(codes).toContain('5200');
+    expect(codes).toContain('1110');
+    expect(r.some((a) => a.category === 'revenue')).toBe(false);
+    expect(r.some((a) => a.incomeType === 'realEstate')).toBe(false);
+  });
+
+  test('asset known, debit side (deposit): revenue/asset, excludes self, no expense', () => {
+    const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '1130', 'debit', true);
+    const codes = r.map((a) => a.code);
+    expect(codes).not.toContain('1130');
+    expect(codes).toContain('4110');
+    expect(codes).toContain('1110');
+    expect(r.some((a) => a.category === 'expense')).toBe(false);
+  });
+
+  test('asset known, credit side (withdrawal): expense/asset, excludes self, no revenue', () => {
+    const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '1130', 'credit', true);
+    const codes = r.map((a) => a.code);
+    expect(codes).not.toContain('1130');
+    expect(codes).toContain('5200');
+    expect(r.some((a) => a.category === 'revenue')).toBe(false);
+  });
+
+  test('unknown known code, debit side: falls back to side-only rule', () => {
+    const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '9999', 'debit', true);
+    const codes = r.map((a) => a.code);
+    expect(r.length).toBeGreaterThan(0);
+    expect(codes).toContain('4110');
+    expect(codes).toContain('1110');
+    expect(r.some((a) => a.incomeType === 'realEstate')).toBe(false);
+    expect(r.some((a) => a.category === 'expense')).toBe(false);
+  });
+});
+
+const INVENTORY_ACCOUNTS: Account[] = [
+  { code: '1340', year: 2026, name: '棚卸資産', category: 'asset', displayOrder: 340 },
+  { code: '5010', year: 2026, name: '期首商品棚卸高', category: 'expense', displayOrder: 10 },
+  { code: '5020', year: 2026, name: '仕入', category: 'expense', displayOrder: 20 },
+  { code: '5030', year: 2026, name: '期末商品棚卸高', category: 'expense', displayOrder: 30 },
+  { code: '5200', year: 2026, name: '消耗品費', category: 'expense', displayOrder: 200 },
+  { code: '1110', year: 2026, name: '現金', category: 'asset', displayOrder: 110 },
+  { code: '2120', year: 2026, name: '未払金', category: 'liability', displayOrder: 120 },
+];
+
+describe('counterpartCandidates（在庫運用の有無）', () => {
+  test('在庫運用ありなら 1340/5010/5020/5030 を含む（従来通り）', () => {
+    const r = counterpartCandidates(INVENTORY_ACCOUNTS, '2120', 'credit', true);
+    const codes = r.map((a) => a.code);
+    expect(codes).toEqual(expect.arrayContaining(['1340', '5010', '5020', '5030', '5200', '1110']));
+  });
+
+  test('在庫運用なしなら 1340/5010/5020/5030 を除外し、5200/1110 は残す', () => {
+    const r = counterpartCandidates(INVENTORY_ACCOUNTS, '2120', 'credit', false);
+    const codes = r.map((a) => a.code);
+    expect(codes).not.toContain('1340');
+    expect(codes).not.toContain('5010');
+    expect(codes).not.toContain('5020');
+    expect(codes).not.toContain('5030');
+    expect(codes).toContain('5200');
+    expect(codes).toContain('1110');
+  });
+
+  test('同一科目・同一側で差分は在庫 4 科目のみ', () => {
+    const withInventory = counterpartCandidates(INVENTORY_ACCOUNTS, '2120', 'credit', true);
+    const withoutInventory = counterpartCandidates(INVENTORY_ACCOUNTS, '2120', 'credit', false);
+    const diff = withInventory
+      .map((a) => a.code)
+      .filter((c) => !withoutInventory.some((a) => a.code === c));
+    expect(diff.sort()).toEqual(['1340', '5010', '5020', '5030']);
   });
 });
