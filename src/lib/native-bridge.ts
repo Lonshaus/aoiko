@@ -47,7 +47,7 @@ export type NativeBridge = {
   // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 文字が読めない / 3 その他 / 4 OS が古い）。
   appleAiExtract?(base64: string): Promise<string>;
   // OS 内蔵の AI で分類・注文取込を行う。task は 1 = 分類 / 2 = 注文、data は JSON 文字列。
-  // 指示は Swift 側に固定で埋め込まれており、data はプロンプトではなく処理対象のデータ。
+  // 指示は環境側に固定で埋め込まれており、data はプロンプトではなく処理対象のデータ。
   // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 入力データが処理できない /
   // 3 その他 / 4 OS が古い）。権限不足・未知コマンド等は数値ではなく文字列で reject される。
   appleAiRun?(task: number, data: string): Promise<string>;

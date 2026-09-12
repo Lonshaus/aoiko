@@ -1,6 +1,6 @@
 // OS 内蔵の AI（FoundationModels）を LlmAdapter として橋渡しする。
 // generateJson（プロンプト経由）は使わせない：指示を上書きできる口を作らないための拒否で、
-// これは制約であって不備ではない。runDataTask だけがデータを渡し、指示は Swift 側に固定で
+// これは制約であって不備ではない。runDataTask だけがデータを渡し、指示は環境側に固定で
 // 埋め込まれている（AppleIntelligence.swift の classifyInstructions / orderInstructions）。
 import { LlmError, type LlmAdapter, type LlmDataTask, type LlmImageInput } from '../domain/llm';
 import { nativeBridge } from './native-bridge';

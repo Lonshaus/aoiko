@@ -166,14 +166,14 @@ describe('classifyWithLlm', () => {
   });
 });
 // runDataTask を持つアダプター（apple-ai）経由の分類。プロンプトではなくデータを渡し、
-// Swift 側の @Generable が返す形の JSON（classifications 配列、accountCode は非対応時は空文字）
+// 環境が返す形の JSON（classifications 配列、accountCode は非対応時は空文字）
 // を受け取る経路。
 describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  test('アダプターが送るバイト列と Swift 側が返す JSON の形で相手科目が反映される', async () => {
+  test('アダプターが送るバイト列と環境が返す JSON の形で相手科目が反映される', async () => {
     const appleAiRun = vi.fn(async (task: number, data: string) => {
       expect(task).toBe(1);
       expect(JSON.parse(data)).toEqual({

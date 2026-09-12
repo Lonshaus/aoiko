@@ -109,7 +109,7 @@ function parseAppleReceipt(raw: string): AppleReceipt {
   return parsed as AppleReceipt;
 }
 
-// Vision が先頭の T を落として返すのは receipt-text-extract.ts の recoverInvoiceNumber
+// 環境の文字認識が先頭の T を落として返すのは receipt-text-extract.ts の recoverInvoiceNumber
 // と同じ既知の癖（実測、自信度は最大）。ここは新しい後処理層ではなく、その既知の欠落を
 // この経路でも同じように埋めるだけの修復。
 function recoverInvoiceNumber(value: string): string | undefined {
