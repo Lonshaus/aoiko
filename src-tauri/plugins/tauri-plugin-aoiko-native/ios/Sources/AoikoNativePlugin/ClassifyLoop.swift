@@ -20,12 +20,19 @@ struct ClassifyLoopAnswer: Sendable {
     var confidence: String
     var reason: String
 }
+// 呼び出し失敗（failed）と「答えたが候補に無かった」（unmatched）を区別する。FFI のエラーコードは全行同一コードで失敗したときしか伝わらないため、行ごとの区別はここで持つ。
+enum ClassifyLoopStatus: String, Sendable, Encodable {
+    case matched
+    case unmatched
+    case failed
+}
 
 struct ClassifyLoopResult: Sendable, Encodable {
     var ref: String
     var accountCode: String
     var confidence: String
     var reason: String
+    var status: ClassifyLoopStatus
 }
 
 private struct ClassifyLoopEnvelope: Encodable {
@@ -151,7 +158,9 @@ func runClassifyLoop(
 
     for tx in transactions {
         guard clock() < deadline else {
-            results.append(ClassifyLoopResult(ref: tx.ref, accountCode: "", confidence: "none", reason: ""))
+            results.append(
+                ClassifyLoopResult(ref: tx.ref, accountCode: "", confidence: "none", reason: "", status: .unmatched)
+            )
             continue
         }
         let content = classifyLoopContent(tx)
@@ -170,10 +179,12 @@ func runClassifyLoop(
             } catch let e as ClassifyCallError {
                 terminalErrorCode = e.code
             } catch {
-                terminalErrorCode = nil
+                // ClassifyCallError 以外の throw も失敗として扱う。3 は本番ラッパーが汎用失敗に使うコードと同じ。
+                terminalErrorCode = 3
             }
         }
-        if accepted == nil, !pass1Answered, let pass2Instructions, clock() < deadline {
+        // パス1が throw した行はパス2（別の質問）に流さない。空回答で普通に unmatched になった行とは違う経路。
+        if accepted == nil, !pass1Answered, terminalErrorCode == nil, let pass2Instructions, clock() < deadline {
             do {
                 let answer = try await call(pass2Instructions, content)
                 if let code = codeByName[answer.accountName] {
@@ -185,7 +196,7 @@ func runClassifyLoop(
             } catch let e as ClassifyCallError {
                 terminalErrorCode = e.code
             } catch {
-                terminalErrorCode = nil
+                terminalErrorCode = 3
             }
         }
 
@@ -193,14 +204,18 @@ func runClassifyLoop(
             results.append(
                 ClassifyLoopResult(
                     ref: tx.ref, accountCode: accepted.code, confidence: accepted.confidence,
-                    reason: accepted.reason
+                    reason: accepted.reason, status: .matched
                 )
             )
+        } else if let terminalErrorCode {
+            results.append(
+                ClassifyLoopResult(ref: tx.ref, accountCode: "", confidence: "none", reason: "", status: .failed)
+            )
+            errorCodes.append(terminalErrorCode)
         } else {
-            results.append(ClassifyLoopResult(ref: tx.ref, accountCode: "", confidence: "none", reason: ""))
-            if let terminalErrorCode {
-                errorCodes.append(terminalErrorCode)
-            }
+            results.append(
+                ClassifyLoopResult(ref: tx.ref, accountCode: "", confidence: "none", reason: "", status: .unmatched)
+            )
         }
     }
     // 「全件が同一コードで失敗」のときだけ報告する。一部だけの失敗・不一致・budget 切れは
@@ -216,9 +231,10 @@ func runClassifyLoop(
 // MARK: - エンコード
 // src/domain/llm-classify.ts の parseResponse がそのまま解ける形。accountName は
 // 出力側の型に存在しないので、ここから漏れることはあり得ない。
+// .sortedKeys が無いと JSONEncoder のキー順は実行のたびに変わる（実測）ので、行の完全一致比較には必須。
 func encodeClassifyLoopEnvelope(_ results: [ClassifyLoopResult]) -> String? {
     let encoder = JSONEncoder()
-    encoder.outputFormatting = [.withoutEscapingSlashes]
+    encoder.outputFormatting = [.withoutEscapingSlashes, .sortedKeys]
     guard let data = try? encoder.encode(ClassifyLoopEnvelope(classifications: results)) else {
         return nil
     }

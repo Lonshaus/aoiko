@@ -28,6 +28,7 @@
   import type { JournalLine } from '../db/types';
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
@@ -49,6 +50,10 @@
   // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
   let committing = $state(false);
   let confirmOpen = $state(false);
+  let discardConfirmOpen = $state(false);
+  // Cancel／画像選び直しの2経路を同じダイアログで賄うため、破棄後の動作を種別で持つ
+  type PendingDiscard = { kind: 'cancel' } | { kind: 'file'; file: File; input: HTMLInputElement };
+  let pendingDiscard = $state<PendingDiscard | null>(null);
   let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
   let pending = $state<{
     extractor: ReceiptExtractor;
@@ -122,6 +127,15 @@
     if (!f) {
       return;
     }
+    if (extracted !== null) {
+      pendingDiscard = { kind: 'file', file: f, input };
+      discardConfirmOpen = true;
+      return;
+    }
+    await proceedFile(f, input);
+  }
+
+  async function proceedFile(f: File, input: HTMLInputElement) {
     if (f.size > MAX_IMAGE_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(f.size),
@@ -335,6 +349,35 @@
     }
     error = '';
     success = '';
+  }
+
+  function requestDiscard() {
+    pendingDiscard = { kind: 'cancel' };
+    discardConfirmOpen = true;
+  }
+
+  async function confirmDiscard() {
+    discardConfirmOpen = false;
+    // AlertDialog の確定操作は handleClose 経由で oncancel（cancelDiscard）も呼ぶため、古い pendingDiscard を見せないよう await の前に読んで消す。
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (!pending) {
+      return;
+    }
+    if (pending.kind === 'cancel') {
+      reset();
+      return;
+    }
+    await proceedFile(pending.file, pending.input);
+  }
+
+  function cancelDiscard() {
+    discardConfirmOpen = false;
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (pending?.kind === 'file') {
+      pending.input.value = '';
+    }
   }
 </script>
 
@@ -565,7 +608,11 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <button type="button" onclick={reset} class="px-4 py-2 border rounded hover:bg-accent">
+        <button
+          type="button"
+          onclick={requestDiscard}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
           {m.common_cancel()}
         </button>
         <button
@@ -589,6 +636,11 @@
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
+/>
+<DiscardCandidatesDialog
+  open={discardConfirmOpen}
+  onconfirm={confirmDiscard}
+  oncancel={cancelDiscard}
 />
 {#snippet attachmentPreviewImage()}
   {#if attachmentPreview}

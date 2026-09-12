@@ -228,7 +228,7 @@ describe('ネイティブ JSON の防御', () => {
 
 function expectedMessageFor(code: number): RegExp {
   const texts: Record<number, string> = {
-    1: '情報量が多すぎて',
+    1: '分けて読み取ってみてください',
     2: '読み取れませんでした',
     3: '抽出に失敗しました',
     4: 'AI 抽出を使えません',

@@ -11,10 +11,12 @@ export interface ClassifyInput {
 
 interface ClassifySuggestion {
   ref: string;
-  /** 提案された対方科目 code、信頼度が低い or 適合なしのとき null */
+  /** 提案された相手科目 code、信頼度が低い or 適合なしのとき null */
   accountCode: string | null;
   confidence: 'high' | 'low' | 'none';
   reason?: string;
+  /** モデル呼び出し自体が失敗した行。「答えたが候補に無かった」とは区別する */
+  failed?: boolean;
 }
 // 在庫運用が無い帳簿では売上原価が成立せず、これらは対方になり得ない
 const INVENTORY_ACCOUNT_CODES = ['1340', '5010', '5020', '5030'];
@@ -103,7 +105,7 @@ export function buildPrompt(inputs: ClassifyInput[], options: ClassifyOptions): 
 
   return [
     `あなたは日本の個人事業主向け会計補助 AI です。`,
-    `以下の CSV 由来トランザクションについて、適切な「対方科目」を分類してください。`,
+    `以下の CSV 由来トランザクションについて、適切な「相手科目」を分類してください。`,
     ``,
     `既知側：${options.knownAccountCode}（${knownSideJa}）`,
     `求められる側：${counterpartSideJa}`,
@@ -148,12 +150,17 @@ function parseResponse(
     if (!ref) {
       continue;
     }
+    // status は端末内経路（ClassifyLoop.swift）だけが送る。無い場合は従来どおり accountCode/confidence だけで判定する
+    const failed = r.status === 'failed';
+    // failed は payload の accountCode/confidence がどうであれ none 扱いにする。auto-fill を必ず塞ぐため
     const accountCode =
-      typeof r.accountCode === 'string' && codeSet.has(r.accountCode) ? r.accountCode : null;
+      !failed && typeof r.accountCode === 'string' && codeSet.has(r.accountCode)
+        ? r.accountCode
+        : null;
     let confidence: ClassifySuggestion['confidence'] = 'none';
-    if (r.confidence === 'high' && accountCode) {
+    if (!failed && r.confidence === 'high' && accountCode) {
       confidence = 'high';
-    } else if (r.confidence === 'low' && accountCode) {
+    } else if (!failed && r.confidence === 'low' && accountCode) {
       confidence = 'low';
     }
     const result: ClassifySuggestion = {
@@ -163,6 +170,9 @@ function parseResponse(
     };
     if (typeof r.reason === 'string' && r.reason.length > 0) {
       result.reason = r.reason;
+    }
+    if (failed) {
+      result.failed = true;
     }
     byRef.set(ref, result);
   }

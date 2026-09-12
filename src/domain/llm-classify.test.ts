@@ -8,6 +8,7 @@ import {
 import type { LlmAdapter } from './llm';
 import type { Account } from '../db/types';
 import { AppleAiAdapter } from '../lib/apple-ai-adapter';
+import { shouldFillSuggestion } from '../routes/Import.svelte';
 
 const ACCOUNTS: Account[] = [
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
@@ -172,7 +173,7 @@ describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
     vi.unstubAllGlobals();
   });
 
-  test('アダプターが送るバイト列と Swift 側が返す JSON の形で対方科目が反映される', async () => {
+  test('アダプターが送るバイト列と Swift 側が返す JSON の形で相手科目が反映される', async () => {
     const appleAiRun = vi.fn(async (task: number, data: string) => {
       expect(task).toBe(1);
       expect(JSON.parse(data)).toEqual({
@@ -202,6 +203,76 @@ describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
     expect(r).toHaveLength(1);
     expect(r[0]?.accountCode).toBe('5200');
     expect(r[0]?.confidence).toBe('high');
+  });
+});
+// 相方：scripts/swift/ClassifyLoopTests.swift の testUnmatchedAndFailedEnvelopesArePinned が
+// この文字列を encodeClassifyLoopEnvelope の出力として確定させる（一文字違えばどちらかが赤くなる）。
+describe('classifyWithLlm（failed マーカーの伝播）', () => {
+  const FAILED_ENVELOPE =
+    '{"classifications":[{"accountCode":"","confidence":"none","reason":"","ref":"r1","status":"failed"}]}';
+
+  test('failed 行は confidence none・failed true になり、shouldFillSuggestion は false', async () => {
+    const adapter: LlmAdapter = {
+      external: false,
+      destinationHost: '',
+      generateJson: async () => {
+        throw new Error('runDataTask を使う経路のテストで generateJson は呼ばれないはず');
+      },
+      runDataTask: async () => JSON.parse(FAILED_ENVELOPE) as unknown,
+    };
+    const r = await classifyWithLlm(adapter, [{ ref: 'r1', description: 'd', amount: '1' }], {
+      knownAccountCode: '1130',
+      knownSide: 'credit',
+      candidateAccounts: ACCOUNTS,
+    });
+    expect(r).toHaveLength(1);
+    expect(r[0]?.accountCode).toBe(null);
+    expect(r[0]?.confidence).toBe('none');
+    expect(r[0]?.failed).toBe(true);
+    expect(shouldFillSuggestion(r[0]!)).toBe(false);
+  });
+
+  test('failed 行に accountCode/confidence high が同梱されていても none 扱いで auto-fill されない', async () => {
+    const adapter: LlmAdapter = {
+      external: false,
+      destinationHost: '',
+      generateJson: async () => {
+        throw new Error('runDataTask を使う経路のテストで generateJson は呼ばれないはず');
+      },
+      runDataTask: async () => ({
+        classifications: [{ ref: 'r1', accountCode: '5200', confidence: 'high', status: 'failed' }],
+      }),
+    };
+    const r = await classifyWithLlm(adapter, [{ ref: 'r1', description: 'd', amount: '1' }], {
+      knownAccountCode: '1130',
+      knownSide: 'credit',
+      candidateAccounts: ACCOUNTS,
+    });
+    expect(r[0]?.accountCode).toBe(null);
+    expect(r[0]?.confidence).toBe('none');
+    expect(r[0]?.failed).toBe(true);
+    expect(shouldFillSuggestion(r[0]!)).toBe(false);
+  });
+
+  test('status が unmatched の行は failed が立たない', async () => {
+    const adapter: LlmAdapter = {
+      external: false,
+      destinationHost: '',
+      generateJson: async () => {
+        throw new Error('runDataTask を使う経路のテストで generateJson は呼ばれないはず');
+      },
+      runDataTask: async () => ({
+        classifications: [
+          { ref: 'r1', accountCode: '', confidence: 'none', reason: '', status: 'unmatched' },
+        ],
+      }),
+    };
+    const r = await classifyWithLlm(adapter, [{ ref: 'r1', description: 'd', amount: '1' }], {
+      knownAccountCode: '1130',
+      knownSide: 'credit',
+      candidateAccounts: ACCOUNTS,
+    });
+    expect(r[0]?.failed).toBeUndefined();
   });
 });
 

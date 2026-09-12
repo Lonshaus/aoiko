@@ -2573,6 +2573,9 @@
       {/if}
 
       {#if aiEngine === 'gemini'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_llm_gemini_byok_html()}
+        </p>
         <div class="flex flex-wrap gap-3 items-end">
           <label class="block flex-1">
             <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>

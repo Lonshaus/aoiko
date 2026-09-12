@@ -190,7 +190,7 @@ func aoiko_ai_extract(
     return strdup(json)
 }
 
-// MARK: - 分類（CSV 対方科目）・注文取込
+// MARK: - 分類（CSV 相手科目）・注文取込
 
 // 配列出力（classifications: [Item]）はコンテキスト窓（4096 トークン）を埋めるまで
 // 項目を吐き続ける暴走が実測で確認されたため、単一オブジェクト出力にする

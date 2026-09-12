@@ -260,27 +260,112 @@ func testNoPass1VocabularyStillCallsPass2() async {
     check(callCount.read() == 1, "w: exactly one call, pass1 had no vocabulary")
     check(outcome.results[0].accountCode == "1410", "w: pass2 answered normally")
 }
-// x) パス1が throw → 温存されず、混在候補でもパス2が呼ばれ errorCode は nil のまま確定する。
-func testPass1ThrowStillTriesPass2WithMixedCandidates() async {
+// x) パス1が throw → パス2（別の質問）には流れず failed のまま確定する（a）。
+func testPass1ThrowNeverTriesPass2WithMixedCandidates() async {
     let candidates = [candidate("5200", "消耗品費", "expense"), candidate("1410", "前払費用", "asset")]
     let callCount = CallCounter()
     let txs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
-    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, content in
+    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, _ in
         callCount.increment()
-        if callCount.read() == 1 {
-            throw ClassifyCallError(code: 3)
-        }
-        return ClassifyLoopAnswer(accountName: "前払費用", confidence: "high", reason: "ok")
+        throw ClassifyCallError(code: 3)
     }
-    check(callCount.read() == 2, "x: exactly two calls, pass1 throw still tries pass2")
-    check(outcome.results[0].accountCode == "1410", "x: pass2 answer accepted")
-    check(outcome.errorCode == nil, "x: errorCode cleared once pass2 answers")
+    check(callCount.read() == 1, "a: exactly one call, pass1 throw never tries pass2")
+    check(outcome.results[0].accountCode.isEmpty, "a: empty account code")
+    check(outcome.results[0].status == .failed, "a: failed status")
+    check(outcome.errorCode == 3, "a: the sole failing row's code is reported")
+}
+// ClassifyCallError 以外の生の Error でも失敗扱いになることを確認する（AppleIntelligence.swift のラップに頼らない）。
+struct E: Error {}
+func testPass1PlainThrowMarksFailedWithMixedCandidates() async {
+    let candidates = [candidate("5200", "消耗品費", "expense"), candidate("1410", "前払費用", "asset")]
+    let callCount = CallCounter()
+    let txs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
+    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, _ in
+        callCount.increment()
+        throw E()
+    }
+    check(callCount.read() == 1, "plain throw: exactly one call, pass1 throw never tries pass2")
+    check(outcome.results[0].status == .failed, "plain throw: failed status")
+}
+// b) パス1に語彙が無い（資産のみ）唯一の呼び出しが throw → failed のまま確定する。
+func testOnlyPass2ThrowMarksFailed() async {
+    let candidates = [candidate("1410", "前払費用", "asset")]
+    let callCount = CallCounter()
+    let txs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
+    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, _ in
+        callCount.increment()
+        throw ClassifyCallError(code: 5)
+    }
+    check(callCount.read() == 1, "b: exactly one call, pass1 has no vocabulary")
+    check(outcome.results[0].accountCode.isEmpty, "b: empty account code")
+    check(outcome.results[0].status == .failed, "b: failed status")
+}
+func testOnlyPass2PlainThrowMarksFailed() async {
+    let candidates = [candidate("1410", "前払費用", "asset")]
+    let callCount = CallCounter()
+    let txs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
+    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, _ in
+        callCount.increment()
+        throw E()
+    }
+    check(callCount.read() == 1, "plain throw pass2: exactly one call, pass1 has no vocabulary")
+    check(outcome.results[0].status == .failed, "plain throw pass2: failed status")
+}
+// c) 答えが候補のどれとも一致しない → unmatched。failed とはコード上区別され、エンコード文字列を固定する。
+// 相方：src/domain/llm-classify.test.ts の「envelope の失敗マーカーを固定する」テストが同じ文字列を fixture に使う。
+func testUnmatchedAndFailedEnvelopesArePinned() async {
+    let candidates = [candidate("5200", "消耗品費", "expense")]
+    let unmatchedTxs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
+    let unmatchedOutcome = await runClassifyLoop(
+        transactions: unmatchedTxs, candidates: candidates, budgetSeconds: 10
+    ) { _, _ in
+        ClassifyLoopAnswer(accountName: "存在しない科目", confidence: "low", reason: "?")
+    }
+    let unmatchedJson = encodeClassifyLoopEnvelope(unmatchedOutcome.results)
+    check(
+        unmatchedJson
+            == "{\"classifications\":[{\"accountCode\":\"\",\"confidence\":\"none\",\"reason\":\"\",\"ref\":\"r1\",\"status\":\"unmatched\"}]}",
+        "c: exact unmatched envelope pinned"
+    )
+
+    let failedTxs = [ClassifyLoopTransaction(ref: "r1", description: "d", amount: "1")]
+    let failedOutcome = await runClassifyLoop(
+        transactions: failedTxs, candidates: candidates, budgetSeconds: 10
+    ) { _, _ in
+        throw ClassifyCallError(code: 9)
+    }
+    let failedJson = encodeClassifyLoopEnvelope(failedOutcome.results)
+    check(
+        failedJson
+            == "{\"classifications\":[{\"accountCode\":\"\",\"confidence\":\"none\",\"reason\":\"\",\"ref\":\"r1\",\"status\":\"failed\"}]}",
+        "c: exact failed envelope pinned"
+    )
+}
+// d) 一部成功・一部 throw → 両方の状態がエンコードされ、成功行の答えは従来どおり。
+func testMixedSuccessAndThrowEncodesBothStatuses() async {
+    let candidates = [candidate("5200", "消耗品費", "expense")]
+    let txs = (1...2).map { ClassifyLoopTransaction(ref: "r\($0)", description: "d\($0)", amount: "1") }
+    let outcome = await runClassifyLoop(transactions: txs, candidates: candidates, budgetSeconds: 10) { _, content in
+        if content.contains("d2") {
+            throw ClassifyCallError(code: 4)
+        }
+        return ClassifyLoopAnswer(accountName: "消耗品費", confidence: "high", reason: "ok")
+    }
+    check(outcome.results[0].status == .matched, "d: the succeeding row is matched")
+    check(outcome.results[0].accountCode == "5200", "d: the succeeding row's answer is unchanged")
+    check(outcome.results[1].status == .failed, "d: the throwing row is failed")
+    guard let json = encodeClassifyLoopEnvelope(outcome.results) else {
+        check(false, "d: encoding failed")
+        return
+    }
+    check(json.contains("\"status\":\"matched\""), "d: matched status encoded")
+    check(json.contains("\"status\":\"failed\""), "d: failed status encoded")
 }
 // n) エンコード：TS 側の parseResponse がそのまま解ける形で、accountName は現れない。
 func testEncodingMatchesTsEnvelope() {
     let results = [
-        ClassifyLoopResult(ref: "r1", accountCode: "5200", confidence: "high", reason: "ok"),
-        ClassifyLoopResult(ref: "r2", accountCode: "", confidence: "none", reason: ""),
+        ClassifyLoopResult(ref: "r1", accountCode: "5200", confidence: "high", reason: "ok", status: .matched),
+        ClassifyLoopResult(ref: "r2", accountCode: "", confidence: "none", reason: "", status: .unmatched),
     ]
     guard let json = encodeClassifyLoopEnvelope(results) else {
         check(false, "n: encoding failed")
@@ -507,7 +592,12 @@ struct ClassifyLoopTests {
         await testUnmatchedAnswerTriesPass2ThenNone()
         await testEmptyPass1AnswerAlsoWithholdsPass2()
         await testNoPass1VocabularyStillCallsPass2()
-        await testPass1ThrowStillTriesPass2WithMixedCandidates()
+        await testPass1ThrowNeverTriesPass2WithMixedCandidates()
+        await testPass1PlainThrowMarksFailedWithMixedCandidates()
+        await testOnlyPass2ThrowMarksFailed()
+        await testOnlyPass2PlainThrowMarksFailed()
+        await testUnmatchedAndFailedEnvelopesArePinned()
+        await testMixedSuccessAndThrowEncodesBothStatuses()
         testEncodingMatchesTsEnvelope()
         testContentBuilderCarriesOnlyDescriptionAndAmount()
         testInstructionsExcludeForbiddenWordsAndCarryInjectionClause()

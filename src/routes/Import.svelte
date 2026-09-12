@@ -41,6 +41,7 @@
   import { formatJPY } from '../lib/decimal';
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
@@ -96,6 +97,14 @@
   } | null>(null);
   let error = $state('');
   let success = $state('');
+  let discardConfirmOpen = $state(false);
+  let parserSelectEl = $state<HTMLSelectElement | null>(null);
+  // Cancel／取込元切替／ファイル選び直しの3経路を同じダイアログで賄うため、破棄後の動作を種別で持つ
+  type PendingDiscard =
+    | { kind: 'cancel' }
+    | { kind: 'parser'; newName: string }
+    | { kind: 'file'; file: File; input: HTMLInputElement };
+  let pendingDiscard = $state<PendingDiscard | null>(null);
 
   const currentParser = $derived(findParser(selectedParserName));
   const knownAccount = $derived(
@@ -124,21 +133,34 @@
   // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
   function handleParserChange(newName: string) {
     if (rows.length > 0 && newName !== selectedParserName) {
-      reset();
-      parserChangedNotice = m.import_parser_changed_notice();
+      pendingDiscard = { kind: 'parser', newName };
+      discardConfirmOpen = true;
+      return;
     }
     selectedParserName = newName;
   }
 
   async function handleFile(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    if (rows.length > 0) {
+      pendingDiscard = { kind: 'file', file, input };
+      discardConfirmOpen = true;
+      return;
+    }
+    await processFile(file, input);
+  }
+
+  async function processFile(file: File, input: HTMLInputElement) {
     error = '';
     success = '';
     parserChangedNotice = '';
     rows = [];
     page = 0;
-    const input = e.target as HTMLInputElement;
-    const file = input.files?.[0];
-    if (!file || !currentParser) {
+    if (!currentParser) {
       return;
     }
     if (file.size > MAX_CSV_BYTES) {
@@ -257,6 +279,7 @@
       let highCount = 0;
       let lowCount = 0;
       let noneCount = 0;
+      let failedCount = 0;
       const inventoryLive = await computeInventoryLive();
 
       for (const [knownSide, group] of bySide) {
@@ -290,12 +313,14 @@
             } else {
               lowCount++;
             }
+          } else if (s.failed) {
+            failedCount++;
           } else {
             noneCount++;
           }
         }
       }
-      llmStatus =
+      const baseStatus =
         noneCount > 0
           ? m.import_llm_status_with_none({
               count: highCount + lowCount,
@@ -304,6 +329,10 @@
               none: noneCount,
             })
           : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
+      llmStatus =
+        failedCount > 0
+          ? `${baseStatus} ${m.import_llm_status_failed({ failed: failedCount })}`
+          : baseStatus;
     } catch (e) {
       error = describeLlmError(e);
     } finally {
@@ -338,6 +367,45 @@
     duplicateNotice = '';
     parserChangedNotice = '';
     error = '';
+  }
+
+  function requestDiscard() {
+    pendingDiscard = { kind: 'cancel' };
+    discardConfirmOpen = true;
+  }
+
+  async function confirmDiscard() {
+    discardConfirmOpen = false;
+    // AlertDialog の確定操作は handleClose 経由で oncancel（cancelDiscard）も呼ぶため、古い pendingDiscard を見せないよう await の前に読んで消す。
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (!pending) {
+      return;
+    }
+    if (pending.kind === 'cancel') {
+      reset();
+      return;
+    }
+    if (pending.kind === 'parser') {
+      reset();
+      selectedParserName = pending.newName;
+      parserChangedNotice = m.import_parser_changed_notice();
+      return;
+    }
+    await processFile(pending.file, pending.input);
+  }
+
+  // ダイアログ表示時点で select・input の DOM 値はもう新しい選択に変わっている。
+  // value バインドは selectedParserName が変わらない限り再同期されないため、DOM を直接戻す。
+  function cancelDiscard() {
+    discardConfirmOpen = false;
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (pending?.kind === 'parser' && parserSelectEl) {
+      parserSelectEl.value = selectedParserName;
+    } else if (pending?.kind === 'file') {
+      pending.input.value = '';
+    }
   }
 
   async function submit() {
@@ -410,6 +478,7 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_parser()}</span>
         <select
+          bind:this={parserSelectEl}
           value={selectedParserName}
           onchange={(e) => handleParserChange((e.target as HTMLSelectElement).value)}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -505,14 +574,14 @@
       </div>
 
       <div class="overflow-x-auto">
-        <table class="w-full min-w-[820px] table-fixed text-sm">
+        <table class="w-full min-w-[916px] table-fixed text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
               <th class="text-left font-normal px-3 py-2 w-[6.5rem]">{m.journal_th_date()}</th>
               <th class="text-left font-normal px-3 py-2">{m.journal_th_description()}</th>
               <th class="text-right font-normal px-3 py-2 w-[7.5rem]">{m.journal_th_amount()}</th>
-              <th class="text-left font-normal px-3 py-2 w-[13rem]">{m.import_th_counterpart()}</th>
-              <th class="text-left font-normal px-3 py-2 w-[6rem]">{m.import_th_tax()}</th>
+              <th class="text-left font-normal px-3 py-2 w-64">{m.import_th_counterpart()}</th>
+              <th class="text-left font-normal px-3 py-2 w-36">{m.import_th_tax()}</th>
               <th class="text-center font-normal px-3 py-2 w-[3.5rem]">{m.import_th_skip()}</th>
             </tr>
           </thead>
@@ -547,7 +616,7 @@
                       placeholder={m.journal_form_account_select()}
                       onchange={() => onCounterpartAccountChange(row)}
                       disabled={row.skip}
-                      class="min-w-0 flex-1 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
+                      class="w-48 shrink-0 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
                     />
                     {#if row.matchedRuleId}
                       <span
@@ -650,7 +719,7 @@
         {/if}
         <button
           type="button"
-          onclick={reset}
+          onclick={requestDiscard}
           disabled={importing}
           class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
@@ -677,4 +746,9 @@
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onLlmConfirm}
   oncancel={onLlmCancel}
+/>
+<DiscardCandidatesDialog
+  open={discardConfirmOpen}
+  onconfirm={confirmDiscard}
+  oncancel={cancelDiscard}
 />

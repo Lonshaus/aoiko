@@ -13,7 +13,7 @@ export interface LlmImageInput {
   mimeType: string;
 }
 
-/** データだけを渡す端末内経路が対応するタスク。分類（CSV 対方科目）と注文取込。 */
+/** データだけを渡す端末内経路が対応するタスク。分類（CSV 相手科目）と注文取込。 */
 export type LlmDataTask = 'classify' | 'order';
 
 export interface LlmAdapter {
