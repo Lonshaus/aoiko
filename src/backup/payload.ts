@@ -84,7 +84,7 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     tables,
   };
 }
-// 証憑写真（C7）の実体バイナリを id → bytes で1件ずつ生成する。zip 同梱用。
+// 証憑写真の実体バイナリを id → bytes で1件ずつ生成する。zip 同梱用。
 // 主キーを先に取得してから1件ずつ get() することで、常に写真1枚分だけがメモリに乗る。
 export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string, Uint8Array]> {
   const ids = await db.attachments.toCollection().primaryKeys();

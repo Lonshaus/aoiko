@@ -206,8 +206,7 @@ struct ClassifyAnswer: Encodable {
     var reason: String
 }
 
-// runClassifyGeneration が internal なので、そのシグネチャに出てくるこれらも private には
-// できない（qa のハーネスも別ファイルからこの形でリクエストを組み立てる）。
+// runClassifyGeneration が internal なので、そのシグネチャに出てくるこれらも private にはできない。
 struct ClassifyCandidate: Decodable {
     var code: String
     var name: String
@@ -231,7 +230,7 @@ struct ClassifyRequest: Decodable {
 // knownSide だけが質問文言の選択に使われる。
 
 // ClassifyLoop.swift 側からは FoundationModels が見えないので、モデルを実際に叩く
-// closure はここに置く。qa のハーネスから直接差し替えて呼べるよう private にしない
+// closure はここに置く。差し替えられるよう private にしない
 // （このファイルの他の宣言は private で揃えているが、ここだけ例外）。
 @available(macOS 26, iOS 26, *)
 let classifyModelCall: ClassifyLoopCall = { instructions, content in
@@ -254,7 +253,7 @@ let classifyModelCall: ClassifyLoopCall = { instructions, content in
 }
 
 // runSingleFlight で単一化・締め切り付きの待ちに載せてから ClassifyLoop.swift を回す、
-// 分類経路唯一の入口。qa のハーネスもここを直接呼ぶので private にしない。
+// 分類経路唯一の入口。外から直接呼べるよう private にしない。
 @available(macOS 26, iOS 26, *)
 func runClassifyGeneration(_ request: ClassifyRequest) -> (json: String?, err: Int32) {
     assert(

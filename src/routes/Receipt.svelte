@@ -55,7 +55,7 @@
     image: LlmImageInput;
     host: string;
   } | null>(null);
-  // 証憑写真の添付前確認（C7-3）
+  // 証憑写真の添付前確認
   let attachmentConfirmOpen = $state(false);
   let attachmentPreview = $state<string | null>(null);
   let pendingAttachmentFile: File | null = null;
@@ -284,7 +284,7 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
-      // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+      // OCR に使った原本画像を証憑として保存。分錄と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {

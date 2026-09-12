@@ -30,10 +30,10 @@
     homeOfficeRatio: string; // '' = 未設定 (=100%), '0.30' 等
     taxCategory: '' | TaxCategory; // '' = 科目の既定値を使用
     inputUsageCategory: '' | InputUsageCategory; // '' = taxableOnly 扱い
-    itemId: string; // 簡易在庫管理（C4）。仕入・売上科目でのみ意味を持つ
+    itemId: string; // 簡易在庫管理。仕入・売上科目でのみ意味を持つ
     quantity: string;
   };
-  // 簡易在庫管理（C4）の対象科目（仕入・売上高）。実estate用の複製科目は対象外
+  // 簡易在庫管理の対象科目（仕入・売上高）。実estate用の複製科目は対象外
   // （不動産所得に在庫の概念は無い）。
   const INVENTORY_TRACKED_ACCOUNTS = new Set(['5020', '4110']);
 
@@ -97,7 +97,7 @@
   let date = $state(today());
   let description = $state('');
   let department = $state('');
-  // 証憑写真の添付（C7）。確認済みで送信待ちのファイル一覧。
+  // 証憑写真の添付。確認済みで送信待ちのファイル一覧。
   let attachments = $state<{ id: string; file: File; previewUrl: string }[]>([]);
   let attachmentError = $state('');
   let attachmentConfirmOpen = $state(false);

@@ -1,4 +1,4 @@
-// 税理士協業・引継ぎパック（C9）。仕訳データを弥生形式CSV／通用CSV／訂正履歴CSVとして出力する。
+// 税理士協業・引継ぎパック。仕訳データを弥生形式CSV／通用CSV／訂正履歴CSVとして出力する。
 // PL/BS等の決算書は対象外（仕訳データのみ、C9-2）。
 import Encoding from 'encoding-japanese';
 import { D, Decimal } from '../lib/decimal';
@@ -51,7 +51,7 @@ function rateSuffix(taxRate: number): string {
 // （taxRate が実質的な判定基準で、taxCategory 未指定でも taxRate > 0 なら通常の課税区分として扱う）。
 // 令和8年度改正のインボイス経過措置70%/50%/30%は弥生側の正式な記述形式が未公開のため、
 // 確認済みの「区分80%」と同じパターンで外推している（区分{N}%）。弥生が正式な形式を
-// 公表したら要見直し（AOIKO_FUTURE_IDEAS.md 未記載、コード内のこの注記のみが根拠）。
+// 公表したら要見直し。
 function yayoiTaxInfo(
   line: JournalLine,
   account: Account,
@@ -137,7 +137,7 @@ function groupLinesByEntry(lines: JournalLine[]): Map<string, JournalLine[]> {
   return map;
 }
 // 弥生形式CSV（25列・識別フラグ2000/2110/2100/2101・Shift-JIS・CRLF想定）の行データを組み立てる。
-// 単純な借方1行・貸方1行の仕訳は 2000。複数行ある仕訳のみ振替伝票形式に分割する（C9-3）。
+// 単純な借方1行・貸方1行の仕訳は 2000。複数行ある仕訳のみ振替伝票形式に分割する。
 // 訂正済みペア（countsTowardTotals で除外）はここでも除外する。
 export function buildYayoiCsvRows(
   entries: JournalEntry[],
@@ -276,9 +276,9 @@ export function buildGenericCsvRows(
 }
 
 const CORRECTION_HISTORY_HEADER = ['原仕訳日付', '原仕訳摘要', '原仕訳金額', '打消し仕訳日付'];
-// 訂正履歴CSV（C9-4/C9-5、方案A）。原仕訳（status='reversed'）と打消し仕訳（reversedByEntryId
+// 訂正履歴CSV。原仕訳（status='reversed'）と打消し仕訳（reversedByEntryId
 // が指す先）の2件のみを出力する「取消履歴」。訂正後の正しい仕訳への構造的なリンクは
-// データモデル上存在しないため出力しない（AOIKO_FUTURE_IDEAS.md 参照）。
+// データモデル上存在しないため出力しない。
 export function buildCorrectionHistoryRows(
   entries: JournalEntry[],
   lines: JournalLine[],

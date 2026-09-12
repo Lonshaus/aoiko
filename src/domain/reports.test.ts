@@ -330,7 +330,7 @@ describe('buildMonthly', () => {
   });
 });
 
-describe('buildMultiYearPL / buildMultiYearBS（C8）', () => {
+describe('buildMultiYearPL / buildMultiYearBS', () => {
   beforeEach(async () => {
     await db.accounts.bulkAdd(TEST_ACCOUNTS.map((a) => ({ ...a, year: 2025 })));
   });

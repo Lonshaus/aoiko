@@ -1140,7 +1140,7 @@
     }
     restoreFileName = file.name;
     try {
-      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む（C7-4）。
+      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む。
       const parsed = await parseBackupFile(file);
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
