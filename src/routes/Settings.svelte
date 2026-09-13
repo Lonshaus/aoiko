@@ -265,6 +265,9 @@
   let userZeimushoCode = $state('');
   let userZeimushoName = $state('');
   let filingType = $state<FilingType>('blue');
+  // 確認を通るまで filingType は変えないため、選択の見た目は別に持つ。同じ値へ戻すと
+  // 再描画が起きず、取り消しても押した側に選択が残る。
+  let filingTypeChoice = $state<FilingType>('blue');
   let pendingFilingType = $state<FilingType | null>(null);
   let confirmingFilingType = $state(false);
   type PendingConfirm = { title: string; desc: string; action: string; run: () => Promise<void> };
@@ -422,6 +425,7 @@
     userZeimushoName = (await getSetting('userZeimushoName')) ?? '';
     zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
     filingType = (await getSetting('filingType')) ?? 'blue';
+    filingTypeChoice = filingType;
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
@@ -486,11 +490,13 @@
     if (pendingFilingType) {
       filingType = pendingFilingType;
     }
+    filingTypeChoice = filingType;
     pendingFilingType = null;
     confirmingFilingType = false;
   }
 
   function cancelFilingTypeChange() {
+    filingTypeChoice = filingType;
     pendingFilingType = null;
     confirmingFilingType = false;
   }
@@ -1603,7 +1609,8 @@
             <input
               type="radio"
               name="filingType"
-              checked={filingType === 'blue'}
+              value="blue"
+              bind:group={filingTypeChoice}
               onchange={() => requestFilingTypeChange('blue')}
             />
             {m.settings_filing_type_blue()}
@@ -1612,7 +1619,8 @@
             <input
               type="radio"
               name="filingType"
-              checked={filingType === 'white'}
+              value="white"
+              bind:group={filingTypeChoice}
               onchange={() => requestFilingTypeChange('white')}
             />
             {m.settings_filing_type_white()}
@@ -3048,7 +3056,14 @@
   {/await}
 {/if}
 
-<AlertDialog.Root bind:open={confirmingFilingType}>
+<AlertDialog.Root
+  open={confirmingFilingType}
+  onOpenChange={(o: boolean) => {
+    if (!o) {
+      cancelFilingTypeChange();
+    }
+  }}
+>
   <AlertDialog.Content>
     <AlertDialog.Header>
       <AlertDialog.Title>{m.settings_filing_type_confirm_title()}</AlertDialog.Title>
