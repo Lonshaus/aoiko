@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import { mapGeneral } from './xtx-mapping-sha010';
-
 // 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
 function zeroExtras() {
   return {

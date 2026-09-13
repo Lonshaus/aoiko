@@ -90,7 +90,6 @@ type Injectable = {
   sweepInFlight: boolean;
   sweepDeadlineMs: number;
 };
-
 // backup() は adapter.backup() に届くまでに設定読込と payload 組み立てを挟むため、
 // マイクロタスク1回では足りない。実際に呼ばれるまで待つ。
 async function waitForCalls(expected: number): Promise<void> {
@@ -183,7 +182,6 @@ describe('backupManager.backup（書込中に来た要求の追い掛け）', ()
     expect(backupManager.status).toBe('error');
   });
 });
-
 // 参照されなくなった証憑の実体の掃除。消えると困るのは利用者の写真そのものなので、
 // 「既定では走らない」と「毎回は走らない」を書き込み側から確かめる。
 describe('backupManager.backup（実体の掃除の起動条件）', () => {
@@ -270,7 +268,6 @@ describe('backupManager.backup（掃除が返ってこない場合）', () => {
     expect(await getSetting('lastBlobSweepAt')).toBeUndefined();
   });
 });
-
 // OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者は ファイル管理 から見ることも
 // 消すこともできない。ここに取りこぼしがあると、譲渡・廃棄した端末に帳簿が残る。
 describe('backupManager.clearStoredBackups（OPFS の控えの全削除）', () => {

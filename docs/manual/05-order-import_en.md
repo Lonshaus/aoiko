@@ -10,13 +10,13 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 > - Handle discount lines (negative amounts) as credit-side adjustments
 > - Reconcile the item-sum / total mismatch
 >
-> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--llm-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (engines that read on the device, such as Tesseract, are not supported here).
+> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (engines that read on the device, such as Tesseract, are not supported here).
 
 ## 1. Why this feature exists
 
 Card CSV only shows "楽天市場 ¥3,280" — fine for the payment side, but it doesn't help when you need to split by line item (book → news/books expense; consumable → office supplies; computer → fixed asset).
 
-**Order import** asks an LLM to extract line items from a pasted order page.
+**Order import** asks an AI to extract line items from a pasted order page.
 
 ## 2. Import flow
 
@@ -32,13 +32,13 @@ Open the **individual order detail** page (not the order history list). Examples
 
 On that page, `Cmd+A` (`Ctrl+A` on Windows and Linux) to select all → `Cmd+C` (`Ctrl+C`) to copy.
 
-> Headers, navigation, recommendations, footers, etc. are fine in the clipboard. The LLM filters out noise. You don't need to be precise about selection range.
+> Headers, navigation, recommendations, footers, etc. are fine in the clipboard. The AI filters out noise. You don't need to be precise about selection range.
 
 ### 2-2. Paste and analyze
 
 Paste with `Cmd+V` (`Ctrl+V`) into the textarea under **"1. Paste the order page text"**.
 
-Click **"Analyze"** to send to the selected LLM engine.
+Click **"Analyze"** to send to the selected AI engine.
 
 #### When using a cloud engine
 
@@ -68,7 +68,7 @@ Each item is one row:
 | **Account** | Expense account for this item (default `5200 Consumables`, dropdown) |
 | ✕ | Delete the row |
 
-A **"+ Add row"** button below the table lets you add items the LLM missed.
+A **"+ Add row"** button below the table lets you add items the AI missed.
 
 #### Payment source
 
@@ -83,7 +83,7 @@ When you press **"Save entry"**, aoiko checks if items sum to the entered total.
 - **OK**: total is used for the payable credit; items are debits. The difference appears as the gap between credit (payable) and total debits
 - **Cancel**: fix the items first, then save again
 
-> Typical causes: LLM missed a "-300 yen point use" line, shipping wasn't in items, tax rounding differs. If the gap is small and you don't want to chase, OK and continue — a correcting entry later is also fine.
+> Typical causes: AI missed a "-300 yen point use" line, shipping wasn't in items, tax rounding differs. If the gap is small and you don't want to chase, OK and continue — a correcting entry later is also fine.
 
 ### 2-5. What entry is created
 
@@ -123,8 +123,8 @@ If there are discount lines (negative), they're routed to the credit side:
 
 ### Pasting tips
 
-- Paste the **individual order detail**, not the order history list (the list mixes multiple orders and confuses the LLM)
-- One paste = one order. The LLM is instructed to extract only the first order
+- Paste the **individual order detail**, not the order history list (the list mixes multiple orders and confuses the AI)
+- One paste = one order. The AI is instructed to extract only the first order
 - Long pages with extensive recommendation noise are OK as long as the order summary block is included
 
 ### Amazon Business / Rakuten Business
@@ -135,16 +135,16 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 
 | Symptom | Action |
 |---|---|
-| "Analyze" doesn't progress | Settings → "LLM integration" → "Test connection" to verify API key / endpoint |
-| Output isn't in English/Japanese | The prompt is in Japanese, so this is uncommon. For local LLM, switch to a model with better Japanese support |
-| Some items missing | LLM extraction limitation. Use **"+ Add row"** to add manually |
+| "Analyze" doesn't progress | Settings → "AI features" → "Test connection" to verify API key / endpoint |
+| Output isn't in English/Japanese | The prompt is in Japanese, so this is uncommon. For local AI, switch to a model with better Japanese support |
+| Some items missing | AI extraction limitation. Use **"+ Add row"** to add manually |
 | Amount wrong | Edit the row. If items don't sum to the total, choose OK or revise via the dialog |
 | Empty order number | Optional field — ignore. Entry description will use vendor only |
 | Shipping / fees not in items | Add a row for shipping with the right amount and account |
 
 ## 5. Privacy notes
 
-- Order pages often contain **shipping address, name, phone number**. Double-check before sending to a cloud LLM
+- Order pages often contain **shipping address, name, phone number**. Double-check before sending to a cloud AI
 - For sensitive addresses, prefer localhost Ollama, or remove personal-info lines from the textarea before clicking Analyze
 - See [PRIVACY_en.md](../../PRIVACY_en.md)
 

@@ -2,7 +2,7 @@ import { LlmError, type LlmAdapter, type LlmImageInput } from './llm';
 import { todayISO } from '../lib/date';
 import { m } from '../paraglide/messages';
 // 領収書 OCR：画像 → 構造化された取引データ。
-// Gemini Vision を使用。BYOK モデル、ユーザー API キー必須。
+// 画像対応モデルへ画像ごと渡し、構造化まで任せる。エンジンと鍵は設定で持つ（BYOK）。
 
 export interface ReceiptItem {
   description: string;

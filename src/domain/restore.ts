@@ -35,7 +35,7 @@ export class BackupTooLargeError extends Error {
 export function isBackupTooLarge(isZip: boolean, size: number): boolean {
   return !isZip && size > MAX_BACKUP_BYTES;
 }
-// アップロードされたバックアップファイルを新旧自動判定してパースする（C7-4）。
+// アップロードされたバックアップファイルを新旧自動判定してパースする。
 // zip（帳簿データ + 証憑写真）と、旧形式の純 JSON（証憑写真は含まない）の両方を読める。
 export async function parseBackupFile(file: File): Promise<{
   payload: BackupPayload;

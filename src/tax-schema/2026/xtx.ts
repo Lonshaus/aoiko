@@ -254,7 +254,6 @@ export function toFilerInfo(f: XtxFiler): XtxFilerInfo {
     address: f.address,
   };
 }
-
 // 収支内訳書・決算書の追加科目欄に入りきらなかった経費科目（issue#379）。
 // buildXtx2026 と同じ ctx で呼び、書き出せていない金額を利用者へ提示する。
 export interface XtxAdditionalExpenseOverflowItem {

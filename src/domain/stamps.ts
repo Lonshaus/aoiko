@@ -34,10 +34,8 @@ export type Stamp = {
   // 絵柄の選び方が「直前の何個」を見るため、順序が崩れると 7 種の輪も崩れる。
   createdAt: number;
 };
-
 // 3 列なので 3 の倍数。半端な最終行を作らない。
 export const STAMPS_PER_PAGE = 9;
-
 // 手押しらしいばらつき。位置で決めるので、同じ枠のスタンプは何度描いても同じ角度になる。
 // 乱数にすると再描画のたびに傾きが変わり、紙に押した物には見えない。
 const ROTATIONS = [-7, 5, -2, 4, -5, 2, 6, -4, 3, -6, 1, -3];
@@ -45,20 +43,17 @@ const ROTATIONS = [-7, 5, -2, 4, -5, 2, 6, -4, 3, -6, 1, -3];
 export function stampRotation(index: number): number {
   return ROTATIONS[((index % ROTATIONS.length) + ROTATIONS.length) % ROTATIONS.length] ?? 0;
 }
-
 // 9 個ちょうどで空の 2 頁目を作らない。次の白紙は「めくったら」出るものであって、
 // 頁数表示が先に予告するものではない。
 export function stampPageCount(total: number): number {
   return Math.max(1, Math.ceil(total / STAMPS_PER_PAGE));
 }
-
 // 常に 9 枠返す。埋まっていない枠は null。枠そのものは最初から見えていて、
 // 集まるにつれて埋まる——という見え方にするため、詰めて返さない。
 export function stampPageSlots(stamps: readonly Stamp[], page: number): (Stamp | null)[] {
   const start = page * STAMPS_PER_PAGE;
   return Array.from({ length: STAMPS_PER_PAGE }, (_, i) => stamps[start + i] ?? null);
 }
-
 // 7 種を使い切るまで同じものを引かない。素の無作為だと 9 枠の 1 頁に同じ絵柄が 3 回出ることが
 // あり、集まっていく見え方にならない。袋の中身は保存せず、既に押した分から今の周回を割り出す。
 function drawFrom<T>(
@@ -75,7 +70,6 @@ function drawFrom<T>(
       : rest;
   return choices[Math.floor(random() * choices.length)] ?? pool[0];
 }
-
 // 絵柄と色は独立に引く。連動させると 7 通りしか出ず、49 通りある意味が無くなる。
 export function nextStampFace(
   stamps: readonly Stamp[],

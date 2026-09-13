@@ -56,7 +56,7 @@ export interface CashFlowForecast {
   asOfDate: string;
   months: CashFlowMonthBucket[];
 }
-// asOfDate から horizonMonths か月分の入出金予測（C10）。残高が残っている売掛金/買掛金のみ対象。
+// asOfDate から horizonMonths か月分の入出金予測。残高が残っている売掛金/買掛金のみ対象。
 // 期限超過分（dueDate < asOfDate）は最初のバケット（当月）に繰り入れる
 // （もう到来しているはずの入出金として、直近の資金繰りに反映するため）。
 export function computeCashFlowForecast(

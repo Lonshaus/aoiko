@@ -491,7 +491,6 @@ describe('parseBackupZip（CRC32 照合）', () => {
     expect(await blobBytes(parsed.attachmentBlobs.get('a1')!)).toEqual(original);
     expect(parsed.corruptAttachmentNames).toEqual([]);
   });
-
   // #316: 添付だけが壊れている場合は payload.json を捨てず、帳簿の復元を続行する。
   test('無圧縮の添付の 1 ビットが反転していれば payload は復元し、壊れた添付名だけ返す', async () => {
     const zip = await drain(

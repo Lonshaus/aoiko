@@ -12,7 +12,6 @@ export async function descendDir(
   }
   return dir;
 }
-
 // ディレクトリはスナップショット・添付として数えてはいけないため、kind で絞る。
 // keys() は名前しか返さずファイルかどうか判定できないので entries() を使う。
 export async function listFileNames(dir: FileSystemDirectoryHandle): Promise<string[]> {

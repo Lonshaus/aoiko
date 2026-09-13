@@ -20,7 +20,7 @@ export class AttachmentInvalidTypeError extends Error {
     this.name = 'AttachmentInvalidTypeError';
   }
 }
-// 証憑写真（C7）を分錄と同一 transaction で書き込むためのレコードを組み立てる。
+// 証憑写真を分錄と同一 transaction で書き込むためのレコードを組み立てる。
 // File は Blob を継承しているのでコピー不要でそのまま保持できる。
 // File.type は accept 属性のヒントに過ぎずドラッグ&ドロップ等で容易に偽装・欠落するため、
 // 先頭バイトのマジックナンバーで実体が画像かどうかを検証する。

@@ -25,8 +25,8 @@ export type NativeBridge = {
   // 未保存の破棄確認はネイティブのダイアログで出る。シェル側の初期化スクリプトは
   // こちらのメッセージカタログを読めないので、訳した文言を渡す。渡すまでは日本語で出る。
   setDiscardText?(text: NativeDiscardText): void;
-  // 商店で売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
-  // 通貨も表記も地域ごとに違うため。商店が返した文字列をそのまま出す。
+  // ストアで売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
+  // 通貨も表記も地域ごとに違うため。ストアが返した文字列をそのまま出す。
   // 品目 ID はこちら側では決められない（シェル側が環境に合わせて持つ）ので、kind でしか呼ばない。
   listIapProducts?(): Promise<IapProduct[]>;
   // 購入。'pending' は「家族の承認待ち」等、その場で確定しない状態。
@@ -40,13 +40,24 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS の版や導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
+  // OS 内蔵の AI が使えるか。0..5 の意味はネイティブ側のコメントに揃える
+  // （0 が「使える」）。
+  appleAiAvailability?(): Promise<number>;
+  // OS 内蔵の AI でレシートを構造化 JSON にして返す。
+  // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 文字が読めない / 3 その他 / 4 OS が古い）。
+  appleAiExtract?(base64: string): Promise<string>;
+  // OS 内蔵の AI で分類・注文取込を行う。task は 1 = 分類 / 2 = 注文、data は JSON 文字列。
+  // 指示は環境側に固定で埋め込まれており、data はプロンプトではなく処理対象のデータ。
+  // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 入力データが処理できない /
+  // 3 その他 / 4 OS が古い）。権限不足・未知コマンド等は数値ではなく文字列で reject される。
+  appleAiRun?(task: number, data: string): Promise<string>;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';
 
 export type IapProduct = {
   kind: IapProductKind;
-  // 商店が返す表示用の価格文字列（現地通貨・現地表記）。
+  // ストアが返す表示用の価格文字列（現地通貨・現地表記）。
   displayPrice: string;
 };
 

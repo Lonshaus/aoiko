@@ -20,7 +20,6 @@ describe('settings-target', () => {
   test('預けていなければ null', () => {
     expect(takeSettingsTarget()).toBeNull();
   });
-
   // 古いタブが残した値や手で書き換えた値を、そのまま行き先として扱わない。
   test('知らない値は null', () => {
     sessionStorage.setItem('aoiko:settings-target', 'nowhere');

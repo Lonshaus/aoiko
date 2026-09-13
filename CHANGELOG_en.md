@@ -4,13 +4,36 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
-## [1.1.2] - 2026-09-06
+## [1.2.0] - 2026-09-13
 
-This release lets you pick the LLM model used for reading receipts.
+The version where reading with OCR comes back, and the browser's built-in AI can read too.
+
+### Added
+
+- Receipts, CSV classification and order import can now run on the browser's built-in AI. What it reads never leaves your device. The option appears only when your browser already holds the AI model
 
 ### Changed
 
-- The Gemini part of the LLM integration now lets you choose a model. After choosing one, press "Test connection" — only a model that passes is confirmed to work
+- Reading with OCR, taken off the list in 1.1.2, is available again. When reading a receipt, you can choose whether to use the AI engine or the built-in rule engine
+- Wording that said "LLM" on screen and in the manual now says "AI"
+- The Gemini settings appear only when Gemini is selected, and the description of the AI features now matches the engine you have chosen
+- Receipts, CSV import and order import now confirm before you cancel, so what has been read is not discarded without asking. Choosing another file or source asks in the same way
+
+### Fixed
+
+- The API key field being too narrow to type into on a phone
+- The counterpart account list in CSV import showing accounts you cannot actually pick
+- The account select in the classification table changing width depending on whether a badge is shown
+- The tax-category select truncating the option it was displaying
+- A wrong account name
+
+## [1.1.2] - 2026-09-06
+
+This release lets you pick the AI model used for reading receipts.
+
+### Changed
+
+- The Gemini part of the AI integration now lets you choose a model. After choosing one, press "Test connection" — only a model that passes is confirmed to work
 - The OCR engines still need tuning, so they have been taken off the list for now. If you had one selected, you are returned to the default, Gemini
 
 ### Fixed
@@ -186,14 +209,14 @@ Initial release.
 - Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
 - e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule). Conforms to the NTA's official XSD, verified against a real e-Tax software import
 - Bank and credit-card CSV import (13 parsers, validated against real CSVs), import history, duplicate detection, batch-level reverse
-- Receipt OCR, order-page paste import, and LLM account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract, with a pre-send confirmation dialog)
+- Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract, with a pre-send confirmation dialog)
 - Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, business opening setup (Opening Wizard)
 - Consumption tax estimation with 4-method comparison (general / simplified / 20% special / 30% special), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns
 - Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)
 - Amended filing guide (diff between filed snapshot and current values)
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
-- PWA offline operation, trilingual UI (日本語 / English / 繁體中文)
+- PWA offline operation, trilingual UI (Japanese / English / Traditional Chinese)
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

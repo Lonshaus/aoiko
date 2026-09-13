@@ -44,7 +44,6 @@ describe('createTesseractReceiptExtractor', () => {
     expect(extractor.external).toBe(false);
     expect(extractor.destinationHost).toBe('');
   });
-
   // 外部オリジンを指すと wrapper 版の CSP（connect-src 'self'）で必ず失敗する。
   test('worker とモデルは同一オリジンの自己ホストパスを使う', async () => {
     await extract();
@@ -69,7 +68,6 @@ describe('createTesseractReceiptExtractor', () => {
     expect(destroy).toHaveBeenCalledOnce();
     expect(close).toHaveBeenCalledOnce();
   });
-
   // モデルは precache 対象外なので、初回だけオフラインで落ちうる。
   // 素の fetch 失敗のままだと設定ミスと区別が付かない。
   test('オフラインでモデルを取得できない時は原因の分かる文言に変換する', async () => {

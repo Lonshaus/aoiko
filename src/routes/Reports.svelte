@@ -126,13 +126,13 @@
   let xtxOverflowWarning = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
-  // 無ければ利用者が手入力する（fabricate しない——CLAUDE.md の監査履歴不変原則）
+  // 無ければ利用者が手入力する（値を作らない——監査履歴を不変に保つため）
   let priorYearAmountInput = $state('');
   // 確定申告への充当用：本年中に実際に中間納付した税額（利用者が手入力）
   let interimPaidNationalInput = $state('');
   let interimPaidLocalInput = $state('');
   let selectedInstallmentIndex = $state(0);
-  // 複数年度トレンド分析（C8）。ボタン押下時のみ計算する（自動計算にしないのは、
+  // 複数年度トレンド分析。ボタン押下時のみ計算する（自動計算にしないのは、
   // 年数が多いと buildPL/buildBS を年数分呼ぶため、通常の年度別レポートより負荷が高いため）。
   const MAX_TREND_YEARS = 10;
   let trendStartYear = $state(now.getFullYear() - 2);
@@ -164,7 +164,7 @@
       trendLoading = false;
     }
   }
-  // 予算管理（C10）。実績・予算差異は年度切替の $effect（下記）で読み込み、
+  // 予算管理。実績・予算差異は年度切替の $effect（下記）で読み込み、
   // 編集欄（budgetDrafts）はその結果が変わるたびに同期する。
   let budgetVsActual = $state<BudgetVsActualReport | null>(null);
   let budgetDrafts = $state<Array<{ month: number; revenueBudget: string; expenseBudget: string }>>(
@@ -201,7 +201,7 @@
       budgetSaving = false;
     }
   }
-  // 現金流予測（C10）。売掛金/買掛金子帳は年度非依存（全件）で持つため、専用の liveQuery で購読する。
+  // 現金流予測。売掛金/買掛金子帳は年度非依存（全件）で持つため、専用の liveQuery で購読する。
   let arApEntries = $state<ArApEntry[]>([]);
   let newArApType = $state<ArApType>('receivable');
   let newArApDescription = $state('');

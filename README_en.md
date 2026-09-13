@@ -23,10 +23,10 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Targets the **¥
 - **Double-entry bookkeeping**: journal entries, correcting entries (修正仕訳), audit history in line with the Electronic Books Storage Act
 - **CSV import**: banks = 三菱UFJ / 三井住友 / SBI新生 / PayPay (credit-card route only; balance not supported); cards = 楽天 / JCB (incl. Recruit Card) / セゾン / 三井住友 / 三菱UFJ / au PAY / PayPay / ビュー (JRE CARD) / ライフ. All validated against real CSVs.
 - **Import history**: per-batch records, file-hash duplicate detection, batch-level reverse
-- **OCR**: receipt → journal candidate. Engine selectable: Gemini Vision (default) / OpenAI-compatible / Ollama and other local vision LLMs / **Tesseract (purely-local WASM OCR — limited accuracy, manual verification required)**
-- **Order import (paste → LLM extract)**: paste a full Amazon / 楽天 order page; an LLM extracts the line items → review → save. Resilient to UI changes since no DOM scraping.
-- **LLM classification**: CSV line → account code (rule-first, LLM fallback). Engine selectable: Gemini or local AI.
-- **OCR/LLM privacy**: pre-send confirmation dialog before external transmission. With Ollama on localhost or with Tesseract selected, images never leave your device (Ollama requires local distribution + `OLLAMA_ORIGINS`; Tesseract bundles its language data too, so it makes no external request at all).
+- **OCR**: receipt → journal candidate. Engine selectable: Gemini Vision (default) / OpenAI-compatible / Ollama and other local vision AIs / **Tesseract (purely-local WASM OCR — limited accuracy, manual verification required)**
+- **Order import (paste → AI extract)**: paste a full Amazon / 楽天 order page; an AI extracts the line items → review → save. Resilient to UI changes since no DOM scraping.
+- **AI classification**: CSV line → account code (rule-first, AI fallback). Engine selectable: Gemini or local AI.
+- **OCR/AI privacy**: pre-send confirmation dialog before external transmission. With Ollama on localhost or with Tesseract selected, images never leave your device (Ollama requires local distribution + `OLLAMA_ORIGINS`; Tesseract bundles its language data too, so it makes no external request at all).
 - **Home office allocation**: auto-split mixed business / personal expenses into business portion and owner's draws
 - **Depreciation**: straight-line and 200% declining-balance (useful lives 2–20 years), monthly proration, ¥1 residual
 - **Small-asset depreciation special rule**: Sochiho Article 28-2 (¥300k → ¥400k threshold from 2026-04-01), with ¥3M annual cap tracking
@@ -51,6 +51,6 @@ See [docs/manual/](docs/manual/README_en.md) for step-by-step operating instruct
 
 ## Legal & safety documents
 
-- [DISCLAIMER_en.md](DISCLAIMER_en.md) — Disclaimer (actual filing / tax-law compliance / LLM usage risks)
+- [DISCLAIMER_en.md](DISCLAIMER_en.md) — Disclaimer (actual filing / tax-law compliance / AI usage risks)
 - [SECURITY_en.md](SECURITY_en.md) — Security policy, vulnerability reporting
 - [PRIVACY_en.md](PRIVACY_en.md) — Privacy policy, data collection / transmission breakdown

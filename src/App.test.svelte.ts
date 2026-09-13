@@ -3,7 +3,6 @@
 
 import { describe, expect, test, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-
 // UpdatePrompt.svelte は VitePWA の virtual module を読むが、vitest.config.ts には
 // その plugin を積んでいないため解決できない。この試験の対象外なのでまるごと差し替える。
 vi.mock('./components/UpdatePrompt.svelte', () => ({ default: () => {} }));

@@ -1,7 +1,7 @@
-// 商店の課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
+// ストアの課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
 // invoke を直に叩く。aoiko-native も同じ書き方で、新しい npm 依存を増やさない。
 //
-// 品目 ID は商店ごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
+// 品目 ID はストアごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
 const PRODUCT_IDS = {
   macos: {
     tip: 'net.lonshaus.aoiko.mac.tip',
@@ -16,7 +16,7 @@ const PRODUCT_IDS = {
     'supporter-badge': 'net.lonshaus.aoiko.win.supporterbadge',
   },
 };
-// どの商店も、消耗しない品目と分けるためにこの区別を要求する。
+// どのストアも、消耗しない品目と分けるためにこの区別を要求する。
 // 定期購読は扱わないので inapp 固定。
 const PRODUCT_TYPE = 'inapp';
 // プラグインが返す purchaseState（0/1/2）。web 側の語彙へ移す。
@@ -42,7 +42,7 @@ export function purchaseResultOf(purchase) {
 // エラーバナーが点く。
 export function purchaseResultOfError(error) {
   // プラグインは Error を文字列へ直列化して寄越すので、判るのは文面だけ。
-  // 商店ごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
+  // ストアごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
   const message = String(error?.message ?? error ?? '').toLowerCase();
   if (message.includes('cancel') || message.includes('notcompleted')) {
     return 'cancelled';
@@ -55,7 +55,7 @@ export function purchaseResultOfError(error) {
 
 export function createIap(invoke, platform) {
   const ids = productIdsFor(platform);
-  // 品目をまだ商店に作っていない環境がある。表が無ければ入口ごと生やさず、
+  // 品目をまだストアに作っていない環境がある。表が無ければ入口ごと生やさず、
   // 支援画面が出ないままにする（能力判定は関数の有無で行われる）。
   if (ids === null) {
     return null;
@@ -68,7 +68,7 @@ export function createIap(invoke, platform) {
     return (
       products
         .map((p) => ({ kind: kindFor(platform, p.productId), displayPrice: p.formattedPrice }))
-        // 商店が返さなかった品目・審査中で価格が付いていない品目は出さない。
+        // ストアが返さなかった品目・審査中で価格が付いていない品目は出さない。
         // 値段の無いボタンを押させない。
         .filter((p) => p.kind !== null && typeof p.displayPrice === 'string')
     );
@@ -107,7 +107,7 @@ export function createIap(invoke, platform) {
       payload: { productType: PRODUCT_TYPE },
     });
     // 戻すのは非消耗型だけ。消耗型は買い切りの記録が端末に残るもので、
-    // 商店から取り戻す対象ではない。
+    // ストアから取り戻す対象ではない。
     return purchases
       .map((p) => kindFor(platform, p.productId))
       .filter((kind) => kind === 'supporter-badge');

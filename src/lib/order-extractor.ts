@@ -14,13 +14,16 @@ export interface OrderExtractor {
 }
 
 export async function createOrderExtractor(): Promise<OrderExtractor> {
-  const adapter = await createLlmAdapter('classify');
+  const adapter = await createLlmAdapter('order');
   return {
     external: adapter.external,
     destinationHost: adapter.destinationHost,
     async extract(pastedText: string) {
-      const prompt = `${buildOrderPrompt()}\n\n---\n以下が貼り付けテキスト：\n\n${pastedText}`;
-      const raw = await adapter.generateJson(prompt);
+      const raw = adapter.runDataTask
+        ? await adapter.runDataTask('order', { text: pastedText })
+        : await adapter.generateJson(
+            `${buildOrderPrompt()}\n\n---\n以下が貼り付けテキスト：\n\n${pastedText}`,
+          );
       return parseOrderResponse(raw);
     },
   };

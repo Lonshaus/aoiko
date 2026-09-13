@@ -4,7 +4,6 @@ import { OpfsBackupAdapter } from './opfs';
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-
 // createWritable を持つ最小のダミー。実体は使わず prototype の有無だけを見る。
 class WritableCapableHandle {
   createWritable() {}
@@ -44,7 +43,6 @@ describe('OpfsBackupAdapter.isAvailable', () => {
     expect(await new OpfsBackupAdapter().isAvailable()).toBe(false);
   });
 });
-
 // OPFS の最小フェイク。happy-dom は OPFS を提供しないため、backup() が使う
 // getFileHandle / createWritable / getFile だけを実ディスクなしで再現する。
 class FakeFileHandle {

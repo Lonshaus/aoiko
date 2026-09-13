@@ -7,7 +7,7 @@ import {
   purchaseResultOf,
   purchaseResultOfError,
 } from './iap.js';
-// 商店ごとに品目 ID が違い、間違えると「商店に無い品目」を買わせようとして落ちる。
+// ストアごとに品目 ID が違い、間違えると「ストアに無い品目」を買わせようとして落ちる。
 // 消耗型を consume し忘れると 2 回目が買えなくなる。どちらも実機でしか気付けないので、
 // 対応表と後始末の呼び出しをここで固定する。
 function fakeInvoke(handlers) {
@@ -23,13 +23,13 @@ function fakeInvoke(handlers) {
   return { invoke, calls };
 }
 
-test('3 つの商店とも品目は 2 つだけ', () => {
+test('3 つのストアとも品目は 2 つだけ', () => {
   for (const platform of ['macos', 'ios', 'windows']) {
     assert.deepEqual(Object.keys(productIdsFor(platform)), ['tip', 'supporter-badge']);
   }
 });
 
-test('商店ごとに品目 ID が分かれている', () => {
+test('ストアごとに品目 ID が分かれている', () => {
   assert.equal(productIdsFor('macos').tip, 'net.lonshaus.aoiko.mac.tip');
   assert.equal(productIdsFor('ios').tip, 'net.lonshaus.aoiko.ios.tip');
   assert.equal(productIdsFor('windows').tip, 'net.lonshaus.aoiko.win.tip');
@@ -53,7 +53,7 @@ test('表に無い環境では入口ごと生えない', () => {
   );
 });
 
-test('kindFor は自分の商店の ID だけを引く', () => {
+test('kindFor は自分のストアの ID だけを引く', () => {
   assert.equal(kindFor('macos', 'net.lonshaus.aoiko.mac.tip'), 'tip');
   assert.equal(kindFor('macos', 'net.lonshaus.aoiko.ios.tip'), null);
   assert.equal(kindFor('windows', 'net.lonshaus.aoiko.win.tip'), 'tip');
@@ -68,7 +68,7 @@ test('purchaseState は web 側の語彙へ移す', () => {
   assert.equal(purchaseResultOf(undefined), 'cancelled');
 });
 
-test('価格は商店が返した文字列をそのまま渡す', async () => {
+test('価格はストアが返した文字列をそのまま渡す', async () => {
   const { invoke, calls } = fakeInvoke({
     'plugin:iap|get_products': () => ({
       products: [
@@ -154,7 +154,7 @@ test('取り消しと承認待ちでは consume しない', async () => {
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
   assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
-  // プラグインは文字列で寄越す。商店 側は code が文面に畳み込まれる。
+  // プラグインは文字列で寄越す。ストア 側は code が文面に畳み込まれる。
   assert.equal(purchaseResultOfError('Purchase cancelled by user'), 'cancelled');
   assert.equal(
     purchaseResultOfError('[purchaseNotCompleted] - Purchase was not completed'),
@@ -186,7 +186,7 @@ test('本物の失敗は投げ直す', async () => {
   await assert.rejects(() => iap.purchaseIap('tip'), /Server error/);
 });
 
-test('知らない kind では商店を呼ばない', async () => {
+test('知らない kind ではストアを呼ばない', async () => {
   const { invoke, calls } = fakeInvoke({});
   const iap = createIap(invoke, 'macos');
   assert.equal(await iap.purchaseIap('tip-small'), 'cancelled');

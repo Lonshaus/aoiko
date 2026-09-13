@@ -18,7 +18,7 @@
 
   const PAGE_SIZE = 50;
   const now = new Date();
-  // 処理年度に追従（ユーザーがセレクタで別年度を選ぶと override、Settings で年度が
+  // 処理年度に追従（利用者がセレクタで別年度を選ぶと override、Settings で年度が
   // 変わると再計算されて追従に戻る writable derived）。
   let year = $derived(ledger.currentYear);
   let month = $state<number | null>(now.getMonth() + 1);
@@ -42,7 +42,7 @@
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
   let filterError = $state('');
-  // 証憑写真（C7）。展開中の仕訳の添付一覧と、事後添付の確認フロー。
+  // 証憑写真。展開中の仕訳の添付一覧と、事後添付の確認フロー。
   let expandedAttachments = $state<Attachment[]>([]);
   let attachmentUrls = $state<Map<string, string>>(new Map());
   let attachmentError = $state('');

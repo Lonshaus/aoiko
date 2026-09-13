@@ -339,18 +339,15 @@ describe('removeCarryover', () => {
 
     const r = await removeCarryover(2026);
     expect(r.removed).toBe(true);
-
     // 原仕訳は残り、reversed になる
     const orig = await db.journalEntries.get(originalId);
     expect(orig?.status).toBe('reversed');
     expect(orig?.reversedByEntryId).toBeDefined();
-
     // 打消し仕訳は同じ期首日・同じ年度に、原仕訳を指して作られる
     const reversal = await db.journalEntries.get(orig!.reversedByEntryId!);
     expect(reversal?.originalEntryId).toBe(originalId);
     expect(reversal?.date).toBe(orig?.date);
     expect(reversal?.year).toBe(2026);
-
     // 明細は貸借が反転している
     const origLines = await db.journalLines.where('entryId').equals(originalId).toArray();
     const revLines = await db.journalLines.where('entryId').equals(reversal!.id).toArray();
@@ -460,7 +457,6 @@ describe('detectStaleCarryover', () => {
         { side: 'credit', accountCode: '3110', amount: '100000' },
       ],
     });
-
     // やり直し前の古い（誤った）繰越仕訳：既に反転済み（status='reversed'）
     const staleId = newId();
     const reversalId = newId();
@@ -574,7 +570,6 @@ describe('detectStaleCarryover', () => {
         },
       ]);
     });
-
     // 現に有効な繰越仕訳（100000）は前年度残高（100000）と一致しているため null。
     // 反転済みの誤った仕訳（999999）が混入していれば誤検出になるはず。
     expect(await detectStaleCarryover(2026)).toBeNull();

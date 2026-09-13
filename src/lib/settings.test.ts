@@ -10,13 +10,12 @@ import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
 // テストは native 扱いで走る（vitest.config.ts の __NATIVE__）。
 const NATIVE_VERSION = 6;
-const BROWSER_VERSION = 5;
+const BROWSER_VERSION = 7;
 
 describe('DISCLAIMER_VERSION', () => {
   test('走っている側の版が定数と一致する', () => {
     expect(DISCLAIMER_VERSION).toBe(NATIVE_VERSION);
   });
-
   // 試験は片側でしか走らないため、値を見るだけでは分岐そのものを守れない。
   // 分岐を畳んで両方を同じ版にしても、この試験以外は全部通ってしまう。
   test('版は build 時の分岐で決まる（実行時の値だけでは守れない）', () => {
@@ -26,50 +25,57 @@ describe('DISCLAIMER_VERSION', () => {
     );
   });
 
+  // native と browser は互いに独立したカウンタで、どちらも「自分の側の本文を
+  // 最後に変えた版」を指す。片方が進んでももう片方の値は導けない・揃う理由も無い。
   test('版を分けている以上、本文にも出し分けが要る', () => {
-    expect(NATIVE_VERSION).toBeGreaterThan(BROWSER_VERSION);
+    expect(NATIVE_VERSION, '両側は独立したカウンタ。同じ値になる理由は無い').not.toBe(
+      BROWSER_VERSION,
+    );
     for (const doc of DOCS) {
       const src = readFileSync(resolve(doc), 'utf-8');
-      expect(src, `${doc} に出し分けの印が無い`).toMatch(/<!--\s*only:native\s*-->/);
+      expect(src, `${doc} に native 側の出し分けの印が無い`).toMatch(/<!--\s*only:native\s*-->/);
+      expect(src, `${doc} に browser 側の出し分けの印が無い`).toMatch(/<!--\s*only:browser\s*-->/);
     }
   });
 
-  test('改訂履歴の行数が版の数と合う', () => {
+  // native 側だけ見て改訂履歴が NATIVE_VERSION まで、browser 側だけ見て
+  // BROWSER_VERSION までであることを確認する。生の（出し分け前の）本文には
+  // 両方の行が混ざって載っているため、生の文字列を見るだけでは分岐の畳み忘れに
+  // 気付けない。
+  test('改訂履歴の行数が、それぞれの側だけ見たときの版の数と合う', () => {
     for (const doc of DOCS) {
       const src = readFileSync(resolve(doc), 'utf-8');
-      const rows = [...src.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
-      expect(Math.max(...rows), `${doc} の改訂履歴が ${NATIVE_VERSION} まで無い`).toBe(
-        NATIVE_VERSION,
-      );
-    }
-  });
+      const native = stripBuildOnly(src, true, doc);
+      const nativeRows = [...native.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
+      expect(
+        Math.max(...nativeRows),
+        `${doc} の native 側改訂履歴が ${NATIVE_VERSION} まで無い`,
+      ).toBe(NATIVE_VERSION);
 
-  test('据え置く側の本文に、上げた版の内容が残っていない', () => {
-    for (const doc of DOCS) {
-      const src = readFileSync(resolve(doc), 'utf-8');
       const browser = stripBuildOnly(src, false, doc);
-      const rows = [...browser.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
-      expect(Math.max(...rows), `${doc} の据え置く側に v${NATIVE_VERSION} の行が残っている`).toBe(
-        BROWSER_VERSION,
-      );
+      const browserRows = [...browser.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
+      expect(
+        Math.max(...browserRows),
+        `${doc} の browser 側改訂履歴が ${BROWSER_VERSION} まで無い`,
+      ).toBe(BROWSER_VERSION);
     }
   });
 });
 
-// 選べなくなった引擎が保存に残っている端末がある。読み出しで落とさないと、
-// 画面から戻せないまま OCR がその経路を走り続ける。
-describe('ocrEngine の読み出し', () => {
-  test('選べなくなった引擎は既定へ落ちる', async () => {
+// 判定はファクトリ側に一本化した。getSetting は素通しでないと、
+// ここで既定へ落としたつもりが実は素通しという食い違いに気付けない。
+describe('getSetting は加工しない', () => {
+  test('選べなくなった値もそのまま返す', async () => {
     for (const retired of ['tesseract', 'native'] as const) {
-      await setSetting('ocrEngine', retired);
-      expect(await getSetting('ocrEngine')).toBe('gemini');
+      await setSetting('aiEngine', retired as never);
+      expect(await getSetting('aiEngine')).toBe(retired);
     }
   });
 
-  test('選べる引擎はそのまま返る', async () => {
-    for (const engine of ['gemini', 'openai-compatible'] as const) {
-      await setSetting('ocrEngine', engine);
-      expect(await getSetting('ocrEngine')).toBe(engine);
+  test('現行の値もそのまま返る', async () => {
+    for (const engine of ['gemini', 'openai-compatible', 'apple-ai'] as const) {
+      await setSetting('aiEngine', engine);
+      expect(await getSetting('aiEngine')).toBe(engine);
     }
   });
 });

@@ -23,10 +23,10 @@
 - **複式簿記**：仕訳、訂正仕訳（修正仕訳）、符合電子帳簿保存法的稽核履歷
 - **CSV 取込**：銀行＝三菱UFJ／三井住友／SBI新生／PayPay（信用卡決済運用、餘額未對應）；卡片＝楽天／JCB（含 Recruit Card 等）／セゾン／三井住友／三菱UFJ／au PAY／PayPay／ビュー（JRE CARD）／ライフ。全部用真實 CSV 驗證過
 - **取込履歴**：CSV 匯入的批次紀錄、檔案 hash 重複偵測、可整批 reverse
-- **OCR**：收據 → 仕訳候補。引擎可選：Gemini Vision（預設）／OpenAI 相容・Ollama 等本地 vision LLM／**Tesseract（純本地 WASM OCR、精度有限、必須人工確認）**
-- **訂單取込（貼上 → LLM 抽取）**：把 Amazon・楽天 等的訂單頁全文貼進來，由 LLM 抽出品項明細 → 確認 → 轉成仕訳。不依賴 DOM 解析，網站改版不怕
-- **LLM 分類**：CSV 行 → 勘定科目（規則優先、LLM 後援）。引擎可選 Gemini 或本地 AI
-- **OCR/LLM 隱私**：對外送出前會跳確認對話框。把 Ollama 等指向 localhost、或選 Tesseract 時，影像不會離開本機（Ollama 限本地執行版＋需設 `OLLAMA_ORIGINS`；Tesseract 連語言資料都內附，完全不會有對外連線）
+- **OCR**：收據 → 仕訳候補。引擎可選：Gemini Vision（預設）／OpenAI 相容・Ollama 等本地 vision AI／**Tesseract（純本地 WASM OCR、精度有限、必須人工確認）**
+- **訂單取込（貼上 → AI 抽取）**：把 Amazon・楽天 等的訂單頁全文貼進來，由 AI 抽出品項明細 → 確認 → 轉成仕訳。不依賴 DOM 解析，網站改版不怕
+- **AI 分類**：CSV 行 → 勘定科目（規則優先、AI 後援）。引擎可選 Gemini 或本地 AI
+- **OCR/AI 隱私**：對外送出前會跳確認對話框。把 Ollama 等指向 localhost、或選 Tesseract 時，影像不會離開本機（Ollama 限本地執行版＋需設 `OLLAMA_ORIGINS`；Tesseract 連語言資料都內附，完全不會有對外連線）
 - **家事按分**：把家庭兼事務所的經費自動拆成事業用與事業主貸
 - **減價償卻**：定額法、200% 定率法（耐用年數 2〜20 年）、月分攤、留 1 円殘存
 - **少額減價償卻資產特例**：措法 28 之 2（30→40 萬日圓、2026-04-01 起），年合計 300 萬日圓上限管理
@@ -51,6 +51,6 @@
 
 ## 法務・安全相關文件
 
-- [DISCLAIMER_zh-TW.md](DISCLAIMER_zh-TW.md) — 免責事項（實際申告、稅法遵循、LLM 使用風險）
+- [DISCLAIMER_zh-TW.md](DISCLAIMER_zh-TW.md) — 免責事項（實際申告、稅法遵循、AI 使用風險）
 - [SECURITY_zh-TW.md](SECURITY_zh-TW.md) — 安全政策、漏洞回報手順
 - [PRIVACY_zh-TW.md](PRIVACY_zh-TW.md) — 隱私政策、資料收集／傳送內訳

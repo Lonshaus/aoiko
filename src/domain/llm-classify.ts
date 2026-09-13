@@ -11,10 +11,47 @@ export interface ClassifyInput {
 
 interface ClassifySuggestion {
   ref: string;
-  /** 提案された対方科目 code、信頼度が低い or 適合なしのとき null */
+  /** 提案された相手科目 code、信頼度が低い or 適合なしのとき null */
   accountCode: string | null;
   confidence: 'high' | 'low' | 'none';
   reason?: string;
+  /** モデル呼び出し自体が失敗した行。「答えたが候補に無かった」とは区別する */
+  failed?: boolean;
+}
+// 在庫運用が無い帳簿では売上原価が成立せず、これらは対方になり得ない
+const INVENTORY_ACCOUNT_CODES = ['1340', '5010', '5020', '5030'];
+// 対方候補の絞り込み：事業所得のみ・既知科目を除外・既知側の性質に応じたカテゴリ・在庫運用の有無
+export function counterpartCandidates(
+  accounts: Account[],
+  knownAccountCode: string,
+  knownSide: 'debit' | 'credit',
+  inventoryLive: boolean,
+): Account[] {
+  const known = accounts.find((a) => a.code === knownAccountCode);
+  const categories = counterpartCategories(known?.category, knownSide);
+  return accounts.filter(
+    (a) =>
+      (a.incomeType ?? 'business') === 'business' &&
+      a.code !== knownAccountCode &&
+      categories.includes(a.category) &&
+      (inventoryLive || !INVENTORY_ACCOUNT_CODES.includes(a.code)),
+  );
+}
+// 負債（未払金等）は借方・貸方どちらも対方は費用/資産：貸方＝計上、借方＝取消（戻し）や返済
+function counterpartCategories(
+  knownCategory: AccountCategory | undefined,
+  knownSide: 'debit' | 'credit',
+): AccountCategory[] {
+  if (knownCategory === 'liability') {
+    return ['expense', 'asset'];
+  }
+  if (knownCategory === 'asset' && knownSide === 'debit') {
+    return ['revenue', 'asset'];
+  }
+  if (knownCategory === 'asset' && knownSide === 'credit') {
+    return ['expense', 'asset'];
+  }
+  return knownSide === 'debit' ? ['revenue', 'asset'] : ['expense', 'asset'];
 }
 
 interface ClassifyOptions {
@@ -33,9 +70,24 @@ export async function classifyWithLlm(
   if (inputs.length === 0) {
     return [];
   }
-  const prompt = buildPrompt(inputs, options);
-  const raw = await adapter.generateJson(prompt);
+  const raw = adapter.runDataTask
+    ? await adapter.runDataTask('classify', buildClassifyData(inputs, options))
+    : await adapter.generateJson(buildPrompt(inputs, options));
   return parseResponse(raw, inputs, options.candidateAccounts);
+}
+// データだけを渡す端末内経路用のペイロード。buildPrompt と違い会計コンテキストの説明文は
+// 持たない（指示は実装側に固定で埋め込まれているため、ここではデータだけを渡す）。
+function buildClassifyData(inputs: ClassifyInput[], options: ClassifyOptions) {
+  return {
+    knownAccountCode: options.knownAccountCode,
+    knownSide: options.knownSide,
+    candidates: options.candidateAccounts.map((a) => ({
+      code: a.code,
+      name: a.name,
+      category: a.category,
+    })),
+    transactions: inputs.map((t) => ({ ref: t.ref, description: t.description, amount: t.amount })),
+  };
 }
 // プロンプト生成：日本語で会計コンテキストを明示し、JSON 出力を要求する
 export function buildPrompt(inputs: ClassifyInput[], options: ClassifyOptions): string {
@@ -53,7 +105,7 @@ export function buildPrompt(inputs: ClassifyInput[], options: ClassifyOptions): 
 
   return [
     `あなたは日本の個人事業主向け会計補助 AI です。`,
-    `以下の CSV 由来トランザクションについて、適切な「対方科目」を分類してください。`,
+    `以下の CSV 由来トランザクションについて、適切な「相手科目」を分類してください。`,
     ``,
     `既知側：${options.knownAccountCode}（${knownSideJa}）`,
     `求められる側：${counterpartSideJa}`,
@@ -98,12 +150,17 @@ function parseResponse(
     if (!ref) {
       continue;
     }
+    // status は端末内経路（ClassifyLoop.swift）だけが送る。無い場合は従来どおり accountCode/confidence だけで判定する
+    const failed = r.status === 'failed';
+    // failed は payload の accountCode/confidence がどうであれ none 扱いにする。auto-fill を必ず塞ぐため
     const accountCode =
-      typeof r.accountCode === 'string' && codeSet.has(r.accountCode) ? r.accountCode : null;
+      !failed && typeof r.accountCode === 'string' && codeSet.has(r.accountCode)
+        ? r.accountCode
+        : null;
     let confidence: ClassifySuggestion['confidence'] = 'none';
-    if (r.confidence === 'high' && accountCode) {
+    if (!failed && r.confidence === 'high' && accountCode) {
       confidence = 'high';
-    } else if (r.confidence === 'low' && accountCode) {
+    } else if (!failed && r.confidence === 'low' && accountCode) {
       confidence = 'low';
     }
     const result: ClassifySuggestion = {
@@ -113,6 +170,9 @@ function parseResponse(
     };
     if (typeof r.reason === 'string' && r.reason.length > 0) {
       result.reason = r.reason;
+    }
+    if (failed) {
+      result.failed = true;
     }
     byRef.set(ref, result);
   }

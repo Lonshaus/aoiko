@@ -231,8 +231,8 @@ mod windows_ocr {
         }
         // 利用者の言語ではなく日本語で作る。表示言語が英語の端末でも領収書は日本語のため。
         let mut words = read_with(&bitmap, "ja", width, height)?;
-        // この引擎は 1 言語しか持てない。英数の並びは日本語の引擎だと崩れやすいので、
-        // 英語の引擎でも読んで、日本語側が拾えなかった位置だけ足す。
+        // このエンジンは 1 言語しか持てない。英数の並びは日本語のエンジンだと崩れやすいので、
+        // 英語のエンジンでも読んで、日本語側が拾えなかった位置だけ足す。
         if let Ok(en) = read_with(&bitmap, "en", width, height) {
             for word in en {
                 if !words.iter().any(|w| overlaps(w, &word)) {
@@ -278,7 +278,7 @@ mod windows_ocr {
                     y: f64::from(r.Y) / height,
                     width: f64::from(r.Width) / width,
                     height: f64::from(r.Height) / height,
-                    // この引擎は語ごとの自信度も次の候補も返さない。
+                    // このエンジンは語ごとの自信度も次の候補も返さない。
                     confidence: None,
                     alternates: Vec::new(),
                     // 向きは `OcrResult.TextAngle` に紙面で 1 つだけ乗る。語ごとには無い。
@@ -288,7 +288,7 @@ mod windows_ocr {
         }
         Ok(words)
     }
-    // 同じ文字を 2 つの引擎が別々に読むので、重なっていれば同じ位置とみなす。
+    // 同じ文字を 2 つのエンジンが別々に読むので、重なっていれば同じ位置とみなす。
     // 中心が相手の矩形の内側にあるかで見る。
     fn overlaps(a: &RecognizedWord, b: &RecognizedWord) -> bool {
         let cx = b.x + b.width / 2.0;
@@ -320,6 +320,59 @@ mod windows_ocr {
 
     fn to_err(e: windows::core::Error) -> crate::Error {
         crate::Error::Ocr(format!("文字認識に失敗しました: {e}"))
+    }
+}
+// FoundationModels の可否だけを問う。文字認識（recognize_text / macos::recognize_text）とは
+// 別の枠組みなので、既存の macos モジュールへは混ぜない。
+#[cfg(target_os = "macos")]
+pub(crate) mod apple_intelligence {
+    use std::ffi::{c_char, CStr};
+
+    extern "C" {
+        fn aoiko_ai_availability() -> i32;
+        fn aoiko_ai_extract(bytes: *const u8, length: usize, out_err: *mut i32) -> *mut c_char;
+        fn aoiko_ai_run(
+            task: i32,
+            bytes: *const u8,
+            length: usize,
+            out_err: *mut i32,
+        ) -> *mut c_char;
+        fn aoiko_ai_free(p: *mut c_char);
+    }
+    // Swift 側の @_cdecl の戻り値と 1:1 対応。0 が「使える」。
+    pub(crate) fn availability() -> u8 {
+        // Swift 側は 0..=5 の範囲でしか返さない値を返す。
+        unsafe { aoiko_ai_availability() as u8 }
+    }
+    // 戻り値のポインタは Swift 側の strdup で確保される。中身を Rust の String へ
+    // 写し終えたら、成功・失敗のどちらの経路でも aoiko_ai_free で解放する
+    // （呼び忘れるとレシート 1 枚ごとにリークする）。
+    pub(crate) fn extract(image_data: &[u8]) -> Result<String, u8> {
+        let mut err: i32 = 0;
+        let ptr = unsafe { aoiko_ai_extract(image_data.as_ptr(), image_data.len(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
+    }
+    // 分類・注文取込。data は JSON 文字列（UTF-8）で、Swift 側が task に応じて
+    // 指示と出力の型を選ぶ。ポインタの所有権は extract と同じ。
+    pub(crate) fn run(task: i32, data: &str) -> Result<String, u8> {
+        let mut err: i32 = 0;
+        let bytes = data.as_bytes();
+        let ptr = unsafe { aoiko_ai_run(task, bytes.as_ptr(), bytes.len(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
     }
 }
 

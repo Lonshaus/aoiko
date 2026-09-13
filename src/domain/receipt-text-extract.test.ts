@@ -11,7 +11,6 @@ describe('extractFromOcrText', () => {
     const r = extractFromOcrText('店名\n合計 1500');
     expect(r.invoiceNumber).toBeUndefined();
   });
-
   // OS 内蔵の文字認識が先頭の T を落として返す（実測）。空のままだと帳簿では
   // 適格請求書でない扱いになり、仕入税額控除に効く。
   test('T が落ちた登録番号を、同じ行に手掛かりがあれば補う', () => {
@@ -33,7 +32,6 @@ describe('extractFromOcrText', () => {
     const r = extractFromOcrText('登録番号 123456789012345\n合計 1000');
     expect(r.invoiceNumber).toBeUndefined();
   });
-
   // 実測で踏んだ形。同じ領収書を離れて撮ると 1 桁多く返ってきた。先頭 13 桁を
   // 切り出すと形式は合ってしまい、別の番号でも利用者は誤りに気付けない。
   test('T の後ろが 13 桁より長ければ採用しない', () => {
@@ -55,7 +53,6 @@ describe('extractFromOcrText', () => {
     const r = extractFromOcrText('登録番号 T1234567890123\n別番号 9999999999999\n合計 1000');
     expect(r.invoiceNumber).toBe('T1234567890123');
   });
-
   // 実際のレシートで踏んだ形：店の電話が「0499 年 99 月 99 日」として先に命中し、
   // 後ろにある本物の日付まで届かなかった。番号は作り物に置き換えてある。
   test('電話番号を日付と取り違えて諦めない', () => {
@@ -162,7 +159,6 @@ describe('extractFromOcrText', () => {
     const r = extractFromOcrText('2026/13/45\n合計 500');
     expect(r.date).toBe('');
   });
-
   // 実測の OCR 出力そのまま（tesseract-wasm + jpn）。`,` が `.` に化け、
   // 文字間に空白が入る。以前はこれで `2` と `200` に割れ、合計が 200 になっていた。
   test('桁区切りが . に化けても合計を取り違えない', () => {
@@ -173,7 +169,6 @@ describe('extractFromOcrText', () => {
     expect(r.date).toBe('2026-08-13');
     expect(r.invoiceNumber).toBe('T1234567890123');
   });
-
   // 同じ画像でも出方が揺れる。これも実測の OCR 出力そのまま（区切りが `.,` の 2 文字）。
   test('桁区切りが複数文字に化けても合計を取り違えない', () => {
     const r = extractFromOcrText('小計 2.000 円\n消費 税 200 円\n\n合計 2.,200 円');
@@ -204,7 +199,6 @@ describe('extractFromOcrText', () => {
     expect(r.totalAmount).toBe('480');
   });
 });
-
 // ある環境 の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
 // 単語ごとに矩形が返るため空白を挟むと一文字ずつばらける点と、通貨記号が半角の
 // `\\` で返り `円` が一度も出ない点は実測どおりに写してある。
@@ -231,7 +225,6 @@ describe('OS 内蔵の文字認識で一文字ずつ返る環境の形', () => {
     expect(r.date).toBe('2026-05-14');
     expect(r.totalAmount).toBe('248');
   });
-
   // 店の電話が日付より前に出る。年を 19xx / 20xx に限っていないと
   // `0499ー99ー9999` が日付として先に当たる。
   test('店の電話番号を日付と取り違えない', () => {

@@ -34,19 +34,19 @@ aoiko 只透過以下管道正式發布：
 ### BYOK 模式
 
 <!-- only:browser -->
-- 利用者選的 OCR/LLM 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
+- 利用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
 <!-- /only -->
 <!-- only:native -->
-- 利用者選的 OCR/LLM 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
+- 利用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・endpoint 設定**由利用者自己登錄・存在自己的瀏覽器 IndexedDB**
 <!-- /only -->
 - 開發者・發布者**不取得・轉發・保存**利用者的 API 金鑰・endpoint 資訊
-- 外部 API 使用時的 request **從利用者瀏覽器直接送到選中的 endpoint**（不經 proxy）。選在本機辨識的引擎時根本不會發生 LLM API 送出
+- 外部 API 使用時的 request **從利用者瀏覽器直接送到選中的 endpoint**（不經 proxy）。選在本機辨識的引擎時根本不會發生 AI API 送出
 
 ### 儲存
 
 - 帳簿資料、API 金鑰、設定全都存在 **IndexedDB（本機）**
 - 備份：File System Access API（Chromium）／ OPFS（Safari、Firefox）／ 手動 JSON 下載
-- **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。LLM/OCR API 使用時只送到利用者設定的外部 endpoint（Gemini / OpenAI 相容等）
+- **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。AI/OCR API 使用時只送到利用者設定的外部 endpoint（Gemini / OpenAI 相容等）
 
 ## 已知風險
 
@@ -61,7 +61,7 @@ aoiko 只透過以下管道正式發布：
 - 個人資訊・交易紀錄・API 金鑰會被原樣讀走
 - 建議使用業務專用機、開啟磁碟加密
 
-### 3. LLM API 送出內容的風險
+### 3. AI API 送出內容的風險
 
 - CSV 行・收據圖片依利用者選的引擎送到以下處：
   - **Gemini** → `generativelanguage.googleapis.com`（依 Google 資料處理方針，學習利用與否看合約）
@@ -71,7 +71,7 @@ aoiko 只透過以下管道正式發布：
   - **作業系統內建的文字辨識** → 不送（全程在本機處理）
 <!-- /only -->
 - 機密度高的資料送出前請確認（外部引擎使用時送出前會跳確認對話框）
-- LLM/OCR 機能是 **opt-in（UI 按鈕觸發）**，不自動送出
+- AI/OCR 機能是 **opt-in（UI 按鈕觸發）**，不自動送出
 
 ### 4. PWA 快取
 

@@ -21,4 +21,7 @@ permissions = [
   "allow-export-open",
   "allow-recognize-text",
   "allow-is-text-recognition-available",
+  "allow-apple-ai-availability",
+  "allow-apple-ai-extract",
+  "allow-apple-ai-run",
 ]

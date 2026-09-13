@@ -288,7 +288,7 @@ export async function detectStaleCarryover(year: number): Promise<StaleCarryover
   return differences.length === 0 ? null : { year, differences };
 }
 // 期首振替のやり直し。確定仕訳は物理削除せず、打消し仕訳で相殺する（reverse.ts と同じ方式。
-// CLAUDE.md「確定仕訳は不変・訂正は反対仕訳・完全な監査履歴を保持」＝電子帳簿保存法）。
+// 電子帳簿保存法により確定仕訳は不変で、訂正は反対仕訳として完全な履歴を残す）。
 // 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。
 export async function removeCarryover(
   year: number,

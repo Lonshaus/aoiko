@@ -10,7 +10,7 @@ import { nativeBridge } from './native-bridge';
 // 時刻）を残す呼出側のためのオプションで、既定にはしない：picker を挟むと保存ダイアログの
 // 挙動が変わり、.xtx や CSV の書き出しまで UX が変わってしまうため。
 //
-// ⚠ showSaveFilePicker は一時的なユーザー操作（transient activation、実装によってはおよそ
+// ⚠ showSaveFilePicker は一時的な利用者操作（transient activation、実装によってはおよそ
 // 5秒）の間しか開けない。中身を先に用意すると大きな帳簿・証憑写真で活性化が切れ、
 // SecurityError で保存できなくなる。そのため picker を最初に
 // 呼び、保存先が確定してから中身を作る。データを遅延生成する関数も受け取れるのはこのため。

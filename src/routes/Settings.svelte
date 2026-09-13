@@ -14,7 +14,7 @@
     deleteSetting,
     getSetting,
     setSetting,
-    type OcrEngine,
+    type AiEngine,
   } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
@@ -118,12 +118,36 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
-  // 商店を持つのはネイティブ版だけ。web には購入画面そのものを含めない。
+  // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
   // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
+  // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web の産物に
+  // この経路の文言・問い合わせを残さないため。
+  let appleAiAvailability = $state<number | null>(null);
+  // 1（機種非対応）と 4（OS が古い）は利用者側でどうにもならないので選択肢ごと隠す。
+  // 2/3/5 は選び直せる余地があるので選択肢を disabled で残し、理由を出し分ける。
+  const APPLE_AI_UNAVAILABLE_MESSAGES: Record<number, () => string> = {
+    2: m.settings_apple_ai_unavailable_2,
+    3: m.settings_apple_ai_unavailable_3,
+    5: m.settings_apple_ai_unavailable_5,
+  };
+  const appleAiOptionShown = $derived(
+    __NATIVE__ &&
+      (appleAiAvailability === 0 ||
+        appleAiAvailability === 2 ||
+        appleAiAvailability === 3 ||
+        appleAiAvailability === 5),
+  );
+  // ブラウザ内蔵の AI。null は「まだ問えていない」。モデルの取得は aoiko の役目ではないので、
+  // ブラウザが既に持っている（available）ときだけ選択肢を出す。__NATIVE__ で畳むのは、
+  // 原生の産物にこの経路の問い合わせを残さないため。
+  let chromeAiAvailability = $state<string | null>(null);
+  const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -206,7 +230,10 @@
   let geminiTestFailed = $state(false);
   let geminiModel = $state('');
   let geminiModels = $state<string[]>([]);
-  let ocrEngine = $state<OcrEngine>('gemini');
+  let aiEngine = $state<AiEngine>('gemini');
+  // 選択肢の無い値（他環境の復元・選べなくなった旧値等）が保存に残っている場合の生値。
+  // aiEngine は bind 先の狭い合併型なので、そちらへは書かず別枠に控える。
+  let strandedAiEngine = $state<string | null>(null);
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
@@ -349,7 +376,33 @@
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     geminiModel = (await getSetting('geminiModel')) ?? '';
-    ocrEngine = (await getSetting('ocrEngine')) ?? 'gemini';
+    // 理由コードは環境が返すまで分からない。関数が無い側は 1/4 と同じ「隠す」扱いにする。
+    const askAppleAi = __NATIVE__ ? nativeBridge()?.appleAiAvailability : undefined;
+    appleAiAvailability =
+      typeof askAppleAi === 'function' ? await askAppleAi().catch(() => null) : null;
+    if (!__NATIVE__) {
+      const { chromeAiAvailability: ask } = await import('../lib/chrome-ai/availability');
+      chromeAiAvailability = await ask();
+    }
+    const storedAiEngine = await getSetting('aiEngine');
+    if (
+      storedAiEngine === 'gemini' ||
+      storedAiEngine === 'openai-compatible' ||
+      (storedAiEngine === 'apple-ai' && appleAiOptionShown) ||
+      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown)
+    ) {
+      aiEngine = storedAiEngine;
+      strandedAiEngine = null;
+    } else if (storedAiEngine === undefined) {
+      aiEngine = 'gemini';
+      strandedAiEngine = null;
+    } else {
+      // 選択肢の無い値（他環境の復元・選べなくなった旧値等）。空欄に見せず、
+      // 生値のまま disabled で見せて理由を出す。bind 先は狭い合併型なので
+      // 表示のためだけにキャストする。保存し直せば必ず上書きされる。
+      strandedAiEngine = storedAiEngine;
+      aiEngine = storedAiEngine as AiEngine;
+    }
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -982,7 +1035,18 @@
   }
 
   async function saveOcrEngine() {
-    await setSetting('ocrEngine', ocrEngine);
+    await setSetting('aiEngine', aiEngine);
+    // select を触らずに保存すると aiEngine は strandedAiEngine と同じ生値のまま。
+    // ここで無条件に消すと disabled オプションが消えて選択肢が無い値だけが残り、
+    // 再読み込みまで select が空欄になる。選び直した時だけ消す。
+    if (
+      aiEngine === 'gemini' ||
+      aiEngine === 'openai-compatible' ||
+      (aiEngine === 'apple-ai' && appleAiOptionShown) ||
+      (aiEngine === 'chrome-ai' && chromeAiOptionShown)
+    ) {
+      strandedAiEngine = null;
+    }
     await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
     await setSetting('openaiOcrModel', openaiOcrModel.trim());
     await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
@@ -1087,7 +1151,7 @@
     }
     restoreFileName = file.name;
     try {
-      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む（C7-4）。
+      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む。
       const parsed = await parseBackupFile(file);
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
@@ -2485,83 +2549,121 @@
     <p class="text-xs text-muted-foreground">
       {@html m.settings_llm_intro_html()}
     </p>
-    <div class="flex flex-wrap gap-3 items-end">
-      <label class="block flex-1">
-        <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
-        <input
-          type="password"
-          bind:value={geminiKey}
-          placeholder="AIza..."
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
-        />
-      </label>
-      <button
-        type="button"
-        onclick={saveGeminiKey}
-        class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
-      >
-        {m.settings_llm_fetch_models()}
-      </button>
-      <button
-        type="button"
-        onclick={testGeminiKey}
-        disabled={!geminiKey.trim()}
-        class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
-      >
-        {m.settings_llm_test()}
-      </button>
-    </div>
-    <div class="space-y-1 text-xs">
-      {#if geminiKeySaved}
-        <p>{geminiKeySaved}</p>
-      {/if}
-      {#if geminiTestStatus}
-        <p>
-          {#if geminiTestFailed}
-            <span class="text-destructive" aria-hidden="true">⚠</span>
-          {/if}
-          {geminiTestStatus}
-        </p>
-      {/if}
-    </div>
 
     <label class="block">
-      <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
-      {#if geminiModels.length > 0}
-        <select
-          bind:value={geminiModel}
-          onchange={saveGeminiModel}
-          class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
-        >
-          {#each geminiModels as model (model)}
-            <option value={model}>{model}</option>
-          {/each}
-        </select>
-      {:else}
-        <input
-          type="text"
-          readonly
-          bind:value={geminiModel}
-          placeholder={m.settings_llm_model_fetch_hint()}
-          class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
-        />
-      {/if}
+      <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
+      <select
+        bind:value={aiEngine}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
+      >
+        <option value="gemini">{m.settings_engine_gemini()}</option>
+        <option value="openai-compatible">{m.settings_engine_openai()}</option>
+        <!-- 1/4 は利用者側でどうにもならないので選択肢ごと隠す。2/3/5 は選び直せるので
+             disabled で残し、下に理由を出す。__NATIVE__ で畳むのは web の産物に
+             この経路の文言を残さないため。 -->
+        {#if appleAiOptionShown}
+          <option value="apple-ai" disabled={appleAiAvailability !== 0}>
+            {m.settings_engine_apple_ai()}
+          </option>
+        {/if}
+        {#if chromeAiOptionShown}
+          <option value="chrome-ai">{m.settings_engine_chrome_ai()}</option>
+        {/if}
+        {#if strandedAiEngine}
+          <!-- 選択肢の無い値が保存に残っている（他環境の復元・選べなくなった旧値等）。
+               空欄に見せず、生値のまま disabled で見せて理由を出す。 -->
+          <option value={strandedAiEngine} disabled>
+            {m.settings_engine_stranded({ value: strandedAiEngine })}
+          </option>
+        {/if}
+      </select>
     </label>
-    <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
 
     <div class="border-t pt-4 space-y-3">
-      <label class="block">
-        <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
-        <select
-          bind:value={ocrEngine}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
-        >
-          <option value="gemini">{m.settings_engine_gemini()}</option>
-          <option value="openai-compatible">{m.settings_engine_openai()}</option>
-        </select>
-      </label>
+      {#if __NATIVE__ && appleAiAvailability !== null && appleAiAvailability in APPLE_AI_UNAVAILABLE_MESSAGES}
+        <p class="text-xs text-destructive">
+          {APPLE_AI_UNAVAILABLE_MESSAGES[appleAiAvailability]?.()}
+        </p>
+      {/if}
 
-      {#if ocrEngine === 'openai-compatible'}
+      {#if aiEngine === 'gemini'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_llm_gemini_byok_html()}
+        </p>
+        <div class="space-y-3">
+          <label class="block">
+            <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
+            <input
+              type="password"
+              bind:value={geminiKey}
+              placeholder="AIza..."
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
+            />
+          </label>
+          <div class="flex gap-3">
+            <button
+              type="button"
+              onclick={saveGeminiKey}
+              class="px-4 h-11 bg-primary text-primary-foreground rounded hover:opacity-90"
+            >
+              {m.settings_llm_fetch_models()}
+            </button>
+            <button
+              type="button"
+              onclick={testGeminiKey}
+              disabled={!geminiKey.trim()}
+              class="px-4 h-11 border rounded hover:bg-accent disabled:opacity-50"
+            >
+              {m.settings_llm_test()}
+            </button>
+          </div>
+        </div>
+        <div class="space-y-1 text-xs">
+          {#if geminiKeySaved}
+            <p>{geminiKeySaved}</p>
+          {/if}
+          {#if geminiTestStatus}
+            <p>
+              {#if geminiTestFailed}
+                <span class="text-destructive" aria-hidden="true">⚠</span>
+              {/if}
+              {geminiTestStatus}
+            </p>
+          {/if}
+        </div>
+
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_llm_model_label()}</span>
+          {#if geminiModels.length > 0}
+            <select
+              bind:value={geminiModel}
+              onchange={saveGeminiModel}
+              class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
+            >
+              {#each geminiModels as model (model)}
+                <option value={model}>{model}</option>
+              {/each}
+            </select>
+          {:else}
+            <input
+              type="text"
+              readonly
+              bind:value={geminiModel}
+              placeholder={m.settings_llm_model_fetch_hint()}
+              class="mt-1 w-full px-3 h-11 bg-muted text-muted-foreground border rounded font-mono text-sm cursor-default"
+            />
+          {/if}
+        </label>
+        <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
+      {/if}
+
+      {#if __NATIVE__ && aiEngine === 'apple-ai'}
+        <p class="text-xs text-muted-foreground">{m.settings_apple_ai_intro()}</p>
+        <!-- 米国外へ配る物には記号を付けず、この帰属表示を出す（Apple の第三者向け規定）。 -->
+        <p class="text-[10px] text-muted-foreground">{m.settings_apple_ai_trademark()}</p>
+      {/if}
+
+      {#if aiEngine === 'openai-compatible'}
         <p class="text-xs text-muted-foreground">
           {@html m.settings_openai_intro_html()}
         </p>

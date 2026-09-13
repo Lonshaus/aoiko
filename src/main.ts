@@ -3,11 +3,12 @@ import './app.css';
 import App from './App.svelte';
 import { seedAndReconcileAccounts } from './db';
 import { getSetting, setSetting } from './lib/settings';
+import { migrateOcrEngineSetting } from './lib/settings-migration';
 import { applyUiLanguage } from './lib/ui-language';
 // IndexedDB が使えない環境（プライベートモード・ストレージ拒否・容量枯渇）では
 // シードや設定読み書きが失敗する。例外を握りつぶして白画面にせず、状況を表示する。
 // paraglide（多言語メッセージ）はまだ読み込まれておらず、失敗の理由次第では
-// ロケール判定自体が動く保証もないため、この画面だけは日本語・英語・繁體中文を
+// ロケール判定自体が動く保証もないため、この画面だけは日本語・英語・繁体中国語を
 // すべて直書きで同時表示する（1 言語を選んで外すという判断ができない場面）。
 function renderStartupError(e: unknown): void {
   const target = document.getElementById('app');
@@ -53,6 +54,7 @@ function renderStartupError(e: unknown): void {
 async function start(): Promise<void> {
   // 初回起動時に勘定科目をシードし、currentYear が未設定なら 2026 を入れる
   await seedAndReconcileAccounts();
+  await migrateOcrEngineSetting();
   if ((await getSetting('currentYear')) === undefined) {
     await setSetting('currentYear', 2026);
   }
@@ -60,7 +62,6 @@ async function start(): Promise<void> {
     target: document.getElementById('app')!,
   });
 }
-
 // IndexedDB に触らないので、start() が落ちる環境でも先に済ませられる。
 applyUiLanguage();
 try {

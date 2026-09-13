@@ -69,7 +69,6 @@ describe('assertYearsWritable', () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
     await expect(assertYearsWritable([2026], { allowFiledYear: true })).resolves.toBeUndefined();
   });
-
   // 省略・undefined・false のどれも「開けない」側に倒す。allowFiledYear は
   // 明示的に true を渡したときだけ効く門であって、既定で開いてはいけない。
   test('allowFiledYear は明示的な true 以外では開かない', async () => {

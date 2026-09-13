@@ -2,7 +2,6 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { newId } from './id';
 
 const UUID_V4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-
 // randomUUID だけ未定義にした crypto を差し込む。getRandomValues はネイティブメソッドで
 // this 束縛が必要なため、spread ではなく Proxy 越しに元の crypto へ委譲する。
 function stubCryptoWithoutRandomUUID(): void {

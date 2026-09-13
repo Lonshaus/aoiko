@@ -14,7 +14,6 @@ import {
   restoreFromPayload,
 } from './restore';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
-
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -239,7 +238,6 @@ describe('restoreFromJson', () => {
     expect((await db.settings.get('userRiyoshaId'))?.value).toBe('NEW');
   });
 });
-
 // 復元は全テーブルを clear してから書き戻す。スタンプ帳とバッジはバックアップに
 // 入っていないので、素通りさせると「復元しただけで消える」ことになる。
 describe('支援の記録は復元で消えない', () => {
@@ -262,7 +260,7 @@ describe('支援の記録は復元で消えない', () => {
   });
 });
 
-describe('証憑写真（C7）の zip 往復', () => {
+describe('証憑写真の zip 往復', () => {
   // 備考：happy-dom + fake-indexeddb の組み合わせでは Blob の structured clone が
   // 中身（バイト列）を保持しない既知の制限があるため（実ブラウザの IndexedDB では問題ない、
   // 生 Node の IndexedDB でも別途動作確認済み）、ここでは attachments 行のメタデータ

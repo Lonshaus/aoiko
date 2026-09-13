@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
@@ -12,13 +13,22 @@
   import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
-  import { getSetting, setSetting } from '../lib/settings';
+  import {
+    defaultRuleEngine,
+    getSetting,
+    setSetting,
+    type AiEngine,
+    type ReceiptMethod,
+    type ReceiptRuleEngine,
+  } from '../lib/settings';
+  import { nativeBridge } from '../lib/native-bridge';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
   import type { JournalLine } from '../db/types';
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
@@ -40,19 +50,65 @@
   // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
   let committing = $state(false);
   let confirmOpen = $state(false);
+  let discardConfirmOpen = $state(false);
+  // Cancel／画像選び直しの2経路を同じダイアログで賄うため、破棄後の動作を種別で持つ
+  type PendingDiscard = { kind: 'cancel' } | { kind: 'file'; file: File; input: HTMLInputElement };
+  let pendingDiscard = $state<PendingDiscard | null>(null);
   let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
   let pending = $state<{
     extractor: ReceiptExtractor;
     image: LlmImageInput;
     host: string;
   } | null>(null);
-  // 証憑写真の添付前確認（C7-3）
+  // 証憑写真の添付前確認
   let attachmentConfirmOpen = $state(false);
   let attachmentPreview = $state<string | null>(null);
   let pendingAttachmentFile: File | null = null;
   let pendingInput: HTMLInputElement | null = null;
 
   const accountGroups = $derived(ledger.groupedAccounts());
+  // この画面専用の選択（Settings の aiEngine とは別軸）。
+  let receiptMethod = $state<ReceiptMethod>('ai');
+  // 保存値の型は AiEngine だが、実データは他環境の復元・旧版の残留等で
+  // 未知の文字列になり得る（Settings.svelte の strandedAiEngine と同じ事情）。
+  // 通知文言の分岐で使うだけなので生の string で控える。
+  let aiEngineInUse = $state<string>('gemini');
+  let receiptRuleEngine = $state<ReceiptRuleEngine>('tesseract');
+  // null の間は native の利用可否を確認中。tesseract は常に入るため空配列にはならない。
+  let availableRuleEngines = $state<ReceiptRuleEngine[] | null>(null);
+
+  onMount(async () => {
+    aiEngineInUse = (await getSetting('aiEngine')) ?? 'gemini';
+    receiptMethod = (await getSetting('receiptMethod')) ?? 'ai';
+
+    const engines: ReceiptRuleEngine[] = ['tesseract'];
+    // 関数が在ることと、この端末が実際に読めることは別（native-bridge.ts の doc comment）。
+    if (__NATIVE__ && (await nativeBridge()?.isTextRecognitionAvailable?.())) {
+      engines.push('native');
+    }
+    const stored = (await getSetting('receiptRuleEngine')) ?? defaultRuleEngine(__NATIVE__);
+    const resolved = engines.includes(stored)
+      ? stored
+      : engines.length === 1
+        ? (engines[0] as ReceiptRuleEngine)
+        : defaultRuleEngine(__NATIVE__);
+    receiptRuleEngine = resolved;
+    if (resolved !== stored) {
+      await setSetting('receiptRuleEngine', resolved);
+    }
+    // 解析ボタンの活殺はこの値で決まる。確定した engine を入れ終えてから公開する。
+    availableRuleEngines = engines;
+  });
+
+  async function onMethodChange(next: ReceiptMethod) {
+    receiptMethod = next;
+    await setSetting('receiptMethod', next);
+  }
+
+  async function onRuleEngineChange(next: ReceiptRuleEngine) {
+    receiptRuleEngine = next;
+    await setSetting('receiptRuleEngine', next);
+  }
 
   function stageFile(f: File) {
     file = f;
@@ -71,6 +127,15 @@
     if (!f) {
       return;
     }
+    if (extracted !== null) {
+      pendingDiscard = { kind: 'file', file: f, input };
+      discardConfirmOpen = true;
+      return;
+    }
+    await proceedFile(f, input);
+  }
+
+  async function proceedFile(f: File, input: HTMLInputElement) {
     if (f.size > MAX_IMAGE_BYTES) {
       error = m.common_file_too_large({
         size: formatBytes(f.size),
@@ -127,10 +192,10 @@
     processing = true;
     error = '';
     try {
-      const extractor = await createReceiptExtractor();
-      // クラウドへ送る場合だけ縮小する。Tesseract は端末内処理で通信量の問題が無く、
-      // 解像度を落としても得るものが無い。
-      const source = extractor.external ? await downscaleForUpload(file) : file;
+      const extractor = await createReceiptExtractor(receiptMethod, receiptRuleEngine);
+      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI は文脈窓が理由で、
+      // 端末内かどうかとは別の軸になる。
+      const source = extractor.downscale ? await downscaleForUpload(file) : file;
       const image = await fileToBase64(source);
       const skip = await getSetting('skipExternalSendConfirm');
       if (
@@ -233,7 +298,7 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
-      // OCR に使った原本画像を証憑として保存（C7）。分錄と同一 transaction で
+      // OCR に使った原本画像を証憑として保存。分錄と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
@@ -285,13 +350,42 @@
     error = '';
     success = '';
   }
+
+  function requestDiscard() {
+    pendingDiscard = { kind: 'cancel' };
+    discardConfirmOpen = true;
+  }
+
+  async function confirmDiscard() {
+    discardConfirmOpen = false;
+    // AlertDialog の確定操作は handleClose 経由で oncancel（cancelDiscard）も呼ぶため、古い pendingDiscard を見せないよう await の前に読んで消す。
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (!pending) {
+      return;
+    }
+    if (pending.kind === 'cancel') {
+      reset();
+      return;
+    }
+    await proceedFile(pending.file, pending.input);
+  }
+
+  function cancelDiscard() {
+    discardConfirmOpen = false;
+    const pending = pendingDiscard;
+    pendingDiscard = null;
+    if (pending?.kind === 'file') {
+      pending.input.value = '';
+    }
+  }
 </script>
 
 <div class="space-y-6">
   <header>
     <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      <!-- OS 内蔵の文字認識は原生版にしか無い引擎なので、説明も同じ旗で分ける。 -->
+      <!-- OS 内蔵の文字認識は原生版にしか無いエンジンなので、説明も同じ旗で分ける。 -->
       {m.receipt_subtitle()}
     </p>
   </header>
@@ -310,11 +404,87 @@
       </div>
     {/if}
 
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      <span class="text-xs text-muted-foreground">{m.receipt_method_label()}</span>
+      <div
+        class="inline-flex border rounded-lg overflow-hidden"
+        role="radiogroup"
+        aria-label={m.receipt_method_label()}
+      >
+        <button
+          type="button"
+          role="radio"
+          aria-checked={receiptMethod === 'ai'}
+          onclick={() => onMethodChange('ai')}
+          class="px-3 py-1.5 {receiptMethod === 'ai'
+            ? 'bg-primary text-primary-foreground'
+            : 'hover:bg-accent'}"
+        >
+          {m.receipt_method_ai()}
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={receiptMethod === 'rule'}
+          onclick={() => onMethodChange('rule')}
+          class="px-3 py-1.5 border-l {receiptMethod === 'rule'
+            ? 'bg-primary text-primary-foreground'
+            : 'hover:bg-accent'}"
+        >
+          {m.receipt_method_rule()}
+        </button>
+      </div>
+      {#if receiptMethod === 'rule' && availableRuleEngines !== null && availableRuleEngines.length > 1}
+        <select
+          value={receiptRuleEngine}
+          onchange={(e) =>
+            onRuleEngineChange((e.target as HTMLSelectElement).value as ReceiptRuleEngine)}
+          aria-label={m.receipt_rule_engine_label()}
+          class="px-2 py-1.5 bg-background border rounded text-foreground text-sm"
+        >
+          {#each availableRuleEngines as eng (eng)}
+            <option value={eng}>
+              {eng === 'tesseract'
+                ? m.receipt_rule_engine_tesseract()
+                : m.receipt_rule_engine_native()}
+            </option>
+          {/each}
+        </select>
+      {/if}
+      <span class="text-xs text-muted-foreground basis-full">
+        {#if receiptMethod === 'ai'}
+          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai'}
+            {m.receipt_ai_engine_current({
+              engine:
+                aiEngineInUse === 'gemini'
+                  ? m.receipt_ai_engine_name_gemini()
+                  : aiEngineInUse === 'openai-compatible'
+                    ? m.receipt_ai_engine_name_openai()
+                    : aiEngineInUse === 'apple-ai'
+                      ? m.receipt_ai_engine_name_apple_ai()
+                      : m.receipt_ai_engine_name_chrome_ai(),
+            })}
+          {:else}
+            {m.settings_engine_stranded({ value: aiEngineInUse })}
+          {/if}
+        {:else if availableRuleEngines === null}
+          {m.receipt_engine_checking()}
+        {:else}
+          {m.receipt_rule_engine_notice({
+            engine:
+              receiptRuleEngine === 'tesseract'
+                ? m.receipt_rule_engine_name_tesseract()
+                : m.receipt_rule_engine_name_native(),
+          })}
+        {/if}
+      </span>
+    </div>
+
     {#if file && !extracted}
       <button
         type="button"
         onclick={analyze}
-        disabled={processing}
+        disabled={processing || (receiptMethod === 'rule' && availableRuleEngines === null)}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {processing ? m.receipt_analyze_running() : m.receipt_analyze_button()}
@@ -440,7 +610,11 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <button type="button" onclick={reset} class="px-4 py-2 border rounded hover:bg-accent">
+        <button
+          type="button"
+          onclick={requestDiscard}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
           {m.common_cancel()}
         </button>
         <button
@@ -464,6 +638,11 @@
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
+/>
+<DiscardCandidatesDialog
+  open={discardConfirmOpen}
+  onconfirm={confirmDiscard}
+  oncancel={cancelDiscard}
 />
 {#snippet attachmentPreviewImage()}
   {#if attachmentPreview}

@@ -1,5 +1,5 @@
 // 購入が確定したときだけスタンプが増えること、復元が非消耗型にしか効かないことを見る。
-// 商店はここには居ないので、シェルが注入する window.__aoikoNative を差し替えて駆動する。
+// ストアはここには居ないので、シェルが注入する window.__aoikoNative を差し替えて駆動する。
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
@@ -73,7 +73,7 @@ describe('purchase', () => {
     expect(await getSetting('supporterBadgeAt')).toBe(support.badgeAt);
   });
 
-  test('橋渡しが購入を持たない環境では商店を呼ばない', async () => {
+  test('橋渡しが購入を持たない環境ではストアを呼ばない', async () => {
     expect(await support.purchase('tip')).toBe('unavailable');
     expect(support.stamps).toHaveLength(0);
   });
@@ -127,7 +127,6 @@ describe('load', () => {
     expect(support.products).toHaveLength(2);
   });
 });
-
 // at は日付までしか無く id は UUID v4 なので、この 2 つでは押した順に戻せない。
 // 順序が崩れると nextStampFace が見る「直前の何個」が狂い、7 種の輪ごと壊れる。
 describe('押した順', () => {
