@@ -3,6 +3,7 @@ import { mount, unmount, flushSync } from 'svelte';
 import { db } from '../db/db';
 import { setLocale } from '../paraglide/runtime';
 import type { OrderExtracted } from '../domain/order-extract';
+import { m } from '../paraglide/messages';
 
 const { state } = vi.hoisted(() => ({
   state: {
@@ -37,6 +38,17 @@ async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void
 
 function button(c: HTMLElement, label: string): HTMLButtonElement {
   const found = Array.from(c.querySelectorAll('button')).find((b) =>
+    (b.textContent ?? '').includes(label),
+  );
+  if (found === undefined) {
+    throw new Error(`ボタンが見つからない: ${label}`);
+  }
+  return found;
+}
+
+// ダイアログは AlertDialog の portal で document.body 直下に出る。
+function bodyButton(label: string): HTMLButtonElement {
+  const found = Array.from(document.body.querySelectorAll('button')).find((b) =>
     (b.textContent ?? '').includes(label),
   );
   if (found === undefined) {
@@ -113,5 +125,42 @@ describe('OrderImport: 品目合計と総額の不一致', () => {
 
     expect(c.textContent).not.toContain('品目合計と総額が一致しません');
     expect(await db.journalEntries.count()).toBe(1);
+  });
+});
+
+describe('OrderImport: キャンセル時の破棄確認', () => {
+  test('候補がある状態でキャンセルすると確認ダイアログが出て、候補は表示されたまま', async () => {
+    const c = container as HTMLElement;
+    await analyze(c);
+
+    button(c, 'キャンセル').click();
+    flushSync();
+
+    expect(document.body.querySelector('[role="alertdialog"]')).not.toBeNull();
+    expect(c.querySelector('table')).not.toBeNull();
+  });
+
+  test('ダイアログを閉じると候補は残ったまま', async () => {
+    const c = container as HTMLElement;
+    await analyze(c);
+
+    button(c, 'キャンセル').click();
+    flushSync();
+    bodyButton(m.discard_candidates_stay()).click();
+    flushSync();
+
+    expect(c.querySelector('table')).not.toBeNull();
+  });
+
+  test('確認すると候補が破棄される', async () => {
+    const c = container as HTMLElement;
+    await analyze(c);
+
+    button(c, 'キャンセル').click();
+    flushSync();
+    bodyButton(m.discard_candidates_discard()).click();
+    flushSync();
+
+    expect(c.querySelector('table')).toBeNull();
   });
 });

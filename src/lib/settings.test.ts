@@ -5,7 +5,7 @@ import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { stripBuildOnly } from './build-only';
-import { DISCLAIMER_VERSION } from './settings';
+import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
 // テストは native 扱いで走る（vitest.config.ts の __NATIVE__）。
@@ -51,6 +51,24 @@ describe('DISCLAIMER_VERSION', () => {
       expect(Math.max(...rows), `${doc} の据え置く側に v${NATIVE_VERSION} の行が残っている`).toBe(
         BROWSER_VERSION,
       );
+    }
+  });
+});
+
+// 判定はファクトリ側に一本化した。getSetting は素通しでないと、
+// ここで既定へ落としたつもりが実は素通しという食い違いに気付けない。
+describe('getSetting は加工しない', () => {
+  test('選べなくなった値もそのまま返す', async () => {
+    for (const retired of ['tesseract', 'native'] as const) {
+      await setSetting('aiEngine', retired as never);
+      expect(await getSetting('aiEngine')).toBe(retired);
+    }
+  });
+
+  test('現行の値もそのまま返る', async () => {
+    for (const engine of ['gemini', 'openai-compatible', 'apple-ai'] as const) {
+      await setSetting('aiEngine', engine);
+      expect(await getSetting('aiEngine')).toBe(engine);
     }
   });
 });
