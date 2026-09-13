@@ -1,5 +1,5 @@
 // 購入が確定したときだけスタンプが増えること、復元が非消耗型にしか効かないことを見る。
-// 商店はここには居ないので、シェルが注入する window.__aoikoNative を差し替えて駆動する。
+// ストアはここには居ないので、シェルが注入する window.__aoikoNative を差し替えて駆動する。
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
@@ -73,7 +73,7 @@ describe('purchase', () => {
     expect(await getSetting('supporterBadgeAt')).toBe(support.badgeAt);
   });
 
-  test('橋渡しが購入を持たない環境では商店を呼ばない', async () => {
+  test('橋渡しが購入を持たない環境ではストアを呼ばない', async () => {
     expect(await support.purchase('tip')).toBe('unavailable');
     expect(support.stamps).toHaveLength(0);
   });

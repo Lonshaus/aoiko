@@ -98,7 +98,7 @@ window.__aoikoNative = {
     await invoke('plugin:aoiko-native|backup_remove', { relPath: fileName });
   },
 };
-// 支援（アプリ内購入）。商店ごとに品目 ID が違うので、走っている場所を Rust から
+// 支援（アプリ内購入）。ストアごとに品目 ID が違うので、走っている場所を Rust から
 // 受け取って決める。品目を作っていない環境では createIap が null を返し、購入の
 // 入口が生えない＝支援画面ごと出ない。
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});

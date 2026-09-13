@@ -17,7 +17,7 @@ class SupportStore {
   // 支援者バッジを買った日。null は未購入。
   badgeAt = $state<string | null>(null);
   products = $state<IapProduct[]>([]);
-  // 一度でも商店へ問い合わせたか。問い合わせる前と、問い合わせて欠けていた状態は別物。
+  // 一度でもストアへ問い合わせたか。問い合わせる前と、問い合わせて欠けていた状態は別物。
   productsAsked = $state(false);
   page = $state(0);
   busy = $state(false);
@@ -26,7 +26,7 @@ class SupportStore {
 
   pageCount = $derived(stampPageCount(this.stamps.length));
   slots = $derived(stampPageSlots(this.stamps, this.page));
-  // 商店が片方しか返さないことがある（実機で観測）。揃っていないことを画面へ伝えるため、
+  // ストアが片方しか返さないことがある（実機で観測）。揃っていないことを画面へ伝えるため、
   // 取り出せなかった品目を隠さずここで判る形にしておく。
   productsMissing = $derived(this.productsAsked && this.products.length < KINDS.length);
 
@@ -87,7 +87,7 @@ class SupportStore {
       this.busy = false;
     }
   }
-  // 購入が確定したときだけ通る。ここを画面から直接呼ばないのは、商店を通さずに
+  // 購入が確定したときだけ通る。ここを画面から直接呼ばないのは、ストアを通さずに
   // スタンプが増える経路を作らないため。
   private async grant(kind: IapProductKind): Promise<void> {
     if (kind === 'tip') {

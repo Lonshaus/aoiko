@@ -129,7 +129,7 @@ describe('支援の記録は持ち出さない', () => {
     expect(p.tables.stamps).toBeUndefined();
   });
 
-  test('supporterBadgeAt は常に除外（商店から復元するもの）', async () => {
+  test('supporterBadgeAt は常に除外（ストアから復元するもの）', async () => {
     await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
     const p = await buildPayload({ includeApiKeys: true });
     expect(settingKeys(p.tables)).not.toContain('supporterBadgeAt');
