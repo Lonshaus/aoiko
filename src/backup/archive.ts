@@ -10,7 +10,7 @@ const ATTACHMENT_PREFIX = 'attachments/';
 export function looksLikeZip(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
 }
-// 証憑写真（C7）は base64 化すると容量が約1.4倍に膨らむため、JSON に埋め込まず
+// 証憑写真は base64 化すると容量が約1.4倍に膨らむため、JSON に埋め込まず
 // zip 内に原始バイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
 //
 // payload.json → 添付1件ずつ → 目録、を pull() 1回につき1エントリずつ ReadableStream へ

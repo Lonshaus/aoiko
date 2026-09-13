@@ -64,7 +64,7 @@ export interface JournalEntry {
   sourceImportId?: string;
   createdAt: number;
   confirmedAt: number;
-  // 部門タグ（C5）。複数事業体・複数拠点等の軽量な分類用の自由記述タグ。
+  // 部門タグ。複数事業体・複数拠点等の軽量な分類用の自由記述タグ。
   // 集計・絞込のみに使う表示用ラベルで、税額計算・.xtx 出力には一切関与しない。
   department?: string;
 }
@@ -87,7 +87,7 @@ export interface JournalLine {
   taxCategory?: TaxCategory;
   // 個別対応方式の用途区分の上書き。未指定なら 'taxableOnly'
   inputUsageCategory?: InputUsageCategory;
-  // 簡易在庫管理（C4）。仕入・売上科目の行でのみ意味を持つ（itemId とペアで指定）。
+  // 簡易在庫管理。仕入・売上科目の行でのみ意味を持つ（itemId とペアで指定）。
   itemId?: string;
   quantity?: string;
 }
@@ -121,16 +121,16 @@ export interface Vendor {
   defaultAccountCode?: string;
   defaultTaxRate?: number;
   aliases?: string[];
-  // 請求書（C1）の送付先住所。既存の取引先（仕入先）には不要なので任意項目。
+  // 請求書の送付先住所。既存の取引先（仕入先）には不要なので任意項目。
   address?: string;
 }
-// 簡易在庫管理（C4）の商品主檔。数量・単価は保持しない（JournalLine の itemId/quantity から
+// 簡易在庫管理の商品主檔。数量・単価は保持しない（JournalLine の itemId/quantity から
 // 都度導出する。分錄が唯一の真実の情報源という原則に従い、別途可変状態を持たない）。
 export interface InventoryItem {
   id: string;
   name: string;
 }
-// 証憑原本（C7）。分錄と同一 transaction で書き込む（孤児画像・空参照を防ぐため）。
+// 証憑原本。分錄と同一 transaction で書き込む（孤児画像・空参照を防ぐため）。
 // entryId は 1:N（同じ仕訳に複数枚の添付可）。確定仕訳と同様、更新・削除の口は用意しない
 // （不可竄改。附け間違いは訂正仕訳＋別記録で対応、電子帳簿保存法の真実性確保要件）。
 export interface Attachment {
@@ -144,15 +144,15 @@ export interface Attachment {
   // 付いていないため。読む側は欠けていたらその場で計算する。
   sha256?: string;
 }
-// 予算管理（C10）。月次総額（収入予算・支出予算）のみ、科目別には分解しない
-// （個人事業主想定では科目別入力の設定コストが見合わないと利用者と合意——AOIKO_FUTURE_IDEAS.md 参照）。
+// 予算管理。月次総額（収入予算・支出予算）のみ、科目別には分解しない。
+// 個人事業主の規模では科目別に入力させる設定コストが見合わないため。
 export interface Budget {
   year: number;
   month: number; // 1-12
   revenueBudget: string;
   expenseBudget: string;
 }
-// 現金流予測（C10）用の独立した売掛金/買掛金子帳。JournalLine に到期日を持たせず
+// 現金流予測用の独立した売掛金/買掛金子帳。JournalLine に到期日を持たせず
 // 独立表にした理由：分錄は確定後不可変更だが、入金/支払は分割・延滞等で状態が変化し続けるため
 // （詳細は project memory 参照）。
 export type ArApType = 'receivable' | 'payable';
@@ -414,7 +414,7 @@ export interface Setting<T = unknown> {
   value: T;
   updatedAt: number;
 }
-// 請求書・見積書の発行（C1）。
+// 請求書・見積書の発行。
 // 見積書は成立前の提案のため仕訳・ArApEntry を一切生成しない（documentType==='quote' は
 // journalEntryId/arApEntryId を持たない）。請求書は発行時に仕訳＋ArApEntry を自動生成する。
 // 発行済み文書の訂正は削除して作り直すのではなく、journal.ts と同じ打消し仕訳方式（voidInvoice）。

@@ -20,6 +20,9 @@
 - `allow-export-open`
 - `allow-recognize-text`
 - `allow-is-text-recognition-available`
+- `allow-apple-ai-availability`
+- `allow-apple-ai-extract`
+- `allow-apple-ai-run`
 
 ## Permission Table
 
@@ -29,6 +32,84 @@
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`aoiko-native:allow-apple-ai-availability`
+
+</td>
+<td>
+
+Enables the apple_ai_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-apple-ai-availability`
+
+</td>
+<td>
+
+Denies the apple_ai_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-apple-ai-extract`
+
+</td>
+<td>
+
+Enables the apple_ai_extract command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-apple-ai-extract`
+
+</td>
+<td>
+
+Denies the apple_ai_extract command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-apple-ai-run`
+
+</td>
+<td>
+
+Enables the apple_ai_run command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-apple-ai-run`
+
+</td>
+<td>
+
+Denies the apple_ai_run command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>

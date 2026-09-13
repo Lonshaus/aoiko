@@ -6,11 +6,11 @@ This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) f
 
 ## [1.1.2] - 2026-09-06
 
-This release lets you pick the LLM model used for reading receipts.
+This release lets you pick the AI model used for reading receipts.
 
 ### Changed
 
-- The Gemini part of the LLM integration now lets you choose a model. After choosing one, press "Test connection" — only a model that passes is confirmed to work
+- The Gemini part of the AI integration now lets you choose a model. After choosing one, press "Test connection" — only a model that passes is confirmed to work
 - The OCR engines still need tuning, so they have been taken off the list for now. If you had one selected, you are returned to the default, Gemini
 
 ### Fixed
@@ -186,7 +186,7 @@ Initial release.
 - Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
 - e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule). Conforms to the NTA's official XSD, verified against a real e-Tax software import
 - Bank and credit-card CSV import (13 parsers, validated against real CSVs), import history, duplicate detection, batch-level reverse
-- Receipt OCR, order-page paste import, and LLM account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract, with a pre-send confirmation dialog)
+- Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract, with a pre-send confirmation dialog)
 - Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, business opening setup (Opening Wizard)
 - Consumption tax estimation with 4-method comparison (general / simplified / 20% special / 30% special), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns

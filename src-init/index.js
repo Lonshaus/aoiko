@@ -13,6 +13,7 @@ import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
+import { createAppleAi } from './apple-ai.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -103,6 +104,7 @@ window.__aoikoNative = {
 Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ?? {});
 // 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
+Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform) ?? {});
 
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。

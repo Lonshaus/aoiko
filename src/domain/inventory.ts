@@ -1,15 +1,14 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
-// 簡易在庫管理（C4）。最終仕入原価法（評価方法の届出を提出していない事業者に
+// 簡易在庫管理。最終仕入原価法（評価方法の届出を提出していない事業者に
 // 適用される法定デフォルト）のみ対応する。届出により他の評価方法（先入先出法・
 // 移動平均法等）を選んでいる利用者は Settings の inventoryAutoValuationEnabled を
-// false にして本機能を無効化し、従来通り手動で期末棚卸高を仕訳する
-// （詳細は PJ_aoiko/AOIKO_FUTURE_IDEAS.md 参照）。
+// false にして本機能を無効化し、従来通り手動で期末棚卸高を仕訳する。
 //
 // 品目ごとの現在庫数量・直近仕入単価は別途可変状態として保持せず、確定仕訳
-// （JournalLine.itemId/quantity）から都度導出する（CLAUDE.md「仕訳が唯一の
-// 真実の情報源」の原則。既存の buildPL/buildBS/computeDepreciation と同じく
+// （JournalLine.itemId/quantity）から都度導出する（仕訳が唯一の真実の情報源という
+// 原則による。既存の buildPL/buildBS/computeDepreciation と同じく
 // 純粋な導出計算とする）。
 
 const PURCHASE_ACCOUNT_CODE = '5020'; // 仕入
