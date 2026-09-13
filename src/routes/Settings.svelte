@@ -118,7 +118,7 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
-  // 商店を持つのはネイティブ版だけ。web には購入画面そのものを含めない。
+  // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
   // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
   // window.__aoikoNative を生やせば画面を出せてしまう。

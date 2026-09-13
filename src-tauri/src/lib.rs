@@ -15,7 +15,7 @@ use url::Url;
 mod menu_i18n;
 
 const INIT_SCRIPT: &str = include_str!("../init.js");
-// 商店ごとに品目 ID が違うので、走っている場所を init.js へ渡す。JS 側から OS を
+// ストアごとに品目 ID が違うので、走っている場所を init.js へ渡す。JS 側から OS を
 // 見分ける手段（userAgent 等）は web view によって区別が付かない組み合わせがある。
 const PLATFORM: &str = if cfg!(target_os = "macos") {
     "macos"
@@ -639,7 +639,7 @@ pub fn run() {
         // コマンドだけで、そちらは開く場所も文面も webview から指定できない。
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_aoiko_native::init())
-        // 支援（アプリ内購入）。商店を持つ環境にしか依存を入れて
+        // 支援（アプリ内購入）。ストアを持つ環境にしか依存を入れて
         // いないので、Cargo.toml 側の target cfg で自動的にそこだけ有効になる。
         .plugin(tauri_plugin_iap::init())
         .invoke_handler(tauri::generate_handler![

@@ -9,7 +9,7 @@ import {
   purchaseResultOf,
   purchaseResultOfError,
 } from './iap.js';
-// 商店ごとに品目 ID が違い、間違えると「商店に無い品目」を買わせようとして落ちる。
+// ストアごとに品目 ID が違い、間違えると「ストアに無い品目」を買わせようとして落ちる。
 // 消耗型を consume し忘れると 2 回目が買えなくなる。どちらも実機でしか気付けないので、
 // 対応表と後始末の呼び出しをここで固定する。
 function fakeInvoke(handlers) {
@@ -25,13 +25,13 @@ function fakeInvoke(handlers) {
   return { invoke, calls };
 }
 
-test('4 つの商店とも品目は 2 つだけ', () => {
+test('4 つのストアとも品目は 2 つだけ', () => {
   for (const platform of ['macos', 'ios', 'windows', 'android']) {
     assert.deepEqual(Object.keys(productIdsFor(platform)), ['tip', 'supporter-badge']);
   }
 });
 
-test('商店ごとに品目 ID が分かれている', () => {
+test('ストアごとに品目 ID が分かれている', () => {
   assert.equal(productIdsFor('macos').tip, 'net.lonshaus.aoiko.mac.tip');
   assert.equal(productIdsFor('ios').tip, 'net.lonshaus.aoiko.ios.tip');
   assert.equal(productIdsFor('windows').tip, 'net.lonshaus.aoiko.win.tip');
@@ -60,7 +60,7 @@ test('表に無い環境では入口ごと生えない', () => {
   );
 });
 
-test('kindFor は自分の商店の ID だけを引く', () => {
+test('kindFor は自分のストアの ID だけを引く', () => {
   assert.equal(kindFor('macos', 'net.lonshaus.aoiko.mac.tip'), 'tip');
   assert.equal(kindFor('macos', 'net.lonshaus.aoiko.ios.tip'), null);
   assert.equal(kindFor('windows', 'net.lonshaus.aoiko.win.tip'), 'tip');
@@ -75,7 +75,7 @@ test('purchaseState は web 側の語彙へ移す', () => {
   assert.equal(purchaseResultOf(undefined), 'cancelled');
 });
 
-test('価格は商店が返した文字列をそのまま渡す', async () => {
+test('価格はストアが返した文字列をそのまま渡す', async () => {
   const { invoke, calls } = fakeInvoke({
     'plugin:iap|get_products': () => ({
       products: [
@@ -161,7 +161,7 @@ test('取り消しと承認待ちでは consume しない', async () => {
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
   assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
-  // プラグインは文字列で寄越す。商店 側は code が文面に畳み込まれる。
+  // プラグインは文字列で寄越す。ストア 側は code が文面に畳み込まれる。
   assert.equal(purchaseResultOfError('Purchase cancelled by user'), 'cancelled');
   assert.equal(
     purchaseResultOfError('[purchaseNotCompleted] - Purchase was not completed'),
@@ -193,7 +193,7 @@ test('本物の失敗は投げ直す', async () => {
   await assert.rejects(() => iap.purchaseIap('tip'), /Server error/);
 });
 
-test('知らない kind では商店を呼ばない', async () => {
+test('知らない kind ではストアを呼ばない', async () => {
   const { invoke, calls } = fakeInvoke({});
   const iap = createIap(invoke, 'macos');
   assert.equal(await iap.purchaseIap('tip-small'), 'cancelled');
@@ -203,7 +203,7 @@ test('知らない kind では商店を呼ばない', async () => {
 test('復元で戻すのは非消耗型だけ', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|restore_purchases': () => ({
-      // 3 つの商店とも purchaseState と isAcknowledged を必ず載せて返す。
+      // 3 つのストアとも purchaseState と isAcknowledged を必ず載せて返す。
       purchases: [
         { productId: 'net.lonshaus.aoiko.mac.tip', purchaseState: 0, isAcknowledged: true },
         {
@@ -230,7 +230,7 @@ const PLAY_DEPS = { sleep: async () => {}, backFromStore: async () => {} };
 test('acknowledge の要否は isAcknowledged で決まる', () => {
   assert.equal(needsAcknowledge({ isAcknowledged: false, purchaseToken: 'tok' }), true);
   assert.equal(needsAcknowledge({ isAcknowledged: true, purchaseToken: 'tok' }), false);
-  // 商店 は isAcknowledged を返さない。undefined を「未承認」と読むと毎回呼んでしまう。
+  // ストア は isAcknowledged を返さない。undefined を「未承認」と読むと毎回呼んでしまう。
   assert.equal(needsAcknowledge({ purchaseToken: 'tok' }), false);
   assert.equal(needsAcknowledge({ isAcknowledged: false }), false);
 });
@@ -263,7 +263,7 @@ test('承認済みなら acknowledge を呼ばない', async () => {
   assert.equal(calls.length, 1);
 });
 
-// 商店 と 商店 に acknowledge は無く、プラグインは no-op か拒否を返す。
+// ストア と ストア に acknowledge は無く、プラグインは no-op か拒否を返す。
 test('Play 以外では acknowledge を呼ばない', async () => {
   for (const platform of ['macos', 'ios', 'windows']) {
     const { invoke, calls } = fakeInvoke({
@@ -319,7 +319,7 @@ test('保留が見えないまま上限に達したら理由を付けて投げ�
   );
 });
 
-test('保留の見張りは購入が決着したら商店を叩き続けない', async () => {
+test('保留の見張りは購入が決着したらストアを叩き続けない', async () => {
   const { invoke, calls } = fakeInvoke({
     'plugin:iap|purchase': () => ({ purchaseState: 0, purchaseToken: 'tok', isAcknowledged: true }),
     'plugin:iap|get_product_status': () => ({ isOwned: false }),

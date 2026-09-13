@@ -57,7 +57,7 @@ object HttpSend {
             connection.disconnect()
         }
     }
-    // 値が ASCII に収まらないヘッダーは落とす。他の平台では Rust の HeaderValue::to_str が
+    // 値が ASCII に収まらないヘッダーは落とす。他のプラットフォームでは Rust の HeaderValue::to_str が
     // 同じことをしており、JS の Headers に載せられるものを揃える。
     private fun collectHeaders(connection: HttpURLConnection): List<Pair<String, String>> {
         val out = ArrayList<Pair<String, String>>()
