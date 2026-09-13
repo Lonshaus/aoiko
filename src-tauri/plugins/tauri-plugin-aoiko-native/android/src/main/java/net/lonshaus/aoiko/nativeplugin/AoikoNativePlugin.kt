@@ -201,7 +201,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでも相機を
-    // 起こせなければ檔案選択へ退避するため、こちらも同じ resolveActivity で揃える。
+    // 起こせなければファイル選択へ退避するため、こちらも同じ resolveActivity で揃える。
     @Command
     fun isCameraAvailable(invoke: Invoke) {
         val pm = activity.packageManager

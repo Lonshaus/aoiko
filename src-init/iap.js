@@ -1,7 +1,7 @@
-// 商店の課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
+// ストアの課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
 // invoke を直に叩く。aoiko-native も同じ書き方で、新しい npm 依存を増やさない。
 //
-// 品目 ID は商店ごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
+// 品目 ID はストアごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
 const PRODUCT_IDS = {
   macos: {
     tip: 'net.lonshaus.aoiko.mac.tip',
@@ -20,15 +20,15 @@ const PRODUCT_IDS = {
     'supporter-badge': 'net.lonshaus.aoiko.android.supporterbadge',
   },
 };
-// どの商店も、消耗しない品目と分けるためにこの区別を要求する。
+// どのストアも、消耗しない品目と分けるためにこの区別を要求する。
 // 定期購読は扱わないので inapp 固定。
 const PRODUCT_TYPE = 'inapp';
 // プラグインが返す purchaseState（0/1/2）。web 側の語彙へ移す。
 const PURCHASE_STATE = { 0: 'purchased', 1: 'cancelled', 2: 'pending' };
 // 消耗しない品目。買い切りで、consume はしない。
 const NON_CONSUMABLE = 'supporter-badge';
-// Play だけの後始末が要る商店。非消耗型を 3 日以内に acknowledge しないと自動返金される
-// （消耗型は consume が acknowledge を兼ねる）。ほかの商店に同じ仕組みは
+// Play だけの後始末が要るストア。非消耗型を 3 日以内に acknowledge しないと自動返金される
+// （消耗型は consume が acknowledge を兼ねる）。ほかのストアに同じ仕組みは
 // 無く、プラグイン側も no-op か「未対応」で拒否する。
 const PLAY = 'android';
 // Play の保留（コンビニ払い等）を見つけるための間隔と上限。
@@ -52,7 +52,7 @@ export function kindFor(platform, productId) {
 export function purchaseResultOf(purchase) {
   return PURCHASE_STATE[purchase?.purchaseState] ?? 'cancelled';
 }
-// get_product_status の戻り。保留の購入が商店側に残っている状態。
+// get_product_status の戻り。保留の購入がストア側に残っている状態。
 export function isPendingStatus(status) {
   return status?.isOwned === true && PURCHASE_STATE[status.purchaseState] === 'pending';
 }
@@ -65,7 +65,7 @@ export function needsAcknowledge(purchase) {
 // エラーバナーが点く。
 export function purchaseResultOfError(error) {
   // プラグインは Error を文字列へ直列化して寄越すので、判るのは文面だけ。
-  // 商店ごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
+  // ストアごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
   const message = String(error?.message ?? error ?? '').toLowerCase();
   if (message.includes('cancel') || message.includes('notcompleted')) {
     return 'cancelled';
@@ -102,7 +102,7 @@ function waitForVisibility(state) {
 
 export function createIap(invoke, platform, deps = {}) {
   const ids = productIdsFor(platform);
-  // 品目を商店に作っていない環境では表を置かない。表が無ければ入口ごと生やさず、
+  // 品目をストアに作っていない環境では表を置かない。表が無ければ入口ごと生やさず、
   // 支援画面が出ないままにする（能力判定は関数の有無で行われる）。
   if (ids === null) {
     return null;
@@ -122,7 +122,7 @@ export function createIap(invoke, platform, deps = {}) {
   }
   // Play の保留を自力で見つける。プラグインの handlePurchase は PURCHASED のときしか
   // 応じないので、保留のままだと purchase の約束が解決も拒否もされずに残る。
-  // 他の商店ではプラグインが必ず決着させるため、待つ側を生やさない。
+  // 他のストアではプラグインが必ず決着させるため、待つ側を生やさない。
   function watchPending(productId, settled) {
     if (!isPlay) {
       return new Promise(() => {});
@@ -163,7 +163,7 @@ export function createIap(invoke, platform, deps = {}) {
     return (
       products
         .map((p) => ({ kind: kindFor(platform, p.productId), displayPrice: p.formattedPrice }))
-        // 商店が返さなかった品目・審査中で価格が付いていない品目は出さない。
+        // ストアが返さなかった品目・審査中で価格が付いていない品目は出さない。
         // 値段の無いボタンを押させない。
         .filter((p) => p.kind !== null && typeof p.displayPrice === 'string')
     );
@@ -220,7 +220,7 @@ export function createIap(invoke, platform, deps = {}) {
     const owned = [];
     for (const purchase of purchases) {
       // 戻すのは非消耗型だけ。消耗型は買い切りの記録が端末に残るもので、
-      // 商店から取り戻す対象ではない。
+      // ストアから取り戻す対象ではない。
       if (kindFor(platform, purchase.productId) !== NON_CONSUMABLE) {
         continue;
       }

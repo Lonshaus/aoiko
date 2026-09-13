@@ -13,7 +13,7 @@
 
   let { accept, onchange, onclick, camera = false }: Props = $props();
 
-  // 相機の無い端末で押せないボタンを生やさないため、平台だけでは決めない。
+  // 相機の無い端末で押せないボタンを生やさないため、プラットフォームだけでは決めない。
   let cameraReady = $state(false);
   $effect(() => {
     if (!camera) {

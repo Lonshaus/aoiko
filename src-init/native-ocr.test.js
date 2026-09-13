@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createNativeOcr } from './native-ocr.js';
-// 生やす環境を間違えると、読めない引擎が設定画面に並ぶ。設定はバックアップに乗って
+// 生やす環境を間違えると、読めないエンジンが設定画面に並ぶ。設定はバックアップに乗って
 // 別の端末へ渡るので、選べてしまうこと自体が事故になる。
 test('実装のある環境でだけ入口が生える', () => {
   for (const platform of ['macos', 'ios', 'windows', 'android']) {

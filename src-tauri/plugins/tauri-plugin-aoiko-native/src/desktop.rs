@@ -231,8 +231,8 @@ mod windows_ocr {
         }
         // 利用者の言語ではなく日本語で作る。表示言語が英語の端末でも領収書は日本語のため。
         let mut words = read_with(&bitmap, "ja", width, height)?;
-        // この引擎は 1 言語しか持てない。英数の並びは日本語の引擎だと崩れやすいので、
-        // 英語の引擎でも読んで、日本語側が拾えなかった位置だけ足す。
+        // このエンジンは 1 言語しか持てない。英数の並びは日本語のエンジンだと崩れやすいので、
+        // 英語のエンジンでも読んで、日本語側が拾えなかった位置だけ足す。
         if let Ok(en) = read_with(&bitmap, "en", width, height) {
             for word in en {
                 if !words.iter().any(|w| overlaps(w, &word)) {
@@ -278,7 +278,7 @@ mod windows_ocr {
                     y: f64::from(r.Y) / height,
                     width: f64::from(r.Width) / width,
                     height: f64::from(r.Height) / height,
-                    // この引擎は語ごとの自信度も次の候補も返さない。
+                    // このエンジンは語ごとの自信度も次の候補も返さない。
                     confidence: None,
                     alternates: Vec::new(),
                     // 向きは `OcrResult.TextAngle` に紙面で 1 つだけ乗る。語ごとには無い。
@@ -288,7 +288,7 @@ mod windows_ocr {
         }
         Ok(words)
     }
-    // 同じ文字を 2 つの引擎が別々に読むので、重なっていれば同じ位置とみなす。
+    // 同じ文字を 2 つのエンジンが別々に読むので、重なっていれば同じ位置とみなす。
     // 中心が相手の矩形の内側にあるかで見る。
     fn overlaps(a: &RecognizedWord, b: &RecognizedWord) -> bool {
         let cx = b.x + b.width / 2.0;

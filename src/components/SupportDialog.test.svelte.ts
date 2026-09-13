@@ -1,4 +1,4 @@
-// 商店が売っていない品目のボタンを出さないこと、購入済みのバッジで文言が変わることを見る。
+// ストアが売っていない品目のボタンを出さないこと、購入済みのバッジで文言が変わることを見る。
 // どちらも「買えないものを見せない」ための分岐で、間違えると審査で落ちる。
 
 import { describe, expect, test, afterEach, beforeEach, vi } from 'vitest';
@@ -50,14 +50,14 @@ afterEach(() => {
 });
 
 describe('購入導線', () => {
-  test('価格は商店が返した文字列をそのまま出す（自前で組み立てない）', () => {
+  test('価格はストアが返した文字列をそのまま出す（自前で組み立てない）', () => {
     support.products = [{ kind: 'tip', displayPrice: 'NT$35' }];
     render();
     flushSync();
     expect(target?.querySelector('.tier .amount')?.textContent).toBe('NT$35');
   });
 
-  test('消耗型を商店が売っていなければ金額ボタンもスタンプ帳も出さない', () => {
+  test('消耗型をストアが売っていなければ金額ボタンもスタンプ帳も出さない', () => {
     support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
     render();
     flushSync();
@@ -66,7 +66,7 @@ describe('購入導線', () => {
     expect(target?.querySelector('.badge-block')).not.toBeNull();
   });
 
-  test('支援者バッジを商店が売っていなければ枠ごと出さない', () => {
+  test('支援者バッジをストアが売っていなければ枠ごと出さない', () => {
     support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     render();
     flushSync();
@@ -165,14 +165,14 @@ describe('閉じる', () => {
     expect(closed).toBe(0);
   });
 });
-// 商店が片方しか返さないことが実機で起きた（#491）。黙って隠すと、審査員には
+// ストアが片方しか返さないことが実機で起きた（#491）。黙って隠すと、審査員には
 // 宣言した品目が画面に無い状態が見える。
 describe('品目が揃わないとき', () => {
   function missing(): HTMLElement | null {
     return target?.querySelector('.missing') ?? null;
   }
 
-  test('商店に問い合わせる前は、まだ何も言わない', () => {
+  test('ストアに問い合わせる前は、まだ何も言わない', () => {
     render();
     expect(missing()).toBeNull();
   });
@@ -201,7 +201,7 @@ describe('品目が揃わないとき', () => {
     expect(missing()).toBeNull();
   });
   // 実機で起きたのはこの順序：最初に開くと片方だけ、開き直すと両方。
-  test('押すと商店へ問い合わせ直し、揃えば表示が消える', async () => {
+  test('押すとストアへ問い合わせ直し、揃えば表示が消える', async () => {
     const both = [
       { kind: 'tip' as const, displayPrice: '¥150' },
       { kind: 'supporter-badge' as const, displayPrice: '¥500' },
