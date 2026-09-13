@@ -203,6 +203,112 @@ pub(crate) fn is_text_recognition_available<R: Runtime>(app: AppHandle<R>) -> bo
         crate::desktop::is_text_recognition_available()
     }
 }
+// 実行時に問うだけの薄い橋渡し。0..=5 の意味は AppleIntelligence.swift 側のコメントに揃える。
+#[tauri::command(async)]
+pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::availability()
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::availability()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        // Swift 側の「OS が古すぎる」と同じ意味で使う。
+        4
+    }
+}
+
+// 実測（このMac）：8064x6048・最大画質 JPEG はレシート相当の内容で 2.0MB、
+// 同じ画素数の純ノイズという病的な内容でも 41.3MB。この画素数・画質での実用上限。
+const APPLE_AI_IMAGE_CEILING_BYTES: usize = 64 * 1024 * 1024;
+// 分類・注文取込に渡す JSON テキスト。通常の使い方でここまで大きくなることは無い。
+const APPLE_AI_DATA_CEILING_BYTES: usize = 8 * 1024 * 1024;
+
+// 空はデコードできても中身が無く、Swift 側は長さ 0 の非 null ポインタ（何も指していない
+// ダングリングポインタ）を渡されることになる。上限は、この経路が画像を downscale せずに
+// 素通しする（する経路は receipt-text-extract.ts 側だけ）ことへの歯止め。
+fn check_apple_ai_payload_len(len: usize, ceiling: usize) -> std::result::Result<(), u8> {
+    if len == 0 {
+        return Err(2);
+    }
+    if len > ceiling {
+        return Err(7);
+    }
+    Ok(())
+}
+
+// FoundationModels でのレシート抽出。失敗の理由は AppleIntelligence.swift の
+// aoiko_ai_extract のコメントに揃えた数値でフロントへ返す（0 は成功なのでここには来ない）。
+// ネイティブ側は最大 60 秒のブロッキング待ち（appleAIDeadlineSeconds）を持つので、
+// tokio のワーカースレッドで直に待たず spawn_blocking へ逃がす。ワーカーで直に待つと、
+// その間バックアップ書き込みやフォルダ解決等、無関係な IPC まで詰まる。
+#[tauri::command(async)]
+pub(crate) async fn apple_ai_extract<R: Runtime>(
+    app: AppHandle<R>,
+    image_base64: String,
+) -> std::result::Result<String, u8> {
+    let _ = &app;
+    // recognize_text と同じ decode。フロントは path ではなく base64 しか持たない。
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let bytes = STANDARD.decode(image_base64.as_bytes()).map_err(|_| 3u8)?;
+    check_apple_ai_payload_len(bytes.len(), APPLE_AI_IMAGE_CEILING_BYTES)?;
+    tauri::async_runtime::spawn_blocking(move || apple_ai_extract_native(&bytes))
+        .await
+        .unwrap_or(Err(3))
+}
+
+fn apple_ai_extract_native(bytes: &[u8]) -> std::result::Result<String, u8> {
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::extract(bytes)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::extract(bytes)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        // Swift 側の「OS が古すぎる」と同じ意味で使う（apple_ai_availability と揃える）。
+        let _ = bytes;
+        Err(4)
+    }
+}
+
+// FoundationModels での分類・注文取込。task は 1 = 分類、2 = 注文で Swift 側と揃える。
+// エラーの意味は apple_ai_extract と同じ数値（0 は成功なのでここには来ない）。
+// spawn_blocking へ逃がす理由も apple_ai_extract と同じ。
+#[tauri::command(async)]
+pub(crate) async fn apple_ai_run<R: Runtime>(
+    app: AppHandle<R>,
+    task: i32,
+    data: String,
+) -> std::result::Result<String, u8> {
+    let _ = &app;
+    check_apple_ai_payload_len(data.len(), APPLE_AI_DATA_CEILING_BYTES)?;
+    tauri::async_runtime::spawn_blocking(move || apple_ai_run_native(task, &data))
+        .await
+        .unwrap_or(Err(3))
+}
+
+fn apple_ai_run_native(task: i32, data: &str) -> std::result::Result<String, u8> {
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::apple_intelligence::run(task, data)
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::apple_intelligence::run(task, data)
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+    {
+        let _ = (task, data);
+        Err(4)
+    }
+}
 
 // 撮影の入口を生やしてよいか。撮影に回せる環境だけ true で、他は一律 false。
 #[tauri::command(async)]
@@ -484,6 +590,48 @@ mod tests {
     use super::*;
     use tauri::ipc::InvokeBody;
 
+    // 実測（このMac）：8064x6048 の最大画質 JPEG はレシート相当の内容で 2.0MB、
+    // 純ノイズという病的な内容でも 41.3MB。どちらも 64MiB の上限内。
+    #[test]
+    fn image_payload_within_the_measured_range_is_accepted() {
+        assert!(check_apple_ai_payload_len(2 * 1024 * 1024, APPLE_AI_IMAGE_CEILING_BYTES).is_ok());
+        assert!(check_apple_ai_payload_len(42 * 1024 * 1024, APPLE_AI_IMAGE_CEILING_BYTES).is_ok());
+    }
+
+    #[test]
+    fn image_payload_over_64_mib_is_rejected_with_code_7() {
+        assert_eq!(
+            check_apple_ai_payload_len(
+                APPLE_AI_IMAGE_CEILING_BYTES + 1,
+                APPLE_AI_IMAGE_CEILING_BYTES
+            ),
+            Err(7)
+        );
+    }
+
+    #[test]
+    fn empty_payload_is_rejected_with_code_2() {
+        assert_eq!(
+            check_apple_ai_payload_len(0, APPLE_AI_IMAGE_CEILING_BYTES),
+            Err(2)
+        );
+        assert_eq!(
+            check_apple_ai_payload_len(0, APPLE_AI_DATA_CEILING_BYTES),
+            Err(2)
+        );
+    }
+
+    #[test]
+    fn data_payload_over_8_mib_is_rejected_with_code_7() {
+        assert_eq!(
+            check_apple_ai_payload_len(
+                APPLE_AI_DATA_CEILING_BYTES + 1,
+                APPLE_AI_DATA_CEILING_BYTES
+            ),
+            Err(7)
+        );
+    }
+
     #[test]
     fn takes_raw_bytes_with_the_rid_header() {
         let body = InvokeBody::Raw(vec![1, 2, 3]);
@@ -533,5 +681,69 @@ mod tests {
     fn an_empty_base64_body_decodes_to_no_bytes() {
         let body = InvokeBody::Json(serde_json::json!({ "rid": 1, "b64": "" }));
         assert_eq!(parse_chunk(&body, None).unwrap(), (1, Vec::new()));
+    }
+    // レシート抽出・注文取込の締め切りは 60 秒のまま、分類の締め切りは budget と対で
+    // 動く別の値。どちらかを書き換えたときに気付けるよう固定値を焼き込む。
+    #[test]
+    fn apple_ai_deadlines_are_pinned() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        assert!(
+            source.contains("private let appleAIDeadlineSeconds: TimeInterval = 60"),
+            "レシート抽出・注文取込の締め切りが 60 秒から変わっている"
+        );
+        assert!(
+            source.contains("private let appleAIClassifyDeadlineSeconds: TimeInterval = 120"),
+            "分類の締め切りが 120 秒から変わっている"
+        );
+        assert!(
+            source.contains("private let classifyLoopBudgetSeconds: TimeInterval = 105"),
+            "分類ループの budget が 105 秒から変わっている"
+        );
+    }
+    // ClassifyLoop.swift のテストが test-swift.mjs の実行対象から漏れる退行を検知する。
+    #[test]
+    fn test_swift_wiring_covers_both_suites() {
+        let source = include_str!("../../../../scripts/test-swift.mjs");
+        assert!(
+            source.contains("ConcurrencyTests.swift"),
+            "test-swift.mjs が ConcurrencyTests.swift を参照していない"
+        );
+        assert!(
+            source.contains("ClassifyLoopTests.swift"),
+            "test-swift.mjs が ClassifyLoopTests.swift を参照していない"
+        );
+    }
+    // 分類の @Generable 型が配列プロパティを持たない単一オブジェクトである退行を検知する
+    // （配列出力はコンテキスト窓を埋め切る暴走の原因だった＝実測済み）。
+    #[test]
+    fn classify_answer_is_a_single_object_with_no_array_property() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        let body = source
+            .split("struct ClassifyAnswer: Encodable {")
+            .nth(1)
+            .and_then(|rest| rest.split("}").next())
+            .expect("ClassifyAnswer が見つからない");
+        assert!(
+            body.contains("var accountName: String"),
+            "accountName が無い"
+        );
+        assert!(body.contains("var confidence: String"), "confidence が無い");
+        assert!(body.contains("var reason: String"), "reason が無い");
+        assert!(!body.contains("["), "ClassifyAnswer に配列プロパティがある");
+    }
+    // request.knownSide が runClassifyLoop へ渡らない退行を検知する（渡らないと質問文言が
+    // 既知側を無視し、返金行にも支出の質問が出る誤答へ戻る）。
+    #[test]
+    fn classify_generation_passes_known_side_into_the_loop() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");
+        let call = source
+            .split("let loopOutcome = await runClassifyLoop(")
+            .nth(1)
+            .and_then(|rest| rest.split(")").next())
+            .expect("runClassifyLoop 呼び出しが見つからない");
+        assert!(
+            call.contains("knownSide: knownSide"),
+            "runClassifyLoop の呼び出しが knownSide を渡していない"
+        );
     }
 }

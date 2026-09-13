@@ -13,6 +13,9 @@ export interface LlmImageInput {
   mimeType: string;
 }
 
+/** データだけを渡す端末内経路が対応するタスク。分類（CSV 相手科目）と注文取込。 */
+export type LlmDataTask = 'classify' | 'order';
+
 export interface LlmAdapter {
   /** 端末外へデータを送るか（クラウド = true、ローカル = false） */
   readonly external: boolean;
@@ -20,6 +23,11 @@ export interface LlmAdapter {
   readonly destinationHost: string;
   /** プロンプトを送り、JSON 文字列としてパース可能なレスポンスを返す */
   generateJson(prompt: string, image?: LlmImageInput): Promise<unknown>;
+  /**
+   * プロンプトを介さずデータだけを渡す経路。指示は実装側（ネイティブ）に固定で埋め込まれ、
+   * 呼び出し元はプロンプトを書き換えられない。対応するアダプターだけが実装する。
+   */
+  runDataTask?(task: LlmDataTask, data: unknown): Promise<unknown>;
 }
 
 export class LlmError extends Error {

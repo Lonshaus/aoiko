@@ -16,6 +16,7 @@
   import type { OrderExtracted, OrderItem } from '../domain/order-extract';
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
   // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
   const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
@@ -41,6 +42,7 @@
   let paymentAccount = $state('2120'); // 未払金（クレカ既定）
 
   let confirmOpen = $state(false);
+  let discardConfirmOpen = $state(false);
   let pending = $state<{ extractor: OrderExtractor; text: string; host: string } | null>(null);
 
   const accountGroups = $derived(ledger.groupedAccounts());
@@ -249,6 +251,19 @@
     pastedText = '';
     error = '';
   }
+
+  function requestDiscard() {
+    discardConfirmOpen = true;
+  }
+
+  function confirmDiscard() {
+    discardConfirmOpen = false;
+    reset();
+  }
+
+  function cancelDiscard() {
+    discardConfirmOpen = false;
+  }
 </script>
 
 <div class="space-y-6">
@@ -421,7 +436,11 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <button type="button" onclick={reset} class="px-4 py-2 border rounded hover:bg-accent">
+        <button
+          type="button"
+          onclick={requestDiscard}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
           {m.common_cancel()}
         </button>
         <button
@@ -445,4 +464,9 @@
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}
   oncancel={onCancelSend}
+/>
+<DiscardCandidatesDialog
+  open={discardConfirmOpen}
+  onconfirm={confirmDiscard}
+  oncancel={cancelDiscard}
 />

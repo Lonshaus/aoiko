@@ -78,26 +78,26 @@ class AoikoDB extends Dexie {
     this.version(4).stores({
       personalDeductions: 'year',
     });
-    // v5: 簡易在庫管理（C4）の商品主檔を追加。年度非依存（Vendor と同じく永続マスタ）。
+    // v5: 簡易在庫管理の商品主檔を追加。年度非依存（Vendor と同じく永続マスタ）。
     this.version(5).stores({
       inventoryItems: 'id, name',
     });
-    // v6: 部門タグ（C5）。journalEntries に department 索引を追加。
+    // v6: 部門タグ。journalEntries に department 索引を追加。
     this.version(6).stores({
       journalEntries:
         'id, date, year, status, originalEntryId, sourceImportId, department, [year+date], [date+status]',
     });
-    // v7: 証憑原本の保存（C7）。分錄と 1:N、entryId で紐付け。
+    // v7: 証憑原本の保存。分錄と 1:N、entryId で紐付け。
     this.version(7).stores({
       attachments: 'id, entryId',
     });
-    // v8: 予算管理・現金流予測（C10）。budgets は年月複合キー、arApEntries は
+    // v8: 予算管理・現金流予測。budgets は年月複合キー、arApEntries は
     // 独立子帳（JournalLine とは紐付けない、詳細は types.ts のコメント参照）。
     this.version(8).stores({
       budgets: '[year+month], year',
       arApEntries: 'id, type, dueDate',
     });
-    // v9: 請求書・見積書の発行（C1）。
+    // v9: 請求書・見積書の発行。
     this.version(9).stores({
       invoices: 'id, documentType, status, vendorId, date, [documentType+date]',
     });

@@ -263,7 +263,7 @@ aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参�
   swift-bridge@0.1.59  —  Apache-2.0/MIT
   swift-bridge-ir@0.1.59  —  Apache-2.0/MIT
   swift-bridge-macro@0.1.59  —  Apache-2.0/MIT
-  swift-rs@1.0.7  —  MIT OR Apache-2.0
+  swift-rs@1.0.8  —  MIT OR Apache-2.0
   syn@1.0.109  —  MIT OR Apache-2.0
   syn@2.0.119  —  MIT OR Apache-2.0
   syn@3.0.3  —  MIT OR Apache-2.0
@@ -22148,7 +22148,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：swift-rs@1.0.7
+対象：swift-rs@1.0.8
 
                                  Apache License
                            Version 2.0, January 2004

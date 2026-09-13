@@ -9,6 +9,7 @@ const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // 設定画面に出るバージョンを package.json ではなくネイティブ版のものにする。
 // 商店は提出のたびに繰り上げを要求するため、両者は連動しない。vite.config.ts は
 // AOIKO_VERSION があればそちらを使う。
+// 平台ごとに版番号が違うため、打包側が AOIKO_VERSION を渡してきたらそちらを優先する。
 //
 // 商店ごとに版が分かれる面は tauri.<platform>.conf.json が上書きする。tauri 自身は
 // ビルド時に自動で重ねるが、この script は別に走るので同じ順で読み直す。
@@ -33,7 +34,11 @@ for (const script of ['check', 'build']) {
     shell: process.platform === 'win32',
     // AOIKO_NATIVE は購入画面などネイティブ版にしか無い部分を出力へ入れる合図。
     // web のビルドはこれを通らないので、そちら側では畳まれて消える。
-    env: { ...process.env, AOIKO_VERSION: tauriConf.version, AOIKO_NATIVE: '1' },
+    env: {
+      ...process.env,
+      AOIKO_VERSION: process.env.AOIKO_VERSION ?? tauriConf.version,
+      AOIKO_NATIVE: '1',
+    },
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);

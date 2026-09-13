@@ -528,7 +528,7 @@ export async function buildPL(
     entryCount: entries.length,
   };
 }
-// 複数年度トレンド分析（C8）。PL/BS のみ対応（方案A、AOIKO_FUTURE_IDEAS.md 参照）。
+// 複数年度トレンド分析。PL/BS のみ対応。
 // 各年度の buildPL/buildBS をそのまま呼び出し、科目単位でピボットするだけ
 // （既存の単年度計算ロジックをそのまま再利用、按分等の新規計算は行わない）。
 interface MultiYearPLRow {

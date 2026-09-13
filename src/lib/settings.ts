@@ -6,7 +6,8 @@ import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
-export type AiEngine = 'gemini' | 'openai-compatible';
+// apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
+export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai';
 export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
@@ -89,12 +90,12 @@ export type SettingsMap = {
   // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
   // 所得控除画面の不動産所得区分が表示される（切っている間は既存利用者の画面は変わらない）。
   realEstateIncomeEnabled: boolean;
-  // 簡易在庫管理（C4）の期末棚卸高自動計算（最終仕入原価法）を使うか。
+  // 簡易在庫管理の期末棚卸高自動計算（最終仕入原価法）を使うか。
   // 未設定時は true 扱い（届出をしていない事業者は法定デフォルトの最終仕入原価法が
   // 適用されるため）。届出により他の評価方法（先入先出法等）を選んでいる利用者は
   // false にして、自動計算を無効化し従来通り手動で期末棚卸高を仕訳する。
   inventoryAutoValuationEnabled: boolean;
-  // 証憑原本（C7）添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
+  // 証憑原本添付前の確認ダイアログをスキップ（利用者が「次回から確認しない」を選択）。
   // Settings でいつでも再度チェックを外して確認ダイアログを復活できる。
   skipAttachmentConfirm: boolean;
   // <a download> 経路（完了を観測できないブラウザ）で保存できたかの確認ダイアログをスキップ
@@ -103,7 +104,7 @@ export type SettingsMap = {
   // 申告済み年度への書き込み前の警告をスキップ（過去分をまとめて補記する連続作業向け）。
   // 設定画面の「非表示にした確認を元に戻す」で戻せる（suppressed-confirms.ts）。
   skipFiledYearWarning: boolean;
-  // 請求書・見積書（C1）の番号プレフィックス。未設定時は既定値（invoice.ts の
+  // 請求書・見積書の番号プレフィックス。未設定時は既定値（invoice.ts の
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;

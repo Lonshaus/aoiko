@@ -3,8 +3,8 @@
 // 入力：様式 schema（xtx-schema-*.generated.json）+ 値マップ（定義名→値）
 // 出力：エンベロープ付き .xtx XML 文字列
 //
-// 構造は e-Tax 自身が「切り出し」た実ファイル（PJ_aoiko/etax-reference-koa210.xtx）に
-// 準拠する。判定 A（実機取込）が SC00X010 で fail した根因＝旧封包の構造誤りを修正：
+// 構造は e-Tax 自身が書き出した実ファイルに準拠する。実機取込が SC00X010 で
+// fail した根因＝旧封包の構造誤りを修正：
 //   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
 //     <RKO0010 VR="25.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
 //       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）

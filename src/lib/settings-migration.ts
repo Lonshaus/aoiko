@@ -12,7 +12,7 @@ export async function migrateOcrEngineSetting(): Promise<void> {
     }
     const stored = row.value as AiEngine | ReceiptRuleEngine;
     const now = Date.now();
-    if (stored === 'gemini' || stored === 'openai-compatible') {
+    if (stored === 'gemini' || stored === 'openai-compatible' || stored === 'apple-ai') {
       await db.settings.bulkPut([
         { key: 'aiEngine', value: stored, updatedAt: now },
         { key: 'receiptMethod', value: 'ai', updatedAt: now },

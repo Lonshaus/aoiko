@@ -26,6 +26,15 @@ describe('migrateOcrEngineSetting', () => {
     expect(await db.settings.get('ocrEngine')).toBeUndefined();
   });
 
+  test('apple-ai：aiEngine=apple-ai・receiptMethod=ai へ（不正な receiptRuleEngine を書かない）', async () => {
+    await db.settings.put({ key: 'ocrEngine', value: 'apple-ai', updatedAt: 1 });
+    await migrateOcrEngineSetting();
+    expect(await getSetting('aiEngine')).toBe('apple-ai');
+    expect(await getSetting('receiptMethod')).toBe('ai');
+    expect(await getSetting('receiptRuleEngine')).toBeUndefined();
+    expect(await db.settings.get('ocrEngine')).toBeUndefined();
+  });
+
   test('tesseract：aiEngine=gemini・receiptMethod=rule・receiptRuleEngine=tesseract へ', async () => {
     await db.settings.put({ key: 'ocrEngine', value: 'tesseract', updatedAt: 1 });
     await migrateOcrEngineSetting();

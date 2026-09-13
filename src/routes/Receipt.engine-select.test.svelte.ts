@@ -137,6 +137,29 @@ describe('Receipt: エンジン選択', () => {
     expect(c.textContent).toContain('OpenAI');
   });
 
+  test('AI 行は aiEngine を反映する（apple-ai）', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('aiEngine', 'apple-ai');
+    await setSetting('receiptMethod', 'ai');
+    const c = renderReceipt();
+    await selectFile(c);
+    await waitFor(() => c.textContent?.includes('Apple Intelligence') === true);
+    expect(c.textContent).toContain('Apple Intelligence');
+  });
+
+  test('AI 行は未知の保存値を Apple Intelligence と偽らない', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('aiEngine', 'tesseract' as never);
+    await setSetting('receiptMethod', 'ai');
+    const c = renderReceipt();
+    await selectFile(c);
+    await waitFor(() => c.textContent?.includes('tesseract') === true);
+    expect(c.textContent).toContain('tesseract');
+    expect(c.textContent).not.toContain('Apple Intelligence');
+    // 使えないと言った側で「読み取ります」と続けて解析可能に見せない（解析は実際に落ちる）。
+    expect(c.textContent).not.toContain('で読み取ります');
+  });
+
   test('セグメント切替は即座に設定へ書き込まれる（往復確認）', async () => {
     await setSetting('skipAttachmentConfirm', true);
     const c = renderReceipt();
