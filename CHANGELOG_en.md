@@ -4,6 +4,29 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.0] - 2026-09-13
+
+The version where reading with OCR comes back, and the browser's built-in AI can read too.
+
+### Added
+
+- Receipts, CSV classification and order import can now run on the browser's built-in AI. What it reads never leaves your device. The option appears only when your browser already holds the AI model
+
+### Changed
+
+- Reading with OCR, taken off the list in 1.1.2, is available again. When reading a receipt, you can choose whether to use the AI engine or the built-in rule engine
+- Wording that said "LLM" on screen and in the manual now says "AI"
+- The Gemini settings appear only when Gemini is selected, and the description of the AI features now matches the engine you have chosen
+- Receipts, CSV import and order import now confirm before you cancel, so what has been read is not discarded without asking. Choosing another file or source asks in the same way
+
+### Fixed
+
+- The API key field being too narrow to type into on a phone
+- The counterpart account list in CSV import showing accounts you cannot actually pick
+- The account select in the classification table changing width depending on whether a badge is shown
+- The tax-category select truncating the option it was displaying
+- A wrong account name
+
 ## [1.1.2] - 2026-09-06
 
 This release lets you pick the AI model used for reading receipts.
