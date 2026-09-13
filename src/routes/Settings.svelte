@@ -124,6 +124,25 @@
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
+  // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web の産物に
+  // この経路の文言・問い合わせを残さないため。
+  let appleAiAvailability = $state<number | null>(null);
+  // 1（機種非対応）と 4（OS が古い）は利用者側でどうにもならないので選択肢ごと隠す。
+  // 2/3/5 は選び直せる余地があるので選択肢を disabled で残し、理由を出し分ける。
+  const APPLE_AI_UNAVAILABLE_MESSAGES: Record<number, () => string> = {
+    2: m.settings_apple_ai_unavailable_2,
+    3: m.settings_apple_ai_unavailable_3,
+    5: m.settings_apple_ai_unavailable_5,
+  };
+  const appleAiOptionShown = $derived(
+    __NATIVE__ &&
+      (appleAiAvailability === 0 ||
+        appleAiAvailability === 2 ||
+        appleAiAvailability === 3 ||
+        appleAiAvailability === 5),
+  );
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -207,6 +226,9 @@
   let geminiModel = $state('');
   let geminiModels = $state<string[]>([]);
   let aiEngine = $state<AiEngine>('gemini');
+  // 選択肢の無い値（他環境の復元・選べなくなった旧値等）が保存に残っている場合の生値。
+  // aiEngine は bind 先の狭い合併型なので、そちらへは書かず別枠に控える。
+  let strandedAiEngine = $state<string | null>(null);
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
   let openaiClassifyModel = $state('');
@@ -349,7 +371,28 @@
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
     geminiModel = (await getSetting('geminiModel')) ?? '';
-    aiEngine = (await getSetting('aiEngine')) ?? 'gemini';
+    // 理由コードは環境が返すまで分からない。関数が無い側は 1/4 と同じ「隠す」扱いにする。
+    const askAppleAi = __NATIVE__ ? nativeBridge()?.appleAiAvailability : undefined;
+    appleAiAvailability =
+      typeof askAppleAi === 'function' ? await askAppleAi().catch(() => null) : null;
+    const storedAiEngine = await getSetting('aiEngine');
+    if (
+      storedAiEngine === 'gemini' ||
+      storedAiEngine === 'openai-compatible' ||
+      (storedAiEngine === 'apple-ai' && appleAiOptionShown)
+    ) {
+      aiEngine = storedAiEngine;
+      strandedAiEngine = null;
+    } else if (storedAiEngine === undefined) {
+      aiEngine = 'gemini';
+      strandedAiEngine = null;
+    } else {
+      // 選択肢の無い値（他環境の復元・選べなくなった旧値等）。空欄に見せず、
+      // 生値のまま disabled で見せて理由を出す。bind 先は狭い合併型なので
+      // 表示のためだけにキャストする。保存し直せば必ず上書きされる。
+      strandedAiEngine = storedAiEngine;
+      aiEngine = storedAiEngine as AiEngine;
+    }
     openaiBaseUrl = (await getSetting('openaiBaseUrl')) ?? '';
     openaiOcrModel = (await getSetting('openaiOcrModel')) ?? '';
     openaiClassifyModel = (await getSetting('openaiClassifyModel')) ?? '';
@@ -983,6 +1026,16 @@
 
   async function saveOcrEngine() {
     await setSetting('aiEngine', aiEngine);
+    // select を触らずに保存すると aiEngine は strandedAiEngine と同じ生値のまま。
+    // ここで無条件に消すと disabled オプションが消えて選択肢が無い値だけが残り、
+    // 再読み込みまで select が空欄になる。選び直した時だけ消す。
+    if (
+      aiEngine === 'gemini' ||
+      aiEngine === 'openai-compatible' ||
+      (aiEngine === 'apple-ai' && appleAiOptionShown)
+    ) {
+      strandedAiEngine = null;
+    }
     await setSetting('openaiBaseUrl', openaiBaseUrl.trim());
     await setSetting('openaiOcrModel', openaiOcrModel.trim());
     await setSetting('openaiClassifyModel', openaiClassifyModel.trim());
@@ -1087,7 +1140,7 @@
     }
     restoreFileName = file.name;
     try {
-      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む（C7-4）。
+      // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む。
       const parsed = await parseBackupFile(file);
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
@@ -2494,11 +2547,35 @@
       >
         <option value="gemini">{m.settings_engine_gemini()}</option>
         <option value="openai-compatible">{m.settings_engine_openai()}</option>
+        <!-- 1/4 は利用者側でどうにもならないので選択肢ごと隠す。2/3/5 は選び直せるので
+             disabled で残し、下に理由を出す。__NATIVE__ で畳むのは web の産物に
+             この経路の文言を残さないため。 -->
+        {#if appleAiOptionShown}
+          <option value="apple-ai" disabled={appleAiAvailability !== 0}>
+            {m.settings_engine_apple_ai()}
+          </option>
+        {/if}
+        {#if strandedAiEngine}
+          <!-- 選択肢の無い値が保存に残っている（他環境の復元・選べなくなった旧値等）。
+               空欄に見せず、生値のまま disabled で見せて理由を出す。 -->
+          <option value={strandedAiEngine} disabled>
+            {m.settings_engine_stranded({ value: strandedAiEngine })}
+          </option>
+        {/if}
       </select>
     </label>
 
     <div class="border-t pt-4 space-y-3">
+      {#if __NATIVE__ && appleAiAvailability !== null && appleAiAvailability in APPLE_AI_UNAVAILABLE_MESSAGES}
+        <p class="text-xs text-destructive">
+          {APPLE_AI_UNAVAILABLE_MESSAGES[appleAiAvailability]?.()}
+        </p>
+      {/if}
+
       {#if aiEngine === 'gemini'}
+        <p class="text-xs text-muted-foreground">
+          {@html m.settings_llm_gemini_byok_html()}
+        </p>
         <div class="space-y-3">
           <label class="block">
             <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
@@ -2564,6 +2641,12 @@
           {/if}
         </label>
         <p class="text-xs text-muted-foreground">{m.settings_llm_model_test_notice()}</p>
+      {/if}
+
+      {#if __NATIVE__ && aiEngine === 'apple-ai'}
+        <p class="text-xs text-muted-foreground">{m.settings_apple_ai_intro()}</p>
+        <!-- 米国外へ配る物には記号を付けず、この帰属表示を出す（Apple の第三者向け規定）。 -->
+        <p class="text-[10px] text-muted-foreground">{m.settings_apple_ai_trademark()}</p>
       {/if}
 
       {#if aiEngine === 'openai-compatible'}

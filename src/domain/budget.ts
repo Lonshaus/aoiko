@@ -17,7 +17,7 @@ export interface BudgetVsActualReport {
   year: number;
   months: MonthlyBudgetRow[];
 }
-// 予算 vs 実際（C10）。実績は既存の buildMonthly をそのまま使い回す
+// 予算 vs 実際。実績は既存の buildMonthly をそのまま使い回す
 // （月別売上/経費の集計ロジックを重複させない）。
 export async function computeBudgetVsActual(year: number): Promise<BudgetVsActualReport> {
   const monthly = await buildMonthly(year);

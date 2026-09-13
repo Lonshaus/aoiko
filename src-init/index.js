@@ -13,6 +13,7 @@ import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
 import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
+import { createAppleAi } from './apple-ai.js';
 import { createNativeCamera } from './native-camera.js';
 
 function isExternal(url) {
@@ -106,6 +107,7 @@ Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ??
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
 // 撮影の入口も同じ形。相機へ回せる環境だけで、他は関数ごと生えない。
 Object.assign(window.__aoikoNative, createNativeCamera(invoke, window.__aoikoPlatform) ?? {});
+Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform) ?? {});
 
 // IPC が生バイトを運べず、ArrayBuffer が JSON 化されて届く環境がある。file-io.js の
 // チャンク送信と同じく、駄目だった経路は覚えて以後 base64 で載せる（膨張 1.33 倍。

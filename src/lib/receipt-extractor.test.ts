@@ -30,6 +30,26 @@ describe('createReceiptExtractor', () => {
     expect(ex.external).toBe(false);
   });
 
+  // __NATIVE__ はテスト全体で true（vitest.config.ts）。apple-ai を試験できるのはこちら側だけ。
+  test('ai・apple-ai：常に external=false、native 側の抽出器を返す', async () => {
+    await setSetting('aiEngine', 'apple-ai');
+    const ex = await createReceiptExtractor('ai', 'tesseract');
+    expect(ex.engine).toBe('apple-ai');
+    expect(ex.external).toBe(false);
+    expect(ex.destinationHost).toBe('');
+  });
+
+  // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、
+  // 端末内で読むつもりの利用者の画像が外へ出る。
+  test('ai・不明な aiEngine：例外を投げる（gemini に落ちない）', async () => {
+    await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
+    for (const retired of ['tesseract', 'native'] as const) {
+      await setSetting('aiEngine', retired as never);
+      await expect(createReceiptExtractor('ai', 'tesseract')).rejects.toThrow();
+    }
+  });
+
   test('rule・tesseract：external=false・engine=tesseract', async () => {
     const ex = await createReceiptExtractor('rule', 'tesseract');
     expect(ex.engine).toBe('tesseract');

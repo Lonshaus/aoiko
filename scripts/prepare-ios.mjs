@@ -1,6 +1,6 @@
 // gen/apple は生成物で git に入っていない。設定を直しても、既に gen/apple がある作業
 // コピーには反映されない。ここで「設定と生成物が食い違っていないか」を毎回見る。
-import { copyFileSync, readdirSync, existsSync, readFileSync } from 'node:fs';
+import { copyFileSync, readdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -99,7 +99,87 @@ if (missing.length > 0) {
 for (const icon of icons) {
   copyFileSync(join(src, icon), join(dest, icon));
 }
+
+// 4. FoundationModels の weak link。build.rs が cargo へ渡す -weak_framework は
+// デスクトップでは cargo 自身がリンクするので効くが、iOS は Xcode が最終リンクを
+// 行うため cargo の link-arg は届かない。ビルド設定へ直接埋め込む必要がある。
+// project.yml は tauri ios init が既存ファイルを上書きしない限りでしか効かない
+// （xcodegen が動くのは init 時だけ）ので、実際にビルドへ効くのは pbxproj への直書き。
+// project.yml 側も合わせておくのは、将来 gen/apple を消して作り直した時の出所にするため。
+const ldflagText = '$(inherited) -weak_framework FoundationModels';
+const projectYmlPath = join(genRoot, 'project.yml');
+let ldApplied = 0;
+if (existsSync(projectYmlPath)) {
+  const yml = readFileSync(projectYmlPath, 'utf8');
+  if (!yml.includes('OTHER_LDFLAGS')) {
+    const patched = yml.replace(
+      /(\n( +)EXCLUDED_ARCHS\[sdk=iphoneos\*\]:\s*x86_64\n)/,
+      (_all, line, indent) => `${line}${indent}OTHER_LDFLAGS: ${ldflagText}\n`,
+    );
+    if (patched === yml) {
+      console.error('project.yml の settings.base に差し込み位置が見つからない');
+      process.exit(1);
+    }
+    writeFileSync(projectYmlPath, patched);
+  } else if (!yml.includes('FoundationModels')) {
+    console.error('project.yml に想定外の OTHER_LDFLAGS が既にある、手で確認する');
+    process.exit(1);
+  }
+}
+const pbxprojPath = join(genRoot, `${genName}.xcodeproj/project.pbxproj`);
+if (!existsSync(pbxprojPath)) {
+  console.error(`project.pbxproj が無い（${pbxprojPath}）`);
+  process.exit(1);
+}
+let pbx = readFileSync(pbxprojPath, 'utf8');
+const escaped = genName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const listMatch = pbx.match(
+  new RegExp(
+    `Build configuration list for PBXNativeTarget "${escaped}_iOS"[^{]*\\{[\\s\\S]*?buildConfigurations = \\(([\\s\\S]*?)\\);`,
+  ),
+);
+if (!listMatch) {
+  console.error(`project.pbxproj に ${genName}_iOS の Build configuration list が無い`);
+  process.exit(1);
+}
+const configIds = [...listMatch[1].matchAll(/[0-9A-F]{24}/g)].map((m) => m[0]);
+if (configIds.length === 0) {
+  console.error('project.pbxproj から build configuration の ID を取れない');
+  process.exit(1);
+}
+for (const id of configIds) {
+  const blockRe = new RegExp(
+    `${id} \\/\\*[^*]*\\*\\/ = \\{\\n\\t\\t\\tisa = XCBuildConfiguration;\\n\\t\\t\\tbuildSettings = \\{`,
+  );
+  const m = pbx.match(blockRe);
+  if (!m) {
+    console.error(`project.pbxproj の buildSettings ブロックが見つからない (${id})`);
+    process.exit(1);
+  }
+  const blockStart = m.index + m[0].length;
+  const blockEnd = pbx.indexOf('\n\t\t\t};', blockStart);
+  if (blockEnd === -1) {
+    console.error(`project.pbxproj の buildSettings が閉じていない (${id})`);
+    process.exit(1);
+  }
+  const body = pbx.slice(blockStart, blockEnd);
+  if (body.includes('OTHER_LDFLAGS')) {
+    if (!body.includes('FoundationModels')) {
+      console.error(`project.pbxproj に想定外の OTHER_LDFLAGS がある (${id})、手で確認する`);
+      process.exit(1);
+    }
+    continue;
+  }
+  const insertion =
+    '\n\t\t\t\tOTHER_LDFLAGS = (\n\t\t\t\t\t"$(inherited)",\n\t\t\t\t\t"-weak_framework",\n\t\t\t\t\tFoundationModels,\n\t\t\t\t);';
+  pbx = pbx.slice(0, blockStart) + insertion + pbx.slice(blockStart);
+  ldApplied++;
+}
+if (ldApplied > 0) {
+  writeFileSync(pbxprojPath, pbx);
+}
+
 console.log(
   `最低 iOS ${want} を確認、Info.ios.plist から ${applied.length} 項目、` +
-    `アイコン ${icons.length} 件を同期した`,
+    `アイコン ${icons.length} 件、FoundationModels の weak link を ${configIds.length} 件中 ${ldApplied} 件に同期した`,
 );

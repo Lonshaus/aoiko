@@ -122,10 +122,10 @@ class LedgerStore {
   // 不動産所得を使うか（Settings.svelte のオプトイン設定、既定 false）。
   realEstateIncomeEnabled = $state<boolean>(false);
   inventoryItems = $state<InventoryItem[]>([]);
-  // 部門タグ（C5）。既存の journalEntries.department に実際に使われている値の一覧
+  // 部門タグ。既存の journalEntries.department に実際に使われている値の一覧
   // （入力補完用、マスタテーブルは持たない——軽量な自由記述タグのため）。
   departments = $state<string[]>([]);
-  // 簡易在庫管理（C4）の期末棚卸高自動計算を使うか（既定 true、未設定時は法定デフォルトの
+  // 簡易在庫管理の期末棚卸高自動計算を使うか（既定 true、未設定時は法定デフォルトの
   // 最終仕入原価法が適用されるため）。
   inventoryAutoValuationEnabled = $state<boolean>(true);
   // liveQuery がエラー（DB 障害・容量超過等）を出した場合のメッセージ。null＝正常。

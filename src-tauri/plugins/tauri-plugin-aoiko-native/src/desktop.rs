@@ -322,6 +322,59 @@ mod windows_ocr {
         crate::Error::Ocr(format!("文字認識に失敗しました: {e}"))
     }
 }
+// FoundationModels の可否だけを問う。文字認識（recognize_text / macos::recognize_text）とは
+// 別の枠組みなので、既存の macos モジュールへは混ぜない。
+#[cfg(target_os = "macos")]
+pub(crate) mod apple_intelligence {
+    use std::ffi::{c_char, CStr};
+
+    extern "C" {
+        fn aoiko_ai_availability() -> i32;
+        fn aoiko_ai_extract(bytes: *const u8, length: usize, out_err: *mut i32) -> *mut c_char;
+        fn aoiko_ai_run(
+            task: i32,
+            bytes: *const u8,
+            length: usize,
+            out_err: *mut i32,
+        ) -> *mut c_char;
+        fn aoiko_ai_free(p: *mut c_char);
+    }
+    // Swift 側の @_cdecl の戻り値と 1:1 対応。0 が「使える」。
+    pub(crate) fn availability() -> u8 {
+        // Swift 側は 0..=5 の範囲でしか返さない値を返す。
+        unsafe { aoiko_ai_availability() as u8 }
+    }
+    // 戻り値のポインタは Swift 側の strdup で確保される。中身を Rust の String へ
+    // 写し終えたら、成功・失敗のどちらの経路でも aoiko_ai_free で解放する
+    // （呼び忘れるとレシート 1 枚ごとにリークする）。
+    pub(crate) fn extract(image_data: &[u8]) -> Result<String, u8> {
+        let mut err: i32 = 0;
+        let ptr = unsafe { aoiko_ai_extract(image_data.as_ptr(), image_data.len(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
+    }
+    // 分類・注文取込。data は JSON 文字列（UTF-8）で、Swift 側が task に応じて
+    // 指示と出力の型を選ぶ。ポインタの所有権は extract と同じ。
+    pub(crate) fn run(task: i32, data: &str) -> Result<String, u8> {
+        let mut err: i32 = 0;
+        let bytes = data.as_bytes();
+        let ptr = unsafe { aoiko_ai_run(task, bytes.as_ptr(), bytes.len(), &mut err) };
+        if ptr.is_null() {
+            return Err(err as u8);
+        }
+        let json = unsafe { CStr::from_ptr(ptr) }
+            .to_string_lossy()
+            .into_owned();
+        unsafe { aoiko_ai_free(ptr) };
+        Ok(json)
+    }
+}
 
 #[cfg(target_os = "macos")]
 mod macos {
