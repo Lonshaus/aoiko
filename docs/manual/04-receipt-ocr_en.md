@@ -14,12 +14,15 @@ Generate journal candidates from photos or images of paper receipts.
 
 ## 1. Picking a reading method (summary)
 
-The reading method (AI engine or built-in rule engine) and which sub-engine the built-in rule engine uses are both chosen on the `Receipt` page itself. Settings only chooses the AI engine's vendor (Gemini or OpenAI-compatible).
+The reading method (AI engine or built-in rule engine) and which sub-engine the built-in rule engine uses are both chosen on the `Receipt` page itself. Settings only chooses which AI engine is used.
 
 | Reading method | Accuracy | Off-device transmission | Required |
 |---|---|---|---|
 | **AI engine** (Gemini) | ◎ | Yes | Gemini API key |
 | **AI engine** (OpenAI-compatible / Ollama etc.) | ◯〜◎ | None for localhost / Yes for remote | Endpoint + vision model |
+<!-- only:browser -->
+| **AI engine** (your browser's built-in AI) | ◯ (unverified) | None | Appears only when the browser already holds the AI model |
+<!-- /only -->
 | **Built-in rule engine** (Tesseract) | △ | None | None — always available on this device |
 <!-- only:native -->
 | **Built-in rule engine** (the OS's built-in text recognition) | ◯ (few samples) | None | Supported devices only; re-checked automatically every time the `Receipt` page opens |
@@ -50,7 +53,7 @@ The chosen image is shown as a preview.
 
 Below the preview, a two-way switch for the reading method appears: **"AI engine"** / **"Built-in rule engine"**.
 
-- Choosing **"AI engine"** shows one line below stating the engine actually in use (Gemini or OpenAI-compatible, matching the Settings choice)
+- Choosing **"AI engine"** shows one line below stating the engine actually in use (matching the Settings choice)
 - Choosing **"Built-in rule engine"**:
   - A **"Reading engine"** dropdown appears only when this device has two or more usable sub-engines
   - When only one is usable (most devices), no dropdown appears and that one is used directly
@@ -77,6 +80,12 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 <!-- /only -->
 <!-- only:native -->
 > **Think twice before checking**: if you check it by mistake, undo it from Settings → "Basic info" → **"Restore hidden confirmations"**. "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+<!-- /only -->
+
+<!-- only:browser -->
+#### AI engine (your browser's built-in AI): no dialog
+
+Inference runs entirely on-device, so no confirmation dialog appears. This engine is selectable only when your browser already holds the AI model (aoiko never fetches it).
 <!-- /only -->
 
 <!-- only:browser -->
@@ -110,7 +119,7 @@ When done, **"2. Extracted result (editable)"** expands below:
 
 <!-- only:browser -->
 > **AI engine path vs built-in rule engine path**:
-> - The AI engine extracts vendor and total at high accuracy, and picks up line items
+> - The AI engine extracts vendor and total at high accuracy, and picks up line items (accuracy is unverified for your browser's built-in AI)
 > - The built-in rule engine (Tesseract) only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
 <!-- /only -->
 <!-- only:native -->
@@ -170,6 +179,14 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- /only -->
 <!-- only:native -->
 - No extra setup needed for localhost either — the app relays the request
+<!-- /only -->
+
+<!-- only:browser -->
+### AI engine (your browser's built-in AI)
+
+- No API key or endpoint setup needed. Appears in the picker only when your browser already holds the AI model
+- Images and text share one context window, so full-size images may not fit; they're downscaled before sending
+- **Accuracy is not guaranteed.** Always verify and correct manually
 <!-- /only -->
 
 ### Built-in rule engine (Tesseract)

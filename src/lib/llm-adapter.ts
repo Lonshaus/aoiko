@@ -6,7 +6,9 @@ import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../doma
 import { getSetting, type AiEngine } from './settings';
 import { m } from '../paraglide/messages';
 
-type LlmPurpose = 'ocr' | 'classify';
+// order は注文取込。openai-compatible では classify と同じモデルを使うが、
+// エンジンによっては渡す JSON Schema が違うため用途として分けて持つ。
+type LlmPurpose = 'ocr' | 'classify' | 'order';
 
 export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter> {
   const storedEngine = await getSetting('aiEngine');
@@ -18,6 +20,8 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       if (!baseUrl) {
         throw new Error(m.error_openai_base_url_unset());
       }
+      // order は classify と同じモデルで読む。分類も注文取込も文字だけの経路で、
+      // 利用者に別々のモデルを設定させる理由が無い。
       const model =
         purpose === 'ocr'
           ? (await getSetting('openaiOcrModel'))?.trim()
@@ -42,6 +46,14 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
         throw new Error(m.error_gemini_model_unset());
       }
       return new GeminiAdapter(geminiKey, geminiModel);
+    }
+    case 'chrome-ai': {
+      // apple-ai と対称。この経路を持たない側では黙って差し替えず拒否する。
+      if (__NATIVE__) {
+        throw new Error('chrome-ai is unavailable in this build');
+      }
+      const { ChromeAiAdapter } = await import('./chrome-ai/adapter');
+      return new ChromeAiAdapter(purpose);
     }
     case 'apple-ai':
       // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由で build 時に畳む。

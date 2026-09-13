@@ -143,6 +143,11 @@
         appleAiAvailability === 3 ||
         appleAiAvailability === 5),
   );
+  // ブラウザ内蔵の AI。null は「まだ問えていない」。モデルの取得は aoiko の役目ではないので、
+  // ブラウザが既に持っている（available）ときだけ選択肢を出す。__NATIVE__ で畳むのは、
+  // 原生の産物にこの経路の問い合わせを残さないため。
+  let chromeAiAvailability = $state<string | null>(null);
+  const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -375,11 +380,16 @@
     const askAppleAi = __NATIVE__ ? nativeBridge()?.appleAiAvailability : undefined;
     appleAiAvailability =
       typeof askAppleAi === 'function' ? await askAppleAi().catch(() => null) : null;
+    if (!__NATIVE__) {
+      const { chromeAiAvailability: ask } = await import('../lib/chrome-ai/availability');
+      chromeAiAvailability = await ask();
+    }
     const storedAiEngine = await getSetting('aiEngine');
     if (
       storedAiEngine === 'gemini' ||
       storedAiEngine === 'openai-compatible' ||
-      (storedAiEngine === 'apple-ai' && appleAiOptionShown)
+      (storedAiEngine === 'apple-ai' && appleAiOptionShown) ||
+      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown)
     ) {
       aiEngine = storedAiEngine;
       strandedAiEngine = null;
@@ -1032,7 +1042,8 @@
     if (
       aiEngine === 'gemini' ||
       aiEngine === 'openai-compatible' ||
-      (aiEngine === 'apple-ai' && appleAiOptionShown)
+      (aiEngine === 'apple-ai' && appleAiOptionShown) ||
+      (aiEngine === 'chrome-ai' && chromeAiOptionShown)
     ) {
       strandedAiEngine = null;
     }
@@ -2554,6 +2565,9 @@
           <option value="apple-ai" disabled={appleAiAvailability !== 0}>
             {m.settings_engine_apple_ai()}
           </option>
+        {/if}
+        {#if chromeAiOptionShown}
+          <option value="chrome-ai">{m.settings_engine_chrome_ai()}</option>
         {/if}
         {#if strandedAiEngine}
           <!-- 選択肢の無い値が保存に残っている（他環境の復元・選べなくなった旧値等）。

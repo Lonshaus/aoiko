@@ -27,6 +27,11 @@ export interface ReceiptExtractor {
   readonly external: boolean;
   /** 送信先ホスト（確認ダイアログ表示用） */
   readonly destinationHost: string;
+  /**
+   * 送る前に画像を縮小するか。external から導かない。端末内で処理するエンジンでも、
+   * 文脈窓を画像と分け合う経路は縮小しないと入り切らない。
+   */
+  readonly downscale: boolean;
   /** エンジンラベル（UI 表示・分岐用） */
   readonly engine: AiEngine | ReceiptRuleEngine;
   extract(image: LlmImageInput): Promise<ReceiptExtracted>;
@@ -46,6 +51,23 @@ export async function createReceiptExtractor(
         return {
           external: adapter.external,
           destinationHost: adapter.destinationHost,
+          downscale: true,
+          engine,
+          extract: (image) => extractReceipt(adapter, image),
+        };
+      }
+      case 'chrome-ai': {
+        // apple-ai と対称。この経路を持たない側では黙って差し替えず拒否する。
+        if (__NATIVE__) {
+          throw new Error('chrome-ai OCR is unavailable in this build');
+        }
+        const { ChromeAiAdapter } = await import('./chrome-ai/adapter');
+        const adapter = new ChromeAiAdapter('ocr');
+        return {
+          external: false,
+          destinationHost: '',
+          // 文脈窓を文字と分け合うため、原寸のままだと収まらない。
+          downscale: true,
           engine,
           extract: (image) => extractReceipt(adapter, image),
         };
