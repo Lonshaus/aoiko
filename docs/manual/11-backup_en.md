@@ -31,7 +31,7 @@ aoiko's data lives in **the app's own storage area** (device-local). This means:
 - ❌ Browser site-data clear → **complete loss**
 <!-- /only -->
 <!-- only:native -->
-- ❌ Removing the app → whether it's lost depends on the platform (Windows deletes it right along with the app; macOS keeps the storage area even across a reinstall)
+- ❌ Removing the app → whether it's lost depends on the platform (Windows and Android delete it right along with the app; macOS keeps the storage area even across a reinstall)
 <!-- /only -->
 - ❌ Device failure → unrecoverable
 <!-- only:browser -->

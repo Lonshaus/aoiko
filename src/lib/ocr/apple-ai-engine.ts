@@ -55,7 +55,7 @@ export function createAppleAiReceiptExtractor(): ReceiptExtractor {
     async extract(image: LlmImageInput) {
       await checkAvailability();
       // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、
-      // 端末内で読むつもりの利用者の画像が外へ出る。黙って引擎を差し替えない。
+      // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。
       const extract = nativeBridge()?.appleAiExtract;
       if (typeof extract !== 'function') {
         throw new Error(m.ocr_apple_ai_error_4());

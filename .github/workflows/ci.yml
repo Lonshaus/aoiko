@@ -67,7 +67,7 @@ jobs:
           path: ${{ runner.temp }}/aoiko-playwright/report/
           retention-days: 7
 
-  # 打包（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
+  # パッケージ（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
   # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
   # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
   native:
@@ -80,11 +80,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
 
-      # cfg で分けている部分は、その平台向けに引かないと壊れていても気付けない。
-      # cargo check はリンクしないので Xcode の設定は要らない。
+      # cfg で分けている部分は、そのプラットフォーム向けに引かないと壊れていても気付けない。
+      # cargo check はリンクしないので NDK も Xcode の設定も要らない。
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios
+          targets: aarch64-apple-ios, aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -115,3 +115,6 @@ jobs:
 
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios
+
+      # Android も同じ。
+      - run: npm run check:android

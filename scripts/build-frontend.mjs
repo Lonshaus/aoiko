@@ -7,9 +7,10 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // 設定画面に出るバージョンを package.json ではなくネイティブ版のものにする。
-// 商店は提出のたびに繰り上げを要求するため、両者は連動しない。vite.config.ts は
+// ストアは提出のたびに繰り上げを要求するため、両者は連動しない。vite.config.ts は
 // AOIKO_VERSION があればそちらを使う。
-// 平台ごとに版番号が違うため、打包側が AOIKO_VERSION を渡してきたらそちらを優先する。
+// プラットフォームごとにバージョン番号が違うため、パッケージ側が AOIKO_VERSION を
+// 渡してきたらそちらを優先する。
 const tauriConf = JSON.parse(readFileSync(resolve(root, 'src-tauri', 'tauri.conf.json'), 'utf8'));
 
 for (const script of ['check', 'build']) {

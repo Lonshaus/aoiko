@@ -25,7 +25,7 @@ export type SettingsMap = {
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
-  // 商店から復元できるので、バックアップには含めない（backup/payload.ts）。
+  // ストアから復元できるので、バックアップには含めない（backup/payload.ts）。
   supporterBadgeAt: string | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;

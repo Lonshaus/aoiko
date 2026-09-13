@@ -25,8 +25,8 @@ export type NativeBridge = {
   // 未保存の破棄確認はネイティブのダイアログで出る。シェル側の初期化スクリプトは
   // こちらのメッセージカタログを読めないので、訳した文言を渡す。渡すまでは日本語で出る。
   setDiscardText?(text: NativeDiscardText): void;
-  // 商店で売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
-  // 通貨も表記も地域ごとに違うため。商店が返した文字列をそのまま出す。
+  // ストアで売っている品目。価格を自前で組み立てないのは、配信先が 175 地域あって
+  // 通貨も表記も地域ごとに違うため。ストアが返した文字列をそのまま出す。
   // 品目 ID はこちら側では決められない（シェル側が環境に合わせて持つ）ので、kind でしか呼ばない。
   listIapProducts?(): Promise<IapProduct[]>;
   // 購入。'pending' は「家族の承認待ち」等、その場で確定しない状態。
@@ -40,6 +40,8 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS の版や導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
+  // 撮影の入口を出してよいか。備えていない環境では生えない。
+  isCameraAvailable?(): Promise<boolean>;
   // OS 内蔵の AI が使えるか。0..5 の意味はネイティブ側のコメントに揃える
   // （0 が「使える」）。
   appleAiAvailability?(): Promise<number>;
@@ -57,7 +59,7 @@ export type IapProductKind = 'tip' | 'supporter-badge';
 
 export type IapProduct = {
   kind: IapProductKind;
-  // 商店が返す表示用の価格文字列（現地通貨・現地表記）。
+  // ストアが返す表示用の価格文字列（現地通貨・現地表記）。
   displayPrice: string;
 };
 

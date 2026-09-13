@@ -9,7 +9,7 @@ import type { BackupPayload } from './types';
 const SKIP_SETTING_KEYS = new Set([
   'backupFolderHandle',
   'nativeBackupFolder',
-  // 支援者バッジ。商店から復元できるものなので、バックアップで運ぶと
+  // 支援者バッジ。ストアから復元できるものなので、バックアップで運ぶと
   // 買っていない端末へ持ち込めてしまう。
   'supporterBadgeAt',
 ]);
