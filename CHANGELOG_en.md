@@ -49,7 +49,6 @@ A round-up of places the display language did not reach. No new features.
 
 ### Changed
 
-- The support screen can now be dismissed by clicking outside it
 - Going to Settings from the notice on the home screen now lands on the backup section
 
 ### Fixed
