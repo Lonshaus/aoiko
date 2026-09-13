@@ -293,7 +293,12 @@ describe('Import: ファイルを選び直した時の破棄確認', () => {
 
     dispatchCsvFile(c, 'b.csv');
     bodyButton(m.discard_candidates_discard()).click();
-    await waitFor(() => (container as HTMLElement).textContent?.includes('選択中：b.csv') === true);
+    // 選択中の表示はファイルを選んだ時点で変わり、行は破棄と解析の間に一度消える。
+    // どちらか片方だけを見ると、その途中の状態で先へ進んでしまう。
+    await waitFor(() => {
+      const cur = container as HTMLElement;
+      return cur.textContent?.includes('選択中：b.csv') === true && rowDates(cur).length > 0;
+    });
 
     expect(rowDates(c)).toEqual(['2026-01-10']);
     expect(c.textContent).toContain('選択中：b.csv');
