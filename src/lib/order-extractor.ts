@@ -14,7 +14,7 @@ export interface OrderExtractor {
 }
 
 export async function createOrderExtractor(): Promise<OrderExtractor> {
-  const adapter = await createLlmAdapter('classify');
+  const adapter = await createLlmAdapter('order');
   return {
     external: adapter.external,
     destinationHost: adapter.destinationHost,

@@ -142,7 +142,7 @@ In the **"Vendors"** section:
 
 Needed for AI classification (CSV auto-classification), order import (paste Amazon / 楽天 etc.), or reading receipts with AI OCR. Skip otherwise (receipt OCR alone can always use the AI-free built-in rule engine).
 
-In the **"AI features"** section of Settings, choose the AI vendor (Gemini or OpenAI-compatible):
+In the **"AI features"** section of Settings, choose the AI engine:
 
 ### 7-A. Google Gemini (default, cloud)
 
@@ -171,6 +171,14 @@ If you run Ollama / LM Studio / llama.cpp / vLLM yourself, either locally or on 
 <!-- /only -->
 <!-- only:native -->
 > - No extra setup needed for localhost either. The app relays the request for you
+<!-- /only -->
+
+<!-- only:browser -->
+### 7-C. Your browser's built-in AI (supported browsers only)
+
+No API key or endpoint setup needed. **"Your browser's built-in AI"** appears in the engine picker in Settings only when your browser already holds the AI model. If it doesn't appear, this engine is unavailable on this device — there is no way to have aoiko fetch the model for you.
+
+> Inference and data both stay on-device; nothing is sent externally. **Accuracy is not guaranteed**, so manual verification and correction are required just like with the other engines. See [PRIVACY_en.md](../../PRIVACY_en.md).
 <!-- /only -->
 
 ### If you don't want AI: the built-in rule engine

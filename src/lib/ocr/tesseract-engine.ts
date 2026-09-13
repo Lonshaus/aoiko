@@ -30,6 +30,7 @@ export function createTesseractReceiptExtractor(): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
+    downscale: false,
     engine: 'tesseract',
     async extract(image: LlmImageInput) {
       // 画像の復号はブラウザに任せる（tesseract-wasm 自身は復号器を持たない）。

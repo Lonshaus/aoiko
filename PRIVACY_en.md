@@ -45,6 +45,9 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 <!-- only:native -->
 - **The OS's built-in text recognition path (OCR only)**: no LLM. The image is processed on-device by the recognition your operating system provides — never sent externally. Nothing extra is downloaded either
 <!-- /only -->
+<!-- only:browser -->
+- **Your browser's built-in AI path (LLM classification and OCR alike)**: inference itself runs on-device and neither images nor text are sent externally. This engine can be used only when your browser already holds the AI model — aoiko never fetches that model itself
+<!-- /only -->
 
 | Engine (selected in Settings) | Destination | Off-device transmission |
 |---|---|---|
@@ -55,6 +58,9 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 <!-- only:native -->
 | The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
 <!-- /only -->
+<!-- only:browser -->
+| Your browser's built-in AI | Inference content never leaves the device. Usable only when your browser already holds the AI model (aoiko never fetches it) | Inference itself: none. **Whether and when the browser obtains the model is outside aoiko's involvement** |
+<!-- /only -->
 
 - Requests go **directly** from your browser to the destination — aoiko has no management server in the path
 - For **cloud (external) engines, a pre-send confirmation dialog** is shown
@@ -63,6 +69,9 @@ Only when you **explicitly invoke** LLM classification or receipt OCR, content i
 - Tesseract: no LLM is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Accuracy is limited; vendor and items are not guessed. Manual verification by the user is required
 <!-- only:native -->
 - The OS's built-in text recognition: no LLM is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
+<!-- /only -->
+<!-- only:browser -->
+- Your browser's built-in AI: inference runs on-device and none of your data is sent externally. This engine can be used only when your browser already holds the AI model, and whether or when the browser obtains that model is outside aoiko's control
 <!-- /only -->
 
 ### Backup (your choice)

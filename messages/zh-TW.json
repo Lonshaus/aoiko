@@ -1112,5 +1112,10 @@
   "settings_llm_model_fetch_hint": "請先按「取得模型清單」再選擇",
   "settings_llm_model_test_notice": "選好模型後請按「連線測試」，測試通過才能確定該模型真的可用。",
   "settings_llm_model_picked": "✓ 模型已設為 {model}",
-  "error_gemini_model_unset": "尚未設定 Gemini 模型。請在設定畫面重新儲存 API 金鑰。"
+  "error_gemini_model_unset": "尚未設定 Gemini 模型。請在設定畫面重新儲存 API 金鑰。",
+  "settings_engine_chrome_ai": "瀏覽器內建的 AI（裝置上）",
+  "receipt_ai_engine_name_chrome_ai": "瀏覽器內建的 AI",
+  "error_chrome_ai_over_receipt": "這張收據沒辦法一次處理完，請分開讀取看看。",
+  "error_chrome_ai_over_data": "超過一次能處理的量，請減少件數後再試一次。",
+  "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。"
 }

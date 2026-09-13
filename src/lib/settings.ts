@@ -7,7 +7,8 @@ import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule
 import type { NativeBackupFolder } from '../backup/native';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
-export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai';
+// chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
+export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai';
 export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
@@ -119,7 +120,10 @@ export type SettingsMap = {
 // v6 で足したのは片方にしか無いエンジンの免責なので、もう片方の本文は 1 字も変わらない。
 // 見えない内容のために同意を取り直させる理由が無く、そちらは 5 で据え置く。次に本文を
 // 直すときは「どちらの本文が変わったか」で決める。両方に出る内容なら両方を上げる。
-export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 5;
+// v7: LLM/OCR エンジンにブラウザ内蔵 AI を追加（web 側だけにあるエンジンなので web 側のみ）。
+// v6 は native 側だけの改訂なので、番号は続きの 7 ではなく双方独立の最終値。native は
+// 本文が変わっていないのでそのまま 6 に据え置く。
+export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 7;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

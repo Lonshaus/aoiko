@@ -193,9 +193,9 @@
     error = '';
     try {
       const extractor = await createReceiptExtractor(receiptMethod, receiptRuleEngine);
-      // クラウドへ送る場合だけ縮小する。Tesseract は端末内処理で通信量の問題が無く、
-      // 解像度を落としても得るものが無い。
-      const source = extractor.external ? await downscaleForUpload(file) : file;
+      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI は文脈窓が理由で、
+      // 端末内かどうかとは別の軸になる。
+      const source = extractor.downscale ? await downscaleForUpload(file) : file;
       const image = await fileToBase64(source);
       const skip = await getSetting('skipExternalSendConfirm');
       if (
@@ -453,14 +453,16 @@
       {/if}
       <span class="text-xs text-muted-foreground basis-full">
         {#if receiptMethod === 'ai'}
-          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai'}
+          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai'}
             {m.receipt_ai_engine_current({
               engine:
                 aiEngineInUse === 'gemini'
                   ? m.receipt_ai_engine_name_gemini()
                   : aiEngineInUse === 'openai-compatible'
                     ? m.receipt_ai_engine_name_openai()
-                    : m.receipt_ai_engine_name_apple_ai(),
+                    : aiEngineInUse === 'apple-ai'
+                      ? m.receipt_ai_engine_name_apple_ai()
+                      : m.receipt_ai_engine_name_chrome_ai(),
             })}
           {:else}
             {m.settings_engine_stranded({ value: aiEngineInUse })}

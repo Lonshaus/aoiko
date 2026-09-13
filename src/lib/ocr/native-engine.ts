@@ -12,6 +12,7 @@ export function createNativeReceiptExtractor(): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
+    downscale: false,
     engine: 'native',
     async extract(image: LlmImageInput) {
       // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、

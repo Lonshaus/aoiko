@@ -62,6 +62,15 @@ describe('createLlmAdapter', () => {
     expect(a.destinationHost).toBe('');
   });
 
+  // chrome-ai は web 側のみの経路。__NATIVE__（テスト全体で true）ではここへ来る前に
+  // build 時の分岐で畳まれるため、Gemini キー設定済みでも黙って gemini に落ちない。
+  test('chrome-ai：__NATIVE__ では拒否する（Gemini キー設定済みでも gemini に落ちない）', async () => {
+    await setSetting('aiEngine', 'chrome-ai');
+    await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
+    await expect(createLlmAdapter('classify')).rejects.toThrow(/chrome-ai/);
+  });
+
   // 設定はバックアップに乗って別の環境へ渡る。選べなくなった値・未知の値を
   // 黙って gemini に落とすと、端末内で読むつもりの利用者のデータが外へ出る。
   test('未知の aiEngine：Gemini キー設定済みでも拒否する（gemini に落ちない）', async () => {
