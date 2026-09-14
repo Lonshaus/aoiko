@@ -18,6 +18,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
+  import ScrollX from '../components/ScrollX.svelte';
   // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
   const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
 
@@ -356,7 +357,7 @@
         </label>
       </div>
 
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[600px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
@@ -415,7 +416,7 @@
         >
           + {m.order_item_add()}
         </button>
-      </div>
+      </ScrollX>
 
       <div class="pt-4 border-t border-border/50">
         <label class="block max-w-md">

@@ -9,6 +9,7 @@
   import { formatJPY } from '../lib/decimal';
   import { m } from '../paraglide/messages';
   import { describeStorageError } from '../lib/storage-error';
+  import ScrollX from '../components/ScrollX.svelte';
 
   let batches = $state<ImportBatch[]>([]);
   let entriesByBatch = $state<Map<string, JournalEntry[]>>(new Map());
@@ -129,7 +130,7 @@
       <p class="text-sm text-muted-foreground">{m.import_history_empty()}</p>
     </div>
   {:else}
-    <div class="bg-card text-card-foreground rounded-xl shadow-sm overflow-x-auto">
+    <ScrollX class="bg-card text-card-foreground rounded-xl shadow-sm">
       <table class="w-full min-w-[640px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
@@ -222,7 +223,7 @@
           {/each}
         </tbody>
       </table>
-    </div>
+    </ScrollX>
   {/if}
 </div>
 
