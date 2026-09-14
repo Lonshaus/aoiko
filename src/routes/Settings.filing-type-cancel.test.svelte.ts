@@ -65,6 +65,9 @@ afterEach(async () => {
     unmount(instance);
     instance = undefined;
   }
+  // 確認の対話は本文の scroll を止め、解除を 24ms 遅らせて予約する。環境が先に片付くと
+  // document が無い所でその予約が起き、試験は全て通ったまま実行が失敗する。
+  await new Promise((r) => setTimeout(r, 50));
   if (container !== undefined) {
     container.remove();
     container = undefined;
