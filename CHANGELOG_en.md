@@ -4,6 +4,19 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.1] - 2026-09-14
+
+Fixes for narrow screens and for cancelling a change in Settings.
+
+### Changed
+
+- You can now see at a glance whether a table continues to the right
+- In the vendor list, Delete now always sits in the same place at the right-hand end
+
+### Fixed
+
+- Cancelling the confirmation for switching the filing method did not put the selection back
+
 ## [1.2.0] - 2026-09-13
 
 The version where reading with OCR comes back, and the browser's built-in AI can read too.
