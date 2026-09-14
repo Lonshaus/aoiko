@@ -1117,5 +1117,6 @@
   "receipt_ai_engine_name_chrome_ai": "The browser's built-in AI",
   "error_chrome_ai_over_receipt": "This receipt could not be processed in one pass. Try reading it in parts.",
   "error_chrome_ai_over_data": "This is more than can be processed in one pass. Reduce the number of rows and try again.",
-  "error_chrome_ai_response_shape": "The built-in AI's response could not be read. Please try again."
+  "error_chrome_ai_response_shape": "The built-in AI's response could not be read. Please try again.",
+  "common_scroll_more_right": "More to the right"
 }

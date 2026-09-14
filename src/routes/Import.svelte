@@ -42,6 +42,7 @@
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
+  import ScrollX from '../components/ScrollX.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
   import { ledger } from '../stores/ledger.svelte';
@@ -573,7 +574,7 @@
         {/if}
       </div>
 
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[916px] table-fixed text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -679,7 +680,7 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
 
       {#if totalPages > 1}
         <div

@@ -75,6 +75,7 @@
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import type { FilingType } from '../tax-schema/2026/xtx';
   import FilePicker from '../components/FilePicker.svelte';
+  import ScrollX from '../components/ScrollX.svelte';
   import {
     displayZeimusho,
     isValidZeimushoCode,
@@ -1900,41 +1901,43 @@
     {#if ledger.vendors.length > 0}
       <ul class="space-y-1">
         {#each ledger.vendors as v (v.id)}
-          <li
-            class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-background text-sm"
-          >
-            <span class="flex-1 min-w-40 break-all">
-              {v.name}
-              <span class="text-xs text-muted-foreground ml-2"
-                >{vendorEntityLabel(v.entityType)}</span
-              >
-              {#if v.address}
-                <span class="block text-xs text-muted-foreground">{v.address}</span>
-              {/if}
-            </span>
-            <span class="font-mono text-xs text-muted-foreground">{v.invoiceNumber ?? ''}</span>
-            <span class="text-xs text-muted-foreground">
-              {v.defaultAccountCode ?? ''}
-            </span>
-            <div class="ml-auto flex gap-2">
-              {#if v.invoiceNumber}
-                <a
-                  href={`https://www.invoice-kohyo.nta.go.jp/regno-search/list?selRegNo=${v.invoiceNumber.replace(/^T/, '')}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  class="text-xs text-primary hover:underline"
+          <li class="flex gap-3 items-center border rounded px-3 py-2 bg-background text-sm">
+            <div class="flex-1 min-w-0">
+              <span class="break-all">
+                {v.name}
+                <span class="text-xs text-muted-foreground ml-2"
+                  >{vendorEntityLabel(v.entityType)}</span
                 >
-                  {m.settings_vendor_official_site()}
-                </a>
+              </span>
+              {#if v.invoiceNumber || v.defaultAccountCode}
+                <div class="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                  {#if v.invoiceNumber}
+                    <span class="font-mono">{v.invoiceNumber}</span>
+                    <a
+                      href={`https://www.invoice-kohyo.nta.go.jp/regno-search/list?selRegNo=${v.invoiceNumber.replace(/^T/, '')}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="text-primary hover:underline"
+                    >
+                      {m.settings_vendor_official_site()}
+                    </a>
+                  {/if}
+                  {#if v.defaultAccountCode}
+                    <span>{v.defaultAccountCode}</span>
+                  {/if}
+                </div>
               {/if}
-              <button
-                type="button"
-                onclick={() => askDelete(v.name, () => deleteVendor(v.id))}
-                class="text-xs text-muted-foreground hover:text-destructive"
-              >
-                {m.settings_action_delete()}
-              </button>
+              {#if v.address}
+                <div class="text-xs text-muted-foreground break-all">{v.address}</div>
+              {/if}
             </div>
+            <button
+              type="button"
+              onclick={() => askDelete(v.name, () => deleteVendor(v.id))}
+              class="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+            >
+              {m.settings_action_delete()}
+            </button>
           </li>
         {/each}
       </ul>
@@ -2105,7 +2108,7 @@
 
     {#if ledger.fixedAssets.length > 0}
       <!-- 列数が多く狭幅で溢れるため、ページ全体ではなく表だけ横スクロールさせる -->
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -2393,7 +2396,7 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
