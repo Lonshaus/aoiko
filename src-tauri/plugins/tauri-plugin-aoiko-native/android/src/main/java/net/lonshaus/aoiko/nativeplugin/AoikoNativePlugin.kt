@@ -100,7 +100,7 @@ private const val REQUEST_CLOSE =
 
 @TauriPlugin
 class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
-    // 網路と SAF はメインスレッドで動かせない。単一スレッドで足りる（同時に何本も投げない）。
+    // ネットワークと SAF はメインスレッドで動かせない。単一スレッドで足りる（同時に何本も投げない）。
     private val network = Executors.newSingleThreadExecutor()
     private var webView: WebView? = null
 
