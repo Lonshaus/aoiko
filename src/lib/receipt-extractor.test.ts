@@ -39,6 +39,15 @@ describe('createReceiptExtractor', () => {
     expect(ex.destinationHost).toBe('');
   });
 
+  // chrome-ai は web 側のみの経路。__NATIVE__（テスト全体で true）ではここへ来る前に
+  // build 時の分岐で畳まれるため、Gemini キー設定済みでも黙って gemini に落ちない。
+  test('ai・chrome-ai：__NATIVE__ では拒否する（Gemini キー設定済みでも gemini に落ちない）', async () => {
+    await setSetting('aiEngine', 'chrome-ai');
+    await setSetting('geminiApiKey', 'sk-test');
+    await setSetting('geminiModel', 'gemini-2.5-flash');
+    await expect(createReceiptExtractor('ai', 'tesseract')).rejects.toThrow(/chrome-ai/);
+  });
+
   // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、
   // 端末内で読むつもりの利用者の画像が外へ出る。
   test('ai・不明な aiEngine：例外を投げる（gemini に落ちない）', async () => {

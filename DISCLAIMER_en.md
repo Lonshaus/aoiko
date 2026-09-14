@@ -43,6 +43,9 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 <!-- only:native -->
   - **The OS's built-in text recognition (purely-local OCR, OCR only)**: images never leave your device. Text is read by the recognition your operating system provides, and the same deterministic extraction as Tesseract is applied to it. Vendor and items are not guessed. Nothing extra is downloaded and no external request is made. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
 <!-- /only -->
+<!-- only:browser -->
+  - **Your browser's built-in AI (purely-local inference)**: images and text never leave your device, and inference itself makes no request. This engine can be used only when your browser already holds the AI model. aoiko does not fetch that model, nor does it prompt the browser to — whether and when the browser obtains it is Chrome's own behavior and your own browser setting, outside aoiko's involvement. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
+<!-- /only -->
 - For cloud (external) engines, a confirmation dialog is shown right before sending. Always review the content beforehand if it may contain sensitive information or third-party personal information.
 - Local AI (Ollama etc.) requires **a vision-capable model for OCR**. aoiko must also run locally (HTTPS-served aoiko cannot reach localhost), and `OLLAMA_ORIGINS` must be configured on the Ollama side.
 - LLM output **may contain errors**. Always have a human verify before confirmation.
@@ -54,6 +57,9 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 - **Tracking prevention is on by default in the app version too.** Being an app does not mean the data is safe from it.
 - **Automatic backup to OPFS is not protection against the deletions above.** OPFS sits in the same partition as the ledger data and is removed along with it.
 - As a result, **your data can disappear one day with no warning unless you keep backups**. Backup (backup folder / File System Access API / manual JSON download) operates **at the user's responsibility**.
+<!-- only:browser -->
+- **If your browser holds this AI model, storage-pressure risk is higher still.** The model itself (several gigabytes) sits in the same partition as your ledger data, so the tighter your free space gets, the more likely automatic eviction becomes.
+<!-- /only -->
 
 ## 7. License
 
@@ -68,6 +74,9 @@ Corresponds to the version number shown in the consent status.
 | 5 | 2026-08-15 | Added a note that data can be deleted automatically with no action from the user, and corrected the period to match the implementation (30 days counted in days the browser or app actually ran). Stated that tracking prevention is also active in the app version, and that backing up to OPFS is not protection. Added the backup folder to the list of backup destinations (§6). Revised the Tesseract entry to state that no external request is made, now that the language data ships with aoiko (§5) |
 <!-- only:native -->
 | 6 | 2026-08-22 | Added the OS's built-in text recognition as an OCR engine (§5) |
+<!-- /only -->
+<!-- only:browser -->
+| 7 | 2026-09-13 | Added your browser's built-in AI as an LLM/OCR engine. Stated that it is usable only when the browser already holds the model, and that aoiko never fetches it (§5); also that the model itself raises storage-pressure risk (§6) |
 <!-- /only -->
 | 4 | 2026-07-14 | Income deductions and tax computation revised to conditional output (only when entered on the Deductions screen); reflected consumption tax return `.xtx` support (general / 20% special / simplified) (§3, §3a) |
 | 3 | 2026-07-05 | Added White Return support (income/expense breakdown statement KOA110; family-employee deduction completed in e-Tax) |

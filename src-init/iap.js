@@ -102,7 +102,7 @@ function waitForVisibility(state) {
 
 export function createIap(invoke, platform, deps = {}) {
   const ids = productIdsFor(platform);
-  // 品目をストアに作っていない環境では表を置かない。表が無ければ入口ごと生やさず、
+  // 品目をまだストアに作っていない環境がある。表が無ければ入口ごと生やさず、
   // 支援画面が出ないままにする（能力判定は関数の有無で行われる）。
   if (ids === null) {
     return null;

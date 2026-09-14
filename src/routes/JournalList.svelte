@@ -15,6 +15,7 @@
   import { m } from '../paraglide/messages';
   import type { Attachment, Vendor } from '../db/types';
   import FilePicker from '../components/FilePicker.svelte';
+  import ScrollX from '../components/ScrollX.svelte';
 
   const PAGE_SIZE = 50;
   const now = new Date();
@@ -534,7 +535,7 @@
   {/if}
 
   {#if rows.length > 0}
-    <div class="bg-card text-card-foreground rounded-xl overflow-x-auto shadow-sm">
+    <ScrollX class="bg-card text-card-foreground rounded-xl shadow-sm">
       <table class="w-full min-w-[720px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
@@ -717,7 +718,7 @@
           {/each}
         </tbody>
       </table>
-    </div>
+    </ScrollX>
   {:else if !loading}
     <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
       <p class="text-sm text-muted-foreground">

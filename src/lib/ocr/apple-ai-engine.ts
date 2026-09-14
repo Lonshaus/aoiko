@@ -51,6 +51,7 @@ export function createAppleAiReceiptExtractor(): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
+    downscale: false,
     engine: 'apple-ai',
     async extract(image: LlmImageInput) {
       await checkAvailability();

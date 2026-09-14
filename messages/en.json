@@ -1113,5 +1113,11 @@
   "settings_llm_model_fetch_hint": "Press \"Fetch model list\" first to choose one",
   "settings_llm_model_test_notice": "After choosing a model, press \"Test connection\" — only a passing test confirms it actually works.",
   "settings_llm_model_picked": "✓ Model set to {model}",
-  "error_gemini_model_unset": "No Gemini model is set. Save the API key again on the settings screen."
+  "error_gemini_model_unset": "No Gemini model is set. Save the API key again on the settings screen.",
+  "settings_engine_chrome_ai": "The browser's built-in AI (on device)",
+  "receipt_ai_engine_name_chrome_ai": "The browser's built-in AI",
+  "error_chrome_ai_over_receipt": "This receipt could not be processed in one pass. Try reading it in parts.",
+  "error_chrome_ai_over_data": "This is more than can be processed in one pass. Reduce the number of rows and try again.",
+  "error_chrome_ai_response_shape": "The built-in AI's response could not be read. Please try again.",
+  "common_scroll_more_right": "More to the right"
 }
