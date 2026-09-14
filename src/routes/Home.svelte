@@ -3,6 +3,7 @@
   import { D, formatJPY } from '../lib/decimal';
   import JournalEntryForm from './JournalEntryForm.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
+  import ScrollX from '../components/ScrollX.svelte';
   import { m } from '../paraglide/messages';
 
   const overview = $derived(ledger.monthlyOverview);
@@ -55,7 +56,7 @@
     </header>
 
     {#if ledger.recentLedgerRows.length > 0}
-      <div class="bg-card text-card-foreground rounded-xl overflow-x-auto shadow-sm">
+      <ScrollX class="bg-card text-card-foreground rounded-xl shadow-sm">
         <table class="w-full min-w-[560px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -112,7 +113,7 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     {:else}
       <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
         <p class="text-sm text-muted-foreground">

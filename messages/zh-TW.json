@@ -1117,5 +1117,6 @@
   "receipt_ai_engine_name_chrome_ai": "瀏覽器內建的 AI",
   "error_chrome_ai_over_receipt": "這張收據沒辦法一次處理完，請分開讀取看看。",
   "error_chrome_ai_over_data": "超過一次能處理的量，請減少件數後再試一次。",
-  "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。"
+  "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。",
+  "common_scroll_more_right": "右邊還有內容"
 }

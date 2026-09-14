@@ -65,6 +65,7 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
   import type { AmendmentChecklistKey } from '../domain/amended';
+  import ScrollX from '../components/ScrollX.svelte';
 
   function checklistLabel(key: AmendmentChecklistKey, year: number): string {
     switch (key) {
@@ -1016,7 +1017,7 @@
           {m.reports_monthly_pl_net_income({ amount: formatJPY(monthlyPL.netIncome) })}
         </span>
       </header>
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[960px] text-xs tabular-nums border-separate border-spacing-0">
           <thead>
             <tr class="text-muted-foreground [&>th]:border-b">
@@ -1108,7 +1109,7 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     </section>
   {/if}
 
@@ -1228,7 +1229,7 @@
     {/if}
 
     {#if multiYearPL}
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -1300,11 +1301,11 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     {/if}
 
     {#if multiYearBS}
-      <div class="overflow-x-auto pt-4 border-t border-border/50">
+      <ScrollX class="pt-4 border-t border-border/50">
         <table class="w-full min-w-[480px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -1340,13 +1341,13 @@
             </tr>
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     {/if}
   </section>
 
   <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
     <h3 class="text-lg font-semibold">{m.reports_budget_title()}</h3>
-    <div class="overflow-x-auto">
+    <ScrollX>
       <table class="w-full min-w-[840px] text-sm">
         <thead>
           <tr class="text-xs text-muted-foreground">
@@ -1408,7 +1409,7 @@
           {/each}
         </tbody>
       </table>
-    </div>
+    </ScrollX>
     <div class="flex justify-end">
       <button
         type="button"
@@ -1482,7 +1483,7 @@
     {/if}
 
     {#if arApEntries.length > 0}
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[720px] text-sm">
           <thead>
             <tr class="text-xs text-muted-foreground">
@@ -1538,7 +1539,7 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
     {:else}
       <p class="text-sm text-muted-foreground">{m.reports_arap_empty()}</p>
     {/if}
@@ -1576,7 +1577,7 @@
       </div>
 
       {#if cashFlowForecastResult}
-        <div class="overflow-x-auto">
+        <ScrollX>
           <table class="w-full min-w-[480px] text-sm">
             <thead>
               <tr class="text-xs text-muted-foreground">
@@ -1602,7 +1603,7 @@
               {/each}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       {/if}
     </div>
   </section>
@@ -1696,7 +1697,7 @@
           <span class="ml-1">{m.reports_consumption_tax_sales_ratio_partial()}</span>
         {/if}
       </p>
-      <div class="overflow-x-auto">
+      <ScrollX>
         <table class="w-full min-w-[720px] text-sm tabular-nums">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
@@ -1738,12 +1739,12 @@
             {/each}
           </tbody>
         </table>
-      </div>
+      </ScrollX>
       <details class="text-xs text-muted-foreground">
         <summary class="cursor-pointer"
           >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
         >
-        <div class="overflow-x-auto mt-2">
+        <ScrollX class="mt-2">
           <table class="w-full min-w-[720px] text-xs tabular-nums">
             <thead>
               <tr class="text-muted-foreground border-b">
@@ -1776,7 +1777,7 @@
               {/each}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
       </details>
       <p class="text-xs text-muted-foreground border-t pt-2">
         {m.reports_consumption_tax_caveat()}
@@ -1874,7 +1875,7 @@
         <p class="text-sm">
           {m.reports_interim_installment_count({ n: interimObligation.installmentCount })}
         </p>
-        <div class="overflow-x-auto">
+        <ScrollX>
           <table class="w-full text-sm tabular-nums">
             <thead>
               <tr class="text-xs text-muted-foreground border-b">
@@ -1893,7 +1894,7 @@
               {/each}
             </tbody>
           </table>
-        </div>
+        </ScrollX>
         <p class="text-xs text-muted-foreground">{m.reports_interim_yotei_note()}</p>
         <div class="border-t pt-3 space-y-2">
           <label class="block text-xs text-muted-foreground">
