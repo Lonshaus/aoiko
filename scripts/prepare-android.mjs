@@ -16,6 +16,7 @@ const src = new URL('../src-tauri/icons/android/', import.meta.url).pathname;
 const dest = new URL('../src-tauri/gen/android/app/src/main/res/', import.meta.url).pathname;
 const gradleFile = new URL('../src-tauri/gen/android/app/build.gradle.kts', import.meta.url)
   .pathname;
+const tauriConfFile = new URL('../src-tauri/tauri.conf.json', import.meta.url).pathname;
 
 // まだ init していない作業コピーでは置き先が無い。ここで落とすと android:dev /
 // android:build が本来の「先に init しろ」という案内へ進めなくなるので黙って通す。
@@ -88,10 +89,32 @@ if (!existsSync(gradleFile)) {
   console.error(`${gradleFile} が無い。gen/android が壊れている`);
   process.exit(1);
 }
-const gradle = readFileSync(gradleFile, 'utf8');
+// minSdk は init 時にしか tauri.conf.json から写されないため、生成済みの gen/ をここで追従させる。
+const tauriConf = JSON.parse(readFileSync(tauriConfFile, 'utf8'));
+const minSdkVersion = tauriConf.bundle?.android?.minSdkVersion;
+if (typeof minSdkVersion !== 'number') {
+  console.error(`${tauriConfFile} に bundle.android.minSdkVersion が無い`);
+  process.exit(1);
+}
+
+let gradle = readFileSync(gradleFile, 'utf8');
+const minSdkPattern = /minSdk = \d+/;
+if (!minSdkPattern.test(gradle)) {
+  console.error(`${gradleFile} に minSdk の行が無い。gen/android が壊れている`);
+  process.exit(1);
+}
+let minSdk = 'は変更なし';
+const gradleWithMinSdk = gradle.replace(minSdkPattern, `minSdk = ${minSdkVersion}`);
+if (gradleWithMinSdk !== gradle) {
+  gradle = gradleWithMinSdk;
+  minSdk = `を ${minSdkVersion} にした`;
+}
+
 let signing = '追記済み';
 if (!gradle.includes(MARKER)) {
-  writeFileSync(gradleFile, `${gradle.replace(/\n*$/, '\n')}\n${SIGNING_BLOCK}`);
+  gradle = `${gradle.replace(/\n*$/, '\n')}\n${SIGNING_BLOCK}`;
   signing = '追記した';
 }
-console.log(`アイコン ${files.length} 件を同期した。署名設定は${signing}`);
+
+writeFileSync(gradleFile, gradle);
+console.log(`アイコン ${files.length} 件を同期した。minSdk ${minSdk}。署名設定は${signing}`);
