@@ -53,6 +53,13 @@ export type NativeBridge = {
   // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 入力データが処理できない /
   // 3 その他 / 4 OS が古い）。権限不足・未知コマンド等は数値ではなく文字列で reject される。
   appleAiRun?(task: number, data: string): Promise<string>;
+  // 端末内の Gemini Nano の状態。status は端末側の値そのまま、tokenLimit は使えるときだけ数値。
+  nanoAvailability?(): Promise<NanoAvailability>;
+};
+
+export type NanoAvailability = {
+  status: number;
+  tokenLimit: number | null;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';

@@ -24,6 +24,7 @@
 - `allow-apple-ai-availability`
 - `allow-apple-ai-extract`
 - `allow-apple-ai-run`
+- `allow-nano-availability`
 
 ## Permission Table
 
@@ -368,6 +369,32 @@ Enables the is_text_recognition_available command without any pre-configured sco
 <td>
 
 Denies the is_text_recognition_available command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-availability`
+
+</td>
+<td>
+
+Enables the nano_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-availability`
+
+</td>
+<td>
+
+Denies the nano_availability command without any pre-configured scope.
 
 </td>
 </tr>

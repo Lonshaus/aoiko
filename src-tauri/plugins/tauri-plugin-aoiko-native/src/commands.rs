@@ -9,7 +9,9 @@ use crate::backup::{self};
 #[cfg(not(target_os = "android"))]
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
-use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
+use crate::{
+    Error, NanoAvailability, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result,
+};
 
 #[cfg(target_os = "android")]
 use crate::android::AoikoNativeExt;
@@ -307,6 +309,20 @@ fn apple_ai_run_native(task: i32, data: &str) -> std::result::Result<String, u8>
     {
         let _ = (task, data);
         Err(4)
+    }
+}
+
+// 端末内の Gemini Nano の状態。載せているのはこの環境だけ。
+#[tauri::command(async)]
+pub(crate) fn nano_availability<R: Runtime>(app: AppHandle<R>) -> Result<NanoAvailability> {
+    #[cfg(target_os = "android")]
+    {
+        app.aoiko_native().nano_availability()
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = app;
+        Err(Error::UnsupportedPlatform)
     }
 }
 

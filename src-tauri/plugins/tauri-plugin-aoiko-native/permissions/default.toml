@@ -25,4 +25,5 @@ permissions = [
   "allow-apple-ai-availability",
   "allow-apple-ai-extract",
   "allow-apple-ai-run",
+  "allow-nano-availability",
 ]

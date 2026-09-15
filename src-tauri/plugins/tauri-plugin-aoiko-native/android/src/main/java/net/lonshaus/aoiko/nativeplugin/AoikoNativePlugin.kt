@@ -209,6 +209,20 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         val canTake = Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(pm) != null
         invoke.resolveObject(hasFeature && canTake)
     }
+    // tokenLimit は使えるときだけ入る。
+    @Command
+    fun nanoAvailability(invoke: Invoke) {
+        GeminiNano.availability(
+            onResult = { status, tokenLimit ->
+                val result = JSObject().put("status", status)
+                if (tokenLimit != null) {
+                    result.put("tokenLimit", tokenLimit)
+                }
+                invoke.resolve(result)
+            },
+            onFailure = { e -> invoke.reject("端末内モデルの状態を取得できません: ${e.javaClass.simpleName}") },
+        )
+    }
 
     @Command
     fun recognizeText(invoke: Invoke) {

@@ -159,6 +159,12 @@ impl<R: Runtime> AoikoNative<R> {
             .unwrap_or(false)
     }
 
+    pub fn nano_availability(&self) -> Result<crate::NanoAvailability> {
+        self.0
+            .run_mobile_plugin("nanoAvailability", ())
+            .map_err(Into::into)
+    }
+
     pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
         self.0
             .run_mobile_plugin(

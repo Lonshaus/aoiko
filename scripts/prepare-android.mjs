@@ -117,4 +117,20 @@ if (!gradle.includes(MARKER)) {
 }
 
 writeFileSync(gradleFile, gradle);
-console.log(`アイコン ${files.length} 件を同期した。minSdk ${minSdk}。署名設定は${signing}`);
+// genai-prompt が載せる kotlin-stdlib 2.3 のメタデータは範本の 1.9.25 では読めない。
+const KOTLIN_GRADLE_PLUGIN = '2.2.21';
+const rootGradleFile = new URL('../src-tauri/gen/android/build.gradle.kts', import.meta.url)
+  .pathname;
+const rootGradle = readFileSync(rootGradleFile, 'utf8');
+const kgpPattern = /kotlin-gradle-plugin:[\d.]+/;
+if (!kgpPattern.test(rootGradle)) {
+  console.error(`${rootGradleFile} に kotlin-gradle-plugin の行が無い。gen/android が壊れている`);
+  process.exit(1);
+}
+writeFileSync(
+  rootGradleFile,
+  rootGradle.replace(kgpPattern, `kotlin-gradle-plugin:${KOTLIN_GRADLE_PLUGIN}`),
+);
+console.log(
+  `アイコン ${files.length} 件を同期した。minSdk ${minSdk}。署名設定は${signing}。Kotlin Gradle プラグインは ${KOTLIN_GRADLE_PLUGIN}`,
+);

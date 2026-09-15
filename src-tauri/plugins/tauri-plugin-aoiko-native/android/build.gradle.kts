@@ -44,5 +44,7 @@ dependencies {
     implementation("androidx.browser:browser:1.9.0")
     // 文字認識。同梱版でないと Play 開発者サービスを要求してしまい、オフラインで使えなくなる。
     implementation("com.google.mlkit:text-recognition-japanese:16.0.1")
+    // 端末内の Gemini Nano。
+    implementation("com.google.mlkit:genai-prompt:1.0.0-beta4")
     implementation(project(":tauri-android"))
 }

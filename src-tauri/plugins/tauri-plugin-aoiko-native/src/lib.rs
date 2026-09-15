@@ -132,6 +132,15 @@ impl ResolvedFolder {
     }
 }
 
+/// 端末内の Gemini Nano の状態。status は端末側の値そのまま。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NanoAvailability {
+    pub status: i32,
+    /// 使えるときだけ入る。
+    pub token_limit: Option<i32>,
+}
+
 /// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
 /// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -264,6 +273,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::apple_ai_availability,
             commands::apple_ai_extract,
             commands::apple_ai_run,
+            commands::nano_availability,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());
