@@ -55,7 +55,23 @@ export type NativeBridge = {
   appleAiRun?(task: number, data: string): Promise<string>;
   // 端末内の Gemini Nano の状態。status は端末側の値そのまま、tokenLimit は使えるときだけ数値。
   nanoAvailability?(): Promise<NanoAvailability>;
+  // 端末内の Gemini Nano でレシート画像を読み、JSON テキストを返す。失敗は NanoRejectCode で reject する。
+  nanoExtractReceipt?(base64: string): Promise<string>;
+  // 端末内の Gemini Nano で分類・注文取込を行い、JSON テキストを返す。data は JSON テキスト。
+  // 指示は環境側に固定で、data は処理対象のデータ。失敗は NanoRejectCode で reject する。
+  nanoRun?(task: 'classify' | 'order', data: string): Promise<string>;
 };
+
+export type NanoRejectCode =
+  | 'unavailable'
+  | 'too-long'
+  | 'busy'
+  | 'background'
+  | 'quota'
+  | 'bad-input'
+  | 'unsupported-account'
+  | 'unsupported'
+  | 'failed';
 
 export type NanoAvailability = {
   status: number;

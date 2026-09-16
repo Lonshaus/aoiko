@@ -326,6 +326,55 @@ pub(crate) fn nano_availability<R: Runtime>(app: AppHandle<R>) -> Result<NanoAva
     }
 }
 
+// 端末内の Gemini Nano でレシートを読む。推論は数十秒待つので spawn_blocking へ逃がす。
+#[tauri::command(async)]
+pub(crate) async fn nano_extract_receipt<R: Runtime>(
+    app: AppHandle<R>,
+    image_base64: String,
+) -> std::result::Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        tauri::async_runtime::spawn_blocking(move || {
+            let reply = app.aoiko_native().nano_generate(
+                "receipt",
+                crate::nano::RECEIPT_USER_TEXT,
+                Some(&image_base64),
+            )?;
+            Ok(crate::nano::strip_fence(&reply).to_string())
+        })
+        .await
+        .unwrap_or_else(|_| Err("failed".to_string()))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, image_base64);
+        Err(crate::nano::UNSUPPORTED.to_string())
+    }
+}
+// 端末内の Gemini Nano で分類・注文取込を行う。組み立ては nano.rs、推論はネイティブ側。
+#[tauri::command(async)]
+pub(crate) async fn nano_run<R: Runtime>(
+    app: AppHandle<R>,
+    task: String,
+    data: String,
+) -> std::result::Result<String, String> {
+    #[cfg(target_os = "android")]
+    {
+        tauri::async_runtime::spawn_blocking(move || {
+            crate::nano::run_task(&task, &data, |prompt, text| {
+                app.aoiko_native().nano_generate(prompt, text, None)
+            })
+        })
+        .await
+        .unwrap_or_else(|_| Err("failed".to_string()))
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (app, task, data);
+        Err(crate::nano::UNSUPPORTED.to_string())
+    }
+}
+
 // 撮影の入口を生やしてよいか。撮影に回せる環境だけ true で、他は一律 false。
 #[tauri::command(async)]
 pub(crate) fn is_camera_available<R: Runtime>(app: AppHandle<R>) -> bool {

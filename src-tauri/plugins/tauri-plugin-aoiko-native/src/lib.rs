@@ -22,6 +22,9 @@ mod commands;
 mod desktop;
 #[cfg(target_os = "ios")]
 mod ios;
+// 呼ぶのはこの環境だけ。他の環境ではテストからしか使われない。
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+mod nano;
 mod path;
 mod store;
 
@@ -274,6 +277,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::apple_ai_extract,
             commands::apple_ai_run,
             commands::nano_availability,
+            commands::nano_extract_receipt,
+            commands::nano_run,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

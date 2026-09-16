@@ -25,6 +25,8 @@
 - `allow-apple-ai-extract`
 - `allow-apple-ai-run`
 - `allow-nano-availability`
+- `allow-nano-extract-receipt`
+- `allow-nano-run`
 
 ## Permission Table
 
@@ -395,6 +397,58 @@ Enables the nano_availability command without any pre-configured scope.
 <td>
 
 Denies the nano_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-extract-receipt`
+
+</td>
+<td>
+
+Enables the nano_extract_receipt command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-extract-receipt`
+
+</td>
+<td>
+
+Denies the nano_extract_receipt command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-run`
+
+</td>
+<td>
+
+Enables the nano_run command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-run`
+
+</td>
+<td>
+
+Denies the nano_run command without any pre-configured scope.
 
 </td>
 </tr>

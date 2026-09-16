@@ -45,6 +45,13 @@ class RecognizeTextArgs {
 }
 
 @InvokeArg
+class NanoGenerateArgs {
+    var promptId: String = ""
+    var text: String = ""
+    var imageBase64: String? = null
+}
+
+@InvokeArg
 class ConfirmDiscardArgs {
     var message: String = ""
     var okLabel: String = ""
@@ -221,6 +228,28 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
                 invoke.resolve(result)
             },
             onFailure = { e -> invoke.reject("端末内モデルの状態を取得できません: ${e.javaClass.simpleName}") },
+        )
+    }
+    // 推論 1 回分。塊への分割と合併は Rust 側が持つ。失敗は固定のコードで返す。
+    @Command
+    fun nanoGenerate(invoke: Invoke) {
+        val args = invoke.parseArgs(NanoGenerateArgs::class.java)
+        val image =
+            args.imageBase64?.let {
+                try {
+                    Base64.decode(it, Base64.DEFAULT)
+                } catch (e: IllegalArgumentException) {
+                    invoke.reject("bad-input", "bad-input")
+                    return
+                }
+            }
+        GeminiNano.generate(
+            args.promptId,
+            args.text,
+            image,
+            if (image == null) 0 else exifRotation(image),
+            onReply = { reply -> invoke.resolve(JSObject().put("reply", reply)) },
+            onFailure = { code -> invoke.reject(code, code) },
         )
     }
 

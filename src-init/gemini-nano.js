@@ -10,5 +10,12 @@ export function createGeminiNano(invoke, platform) {
     async nanoAvailability() {
       return invoke('plugin:aoiko-native|nano_availability');
     },
+    // 失敗は拒否コードの文字列で reject する。
+    async nanoExtractReceipt(base64) {
+      return invoke('plugin:aoiko-native|nano_extract_receipt', { imageBase64: base64 });
+    },
+    async nanoRun(task, data) {
+      return invoke('plugin:aoiko-native|nano_run', { task, data });
+    },
   };
 }

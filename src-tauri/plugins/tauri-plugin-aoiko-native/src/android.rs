@@ -165,6 +165,35 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(Into::into)
     }
 
+    // 拒否されたときは code をそのまま返す。組み立て側（nano.rs）が code で分岐する。
+    pub fn nano_generate(
+        &self,
+        prompt_id: &str,
+        text: &str,
+        image_base64: Option<&str>,
+    ) -> std::result::Result<String, String> {
+        #[derive(serde::Deserialize)]
+        struct Body {
+            reply: String,
+        }
+        self.0
+            .run_mobile_plugin::<Body>(
+                "nanoGenerate",
+                serde_json::json!({
+                    "promptId": prompt_id,
+                    "text": text,
+                    "imageBase64": image_base64,
+                }),
+            )
+            .map(|body| body.reply)
+            .map_err(|e| match e {
+                tauri::plugin::mobile::PluginInvokeError::InvokeRejected(response) => {
+                    response.code.unwrap_or_else(|| "failed".to_string())
+                }
+                _ => "failed".to_string(),
+            })
+    }
+
     pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
         self.0
             .run_mobile_plugin(
