@@ -1181,5 +1181,20 @@
   "error_chrome_ai_over_receipt": "這張收據沒辦法一次處理完，請分開讀取看看。",
   "error_chrome_ai_over_data": "超過一次能處理的量，請減少件數後再試一次。",
   "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。",
-  "common_scroll_more_right": "右邊還有內容"
+  "common_scroll_more_right": "右邊還有內容",
+  "settings_engine_nano": "裝置內 Gemini Nano（Android、裝置內、免費）",
+  "receipt_ai_engine_name_nano": "裝置內 Gemini Nano",
+  "settings_nano_unavailable_1": "這台裝置尚未備妥此功能。請先在裝置上完成準備，再重新選取。",
+  "settings_nano_unavailable_2": "模型準備中，請稍後再重新選取。",
+  "error_nano_prompt_unsupported": "這個路徑不接受提示詞（內部錯誤）。",
+  "error_nano_unavailable": "裝置內 AI 目前無法使用，請至設定確認狀態。",
+  "error_nano_too_long": "資訊量過多，無法處理。請減少數量後再試一次。",
+  "error_nano_busy": "裝置內 AI 忙碌中，請稍候再試一次。",
+  "error_nano_background": "處理中應用程式進入背景而中斷。請將應用程式切回前景後再試一次。",
+  "error_nano_quota": "已達到這台裝置的使用上限，請稍後再試一次。",
+  "error_nano_bad_input": "無法處理輸入的資料，請再試一次。",
+  "error_nano_unsupported_account": "此科目無法用裝置內 AI 分類。請改選其他引擎，或手動記帳。",
+  "error_nano_unsupported": "此裝置內 AI 僅限 Android 使用。請在設定中改選其他引擎。",
+  "error_nano_failed": "處理失敗，請稍後再試一次。",
+  "error_nano_unknown": "無法呼叫裝置內 AI。請在設定中改選其他引擎，或再試一次。"
 }

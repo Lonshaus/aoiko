@@ -1180,5 +1180,20 @@
   "error_chrome_ai_over_receipt": "このレシートは一度に処理できませんでした。分けて読み取ってみてください。",
   "error_chrome_ai_over_data": "一度に処理できる量を超えました。件数を減らして、もう一度お試しください。",
   "error_chrome_ai_response_shape": "内蔵の AI の応答を読み取れませんでした。もう一度お試しください。",
-  "common_scroll_more_right": "右に続きます"
+  "common_scroll_more_right": "右に続きます",
+  "settings_engine_nano": "端末内 Gemini Nano（Android・端末内・無料）",
+  "receipt_ai_engine_name_nano": "端末内 Gemini Nano",
+  "settings_nano_unavailable_1": "この端末はまだ準備できていません。端末側でこの機能を用意してから選び直してください。",
+  "settings_nano_unavailable_2": "モデルを準備中です。しばらく待ってから選び直してください。",
+  "error_nano_prompt_unsupported": "この経路はプロンプトを受け付けません（内部エラー）",
+  "error_nano_unavailable": "端末内の AI が使えない状態です。設定でこの端末の対応状況を確認してください。",
+  "error_nano_too_long": "情報量が多すぎて処理できませんでした。件数を減らして、もう一度お試しください。",
+  "error_nano_busy": "端末内の AI が混み合っています。しばらく待って、もう一度お試しください。",
+  "error_nano_background": "処理中にアプリがバックグラウンドになったため中断しました。アプリを前面に戻して、もう一度お試しください。",
+  "error_nano_quota": "この端末の利用上限に達しました。しばらく待ってから、もう一度お試しください。",
+  "error_nano_bad_input": "入力データを処理できませんでした。もう一度お試しください。",
+  "error_nano_unsupported_account": "この科目は端末内 AI では分類できません。他のエンジンを選ぶか、手動で仕訳してください。",
+  "error_nano_unsupported": "この端末内 AI は Android でのみ使えます。設定で別のエンジンを選んでください。",
+  "error_nano_failed": "処理に失敗しました。時間をおいて、もう一度お試しください。",
+  "error_nano_unknown": "端末内の AI を呼び出せませんでした。設定で別のエンジンを選ぶか、もう一度お試しください。"
 }

@@ -65,6 +65,13 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
       // 文言はカタログから引かない。引くと、この経路を持たない側の産物にも文字列が残る。
       throw new Error('apple-ai is unavailable in this build');
+    case 'nano':
+      // apple-ai と同じ理由で build 時に畳む。
+      if (__NATIVE__) {
+        const { createNanoAdapter } = await import('./nano-engine');
+        return createNanoAdapter();
+      }
+      throw new Error('nano is unavailable in this build');
     default:
       // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、
       // 端末内で読むつもりの利用者のデータが外へ出る。

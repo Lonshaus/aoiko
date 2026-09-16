@@ -455,7 +455,7 @@
       {/if}
       <span class="text-xs text-muted-foreground basis-full">
         {#if receiptMethod === 'ai'}
-          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai'}
+          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai' || aiEngineInUse === 'nano'}
             {m.receipt_ai_engine_current({
               engine:
                 aiEngineInUse === 'gemini'
@@ -464,7 +464,9 @@
                     ? m.receipt_ai_engine_name_openai()
                     : aiEngineInUse === 'apple-ai'
                       ? m.receipt_ai_engine_name_apple_ai()
-                      : m.receipt_ai_engine_name_chrome_ai(),
+                      : aiEngineInUse === 'chrome-ai'
+                        ? m.receipt_ai_engine_name_chrome_ai()
+                        : m.receipt_ai_engine_name_nano(),
             })}
           {:else}
             {m.settings_engine_stranded({ value: aiEngineInUse })}

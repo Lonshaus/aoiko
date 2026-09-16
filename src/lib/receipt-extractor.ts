@@ -80,6 +80,13 @@ export async function createReceiptExtractor(
         }
         // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
         throw new Error('apple-ai OCR is unavailable in this build');
+      case 'nano':
+        // native と同じ理由で build 時に畳む。
+        if (__NATIVE__) {
+          const { createNanoReceiptExtractor } = await import('./nano-engine');
+          return createNanoReceiptExtractor();
+        }
+        throw new Error('nano OCR is unavailable in this build');
       default:
         // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、
         // 端末内で読むつもりの利用者の画像が外へ出る。

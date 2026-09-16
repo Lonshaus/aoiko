@@ -55,4 +55,34 @@ describe('createOrderExtractor', () => {
     expect(result.items).toEqual([{ description: 'USB-C ハブ', amount: '2580' }]);
     expect(result.orderNumber).toBeUndefined();
   });
+
+  // 端末内の Gemini Nano（Android）。nano.rs 側は data をそのまま渡すだけで、指示は
+  // 環境側に固定で埋め込まれている。fetch は一切呼ばれないことも確かめる。
+  test('nano：runDataTask 経由で注文情報を抽出し、fetch は呼ばれない', async () => {
+    await setSetting('aiEngine', 'nano');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const nanoRun = vi.fn(async (task: string, data: string) => {
+      expect(task).toBe('order');
+      expect(JSON.parse(data)).toEqual({ text: '注文内容の貼り付けテキスト' });
+      return JSON.stringify({
+        date: '2026-05-03',
+        vendor: 'Amazon.co.jp',
+        orderNumber: '',
+        items: [{ description: 'USB-C ハブ', amount: '2580' }],
+        totalAmount: '2580',
+      });
+    });
+    vi.stubGlobal('window', { __aoikoNative: { nanoRun } });
+
+    const ex = await createOrderExtractor();
+    expect(ex.external).toBe(false);
+    expect(ex.destinationHost).toBe('');
+    const result = await ex.extract('注文内容の貼り付けテキスト');
+    expect(result.vendor).toBe('Amazon.co.jp');
+    expect(result.totalAmount).toBe('2580');
+    expect(result.items).toEqual([{ description: 'USB-C ハブ', amount: '2580' }]);
+    expect(result.orderNumber).toBeUndefined();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

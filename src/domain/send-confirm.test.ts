@@ -15,6 +15,11 @@ describe('shouldConfirmExternalSend', () => {
     );
   });
 
+  // nano（端末内 Gemini Nano）は external=false・destinationHost='' なので確認不要。
+  test('nano（端末内）は確認不要', () => {
+    expect(shouldConfirmExternalSend({ external: false, host: '' }, undefined)).toBe(false);
+  });
+
   test('外部送信は既定で確認要', () => {
     expect(
       shouldConfirmExternalSend(

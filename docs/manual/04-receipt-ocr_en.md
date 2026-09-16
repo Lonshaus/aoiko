@@ -35,6 +35,7 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 <!-- /only -->
 <!-- only:android -->
 | **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit reports usage information to Google) | Always available on this device; the text recognition ships with the app |
+| **AI engine** (on-device Gemini Nano) | No image or text sent (ML Kit reports usage information to Google) | Appears only on supported Android devices |
 <!-- /only -->
 
 > Detailed AI engine setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
@@ -104,6 +105,11 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 #### AI engine (your browser's built-in AI): no dialog
 
 Inference runs entirely on-device, so no confirmation dialog appears. This engine is selectable only when your browser already holds the AI model (aoiko never fetches it).
+<!-- /only -->
+<!-- only:android -->
+#### AI engine (on-device Gemini Nano): no dialog
+
+Inference and the image both stay on this device. However, ML Kit reports API usage to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
 <!-- /only -->
 <!-- only:browser -->
 

@@ -1181,5 +1181,20 @@
   "error_chrome_ai_over_receipt": "This receipt could not be processed in one pass. Try reading it in parts.",
   "error_chrome_ai_over_data": "This is more than can be processed in one pass. Reduce the number of rows and try again.",
   "error_chrome_ai_response_shape": "The built-in AI's response could not be read. Please try again.",
-  "common_scroll_more_right": "More to the right"
+  "common_scroll_more_right": "More to the right",
+  "settings_engine_nano": "On-device Gemini Nano (Android, on-device, free)",
+  "receipt_ai_engine_name_nano": "On-device Gemini Nano",
+  "settings_nano_unavailable_1": "This device hasn't provisioned this feature yet. Provision it on the device, then select it again.",
+  "settings_nano_unavailable_2": "The model is being prepared. Wait a while, then select it again.",
+  "error_nano_prompt_unsupported": "This path does not accept a prompt (internal error).",
+  "error_nano_unavailable": "The on-device AI isn't available right now. Check its status in Settings.",
+  "error_nano_too_long": "There was too much input to process. Reduce the amount and try again.",
+  "error_nano_busy": "The on-device AI is busy. Please wait a moment and try again.",
+  "error_nano_background": "Processing was interrupted because the app went to the background. Bring the app to the foreground and try again.",
+  "error_nano_quota": "This device's usage limit for the feature has been reached. Wait a while, then try again.",
+  "error_nano_bad_input": "Could not process the input data. Please try again.",
+  "error_nano_unsupported_account": "This account isn't supported for on-device classification. Choose another engine, or classify it manually.",
+  "error_nano_unsupported": "This on-device AI is available on Android only. Please choose another engine in Settings.",
+  "error_nano_failed": "Processing failed. Please wait a moment and try again.",
+  "error_nano_unknown": "Could not call the on-device AI. Choose another engine in Settings, or try again."
 }

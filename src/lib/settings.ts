@@ -15,7 +15,8 @@ import { D, type Decimal } from './decimal';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
 // chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
-export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai';
+// nano は Android 端末内の Gemini Nano（対応環境のみ・通信無し）。
+export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai' | 'nano';
 export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。

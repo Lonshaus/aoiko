@@ -191,6 +191,17 @@
   // 原生の産物にこの経路の問い合わせを残さないため。
   let chromeAiAvailability = $state<string | null>(null);
   const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
+  // 端末内の Gemini Nano（Android）。status は ML Kit の FeatureStatus そのまま
+  // （0 UNAVAILABLE / 1 DOWNLOADABLE / 2 DOWNLOADING / 3 AVAILABLE）。0 とその他の未知値は
+  // 利用者側でどうにもならないので選択肢ごと隠す。1/2 は選べないが理由は出す。
+  let nanoAvailability = $state<number | null>(null);
+  const NANO_UNAVAILABLE_MESSAGES: Record<number, () => string> = {
+    1: m.settings_nano_unavailable_1,
+    2: m.settings_nano_unavailable_2,
+  };
+  const nanoOptionShown = $derived(
+    __NATIVE__ && (nanoAvailability === 1 || nanoAvailability === 2 || nanoAvailability === 3),
+  );
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -478,12 +489,17 @@
       const { chromeAiAvailability: ask } = await import('../lib/chrome-ai/availability');
       chromeAiAvailability = await ask();
     }
+    // 理由コードは環境が返すまで分からない。関数が無い側／問い合わせ失敗は 0 と同じ「隠す」扱いにする。
+    const askNano = __NATIVE__ ? nativeBridge()?.nanoAvailability : undefined;
+    nanoAvailability =
+      typeof askNano === 'function' ? ((await askNano().catch(() => null))?.status ?? null) : null;
     const storedAiEngine = await getSetting('aiEngine');
     if (
       storedAiEngine === 'gemini' ||
       storedAiEngine === 'openai-compatible' ||
       (storedAiEngine === 'apple-ai' && appleAiOptionShown) ||
-      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown)
+      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown) ||
+      (storedAiEngine === 'nano' && nanoOptionShown)
     ) {
       aiEngine = storedAiEngine;
       strandedAiEngine = null;
@@ -1319,7 +1335,8 @@
       aiEngine === 'gemini' ||
       aiEngine === 'openai-compatible' ||
       (aiEngine === 'apple-ai' && appleAiOptionShown) ||
-      (aiEngine === 'chrome-ai' && chromeAiOptionShown)
+      (aiEngine === 'chrome-ai' && chromeAiOptionShown) ||
+      (aiEngine === 'nano' && nanoOptionShown)
     ) {
       strandedAiEngine = null;
     }
@@ -3098,6 +3115,13 @@
         {#if chromeAiOptionShown}
           <option value="chrome-ai">{m.settings_engine_chrome_ai()}</option>
         {/if}
+        <!-- 0（使えない）とその他の未知値は選択肢ごと隠す。1/2 は選び直せるので disabled で残し、
+             下に理由を出す。__NATIVE__ で畳むのは web の産物にこの経路の文言を残さないため。 -->
+        {#if nanoOptionShown}
+          <option value="nano" disabled={nanoAvailability !== 3}>
+            {m.settings_engine_nano()}
+          </option>
+        {/if}
         {#if strandedAiEngine}
           <!-- 選択肢の無い値が保存に残っている（他環境の復元・選べなくなった旧値等）。
                空欄に見せず、生値のまま disabled で見せて理由を出す。 -->
@@ -3112,6 +3136,11 @@
       {#if __NATIVE__ && appleAiAvailability !== null && appleAiAvailability in APPLE_AI_UNAVAILABLE_MESSAGES}
         <p class="text-xs text-destructive">
           {APPLE_AI_UNAVAILABLE_MESSAGES[appleAiAvailability]?.()}
+        </p>
+      {/if}
+      {#if __NATIVE__ && nanoAvailability !== null && nanoAvailability in NANO_UNAVAILABLE_MESSAGES}
+        <p class="text-xs text-destructive">
+          {NANO_UNAVAILABLE_MESSAGES[nanoAvailability]?.()}
         </p>
       {/if}
 

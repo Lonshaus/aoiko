@@ -130,6 +130,10 @@ If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial 
 > **Where it goes**: the selected engine (`generativelanguage.googleapis.com` for Gemini, your baseURL for local)
 > **Confirmation**: a pre-send dialog is shown for cloud engines (with a "don't ask again" option)
 
+<!-- only:native -->
+> **If you've selected on-device Gemini Nano (Android)**: no API key is needed, and no confirmation dialog appears (nothing ever leaves the device). It only supports counterpart accounts **1130 (bank deposits) and 2120 (accounts payable)**, debit or credit side; any other account is refused before the model is even called, with the message "This account isn't supported for on-device classification."
+<!-- /only -->
+
 Leaving AI off is fine — you just see more "no badge" rows that you fill in by hand.
 
 ## 5. Import history and batch reverse

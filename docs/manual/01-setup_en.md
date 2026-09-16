@@ -197,6 +197,14 @@ No API key or endpoint setup needed. **"The browser's built-in AI"** appears in 
 > Inference and data both stay on-device; nothing is sent externally. Just like with the other engines, manual verification and correction of the results is required. See [PRIVACY_en.md](../../PRIVACY_en.md).
 <!-- /only -->
 
+<!-- only:native -->
+### 7-D. On-device Gemini Nano (Android only)
+
+No API key or endpoint setup needed. On a supported Android device, **"On-device Gemini Nano"** appears in the engine picker in Settings. If it doesn't appear, or is disabled, this engine isn't (yet) usable on this device.
+
+> Inference and data both stay on-device; nothing is sent externally, ever. This option never appears on platforms other than Android.
+<!-- /only -->
+
 ### If you don't want AI: the built-in rule engine
 <!-- only:browser -->
 

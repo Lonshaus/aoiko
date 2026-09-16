@@ -197,6 +197,14 @@
 > 推論與資料都在本機完成，不會外送任何東西。跟其他引擎一樣，讀取結果須經人工確認與修正。詳見 [PRIVACY_zh-TW.md](../../PRIVACY_zh-TW.md)。
 <!-- /only -->
 
+<!-- only:native -->
+### 7-D. 裝置內 Gemini Nano（僅限 Android）
+
+不需要 API 金鑰也不需要設定 endpoint。Android 的支援裝置上，設定畫面的引擎選單裡會出現「**裝置內 Gemini Nano**」。沒有出現、或呈現 disabled 的話，代表這台裝置（暫時）用不了這個引擎。
+
+> 推論與資料都在裝置內完成，完全不會外送。Android 以外的平台一律不會出現這個選項。
+<!-- /only -->
+
 ### 不想用 AI 的話：內建規則引擎
 <!-- only:browser -->
 
