@@ -40,6 +40,8 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS の版や導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
+  // 撮影の入口を出してよいか。備えていない環境では生えない。
+  isCameraAvailable?(): Promise<boolean>;
   // OS 内蔵の AI が使えるか。0..5 の意味はネイティブ側のコメントに揃える
   // （0 が「使える」）。
   appleAiAvailability?(): Promise<number>;

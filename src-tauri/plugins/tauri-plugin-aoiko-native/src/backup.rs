@@ -3,6 +3,8 @@
 //
 // 実処理は base: &Path を取る素の関数に置いてある。tauri::command は AppHandle が要り
 // テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄い殻にする。
+// この環境はネイティブ側が入出力を持つので、この module のパス操作は通らない。
+#![cfg_attr(target_os = "android", allow(dead_code))]
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{ErrorKind, Write};
@@ -93,7 +95,7 @@ impl OpenFiles {
 ///
 /// 書き出し先を決める手順だけ引数で受ける。AppHandle が要る部分を外へ出しておけば、
 /// 「file_name を検査してから書き出し先を決める」順序をテストで固定できる。
-/// デスクトップは保存ダイアログ、モバイルは下の ios_export_target。
+/// デスクトップは保存ダイアログ、モバイルは下の mobile_export_target。
 pub(crate) fn export_open(
     files: &OpenFiles,
     file_name: &str,
@@ -110,7 +112,7 @@ pub(crate) fn export_open(
 /// file_name は export_open の validate_single_segment を通ったものだけ。join は絶対パスを
 /// 渡されると documents ごと差し替えるので、区切りもドライブ指定も弾かれていることが前提。
 #[cfg(any(target_os = "ios", test))]
-pub(crate) fn ios_export_target(documents: &Path, file_name: &str) -> SafeTarget {
+pub(crate) fn mobile_export_target(documents: &Path, file_name: &str) -> SafeTarget {
     SafeTarget::from_os_chosen(documents.join(file_name))
 }
 /// [meta 長 4 バイト LE][meta JSON][本文]。aoiko_fetch と同じ枠。
@@ -123,6 +125,16 @@ fn frame(meta: &[u8], body: &[u8]) -> Vec<u8> {
     framed.extend_from_slice(meta);
     framed.extend_from_slice(body);
     framed
+}
+
+/// ネイティブが読んだ本文を read と同じ枠に載せる。パスで開けないので
+/// 読み出しそのものはネイティブ側にあり、枠だけこちらで揃える。
+#[cfg(target_os = "android")]
+pub(crate) fn frame_reply(body: Option<Vec<u8>>) -> Vec<u8> {
+    match body {
+        Some(body) => frame(META_FOUND, &body),
+        None => frame(META_NOT_FOUND, &[]),
+    }
 }
 
 pub(crate) fn read(base: &Path, rel_path: &str) -> Result<Vec<u8>> {
@@ -422,9 +434,9 @@ mod tests {
     }
 
     #[test]
-    fn the_ios_export_target_sits_directly_under_documents() {
+    fn the_mobile_export_target_sits_directly_under_documents() {
         assert_eq!(
-            ios_export_target(Path::new("/var/mobile/Documents"), "aoiko-ledger.zip").as_path(),
+            mobile_export_target(Path::new("/var/mobile/Documents"), "aoiko-ledger.zip").as_path(),
             PathBuf::from("/var/mobile/Documents/aoiko-ledger.zip")
         );
     }
@@ -437,7 +449,7 @@ mod tests {
         // Documents の外を指す名前でもそのまま開いてしまう。
         for bad in ["../escape.zip", "/etc/passwd", "a/b.zip", "C:x", ".."] {
             let opened = export_open(&files, bad, |suggested| {
-                Ok(Some(ios_export_target(&documents, suggested)))
+                Ok(Some(mobile_export_target(&documents, suggested)))
             });
             assert!(
                 matches!(opened, Err(Error::InvalidPath(_))),
@@ -445,7 +457,7 @@ mod tests {
             );
         }
         let rid = export_open(&files, "aoiko-ledger.zip", |suggested| {
-            Ok(Some(ios_export_target(&documents, suggested)))
+            Ok(Some(mobile_export_target(&documents, suggested)))
         })
         .unwrap()
         .unwrap();

@@ -31,7 +31,7 @@ aoiko 的資料存在 **App 自己的儲存區**（本機）。這代表：
 - ❌ 瀏覽器站點資料清除 → **完全消失**
 <!-- /only -->
 <!-- only:native -->
-- ❌ 移除 App → 是否消失看環境（Windows 移除的同時就沒了，macOS 重新安裝後儲存區還在）
+- ❌ 移除 App → 是否消失看環境（Windows 與 Android 移除的同時就沒了，macOS 重新安裝後儲存區還在）
 <!-- /only -->
 - ❌ 裝置故障 → 還原不能
 <!-- only:browser -->

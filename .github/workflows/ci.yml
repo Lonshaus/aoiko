@@ -81,10 +81,10 @@ jobs:
           cache: npm
 
       # cfg で分けている部分は、そのプラットフォーム向けに引かないと壊れていても気付けない。
-      # cargo check はリンクしないので Xcode の設定は要らない。
+      # cargo check はリンクしないので NDK も Xcode の設定も要らない。
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-ios
+          targets: aarch64-apple-ios, aarch64-linux-android
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -99,11 +99,11 @@ jobs:
       # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
       - run: npm run test:init
 
-      # prettier は .rs を読めず、cargo test は排版を見ない。入れるまで誰も見て
-      # いなかったので、実際に 2 箇所ずれたまま既定の枝に入っていた。
+      # prettier は .rs を読めず、cargo test は整形を見ない。入れるまで誰も見て
+      # いなかったので、実際に 2 箇所ずれたまま既定のブランチに入っていた。
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
       # tauri-plugin-iap は Swift の静的ライブラリを target/ ではなく自分の
-      # 原始ディレクトリ（~/.cargo/registry/src/…/macos/.build/）へ置く。
+      # ソースディレクトリ（~/.cargo/registry/src/…/macos/.build/）へ置く。
       # rust-cache は保存時に registry/src を消すため、キャッシュが前方一致でしか
       # 当たらなかった回は、build script の fingerprint だけが生き残って
       # swift build が飛ばされ、リンク先のライブラリが無い状態になる。
@@ -115,3 +115,6 @@ jobs:
 
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios
+
+      # Android も同じ。
+      - run: npm run check:android
