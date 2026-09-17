@@ -4,6 +4,15 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.2] - 2026-09-17
+
+Corrections to the Disclaimer, Privacy Policy and Security Policy. Their content changed, so agreeing again is required the next time you open aoiko.
+
+### Changed
+
+- The three documents are now written per edition
+- The engine list and the description of where data is sent now match how the app behaves
+
 ## [1.2.1] - 2026-09-14
 
 Fixes for narrow screens and for cancelling a change in Settings.
