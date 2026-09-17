@@ -12,14 +12,28 @@ const BLOCK =
 const OPEN = /^[ \t]*<!--[ \t]*only:([a-z]+)[ \t]*-->/gm;
 const CLOSE = /^[ \t]*<!--[ \t]*\/only[ \t]*-->/gm;
 const ANY = /<!--[ \t]*\/?only[^>]*-->/g;
-const KINDS = ['browser', 'native'];
+const KINDS = ['browser', 'native', 'apple', 'windows'];
+// 配布形態ごとに、その形態が読む種別の集合。native は封装版すべてに当てはまる記述で、
+// apple / windows はそこから更に絞る（入れ子は扱わないので、絞る側は兄弟の区画で書く）。
+const PLATFORM_KINDS: Record<Platform, readonly string[]> = {
+  browser: ['browser'],
+  macos: ['native', 'apple'],
+  ios: ['native', 'apple'],
+  windows: ['native', 'windows'],
+};
+export const PLATFORMS = ['browser', 'macos', 'ios', 'windows'] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
+export function isPlatform(value: string): value is Platform {
+  return (PLATFORMS as readonly string[]).includes(value);
+}
 
 function atLineStart(text: string, index: number): boolean {
   const head = text.lastIndexOf('\n', index - 1) + 1;
   return text.slice(head, index).trim() === '';
 }
 
-export function stripBuildOnly(markdown: string, native: boolean, label = 'markdown'): string {
+export function stripBuildOnly(markdown: string, platform: Platform, label = 'markdown'): string {
   const opens = [...markdown.matchAll(OPEN)];
   const closes = [...markdown.matchAll(CLOSE)];
   // 行頭に無い印は上の 2 つに拾われない。数だけ見ると釣り合って見えるので、
@@ -43,6 +57,8 @@ export function stripBuildOnly(markdown: string, native: boolean, label = 'markd
       throw new Error(`${label}: 知らない種別 only:${kind}（${KINDS.join(' / ')} のみ）`);
     }
   }
-  const keep = native ? 'native' : 'browser';
-  return markdown.replace(BLOCK, (_all, kind: string, body: string) => (kind === keep ? body : ''));
+  const keep = PLATFORM_KINDS[platform];
+  return markdown.replace(BLOCK, (_all, kind: string, body: string) =>
+    keep.includes(kind) ? body : '',
+  );
 }
