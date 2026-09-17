@@ -123,9 +123,7 @@ export type SettingsMap = {
 // v7: LLM/OCR エンジンにブラウザ内蔵 AI を追加（web 側だけにあるエンジンなので web 側のみ）。
 // v6 は native 側だけの改訂なので、番号は続きの 7 ではなく双方独立の最終値。native は
 // 本文が変わっていないのでそのまま 6 に据え置く。
-// v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
-// 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
-export const DISCLAIMER_VERSION = 8;
+export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 7;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

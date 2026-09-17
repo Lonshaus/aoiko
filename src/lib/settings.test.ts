@@ -4,55 +4,60 @@
 import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
+import { stripBuildOnly } from './build-only';
 import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
-const EXPECTED_VERSION = 8;
-
-// 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとの版を守れない。
-// 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
-function versionsFromSource(): Record<Platform, number> {
-  const source = readFileSync(resolve('src/lib/settings.ts'), 'utf-8');
-  const flat = /export const DISCLAIMER_VERSION = (\d+);/.exec(source);
-  if (flat === null) {
-    throw new Error('settings.ts から DISCLAIMER_VERSION を読めない（分岐の形が変わった？）');
-  }
-  const value = Number(flat[1]);
-  return { browser: value, macos: value, ios: value, windows: value };
-}
+// テストは native 扱いで走る（vitest.config.ts の __NATIVE__）。
+const NATIVE_VERSION = 6;
+const BROWSER_VERSION = 7;
 
 describe('DISCLAIMER_VERSION', () => {
   test('走っている側の版が定数と一致する', () => {
-    expect(DISCLAIMER_VERSION).toBe(EXPECTED_VERSION);
+    expect(DISCLAIMER_VERSION).toBe(NATIVE_VERSION);
+  });
+  // 試験は片側でしか走らないため、値を見るだけでは分岐そのものを守れない。
+  // 分岐を畳んで両方を同じ版にしても、この試験以外は全部通ってしまう。
+  test('版は build 時の分岐で決まる（実行時の値だけでは守れない）', () => {
+    const source = readFileSync(resolve('src/lib/settings.ts'), 'utf-8');
+    expect(source).toContain(
+      `DISCLAIMER_VERSION = __NATIVE__ ? ${NATIVE_VERSION} : ${BROWSER_VERSION}`,
+    );
   });
 
-  test('原文から読める版も同じ', () => {
-    for (const platform of PLATFORMS) {
-      expect(versionsFromSource()[platform], `${platform} の版が違う`).toBe(EXPECTED_VERSION);
-    }
-  });
-  // 生の（出し分け前の）本文には全形態の行が混ざって載っているため、生の文字列を
-  // 見るだけでは畳み忘れに気付けない。形態ごとに剥がしてから行番号を見る。
-  test('改訂履歴の最新行が、形態ごとの版と一致する', () => {
-    const expected = versionsFromSource();
+  // native と browser は互いに独立したカウンタで、どちらも「自分の側の本文を
+  // 最後に変えた版」を指す。片方が進んでももう片方の値は導けない・揃う理由も無い。
+  test('版を分けている以上、本文にも出し分けが要る', () => {
+    expect(NATIVE_VERSION, '両側は独立したカウンタ。同じ値になる理由は無い').not.toBe(
+      BROWSER_VERSION,
+    );
     for (const doc of DOCS) {
       const src = readFileSync(resolve(doc), 'utf-8');
-      for (const platform of PLATFORMS) {
-        const rows = [...stripBuildOnly(src, platform).matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) =>
-          Number(m[1]),
-        );
-        expect(Math.max(...rows), `${doc} の ${platform} 側の最新行が版と違う`).toBe(
-          expected[platform],
-        );
-        expect(new Set(rows).size, `${doc} の ${platform} 側に同じ番号の行が 2 つある`).toBe(
-          rows.length,
-        );
-        expect(
-          [...rows].sort((a, b) => b - a),
-          `${doc} の ${platform} 側が降順でない`,
-        ).toEqual(rows);
-      }
+      expect(src, `${doc} に native 側の出し分けの印が無い`).toMatch(/<!--\s*only:native\s*-->/);
+      expect(src, `${doc} に browser 側の出し分けの印が無い`).toMatch(/<!--\s*only:browser\s*-->/);
+    }
+  });
+
+  // native 側だけ見て改訂履歴が NATIVE_VERSION まで、browser 側だけ見て
+  // BROWSER_VERSION までであることを確認する。生の（出し分け前の）本文には
+  // 両方の行が混ざって載っているため、生の文字列を見るだけでは分岐の畳み忘れに
+  // 気付けない。
+  test('改訂履歴の行数が、それぞれの側だけ見たときの版の数と合う', () => {
+    for (const doc of DOCS) {
+      const src = readFileSync(resolve(doc), 'utf-8');
+      const native = stripBuildOnly(src, true, doc);
+      const nativeRows = [...native.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
+      expect(
+        Math.max(...nativeRows),
+        `${doc} の native 側改訂履歴が ${NATIVE_VERSION} まで無い`,
+      ).toBe(NATIVE_VERSION);
+
+      const browser = stripBuildOnly(src, false, doc);
+      const browserRows = [...browser.matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) => Number(m[1]));
+      expect(
+        Math.max(...browserRows),
+        `${doc} の browser 側改訂履歴が ${BROWSER_VERSION} まで無い`,
+      ).toBe(BROWSER_VERSION);
     }
   });
 });

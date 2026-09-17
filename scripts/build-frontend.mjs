@@ -12,39 +12,17 @@ const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // 平台ごとに版番号が違うため、打包側が AOIKO_VERSION を渡してきたらそちらを優先する。
 const tauriConf = JSON.parse(readFileSync(resolve(root, 'src-tauri', 'tauri.conf.json'), 'utf8'));
 
-// 出し分けの対象となる配布形態。引数か環境変数が明示されていればそれを使い、
-// 無いときだけ build ホストから決める（tauri build は macOS と Windows で同じ入口）。
-const HOST_PLATFORM = { darwin: 'macos', win32: 'windows' };
-const PLATFORMS = ['browser', 'macos', 'ios', 'windows'];
-
-function targetPlatform() {
-  const given = process.argv[2] ?? process.env.AOIKO_PLATFORM;
-  if (given !== undefined) {
-    if (!PLATFORMS.includes(given)) {
-      throw new Error(`配布形態が不正です：${given}（${PLATFORMS.join(' / ')} のみ）`);
-    }
-    return given;
-  }
-  const derived = HOST_PLATFORM[process.platform];
-  if (derived === undefined) {
-    throw new Error(`この host では配布形態を決められません：${process.platform}`);
-  }
-  return derived;
-}
-
-const platform = targetPlatform();
-
 for (const script of ['check', 'build']) {
   const result = spawnSync('npm', ['run', script], {
     cwd: root,
     stdio: 'inherit',
     shell: process.platform === 'win32',
-    // AOIKO_PLATFORM は購入画面などネイティブ版にしか無い部分と、手引きの出し分けの
-    // 両方を決める唯一の入口。web のビルドはこれを通らないので browser に落ちる。
+    // AOIKO_NATIVE は購入画面などネイティブ版にしか無い部分を出力へ入れる合図。
+    // web のビルドはこれを通らないので、そちら側では畳まれて消える。
     env: {
       ...process.env,
       AOIKO_VERSION: process.env.AOIKO_VERSION ?? tauriConf.version,
-      AOIKO_PLATFORM: platform,
+      AOIKO_NATIVE: '1',
     },
   });
   if (result.status !== 0) {

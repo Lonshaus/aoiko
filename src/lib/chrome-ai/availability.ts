@@ -1,6 +1,6 @@
 // ブラウザ内蔵 AI（LanguageModel）が使えるかを問う。web の産物にだけ入る。
 //
-// LanguageModel が在ることは端末内で推論することの保証にならない。仕様はクラウドを使う実装を
+// LanguageModel が在ることは端末内で推論することの保証にならない。仕様は雲を使う実装を
 // 認めており、同じ名前で文字だけのモデルを載せている環境もある。この app が要る画像入力まで
 // 含めて問い、通らなければ「使えない」に倒す。
 export type ChromeAiAvailability = 'unavailable' | 'downloadable' | 'downloading' | 'available';
