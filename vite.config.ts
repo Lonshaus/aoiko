@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { fileURLToPath, URL } from 'node:url';
 import { readFileSync } from 'node:fs';
-import { stripBuildOnly } from './src/lib/build-only';
+import { isPlatform, PLATFORMS, stripBuildOnly, type Platform } from './src/lib/build-only';
 import { execSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
@@ -17,6 +17,15 @@ const LOCALE_STRATEGY: NonNullable<Parameters<typeof paraglideVitePlugin>[0]['st
   'preferredLanguage',
   'baseLocale',
 ];
+// 出し分けの唯一の入口。未設定は web の build。不正な値は黙って browser に落とさない
+// （落とすとネイティブ版の産物に web 向けの文章が入る）。
+function buildPlatform(): Platform {
+  const value = process.env.AOIKO_PLATFORM ?? 'browser';
+  if (!isPlatform(value)) {
+    throw new Error(`AOIKO_PLATFORM が不正です：${value}（${PLATFORMS.join(' / ')} のみ）`);
+  }
+  return value;
+}
 // PWA キャッシュ版の識別用。git の無いビルド環境（tarball 展開等）でも落ちないようフォールバック
 function gitCommitShort(): string {
   try {
@@ -57,7 +66,7 @@ function dropUnusedTesseractAssets() {
 // 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は
 // `<!-- only:… -->` で囲み、ここで取り除く。表示時に隠すのでは産物に文章が残り、
 // console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
-function stripDocsForBuild(native: boolean) {
+function stripDocsForBuild(platform: Platform) {
   const MANUAL = /\/(docs\/manual\/[^/]+|DISCLAIMER|PRIVACY|SECURITY)(_[\w-]+)?\.md$/;
   return {
     name: 'aoiko-strip-docs-for-build',
@@ -68,7 +77,7 @@ function stripDocsForBuild(native: boolean) {
         return null;
       }
       const name = file.slice(file.lastIndexOf('/') + 1);
-      return `export default ${JSON.stringify(stripBuildOnly(readFileSync(file, 'utf-8'), native, name))}`;
+      return `export default ${JSON.stringify(stripBuildOnly(readFileSync(file, 'utf-8'), platform, name))}`;
     },
   };
 }
@@ -82,10 +91,10 @@ export default defineConfig({
     __APP_COMMIT__: JSON.stringify(gitCommitShort()),
     // ネイティブ版のビルドでだけ true。商店を持たない web に購入画面を含めないため、
     // 実行時の判定ではなくここで畳む。false になった側は import ごと落ちる。
-    __NATIVE__: JSON.stringify(process.env.AOIKO_NATIVE === '1'),
+    __NATIVE__: JSON.stringify(buildPlatform() !== 'browser'),
   },
   plugins: [
-    stripDocsForBuild(process.env.AOIKO_NATIVE === '1'),
+    stripDocsForBuild(buildPlatform()),
     dropUnusedTesseractAssets(),
     tailwindcss(),
     paraglideVitePlugin({
