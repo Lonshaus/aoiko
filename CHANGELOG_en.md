@@ -22,7 +22,7 @@ Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculat
 
 - Employment income deduction not following Appended Table 5 of the Income Tax Act
 - White-return family-employee deduction not being calculated or written on the return
-- Fixed-asset sales missing from taxable sales for consumption tax (Type 4 under simplified taxation)
+- Fixed-asset sales missing from taxable sales for consumption tax (Type 4 under simplified taxation, calculated as two categories when your configured category differs)
 - Interim-filing check ignoring the months in the preceding taxable period
 - The ¥3M cap for the small-value asset rule not being prorated correctly in the opening or closing year
 - Wrong cost and undepreciated balance for assets converted from personal use

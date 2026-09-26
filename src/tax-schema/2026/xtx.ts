@@ -9,7 +9,7 @@
 // （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部 必須）は
 // 必ず載る。所得控除・税額計算は、利用者が personalDeductions を入力した場合のみ載せ、
 // 未入力の場合は従来どおり利用者が e-Tax 上で補完する。
-// 決算書・収支内訳書側は PL/BS/月別を対映する。実申告可否は e-Taxソフト(DL版) での
+// 決算書・収支内訳書側は PL/BS/月別を記載する。実申告可否は e-Taxソフト(DL版) での
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
@@ -68,7 +68,7 @@ export class RealEstateIncomeInputMissingError extends Error {
     this.name = 'RealEstateIncomeInputMissingError';
   }
 }
-// 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
+// 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対応する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
   name: string; // 氏名・名称

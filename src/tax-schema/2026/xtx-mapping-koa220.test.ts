@@ -94,7 +94,7 @@ describe('mapKoa220Values（青色申告決算書・不動産所得用 第1頁�
     expect(mapKoa220Values(ctx())).toEqual({});
   });
 
-  test('賃貸料・必要経費・所得金額を対映する', () => {
+  test('賃貸料・必要経費・所得金額を転記する', () => {
     const out = mapKoa220Values(
       ctx({
         realEstatePl: realEstatePl({
@@ -369,7 +369,7 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     expect(repeats.ANF01160?.[0]?.ANF01190).toBe('A');
   });
 
-  test('借入金利子の内訳（ANF01260）は期末残高も対映する', () => {
+  test('借入金利子の内訳（ANF01260）は期末残高も転記する', () => {
     const loanInterestPaid: RealEstateIncomeCtx['loanInterestPaid'] = [
       { amount: '5000', payeeName: '〇〇銀行', yearEndBalance: '9000000' },
     ];
