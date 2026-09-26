@@ -106,7 +106,7 @@ describe('mapTwoWari（2割特例）', () => {
     expect(result.sha020.ABJ00130).toBe('60100');
   });
 
-  test('D3-F5：売上対価の返還等（7.8%分10,000）を付表6・ABI00060へ転記し、基数から差し引く', () => {
+  test('売上対価の返還等（7.8%分10,000）を付表6・ABI00060へ転記し、基礎から差し引く', () => {
     const result = mapTwoWari({
       taxableBase10: D('1000000'),
       taxableBase8: D('0'),
@@ -129,7 +129,7 @@ describe('mapTwoWari（2割特例）', () => {
     expect(result.sha020.ABU00010).toBe('10000');
   });
 
-  test('D3-F5：未入力時は返還等関連欄が出力されず、差引税額は15,600のまま（回帰）', () => {
+  test('未入力時は返還等関連欄が出力されず、差引税額は15,600のまま（回帰）', () => {
     const result = mapTwoWari({
       taxableBase10: D('1000000'),
       taxableBase8: D('0'),
@@ -141,7 +141,7 @@ describe('mapTwoWari（2割特例）', () => {
     expect(result.sha020.ABI00100).toBe('15600');
   });
 
-  test('D3-F5：両税率とも返還等があれば各税率欄に個別に転記される', () => {
+  test('両税率とも返還等があれば各税率欄に個別に転記される', () => {
     const result = mapTwoWari({
       taxableBase10: D('1000000'),
       taxableBase8: D('500000'),
@@ -165,7 +165,7 @@ describe('mapSimplified（簡易課税）', () => {
     };
   }
 
-  test('D3-F8(a)：印の付いた行（第四種）ありの兼業計算。第五種＋第四種のいずれも分列される', () => {
+  test('印の付いた行（第四種）ありの兼業計算。第五種＋第四種のいずれも別の欄に出る', () => {
     const result = mapSimplified({
       taxableBase10: D('10100000'),
       taxableBase8: D('0'),
@@ -199,7 +199,7 @@ describe('mapSimplified（簡易課税）', () => {
     expect(result.sha020.ABL00130).toBe('100000');
   });
 
-  test('D3-F8(b)：設定区分第一種の兼業。特例（709,020）が原則（706,680）より大きく採用される', () => {
+  test('設定区分第一種の兼業。特例（709,020）が原則（706,680）より大きく採用される', () => {
     const result = mapSimplified({
       taxableBase10: D('10100000'),
       taxableBase8: D('0'),
@@ -221,7 +221,7 @@ describe('mapSimplified（簡易課税）', () => {
     expect(result.sha020Raw.ABL00210).toBe('<kubun_CD>1</kubun_CD>');
   });
 
-  test('D3-F8(c)：R（回帰）印の付いた行が無ければ単一区分の従来経路（DVC）のまま', () => {
+  test('印の付いた行が無ければ単一区分の従来経路（DVC）のまま（回帰）', () => {
     const result = mapSimplified({
       taxableBase10: D('10000000'),
       taxableBase8: D('0'),

@@ -18,7 +18,7 @@ describe('無形固定資産の科目', () => {
   });
 });
 
-describe('F16：固定資産の登録に使う科目', () => {
+describe('固定資産の登録に使う科目', () => {
   test('選択肢はすべて ACCOUNTS_2026 に存在し、1516 を含み、土地と減価償却累計額を含まない', () => {
     const known = new Set(ACCOUNTS_2026.map((a) => a.code));
     const codes = DEPRECIABLE_ASSET_ACCOUNTS.map((a) => a.code);

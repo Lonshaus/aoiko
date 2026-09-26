@@ -94,7 +94,7 @@ export type SettingsMap = {
   interimVoluntaryLapsed: boolean;
   // 中間申告の直前課税期間月数（年分をキーに、届出済み値のみ保持）。未記録の年分は12（既定）
   interimPriorPeriodMonths: Record<number, number>;
-  // 2割／3割特例の基数調整（年分をキー）。金額は Decimal 文字列
+  // 2割／3割特例の基礎調整（年分をキー）。金額は Decimal 文字列
   wariBaseAdjustments: Record<number, StoredWariBaseAdjustments>;
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
   // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。

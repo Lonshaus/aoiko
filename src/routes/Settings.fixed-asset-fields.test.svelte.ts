@@ -159,8 +159,8 @@ describe('固定資産の登録欄', () => {
   });
 });
 
-describe('D2-3／D2-8：少額特例落選資産の画面接線', () => {
-  test('D2-F10：新しい方法選択肢・essentialToBusiness／usableLifeUnderOneYear／leaseTermMonths／decliningBalanceElected を保存できる', async () => {
+describe('少額特例落選資産の画面での扱い', () => {
+  test('新しい方法選択肢・essentialToBusiness／usableLifeUnderOneYear／leaseTermMonths／decliningBalanceElected を保存できる', async () => {
     await renderSettings();
     const methodSelect = field<HTMLSelectElement>(
       `select[title="${m.settings_asset_method_title()}"]`,
@@ -214,7 +214,7 @@ describe('D2-3／D2-8：少額特例落選資産の画面接線', () => {
     });
   });
 
-  test('D2-F10：少額特例のとき decliningBalanceElected チェックボックスを保存できる', async () => {
+  test('少額特例のとき decliningBalanceElected チェックボックスを保存できる', async () => {
     await renderSettings();
     setValue(
       field<HTMLInputElement>(`input[placeholder="${m.settings_asset_name_placeholder()}"]`),
@@ -249,7 +249,7 @@ describe('D2-3／D2-8：少額特例落選資産の画面接線', () => {
     expect(stored[0]?.decliningBalanceElected).toBe(true);
   });
 
-  test('D2-F12b：落選資産の処分は定額法の累計償却額で1520を借記する（修正前は390,000）', async () => {
+  test('落選資産の処分は定額法の累計償却額で1520を借記する（修正前は390,000）', async () => {
     const { generateYearEndDepreciation } = await import('../domain/depreciation');
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     await db.fixedAssets.bulkAdd(

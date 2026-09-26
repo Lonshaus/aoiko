@@ -126,7 +126,7 @@ type IncomeCtx = Pick<
   | 'personalDeductions'
 >;
 // 措法25条の2第2項2号は事業所得を生ずべき事業を営む者に限るため、控除前所得の正負ではなく
-// 事業帳への記帳の有無（総収入・総経費・純損益のいずれかが0でない）で判定する（D1-1(a)）。
+// 事業帳への記帳の有無（総収入・総経費・純損益のいずれかが0でない）で判定する。
 // toKingaku と同じ方式（カンマ・空白除去）で文字列をDecimal化する。
 function parseAmount(s: string): Decimal {
   const t = s.replace(/,/g, '').trim();
@@ -204,7 +204,7 @@ export function homeWorkerAdjustment(ctx: IncomeCtx): HomeWorkerAdjustment {
 }
 // 措法25条の2の控除算定に使う「特例後の控除前事業所得」（青色のみ）。特例が未適用なら
 // pl.netIncome のまま（既存どおり）。所法27条2項の事業所得は既に措法27条を反映済みのため、
-// 青色申告特別控除の基数もこの値を使う（D1-4）。
+// 青色申告特別控除の基礎もこの値を使う。
 export function businessPreDeductionIncomeForAoiro(ctx: IncomeCtx): Decimal {
   const adj = homeWorkerAdjustment(ctx);
   if (!adj.applied) {

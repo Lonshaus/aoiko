@@ -105,7 +105,7 @@ afterEach(async () => {
 });
 
 describe('開業精霊', () => {
-  test('D2-F3：転用資産は原始取得価額で少額特例の門檻を判定し、転用日価額を保存する', async () => {
+  test('転用資産は原始取得価額で少額特例の閾値を判定し、転用日価額を保存する', async () => {
     await db.settings.put({ key: 'filingType', value: 'blue', updatedAt: Date.now() });
     await renderOpeningSetup();
 
@@ -195,7 +195,7 @@ describe('開業精霊', () => {
     }
   });
 
-  test('D2-F11：開業日・廃業日が設定に書き込まれる', async () => {
+  test('開業日・廃業日が設定に書き込まれる', async () => {
     await renderOpeningSetup();
     const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
     setValue(dateInputs[0]!, '2026-07-01', 'input');
@@ -237,7 +237,7 @@ describe('開業精霊', () => {
     expect(await getSetting('businessCloseDate')).toBe('2026-09-30');
   });
 
-  test('D2-F11：開業精霊で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
+  test('開業精霊で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
     await renderOpeningSetup();
     const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
     setValue(dateInputs[0]!, '2026-07-01', 'input');

@@ -219,7 +219,7 @@ export function serviceStartDate(asset: FixedAsset): string {
   return asset.serviceStartDate ?? asset.acquisitionDate;
 }
 // 所令138条1項で業務供用年に全額必要経費算入となる資産。既存の少額特例指定で 10 万円未満の資産もここへ移す。
-// 適用門檻（所令135条により転用資産も含め）は原始取得価額（所令126条の取得価額）で判定する。
+// 適用の閾値（所令135条により転用資産も含め）は原始取得価額（所令126条の取得価額）で判定する。
 export function isImmediateExpenseAsset(asset: FixedAsset): boolean {
   if (asset.usableLifeUnderOneYear === true) {
     return true;
@@ -243,7 +243,7 @@ function isSmallAssetSpecialCandidate(asset: FixedAsset, year: number): boolean 
 }
 // 全資産・全年度分の少額特例の適用状況をまとめて判定する。年ごとに取得日昇順で年合計 300 万円
 // （開業・廃業年は月割）の cap を充当し、要件外（isSmallAssetEligible=false）または cap 超過は
-// 'ineligible' / 'cap-exceeded' として返す。落選判定の取得価額門檻は原始取得価額（所令126条）を使う。
+// 'ineligible' / 'cap-exceeded' として返す。落選判定の取得価額の閾値は原始取得価額（所令126条）を使う。
 // 結果は資産 id 単位で年度に関わらず一意（業務供用年に一度だけ判定される）。
 export function smallAssetSpecialStatuses(
   assets: readonly FixedAsset[],
@@ -655,7 +655,7 @@ function computeOldMethod(
   if (isDeclining && decliningRate === undefined) {
     throw new Error(`旧定率法の償却率テーブルに耐用年数 ${asset.usefulLifeYears} 年が未登録`);
   }
-  // 限度額・5年均等の基数は原始取得価額基準（所令135条）。転用前に視為已償却の差額
+  // 限度額・5年均等の基礎は原始取得価額基準（所令135条）。転用前に償却済みとみなされる差額
   // （preConversionDeemed）を accumulated の見做し起点に加え、95%到達判定を原始取得価額基準に揃える。
   const originalCost = D(asset.acquisitionCost);
   const preConversionDeemed = originalCost.minus(cost);

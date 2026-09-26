@@ -105,7 +105,7 @@
       return null;
     }
   }
-  // 少額特例の適用門檻は原始取得価額で判定する（所令135条：転用資産も所令126条の取得価額が基準）。
+  // 少額特例の適用の閾値は原始取得価額で判定する（所令135条：転用資産も所令126条の取得価額が基準）。
   // 30/40 万円閾値切替（令和8年改正、2026-04-01）は取得日で判定する（措法 28 の 2）
   function smallAssetEligibleByAcquisition(row: ConvertedAssetRow): boolean {
     if (!row.acquisitionDate || !row.acquisitionCost) {

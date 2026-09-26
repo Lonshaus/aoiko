@@ -148,7 +148,7 @@
   let interimVoluntary = $state<InterimVoluntaryInputs>({});
   // 中間申告：直前課税期間の月数（年分をキーに設定へ保存）。空欄は12（既定）
   let interimPriorPeriodMonthsInput = $state('');
-  // 2割／3割特例の基数調整（年分をキーに設定へ保存）。空欄は未入力（除外事由なし）
+  // 2割／3割特例の基礎調整（年分をキーに設定へ保存）。空欄は未入力（除外事由なし）
   let wariSalesReturnTax78Input = $state('');
   let wariSalesReturnTax624Input = $state('');
   let wariSpecifiedSmallAssetTransfers = $state<StoredSpecifiedSmallAssetTransfer[]>([]);

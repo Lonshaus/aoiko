@@ -1,4 +1,4 @@
-// D1-F1／D1-F8：青色申告特別控除の eTax 選択肢と、現金主義（cashBasisElection）の
+// 青色申告特別控除の eTax 選択肢と、現金主義（cashBasisElection）の
 // チェックボックスが保存・再読込後も保持されるかを見る。
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -61,14 +61,14 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('D1-F1：青色申告特別控除の区分に eTax 選択肢がある', () => {
+describe('青色申告特別控除の区分に eTax 選択肢がある', () => {
   test('option[value="eTax"] が存在する', async () => {
     const el = await renderSettings();
     expect(el.querySelector('option[value="eTax"]')).not.toBeNull();
   });
 });
 
-describe('D1-F8：現金主義（cashBasisElection）の保存・再読込', () => {
+describe('現金主義（cashBasisElection）の保存・再読込', () => {
   test('チェックして保存すると設定が true になり、再読込後も表示に反映される', async () => {
     const el = await renderSettings();
     const checkbox = findCashBasisCheckbox(el);

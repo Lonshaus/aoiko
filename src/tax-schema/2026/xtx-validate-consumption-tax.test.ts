@@ -259,7 +259,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     }
   });
 
-  // D3-F5：2割特例の売上対価の返還等（税率別）を含む mapTwoWari が公式 xsd に適合する
+  // 2割特例の売上対価の返還等（税率別）を含む mapTwoWari が公式 xsd に適合する
   maybe('mapTwoWari（売上対価の返還等あり）の実 mapping 経路が公式 xsd に適合する', () => {
     const mapping = mapTwoWari({
       taxableBase10: D('1000000'),
@@ -286,7 +286,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     }
   });
 
-  // D3-F8：簡易課税の兼業（設定区分＋印の付いた行の第四種）が公式 xsd に適合する。
+  // 簡易課税の兼業（設定区分＋印の付いた行の第四種）が公式 xsd に適合する。
   // 付表5-3 (1)〜(3) 全欄と、原則が採用される場合（ABL00210 は立たない）を検証する
   maybe(
     'mapSimplified（兼業、印の付いた行あり・原則採用）の実 mapping 経路が公式 xsd に適合する',

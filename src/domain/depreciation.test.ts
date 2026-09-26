@@ -552,7 +552,7 @@ describe('generateYearEndDepreciation - small-asset-special', () => {
 });
 
 describe('既存データの既定の扱い（新しい項目が未設定なら従来と同じ）', () => {
-  test('R1：assetCategory・残価保証額が未設定なら 1 円残し（明示した 7 号と同じ結果）', () => {
+  test('assetCategory・残価保証額が未設定なら 1 円残し（明示した 7 号と同じ結果）', () => {
     const base = asset({ acquisitionDate: '2026-01-01', usefulLifeYears: 4 });
     const explicit = asset({ ...base, assetCategory: 7 });
     for (const y of [2026, 2027, 2028, 2029, 2030]) {
@@ -561,20 +561,20 @@ describe('既存データの既定の扱い（新しい項目が未設定なら�
     expect(computeDepreciation(base, 2029).bookValueEnd).toBe('1');
   });
 
-  test('R1：リース契約日だけ・残価保証額だけでは 2 号ハを適用しない', () => {
+  test('リース契約日だけ・残価保証額だけでは 2 号ハを適用しない', () => {
     const onlyDate = asset({ leaseContractDate: '2026-01-01' });
     const onlyGuarantee = asset({ residualGuaranteeAmount: '50000' });
     expect(computeDepreciation(onlyDate, 2029).bookValueEnd).toBe('1');
     expect(computeDepreciation(onlyGuarantee, 2029).bookValueEnd).toBe('1');
   });
 
-  test('R2：conversionBasis が未設定なら償却の基礎は acquisitionCost', () => {
+  test('conversionBasis が未設定なら償却の基礎は acquisitionCost', () => {
     const r = computeDepreciation(asset({ acquisitionCost: '300000' }), 2026);
     expect(r.depreciationBase).toBe('300000');
     expect(r.amount).toBe('75000');
   });
 
-  test('R3：グループ合計を渡さなければ資産ごとに ÷3', () => {
+  test('グループ合計を渡さなければ資産ごとに ÷3', () => {
     const a = asset({
       acquisitionDate: '2026-01-01',
       acquisitionCost: '100000',
@@ -587,7 +587,7 @@ describe('既存データの既定の扱い（新しい項目が未設定なら�
 });
 
 describe('償却可能限度額（所令134条1項2号）', () => {
-  test('F1：8 号無形固定資産は期末簿価 0 まで償却する', () => {
+  test('8 号無形固定資産は期末簿価 0 まで償却する', () => {
     const a = asset({
       acquisitionDate: '2026-01-01',
       acquisitionCost: '1000000',
@@ -602,7 +602,7 @@ describe('償却可能限度額（所令134条1項2号）', () => {
     expect(computeDepreciation(a, 2031).amount).toBe('0');
   });
 
-  test('F1：坑道は期末簿価 0 まで償却する', () => {
+  test('坑道は期末簿価 0 まで償却する', () => {
     const a = asset({
       acquisitionDate: '2026-01-01',
       acquisitionCost: '1000000',
@@ -638,7 +638,7 @@ describe('償却可能限度額（所令134条1項2号）', () => {
 });
 
 describe('旧償却方法（所令134条1項1号・2項）', () => {
-  test('F2：旧定額法＋1 号（建物）は取得価額の 95% で止まり、翌年以後 5 年で 1 円まで均等償却', () => {
+  test('旧定額法＋1 号（建物）は取得価額の 95% で止まり、翌年以後 5 年で 1 円まで均等償却', () => {
     // 100 万円・耐用 2 年（旧定額法償却率 0.500）・残存価額 10 万円 → 年 450,000
     const a = asset({
       acquisitionDate: '2006-01-01',
@@ -664,7 +664,7 @@ describe('旧償却方法（所令134条1項1号・2項）', () => {
     expect(computeDepreciation(a, 2014).amount).toBe('0');
   });
 
-  test('F3：旧定額法＋8 号無形固定資産は全額まで償却し、5 年均等償却は適用しない', () => {
+  test('旧定額法＋8 号無形固定資産は全額まで償却し、5 年均等償却は適用しない', () => {
     const a = asset({
       acquisitionDate: '2006-01-01',
       acquisitionCost: '1000000',
@@ -738,7 +738,7 @@ describe('旧償却方法（所令134条1項1号・2項）', () => {
 });
 
 describe('一括償却資産のグループ（所令139条1項の一括償却対象額）', () => {
-  test('F14：同グループ 100,000 と 200,000 は各年の合計が 100,000', () => {
+  test('同グループ 100,000 と 200,000 は各年の合計が 100,000', () => {
     const small = asset({
       id: 'p1',
       acquisitionDate: '2026-02-01',
@@ -810,8 +810,8 @@ describe('一括償却資産のグループ（所令139条1項の一括償却対
   });
 });
 
-describe('所令138条1項の一次費用化', () => {
-  test('F6：既存の少額特例・取得価額 50,000・新しい項目なし → 取得年に全額、要件外に数えない', async () => {
+describe('所令138条1項の即時費用化', () => {
+  test('既存の少額特例・取得価額 50,000・新しい項目なし → 取得年に全額、要件外に数えない', async () => {
     await db.fixedAssets.add(
       asset({
         id: 'cheap',
@@ -831,7 +831,7 @@ describe('所令138条1項の一次費用化', () => {
     expect(expense?.amount).toBe('50000');
   });
 
-  test('F7：使用可能期間 1 年未満・取得価額 150,000 は方法を問わず取得年に全額', () => {
+  test('使用可能期間 1 年未満・取得価額 150,000 は方法を問わず取得年に全額', () => {
     for (const method of ['straight-line', 'lump-sum'] as const) {
       const a = asset({
         acquisitionDate: '2026-10-01',
@@ -872,7 +872,7 @@ describe('所令138条1項の一次費用化', () => {
 });
 
 describe('少額特例の要件（措法28の2・措令18条の5）', () => {
-  test('F8：取得日で従業員数の上限が 500 人／400 人に分かれる', async () => {
+  test('取得日で従業員数の上限が 500 人／400 人に分かれる', async () => {
     await db.fixedAssets.bulkAdd([
       asset({
         id: 'before',
@@ -894,7 +894,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetIneligible).toBe(1);
   });
 
-  test('R5：従業員数が未設定なら従来どおり適用', async () => {
+  test('従業員数が未設定なら従来どおり適用', async () => {
     await db.fixedAssets.add(
       asset({
         acquisitionDate: '2026-04-01',
@@ -907,7 +907,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetIneligible).toBe(0);
   });
 
-  test('F9：貸付け用（主要な業務以外）は少額特例の要件外', async () => {
+  test('貸付け用（主要な業務以外）は少額特例の要件外', async () => {
     await db.fixedAssets.add(
       asset({
         acquisitionDate: '2026-04-01',
@@ -921,7 +921,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetIneligible).toBe(1);
   });
 
-  test('F10：開業日 2026-07-01 なら上限は 6 か月分の 1,500,000', async () => {
+  test('開業日 2026-07-01 なら上限は 6 か月分の 1,500,000', async () => {
     for (const date of ['2026-07-01', '2026-08-01', '2026-09-01', '2026-10-01']) {
       await db.fixedAssets.add(
         asset({
@@ -938,7 +938,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetCapExceeded).toBe(1);
   });
 
-  test('F10：開業日は開業精霊の開業仕訳の日付から取る', async () => {
+  test('開業日は開業精霊の開業仕訳の日付から取る', async () => {
     await db.journalEntries.add({
       id: 'opening',
       date: '2026-07-01',
@@ -964,7 +964,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetCapExceeded).toBe(1);
   });
 
-  test('F10：廃業日 2026-09-30 なら上限は 9 か月分の 2,250,000', async () => {
+  test('廃業日 2026-09-30 なら上限は 9 か月分の 2,250,000', async () => {
     for (let i = 0; i < 6; i++) {
       await db.fixedAssets.add(
         asset({
@@ -982,8 +982,8 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
   });
 });
 
-describe('D2-1：転用資産（所令135条）は原始取得価額を年額・保証額の基準にする', () => {
-  test('D2-F1：定額法・耐用10年、原始1,000,000・転用日600,000 → 年額100,000、第6年99,999、以後0', () => {
+describe('転用資産（所令135条）は原始取得価額を年額・保証額の基準にする', () => {
+  test('定額法・耐用10年、原始1,000,000・転用日600,000 → 年額100,000、第6年99,999、以後0', () => {
     const a = asset({
       acquisitionDate: '2020-01-01',
       acquisitionCost: '1000000',
@@ -999,7 +999,7 @@ describe('D2-1：転用資産（所令135条）は原始取得価額を年額・
     expect(computeDepreciation(a, 2032).amount).toBe('0');
   });
 
-  test('D2-F2：定率法・耐用10年、原始1,000,000・転用日600,000 → 首年120,000、保証額65,520、第4年に改定償却率へ切替', () => {
+  test('定率法・耐用10年、原始1,000,000・転用日600,000 → 初年120,000、保証額65,520、第4年に改定償却率へ切替', () => {
     const a = asset({
       acquisitionDate: '2020-01-01',
       acquisitionCost: '1000000',
@@ -1016,7 +1016,7 @@ describe('D2-1：転用資産（所令135条）は原始取得価額を年額・
     expect(y4.depreciationBase).toBe('307200');
   });
 
-  test('D2-F2b：旧定率法の転用資産は原始取得価額の95%到達（視為已償却の差額を含む）で5年均等へ、基数は原始5%−1', () => {
+  test('旧定率法の転用資産は原始取得価額の95%到達（償却済みとみなされる差額を含む）で5年均等へ、基礎は原始5%−1', () => {
     const a = asset({
       acquisitionDate: '2006-01-01',
       acquisitionCost: '1000000',
@@ -1044,8 +1044,8 @@ describe('D2-1：転用資産（所令135条）は原始取得価額を年額・
   });
 });
 
-describe('D2-2：旧定率法償却率テーブルは耐用年数2〜100年', () => {
-  test('D2-F4：耐用30年は0.074、2〜100年で例外を投げない', () => {
+describe('旧定率法償却率テーブルは耐用年数2〜100年', () => {
+  test('耐用30年は0.074、2〜100年で例外を投げない', () => {
     const a = asset({
       acquisitionDate: '2006-01-01',
       acquisitionCost: '1000000',
@@ -1064,8 +1064,8 @@ describe('D2-2：旧定率法償却率テーブルは耐用年数2〜100年', ()
   });
 });
 
-describe('D2-5：リース期間定額法（所令120条の2第1項6号）', () => {
-  test('D2-F7：取得価額1,200,000・リース期間60か月・当年使用6か月 → 120,000', () => {
+describe('リース期間定額法（所令120条の2第1項6号）', () => {
+  test('取得価額1,200,000・リース期間60か月・当年使用6か月 → 120,000', () => {
     const a = asset({
       acquisitionDate: '2026-07-01',
       acquisitionCost: '1200000',
@@ -1075,7 +1075,7 @@ describe('D2-5：リース期間定額法（所令120条の2第1項6号）', () 
     expect(computeDepreciation(a, 2026).amount).toBe('120000');
   });
 
-  test('D2-F7：残価保証200,000・契約2027-03-31以前 → 100,000', () => {
+  test('残価保証200,000・契約2027-03-31以前 → 100,000', () => {
     const a = asset({
       acquisitionDate: '2026-07-01',
       acquisitionCost: '1200000',
@@ -1087,7 +1087,7 @@ describe('D2-5：リース期間定額法（所令120条の2第1項6号）', () 
     expect(computeDepreciation(a, 2026).amount).toBe('100000');
   });
 
-  test('D2-F7：契約2027-04-01以後は残価保証を減じない → 120,000', () => {
+  test('契約2027-04-01以後は残価保証を減じない → 120,000', () => {
     const a = asset({
       acquisitionDate: '2026-07-01',
       acquisitionCost: '1200000',
@@ -1100,8 +1100,8 @@ describe('D2-5：リース期間定額法（所令120条の2第1項6号）', () 
   });
 });
 
-describe('D2-3：少額特例の落選資産は通常償却へ切替', () => {
-  test('D2-F5：cap 超過資産は定額法で当年償却し、翌年も継続する', async () => {
+describe('少額特例の落選資産は通常償却へ切替', () => {
+  test('cap 超過資産は定額法で当年償却し、翌年も継続する', async () => {
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     for (const d of dates) {
       await db.fixedAssets.add(
@@ -1128,7 +1128,7 @@ describe('D2-3：少額特例の落選資産は通常償却へ切替', () => {
     expect(entries2027.some((e) => e.description.includes(eighthTag))).toBe(true);
   });
 
-  test('D2-F5：decliningBalanceElected=true の落選資産は定率法で償却する', async () => {
+  test('decliningBalanceElected=true の落選資産は定率法で償却する', async () => {
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     for (const d of dates) {
       await db.fixedAssets.add(
@@ -1155,7 +1155,7 @@ describe('D2-3：少額特例の落選資産は通常償却へ切替', () => {
   });
 });
 
-describe('D2-2：旧定率法償却率テーブルは耐用年数省令別表第七の値と1件ずつ一致する', () => {
+describe('旧定率法償却率テーブルは耐用年数省令別表第七の値と1件ずつ一致する', () => {
   test('2〜100年、qa/tax-sources/49_taiyonensu_shourei_beppyo7_8.md の転記値と一致（式ではなく条文の表そのもの）', () => {
     // 別表第七「旧定率法」列を1件ずつ書き写した参照値（コードの定数とは独立に、
     // このテストファイル内に別途書き写す。式による算出はしない）。
@@ -1267,7 +1267,7 @@ describe('D2-2：旧定率法償却率テーブルは耐用年数省令別表第
     }
   });
 });
-describe('D2-1／D2-3：少額特例の年度上限累計は原始取得価額で計る（転用資産も所令126条の取得価額）', () => {
+describe('少額特例の年度上限累計は原始取得価額で計る（転用資産も所令126条の取得価額）', () => {
   test('先頭の転用資産（原始390,000・転用日価額100）を原始取得価額で数えると、8件目が上限超過で落選する', () => {
     const converted = asset({
       id: 'converted',

@@ -181,7 +181,7 @@ describe('allocateAoiroDeduction：令和9年分以後の措法25条の2第2項�
     expect(r.realEstateDeduction.toString()).toBe('100000');
   });
 
-  test('D1-F11(1)：赤字の事業を正規の簿記で経営していれば2項の影響を受けず10万（simple なら0）', () => {
+  test('赤字の事業を正規の簿記で経営していれば2項の影響を受けず10万（simple なら0）', () => {
     const doubleEntry = allocateAoiroDeduction(
       2027,
       'doubleEntry',

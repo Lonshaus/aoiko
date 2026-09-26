@@ -105,20 +105,20 @@ describe('salaryIncomeAmount', () => {
     expect(salaryIncomeAmount(2028, D(600_000)).toString()).toBe('0');
   });
 
-  describe('D1-F4：別表第五の区分値（本則の連続値ではない）', () => {
+  describe('別表第五の区分値（本則の連続値ではない）', () => {
     test('令和10年分・収入3,000,001円', () => {
       expect(salaryIncomeAmount(2028, D(3_000_001)).toString()).toBe('2020000');
     });
   });
 
-  describe('D1-F5：令和8年分・収入670,000円は新旧表で結果が異なる', () => {
+  describe('令和8年分・収入670,000円は新旧表で結果が異なる', () => {
     test('未指定（新表）は0円、lastPaymentBeforeDecember指定（旧表）は20,000円', () => {
       expect(salaryIncomeAmount(2026, D(670_000)).toString()).toBe('0');
       expect(salaryIncomeAmount(2026, D(670_000), true).toString()).toBe('20000');
     });
   });
 
-  describe('D1-F6：令和8年分・収入1,500,000円は措法29条の4第2項が優先し新旧表の指定を問わない', () => {
+  describe('令和8年分・収入1,500,000円は措法29条の4第2項が優先し新旧表の指定を問わない', () => {
     test('lastPaymentBeforeDecember の有無に関わらず760,000円', () => {
       expect(salaryIncomeAmount(2026, D(1_500_000)).toString()).toBe('760000');
       expect(salaryIncomeAmount(2026, D(1_500_000), true).toString()).toBe('760000');

@@ -75,9 +75,9 @@ describe('getSetting は加工しない', () => {
   });
 });
 
-// D1-F14：令和9年分以後の75万円が電磁的記録の備付け・保存を要件とすることを、
+// 令和9年分以後の75万円が電磁的記録の備付け・保存を要件とすることを、
 // 三語すべての settings_aoiro_electronic が書いていること（両方の呼出経路が共通で使う）。
-describe('D1-F14：messages/*.json の settings_aoiro_electronic', () => {
+describe('messages/*.json の settings_aoiro_electronic', () => {
   function aoiroElectronicText(locale: string): string {
     const json = JSON.parse(readFileSync(resolve(`messages/${locale}.json`), 'utf-8'));
     return json.settings_aoiro_electronic as string;

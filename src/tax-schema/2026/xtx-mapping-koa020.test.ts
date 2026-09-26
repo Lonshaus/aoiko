@@ -691,7 +691,7 @@ describe('mapKoa020LeafValues / mapKoa020RepeatedValues（白色・事業専従�
     expect(row?.ABE00030).toBeUndefined(); // 生年月日は収集しない
   });
 });
-describe('D1：措法25条の2の事業を営むか否かの判定・前々年分収入・家内労働者等の特例', () => {
+describe('措法25条の2の事業を営むか否かの判定・前々年分収入・家内労働者等の特例', () => {
   const plBase = {
     year: 2026,
     revenue: [],
@@ -739,7 +739,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     };
   }
 
-  test('D1-F7：家内労働者等の特例あり／なし（簡易簿記、令和8年分）', () => {
+  test('家内労働者等の特例あり／なし（簡易簿記、令和8年分）', () => {
     const withHomeWorker = ctx({
       pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
       aoiroDeductionKind: 'simple',
@@ -765,7 +765,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(koa210Without.AMF00530).toBe('600000');
   });
 
-  test('D1-F9：令和9年分・簡易簿記・前々年分事業収入1,200万円で事業的規模の不動産所得と合算すると控除0（修正前は100,000）', () => {
+  test('令和9年分・簡易簿記・前々年分事業収入1,200万円で事業的規模の不動産所得と合算すると控除0（修正前は100,000）', () => {
     const personalDeductions = personalDeductionsToCtx(
       storedBase({
         priorPriorBusinessRevenue: '12000000',
@@ -784,7 +784,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa220Values(c).ANF00260).toBe('0');
   });
 
-  test('D1-F11(2)：事業を営んでいなければ前々年分事業収入を渡しても誤って0にならない（100,000のまま）', () => {
+  test('事業を営んでいなければ前々年分事業収入を渡しても誤って0にならない（100,000のまま）', () => {
     const personalDeductions = personalDeductionsToCtx(
       storedBase({
         priorPriorBusinessRevenue: '12000000',
@@ -802,7 +802,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa220Values(c).ANF00260).toBe('100000');
   });
 
-  test('D1-F13(a)：事業が赤字でも収入があれば経営事業に当たり、事業的規模でない不動産所得にも65万枠が及ぶ', () => {
+  test('事業が赤字でも収入があれば経営事業に当たり、事業的規模でない不動産所得にも65万枠が及ぶ', () => {
     const c = ctx({
       pl: { ...plBase, totalRevenue: '600000', totalExpense: '700000', netIncome: '-100000' },
       aoiroDeductionKind: 'electronic',
@@ -815,7 +815,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa020LeafValues(c).ABB00800).toBe('650000');
   });
 
-  test('D1-F13(b)：家内労働者等の特例で控除前事業所得が0でも経営事業の判定は変わらない（特例後所得の符号を使うと誤って100,000になる）', () => {
+  test('家内労働者等の特例で控除前事業所得が0でも経営事業の判定は変わらない（特例後所得の符号を使うと誤って100,000になる）', () => {
     const c = ctx({
       pl: { ...plBase, totalRevenue: '600000', totalExpense: '100000', netIncome: '500000' },
       aoiroDeductionKind: 'electronic',
@@ -830,7 +830,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa020LeafValues(c).ABB00800).toBe('650000');
   });
 
-  test('D1-F15：事業帳への記帳が無ければ経営事業に当たらず、非事業的規模の不動産所得は10万に降格（回帰なし）', () => {
+  test('事業帳への記帳が無ければ経営事業に当たらず、非事業的規模の不動産所得は10万に降格（回帰なし）', () => {
     const c = ctx({
       pl: { ...plBase },
       aoiroDeductionKind: 'electronic',
@@ -843,7 +843,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa020LeafValues(c).ABB00800).toBe('100000');
   });
 
-  test('D1-F16：家内労働者等の特例・雑所得のみ（事業なし）', () => {
+  test('家内労働者等の特例・雑所得のみ（事業なし）', () => {
     const c = ctx({
       pl: { ...plBase },
       personalDeductions: {
@@ -855,7 +855,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa020LeafValues(c).ABB01120).toBe('0');
   });
 
-  test('D1-F17：家内労働者等の特例・給与所得ありで保障額から給与所得控除額を差し引く', () => {
+  test('家内労働者等の特例・給与所得ありで保障額から給与所得控除額を差し引く', () => {
     const c = ctx({
       pl: { ...plBase, totalRevenue: '800000', totalExpense: '50000', netIncome: '750000' },
       aoiroDeductionKind: 'simple',
@@ -868,7 +868,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(totalIncomeAmount(c).toString()).toBe('610000');
   });
 
-  test('D1-F18：事業所得・雑所得を両方持つ場合の措令18条の2第2項2号の按分', () => {
+  test('事業所得・雑所得を両方持つ場合の措令18条の2第2項2号の按分', () => {
     const c = ctx({
       pl: { ...plBase, totalRevenue: '300000', totalExpense: '100000', netIncome: '200000' },
       personalDeductions: {
@@ -881,7 +881,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(mapKoa020LeafValues(c).ABB01120).toBe('0');
   });
 
-  test('D1-F19：白色申告・家内労働者等の特例（専従者なし）', () => {
+  test('白色申告・家内労働者等の特例（専従者なし）', () => {
     const c = ctx({
       filingType: 'white',
       pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
@@ -894,7 +894,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(koa110.AIG00400).toBe('110000'); // 所得金額（第一表事業所得と一致）
   });
 
-  test('D1-F20：白色申告・家内労働者等の特例＋事業専従者（配偶者）：ABB00790は0、専従者本人は残る', () => {
+  test('白色申告・家内労働者等の特例＋事業専従者（配偶者）：ABB00790は0、専従者本人は残る', () => {
     const c = ctx({
       filingType: 'white',
       pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
@@ -919,7 +919,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(koa110.AIG00400).toBe('110000');
   });
 
-  test('D1-F21：事業側の家内労働者等の特例は不動産側の専従者控除に影響しない（ABB00790は不動産部分のみ）', () => {
+  test('事業側の家内労働者等の特例は不動産側の専従者控除に影響しない（ABB00790は不動産部分のみ）', () => {
     const c = ctx({
       filingType: 'white',
       pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
@@ -950,7 +950,7 @@ describe('D1：措法25条の2の事業を営むか否かの判定・前々年�
     expect(realEstate?.ABE00070).toBe('500000');
   });
 });
-describe('D1-F10（計算部分）：ctx.cashBasis が青色申告特別控除に反映される', () => {
+describe('計算部分：ctx.cashBasis が青色申告特別控除に反映される', () => {
   test('cashBasis=true・electronic・令和8年分：控除は10万に留まる（65万ではない）', () => {
     const c = ctx({
       pl: {

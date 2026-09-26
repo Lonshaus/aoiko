@@ -119,7 +119,7 @@ describe('interimFilingObligation：直前の課税期間の月数（消法42条
     '96000005',
   ];
 
-  test('R1：月数を渡さないときは改修前の判定・金額と完全に同じ', () => {
+  test('月数を渡さないときは改修前の判定・金額と完全に同じ', () => {
     for (const v of samples) {
       const prior = D(v);
       const current = interimFilingObligation(2026, prior);
@@ -134,7 +134,7 @@ describe('interimFilingObligation：直前の課税期間の月数（消法42条
     }
   });
 
-  test('F1：直前の課税期間7か月・確定税額3,500,000は ÷7 で判定し、年額4,000,000以下の旧判定と異なる', () => {
+  test('直前の課税期間7か月・確定税額3,500,000は ÷7 で判定し、年額4,000,000以下の旧判定と異なる', () => {
     const prior = D('3500000');
     const legacy = legacyObligation(prior);
     expect(legacy.count).toBe(1);
@@ -155,7 +155,7 @@ describe('interimFilingObligation：直前の課税期間の月数（消法42条
 });
 
 describe('interimFilingObligation：任意の中間申告（消法42条8項・11項、44条）', () => {
-  test('R4：届出の入力が無ければ24万円以下の義務なしは従来どおり', () => {
+  test('届出の入力が無ければ24万円以下の義務なしは従来どおり', () => {
     expect(interimFilingObligation(2026, D('300000'))).toEqual({
       installmentCount: 0,
       installments: [],
@@ -182,7 +182,7 @@ describe('interimFilingObligation：任意の中間申告（消法42条8項・11
     expect(r.installments[0]!.amount.national).toBe('150000');
   });
 
-  test('F13：期限までに出さなかった後は以後の年度で任意の中間申告は生じず、みなし申告も生じない', () => {
+  test('期限までに出さなかった後は以後の年度で任意の中間申告は生じず、みなし申告も生じない', () => {
     for (const year of [2026, 2027, 2028]) {
       const r = interimFilingObligation(year, D('300000'), 12, {
         interimVoluntaryFiled: true,

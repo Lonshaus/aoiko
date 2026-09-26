@@ -195,7 +195,7 @@ export interface ParserRule {
 }
 // 'scrap'＝除却（廃棄、対価なし）。帳簿価額全額を必要経費（固定資産除却損）に計上。
 // 'sale'＝売却（対価あり）。個人事業主の事業用資産売却は譲渡所得（総合課税）に該当し
-// 事業所得に含められないため、売却対価と帳簿価額の差額は事業主貸/事業主借で結転し
+// 事業所得に含められないため、売却対価と帳簿価額の差額は事業主貸/事業主借で精算し
 // 損益計算書には影響させない（freee 方式、詳細は asset-disposal.ts 冒頭コメント参照）。
 export type DisposalType = 'scrap' | 'sale';
 // KOA220（青色申告決算書・不動産所得用）第2頁「貸家等の状況」相当。
@@ -272,7 +272,7 @@ export interface FixedAsset {
   essentialToBusiness?: boolean;
   /** リース期間定額法（所令120条の2第1項6号）のリース期間月数 */
   leaseTermMonths?: number;
-  /** 定率法を選定（所令123条2項）または視為（同3項）している資産区分か。未指定は定額法 */
+  /** 定率法を選定（所令123条2項）またはみなし選定（同3項）している資産区分か。未指定は定額法 */
   decliningBalanceElected?: boolean;
 }
 

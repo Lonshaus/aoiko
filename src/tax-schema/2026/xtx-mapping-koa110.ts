@@ -166,7 +166,7 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
   const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
   // 措法27条（家内労働者等の特例）適用時は「総収入−特例後経費」を専従者控除前の
-  // 所得金額・所得金額の両方に使い、専従者控除は0にする（D1-4、所法57条3項の
+  // 所得金額・所得金額の両方に使い、専従者控除は0にする（所法57条3項の
   // みなし必要経費は特例適用時は所得計算に入らない）。
   const homeWorker = homeWorkerAdjustment(ctx);
   const displayPreDeductionIncome = homeWorker.applied

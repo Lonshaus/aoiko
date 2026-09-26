@@ -1,11 +1,11 @@
-// D3-F6：2割／3割特例の基数調整欄の説明文言が、三語とも「未だ相殺していない」旨と
+// 2割／3割特例の基礎調整欄の説明文言が、三語とも「未だ相殺していない」旨と
 // 「消費税（国税）部分のみ」旨の2つの限定を含むことを確認する。
 import { describe, expect, test } from 'vitest';
 import ja from '../../messages/ja.json';
 import en from '../../messages/en.json';
 import zhTW from '../../messages/zh-TW.json';
 
-describe('D3-F6：messages/*.json の reports_wari_sales_return_tax_hint', () => {
+describe('messages/*.json の reports_wari_sales_return_tax_hint', () => {
   test('日本語は「相殺」（未だ相殺していない）と「国税」の2つの限定を含む', () => {
     const text = ja.reports_wari_sales_return_tax_hint;
     expect(text).toContain('相殺');

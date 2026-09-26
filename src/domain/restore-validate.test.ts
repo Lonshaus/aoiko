@@ -170,7 +170,7 @@ describe('明細と仕訳の対応', () => {
   });
 });
 
-describe('D1-R3：personalDeductions の旧フィールドのみの旧バックアップも還原できる', () => {
+describe('personalDeductions の旧フィールドのみの旧バックアップも復元できる', () => {
   test('priorPriorBusinessRevenue・priorPriorRealEstateRevenue・homeWorker が無くても通る', () => {
     const oldBackupRow = {
       year: 2026,

@@ -407,7 +407,7 @@ describe('personalDeductionsToCtx（issue #307: 事業専従者との相互排�
   });
 });
 
-describe('personalDeductionsToCtx（D1：前々年分収入・家内労働者等の特例・給与の新旧表フラグ）', () => {
+describe('personalDeductionsToCtx（前々年分収入・家内労働者等の特例・給与の新旧表フラグ）', () => {
   function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
     return {
       socialInsurancePaid: '0',
@@ -440,7 +440,7 @@ describe('personalDeductionsToCtx（D1：前々年分収入・家内労働者等
     expect(ctx.salaryIncome?.lastPaymentBeforeDecember).toBe(true);
   });
 
-  test('D1-R3：新フィールドが無い旧バックアップは undefined のまま（既存データ不変原則）', () => {
+  test('新フィールドが無い旧バックアップは undefined のまま（既存データ不変原則）', () => {
     const { priorPriorBusinessRevenue, priorPriorRealEstateRevenue, homeWorker, ...rest } =
       makeStored();
     const ctx = personalDeductionsToCtx({

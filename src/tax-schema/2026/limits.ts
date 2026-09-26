@@ -114,11 +114,11 @@ export function smallAssetAnnualCap(
 interface AssetUseConditions {
   usableLifeUnderOneYear?: boolean | undefined;
   isLeasedOut?: boolean | undefined;
-  /** 令和4年政令第136号附則4条・同法律第4号附則31条：出租排除の適用は2022-04-01以後取得分のみ */
+  /** 令和4年政令第136号附則4条・同法律第4号附則31条：貸付けの除外の適用は2022-04-01以後取得分のみ */
   acquisitionDate?: string | undefined;
 }
-// 令和4年政令第136号附則4条・同法律第4号附則31条：出租排除は2022-04-01以後取得分のみ適用。
-// acquisitionDate 未指定時は照舊（排除を適用、既存データ互換）。
+// 令和4年政令第136号附則4条・同法律第4号附則31条：貸付けの除外は2022-04-01以後取得分のみ適用。
+// acquisitionDate 未指定時は従来どおり（排除を適用、既存データ互換）。
 const LEASED_OUT_EXCLUSION_START = '2022-04-01';
 function appliesLeasedOutExclusion(acquisitionDate: string | undefined): boolean {
   return acquisitionDate === undefined || acquisitionDate >= LEASED_OUT_EXCLUSION_START;

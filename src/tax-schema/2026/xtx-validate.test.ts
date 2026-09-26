@@ -703,7 +703,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('D2-F9：措法28の2第3項明細（まとめ行）が公式 xsd に適合する', () => {
+  maybe('措法28の2第3項明細（まとめ行）が公式 xsd に適合する', () => {
     const fixedAssets: FixedAsset[] = [
       {
         id: 'a',

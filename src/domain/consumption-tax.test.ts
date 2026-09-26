@@ -1123,7 +1123,7 @@ describe('2割特例・3割特例：特別控除税額の1円未満切捨て（i
   });
 });
 
-describe('D3-F7：課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
+describe('課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
   test('資産科目の行に印を付けると taxableBase10 が対価分増える（一般課税）', async () => {
     await seedEntry({
       date: '2026-05-01',
@@ -1180,7 +1180,7 @@ describe('D3-F7：課税資産の譲渡等の行単位の印（taxableTransferCo
   });
 });
 
-describe('D3-F8：簡易課税の兼業（設定区分＋印の付いた行の第四種、施行令57条）', () => {
+describe('簡易課税の兼業（設定区分＋印の付いた行の第四種、施行令57条）', () => {
   async function seedSimplifiedScenario(): Promise<void> {
     await seedEntry({
       date: '2026-05-01',

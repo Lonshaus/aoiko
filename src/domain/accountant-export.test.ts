@@ -339,7 +339,7 @@ describe('buildYayoiCsvRows：免税事業者等からの仕入れの控除上�
     return { entries, lines };
   }
 
-  test('F10：年間1億5千万円の取引先は、上限を超えた部分の行を控除できない区分で出力する', () => {
+  test('年間1億5千万円の取引先は、上限を超えた部分の行を控除できない区分で出力する', () => {
     const { entries, lines } = purchases('v1', ['50000000', '50000000', '50000000']);
     const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
     expect(rows.map((r) => r[7])).toEqual([
@@ -355,7 +355,7 @@ describe('buildYayoiCsvRows：免税事業者等からの仕入れの控除上�
     expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分70%', '課対仕入込10%区分控不']);
   });
 
-  test('R5：上限を超える取引先が無ければ各行の区分は従来どおり取引日の経過措置の割合', () => {
+  test('上限を超える取引先が無ければ各行の区分は従来どおり取引日の経過措置の割合', () => {
     const { entries, lines } = purchases('v1', ['30000000', '30000000', '40000000']);
     const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
     expect(rows.map((r) => r[7])).toEqual([
@@ -365,7 +365,7 @@ describe('buildYayoiCsvRows：免税事業者等からの仕入れの控除上�
     ]);
   });
 
-  test('R5：取引先の無い行は合算しないため、1億円以下の行が並んでも区分は変わらない', () => {
+  test('取引先の無い行は合算しないため、1億円以下の行が並んでも区分は変わらない', () => {
     const { entries, lines } = purchases(undefined, ['60000000', '60000000']);
     const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
     expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分70%', '課対仕入込10%区分70%']);
@@ -378,7 +378,7 @@ describe('buildYayoiCsvRows：免税事業者等からの仕入れの控除上�
   });
 });
 
-describe('D3-F1：控除比例0%は区分控不で出力する（区分0%は出力しない）', () => {
+describe('控除比例0%は区分控不で出力する（区分0%は出力しない）', () => {
   test('経過措置終了後（令和13年10月1日以後）で上限を超えていない行も区分控不', () => {
     const entries = [entry({ id: 'e1', date: '2031-10-01' })];
     const lines = [
@@ -447,7 +447,7 @@ describe('D3-F1：控除比例0%は区分控不で出力する（区分0%は出�
   });
 });
 
-describe('D3-F7：課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
+describe('課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
   test('資産科目（収入科目でない）の行は対象外になり、同科目で貸借バランスする合成ペアが課税売上を表す', () => {
     const entries = [entry({ id: 'e1', date: '2026-05-01' })];
     const lines = [

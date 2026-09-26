@@ -1,4 +1,4 @@
-// D1-F8：家内労働者等の特例（homeWorker）・前々年分収入・現金主義（cashBasisCache）の
+// 家内労働者等の特例（homeWorker）・前々年分収入・現金主義（cashBasisCache）の
 // 新規入力が保存・再読込で保持されるか、および試算プレビューへ反映されるかを見る。
 
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
@@ -134,7 +134,7 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('D1-F8：homeWorker・前々年分収入の保存・再読込', () => {
+describe('homeWorker・前々年分収入の保存・再読込', () => {
   test('チェック・入力して保存すると、再読込後も同じ値が復元される', async () => {
     const el = await render();
     setYear(el, 2026);
@@ -275,7 +275,7 @@ describe('D1-F8：homeWorker・前々年分収入の保存・再読込', () => {
   });
 });
 
-describe('D1-F12：現金主義（cashBasisElection）が試算プレビューの事業所得に反映される', () => {
+describe('現金主義（cashBasisElection）が試算プレビューの事業所得に反映される', () => {
   test('電子・令和9年分・事業収入2,000,000でcashBasisElection=trueなら控除は10万（KOA020の事業所得と一致）', async () => {
     await db.accounts.bulkAdd(TEST_ACCOUNTS);
     await addBusinessRevenueEntry(2027, '2000000');

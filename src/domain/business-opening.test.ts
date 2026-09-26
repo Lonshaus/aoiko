@@ -165,7 +165,7 @@ describe('generateOpeningEntries', () => {
     expect(amortDebit?.amount).toBe('10000');
   });
 
-  it('F15：開業費の 5 年償却は ÷60×業務月数（2026-07-01 開業は 6 か月）', async () => {
+  it('開業費の 5 年償却は ÷60×業務月数（2026-07-01 開業は 6 か月）', async () => {
     const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [{ name: 'サイト制作', amount: '500000' }],
@@ -180,7 +180,7 @@ describe('generateOpeningEntries', () => {
     expect(kaigyohiCredit?.amount).toBe('50000');
   });
 
-  it('F4：転用資産は取得日・取得価額を入力どおり保存し、未償却残高は conversionBasis に置く', async () => {
+  it('転用資産は取得日・取得価額を入力どおり保存し、未償却残高は conversionBasis に置く', async () => {
     const result = await generateOk({
       businessStartDate: '2022-01-01',
       expenses: [],
@@ -391,7 +391,7 @@ describe('removeOpeningEntries', () => {
 });
 
 describe('removeOpeningEntries の対象選択', () => {
-  it('R4：openingYear の無い旧データ（取得日＝開業日）も選ばれる', async () => {
+  it('openingYear の無い旧データ（取得日＝開業日）も選ばれる', async () => {
     await generateOpeningEntries({
       businessStartDate: '2026-07-01',
       expenses: [],

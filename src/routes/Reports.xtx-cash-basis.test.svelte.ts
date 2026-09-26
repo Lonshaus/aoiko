@@ -1,4 +1,4 @@
-// D1-F10：Reports.svelte の「.xtx を書き出す」経路が、設定の cashBasisElection と
+// Reports.svelte の「.xtx を書き出す」経路が、設定の cashBasisElection と
 // db.personalDeductions の priorPriorBusinessRevenue を実際に XtxContext へ渡しているかを見る。
 // 修正前は cashBasis を一切 xtxCtx に載せていなかったため、この場合の電子区分は
 // 65万円になる（cashBasis が効けば10万円）。fake-indexeddb・実 Dexie API でデータを積み、
@@ -114,7 +114,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe('D1-F10：cashBasisElection・priorPriorBusinessRevenue が Reports の .xtx ctx に渡る', () => {
+describe('cashBasisElection・priorPriorBusinessRevenue が Reports の .xtx ctx に渡る', () => {
   test('electronic + cashBasisElection=true なら控除は10万円（65万円ではない）', async () => {
     await db.accounts.bulkAdd(TEST_ACCOUNTS);
     await addEntry();

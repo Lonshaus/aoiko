@@ -160,7 +160,7 @@ export function mapKoa220Values(ctx: XtxContext): XtxLeafValues {
   if (businessScale) {
     put(out, tagByJa(PAGE1, '専従者給与'), senjushaSalary.toString());
   }
-  // 措法27条（家内労働者等の特例）適用時は事業側の基数も特例後の値を使う（D1-4）。
+  // 措法27条（家内労働者等の特例）適用時は事業側の基礎も特例後の値を使う。
   const businessPreIncome = businessPreDeductionIncomeForAoiro(ctx);
   const hasBusinessIncome = isOperatingBusiness(ctx.pl);
   const combined = computeCombinedBusinessRealEstateIncome(

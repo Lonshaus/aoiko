@@ -103,20 +103,20 @@ describe('aoiroDeductionLimit：現金主義（所得税法67条1項）の適用
 });
 
 describe('aoiroDeductionLimit：eTax区分（正規の簿記＋e-Tax送信、優良は問わない）', () => {
-  test('D1-F1：令和8・9年分ともに65万、現金主義なら10万', () => {
+  test('令和8・9年分ともに65万、現金主義なら10万', () => {
     expect(aoiroDeductionLimit(2026, 'eTax').toString()).toBe('650000');
     expect(aoiroDeductionLimit(2027, 'eTax').toString()).toBe('650000');
     expect(aoiroDeductionLimit(2027, 'eTax', { cashBasis: true }).toString()).toBe('100000');
   });
 
-  test('D1-F2：令和9年分・前々年分事業収入1,200万円でも65万のまま（4項該当のため2項の影響なし）', () => {
+  test('令和9年分・前々年分事業収入1,200万円でも65万のまま（4項該当のため2項の影響なし）', () => {
     expect(
       aoiroDeductionLimit(2027, 'eTax', { priorPriorBusinessRevenue: D(12_000_000) }).toString(),
     ).toBe('650000');
   });
 });
 
-describe('aoiroDeductionLimit：D1-F2（令和9年分・前々年分事業収入1,200万円の各区分）', () => {
+describe('aoiroDeductionLimit：令和9年分・前々年分事業収入1,200万円の各区分', () => {
   test('electronic 75万・eTax 65万・doubleEntry 10万・simple 0円', () => {
     const options = { priorPriorBusinessRevenue: D(12_000_000) };
     expect(aoiroDeductionLimit(2027, 'electronic', options).toString()).toBe('750000');

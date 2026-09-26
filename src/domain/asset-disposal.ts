@@ -23,8 +23,8 @@ import { m } from '../paraglide/messages';
 //
 // 売却（対価あり）：個人事業主の事業用資産売却は事業所得ではなく譲渡所得（総合課税、
 // 所法33条・22条2項）に該当し、損益計算書に含めてはいけない。freee 方式（事業主貸/事業主借で
-// 売却対価と帳簿価額の差額を結転し、損益計算書に一切触れない）を採用した。理由：
-//   - aoiko は既に事業主貸/事業主借を「事業と個人の境界を跨ぐ取引」の結転に
+// 売却対価と帳簿価額の差額を精算し、損益計算書に一切触れない）を採用した。理由：
+//   - aoiko は既に事業主貸/事業主借を「事業と個人の境界を跨ぐ取引」の精算に
 //     使っており（家事按分・年末元入金振替）、資産売却も同じ性質の取引として
 //     構造的に一貫する
 //   - 通用（MF系）の「固定資産売却損益」科目方式は、損益表科目でありながら
@@ -58,7 +58,7 @@ interface DisposalLineSpec {
   side: 'debit' | 'credit';
   accountCode: string;
   amount: string;
-  /** 課税資産の譲渡等の対価（消法28条1項）。事業用資産の出售は付随行為として課税対象（消令2条3項） */
+  /** 課税資産の譲渡等の対価（消法28条1項）。事業用資産の売却は付随行為として課税対象（消令2条3項） */
   taxableTransferConsideration?: string;
   taxRate?: number;
   taxIncluded?: boolean;
@@ -101,7 +101,7 @@ function isExcludedFromTransferIncome(asset: FixedAsset): boolean {
 }
 // 一括償却資産の除却は仕訳不要（3 年均等償却を継続する）。売却は原則事業の雑収入だが、
 // 業務上基本的に重要な資産（essentialToBusiness）の売却は譲渡所得の対象のため、
-// 事業主借で結転し事業の損益に含めない（一般資産の売却と同じ扱い）。
+// 事業主借で精算し事業の損益に含めない（一般資産の売却と同じ扱い）。
 function buildLumpSumDisposalLines(asset: FixedAsset, cashAccountCode: string): DisposalLineSpec[] {
   if ((asset.disposalType ?? 'scrap') === 'scrap') {
     return [];
@@ -175,7 +175,7 @@ export function buildDisposalLines(
     } else if (diff.lessThan(0)) {
       lines.push({ side: 'debit', accountCode: OWNER_DRAW_ACCOUNT, amount: diff.abs().toString() });
     }
-    // 事業用資産の出售は付随行為として課税資産の譲渡等（消令2条3項・消法28条1項、課税標準は税込対価）。
+    // 事業用資産の売却は付随行為として課税資産の譲渡等（消令2条3項・消法28条1項、課税標準は税込対価）。
     lines.push({
       side: 'credit',
       accountCode: asset.accountCode,

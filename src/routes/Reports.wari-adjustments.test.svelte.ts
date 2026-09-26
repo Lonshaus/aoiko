@@ -1,4 +1,4 @@
-// D3-F6：Reports.svelte の2割／3割特例の基数調整欄（売上対価の返還等）が
+// Reports.svelte の2割／3割特例の基礎調整欄（売上対価の返還等）が
 // 設定へ保存され、再マウント（＝再読込相当）後も保持されることを見る。
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount } from 'svelte';
@@ -64,7 +64,7 @@ function findInputByLabelText(el: HTMLElement, labelText: string): HTMLInputElem
   return input;
 }
 
-describe('D3-F6：wariSalesReturnTax78/624 の設定保存と再読込後の保持', () => {
+describe('wariSalesReturnTax78/624 の設定保存と再読込後の保持', () => {
   test('入力して change すると設定へ保存され、再マウント後も同じ値が表示される', async () => {
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -125,7 +125,7 @@ describe('D3-F6：wariSalesReturnTax78/624 の設定保存と再読込後の保�
   });
 });
 
-describe('D3-F6：interimPriorPeriodMonths の設定保存と再読込後の保持', () => {
+describe('interimPriorPeriodMonths の設定保存と再読込後の保持', () => {
   test('直前課税期間の月数を入力すると設定へ保存され、再マウント後も保持される', async () => {
     container = document.createElement('div');
     document.body.appendChild(container);

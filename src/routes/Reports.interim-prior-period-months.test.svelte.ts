@@ -1,4 +1,4 @@
-// D3-F2：Reports.svelte の中間申告義務判定が、設定経由の直前課税期間月数
+// Reports.svelte の中間申告義務判定が、設定経由の直前課税期間月数
 // （interimPriorPeriodMonths）を実際に使っていることをマウント済みコンポーネントで見る。
 // 2027年分に月数3を記録し前年確定税額150,000を入力すると年1回の義務、
 // 記録の無い2028年分は同額でも月数12のまま判定され義務が無いことを確認する。
@@ -77,7 +77,7 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
-describe('D3-F2：設定経由の直前課税期間月数が中間申告義務判定に使われる（Reports画面）', () => {
+describe('設定経由の直前課税期間月数が中間申告義務判定に使われる（Reports画面）', () => {
   test('2027年分：月数3・前年確定税額150,000 → 年1回。2028年分：記録無し・同額 → 無義務', async () => {
     await setSetting('interimPriorPeriodMonths', { 2027: 3 });
     await setSetting('currentYear', 2027);

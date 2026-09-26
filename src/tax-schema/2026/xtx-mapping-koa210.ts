@@ -262,7 +262,7 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   // 小計・合計欄（e-Tax 側で再計算される）。ここだけ出すと様式内で扱いが
   // 不揃いになるため、意図的に対象外のまま揃える。
   // 青色申告特別控除：控除前所得・控除額・控除後所得。措法27条（家内労働者等の特例）
-  // 適用時は控除前所得も特例後の値を使う（D1-4、businessPreDeductionIncomeForAoiro）。
+  // 適用時は控除前所得も特例後の値を使う（businessPreDeductionIncomeForAoiro）。
   const preIncome = businessPreDeductionIncomeForAoiro(ctx);
   const hasBusinessIncome = isOperatingBusiness(pl);
   // 控除は不動産所得から先に充当し（措法25の2③）、44欄には事業への配分残額のみ入れる（二重計上防止）。

@@ -132,7 +132,7 @@ afterEach(async () => {
 });
 
 describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3第1項）', () => {
-  test('R2：六項目の入力が全部未設定なら年度だけで判定していた従来と同じ', () => {
+  test('六項目の入力が全部未設定なら年度だけで判定していた従来と同じ', () => {
     for (let year = 2020; year <= 2031; year++) {
       expect(isTwoWariEligibleYear(year), String(year)).toBe(year <= 2026);
       expect(isTwoWariEligibleYear(year, {}), String(year)).toBe(year <= 2026);
@@ -140,7 +140,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     }
   });
 
-  test('R2：compareAll に空の入力を渡しても比較表の方式は従来どおり', async () => {
+  test('compareAll に空の入力を渡しても比較表の方式は従来どおり', async () => {
     await seedSale('2026-04-01', '1100000');
     await seedSale('2027-04-01', '1100000');
     expect((await compareAll(2026, 4)).map((r) => r.method)).toEqual([
@@ -156,7 +156,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     ).toEqual(['general', 'simplified', 'three-wari']);
   });
 
-  test('F2：登録が無くても課税事業者（基準期間1千万円超）なら2割特例は比較表にも .xtx 判定にも出ない', async () => {
+  test('登録が無くても課税事業者（基準期間1千万円超）なら2割特例は比較表にも .xtx 判定にも出ない', async () => {
     await seedSale('2026-04-01', '1100000');
     const eligibility: WariEligibilityInputs = { basePeriodSales: D('15000000') };
     expect(isTwoWariEligibleYear(2026, eligibility)).toBe(false);
@@ -167,7 +167,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     expect(methods).toEqual(['general', 'simplified']);
   });
 
-  test('F2：施行日前から課税事業者選択届出の効力が続く2023年分は2割特例の対象外（一号）', () => {
+  test('施行日前から課税事業者選択届出の効力が続く2023年分は2割特例の対象外（一号）', () => {
     const eligibility: WariEligibilityInputs = { taxableElection: { fromYear: 2021 } };
     expect(isTwoWariEligibleYear(2023, eligibility)).toBe(false);
     expect(isTwoWariEligibleYear(2024, eligibility)).toBe(true);
@@ -179,7 +179,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     expect(isTwoWariEligibleYear(2026, { basePeriodSales: D('10000000') })).toBe(true);
   });
 
-  test('F3：調整対象固定資産の仕入れ等をした課税期間の翌期から3年を経過する日の属する期間まで2割特例は不適用', () => {
+  test('調整対象固定資産の仕入れ等をした課税期間の翌期から3年を経過する日の属する期間まで2割特例は不適用', () => {
     const eligibility: WariEligibilityInputs = { adjustedFixedAssetDate: '2024-05-01' };
     expect(isTwoWariEligibleYear(2024, eligibility)).toBe(true);
     expect(isTwoWariEligibleYear(2025, eligibility)).toBe(false);
@@ -187,7 +187,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     expect(isThreeWariEligibleYear(2027, eligibility)).toBe(true);
   });
 
-  test('F3：compareAll の比較表からも外れる', async () => {
+  test('compareAll の比較表からも外れる', async () => {
     await seedSale('2026-04-01', '1100000');
     const methods = (
       await compareAll(2026, 4, 'proportional', {
@@ -197,7 +197,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
     expect(methods).not.toContain('two-wari');
   });
 
-  test('F4：3割特例は法人には出ない・令和8年には出ない・一号の事由だけなら適用される', async () => {
+  test('3割特例は法人には出ない・令和8年には出ない・一号の事由だけなら適用される', async () => {
     await seedSale('2027-04-01', '1100000');
     expect(isThreeWariEligibleYear(2027, { corporation: true })).toBe(false);
     expect(isThreeWariEligibleYear(2026, {})).toBe(false);
@@ -239,7 +239,7 @@ describe('2割・3割特例の資格判定（附則51条の2第1項・51条の3�
 });
 
 describe('2割・3割特例の特別控除税額の基礎（附則51条の2第2項・51条の3第2項、附則90条2項）', () => {
-  test('F5：2割特例の基礎は返還等の税額を控除した残額で、売上税額 × 20% より小さくなる', async () => {
+  test('2割特例の基礎は返還等の税額を控除した残額で、売上税額 × 20% より小さくなる', async () => {
     const base = wariSpecialDeductionBase('two-wari', D('78000'), D(0), {
       salesReturnTax78: D('7800'),
     });
@@ -253,14 +253,14 @@ describe('2割・3割特例の特別控除税額の基礎（附則51条の2第2�
     expect(D(withReturn.netTax.national).lessThan(D('78000').times('0.2'))).toBe(true);
   });
 
-  test('F5：返品を売上の借方で記帳した場合も納付額は返品前の売上税額 × 20% より小さい', async () => {
+  test('返品を売上の借方で記帳した場合も納付額は返品前の売上税額 × 20% より小さい', async () => {
     await seedSale('2026-04-01', '1100000');
     await seedSale('2026-05-01', '110000', 'debit');
     const r = await computeTwoWari(2026);
     expect(D(r.netTax.national).lessThan(D('78000').times('0.2'))).toBe(true);
   });
 
-  test('F6：3割特例の基礎も返還等の税額を控除し、売上税額 × 30% より小さくなる', async () => {
+  test('3割特例の基礎も返還等の税額を控除し、売上税額 × 30% より小さくなる', async () => {
     await seedSale('2027-04-01', '1100000');
     const plain = await computeThreeWari(2027);
     const withReturn = await computeThreeWari(2027, undefined, { salesReturnTax78: D('7800') });
@@ -270,7 +270,7 @@ describe('2割・3割特例の特別控除税額の基礎（附則51条の2第2�
     expect(D(withReturn.netTax.national).lessThan(D('78000').times('0.3'))).toBe(true);
   });
 
-  test('F7：令和9年の特定少額資産の譲渡は附則90条2項の読替えで3割特例の基礎から除外されない', () => {
+  test('令和9年の特定少額資産の譲渡は附則90条2項の読替えで3割特例の基礎から除外されない', () => {
     expect(
       wariSpecialDeductionBase('three-wari', D('78000'), D(0), {
         specifiedSmallAssetTransfers: [{ date: '2027-06-01', rate: 0.1, netTax: D('7800') }],
@@ -293,7 +293,7 @@ describe('2割・3割特例の特別控除税額の基礎（附則51条の2第2�
     ).toBe('78000');
   });
 
-  test('F7：除外されない年は3割特例の納付額も読替え前の計算と変わらない', async () => {
+  test('除外されない年は3割特例の納付額も読替え前の計算と変わらない', async () => {
     await seedSale('2027-04-01', '1100000');
     const plain = await computeThreeWari(2027);
     const withTransfer = await computeThreeWari(2027, undefined, {
@@ -305,7 +305,7 @@ describe('2割・3割特例の特別控除税額の基礎（附則51条の2第2�
 });
 
 describe('免税事業者等からの課税仕入れの控除上限（附則52条1項・附則90条3項）', () => {
-  test('F8：同一取引先の年間税込合計がちょうど1億円なら排除されない', () => {
+  test('同一取引先の年間税込合計がちょうど1億円なら排除されない', () => {
     const items = [
       capItem('a', '2027-02-01', '60000000', 'v'),
       capItem('b', '2027-03-01', '40000000', 'v'),
@@ -313,7 +313,7 @@ describe('免税事業者等からの課税仕入れの控除上限（附則52�
     expect(transitionalCapExcess(D('100000000'), items).size).toBe(0);
   });
 
-  test('F8：100,000,001円なら超えた1円だけを排除する', () => {
+  test('100,000,001円なら超えた1円だけを排除する', () => {
     const items = [
       capItem('a', '2027-02-01', '60000000', 'v'),
       capItem('b', '2027-03-01', '40000001', 'v'),
@@ -323,7 +323,7 @@ describe('免税事業者等からの課税仕入れの控除上限（附則52�
     expect(excess.get('b')?.toString()).toBe('1');
   });
 
-  test('F8：控除額は超えた1円分だけ減る（processYear）', async () => {
+  test('控除額は超えた1円分だけ減る（processYear）', async () => {
     await seedPurchase('2027-02-01', '100000001', 'v1');
     const r = await processYear(2027);
     // 1億円分だけが70%で控除され、超えた1円分は控除されない
@@ -334,7 +334,7 @@ describe('免税事業者等からの課税仕入れの控除上限（附則52�
     );
   });
 
-  test('F8：ちょうど1億円なら従来どおり全額に経過措置の割合を掛ける', async () => {
+  test('ちょうど1億円なら従来どおり全額に経過措置の割合を掛ける', async () => {
     await seedPurchase('2027-02-01', '100000000', 'v1');
     const r = await processYear(2027);
     expect(r.input.toDecimalPlaces(6).toString()).toBe(
@@ -342,7 +342,7 @@ describe('免税事業者等からの課税仕入れの控除上限（附則52�
     );
   });
 
-  test('F9：vendorId の無い仕入行は各自独立で、合計が1億円を超えても合算しない', async () => {
+  test('vendorId の無い仕入行は各自独立で、合計が1億円を超えても合算しない', async () => {
     await seedPurchase('2027-02-01', '60000000');
     await seedPurchase('2027-03-01', '60000000');
     const r = await processYear(2027);
@@ -385,7 +385,7 @@ describe('免税事業者等からの課税仕入れの控除上限（附則52�
 });
 
 describe('少額特例（附則53条の2・平成30年政令第135号附則24条の2）', () => {
-  test('R3：売上高の入力が無ければ少額特例は適用されず控除は従来どおり', async () => {
+  test('売上高の入力が無ければ少額特例は適用されず控除は従来どおり', async () => {
     await seedPurchase('2027-02-01', '9999');
     const without = await processYear(2027);
     const withEmpty = await processYear(2027, undefined, { smallAmountSpecial: {} });
@@ -401,7 +401,7 @@ describe('少額特例（附則53条の2・平成30年政令第135号附則24条
     expect(generalEmpty).toEqual(general);
   });
 
-  test('F11：税込9,999円は帳簿のみで全額控除、10,000円は経過措置の割合のまま', async () => {
+  test('税込9,999円は帳簿のみで全額控除、10,000円は経過措置の割合のまま', async () => {
     await seedPurchase('2027-02-01', '9999');
     await seedPurchase('2027-02-02', '10000');
     const r = await processYear(2027, undefined, {
@@ -411,7 +411,7 @@ describe('少額特例（附則53条の2・平成30年政令第135号附則24条
     expect(r.input.toDecimalPlaces(6).toString()).toBe(expected.toDecimalPlaces(6).toString());
   });
 
-  test('F12：基準期間 100,000,001 でも特定期間 50,000,000 なら少額特例の対象', () => {
+  test('基準期間 100,000,001 でも特定期間 50,000,000 なら少額特例の対象', () => {
     expect(
       isSmallAmountSpecialPeriod({
         basePeriodSales: D('100000001'),
@@ -439,7 +439,7 @@ describe('少額特例（附則53条の2・平成30年政令第135号附則24条
 });
 
 describe('簡易課税制度選択届出書の提出期限の特例（附則51条の2第6項・51条の3第5項・附則90条1項）', () => {
-  test('F14：翌期の確定申告期限までに出した届出は特例対象課税期間の期首の前日に出したものとみなす', () => {
+  test('翌期の確定申告期限までに出した届出は特例対象課税期間の期首の前日に出したものとみなす', () => {
     expect(deemedSimplifiedElectionFiledDate(2027, '2028-03-15', 'two-wari')).toBe('2026-12-31');
     expect(isSimplifiedElectionEffective(2027, '2028-03-15', 'two-wari')).toBe(true);
     const afterThreeWari = deemedSimplifiedElectionFiledDate(2028, '2029-03-31', 'three-wari');
@@ -457,7 +457,7 @@ describe('簡易課税制度選択届出書の提出期限の特例（附則51�
     expect(deemedSimplifiedElectionFiledDate(2025, '2026-02-01', 'two-wari')).toBe('2026-02-01');
   });
 
-  test('R4：届出日が未入力なら簡易課税は従来どおり比較表に含まれる', async () => {
+  test('届出日が未入力なら簡易課税は従来どおり比較表に含まれる', async () => {
     await seedSale('2026-04-01', '1100000');
     const methods = (await compareAll(2026, 4, 'proportional', {})).map((r) => r.method);
     expect(methods).toContain('simplified');
@@ -474,7 +474,7 @@ describe('簡易課税制度選択届出書の提出期限の特例（附則51�
   });
 });
 
-describe('D3-F2：中間申告の直前課税期間月数（設定経由）', () => {
+describe('中間申告の直前課税期間月数（設定経由）', () => {
   test('2027年分に月数3を記録すると、確定税額150,000は÷3で判定し年1回の義務になる', async () => {
     const months = await loadInterimPriorPeriodMonths(2027);
     // 未設定時は12（回帰）
@@ -494,7 +494,7 @@ describe('D3-F2：中間申告の直前課税期間月数（設定経由）', ()
   });
 });
 
-describe('D3-F3：2割特例の基数調整（設定経由の売上対価の返還等、7.8%分）', () => {
+describe('2割特例の基礎調整（設定経由の売上対価の返還等、7.8%分）', () => {
   test('2026年分に7.8%の返還等税額10,000を記録すると、compareAllの2割国税額は未入力より2,000少ない', async () => {
     await seedSale('2026-04-01', '1100000');
     const plain = await compareAll(2026, 4, 'proportional', {});
@@ -512,8 +512,8 @@ describe('D3-F3：2割特例の基数調整（設定経由の売上対価の返�
   });
 });
 
-describe('D3-F4：3割特例の基数調整（設定経由の特定少額資産の譲渡、附則90条2項）', () => {
-  test('2028-03-31の譲渡は読替えの対象で基数から除かれず、単独の場合と結果が同じ', async () => {
+describe('3割特例の基礎調整（設定経由の特定少額資産の譲渡、附則90条2項）', () => {
+  test('2028-03-31の譲渡は読替えの対象で基礎から除かれず、単独の場合と結果が同じ', async () => {
     await seedSale('2028-04-01', '1100000');
     await setSetting('wariBaseAdjustments', {
       2028: { specifiedSmallAssetTransfers: [{ date: '2028-03-31', rate: 0.1, netTax: '7800' }] },
@@ -527,7 +527,7 @@ describe('D3-F4：3割特例の基数調整（設定経由の特定少額資産�
     );
   });
 
-  test('2028-04-01の譲渡は通常どおり基数から除かれ、単独と2028-03-31併記時で結果が同じ', async () => {
+  test('2028-04-01の譲渡は通常どおり基礎から除かれ、単独と2028-03-31併記時で結果が同じ', async () => {
     await seedSale('2028-04-01', '1100000');
     await setSetting('wariBaseAdjustments', {
       2028: { specifiedSmallAssetTransfers: [{ date: '2028-04-01', rate: 0.1, netTax: '7800' }] },

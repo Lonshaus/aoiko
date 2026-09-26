@@ -338,7 +338,7 @@ describe('estimateTransferIncome', () => {
 });
 
 describe('一括償却資産の除却・売却（所令139条・81条3号）', () => {
-  test('F13：除却年も翌年以後も 3 年均等の償却額を計上し、譲渡所得は生じない', () => {
+  test('除却年も翌年以後も 3 年均等の償却額を計上し、譲渡所得は生じない', () => {
     const a = asset({
       depreciationMethod: 'lump-sum',
       acquisitionDate: '2026-01-01',
@@ -353,7 +353,7 @@ describe('一括償却資産の除却・売却（所令139条・81条3号）', (
     expect(transferIncomeByTerm([a], 2027)).toEqual({ shortTerm: '0', longTerm: '0', count: 0 });
   });
 
-  test('所令138条の一次費用化資産の売却も譲渡所得にしない（所令81条2号）', () => {
+  test('所令138条の即時費用化資産の売却も譲渡所得にしない（所令81条2号）', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '50000',
@@ -367,7 +367,7 @@ describe('一括償却資産の除却・売却（所令139条・81条3号）', (
 });
 
 describe('aggregateTransferIncome（所法33条3項〜5項・22条2項2号）', () => {
-  test('F11：特別控除は短期から先に 300,000、残り 200,000 を長期から。長期 200,000 の 1/2', () => {
+  test('特別控除は短期から先に 300,000、残り 200,000 を長期から。長期 200,000 の 1/2', () => {
     const r = aggregateTransferIncome({
       shortTerm: '300000',
       longTerm: '400000',
@@ -380,7 +380,7 @@ describe('aggregateTransferIncome（所法33条3項〜5項・22条2項2号）', 
     expect(r.halfOfLongTermAndOccasional).toBe('100000');
   });
 
-  test('F12：短期 −100,000・長期 400,000 は通算後の譲渡益 300,000、特別控除 300,000', () => {
+  test('短期 −100,000・長期 400,000 は通算後の譲渡益 300,000、特別控除 300,000', () => {
     const r = aggregateTransferIncome({ shortTerm: '-100000', longTerm: '400000' });
     expect(r.gain).toBe('300000');
     expect(r.specialDeduction).toBe('300000');
@@ -431,7 +431,7 @@ describe('transferIncomeByTerm', () => {
   });
 });
 
-describe('F17：総合課税への書き換え', () => {
+describe('総合課税への書き換え', () => {
   test('types.ts と asset-disposal.ts に「分離課税」「第三表」が残っていない', () => {
     for (const file of ['src/db/types.ts', 'src/domain/asset-disposal.ts']) {
       const text = readFileSync(file, 'utf8');
@@ -441,8 +441,8 @@ describe('F17：総合課税への書き換え', () => {
     }
   });
 });
-describe('D2-4：所令81条2号・3号の例外（essentialToBusiness）', () => {
-  test('D2-F6(a)：138条資産・10万円未満・使用可能期間1年未満でなく・業務上基本重要 → 譲渡所得に計入', () => {
+describe('所令81条2号・3号の例外（essentialToBusiness）', () => {
+  test('138条資産・10万円未満・使用可能期間1年未満でなく・業務上基本重要 → 譲渡所得に算入', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '80000',
@@ -455,7 +455,7 @@ describe('D2-4：所令81条2号・3号の例外（essentialToBusiness）', () =
     expect(transferIncomeByTerm([a], 2026).count).toBe(1);
   });
 
-  test('D2-F6(a2)：使用可能期間1年未満は業務上基本重要でも譲渡所得にならない', () => {
+  test('使用可能期間1年未満は業務上基本重要でも譲渡所得にならない', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '80000',
@@ -468,7 +468,7 @@ describe('D2-4：所令81条2号・3号の例外（essentialToBusiness）', () =
     expect(estimateTransferIncome(a)).toBeNull();
   });
 
-  test('D2-F6(b)：原始取得価額10万円以上の138条資産は業務上基本重要でも譲渡所得にならない', () => {
+  test('原始取得価額10万円以上の138条資産は業務上基本重要でも譲渡所得にならない', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '150000',
@@ -481,7 +481,7 @@ describe('D2-4：所令81条2号・3号の例外（essentialToBusiness）', () =
     expect(estimateTransferIncome(a)).toBeNull();
   });
 
-  test('D2-F6(c)：essentialToBusiness な一括償却資産の売却は現金／事業主借のみ、4910/4920 なし、取得費0で譲渡所得に計入', () => {
+  test('essentialToBusiness な一括償却資産の売却は現金／事業主借のみ、4910/4920 なし、取得費0で譲渡所得に算入', () => {
     const a = asset({
       depreciationMethod: 'lump-sum',
       acquisitionCost: '150000',
@@ -509,8 +509,8 @@ describe('D2-4：所令81条2号・3号の例外（essentialToBusiness）', () =
   });
 });
 
-describe('D2-6：出售資産の消費税（消令2条3項・消法28条1項）', () => {
-  test('D2-F8：一般資産の売却は貸方の資産行に課税対価が付く', () => {
+describe('売却資産の消費税（消令2条3項・消法28条1項）', () => {
+  test('一般資産の売却は貸方の資産行に課税対価が付く', () => {
     const a = asset({ disposalType: 'sale', disposedDate: '2026-06-01', salePrice: '110000' });
     const lines = buildDisposalLines(a);
     const assetLine = lines.find((l) => l.accountCode === '1510');
@@ -519,13 +519,13 @@ describe('D2-6：出售資産の消費税（消令2条3項・消法28条1項）'
     expect(assetLine?.taxIncluded).toBe(true);
   });
 
-  test('D2-F8：除却（無対価）は課税対価を設定しない', () => {
+  test('除却（無対価）は課税対価を設定しない', () => {
     const a = asset({ disposalType: 'scrap', disposedDate: '2026-06-01' });
     const lines = buildDisposalLines(a);
     expect(lines.every((l) => l.taxableTransferConsideration === undefined)).toBe(true);
   });
 
-  test('D2-F8b：非essentialな一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
+  test('非essentialな一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
     const { ACCOUNTS_2026 } = await import('../tax-schema/2026');
     const { buildYayoiCsvRows } = await import('./accountant-export');
     const { processYear } = await import('./consumption-tax');
@@ -556,8 +556,8 @@ describe('D2-6：出售資産の消費税（消令2条3項・消法28条1項）'
   });
 });
 
-describe('D2-3／D2-6：落選資産（D2-F5の8番目）を2027年に売却する（domain レベル）', () => {
-  test('D2-F12：1520 debit は定額法の2026＋2027累計、estimateTransferIncome().acquisitionExpense も同じ帳簿価額', async () => {
+describe('落選資産（8番目の資産）を2027年に売却する（domain レベル）', () => {
+  test('1520 debit は定額法の2026＋2027累計、estimateTransferIncome().acquisitionExpense も同じ帳簿価額', async () => {
     const { generateYearEndDepreciation, smallAssetSpecialStatuses } =
       await import('./depreciation');
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
