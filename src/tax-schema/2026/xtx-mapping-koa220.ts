@@ -1,5 +1,5 @@
 // aoiko 業務データ（不動産所得PL・FixedAsset・personalDeductions.realEstateIncome）
-// → KOA220（青色申告決算書・不動産所得用）参照側 直接値 leaf への対映。
+// → KOA220（青色申告決算書・不動産所得用）参照側 直接値 leaf への転記。
 //
 // KOA210 と同じく決算書の金額は要素テキストで直接保持する（leaf.idref 無し）。
 // 第2頁（貸家等の状況・給料賃金・専従者給与の内訳）・第3頁（減価償却・地代家賃・

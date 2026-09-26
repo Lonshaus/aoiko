@@ -1,7 +1,7 @@
 // aoiko 業務データ（消費税集計）→ SHA020（消費税及び地方消費税の申告書・簡易課税用）
 // の値マップ。2 つの申告方式を扱う：
 //  - mapTwoWari()：2割特例（+ SHB070 付表6）
-//  - mapSimplified()：簡易課税（単一事業区分のみ、+ SHB047 付表4-3、SHB067 付表5-3）
+//  - mapSimplified()：簡易課税（設定区分＋印の付いた行の第四種の 2 区分まで、+ SHB047 付表4-3、SHB067 付表5-3）
 //
 // 2割特例は「簡易課税を正式に選択していない事業者も SHA020 の様式構造を使う」運用
 // （国税庁「２割特例用 消費税及び地方消費税の確定申告の手引き」の設例で確認済み）。
@@ -252,7 +252,7 @@ interface SimplifiedMappingInput {
   taxableBase10: Decimal;
   /** 課税資産の譲渡等の対価の額（税抜、軽減税率8%＝国税6.24%分）。返品・値引ネット後 */
   taxableBase8: Decimal;
-  /** 事業区分（第1種〜第6種）。aoiko は単一事業区分のみ対応（複数区分の按分は未対応） */
+  /** 設定した事業区分（第1種〜第6種）。印の付いた行の第四種分は markedTransferBase10/8 で別に渡す */
   category: SimplifiedTaxCategory;
   /** みなし仕入率（第1種90%〜第6種40%）。simplified-tax.ts の deemedInputRate() の結果を渡す */
   deemedInputRate: number;

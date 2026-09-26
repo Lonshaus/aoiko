@@ -83,7 +83,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     entryCount: 0,
   };
 
-  test('営業収入・事業所得(控除後)・青色控除額を整数円で対映', () => {
+  test('営業収入・事業所得(控除後)・青色控除額を整数円で転記', () => {
     const out = mapKoa020LeafValues(ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' }));
     const values = Object.values(out);
     // 営業等収入=5000000 / 青色控除=650000 / 事業所得=4350000

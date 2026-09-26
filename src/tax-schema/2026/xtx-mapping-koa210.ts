@@ -1,5 +1,5 @@
 // aoiko 業務データ（PL / BS / 月別）→ KOA210（青色申告決算書 一般用）参照側
-// 直接値 leaf（gen:kingaku 等）への対映。
+// 直接値 leaf（gen:kingaku 等）への転記。
 //
 // KOA210 は KOA020 と異なり、決算書の金額は IT部 IDREF ではなく要素テキストで
 // 直接保持する（leaf.idref 無し）。本モジュールは schema（refTree）を走査して
@@ -127,7 +127,7 @@ function extraAccountRows(
     return row;
   });
 }
-// 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対映。
+// 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対応付け。
 // 差引原価（AMF00160）は KOA110 も算出していないため、揃えて出力しない。
 const EXPENSE_ALIAS: Record<string, string> = {
   期首商品棚卸高: '期首商品（製品）棚卸高',

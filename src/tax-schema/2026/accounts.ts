@@ -327,7 +327,7 @@ export const ACCOUNTS_2026: Account[] = [
     taxCategory: 'nontaxable',
     displayOrder: 820,
   },
-  // 費用（5xxx）— 不動産所得用（B7 part2、KOA220 第1頁の必要経費区分に対映）。
+  // 費用（5xxx）— 不動産所得用（B7 part2、KOA220 第1頁の必要経費区分に対応）。
   {
     code: '5310',
     year: 2026,

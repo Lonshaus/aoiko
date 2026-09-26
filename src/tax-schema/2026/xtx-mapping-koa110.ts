@@ -1,5 +1,5 @@
 // aoiko 業務データ（PL）→ KOA110（収支内訳書 一般用・白色申告用）参照側
-// 直接値 leaf（gen:kingaku 等）への対映。
+// 直接値 leaf（gen:kingaku 等）への転記。
 //
 // KOA110 は KOA210 と同じく決算書の金額を要素テキストで直接保持する（leaf.idref 無し）。
 //
