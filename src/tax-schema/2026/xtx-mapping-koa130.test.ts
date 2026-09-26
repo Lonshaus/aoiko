@@ -155,7 +155,7 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00230).toBe('1000000');
   });
 
-  test('貸倒金（不動産）は AKG00120 へ対映する', () => {
+  test('貸倒金（不動産）は AKG00120 へ転記する', () => {
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({

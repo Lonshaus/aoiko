@@ -97,7 +97,7 @@ export function mapKoa020Values(ctx: XtxContext): XtxValues {
 //  - 事業 営業等所得金額(①)＝控除前事業所得 − 青色申告特別控除額
 //  - 青色申告特別控除額
 // 合計所得金額(⑫) は e-Tax が自動計算するため載せない（ja「所得金額」は
-// その他＞変動・臨時所得金額 の子要素 ABB00870 で別物のため誤対映を避ける）。
+// その他＞変動・臨時所得金額 の子要素 ABB00870 で別物のため取り違えを避ける）。
 // 各種所得控除・税額は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
 function put(out: XtxLeafValues, ja: string, amount: string): void {
   const tag = firstTableLeafTagByJa(ja);
@@ -107,7 +107,7 @@ function put(out: XtxLeafValues, ja: string, amount: string): void {
   putTag(out, tag, amount);
 }
 // tag を直接指定して書き込む。「合計」「控除額」等、KOA020-1 内に同名 leaf が複数存在し
-// firstTableLeafTagByJa の文書順一致では誤対映しうる項目に使う。
+// firstTableLeafTagByJa の文書順一致では取り違えうる項目に使う。
 function putTag(out: XtxLeafValues, tag: string, amount: string): void {
   const v = toKingaku(amount);
   if (v !== '') {

@@ -96,7 +96,7 @@ export type SettingsMap = {
   interimPriorPeriodMonths: Record<number, number>;
   // 2割／3割特例の基礎調整（年分をキー）。金額は Decimal 文字列
   wariBaseAdjustments: Record<number, StoredWariBaseAdjustments>;
-  // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
+  // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対応する。
   // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
   userRiyoshaId: string; // 利用者識別番号（16桁）
   userFilerName: string; // 氏名・名称（NOZEISHA_NM）
@@ -141,7 +141,7 @@ export type SettingsMap = {
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
-// v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで対映・DL版で組み込み可」に改訂。
+// v2: .xtx を「仮実装・実申告利用禁止」→「事業部分まで記載・DL版で組み込み可」に改訂。
 // v3: 白色申告対応（KOA110・専従者控除は利用者が e-Tax 上で補完）を追記。
 // v4: 所得控除・税額の条件付き出力（所得控除画面入力時）と消費税申告書 .xtx 対応を反映。
 // v5: ブラウザ自身による自動データ削除（容量逼迫時の退避・長期未訪問での消去）を追記。

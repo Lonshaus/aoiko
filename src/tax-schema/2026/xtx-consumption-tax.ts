@@ -141,7 +141,7 @@ interface SimplifiedXtxContext {
   filer: XtxFiler;
   taxableBase10: Decimal;
   taxableBase8: Decimal;
-  /** 事業区分（第1種〜第6種）。aoiko は単一事業区分のみ対応 */
+  /** 設定した事業区分（第1種〜第6種）。印の付いた行の第四種分は markedTransferBase10/8 で別に渡す */
   category: SimplifiedTaxCategory;
   /** みなし仕入率。simplified-tax.ts の deemedInputRate(category) を渡す */
   deemedInputRate: number;
