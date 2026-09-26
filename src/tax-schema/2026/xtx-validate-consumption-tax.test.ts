@@ -165,7 +165,7 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
     });
     // 手続 RSH0030（簡易課税・個人）。RSH0010（一般・個人）は CONTENTS が SHA010
     // 系統のみ許可し SHA020 系統を受け付けない（実機組み込みで発覚、2026-07-05）。
-    expect(xml).toMatch(/<RSH0030 VR="23\.2\.0" id="RSH0030">/);
+    expect(xml).toMatch(/<RSH0030 VR="26\.0\.0" id="RSH0030">/);
     const forms: Array<[string, string]> = [
       ['SHA020', '_valwrap-SHA020.xsd'],
       ['SHB070', '_valwrap-SHB070.xsd'],
@@ -258,6 +258,104 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       expect(ok, `${label}: ${out}`).toBe(true);
     }
   });
+
+  // 2割特例の売上対価の返還等（税率別）を含む mapTwoWari が公式 xsd に適合する
+  maybe('mapTwoWari（売上対価の返還等あり）の実 mapping 経路が公式 xsd に適合する', () => {
+    const mapping = mapTwoWari({
+      taxableBase10: D('1000000'),
+      taxableBase8: D('0'),
+      salesReturnTax78: D('10000'),
+      ...badDebtZeroExtras(),
+    });
+    const cases: Array<[string, string, XtxSchema, XtxLeafValues, XtxRawValues?]> = [
+      ['SHA020', '_valwrap-SHA020.xsd', sha020 as XtxSchema, mapping.sha020, mapping.sha020Raw],
+      ['SHB070', '_valwrap-SHB070.xsd', shb070 as XtxSchema, mapping.shb070],
+    ];
+    for (const [label, wrapper, schema, leafValues, raw] of cases) {
+      const frag = buildFormFragment(
+        schema,
+        {},
+        { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+        leafValues,
+        {},
+        raw ?? {},
+      );
+      const { ok, out } = validate(wrapper, frag);
+      expect(out, label).not.toContain('Schemas parser error');
+      expect(ok, `${label}: ${out}`).toBe(true);
+    }
+  });
+
+  // 簡易課税の兼業（設定区分＋印の付いた行の第四種）が公式 xsd に適合する。
+  // 付表5-3 (1)〜(3) 全欄と、原則が採用される場合（ABL00210 は立たない）を検証する
+  maybe(
+    'mapSimplified（兼業、印の付いた行あり・原則採用）の実 mapping 経路が公式 xsd に適合する',
+    () => {
+      const mapping = mapSimplified({
+        taxableBase10: D('10100000'),
+        taxableBase8: D('0'),
+        category: 5,
+        deemedInputRate: 0.5,
+        markedTransferBase10: D('100000'),
+        markedTransferBase8: D('0'),
+        ...badDebtZeroExtras(),
+      });
+      const cases: Array<[string, string, XtxSchema, XtxLeafValues, XtxRawValues?]> = [
+        ['SHA020', '_valwrap-SHA020.xsd', sha020 as XtxSchema, mapping.sha020, mapping.sha020Raw],
+        ['SHB047', '_valwrap-SHB047.xsd', shb047 as XtxSchema, mapping.shb047],
+        ['SHB067', '_valwrap-SHB067.xsd', shb067 as XtxSchema, mapping.shb067, mapping.shb067Raw],
+      ];
+      for (const [label, wrapper, schema, leafValues, raw] of cases) {
+        const frag = buildFormFragment(
+          schema,
+          {},
+          { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+          leafValues,
+          {},
+          raw ?? {},
+        );
+        const { ok, out } = validate(wrapper, frag);
+        expect(out, label).not.toContain('Schemas parser error');
+        expect(ok, `${label}: ${out}`).toBe(true);
+      }
+    },
+  );
+
+  // 同じ兼業だが特例（75%ルール）が採用される場合：ABL00210（特例計算適用）を含めて検証する
+  maybe(
+    'mapSimplified（兼業、印の付いた行あり・特例採用・ABL00210含む）の実 mapping 経路が公式 xsd に適合する',
+    () => {
+      const mapping = mapSimplified({
+        taxableBase10: D('10100000'),
+        taxableBase8: D('0'),
+        category: 1,
+        deemedInputRate: 0.9,
+        markedTransferBase10: D('100000'),
+        markedTransferBase8: D('0'),
+        ...badDebtZeroExtras(),
+      });
+      expect(mapping.sha020Raw.ABL00210, 'ABL00210 should be set for this case').toBe(
+        '<kubun_CD>1</kubun_CD>',
+      );
+      const cases: Array<[string, string, XtxSchema, XtxLeafValues, XtxRawValues?]> = [
+        ['SHA020', '_valwrap-SHA020.xsd', sha020 as XtxSchema, mapping.sha020, mapping.sha020Raw],
+        ['SHB067', '_valwrap-SHB067.xsd', shb067 as XtxSchema, mapping.shb067, mapping.shb067Raw],
+      ];
+      for (const [label, wrapper, schema, leafValues, raw] of cases) {
+        const frag = buildFormFragment(
+          schema,
+          {},
+          { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+          leafValues,
+          {},
+          raw ?? {},
+        );
+        const { ok, out } = validate(wrapper, frag);
+        expect(out, label).not.toContain('Schemas parser error');
+        expect(ok, `${label}: ${out}`).toBe(true);
+      }
+    },
+  );
 
   maybe(
     '組立済バンドル（buildSimplifiedXtx）が公式 xsd に適合する（SHA020・SHB047・SHB067）',

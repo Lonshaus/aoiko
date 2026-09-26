@@ -15,7 +15,9 @@ The developer / distributor **collects none of the following** from users:
 - Usage analytics (telemetry, analytics)
 - Cookies, local-storage trackers
 
+In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is which stamps you purchased and the date of the last purchase; none of it identifies you personally. The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
 <!-- only:browser -->
+
 The **HTTP access logs** of the host serving <https://aoiko.pages.dev> may exist per that service's policy. aoiko cannot control this.
 <!-- /only -->
 
@@ -31,11 +33,20 @@ The following is stored in the app's managed storage (database `aoiko`):
 
 | Data | Storage | Sent to |
 |---|---|---|
-| Journal entries, lines, vendors, sub-accounts | IndexedDB | Not sent |
-| Fixed assets, home-office allocation rules | IndexedDB | Not sent |
+| Journal entries, lines, chart of accounts, vendors, sub-accounts | IndexedDB | Not sent |
+| Fixed assets | IndexedDB | Not sent |
+| Receipt photos (attached images) | IndexedDB | Not sent (no screen to update or delete them; always included in backups) |
+| Per-account home-office allocation ratios (in settings) | IndexedDB | Not sent |
+| Invoices and quotations | IndexedDB | Not sent |
+| Simple inventory item master | IndexedDB | Not sent |
+| Budgets | IndexedDB | Not sent |
+| Receivables and payables | IndexedDB | Not sent |
+| Income and tax deduction inputs | IndexedDB | Not sent |
+| CSV-import classification rules | IndexedDB | Not sent |
 | Filed-year snapshots | IndexedDB | Not sent |
-| Gemini API key | IndexedDB | Only when you start a generative-AI/OCR feature, sent to the Gemini API |
-| OpenAI-compatible API key, baseURL | IndexedDB | Only when you start a generative-AI/OCR feature, sent to your specified baseURL (not sent off-device when localhost is specified) |
+| Support stamps and the supporter-badge purchase date | IndexedDB | Not sent (excluded from backup; kept as-is across restore) |
+| Gemini API key | IndexedDB | When you start generative-AI/OCR classification, receipt OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to the Gemini API as a URL query parameter |
+| OpenAI-compatible API key, baseURL | IndexedDB | When you start generative-AI/OCR classification, receipt OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to your specified baseURL via an `Authorization: Bearer` header (not sent off-device when localhost is specified) |
 | Business profile (trade name, invoice number) | IndexedDB | Not sent |
 | Backup folder handle | IndexedDB | Not sent |
 | Import history (file hashes) | IndexedDB | Not sent |
@@ -52,12 +63,12 @@ All of the above exists only locally on your device. **Uninstalling the app, or 
 
 ### OCR / generative AI engines (optional, BYOK, selected in Settings)
 
-Only when you **explicitly invoke** generative AI classification or receipt OCR, content is sent to the selected engine:
+When you **explicitly invoke** generative AI classification or receipt OCR, and also when you save an API key (which also fetches the model list), fetch the model list, or test the connection, content is sent to the selected engine:
 
 - **Vision generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
-- **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` / `eng.traineddata` are served by aoiko itself, so no external request is made
+- **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` is served by aoiko itself, so no external request is made
 <!-- only:native -->
-- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides — never sent externally. Nothing extra is downloaded either
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
 <!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. Nothing extra is downloaded either
@@ -71,7 +82,7 @@ Only when you **explicitly invoke** generative AI classification or receipt OCR,
 | Google Gemini (default) | `generativelanguage.googleapis.com` | Yes (cloud) |
 | OpenAI-compatible / Ollama etc. when localhost | On-device (e.g. `http://localhost:11434`) | **None** |
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
-| Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` / `eng.traineddata` are bundled too | **None** (no external request is made) |
+| Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` is bundled too | **None** (no external request is made) |
 <!-- only:native -->
 | The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
 <!-- /only -->
@@ -81,19 +92,19 @@ Only when you **explicitly invoke** generative AI classification or receipt OCR,
 <!-- only:browser -->
 | Your browser's built-in AI | Decided by the browser's implementation (not necessarily on the device). Usable only when your browser already holds the AI model (aoiko never fetches it) | None from aoiko. **Whether the browser sends it externally is something aoiko cannot guarantee** |
 <!-- /only -->
-
 <!-- only:browser -->
+
 - Requests go **directly** from your browser to the destination — aoiko has no management server in the path
 <!-- /only -->
 <!-- only:native -->
 - Requests go **directly** from the app to the destination — aoiko has no management server in the path
 <!-- /only -->
-- For **cloud (external) engines, a pre-send confirmation dialog** is shown
+- For **cloud (external) engines, a pre-send confirmation dialog** is shown (skippable via a setting)
 - Gemini: data handling follows Google's privacy policy and your API plan contract; whether data is used for training depends on your plan (free vs. paid)
 - When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
-- Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Accuracy is limited; vendor and items are not guessed. Manual verification by the user is required
+- Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
 <!-- only:native -->
-- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
+- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence: inference runs on the device and none of your data is sent externally. It appears as an option only when this device supports Apple Intelligence
@@ -134,4 +145,4 @@ Only when you **explicitly invoke** generative AI classification or receipt OCR,
 
 ## Change history
 
-This policy may change without notice. Material changes can be tracked in the GitHub commit log.
+This policy may change without notice. Material changes can be tracked in this tool's CHANGELOG.

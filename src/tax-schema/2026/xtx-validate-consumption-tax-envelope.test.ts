@@ -7,7 +7,7 @@
 // SHA010 系統の xsd:group のみを許可し、SHA020 系統は許可しない
 // （SHA020 系統は RSH0030＝簡易課税・個人が正しい）。
 //
-// 本テストは RSH0010-232.xsd／RSH0030-232.xsd が公開しているグローバル要素 <DATA> に
+// 本テストは RSH0010-260.xsd／RSH0030-260.xsd が公開しているグローバル要素 <DATA> に
 // 対して、buildTwoWariXtx 等が実際に組み立てた完全な .xtx 文字列をそのまま
 // xmllint 検証する。ValidationRoot ラッパは不要（DATA 自体が public element のため）。
 /// <reference types="node" />
@@ -94,7 +94,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       taxableBase8: D('0'),
       ...badDebtZeroExtras(),
     });
-    const { ok, out } = validateAgainstSchema('RSH0030-232.xsd', xml);
+    const { ok, out } = validateAgainstSchema('RSH0030-260.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
   });
@@ -110,7 +110,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       deemedInputRate: 0.5,
       ...badDebtZeroExtras(),
     });
-    const { ok, out } = validateAgainstSchema('RSH0030-232.xsd', xml);
+    const { ok, out } = validateAgainstSchema('RSH0030-260.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
   });
@@ -126,7 +126,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       input8: D('0'),
       ...zeroExtras(),
     });
-    const { ok, out } = validateAgainstSchema('RSH0010-232.xsd', xml);
+    const { ok, out } = validateAgainstSchema('RSH0010-260.xsd', xml);
     expect(out).not.toContain('Schemas parser error');
     expect(ok, out).toBe(true);
   });
@@ -142,7 +142,32 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
       ...badDebtZeroExtras(),
     });
     const wrongXml = xml.replace(/RSH0030/g, 'RSH0010');
-    const { ok } = validateAgainstSchema('RSH0010-232.xsd', wrongXml);
+    const { ok } = validateAgainstSchema('RSH0010-260.xsd', wrongXml);
     expect(ok).toBe(false);
+  });
+
+  test('手続 VR は令和8年度世代の 26.0.0（RSH0010・RSH0030 とも）', () => {
+    const twoWari = buildTwoWariXtx({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      filer,
+      taxableBase10: D('6008481'),
+      taxableBase8: D('0'),
+      ...badDebtZeroExtras(),
+    });
+    const general = buildGeneralXtx({
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      filer,
+      taxableBase10: D('3000000'),
+      taxableBase8: D('0'),
+      input10: D('100000'),
+      input8: D('0'),
+      ...zeroExtras(),
+    });
+    expect(twoWari).toContain('<RSH0030 VR="26.0.0" id="RSH0030">');
+    expect(general).toContain('<RSH0010 VR="26.0.0" id="RSH0010">');
+    expect(twoWari).not.toContain('23.2.0');
+    expect(general).not.toContain('23.2.0');
   });
 });

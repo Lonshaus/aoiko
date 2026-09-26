@@ -32,12 +32,18 @@ export default defineConfig({
           __APP_COMMIT__: JSON.stringify('test'),
           // 購入画面等のテストを走らせたいので、こちら側はネイティブ版として扱う。
           __NATIVE__: JSON.stringify(true),
+          __DOC_PREVIEW__: 'false',
+          __DOC_PLATFORM__: JSON.stringify('browser'),
         },
         test: {
           ...sharedTest,
           name: 'native',
           include: ['src/**/*.test.{ts,svelte.ts}'],
-          exclude: [...sharedTest.exclude, '**/*.web.test.ts'],
+          exclude: [
+            ...sharedTest.exclude,
+            '**/*.web.test.ts',
+            '**/*.doc-preview.test.{ts,svelte.ts}',
+          ],
         },
       },
       {
@@ -47,11 +53,29 @@ export default defineConfig({
           __APP_VERSION__: JSON.stringify('test'),
           __APP_COMMIT__: JSON.stringify('test'),
           __NATIVE__: JSON.stringify(false),
+          __DOC_PREVIEW__: 'false',
+          __DOC_PLATFORM__: JSON.stringify('browser'),
         },
         test: {
           ...sharedTest,
           name: 'web',
           include: ['src/**/*.web.test.ts'],
+        },
+      },
+      {
+        plugins: [svelte()],
+        resolve,
+        define: {
+          __APP_VERSION__: JSON.stringify('test'),
+          __APP_COMMIT__: JSON.stringify('test'),
+          __NATIVE__: JSON.stringify(false),
+          __DOC_PREVIEW__: 'true',
+          __DOC_PLATFORM__: JSON.stringify('browser'),
+        },
+        test: {
+          ...sharedTest,
+          name: 'doc-preview',
+          include: ['src/**/*.doc-preview.test.{ts,svelte.ts}'],
         },
       },
     ],

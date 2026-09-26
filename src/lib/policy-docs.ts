@@ -1,15 +1,19 @@
 import type { Locale } from '../paraglide/runtime';
 import { baseLocale, locales } from '../paraglide/runtime';
+import { previewModules } from './doc-preview';
 
 export const POLICY_DOC_NAMES = ['DISCLAIMER', 'PRIVACY', 'SECURITY'] as const;
 
 export type PolicyDocName = (typeof POLICY_DOC_NAMES)[number];
 // manual.ts の eager glob（全マニュアル章）とは切り離す。DisclaimerConsent は
 // 初回起動時に必ず描画されるため、そちらを import すると全章分がバンドルへ混入する。
-const modules = import.meta.glob(
-  ['../../DISCLAIMER*.md', '../../PRIVACY*.md', '../../SECURITY*.md'],
-  { query: '?raw', import: 'default', eager: true },
-) as Record<string, string>;
+const modules = previewModules(
+  import.meta.glob(['../../DISCLAIMER*.md', '../../PRIVACY*.md', '../../SECURITY*.md'], {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>,
+);
 // ロケール接尾辞付きファイル名（例 `PRIVACY_en.md`）から slug と locale を切り出す。
 // manual.ts の章ファイルとも共通の命名規則のため、ここに置いて両者から使う。
 function parseFilename(path: string): { slug: string; locale: Locale } {

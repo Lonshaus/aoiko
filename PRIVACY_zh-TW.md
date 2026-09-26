@@ -15,7 +15,9 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 - 使用狀況分析（telemetry・analytics）
 - cookie、本地儲存的追蹤器
 
+應援機能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
 <!-- only:browser -->
+
 提供 <https://aoiko.pages.dev> 的 hosting 的 **HTTP access log** 可能依該服務政策保留。aoiko 這邊無法控制這部分。
 <!-- /only -->
 
@@ -31,11 +33,20 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 
 | 資料 | 存放位置 | 送出目的地 |
 |---|---|---|
-| 傳票、明細、交易對象、輔助科目 | IndexedDB | 不送 |
-| 固定資產、家事分攤規則 | IndexedDB | 不送 |
+| 傳票、明細、勘定科目、交易對象、輔助科目 | IndexedDB | 不送 |
+| 固定資產 | IndexedDB | 不送 |
+| 憑證照片（收據影像） | IndexedDB | 不送（沒有更新或刪除的畫面，一律含入備份） |
+| 各科目的家事分攤比率（設定內）| IndexedDB | 不送 |
+| 請求書・見積書 | IndexedDB | 不送 |
+| 簡易庫存管理的商品主檔 | IndexedDB | 不送 |
+| 預算 | IndexedDB | 不送 |
+| 應收・應付帳款 | IndexedDB | 不送 |
+| 所得控除・稅額控除的輸入 | IndexedDB | 不送 |
+| CSV 匯入的分類規則 | IndexedDB | 不送 |
 | 已申報 snapshot | IndexedDB | 不送 |
-| Gemini API 金鑰 | IndexedDB | 只在使用者啟動生成式 AI/OCR 功能時送到 Gemini API |
-| OpenAI 相容 API 金鑰・baseURL | IndexedDB | 只在使用者啟動生成式 AI/OCR 功能時送到使用者指定的 baseURL（指定 localhost 時不離開本機）|
+| 應援集章與支援者徽章的購買日期 | IndexedDB | 不送（不進備份，還原時原樣保留）|
+| Gemini API 金鑰 | IndexedDB | 使用者啟動生成式 AI/OCR 分類・收據 OCR・訂單匯入時（經確認對話框），以及儲存金鑰時（同時取得模型清單）・取得模型清單時・連線測試時（這三者不經確認對話框），以 URL 查詢參數送到 Gemini API |
+| OpenAI 相容 API 金鑰・baseURL | IndexedDB | 使用者啟動生成式 AI/OCR 分類・收據 OCR・訂單匯入時（經確認對話框），以及儲存金鑰時（同時取得模型清單）・取得模型清單時・連線測試時（這三者不經確認對話框），以 `Authorization: Bearer` 標頭送到使用者指定的 baseURL（指定 localhost 時不離開本機）|
 | 事業者資訊（商號、發票登錄號碼）| IndexedDB | 不送 |
 | 備份資料夾的 handle | IndexedDB | 不送 |
 | 匯入紀錄（檔案 hash）| IndexedDB | 不送 |
@@ -52,12 +63,12 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 
 ### OCR / 生成式 AI 引擎（使用者選用・BYOK・設定中選擇）
 
-只在使用者**明確啟動**生成式 AI 分類・收據 OCR 時，內容才會送到選中的引擎：
+使用者**明確啟動**生成式 AI 分類・收據 OCR 時，以及儲存 API 金鑰（同時取得模型清單）・取得模型清單・連線測試時，內容會送到選中的引擎：
 
 - **vision 生成式 AI 路徑（Gemini / OpenAI 相容）**：生成式 AI 分類＝CSV 各列的文字（金額・摘要等）＋ 勘定科目清單／OCR＝收據圖片（Base64）＋ 抽取指示的 prompt
-- **Tesseract 路徑（OCR 限定）**：不用生成式 AI。圖片在 WASM 內本機處理、不外送。`jpn.traineddata` / `eng.traineddata` 也由 aoiko 自己提供，不會有對外連線
+- **Tesseract 路徑（OCR 限定）**：不用生成式 AI。圖片在 WASM 內本機處理、不外送。`jpn.traineddata` 也由 aoiko 自己提供，不會有對外連線
 <!-- only:native -->
-- **作業系統內建的文字辨識路徑（OCR 限定）**：不用生成式 AI。圖片由作業系統提供的文字辨識在本機處理、不外送。也不需額外下載任何資料
+- **作業系統內建的文字辨識路徑（OCR 限定）**：不用生成式 AI。圖片由作業系統提供的文字辨識在本機處理、不外送，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。也不需額外下載任何資料
 <!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence 路徑（生成式 AI 分類・OCR 共用）**：推論全程在裝置內完成，圖片與文字都不會外送。也不需額外下載任何資料
@@ -71,7 +82,7 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 | Google Gemini（預設） | `generativelanguage.googleapis.com` | 是（雲端） |
 | OpenAI 相容 / Ollama 等：指定 localhost 時 | 本機內（例 `http://localhost:11434`） | **否** |
 | OpenAI 相容 / Ollama 等：指定遠端時 | 使用者指定的 host | 是 |
-| Tesseract（純本地 WASM OCR） | 圖片不離開本機。`jpn.traineddata` / `eng.traineddata` 也內附 | **無**（不會有對外連線）|
+| Tesseract（純本地 WASM OCR） | 圖片不離開本機。`jpn.traineddata` 也內附 | **無**（不會有對外連線）|
 <!-- only:native -->
 | 作業系統內建的文字辨識 | 圖片不離開本機 | **無**（不會有對外連線）|
 <!-- /only -->
@@ -81,19 +92,19 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 <!-- only:browser -->
 | 瀏覽器內建 AI | 由瀏覽器的實作決定（不一定在本機）。只有在使用者的瀏覽器已持有 AI 模型時才能使用（aoiko 不會取得該模型） | aoiko 這邊沒有。**瀏覽器會不會送到外部，aoiko 無法保證** |
 <!-- /only -->
-
 <!-- only:browser -->
+
 - 送出是使用者瀏覽器**直接**進行，不經由 aoiko 的管理伺服器（不存在）
 <!-- /only -->
 <!-- only:native -->
 - 送出是 App **直接**進行，不經由 aoiko 的管理伺服器（不存在）
 <!-- /only -->
-- **外部（雲端）送出引擎使用時送出前會跳確認對話框**
+- **外部（雲端）送出引擎使用時送出前會跳確認對話框**（可透過設定跳過）
 - Gemini：送出內容依 Google 隱私政策與使用者 API 方案合約處理，是否用於訓練看合約形態（免費 vs 付費）
 - 本地（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須 vision 對應模型）。在裝置內完成的引擎同樣不會產生送出
-- Tesseract：不用生成式 AI，從 WASM OCR 文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。精度有限、店名與品項不推測。使用者務必人工確認
+- Tesseract：不用生成式 AI，從 WASM OCR 文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。店名與品項不推測。使用者務必人工確認
 <!-- only:native -->
-- 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。店名與品項不推測。使用者務必人工確認
+- 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence：推論在裝置內完成，使用者的資料不會外送。只有在這台裝置支援 Apple Intelligence 時才會出現在選項中
@@ -108,7 +119,7 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 |---|---|
 <!-- only:browser -->
 | 同步資料夾（File System Access API・支援的瀏覽器） | 使用者選的**本機**資料夾 |
-| OPFS（不支援的瀏覽器的後備） | 瀏覽器管理的**本機**儲存 |
+| OPFS（不支援的瀏覽器的備援） | 瀏覽器管理的**本機**儲存 |
 | 手動匯出 | 使用者的「下載」資料夾 |
 <!-- /only -->
 <!-- only:native -->
@@ -134,4 +145,4 @@ aoiko 這邊的伺服器**完全不**收任何東西。
 
 ## 變更歷史
 
-本政策可能無預告變更。重要變更可在 GitHub commit log 確認。
+本政策可能無預告變更。重要變更可在本工具的 CHANGELOG 確認。

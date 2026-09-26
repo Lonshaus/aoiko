@@ -1,4 +1,4 @@
-import type { Account } from '$lib/../db/types';
+import type { Account, AssetCategory } from '$lib/../db/types';
 // 青色申告決算書（一般用）の標準勘定科目。
 //
 // 準拠：令和7年分（最新公告）一般用フォーム。令和8年分の様式は本コミット時点
@@ -34,6 +34,8 @@ export const ACCOUNTS_2026: Account[] = [
   { code: '1513', year: 2026, name: '機械装置', category: 'asset', displayOrder: 513 },
   { code: '1514', year: 2026, name: '車両運搬具', category: 'asset', displayOrder: 514 },
   { code: '1515', year: 2026, name: '土地', category: 'asset', displayOrder: 515 },
+  // 所令6条8号の無形固定資産（ソフトウエア・特許権等）。所令134条1項2号ロで全額償却。
+  { code: '1516', year: 2026, name: '無形固定資産', category: 'asset', displayOrder: 516 },
   { code: '1520', year: 2026, name: '減価償却累計額', category: 'asset', displayOrder: 520 },
   // 資産（1xxx）— 繰延資産
   { code: '1530', year: 2026, name: '開業費', category: 'asset', displayOrder: 530 },
@@ -431,3 +433,20 @@ export const ACCOUNTS_2026: Account[] = [
     displayOrder: 1395,
   },
 ];
+// 固定資産台帳に登録できる減価償却資産の科目（固定資産区分のうち土地と減価償却累計額を除く）。
+const NON_DEPRECIABLE_FIXED_ASSET_CODES = new Set(['1515', '1520']);
+export const DEPRECIABLE_ASSET_ACCOUNTS: Account[] = ACCOUNTS_2026.filter(
+  (a) => a.code >= '1510' && a.code < '1530' && !NON_DEPRECIABLE_FIXED_ASSET_CODES.has(a.code),
+);
+// 科目から推定する所令6条の号。建物附属設備は1号（建物及びその附属設備）。
+const ASSET_CATEGORY_BY_ACCOUNT: Record<string, AssetCategory> = {
+  '1510': 7,
+  '1511': 1,
+  '1512': 1,
+  '1513': 3,
+  '1514': 6,
+  '1516': 8,
+};
+export function defaultAssetCategory(accountCode: string): AssetCategory | undefined {
+  return ASSET_CATEGORY_BY_ACCOUNT[accountCode];
+}

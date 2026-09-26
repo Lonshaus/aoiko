@@ -18,7 +18,7 @@ test('開業費・転用資産を登録 → 仕訳一覧に反映される', asy
   await expect(page.getByText('名刺作成')).toBeVisible();
 
   await page.getByPlaceholder('名前（例：MacBook Pro）').fill('パソコン');
-  await dateInputs.nth(1).fill('2020-11-01');
+  await page.getByTitle('購入日', { exact: true }).fill('2020-11-01');
   await page.getByPlaceholder('取得価額').fill('300000');
   await page.locator('input[type=number][min="1"][max="50"]').fill('4');
   await page.getByRole('button', { name: '追加' }).nth(1).click();

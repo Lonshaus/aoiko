@@ -2,13 +2,12 @@
 
 **Language**: [日本語](SECURITY.md) | **English** | [繁體中文](SECURITY_zh-TW.md)
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content is sent to the engine you selected only when you explicitly start generative AI classification or OCR — and not even then if you chose an engine that runs entirely on the device. This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection — not at all if you chose an engine that runs entirely on the device. This document outlines known risks, the support stance, and vulnerability reporting.
 
 ## Official distribution sources
 
 aoiko is officially distributed only from:
 
-- Source code: <https://github.com/Lonshaus/aoiko>
 - Online demo: <https://aoiko.pages.dev>
 <!-- only:apple -->
 - The App Store (macOS and iOS editions)
@@ -18,19 +17,19 @@ aoiko is officially distributed only from:
 <!-- /only -->
 <!-- only:browser -->
 
-If you obtained aoiko from anywhere else (an unfamiliar site, a packaged executable, etc.), **verify it against one of the above before entering an API key or any sensitive information**.
+If you obtained aoiko from anywhere else (an unfamiliar site, a packaged executable, etc.), **verify it against the online demo above before entering an API key or any sensitive information**.
 <!-- /only -->
 <!-- only:native -->
 
 If you obtained aoiko from outside the store, **verify it against one of the sources above before entering an API key or any sensitive information**.
 <!-- /only -->
 
-aoiko is published under AGPL-3.0, so anyone can legally fork it — but that doesn't rule out someone using the name to distribute phishing or malware under a confusingly similar guise. If in doubt, check authenticity against the GitHub repository's commit history and issues.
+Beware of phishing or malware distributed under the aoiko name or a confusingly similar guise. If in doubt, check authenticity against the official distribution sources listed above.
 
 ## Supported versions
-
 <!-- only:browser -->
-The published site (<https://aoiko.pages.dev>), which tracks the latest commit on the `master` branch, is the supported version.
+
+The version published at <https://aoiko.pages.dev> is the supported version.
 <!-- /only -->
 <!-- only:native -->
 The latest release published in the stores is the supported version. For a report filed against an older release, you may be asked to confirm whether it still reproduces on the latest one.
@@ -51,8 +50,8 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 ## Security design assumptions
 
 ### BYOK model
-
 <!-- only:browser -->
+
 - The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the browser's built-in AI) chosen by the user are **registered by the user and kept in the user's browser IndexedDB** (Tesseract and the browser's built-in AI need neither a key nor any setting)
 <!-- /only -->
 <!-- only:apple -->
@@ -114,14 +113,13 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- only:apple -->
   - **Apple Intelligence** → no transmission (inference runs entirely on-device)
 <!-- /only -->
-- Always review content with high sensitivity before sending (a pre-send confirmation dialog is shown for external engines)
-- AI/OCR features are **opt-in via UI buttons** — no automatic transmission
-
+- Always review content with high sensitivity before sending (a pre-send confirmation dialog is shown for external engines; skippable via a setting)
+- AI/OCR features and their API-key saving, model listing, and connection testing are all **actions you take** (UI buttons) — no automatic transmission
 <!-- only:browser -->
+
 ### 4. PWA cache
 
-- Old builds may be cached by the Service Worker
-- There may be a delay before bug-fix versions propagate
+- If an old build is still cached by the Service Worker, there can be a delay before a bug-fix version reaches you
 <!-- /only -->
 
 ## Hardening recommendations
@@ -136,5 +134,4 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 
 ## Dependency vulnerabilities
 
-- `npm audit` in CI is planned (not yet implemented)
 - High-severity CVEs are addressed promptly when found, but coverage is not guaranteed
