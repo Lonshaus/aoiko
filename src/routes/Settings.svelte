@@ -6,6 +6,8 @@
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
+  import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
+  import { isPlatform, PLATFORMS, type Platform } from '../lib/build-only';
   import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
@@ -135,6 +137,29 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
+  // 開発用：手引き・条文を dev server でどの配布形態向けに畳んで表示するか。
+  // __DOC_PLATFORM__ は dev server 起動時の AOIKO_PLATFORM で、未検証の生値なので isPlatform で確かめる。
+  // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、build 産物に doc-preview.ts が
+  // 混入する（tree-shaking は分岐の外側の参照までは削らない）。
+  let devDocPreviewPlatform = $state<Platform>(
+    __DOC_PREVIEW__
+      ? readPreviewPlatform(isPlatform(__DOC_PLATFORM__) ? __DOC_PLATFORM__ : 'browser')
+      : 'browser',
+  );
+  function onDocPreviewPlatformChange(e: Event) {
+    if (!__DOC_PREVIEW__) {
+      return;
+    }
+    const v = (e.currentTarget as HTMLSelectElement).value as Platform;
+    writePreviewPlatform(v);
+    location.reload();
+  }
+  const DOC_PREVIEW_LABELS: Record<Platform, string> = {
+    browser: 'Web',
+    macos: 'macOS',
+    ios: 'iOS',
+    windows: 'Windows',
+  };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
   // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
@@ -3529,6 +3554,24 @@
       </button>
     </div>
   </section>
+  {#if __DOC_PREVIEW__}
+    <section class="space-y-4 border border-dashed rounded-lg p-6 bg-card text-card-foreground">
+      <h3 class="text-lg font-semibold">開発用：文書のプレビュー対象</h3>
+      <p class="text-xs text-muted-foreground">
+        手引き・免責事項・プライバシーポリシー・セキュリティ方針をどの配布形態向けに畳んで表示するか。dev
+        server でのみ表示される。
+      </p>
+      <select
+        value={devDocPreviewPlatform}
+        onchange={onDocPreviewPlatformChange}
+        class="px-3 h-9 bg-background border rounded text-foreground text-sm"
+      >
+        {#each PLATFORMS as p (p)}
+          <option value={p}>{DOC_PREVIEW_LABELS[p]}</option>
+        {/each}
+      </select>
+    </section>
+  {/if}
   {#if canSupport}
     <div class="text-center">
       <button
