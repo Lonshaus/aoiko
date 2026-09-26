@@ -306,3 +306,219 @@ describe('buildCorrectionHistoryRows', () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+describe('buildYayoiCsvRows：免税事業者等からの仕入れの控除上限（附則52条1項）', () => {
+  function purchases(vendorId: string | undefined, amounts: string[], year = 2027) {
+    const entries: JournalEntry[] = [];
+    const lines: JournalLine[] = [];
+    amounts.forEach((amount, i) => {
+      const id = `e${i + 1}`;
+      const date = `${year}-0${i + 1}-10`;
+      entries.push(entry({ id, date }));
+      lines.push(
+        line({
+          id: `${id}d`,
+          entryId: id,
+          side: 'debit',
+          accountCode: '5130',
+          amount,
+          amountIndexed: toIndexable(amount),
+          taxRate: 0.1,
+          ...(vendorId !== undefined ? { vendorId } : {}),
+        }),
+        line({
+          id: `${id}c`,
+          entryId: id,
+          side: 'credit',
+          accountCode: '1130',
+          amount,
+          amountIndexed: toIndexable(amount),
+        }),
+      );
+    });
+    return { entries, lines };
+  }
+
+  test('年間1億5千万円の取引先は、上限を超えた部分の行を控除できない区分で出力する', () => {
+    const { entries, lines } = purchases('v1', ['50000000', '50000000', '50000000']);
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual([
+      '課対仕入込10%区分70%',
+      '課対仕入込10%区分70%',
+      '課対仕入込10%区分控不',
+    ]);
+  });
+
+  test('上限をまたぐ行は1行の中で按分できないため行全体を控除できない区分にする', () => {
+    const { entries, lines } = purchases('v1', ['60000000', '60000000']);
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分70%', '課対仕入込10%区分控不']);
+  });
+
+  test('上限を超える取引先が無ければ各行の区分は従来どおり取引日の経過措置の割合', () => {
+    const { entries, lines } = purchases('v1', ['30000000', '30000000', '40000000']);
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual([
+      '課対仕入込10%区分70%',
+      '課対仕入込10%区分70%',
+      '課対仕入込10%区分70%',
+    ]);
+  });
+
+  test('取引先の無い行は合算しないため、1億円以下の行が並んでも区分は変わらない', () => {
+    const { entries, lines } = purchases(undefined, ['60000000', '60000000']);
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分70%', '課対仕入込10%区分70%']);
+  });
+
+  test('令和8年10月1日前に開始した課税期間（2026年分）は従来の10億円が上限', () => {
+    const { entries, lines } = purchases('v1', ['60000000', '60000000'], 2026);
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分80%', '課対仕入込10%区分80%']);
+  });
+});
+
+describe('控除比例0%は区分控不で出力する（区分0%は出力しない）', () => {
+  test('経過措置終了後（令和13年10月1日以後）で上限を超えていない行も区分控不', () => {
+    const entries = [entry({ id: 'e1', date: '2031-10-01' })];
+    const lines = [
+      line({
+        id: 'l1',
+        entryId: 'e1',
+        side: 'debit',
+        accountCode: '5130',
+        amount: '1000',
+        taxRate: 0.1,
+      }),
+      line({ id: 'l2', entryId: 'e1', side: 'credit', accountCode: '1130', amount: '1000' }),
+    ];
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows.map((r) => r[7])).toEqual(['課対仕入込10%区分控不']);
+  });
+
+  test('上限超過（附則52条1項）と経過措置終了後の両方が混在しても全文に区分0%は出ない', () => {
+    const capExceeded = entry({ id: 'ecap', date: '2027-04-01' });
+    const capLines = [
+      line({
+        id: 'capd',
+        entryId: 'ecap',
+        side: 'debit',
+        accountCode: '5130',
+        amount: '150000000',
+        taxRate: 0.1,
+        vendorId: 'v1',
+      }),
+      line({
+        id: 'capc',
+        entryId: 'ecap',
+        side: 'credit',
+        accountCode: '1130',
+        amount: '150000000',
+      }),
+    ];
+    const afterAbolition = entry({ id: 'eafter', date: '2031-10-01' });
+    const afterLines = [
+      line({
+        id: 'afterd',
+        entryId: 'eafter',
+        side: 'debit',
+        accountCode: '5130',
+        amount: '1000',
+        taxRate: 0.1,
+      }),
+      line({
+        id: 'afterc',
+        entryId: 'eafter',
+        side: 'credit',
+        accountCode: '1130',
+        amount: '1000',
+      }),
+    ];
+    const rows = buildYayoiCsvRows(
+      [capExceeded, afterAbolition],
+      [...capLines, ...afterLines],
+      ACCOUNTS,
+      [],
+      CTX,
+    );
+    const fullText = rows.flat().join('\n');
+    expect(fullText).not.toContain('区分0%');
+    expect(fullText).toContain('区分控不');
+  });
+});
+
+describe('課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
+  test('資産科目（収入科目でない）の行は対象外になり、同科目で貸借バランスする合成ペアが課税売上を表す', () => {
+    const entries = [entry({ id: 'e1', date: '2026-05-01' })];
+    const lines = [
+      line({ id: 'l1', entryId: 'e1', side: 'debit', accountCode: '1130', amount: '110000' }),
+      line({
+        id: 'l2',
+        entryId: 'e1',
+        side: 'credit',
+        accountCode: '5150',
+        amount: '110000',
+        taxRate: 0.1,
+        taxIncluded: true,
+        taxableTransferConsideration: '110000',
+      }),
+    ];
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    // l2（対象外）＋合成ペア（貸方=課税売上、借方=対象外）で振替伝票2行になる
+    expect(rows).toHaveLength(2);
+    const debitTotal = rows.reduce((sum, r) => sum + Number(r[8] || 0), 0);
+    const creditTotal = rows.reduce((sum, r) => sum + Number(r[14] || 0), 0);
+    expect(debitTotal).toBe(creditTotal);
+    expect(debitTotal).toBe(220000);
+    const taxLabels = rows.flatMap((r) => [r[7], r[13]]);
+    expect(taxLabels).toContain('課税売上込10%');
+    expect(taxLabels).toContain('対象外');
+    expect(taxLabels).not.toContain('課対仕入込10%区分80%');
+    const taxAmounts = rows.map((r) => Number(r[9] || 0) + Number(r[15] || 0));
+    expect(taxAmounts.reduce((s, n) => s + n, 0)).toBe(10000);
+  });
+
+  test('簡易課税では合成ペアの課税売上区分に第四種（消基通13-2-9）が付く', () => {
+    const ctxSimplified = {
+      taxFilingMethod: 'simplified' as const,
+      simplifiedTaxCategory: 5 as const,
+    };
+    const entries = [entry({ id: 'e1', date: '2026-05-01' })];
+    const lines = [
+      line({ id: 'l1', entryId: 'e1', side: 'debit', accountCode: '1130', amount: '110000' }),
+      line({
+        id: 'l2',
+        entryId: 'e1',
+        side: 'credit',
+        accountCode: '5150',
+        amount: '110000',
+        taxRate: 0.1,
+        taxIncluded: true,
+        taxableTransferConsideration: '110000',
+      }),
+    ];
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], ctxSimplified);
+    const taxLabels = rows.flatMap((r) => [r[7], r[13]]);
+    expect(taxLabels).toContain('課税売上込四10%');
+  });
+
+  test('収入科目に印を付けた行はそれ自体が課税売上行になり、合成ペアは追加されない', () => {
+    const entries = [entry({ id: 'e1', date: '2026-05-01' })];
+    const lines = [
+      line({ id: 'l1', entryId: 'e1', side: 'debit', accountCode: '1130', amount: '110000' }),
+      line({
+        id: 'l2',
+        entryId: 'e1',
+        side: 'credit',
+        accountCode: '4110',
+        amount: '110000',
+        taxRate: 0.1,
+        taxIncluded: true,
+        taxableTransferConsideration: '110000',
+      }),
+    ];
+    const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]![13]).toBe('課税売上込10%');
+  });
+});

@@ -3,12 +3,15 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
+import { calendarMonthsCeil } from '../tax-schema/2026/limits';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
 const CAPITAL_CODE = '3110'; // 元入金
 const DEPRECIATION_EXPENSE_CODE = '5210'; // 減価償却費（繰延資産の償却もここに計上）
+// 所令137条1項1号：開業費は 60 で除し業務を行っていた期間の月数を乗じる。
+const OPENING_EXPENSE_MONTHS = 60;
 // 非業務用（私用）資産を業務の用に供した場合の未償却残高計算（所得税法施行令第135条・136条準拠）。
 // 国税庁タックスアンサー No.2108「中古資産を非業務用から業務用に転用した場合の減価償却」に基づく。
 // 手順：①耐用年数×1.5 の年数で旧定額法償却率を引く ②非業務期間（6ヶ月未満切り捨て・6ヶ月以上は1年）
@@ -183,12 +186,35 @@ export function computeConvertedAssetBasis(
   const businessStartBasis = cost.minus(nonBusinessDepreciation);
   return { nonBusinessDepreciation, businessStartBasis };
 }
+// 開業費（繰延資産）の開業年の償却額。月数は開業日から年末まで、1 月未満は 1 月（所令137条2項）。
+export function openingExpenseAmortization(
+  expenseTotal: Decimal,
+  businessStartDate: string,
+  method: ExpenseAmortization,
+  customAmount?: string,
+): Decimal {
+  if (method === 'immediate') {
+    return expenseTotal;
+  }
+  if (method === 'custom') {
+    const amount = D(customAmount ?? '0');
+    return Decimal.max(0, Decimal.min(amount, expenseTotal));
+  }
+  const year = Number(businessStartDate.slice(0, 4));
+  const months = calendarMonthsCeil(businessStartDate, `${year + 1}-01-01`);
+  const amount = expenseTotal
+    .times(months)
+    .dividedBy(OPENING_EXPENSE_MONTHS)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  return Decimal.min(amount, expenseTotal);
+}
 
 interface OpeningExpenseItem {
   name: string;
   amount: string;
 }
-export type ExpenseAmortization = 'immediate' | 'five-year';
+// five-year：所令137条1項1号（÷60×業務月数）。custom：同条3項の任意償却（金額は customAmortizationAmount）。
+export type ExpenseAmortization = 'immediate' | 'five-year' | 'custom';
 interface OpeningConvertedAsset {
   name: string;
   acquisitionDate: string;
@@ -207,6 +233,8 @@ export interface OpeningSetupInput {
   businessStartDate: string;
   expenses: OpeningExpenseItem[];
   expenseAmortization: ExpenseAmortization;
+  /** expenseAmortization === 'custom' のときの当年償却額。開業費の額を上限とする */
+  customAmortizationAmount?: string;
   convertedAssets: OpeningConvertedAsset[];
   customItems: OpeningCustomItem[];
 }
@@ -291,10 +319,12 @@ export async function generateOpeningEntries(
       await db.journalLines.bulkAdd(lines);
       entryIds.push(entry.id);
 
-      const amortized =
-        input.expenseAmortization === 'immediate'
-          ? expenseTotal
-          : expenseTotal.dividedBy(5).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+      const amortized = openingExpenseAmortization(
+        expenseTotal,
+        date,
+        input.expenseAmortization,
+        input.customAmortizationAmount,
+      );
       if (!amortized.isZero()) {
         const amortEntry = newEntry(date, '開業費償却（開業精霊）');
         const amortLines = [
@@ -323,12 +353,15 @@ export async function generateOpeningEntries(
       const fixedAsset: FixedAsset = {
         id: newId(),
         name: asset.name,
-        acquisitionDate: date,
-        acquisitionCost: basis.businessStartBasis.toString(),
+        acquisitionDate: asset.acquisitionDate,
+        acquisitionCost: asset.acquisitionCost,
         usefulLifeYears: asset.usefulLifeYears,
         depreciationMethod: asset.depreciationMethod,
         accountCode: asset.accountCode,
         source: 'opening',
+        conversionBasis: basis.businessStartBasis.toString(),
+        serviceStartDate: date,
+        openingYear: year,
       };
       await db.fixedAssets.add(fixedAsset);
       assetIds.push(fixedAsset.id);
@@ -404,9 +437,13 @@ export async function removeOpeningEntries(
     if (originals.length === 0) {
       return;
     }
-    // 精霊が登録した資産は取得日＝開業日なので、年度で対象を絞れる。
+    // openingYear の無い旧データは取得日＝開業日で登録されているので取得日の年で絞れる。
     const targets = await db.fixedAssets
-      .filter((a) => a.source === 'opening' && Number(a.acquisitionDate.slice(0, 4)) === year)
+      .filter(
+        (a) =>
+          a.source === 'opening' &&
+          (a.openingYear ?? Number(a.acquisitionDate.slice(0, 4))) === year,
+      )
       .toArray();
     if (targets.length > 0) {
       const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));

@@ -19,7 +19,7 @@ aoiko keeps double-entry books regardless of filing type (Blue or White Return),
 - Prior year-end **liability balances** become the new year's credits
 - Prior year's **net income** and **owner's draws/contributions** are absorbed into **Owner's Capital**
 
-This opening journal entry is what aoiko's **"Settings → Prior-period carryover (opening balance)"** auto-generates.
+This opening journal entry is what aoiko's **"Prior-period carryover (opening balance)"** in Settings auto-generates.
 
 ## 2. The opening entry's structure
 
@@ -30,7 +30,7 @@ Example: 2026 fiscal year opening entry (prior 2025 year-end values)
   Debit   1110 Cash                 500,000
   Debit   1130 Ordinary deposit   1,200,000
   Debit   1310 Accounts receivable  300,000
-  Debit   1514 Tools & equipment   250,000   (cost − accumulated depreciation)
+  Debit   1510 Tools & equipment   250,000   (cost − accumulated depreciation)
   Credit  2120 Accounts payable     80,000
   Credit  3110 Owner's capital   2,170,000   (= debit total − other credits)
 ```
@@ -66,10 +66,10 @@ Review the preview to ensure it looks correct.
 
 ### 3-3. Create
 
-When OK, click **"Create opening journal entry"**. An entry dated `{year}-01-01` is created and appears in Home's recent entries and Reports' BS.
+When OK, click **"Create opening transfer entry"**. An entry dated `{year}-01-01` is created and appears in Home's recent entries and Reports' BS.
 
 Success message:
-> ✓ Created opening journal entry
+> ✓ Opening transfer entry created
 
 ### 3-4. Redo (delete and recreate)
 
@@ -77,18 +77,18 @@ If something is wrong:
 
 1. Click **"Delete existing carryover entry"** to remove the existing `{year}-01-01` carryover entry (this is a **physical delete**, not a reversal — the opening carryover is machine-generated metadata-like, exempt from the audit-history requirement)
 2. Fix the prior year's entries / fixed assets
-3. Click **"Preview"** again → **"Create opening journal entry"**
+3. Click **"Preview"** again → **"Create opening transfer entry"**
 
 ### 3-5. Errors
 
 | Error | Meaning |
 |---|---|
 | A carryover entry already exists. Delete it first. | Already exists at `{year}-01-01`. See 3-4 |
-| No prior-year entries to carry over | No prior-year journal entries at all (e.g. first year of use) |
+| No journal entries in the previous year — nothing to carry over | No prior-year journal entries at all (e.g. first year of use) |
 
 ## 4. First year (no prior data)
 
-When you first start using aoiko, there's no prior year so **"No prior-year entries to carry over"** appears. Use the dedicated business-opening screen instead of carryover:
+When you first start using aoiko, there's no prior year so **"No journal entries in the previous year — nothing to carry over"** appears. Use the dedicated business-opening screen instead of carryover:
 
 - If you have assets bought before opening and put into business use afterward (converted assets), or pre-opening expenses to book → use **[13. Business opening setup (Opening Wizard)](13-opening-setup_en.md)**, which computes the opening book value and generates the offsetting entry against owner's capital automatically
 - If you're simply contributing cash or assets whose book value you already know, you can also create the entry by hand:
@@ -96,7 +96,7 @@ When you first start using aoiko, there's no prior year so **"No prior-year entr
 ```
 2026-01-01  Opening balances
   Debit   1110 Cash              500,000
-  Debit   1514 Tools & equipment 200,000
+  Debit   1510 Tools & equipment 200,000
   Credit  3110 Owner's capital   700,000
 ```
 
@@ -107,9 +107,9 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 ## 5. Year-transition workflow
 
 1. Complete prior-year entries through **year-end** (e.g. 2025-12-31)
-2. Reports → **"Lock as Filed"** to lock the year ([06. § 8](06-reports_en.md#8-year-lock-filed))
+2. Reports → **"Lock as filed"** to lock the year ([06. § 8](06-reports_en.md#8-year-lock-filed))
 3. Settings → **"Current fiscal year"** → change to 2026
-4. Settings → Prior-period carryover → **"Create opening journal entry"**
+4. Settings → Prior-period carryover → **"Create opening transfer entry"**
 5. Begin booking 2026 entries
 
 > Note: **current-year depreciation entries** are separate from carryover. The correct order is: generate depreciation entries for the prior year ([08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation)), then run carryover.
@@ -125,11 +125,11 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 
 ### 7-1. Why it exists
 
-Under Income Tax Act art. 52(3), the allowance for doubtful accounts booked at the end of the prior year must be added back to this year's gross revenue in full (the "洗替方式" / replacement method), and a fresh allowance is booked at this year's end. The carryover covered by this chapter just carries `2170 Allowance for doubtful accounts` forward like any other liability — it does not perform this reversal. If nobody books the reversal, the allowance balance stays on the balance sheet, this year's new addition stacks on top of it, and the deduction accumulates year after year while gross revenue is understated. Nothing on the reports looks wrong, which is why aoiko gives you a button that generates this entry.
+Under Income Tax Act art. 52(3), the allowance for doubtful accounts booked at the end of the prior year must be added back to this year's gross revenue in full (the "洗替方式" / replacement method), and a fresh allowance is booked at this year's end. The carryover covered by this chapter just carries `2170 Allowance for doubtful accounts` forward like any other liability — it does not perform this reversal. If nobody books the reversal, the allowance balance stays on the balance sheet, this year's new addition stacks on top of it, and the deduction accumulates year after year while gross revenue is understated. aoiko gives you a button that generates this entry.
 
 ### 7-2. Where the button is
 
-Settings → the year-end processing area, next to Depreciation and Prior-period carryover: 「**貸倒引当金の繰戻し**」 (reversal of the allowance for doubtful accounts). Pressing it generates one journal entry dated `{year}-01-01`.
+Settings → the year-end processing area, next to Depreciation and Prior-period carryover: 「**Reverse the bad-debt allowance**」. Pressing it generates one journal entry dated `{year}-01-01`.
 
 ### 7-3. What it generates
 
@@ -139,17 +139,13 @@ Settings → the year-end processing area, next to Depreciation and Prior-period
 | Credit | 4120 Reversal of allowance for doubtful accounts | Total of last year's 5810 (blanket) + 5811 (specific) |
 | Credit | 4230 Reversal of allowance for doubtful accounts (real estate) | Total of last year's 5410 (real estate) |
 
-### 7-4. Why the basis is the prior year's addition, not the carried balance
-
-Art. 52(3) speaks of the amount credited to the allowance in the prior year — that amount itself is the basis. Using it also resolves the business / real-estate split. There is only one allowance liability account (`2170`), so the carried balance alone cannot tell which income type it belongs to — but the addition accounts can (5810/5811 = business, 5410 = real estate).
-
-### 7-5. Behaviour notes
+### 7-4. Behaviour notes
 
 - Nothing to reverse (no addition booked in the prior year) → the button reports that and creates nothing
 - Running it twice → the second run is refused; only one reversal entry per year
 - An addition entry that has been corrected via a reversing entry (訂正) is excluded from both the calculation and the duplicate check, so a mistaken reversal can be corrected and regenerated
 
-### 7-6. Reflected in `.xtx`
+### 7-5. Reflected in `.xtx`
 
 The reversal is revenue and lands in the right box automatically on `.xtx` export. The business and real-estate parts go to different forms.
 

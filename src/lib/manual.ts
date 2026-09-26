@@ -1,4 +1,5 @@
 import { baseLocale, type Locale } from '../paraglide/runtime';
+import { previewModules } from './doc-preview';
 import {
   buildLocaleRegistry,
   getPolicyDoc,
@@ -10,11 +11,13 @@ import {
 
 export { stripLanguageNav };
 
-const modules = import.meta.glob('../../docs/manual/*.md', {
-  query: '?raw',
-  import: 'default',
-  eager: true,
-}) as Record<string, string>;
+const modules = previewModules(
+  import.meta.glob('../../docs/manual/*.md', {
+    query: '?raw',
+    import: 'default',
+    eager: true,
+  }) as Record<string, string>,
+);
 
 export const INDEX_SLUG = 'README';
 

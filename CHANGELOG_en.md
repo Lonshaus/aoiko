@@ -4,6 +4,30 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.2] - 2026-09-26
+
+Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculations in line with the law and how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on next launch.
+
+### Changed
+
+- Corrected the Disclaimer, Privacy Policy and Security Policy to match the available engines and actual behavior
+- Blue-return special deduction: added "Double-entry + e-Tax filing only (¥650,000)", the cash-basis election (Income Tax Act Art. 67(1)), and the check based on business income two years prior
+- Deductions: you can now apply the home-worker expense rule (Special Taxation Measures Act Art. 27)
+- Fixed assets: added the old straight-line, old declining-balance and lease-period straight-line methods
+- Business Opening Wizard: you can now enter a closing date, and amortize start-up costs by any amount
+- 20%/30% consumption-tax special provisions: you can now enter tax on sales returns and specified small-asset transfers
+- Updated the Guide to match
+
+### Fixed
+
+- Employment income deduction not following Appended Table 5 of the Income Tax Act
+- White-return family-employee deduction not being calculated or written on the return
+- Fixed-asset sales missing from taxable sales for consumption tax (Type 4 under simplified taxation)
+- Interim-filing check ignoring the months in the preceding taxable period
+- The ¥3M cap for the small-value asset rule not being prorated correctly in the opening or closing year
+- Wrong cost and undepreciated balance for assets converted from personal use
+- Wrong tax categories in the Yayoi-format CSV
+
 ## [1.2.1] - 2026-09-14
 
 Fixes for narrow screens and for cancelling a change in Settings.
@@ -23,7 +47,7 @@ The version where reading with OCR comes back, and the browser's built-in AI can
 
 ### Added
 
-- Receipts, CSV classification and order import can now run on the browser's built-in AI. What it reads never leaves your device. The option appears only when your browser already holds the AI model
+- Receipts, CSV classification and order import can now run on the browser's built-in AI. aoiko itself sends nothing, but whether inference runs on your device or an external service is up to the browser's implementation. The option appears only when your browser already holds the AI model
 
 ### Changed
 
@@ -92,7 +116,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 - Backup export and restore switched from a single zip to loose files inside a folder. The "backup interval" setting has been removed as a result
 - Links to the full text of the disclaimer and the third-party licenses now open within aoiko instead of leaving it
 - Sending to a `.local` address now also counts as sending outside the device, and shows the send confirmation
-- Improved ledger speed for large books. Rendering the confirmation table for 2,000 rows dropped from 82.6 seconds to 0.33 seconds (0.74 seconds even at 5,000 rows); backup export and restore are now streamed, alongside image processing, so the screen no longer freezes. Also fixed CSV import memory usage growing without bound as row count increased
+- Improved ledger speed for large books. Rendering the confirmation table for 2,000 rows now takes 0.33 seconds (0.74 seconds even at 5,000 rows); backup export and restore are now streamed, alongside image processing, so the screen no longer freezes. Also fixed CSV import memory usage growing without bound as row count increased
 
 ### Fixed (ledger and backups)
 
@@ -217,18 +241,18 @@ Initial release.
 
 ### Added
 
-- Double-entry bookkeeping: journal entries, correcting entries, audit history in line with the Electronic Books Storage Act, composite search satisfying the qualified electronic ledger requirements
+- Double-entry bookkeeping: journal entries, correcting entries, audit history that preserves the original entry, composite search by year / month / description / amount range / vendor
 - Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
-- e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule). Conforms to the NTA's official XSD, verified against a real e-Tax software import
-- Bank and credit-card CSV import (13 parsers, validated against real CSVs), import history, duplicate detection, batch-level reverse
-- Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract, with a pre-send confirmation dialog)
+- e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule)
+- Bank and credit-card CSV import, import history, duplicate detection, batch-level reverse
+- Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract; the pre-send confirmation dialog is skippable via a setting)
 - Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, business opening setup (Opening Wizard)
-- Consumption tax estimation with 4-method comparison (general / simplified / 20% special / 30% special), transitional 80/70/50/30% input-tax credit applied automatically
+- Consumption tax estimation with method comparison (general / simplified taxation, plus whichever special provision applies to that year — the 20% special provision through 2026, the 30% special provision for 2027–2028), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns
 - Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)
 - Amended filing guide (diff between filed snapshot and current values)
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
-- PWA offline operation, trilingual UI (Japanese / English / Traditional Chinese)
+- PWA: bookkeeping, reports, depreciation, consumption-tax calculation, `.xtx`, invoices/quotations, and backup restore work offline (Tesseract's first-time language data fetch, cloud engines, and the third-party license list require a connection); trilingual UI (Japanese / English / Traditional Chinese)
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

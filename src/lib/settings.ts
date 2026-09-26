@@ -5,6 +5,13 @@ import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
+import type {
+  SmallAmountSpecialInputs,
+  WariBaseAdjustments,
+  WariEligibilityInputs,
+} from '../domain/consumption-tax';
+import type { InterimVoluntaryInputs } from '../domain/interim-filing';
+import { D, type Decimal } from './decimal';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
 // chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
@@ -73,6 +80,22 @@ export type SettingsMap = {
   simplifiedTaxCategory: SimplifiedTaxCategory;
   // 本則課税で課税売上高5億円超または課税売上割合95%未満の場合の控除計算方式
   consumptionTaxAttributionMethod: 'individual' | 'proportional';
+  // 未設定は従来の判定のまま（除外事由なし・特例なし・届出なし）。日付は ISO、金額は Decimal 文字列
+  invoiceRegistrationStartDate: string;
+  taxableElectionPeriod: { fromYear: number; toYear?: number };
+  inheritanceSpecialDate: string;
+  adjustedFixedAssetDate: string;
+  shortenedTaxPeriod: { from: string; to?: string };
+  foreignWithoutDomesticPe: boolean;
+  basePeriodTaxableSales: string;
+  specifiedPeriodTaxableSales: string;
+  simplifiedElectionFiledDate: string;
+  interimVoluntaryFiled: boolean;
+  interimVoluntaryLapsed: boolean;
+  // 中間申告の直前課税期間月数（年分をキーに、届出済み値のみ保持）。未記録の年分は12（既定）
+  interimPriorPeriodMonths: Record<number, number>;
+  // 2割／3割特例の基礎調整（年分をキー）。金額は Decimal 文字列
+  wariBaseAdjustments: Record<number, StoredWariBaseAdjustments>;
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対映する。
   // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
   userRiyoshaId: string; // 利用者識別番号（16桁）
@@ -85,6 +108,8 @@ export type SettingsMap = {
   filingType: FilingType;
   // 青色申告特別控除の区分（事業所得・控除額の算定に使用。青色申告のみ）
   aoiroDeductionKind: AoiroDeductionKind;
+  // 所得税法67条1項（小規模事業者の現金主義）の適用を受けるか（既定 false）
+  cashBasisElection: boolean;
   // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
   backupIncludeFilerInfo: boolean;
   // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
@@ -109,6 +134,10 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業精霊が書き込む）。
+  // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
+  businessStartDate: string;
+  businessCloseDate: string;
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
@@ -123,7 +152,9 @@ export type SettingsMap = {
 // v7: LLM/OCR エンジンにブラウザ内蔵 AI を追加（web 側だけにあるエンジンなので web 側のみ）。
 // v6 は native 側だけの改訂なので、番号は続きの 7 ではなく双方独立の最終値。native は
 // 本文が変わっていないのでそのまま 6 に据え置く。
-export const DISCLAIMER_VERSION = __NATIVE__ ? 6 : 7;
+// v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
+// 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
+export const DISCLAIMER_VERSION = 9;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,
@@ -141,4 +172,104 @@ export async function setSetting<K extends keyof SettingsMap>(
 
 export async function deleteSetting<K extends keyof SettingsMap>(key: K): Promise<void> {
   await db.settings.delete(key);
+}
+// 壊れた値は未設定と同じに扱い、判定を不適用側へ倒さない
+function parseAmount(value: string | undefined): Decimal | undefined {
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  try {
+    const d = D(value.replace(/,/g, '').trim());
+    return d.isFinite() && !d.isNegative() ? d : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function nonEmpty(value: string | undefined): string | undefined {
+  return value === undefined || value === '' ? undefined : value;
+}
+
+export async function loadSmallAmountSpecialInputs(): Promise<SmallAmountSpecialInputs> {
+  const basePeriodSales = parseAmount(await getSetting('basePeriodTaxableSales'));
+  const specifiedPeriodSales = parseAmount(await getSetting('specifiedPeriodTaxableSales'));
+  return {
+    ...(basePeriodSales !== undefined ? { basePeriodSales } : {}),
+    ...(specifiedPeriodSales !== undefined ? { specifiedPeriodSales } : {}),
+  };
+}
+
+export async function loadWariEligibilityInputs(): Promise<WariEligibilityInputs> {
+  const registrationStartDate = nonEmpty(await getSetting('invoiceRegistrationStartDate'));
+  const taxableElection = await getSetting('taxableElectionPeriod');
+  const inheritanceDate = nonEmpty(await getSetting('inheritanceSpecialDate'));
+  const adjustedFixedAssetDate = nonEmpty(await getSetting('adjustedFixedAssetDate'));
+  const shortenedPeriod = await getSetting('shortenedTaxPeriod');
+  const foreignWithoutDomesticPe = await getSetting('foreignWithoutDomesticPe');
+  const basePeriodSales = parseAmount(await getSetting('basePeriodTaxableSales'));
+  return {
+    ...(registrationStartDate !== undefined ? { registrationStartDate } : {}),
+    ...(taxableElection !== undefined ? { taxableElection } : {}),
+    ...(inheritanceDate !== undefined ? { inheritanceDate } : {}),
+    ...(adjustedFixedAssetDate !== undefined ? { adjustedFixedAssetDate } : {}),
+    ...(shortenedPeriod !== undefined && shortenedPeriod.from !== '' ? { shortenedPeriod } : {}),
+    ...(foreignWithoutDomesticPe === true ? { foreignWithoutDomesticPe } : {}),
+    ...(basePeriodSales !== undefined ? { basePeriodSales } : {}),
+  };
+}
+
+export async function loadInterimVoluntaryInputs(): Promise<InterimVoluntaryInputs> {
+  return {
+    interimVoluntaryFiled: (await getSetting('interimVoluntaryFiled')) ?? false,
+    interimVoluntaryLapsed: (await getSetting('interimVoluntaryLapsed')) ?? false,
+  };
+}
+// 記録が無い年分は12（既定、従来どおり）
+export async function loadInterimPriorPeriodMonths(year: number): Promise<number> {
+  const map = await getSetting('interimPriorPeriodMonths');
+  return map?.[year] ?? 12;
+}
+
+// 少額特例の年合計上限の月割に使う開業日・廃業日。未設定はそれぞれ呼出元の既定に委ねる。
+export async function loadBusinessDates(): Promise<{
+  businessStartDate?: string;
+  businessCloseDate?: string;
+}> {
+  const businessStartDate = nonEmpty(await getSetting('businessStartDate'));
+  const businessCloseDate = nonEmpty(await getSetting('businessCloseDate'));
+  return {
+    ...(businessStartDate !== undefined ? { businessStartDate } : {}),
+    ...(businessCloseDate !== undefined ? { businessCloseDate } : {}),
+  };
+}
+
+export interface StoredSpecifiedSmallAssetTransfer {
+  date: string;
+  rate: 0.1 | 0.08;
+  netTax: string;
+}
+export interface StoredWariBaseAdjustments {
+  salesReturnTax78?: string;
+  salesReturnTax624?: string;
+  specifiedSmallAssetTransfers?: StoredSpecifiedSmallAssetTransfer[];
+}
+// 記録が無い年分は空（除外事由なし、従来どおり）
+export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdjustments> {
+  const map = await getSetting('wariBaseAdjustments');
+  const stored = map?.[year];
+  if (stored === undefined) {
+    return {};
+  }
+  const salesReturnTax78 = parseAmount(stored.salesReturnTax78);
+  const salesReturnTax624 = parseAmount(stored.salesReturnTax624);
+  const transfers = stored.specifiedSmallAssetTransfers
+    ?.filter((t) => t.date !== '')
+    .map((t) => ({ date: t.date, rate: t.rate, netTax: D(t.netTax || '0') }));
+  return {
+    ...(salesReturnTax78 !== undefined ? { salesReturnTax78 } : {}),
+    ...(salesReturnTax624 !== undefined ? { salesReturnTax624 } : {}),
+    ...(transfers !== undefined && transfers.length > 0
+      ? { specifiedSmallAssetTransfers: transfers }
+      : {}),
+  };
 }

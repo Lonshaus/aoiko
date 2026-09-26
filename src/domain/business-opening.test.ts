@@ -4,8 +4,11 @@ import {
   computeConvertedAssetBasis,
   generateOpeningEntries,
   oldStraightLineRate,
+  openingExpenseAmortization,
   removeOpeningEntries,
 } from './business-opening';
+import { computeDepreciation } from './depreciation';
+import { D } from '../lib/decimal';
 import type { OpeningSetupInput, OpeningSetupResult } from './business-opening';
 
 beforeEach(async () => {
@@ -162,7 +165,7 @@ describe('generateOpeningEntries', () => {
     expect(amortDebit?.amount).toBe('10000');
   });
 
-  it('開業費：5年均等償却は初年度分（1/5）のみ費用化', async () => {
+  it('開業費の 5 年償却は ÷60×業務月数（2026-07-01 開業は 6 か月）', async () => {
     const result = await generateOk({
       businessStartDate: '2026-07-01',
       expenses: [{ name: 'サイト制作', amount: '500000' }],
@@ -172,12 +175,12 @@ describe('generateOpeningEntries', () => {
     });
     const lines = await db.journalLines.where('entryId').anyOf(result.entryIds).toArray();
     const amortDebit = lines.find((l) => l.accountCode === '5210');
-    expect(amortDebit?.amount).toBe('100000');
+    expect(amortDebit?.amount).toBe('50000');
     const kaigyohiCredit = lines.find((l) => l.accountCode === '1530' && l.side === 'credit');
-    expect(kaigyohiCredit?.amount).toBe('100000');
+    expect(kaigyohiCredit?.amount).toBe('50000');
   });
 
-  it('転用資産：固定資産登録＋開業時未償却残高で元入金と貸借が合う', async () => {
+  it('転用資産は取得日・取得価額を入力どおり保存し、未償却残高は conversionBasis に置く', async () => {
     const result = await generateOk({
       businessStartDate: '2022-01-01',
       expenses: [],
@@ -196,8 +199,11 @@ describe('generateOpeningEntries', () => {
     });
     expect(result.assetIds).toHaveLength(1);
     const asset = await db.fixedAssets.get(result.assetIds[0]!);
-    expect(asset?.acquisitionCost).toBe('255180');
-    expect(asset?.acquisitionDate).toBe('2022-01-01');
+    expect(asset?.acquisitionCost).toBe('300000');
+    expect(asset?.acquisitionDate).toBe('2020-11-01');
+    expect(asset?.conversionBasis).toBe('255180');
+    expect(asset?.serviceStartDate).toBe('2022-01-01');
+    expect(asset?.openingYear).toBe(2022);
 
     const lines = await db.journalLines.where('entryId').anyOf(result.entryIds).toArray();
     const assetLine = lines.find((l) => l.accountCode === '1510');
@@ -206,6 +212,12 @@ describe('generateOpeningEntries', () => {
     expect(assetLine?.amount).toBe('255180');
     expect(capitalLine?.side).toBe('credit');
     expect(capitalLine?.amount).toBe('255180');
+    // 開業年の償却は業務供用日から算出するが、償却基礎（depreciationBase）は所令135条により
+    // 原始取得価額（acquisitionCost）。累計償却の上限は conversionBasis（開業仕訳の借方）。
+    const first = computeDepreciation(asset!, 2022);
+    expect(first.depreciationBase).toBe('300000');
+    expect(first.amount).toBe('75000');
+    expect(computeDepreciation(asset!, 2021).amount).toBe('0');
   });
 
   it('自由項目：貸方指定なら元入金は借方で相殺', async () => {
@@ -375,5 +387,110 @@ describe('removeOpeningEntries', () => {
 
     expect(await removeOpeningEntries(2026)).toEqual({ removed: true });
     expect(await db.fixedAssets.count()).toBe(1);
+  });
+});
+
+describe('removeOpeningEntries の対象選択', () => {
+  it('openingYear の無い旧データ（取得日＝開業日）も選ばれる', async () => {
+    await generateOpeningEntries({
+      businessStartDate: '2026-07-01',
+      expenses: [],
+      expenseAmortization: 'immediate',
+      convertedAssets: [
+        {
+          name: 'ノートPC',
+          acquisitionDate: '2024-01-10',
+          acquisitionCost: '300000',
+          usefulLifeYears: 4,
+          accountCode: '1510',
+          depreciationMethod: 'straight-line',
+        },
+      ],
+      customItems: [],
+    });
+    const created = (await db.fixedAssets.toArray())[0]!;
+    // 改修前の形：取得日＝開業日、取得価額＝換算後の未償却残高、openingYear 等なし
+    const {
+      openingYear: _y,
+      conversionBasis: basis,
+      serviceStartDate: _s,
+      ...legacyBase
+    } = created;
+    await db.fixedAssets.put({
+      ...legacyBase,
+      acquisitionDate: '2026-07-01',
+      acquisitionCost: basis!,
+    });
+
+    expect(await removeOpeningEntries(2026)).toEqual({ removed: true });
+    expect(await db.fixedAssets.count()).toBe(0);
+  });
+
+  it('取得日が開業年より前でも openingYear で選ばれ、別の年度では選ばれない', async () => {
+    await generateOpeningEntries({
+      businessStartDate: '2026-07-01',
+      expenses: [{ name: '名刺', amount: '10000' }],
+      expenseAmortization: 'immediate',
+      convertedAssets: [
+        {
+          name: 'ノートPC',
+          acquisitionDate: '2024-01-10',
+          acquisitionCost: '300000',
+          usefulLifeYears: 4,
+          accountCode: '1510',
+          depreciationMethod: 'straight-line',
+        },
+      ],
+      customItems: [],
+    });
+    expect(await removeOpeningEntries(2024)).toEqual({ removed: false });
+    expect(await db.fixedAssets.count()).toBe(1);
+    expect(await removeOpeningEntries(2026)).toEqual({ removed: true });
+    expect(await db.fixedAssets.count()).toBe(0);
+  });
+});
+
+describe('openingExpenseAmortization（所令137条）', () => {
+  it('業務月数が 12 なら ÷5 と同じ', () => {
+    expect(openingExpenseAmortization(D('500000'), '2026-01-01', 'five-year').toString()).toBe(
+      '100000',
+    );
+  });
+
+  it('1 月未満の端数は 1 月（2026-07-15 開業は 6 か月）', () => {
+    expect(openingExpenseAmortization(D('600000'), '2026-07-15', 'five-year').toString()).toBe(
+      '60000',
+    );
+  });
+
+  it('即時償却は全額', () => {
+    expect(openingExpenseAmortization(D('500000'), '2026-07-01', 'immediate').toString()).toBe(
+      '500000',
+    );
+  });
+
+  it('任意償却（3 項）は指定額、開業費の額が上限', () => {
+    expect(
+      openingExpenseAmortization(D('500000'), '2026-07-01', 'custom', '120000').toString(),
+    ).toBe('120000');
+    expect(
+      openingExpenseAmortization(D('500000'), '2026-07-01', 'custom', '900000').toString(),
+    ).toBe('500000');
+  });
+
+  it('任意償却の額は仕訳に反映される', async () => {
+    const result = await generateOpeningEntries({
+      businessStartDate: '2026-07-01',
+      expenses: [{ name: 'サイト制作', amount: '500000' }],
+      expenseAmortization: 'custom',
+      customAmortizationAmount: '120000',
+      convertedAssets: [],
+      customItems: [],
+    });
+    if ('reason' in result) {
+      throw new Error(result.reason);
+    }
+    const lines = await db.journalLines.where('entryId').anyOf(result.entryIds).toArray();
+    expect(lines.find((l) => l.accountCode === '5210')?.amount).toBe('120000');
   });
 });

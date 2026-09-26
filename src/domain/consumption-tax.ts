@@ -18,7 +18,7 @@ import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
 import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
-import type { TaxFilingMethod } from '../db/types';
+import type { Account, JournalLine, TaxFilingMethod } from '../db/types';
 
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
 // 国税分の率（消費税法 第 29 条 + 第 72 条）
@@ -190,6 +190,10 @@ interface ProcessedYearLines {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** taxableTransferConsideration が設定された行の課税標準額（税率別、税抜）。
+   * 簡易課税の事業区分別計算（第四種）で使うため taxableBase10/8 から分離して保持する */
+  markedTransferBase10: Decimal;
+  markedTransferBase8: Decimal;
 }
 
 function emptyProcessedYearLines(): ProcessedYearLines {
@@ -217,6 +221,8 @@ function emptyProcessedYearLines(): ProcessedYearLines {
     badDebtTax8: D(0),
     badDebtRecoveryTax10: D(0),
     badDebtRecoveryTax8: D(0),
+    markedTransferBase10: D(0),
+    markedTransferBase8: D(0),
   };
 }
 // period 指定時は仮決算（中間申告）用：年内の一部期間（start〜end、両端含む ISO 日付）
@@ -225,28 +231,195 @@ interface ConsumptionTaxPeriod {
   start: string;
   end: string;
 }
+// 未設定は少額特例を適用しない（従来どおり）
+export interface SmallAmountSpecialInputs {
+  basePeriodSales?: Decimal;
+  specifiedPeriodSales?: Decimal;
+}
+
+export interface ProcessYearOptions {
+  smallAmountSpecial?: SmallAmountSpecialInputs;
+}
+// 附則53条の2：五年施行日から6年を経過する日まで
+const SMALL_AMOUNT_SPECIAL_START = '2023-10-01';
+const SMALL_AMOUNT_SPECIAL_END = '2029-09-30';
+const TRANSITIONAL_START = '2023-10-01';
+// 附則53条の2 は基準期間1億円以下「又は」特定期間5千万円以下
+export function isSmallAmountSpecialPeriod(inputs: SmallAmountSpecialInputs = {}): boolean {
+  const byBase =
+    inputs.basePeriodSales !== undefined && inputs.basePeriodSales.lessThanOrEqualTo(100_000_000);
+  const bySpecified =
+    inputs.specifiedPeriodSales !== undefined &&
+    inputs.specifiedPeriodSales.lessThanOrEqualTo(50_000_000);
+  return byBase || bySpecified;
+}
+// 平成30年政令第135号附則24条の2第1項（税込1万円未満）
+export function isSmallAmountPurchase(transactionInclusive: Decimal, date: string): boolean {
+  return (
+    transactionInclusive.lessThan(10_000) &&
+    date >= SMALL_AMOUNT_SPECIAL_START &&
+    date <= SMALL_AMOUNT_SPECIAL_END
+  );
+}
+// 附則90条3項：令和8年10月1日以後開始の課税期間から1億円、それ前は10億円
+export function transitionalCapAmount(year: number): Decimal {
+  return D(year >= 2027 ? 100_000_000 : 1_000_000_000);
+}
+
+export function taxInclusiveAmount(line: JournalLine): Decimal {
+  const amount = D(line.amount);
+  return line.taxIncluded ? amount : amount.times(1 + line.taxRate);
+}
+export function isNonInvoicePurchaseLine(line: JournalLine, acc: Account): boolean {
+  if (line.taxableTransferConsideration !== undefined) {
+    return false;
+  }
+  const cat = line.taxCategory ?? acc.taxCategory;
+  if (
+    cat === 'badDebtRecovery' ||
+    cat === 'importTax10' ||
+    cat === 'importTax8' ||
+    cat === 'reverseCharge' ||
+    cat === 'badDebt'
+  ) {
+    return false;
+  }
+  if (acc.category === 'revenue' || line.taxRate === 0 || line.invoiceCompliant) {
+    return false;
+  }
+  if (line.side !== 'debit') {
+    return false;
+  }
+  return (
+    acc.category === 'expense' || (acc.category === 'asset' && acc.code !== OWNER_WITHDRAW_CODE)
+  );
+}
+
+export interface TransitionalCapItem {
+  lineId: string;
+  entryId: string;
+  date: string;
+  vendorId?: string;
+  inclusiveAmount: Decimal;
+}
+// vendorId の無い行は相手を特定できないため、どの群にも合算せず1行ずつ判定する
+export function transitionalCapExcess(
+  cap: Decimal,
+  items: readonly TransitionalCapItem[],
+): Map<string, Decimal> {
+  const sorted = [...items].sort((a, b) => {
+    if (a.date !== b.date) {
+      return a.date < b.date ? -1 : 1;
+    }
+    if (a.entryId !== b.entryId) {
+      return a.entryId < b.entryId ? -1 : 1;
+    }
+    return a.lineId < b.lineId ? -1 : a.lineId > b.lineId ? 1 : 0;
+  });
+  const totals = new Map<string, Decimal>();
+  const excess = new Map<string, Decimal>();
+  for (const item of sorted) {
+    const key = item.vendorId === undefined ? `line:${item.lineId}` : `vendor:${item.vendorId}`;
+    const before = totals.get(key) ?? D(0);
+    const after = before.plus(item.inclusiveAmount);
+    totals.set(key, after);
+    if (after.greaterThan(cap)) {
+      const over = after.minus(Decimal.max(before, cap));
+      if (over.greaterThan(0)) {
+        excess.set(item.lineId, over);
+      }
+    }
+  }
+  return excess;
+}
+
+export interface NonInvoicePurchaseClassification {
+  smallAmountLineIds: Set<string>;
+  capExcess: Map<string, Decimal>;
+}
+// 少額特例の対象行は「前二条の規定は、適用しない」ため上限の累計にも入れない
+export function classifyNonInvoicePurchases(
+  year: number,
+  entryDateMap: ReadonlyMap<string, string>,
+  lines: readonly JournalLine[],
+  accountMap: ReadonlyMap<string, Account>,
+  smallAmountSpecial: SmallAmountSpecialInputs = {},
+): NonInvoicePurchaseClassification {
+  const candidates = lines.filter((line) => {
+    const acc = accountMap.get(line.accountCode);
+    return acc !== undefined && isNonInvoicePurchaseLine(line, acc);
+  });
+  const smallAmountLineIds = new Set<string>();
+  if (isSmallAmountSpecialPeriod(smallAmountSpecial)) {
+    // 1回の取引の税込額で判定する（商品ごとではない）ため仕訳単位で合計する
+    const perEntry = new Map<string, Decimal>();
+    for (const line of candidates) {
+      perEntry.set(
+        line.entryId,
+        (perEntry.get(line.entryId) ?? D(0)).plus(taxInclusiveAmount(line)),
+      );
+    }
+    for (const line of candidates) {
+      const date = entryDateMap.get(line.entryId) ?? `${year}-01-01`;
+      const total = perEntry.get(line.entryId) ?? D(0);
+      if (isSmallAmountPurchase(total, date)) {
+        smallAmountLineIds.add(line.id);
+      }
+    }
+  }
+  const items: TransitionalCapItem[] = [];
+  for (const line of candidates) {
+    const date = entryDateMap.get(line.entryId) ?? `${year}-01-01`;
+    if (smallAmountLineIds.has(line.id) || date < TRANSITIONAL_START) {
+      continue;
+    }
+    items.push({
+      lineId: line.id,
+      entryId: line.entryId,
+      date,
+      ...(line.vendorId !== undefined ? { vendorId: line.vendorId } : {}),
+      inclusiveAmount: taxInclusiveAmount(line),
+    });
+  }
+  return {
+    smallAmountLineIds,
+    capExcess: transitionalCapExcess(transitionalCapAmount(year), items),
+  };
+}
 
 export async function processYear(
   year: number,
   period?: ConsumptionTaxPeriod,
+  options: ProcessYearOptions = {},
 ): Promise<ProcessedYearLines> {
-  const entries = await db.journalEntries
+  // 控除上限は年単位の累計なので、期間集計でも年間の仕訳から判定する
+  const yearEntries = await db.journalEntries
     .where('year')
     .equals(year)
-    .filter(
-      (e) => countsTowardTotals(e) && (!period || (e.date >= period.start && e.date <= period.end)),
-    )
+    .filter((e) => countsTowardTotals(e))
     .toArray();
+  const entries = period
+    ? yearEntries.filter((e) => e.date >= period.start && e.date <= period.end)
+    : yearEntries;
   if (entries.length === 0) {
     return emptyProcessedYearLines();
   }
-  const lines = await db.journalLines
+  const yearLines = await db.journalLines
     .where('entryId')
-    .anyOf(entries.map((e) => e.id))
+    .anyOf(yearEntries.map((e) => e.id))
     .toArray();
+  const inPeriod = new Set(entries.map((e) => e.id));
+  const lines = yearLines.filter((l) => inPeriod.has(l.entryId));
   const accounts = await db.accounts.where('year').equals(year).toArray();
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
-  const entryDateMap = new Map(entries.map((e) => [e.id, e.date]));
+  const entryDateMap = new Map(yearEntries.map((e) => [e.id, e.date]));
+  const { smallAmountLineIds, capExcess } = classifyNonInvoicePurchases(
+    year,
+    entryDateMap,
+    yearLines,
+    accountMap,
+    options.smallAmountSpecial,
+  );
 
   const acc0 = emptyProcessedYearLines();
   let { output, inputRaw, input, input10, input8, taxableBase10, taxableBase8 } = acc0;
@@ -267,6 +440,8 @@ export async function processYear(
     badDebtTax8,
     badDebtRecoveryTax10,
     badDebtRecoveryTax8,
+    markedTransferBase10,
+    markedTransferBase8,
   } = acc0;
   // 個別対応方式の用途区分別に控除対象仕入税額を積み上げる（taxableOnly は input からの差分で導出するため個別集計不要）
   function accumulateUsage(
@@ -293,6 +468,22 @@ export async function processYear(
   for (const line of lines) {
     const acc = accountMap.get(line.accountCode);
     if (!acc) {
+      continue;
+    }
+    // 課税資産の譲渡等の行単位の印：科目区分を問わずこの対価を課税売上として集計する
+    // （固定資産の譲渡等）。収入科目の売上経路とは重複させず、仕入としても扱わない
+    if (line.taxableTransferConsideration !== undefined && line.taxRate !== 0) {
+      const consideration = D(line.taxableTransferConsideration);
+      const national = nationalPortion(consideration, line.taxRate, line.taxIncluded);
+      const base = taxExcludedPortion(consideration, line.taxRate, line.taxIncluded);
+      output = output.plus(national);
+      if (line.taxRate === 0.1) {
+        taxableBase10 = taxableBase10.plus(base);
+        markedTransferBase10 = markedTransferBase10.plus(base);
+      } else if (line.taxRate === 0.08) {
+        taxableBase8 = taxableBase8.plus(base);
+        markedTransferBase8 = markedTransferBase8.plus(base);
+      }
       continue;
     }
     const effectiveTaxCategory = line.taxCategory ?? acc.taxCategory;
@@ -396,10 +587,14 @@ export async function processYear(
       const signed = line.side === 'debit' ? national : national.negated();
       inputRaw = inputRaw.plus(signed);
       let deducted = signed;
-      if (!line.invoiceCompliant) {
+      if (!line.invoiceCompliant && !smallAmountLineIds.has(line.id)) {
         const date = entryDateMap.get(line.entryId) ?? `${year}-01-01`;
         const rate = transitionalCreditRate(date);
         deducted = signed.times(rate);
+        const over = capExcess.get(line.id);
+        if (over) {
+          deducted = deducted.times(D(1).minus(over.dividedBy(taxInclusiveAmount(line))));
+        }
       }
       input = input.plus(deducted);
       if (line.taxRate === 0.1) {
@@ -435,6 +630,8 @@ export async function processYear(
     badDebtTax8,
     badDebtRecoveryTax10,
     badDebtRecoveryTax8,
+    markedTransferBase10,
+    markedTransferBase8,
   };
 }
 // 課税売上割合 = (課税売上高＋免税売上高) ／ (課税売上高＋免税売上高＋非課税売上高)。
@@ -557,8 +754,9 @@ export async function computeGeneral(
   year: number,
   attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
   period?: ConsumptionTaxPeriod,
+  options: ProcessYearOptions = {},
 ): Promise<ConsumptionTaxResult> {
-  const processed = await processYear(year, period);
+  const processed = await processYear(year, period, options);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const salesRatio = computeTaxableSalesRatio(
@@ -609,27 +807,165 @@ export async function computeGeneral(
     filingRounded: filingBreakdown(filingNet),
   };
 }
+// 施行令57条2項（原則）：兼業時の控除対象仕入税額＝Σ(各区分の消費税額×みなし仕入率)
+// （④＝Σ区分税額のため④による比例配分は代数的に消える）。
+// 施行令57条3項（75%特例）：一区分が75%以上ならその区分の率を全体に適用。二区分しかない
+// aoiko の兼業（設定区分＋印の付いた行の第四種）では、どちらも75%未満のケースの二区分特例は
+// 各区分が自身の率を適用する式と代数的に一致するため、原則計算と同値になる。
+// 概算（filingRounded を伴わない）版：税率別に分けず合計のみで算定する。
+export function simplifiedDeductionTotal(
+  category: SimplifiedTaxCategory,
+  mainBase: Decimal,
+  markedBase: Decimal,
+): Decimal {
+  const mainRate = D(deemedInputRate(category));
+  const markedRate = D(deemedInputRate(4));
+  const principle = mainBase.times(mainRate).plus(markedBase.times(markedRate));
+  if (markedBase.isZero()) {
+    return principle;
+  }
+  const totalBase = mainBase.plus(markedBase);
+  if (totalBase.isZero()) {
+    return D(0);
+  }
+  const mainRatio = mainBase.dividedBy(totalBase);
+  const markedRatio = markedBase.dividedBy(totalBase);
+  const special = mainRatio.greaterThanOrEqualTo('0.75')
+    ? totalBase.times(mainRate)
+    : markedRatio.greaterThanOrEqualTo('0.75')
+      ? totalBase.times(markedRate)
+      : principle;
+  return Decimal.max(principle, special);
+}
+
+export interface SimplifiedCategoryDeduction {
+  principle10: Decimal;
+  principle8: Decimal;
+  principleTotal: Decimal;
+  special10: Decimal;
+  special8: Decimal;
+  specialTotal: Decimal;
+  // 特例（75%ルール）がどちらの区分の単一適用で成立したか。二区分（合計75%）の場合は
+  // 'combo'、印の付いた行が無い場合は undefined
+  specialCategory?: SimplifiedTaxCategory | 4 | 'combo';
+  deduction10: Decimal;
+  deduction8: Decimal;
+  deductionTotal: Decimal;
+}
+// 付表5-3 相当：原則・特例のいずれも税率ごとに1円未満切り捨てしてから合算する
+// （申告書の記載単位に合わせる。印の付いた行が無い場合＝markedTax10/8が0のときは、
+// 従来どおり税率別に切り捨てて合算した値と完全に一致する＝回帰なし）。
+export function computeSimplifiedCategoryDeduction(
+  category: SimplifiedTaxCategory,
+  mainTax10: Decimal,
+  mainTax8: Decimal,
+  markedTax10: Decimal,
+  markedTax8: Decimal,
+): SimplifiedCategoryDeduction {
+  const mainRate = D(deemedInputRate(category));
+  const markedRate = D(deemedInputRate(4));
+  const principle10Raw = mainTax10.times(mainRate).plus(markedTax10.times(markedRate));
+  const principle8Raw = mainTax8.times(mainRate).plus(markedTax8.times(markedRate));
+  const markedTotal = markedTax10.plus(markedTax8);
+  let special10Raw = principle10Raw;
+  let special8Raw = principle8Raw;
+  let specialCategory: SimplifiedTaxCategory | 4 | 'combo' | undefined;
+  if (!markedTotal.isZero()) {
+    const mainTotal = mainTax10.plus(mainTax8);
+    const totalBase = mainTotal.plus(markedTotal);
+    const mainRatio = totalBase.isZero() ? D(0) : mainTotal.dividedBy(totalBase);
+    const markedRatio = totalBase.isZero() ? D(0) : markedTotal.dividedBy(totalBase);
+    if (mainRatio.greaterThanOrEqualTo('0.75')) {
+      special10Raw = mainTax10.plus(markedTax10).times(mainRate);
+      special8Raw = mainTax8.plus(markedTax8).times(mainRate);
+      specialCategory = category;
+    } else if (markedRatio.greaterThanOrEqualTo('0.75')) {
+      special10Raw = mainTax10.plus(markedTax10).times(markedRate);
+      special8Raw = mainTax8.plus(markedTax8).times(markedRate);
+      specialCategory = 4;
+    } else {
+      specialCategory = 'combo';
+    }
+  }
+  const principle10 = principle10Raw.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const principle8 = principle8Raw.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const special10 = special10Raw.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const special8 = special8Raw.toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const principleTotal = principle10.plus(principle8);
+  const specialTotal = special10.plus(special8);
+  const usePrinciple = principleTotal.greaterThanOrEqualTo(specialTotal);
+  return {
+    principle10,
+    principle8,
+    principleTotal,
+    special10,
+    special8,
+    specialTotal,
+    ...(specialCategory !== undefined ? { specialCategory } : {}),
+    deduction10: usePrinciple ? principle10 : special10,
+    deduction8: usePrinciple ? principle8 : special8,
+    deductionTotal: usePrinciple ? principleTotal : specialTotal,
+  };
+}
 // 簡易課税：控除対象仕入税額＝(売上税額＋貸倒回収)×みなし仕入率（貸倒回収は控除計算の
 // 基礎にも算入される。国税庁「簡易課税用申告の手引き」の基準消費税額の定義どおり）。
 // 貸倒れ税額は控除計算とは別枠で最後に差し引く。
 // 特定課税仕入れは経過措置（附則44②）で簡易課税の課税期間は「なかったもの」とされるため、
 // processYear が output に混入しないことで自動的に集計から除外される。
+// taxableTransferConsideration の印の付いた行（消基通13-2-9で第四種）が有る場合、施行令57条の
+// 兼業計算（原則・75%特例のうち大きい方）で控除対象仕入税額を算定する。無い場合は単一区分の
+// 従来計算と完全に同じ式のまま（既存データ不変原則）。
 export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory,
   period?: ConsumptionTaxPeriod,
 ): Promise<ConsumptionTaxResult> {
   const processed = await processYear(year, period);
-  const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
+  const {
+    output,
+    inputRaw,
+    taxableBase10,
+    taxableBase8,
+    markedTransferBase10,
+    markedTransferBase8,
+  } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const rate = deemedInputRate(category);
-  const basicBase = output.plus(badDebtRecovery);
-  const deemedInput = basicBase.times(rate);
-  const net = basicBase.minus(deemedInput).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const officialBasicBase = official.outputTax.plus(badDebtRecovery);
-  const deemedInputOfficial = officialBasicBase.times(rate).toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  const filingNet = officialBasicBase.minus(deemedInputOfficial).minus(badDebtTax);
+  const hasMarkedTransfer = !markedTransferBase10.isZero() || !markedTransferBase8.isZero();
+  let deemedInput: Decimal;
+  let deemedInputOfficial: Decimal;
+  if (!hasMarkedTransfer) {
+    const basicBase = output.plus(badDebtRecovery);
+    deemedInput = basicBase.times(rate);
+    const officialBasicBase = official.outputTax.plus(badDebtRecovery);
+    deemedInputOfficial = officialBasicBase.times(rate).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  } else {
+    const officialMarked = computeOfficialOutputTax(markedTransferBase10, markedTransferBase8);
+    const markedTaxRaw = markedTransferBase10
+      .times('0.078')
+      .plus(markedTransferBase8.times('0.0624'));
+    const mainBaseRaw = output.minus(markedTaxRaw).plus(badDebtRecovery);
+    deemedInput = simplifiedDeductionTotal(category, mainBaseRaw, markedTaxRaw);
+    const officialMain10 = official.tax10
+      .minus(officialMarked.tax10)
+      .plus(processed.badDebtRecoveryTax10);
+    const officialMain8 = official.tax8
+      .minus(officialMarked.tax8)
+      .plus(processed.badDebtRecoveryTax8);
+    deemedInputOfficial = computeSimplifiedCategoryDeduction(
+      category,
+      officialMain10,
+      officialMain8,
+      officialMarked.tax10,
+      officialMarked.tax8,
+    ).deductionTotal;
+  }
+  const net = output.plus(badDebtRecovery).minus(deemedInput).minus(badDebtTax);
+  const filingNet = official.outputTax
+    .plus(badDebtRecovery)
+    .minus(deemedInputOfficial)
+    .minus(badDebtTax);
   return {
     year,
     method: 'simplified',
@@ -641,30 +977,98 @@ export async function computeSimplified(
     filingRounded: filingBreakdown(filingNet),
   };
 }
-// 2 割・3 割特例共通：(売上税額＋貸倒回収) × (1 − 控除率) − 貸倒れ税額。
-// 2割特例＝控除率80%（2023/10/01〜2026/09/30 の課税期間限定、インボイス制度の経過措置）。
-// 3割特例＝控除率70%（令和9・10〔2027・2028〕の課税期間限定、令和8年度税制改正で新設）。
-// 特定課税仕入れは 2割/3割特例の課税期間も経過措置で「なかったもの」とされ、
-// processYear が output に混入しないことで自動的に集計から除外される。
+export interface WariBaseAdjustments {
+  // 集計は返品・値引を課税標準額へネット済みのため、ここにはネットしていない分だけを渡す
+  // （税率別。付表6の返還等対価に係る消費税額欄と同じ区分）
+  salesReturnTax78?: Decimal;
+  salesReturnTax624?: Decimal;
+  specifiedSmallAssetTransfers?: ReadonlyArray<{ date: string; rate: 0.1 | 0.08; netTax: Decimal }>;
+}
+// 附則90条2項の読替えで、この期間の特定少額資産の譲渡は3割特例の基礎から除かれない
+export function isSpecifiedSmallAssetExclusionSuspended(date: string): boolean {
+  return date >= '2026-10-01' && date <= '2028-03-31';
+}
+function combinedSalesReturnTax(adjustments: WariBaseAdjustments): Decimal {
+  return (adjustments.salesReturnTax78 ?? D(0)).plus(adjustments.salesReturnTax624 ?? D(0));
+}
+// 附則51条の2第2項・51条の3第2項。貸倒回収は付表6と同じく基礎に含める。
+// 税率をまたいだ概算値（filingRounded を伴わない比較用）のため、税率別には分けない。
+export function wariSpecialDeductionBase(
+  method: 'two-wari' | 'three-wari',
+  outputTax: Decimal,
+  badDebtRecovery: Decimal,
+  adjustments: WariBaseAdjustments = {},
+): Decimal {
+  let base = outputTax.plus(badDebtRecovery).minus(combinedSalesReturnTax(adjustments));
+  if (method === 'three-wari') {
+    for (const t of adjustments.specifiedSmallAssetTransfers ?? []) {
+      if (!isSpecifiedSmallAssetExclusionSuspended(t.date)) {
+        base = base.minus(t.netTax);
+      }
+    }
+  }
+  return base;
+}
+// 申告書相当額（filingRounded）用：付表6と同じく税率ごとに基礎を出し、各々を1円未満切り捨て
+// してから特別控除税額を算定する（合算後に一括切り捨てすると付表6の額と1円以上ずれ得る）。
+function wariSpecialDeductionBaseByRate(
+  method: 'two-wari' | 'three-wari',
+  official: OfficialOutputTax,
+  badDebtRecoveryTax10: Decimal,
+  badDebtRecoveryTax8: Decimal,
+  adjustments: WariBaseAdjustments = {},
+): { base78: Decimal; base624: Decimal } {
+  let base78 = official.tax10.plus(badDebtRecoveryTax10).minus(adjustments.salesReturnTax78 ?? 0);
+  let base624 = official.tax8.plus(badDebtRecoveryTax8).minus(adjustments.salesReturnTax624 ?? 0);
+  if (method === 'three-wari') {
+    for (const t of adjustments.specifiedSmallAssetTransfers ?? []) {
+      if (isSpecifiedSmallAssetExclusionSuspended(t.date)) {
+        continue;
+      }
+      if (t.rate === 0.1) {
+        base78 = base78.minus(t.netTax);
+      } else {
+        base624 = base624.minus(t.netTax);
+      }
+    }
+  }
+  return { base78, base624 };
+}
+// 特定課税仕入れは経過措置で「なかったもの」とされ、processYear が output に入れない
 async function computeWariException(
   year: number,
   method: 'two-wari' | 'three-wari',
   inputDeductionRate: string,
   period?: ConsumptionTaxPeriod,
+  adjustments: WariBaseAdjustments = {},
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
   const processed = await processYear(year, period);
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
-  const basicBase = output.plus(badDebtRecovery);
-  const inputDeducted = basicBase.times(inputDeductionRate);
-  const net = basicBase.times(netRate).minus(badDebtTax);
+  const salesReturnTax = combinedSalesReturnTax(adjustments);
+  const basicBase = output.plus(badDebtRecovery).minus(salesReturnTax);
+  const specialBase = wariSpecialDeductionBase(method, output, badDebtRecovery, adjustments);
+  const inputDeducted = specialBase.times(inputDeductionRate);
+  // 除外が無ければ従来の basicBase × (1 − 控除率) と同じ値になる形で計算する
+  const net = basicBase.minus(specialBase).plus(specialBase.times(netRate)).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10, taxableBase8);
-  const officialBasicBase = official.outputTax.plus(badDebtRecovery);
-  // 特別控除税額は1円未満切捨てしてから差し引く（computeSimplified のみなし仕入控除と同じ扱い）
-  const specialDeductionOfficial = officialBasicBase
+  const officialBasicBase = official.outputTax.plus(badDebtRecovery).minus(salesReturnTax);
+  // 申告書相当額は付表6と同じく税率ごとに基礎を出し、各々1円未満切捨てしてから合算する
+  const { base78, base624 } = wariSpecialDeductionBaseByRate(
+    method,
+    official,
+    processed.badDebtRecoveryTax10,
+    processed.badDebtRecoveryTax8,
+    adjustments,
+  );
+  const specialDeduction78 = base78
     .times(inputDeductionRate)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const specialDeduction624 = base624
+    .times(inputDeductionRate)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const specialDeductionOfficial = specialDeduction78.plus(specialDeduction624);
   const filingNet = officialBasicBase.minus(specialDeductionOfficial).minus(badDebtTax);
   return {
     year,
@@ -680,39 +1084,164 @@ async function computeWariException(
 export function computeTwoWari(
   year: number,
   period?: ConsumptionTaxPeriod,
+  adjustments: WariBaseAdjustments = {},
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'two-wari', '0.8', period);
+  return computeWariException(year, 'two-wari', '0.8', period, adjustments);
 }
 export function computeThreeWari(
   year: number,
   period?: ConsumptionTaxPeriod,
+  adjustments: WariBaseAdjustments = {},
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'three-wari', '0.7', period);
+  return computeWariException(year, 'three-wari', '0.7', period, adjustments);
+}
+// 未設定の項目は除外事由なしとして扱う（公開済みの利用者を入力欠落で不適用にしない）
+export interface WariEligibilityInputs {
+  registrationStartDate?: string;
+  taxableElection?: { fromYear: number; toYear?: number };
+  inheritanceDate?: string;
+  adjustedFixedAssetDate?: string;
+  shortenedPeriod?: { from: string; to?: string };
+  foreignWithoutDomesticPe?: boolean;
+  basePeriodSales?: Decimal;
+  corporation?: boolean;
+}
+// 3割特例は附則51条の3第1項が「前条第一項第二号から第四号まで」だけを引くため一号を見ない
+function isWariExcluded(
+  year: number,
+  inputs: WariEligibilityInputs,
+  includeItem1: boolean,
+): boolean {
+  const periodStart = `${year}-01-01`;
+  const periodEnd = `${year}-12-31`;
+  if (inputs.foreignWithoutDomesticPe === true) {
+    return true;
+  }
+  if (inputs.registrationStartDate !== undefined && inputs.registrationStartDate > periodEnd) {
+    return true;
+  }
+  // 基準期間1千万円超は登録等が無くても免除されないため本文括弧を満たさない
+  if (inputs.basePeriodSales !== undefined && inputs.basePeriodSales.greaterThan(10_000_000)) {
+    return true;
+  }
+  const election = inputs.taxableElection;
+  // 一号：五年施行日（2023-10-01）前から選択届出の効力が続く、同日の属する課税期間
+  if (
+    includeItem1 &&
+    year === 2023 &&
+    election !== undefined &&
+    election.fromYear <= 2023 &&
+    (election.toYear === undefined || election.toYear >= 2023)
+  ) {
+    return true;
+  }
+  // 二号：取得の翌課税期間から、取得期間の初日以後3年を経過する日の属する課税期間まで
+  if (inputs.adjustedFixedAssetDate !== undefined) {
+    const assetYear = Number(inputs.adjustedFixedAssetDate.slice(0, 4));
+    if (year > assetYear && year <= assetYear + 2) {
+      return true;
+    }
+  }
+  // 三号は登録開始日の前日までの相続に限るため、登録開始日が無ければ判定できない
+  if (
+    inputs.inheritanceDate !== undefined &&
+    inputs.registrationStartDate !== undefined &&
+    inputs.inheritanceDate < inputs.registrationStartDate &&
+    Number(inputs.inheritanceDate.slice(0, 4)) === year
+  ) {
+    return true;
+  }
+  // 四号：19条2項・4項で一の課税期間とみなされる期間も含む
+  const shortened = inputs.shortenedPeriod;
+  if (
+    shortened !== undefined &&
+    shortened.from <= periodEnd &&
+    (shortened.to === undefined || shortened.to >= periodStart)
+  ) {
+    return true;
+  }
+  return false;
 }
 // 2 割特例の適用年度：課税期間 2023/10〜2026/9。個人（暦年）は令和5〜8年分（〜2026）。
-export function isTwoWariEligibleYear(year: number): boolean {
-  return year <= 2026;
+export function isTwoWariEligibleYear(year: number, inputs: WariEligibilityInputs = {}): boolean {
+  return year <= 2026 && !isWariExcluded(year, inputs, true);
 }
-// 3 割特例の適用年度：令和9・10年分（2027・2028）限定。
-function isThreeWariEligibleYear(year: number): boolean {
-  return year === 2027 || year === 2028;
+// 3 割特例の適用年度：令和9・10年分（2027・2028）の個人事業者限定。
+export function isThreeWariEligibleYear(year: number, inputs: WariEligibilityInputs = {}): boolean {
+  return (
+    (year === 2027 || year === 2028) &&
+    inputs.corporation !== true &&
+    !isWariExcluded(year, inputs, false)
+  );
 }
-// 各方式を一括計算して比較できる形で返す。本則・簡易は常に対象、
-// 2 割・3 割特例は適用年度のものだけ含める（適用外の方式を提示して誤選択させない）。
+// 個人事業者の消費税の確定申告期限は翌年3月31日（措法86条の4）
+function specialTargetFilingDeadline(targetYear: number): string {
+  return `${targetYear + 1}-03-31`;
+}
+// 附則51条の2第6項・51条の3第5項。2026-10-01 前に終了する特例対象課税期間は改正前の「翌課税期間中」（附則90条1項）
+export function deemedSimplifiedElectionFiledDate(
+  targetYear: number,
+  filedDate: string,
+  priorYearMethod?: TaxFilingMethod,
+): string {
+  const priorStartEve = `${targetYear - 1}-12-31`;
+  if (priorYearMethod !== 'two-wari' && priorYearMethod !== 'three-wari') {
+    return filedDate;
+  }
+  if (filedDate <= priorStartEve) {
+    return filedDate;
+  }
+  const targetEnd = `${targetYear}-12-31`;
+  const deadline = targetEnd >= '2026-10-01' ? specialTargetFilingDeadline(targetYear) : targetEnd;
+  return filedDate <= deadline ? priorStartEve : filedDate;
+}
+export function isSimplifiedElectionEffective(
+  year: number,
+  filedDate: string,
+  priorYearMethod?: TaxFilingMethod,
+): boolean {
+  const deemed = deemedSimplifiedElectionFiledDate(year, filedDate, priorYearMethod);
+  return deemed <= `${year - 1}-12-31`;
+}
+
+export interface CompareAllOptions {
+  eligibility?: WariEligibilityInputs;
+  smallAmountSpecial?: SmallAmountSpecialInputs;
+  simplifiedElectionFiledDate?: string;
+  priorYearMethod?: TaxFilingMethod;
+  wariAdjustments?: WariBaseAdjustments;
+}
+// 適用できない方式は提示しない（誤選択させない）。簡易課税は届出日が未入力なら従来どおり常に含める
 export async function compareAll(
   year: number,
   simplifiedCategory: SimplifiedTaxCategory,
   attributionMethod: ConsumptionTaxAttributionMethod = 'proportional',
+  options: CompareAllOptions = {},
 ): Promise<ConsumptionTaxResult[]> {
+  const eligibility = options.eligibility ?? {};
   const tasks: Promise<ConsumptionTaxResult>[] = [
-    computeGeneral(year, attributionMethod),
-    computeSimplified(year, simplifiedCategory),
+    computeGeneral(
+      year,
+      attributionMethod,
+      undefined,
+      options.smallAmountSpecial ? { smallAmountSpecial: options.smallAmountSpecial } : {},
+    ),
   ];
-  if (isTwoWariEligibleYear(year)) {
-    tasks.push(computeTwoWari(year));
+  if (
+    options.simplifiedElectionFiledDate === undefined ||
+    isSimplifiedElectionEffective(
+      year,
+      options.simplifiedElectionFiledDate,
+      options.priorYearMethod,
+    )
+  ) {
+    tasks.push(computeSimplified(year, simplifiedCategory));
   }
-  if (isThreeWariEligibleYear(year)) {
-    tasks.push(computeThreeWari(year));
+  if (isTwoWariEligibleYear(year, eligibility)) {
+    tasks.push(computeTwoWari(year, undefined, options.wariAdjustments ?? {}));
+  }
+  if (isThreeWariEligibleYear(year, eligibility)) {
+    tasks.push(computeThreeWari(year, undefined, options.wariAdjustments ?? {}));
   }
   return Promise.all(tasks);
 }

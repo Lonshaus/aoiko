@@ -32,6 +32,8 @@ A quote is only a proposal that hasn't become a deal yet, so issuing it never to
 6. Review, then click **"Save draft"** (to keep editing later) or **"Issue"**
 
 > **To show the customer's address on the invoice**: register a mailing address for that customer under Settings → "Vendors" (optional field).
+>
+> **An invoice can't be issued if its transaction date falls in a locked year** ([06. § 8](06-reports_en.md#8-year-lock-filed)). The entry auto-generated on issue would write to a locked year and is refused. Quotes don't generate an entry, so they aren't subject to this restriction.
 
 ## 3. What happens on issue
 
@@ -68,6 +70,7 @@ The printed layout automatically includes the fields required under the qualifie
 - Subtotal and applicable rate, grouped by tax rate
 - Consumption tax amount, grouped by tax rate
 - Name of the recipient business (customer)
+- A marker for items that are a transfer of assets subject to the reduced tax rate (qualifying items are marked "※"; the printed layout also adds a note that "※ marks items subject to the reduced tax rate (8%)")
 
 > aoiko has no built-in PDF generation or sending (e.g. email). Use the print function to produce a PDF, then send it yourself (email attachment, mail, etc.).
 
@@ -82,7 +85,9 @@ An issued invoice's content can't be edited directly (immutable-confirmed-entry 
 
 > **An invoice with recorded payments can't be voided.** This would break payment-reconciliation consistency — first void the payment record ([06. Reports § 10-2](06-reports_en.md#10-2-receivablespayables-and-cash-flow-forecast)), then void the invoice.
 >
-> Quotes carry no journal entry, so a mistake can simply be voided and recreated.
+> **An invoice can't be voided if its transaction date falls in a locked year, either.** Voiding generates a reversing entry, which would write to a locked year and is refused.
+>
+> Quotes carry no journal entry, so they aren't subject to either restriction — a mistake can simply be voided and recreated.
 
 ## 7. Next steps
 

@@ -16,7 +16,7 @@
   } from '../tax-schema/2026/income-deductions';
   import { totalWithholdingTax } from '../tax-schema/2026/other-income';
   import {
-    businessFamilyEmployeeDeductionResult,
+    businessFamilyEmployeeDeductionResultForOutput,
     combinedTotalIncomeAmount,
     realEstateFamilyEmployeeDeductionResult,
     totalIncomeAmount,
@@ -97,10 +97,14 @@
   let hasSalaryIncome = $state(false);
   let salaryPaidAmount = $state('0');
   let salaryWithholdingTax = $state('0');
+  let salaryLastPaymentBeforeDecember = $state(false);
   let publicPensionAmount = $state('0');
   let otherMiscIncomeAmount = $state('0');
   let otherMiscExpenses = $state('0');
   let otherWithholdingTaxPaid = $state('0');
+  let homeWorker = $state(false);
+  let priorPriorBusinessRevenue = $state('0');
+  let priorPriorRealEstateRevenue = $state('0');
 
   let realEstateBusinessScale = $state(false);
   let realEstateLandLoanInterest = $state('0');
@@ -148,6 +152,7 @@
   let realEstatePlCache = $state<Awaited<ReturnType<typeof buildPL>> | undefined>(undefined);
   let filingTypeCache = $state<FilingType>('blue');
   let aoiroDeductionKindCache = $state<AoiroDeductionKind>('electronic');
+  let cashBasisCache = $state(false);
 
   function resetForm() {
     socialInsurancePaid = '0';
@@ -183,10 +188,14 @@
     hasSalaryIncome = false;
     salaryPaidAmount = '0';
     salaryWithholdingTax = '0';
+    salaryLastPaymentBeforeDecember = false;
     publicPensionAmount = '0';
     otherMiscIncomeAmount = '0';
     otherMiscExpenses = '0';
     otherWithholdingTaxPaid = '0';
+    homeWorker = false;
+    priorPriorBusinessRevenue = '0';
+    priorPriorRealEstateRevenue = '0';
     realEstateBusinessScale = false;
     realEstateLandLoanInterest = '0';
     realEstateRentPaid = [];
@@ -241,10 +250,14 @@
     hasSalaryIncome = !!stored.salaryIncome;
     salaryPaidAmount = stored.salaryIncome?.paidAmount ?? '0';
     salaryWithholdingTax = stored.salaryIncome?.withholdingTax ?? '0';
+    salaryLastPaymentBeforeDecember = stored.salaryIncome?.lastPaymentBeforeDecember ?? false;
     publicPensionAmount = stored.miscIncome?.publicPensionAmount ?? '0';
     otherMiscIncomeAmount = stored.miscIncome?.otherIncome ?? '0';
     otherMiscExpenses = stored.miscIncome?.otherExpenses ?? '0';
     otherWithholdingTaxPaid = stored.otherWithholdingTax ?? '0';
+    homeWorker = stored.homeWorker ?? false;
+    priorPriorBusinessRevenue = stored.priorPriorBusinessRevenue ?? '0';
+    priorPriorRealEstateRevenue = stored.priorPriorRealEstateRevenue ?? '0';
     realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
     realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
     realEstateRentPaid = (stored.realEstateIncome?.rentPaid ?? []).map((r) => ({
@@ -282,6 +295,7 @@
       const filingType = ((await getSetting('filingType')) ?? 'blue') as FilingType;
       const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ??
         'electronic') as AoiroDeductionKind;
+      const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
       const realEstatePl = ledger.realEstateIncomeEnabled
         ? await buildPL(yr, undefined, 'realEstate')
         : undefined;
@@ -291,6 +305,7 @@
       plCache = pl;
       filingTypeCache = filingType;
       aoiroDeductionKindCache = aoiroDeductionKind;
+      cashBasisCache = cashBasisElection;
       realEstatePlCache = realEstatePl;
       loadedYear = yr;
       // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
@@ -378,7 +393,13 @@
     otherTaxCreditAmount,
     disasterExemptionAmount,
     ...(hasSalaryIncome
-      ? { salaryIncome: { paidAmount: salaryPaidAmount, withholdingTax: salaryWithholdingTax } }
+      ? {
+          salaryIncome: {
+            paidAmount: salaryPaidAmount,
+            withholdingTax: salaryWithholdingTax,
+            lastPaymentBeforeDecember: salaryLastPaymentBeforeDecember,
+          },
+        }
       : {}),
     miscIncome: {
       ...(safeDecimal(publicPensionAmount).greaterThan(0) ? { publicPensionAmount } : {}),
@@ -386,6 +407,9 @@
       otherExpenses: otherMiscExpenses,
     },
     otherWithholdingTax: otherWithholdingTaxPaid,
+    homeWorker,
+    priorPriorBusinessRevenue,
+    priorPriorRealEstateRevenue,
     ...(ledger.realEstateIncomeEnabled
       ? {
           realEstateIncome: {
@@ -418,6 +442,7 @@
           pl: plCache,
           filingType: filingTypeCache,
           aoiroDeductionKind: aoiroDeductionKindCache,
+          cashBasis: cashBasisCache,
           ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
@@ -433,6 +458,7 @@
           pl: plCache,
           filingType: filingTypeCache,
           aoiroDeductionKind: aoiroDeductionKindCache,
+          cashBasis: cashBasisCache,
           ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
         })
@@ -448,10 +474,11 @@
       pl: plCache,
       filingType: filingTypeCache,
       aoiroDeductionKind: aoiroDeductionKindCache,
+      cashBasis: cashBasisCache,
       ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
       personalDeductions: ctx,
     };
-    return businessFamilyEmployeeDeductionResult(incomeCtx).total.plus(
+    return businessFamilyEmployeeDeductionResultForOutput(incomeCtx).total.plus(
       realEstateFamilyEmployeeDeductionResult(incomeCtx).total,
     );
   });
@@ -570,6 +597,12 @@
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
           />
         </label>
+        {#if year === 2026}
+          <label class="flex items-center gap-2 py-2 sm:col-span-2">
+            <input type="checkbox" bind:checked={salaryLastPaymentBeforeDecember} />
+            <span class="text-sm">{m.income_salary_last_payment_before_december()}</span>
+          </label>
+        {/if}
       </div>
     {/if}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -619,6 +652,32 @@
         />
       </label>
     </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_prior_prior_business_revenue()}</span>
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={priorPriorBusinessRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground"
+          >{m.income_prior_prior_real_estate_revenue()}</span
+        >
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={priorPriorRealEstateRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+      </label>
+    </div>
+    <label class="flex items-center gap-2 py-2">
+      <input type="checkbox" bind:checked={homeWorker} />
+      <span class="text-sm">{m.income_home_worker()}</span>
+    </label>
   </section>
 
   {#if ledger.realEstateIncomeEnabled}

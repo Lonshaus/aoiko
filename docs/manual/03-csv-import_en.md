@@ -20,8 +20,6 @@ How to bulk-create journal entries from bank or credit card CSV statements.
 | Banks | MUFG / SMBC / SBI Shinsei / PayPay (credit-route only; balance not supported) |
 | Credit cards | Rakuten / JCB (incl. Recruit Card) / Saison / SMBC / MUFG / au PAY / PayPay / View (JRE CARD) / Life |
 
-> All parsers have been validated against real CSVs. To add support for a new bank/card, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
-
 ## 2. Downloading a CSV
 
 Get the CSV from each provider's member portal. Quick guide:
@@ -50,9 +48,9 @@ Click **"Import"** in the navigation to open the `Import` screen.
 
 ### 3-1. Step 1: choose a parser
 
-In the **"1. Parser"** dropdown, pick the source. The **"Known-side account"** is auto-shown (e.g. `Rakuten Card` → `2120 Accounts payable`).
+In the **"1. Parser"** dropdown, pick the source. **"Known-side account: {code} {name}"** is auto-shown (e.g. `Rakuten Card` → `2120 Accounts payable`).
 
-If you keep multiple accounts/cards distinguished by sub-accounts, select the relevant **"Sub-account (optional)"** (e.g. `Rakuten Card`).
+If you keep multiple accounts/cards distinguished by sub-accounts, select the relevant **"Subaccount (optional)"** (e.g. `Rakuten Card`).
 
 > The known-side account is the side every row in the CSV shares (payable for cards, ordinary deposit for banks). The **counterpart** (expense, revenue, etc.) is chosen per row in the next step.
 
@@ -84,7 +82,7 @@ Each CSV row appears as a **candidate** in the table. Per row:
 
 #### Auto-fill badges
 
-The header shows **"{valid} / {total} planned"** and each row may show one of these badges:
+The header shows **"{valid} / {total} rows to be registered"** and each row may show one of these badges:
 
 | Badge | Meaning |
 |---|---|
@@ -104,15 +102,23 @@ Hover over a badge for details. AI badges appear only when AI features are enabl
 
 ### 3-4. Submit
 
-Click **"{count} entries"** to import all unticked rows at once.
+Click **"Register {count}"** to convert all unticked rows into journal entries at once, with no further confirmation.
 
-> Double-check the count and badges before submitting. Corrections are possible afterward but tedious if many entries are wrong. For bulk mistakes, the import history's **"Reverse this batch"** is far more efficient (see [§ 5](#5-import-history-and-batch-reverse)).
+> Double-check the count and badges before submitting. Corrections are possible afterward but tedious if many entries are wrong. For bulk mistakes, the import history's **"Reverse batch"** is far more efficient (see [§ 5](#5-import-history-and-batch-reverse)).
 
-A success message **"{count} entries imported"** appears at the top.
+A success message **"Created {count} journal entries"** appears at the top.
 
 ## 4. AI classification (optional)
+<!-- only:browser -->
 
 If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
+<!-- /only -->
+<!-- only:apple -->
+If you set up a Gemini API key, an OpenAI-compatible endpoint, or Apple Intelligence on a supported device in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
+<!-- /only -->
+<!-- only:windows -->
+If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
+<!-- /only -->
 
 - Rows that **didn't match any rule** are sent to the AI, which proposes a counterpart account
 - Badges **"AI↑"** / **"AI↓"** indicate confidence
@@ -139,7 +145,7 @@ Each batch row shows:
 
 ### Reverse the whole batch
 
-Expand a row (click it) → click **"Reverse this batch ({count})"**.
+Expand a row (click it) → click **"Reverse batch ({count})"**.
 
 > Confirmation: "All active entries created in this batch will be marked 'Reversed'. A reversing entry is created for each, and both are retained as history."
 

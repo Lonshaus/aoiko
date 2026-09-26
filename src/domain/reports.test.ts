@@ -2,8 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
+import { m } from '../paraglide/messages';
+import { setLocale } from '../paraglide/runtime';
 import {
   buildAll,
+  buildBreakdown,
   buildBS,
   buildMonthly,
   buildMultiYearBS,
@@ -40,7 +43,13 @@ const TEST_ACCOUNTS: Account[] = [
 async function addEntry(opts: {
   date: string;
   description?: string;
-  lines: Array<{ side: 'debit' | 'credit'; accountCode: string; amount: string }>;
+  lines: Array<{
+    side: 'debit' | 'credit';
+    accountCode: string;
+    amount: string;
+    vendorId?: string;
+    subAccountId?: string;
+  }>;
 }): Promise<string> {
   const entryId = newId();
   const now = Date.now();
@@ -65,6 +74,8 @@ async function addEntry(opts: {
       taxRate: 0,
       taxIncluded: true,
       invoiceCompliant: false,
+      ...(l.vendorId !== undefined ? { vendorId: l.vendorId } : {}),
+      ...(l.subAccountId !== undefined ? { subAccountId: l.subAccountId } : {}),
     }));
     await db.journalLines.bulkAdd(lines);
   });
@@ -240,6 +251,69 @@ describe('buildAll', () => {
     expect(all.bs).toEqual(bs);
     expect(all.monthly).toEqual(monthly);
     expect(all.breakdown.axis).toBe('vendor');
+  });
+});
+
+describe('buildBreakdown', () => {
+  afterEach(() => {
+    setLocale('ja', { reload: false });
+  });
+
+  test('未設定・登録されていない取引先はローカライズされたプレースホルダーになる（日本語ハードコード禁止）', async () => {
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '1000' },
+        { side: 'credit', accountCode: '1130', amount: '1000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-04-16',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '2000', vendorId: 'nonexistent-vendor' },
+        { side: 'credit', accountCode: '1130', amount: '2000' },
+      ],
+    });
+    // ハードコードだと locale を変えても英語にならないため、切り替えて確認する
+    setLocale('en', { reload: false });
+    const breakdown = await buildBreakdown(2026, 'vendor');
+    const group = breakdown.groups.find((g) => g.accountCode === '5130');
+    const labels = group?.entries.map((e) => e.label) ?? [];
+    expect(labels.sort()).toEqual(
+      [m.reports_breakdown_unclassified(), m.reports_breakdown_unknown_vendor()].sort(),
+    );
+    expect(labels).toEqual(expect.arrayContaining(['(Unclassified)', '(Unknown vendor)']));
+  });
+
+  test('未設定・登録されていない補助科目もローカライズされたプレースホルダーになる（日本語ハードコード禁止）', async () => {
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '1000' },
+        { side: 'credit', accountCode: '1130', amount: '1000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-04-16',
+      lines: [
+        {
+          side: 'debit',
+          accountCode: '5130',
+          amount: '2000',
+          subAccountId: 'nonexistent-subaccount',
+        },
+        { side: 'credit', accountCode: '1130', amount: '2000' },
+      ],
+    });
+
+    setLocale('en', { reload: false });
+    const breakdown = await buildBreakdown(2026, 'subAccount');
+    const group = breakdown.groups.find((g) => g.accountCode === '5130');
+    const labels = group?.entries.map((e) => e.label) ?? [];
+    expect(labels.sort()).toEqual(
+      [m.reports_breakdown_unclassified(), m.reports_breakdown_unknown_subaccount()].sort(),
+    );
+    expect(labels).toEqual(expect.arrayContaining(['(Unclassified)', '(Unknown subaccount)']));
   });
 });
 

@@ -4,9 +4,13 @@ import Encoding from 'encoding-japanese';
 import { D, Decimal } from '../lib/decimal';
 import { buildCsv } from '../lib/csv';
 import { db } from '../db/db';
-import { getSetting } from '../lib/settings';
+import { getSetting, loadSmallAmountSpecialInputs } from '../lib/settings';
 import { countsTowardTotals } from './journal';
-import { taxExcludedPortion } from './consumption-tax';
+import {
+  classifyNonInvoicePurchases,
+  taxExcludedPortion,
+  type SmallAmountSpecialInputs,
+} from './consumption-tax';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
 import type {
   Account,
@@ -31,6 +35,16 @@ function encodeUtf8WithBom(text: string): Uint8Array<ArrayBuffer> {
 interface YayoiExportContext {
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
+  smallAmountSpecial?: SmallAmountSpecialInputs;
+}
+
+interface YayoiSideCell {
+  account: string;
+  sub: string;
+  dept: string;
+  tax: string;
+  amount: string;
+  taxAmount: string;
 }
 
 const SIMPLIFIED_KANJI: Record<SimplifiedTaxCategory, string> = {
@@ -49,15 +63,23 @@ function rateSuffix(taxRate: number): string {
 // 出典：弥生会計サポート情報「インポートデータの税区分」「課税方式別税区分・税計算区分一覧」
 // （2026-07 調査時点）。判定の優先順位は consumption-tax.ts の実際の計算ロジックに合わせている
 // （taxRate が実質的な判定基準で、taxCategory 未指定でも taxRate > 0 なら通常の課税区分として扱う）。
-// 令和8年度改正のインボイス経過措置70%/50%/30%は弥生側の正式な記述形式が未公開のため、
-// 確認済みの「区分80%」と同じパターンで外推している（区分{N}%）。弥生が正式な形式を
-// 公表したら要見直し。
+// 「区分」後綴は弥生公式サポート（page_id=18111・27165）が100%/80%/70%/50%/30%/控不のみを規定。
 function yayoiTaxInfo(
   line: JournalLine,
   account: Account,
   entryDate: string,
   ctx: YayoiExportContext,
+  capExceeded = false,
 ): { label: string; taxAmount: string } {
+  // 課税資産の譲渡等の行単位の印：収入科目ならこの行自体が課税売上行になる（対価は
+  // taxableTransferConsideration を使う）。それ以外の科目は別途合成する売上行に譲るため
+  // 対象外にする（呼出元 buildYayoiCsvRows が同科目の合成ペアを追加する）
+  if (line.taxableTransferConsideration !== undefined) {
+    if (account.category === 'revenue') {
+      return markedTransferTaxInfo(line, ctx);
+    }
+    return { label: '対象外', taxAmount: '' };
+  }
   const effectiveTaxCategory: TaxCategory | undefined = line.taxCategory ?? account.taxCategory;
 
   if (effectiveTaxCategory === 'badDebtRecovery') {
@@ -108,13 +130,41 @@ function yayoiTaxInfo(
       : line.inputUsageCategory === 'nonTaxableOnly'
         ? '非対仕入'
         : '課対仕入';
+  // 控除上限（附則52条1項）を超えた取引先の行、経過措置終了後（令和13年10月以後）の行は
+  // 控除できないため「区分控不」にする
+  const creditRate = capExceeded ? 0 : transitionalCreditRate(entryDate);
   const invoiceSuffix = line.invoiceCompliant
     ? '適格'
-    : `区分${Math.round(transitionalCreditRate(entryDate) * 100)}%`;
+    : creditRate === 0
+      ? '区分控不'
+      : `区分${Math.round(creditRate * 100)}%`;
   return {
     label: `${base}${line.taxIncluded ? '込' : '外'}${rateSuffix(line.taxRate)}${invoiceSuffix}`,
     taxAmount: computeTaxAmount(line),
   };
+}
+
+// taxableTransferConsideration の行の課税売上区分（簡易課税時は消基通13-2-9で第四種）。
+// 込／外・税率は行の taxIncluded・taxRate に従う（通常の売上行と同じ規約）
+function markedTransferTaxInfo(
+  line: JournalLine,
+  ctx: YayoiExportContext,
+): { label: string; taxAmount: string } {
+  const consideration = D(line.taxableTransferConsideration ?? '0');
+  const simplifiedSuffix = ctx.taxFilingMethod === 'simplified' ? SIMPLIFIED_KANJI[4] : '';
+  return {
+    label: `課税売上${line.taxIncluded ? '込' : '外'}${simplifiedSuffix}${rateSuffix(line.taxRate)}`,
+    taxAmount: considerationTaxAmount(consideration, line.taxRate, line.taxIncluded),
+  };
+}
+
+function considerationTaxAmount(amount: Decimal, taxRate: number, taxIncluded: boolean): string {
+  if (taxRate === 0) {
+    return '';
+  }
+  const base = taxExcludedPortion(amount, taxRate, taxIncluded);
+  const priceInclusive = taxIncluded ? amount : amount.times(1 + taxRate);
+  return priceInclusive.minus(base).toDecimalPlaces(0, Decimal.ROUND_DOWN).toString();
 }
 
 function computeTaxAmount(line: JournalLine): string {
@@ -125,6 +175,32 @@ function computeTaxAmount(line: JournalLine): string {
   const base = taxExcludedPortion(amount, line.taxRate, line.taxIncluded);
   const priceInclusive = line.taxIncluded ? amount : amount.times(1 + line.taxRate);
   return priceInclusive.minus(base).toDecimalPlaces(0, Decimal.ROUND_DOWN).toString();
+}
+
+// 超過部分を含む行は1行の中で按分できないため、行全体を不可控除の区分で出す
+function capExceededLineIds(
+  entries: JournalEntry[],
+  lines: JournalLine[],
+  accountMap: ReadonlyMap<string, Account>,
+  smallAmountSpecial: SmallAmountSpecialInputs = {},
+): Set<string> {
+  const counted = entries.filter((e) => countsTowardTotals(e));
+  const result = new Set<string>();
+  for (const year of new Set(counted.map((e) => e.year))) {
+    const entryDateMap = new Map(counted.filter((e) => e.year === year).map((e) => [e.id, e.date]));
+    const yearLines = lines.filter((l) => entryDateMap.has(l.entryId));
+    const { capExcess } = classifyNonInvoicePurchases(
+      year,
+      entryDateMap,
+      yearLines,
+      accountMap,
+      smallAmountSpecial,
+    );
+    for (const lineId of capExcess.keys()) {
+      result.add(lineId);
+    }
+  }
+  return result;
 }
 
 function groupLinesByEntry(lines: JournalLine[]): Map<string, JournalLine[]> {
@@ -149,6 +225,7 @@ export function buildYayoiCsvRows(
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const subAccountMap = new Map(subAccounts.map((s) => [s.id, s.name]));
   const linesByEntry = groupLinesByEntry(lines);
+  const capExceeded = capExceededLineIds(entries, lines, accountMap, ctx.smallAmountSpecial);
   const rows: string[][] = [];
   let voucherNo = 0;
 
@@ -163,16 +240,11 @@ export function buildYayoiCsvRows(
       continue;
     }
     voucherNo++;
-    const isSingle = debits.length === 1 && credits.length === 1;
-    const rowCount = isSingle ? 1 : Math.max(debits.length, credits.length);
 
-    const buildSide = (line: JournalLine | undefined) => {
-      if (!line) {
-        return { account: '', sub: '', dept: '', tax: '', amount: '', taxAmount: '' };
-      }
+    const buildSide = (line: JournalLine): YayoiSideCell => {
       const account = accountMap.get(line.accountCode);
       const info = account
-        ? yayoiTaxInfo(line, account, entry.date, ctx)
+        ? yayoiTaxInfo(line, account, entry.date, ctx, capExceeded.has(line.id))
         : { label: '対象外', taxAmount: '' };
       return {
         account: account?.name ?? line.accountCode,
@@ -183,12 +255,57 @@ export function buildYayoiCsvRows(
         taxAmount: info.taxAmount,
       };
     };
+    const debitCells = debits.map(buildSide);
+    const creditCells = credits.map(buildSide);
+    // 課税資産の譲渡等の行単位の印：収入科目でない行は本来の貸借だけでは課税売上を表現
+    // できないため、帯印の付いた行自身の科目で対価分の合成ペア（貸方＝課税売上、借方＝対象外）
+    // を追加する。両側とも同額のため元の仕訳の貸借バランスは変わらない
+    for (const line of entryLines) {
+      if (line.taxableTransferConsideration === undefined) {
+        continue;
+      }
+      const account = accountMap.get(line.accountCode);
+      if (account?.category === 'revenue') {
+        continue;
+      }
+      const info = markedTransferTaxInfo(line, ctx);
+      const amount = D(line.taxableTransferConsideration).toFixed(0);
+      const dept = entry.department ?? '';
+      const accountName = account?.name ?? line.accountCode;
+      creditCells.push({
+        account: accountName,
+        sub: '',
+        dept,
+        tax: info.label,
+        amount,
+        taxAmount: info.taxAmount,
+      });
+      debitCells.push({
+        account: accountName,
+        sub: '',
+        dept,
+        tax: '対象外',
+        amount,
+        taxAmount: '',
+      });
+    }
+
+    const isSingle = debitCells.length === 1 && creditCells.length === 1;
+    const rowCount = isSingle ? 1 : Math.max(debitCells.length, creditCells.length);
+    const emptyCell: YayoiSideCell = {
+      account: '',
+      sub: '',
+      dept: '',
+      tax: '',
+      amount: '',
+      taxAmount: '',
+    };
 
     for (let i = 0; i < rowCount; i++) {
       const flag = isSingle ? '2000' : i === 0 ? '2110' : i === rowCount - 1 ? '2101' : '2100';
       const type = isSingle ? '0' : '3';
-      const d = buildSide(debits[i]);
-      const c = buildSide(credits[i]);
+      const d = debitCells[i] ?? emptyCell;
+      const c = creditCells[i] ?? emptyCell;
       rows.push([
         flag,
         String(voucherNo),
@@ -322,12 +439,13 @@ async function loadExportData(year: number): Promise<ExportData> {
   const subAccounts = await db.subAccounts.toArray();
   const taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
   const simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
+  const smallAmountSpecial = await loadSmallAmountSpecialInputs();
   return {
     entries,
     lines,
     accounts,
     subAccounts,
-    ctx: { taxFilingMethod, simplifiedTaxCategory },
+    ctx: { taxFilingMethod, simplifiedTaxCategory, smallAmountSpecial },
   };
 }
 
