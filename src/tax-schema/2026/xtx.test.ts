@@ -406,3 +406,50 @@ describe('personalDeductionsToCtx（issue #307: 事業専従者との相互排�
     expect(ctx.spouse).toBeDefined();
   });
 });
+
+describe('personalDeductionsToCtx（D1：前々年分収入・家内労働者等の特例・給与の新旧表フラグ）', () => {
+  function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
+    return {
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      priorPriorBusinessRevenue: '12000000',
+      priorPriorRealEstateRevenue: '500000',
+      homeWorker: true,
+      salaryIncome: { paidAmount: '1000000', withholdingTax: '0', lastPaymentBeforeDecember: true },
+    };
+  }
+
+  test('新フィールドが Decimal／そのまま渡る', () => {
+    const ctx = personalDeductionsToCtx(makeStored());
+    expect(ctx.priorPriorBusinessRevenue?.toString()).toBe('12000000');
+    expect(ctx.priorPriorRealEstateRevenue?.toString()).toBe('500000');
+    expect(ctx.homeWorker).toBe(true);
+    expect(ctx.salaryIncome?.lastPaymentBeforeDecember).toBe(true);
+  });
+
+  test('D1-R3：新フィールドが無い旧バックアップは undefined のまま（既存データ不変原則）', () => {
+    const { priorPriorBusinessRevenue, priorPriorRealEstateRevenue, homeWorker, ...rest } =
+      makeStored();
+    const ctx = personalDeductionsToCtx({
+      ...rest,
+      salaryIncome: { paidAmount: '1000000', withholdingTax: '0' },
+    });
+    expect(ctx.priorPriorBusinessRevenue).toBeUndefined();
+    expect(ctx.priorPriorRealEstateRevenue).toBeUndefined();
+    expect(ctx.homeWorker).toBeUndefined();
+    expect(ctx.salaryIncome?.lastPaymentBeforeDecember).toBeUndefined();
+  });
+});

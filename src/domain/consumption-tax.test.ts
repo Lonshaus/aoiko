@@ -31,6 +31,7 @@ interface LineSeed {
   invoiceCompliant?: boolean;
   taxCategory?: TaxCategory;
   inputUsageCategory?: InputUsageCategory;
+  taxableTransferConsideration?: string;
 }
 
 async function seedEntry(opts: {
@@ -64,6 +65,9 @@ async function seedEntry(opts: {
         invoiceCompliant: p.invoiceCompliant ?? false,
         ...(p.taxCategory ? { taxCategory: p.taxCategory } : {}),
         ...(p.inputUsageCategory ? { inputUsageCategory: p.inputUsageCategory } : {}),
+        ...(p.taxableTransferConsideration !== undefined
+          ? { taxableTransferConsideration: p.taxableTransferConsideration }
+          : {}),
       })),
     );
   });
@@ -1116,5 +1120,127 @@ describe('2割特例・3割特例：特別控除税額の1円未満切捨て（i
     });
     const r = await computeThreeWari(2027);
     expect(r.filingRounded.national).toBe('1100');
+  });
+});
+
+describe('D3-F7：課税資産の譲渡等の行単位の印（taxableTransferConsideration）', () => {
+  test('資産科目の行に印を付けると taxableBase10 が対価分増える（一般課税）', async () => {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '110000' },
+        {
+          side: 'credit',
+          accountCode: '1514',
+          amount: '110000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          taxableTransferConsideration: '110000',
+        },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.taxableBase).toBe('100000');
+    expect(r.outputTax.national).toBe('7800');
+  });
+
+  test('印の付いた行は仕入としては扱われない（本来なら非適格仕入で経過措置が掛かる資産の debit 側でも）', async () => {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '1514',
+          amount: '110000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: false,
+          taxableTransferConsideration: '110000',
+        },
+        { side: 'credit', accountCode: '1130', amount: '110000' },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    // 仕入税額に混入していれば input が 0 でなくなる
+    expect(r.inputTax.national).toBe('0');
+    expect(r.outputTax.national).toBe('7800');
+  });
+
+  test('R（回帰）：taxableTransferConsideration 未設定の既存データは計算結果が変わらない', async () => {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '110000' },
+        { side: 'credit', accountCode: '4110', amount: '110000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    const r = await computeGeneral(2026);
+    expect(r.taxableBase).toBe('100000');
+    expect(r.outputTax.national).toBe('7800');
+  });
+});
+
+describe('D3-F8：簡易課税の兼業（設定区分＋印の付いた行の第四種、施行令57条）', () => {
+  async function seedSimplifiedScenario(): Promise<void> {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '10000000' },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '10000000',
+          taxRate: 0.1,
+          taxIncluded: false,
+        },
+      ],
+    });
+    await seedEntry({
+      date: '2026-06-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '110000' },
+        {
+          side: 'credit',
+          accountCode: '1514',
+          amount: '110000',
+          taxRate: 0.1,
+          taxIncluded: true,
+          taxableTransferConsideration: '110000',
+        },
+      ],
+    });
+  }
+
+  test('(a) 設定区分第五種：原則394,680・特例393,900のうち大きい方394,680を採用', async () => {
+    await seedSimplifiedScenario();
+    const r = await computeSimplified(2026, 5);
+    expect(r.inputTax.national).toBe('394680');
+    // 差引税額 = 787,800 − 394,680 = 393,120 → 百円未満切捨てで393,100
+    expect(r.filingRounded.national).toBe('393100');
+  });
+
+  test('(b) 設定区分第一種：原則706,680・特例709,020のうち大きい方709,020を採用', async () => {
+    await seedSimplifiedScenario();
+    const r = await computeSimplified(2026, 1);
+    expect(r.inputTax.national).toBe('709020');
+  });
+
+  test('(c) R（回帰）：印の付いた行が無ければ従来どおり単一区分の計算のまま', async () => {
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '10000000' },
+        {
+          side: 'credit',
+          accountCode: '4110',
+          amount: '10000000',
+          taxRate: 0.1,
+          taxIncluded: false,
+        },
+      ],
+    });
+    const r = await computeSimplified(2026, 5);
+    // 780,000 × 50% = 390,000
+    expect(r.inputTax.national).toBe('390000');
   });
 });

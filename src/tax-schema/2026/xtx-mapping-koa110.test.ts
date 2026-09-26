@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { D } from '../../lib/decimal';
 import {
   koa110AdditionalExpenseOverflow,
   mapKoa110RepeatedValues,
@@ -515,5 +516,81 @@ describe('mapKoa110RepeatedValues（AIG00325 追加科目、issue#379）', () =>
     const overflow = koa110AdditionalExpenseOverflow(ctx({ expense: rows }));
     expect(overflow).toHaveLength(1);
     expect(overflow[0]!.accountName).toBe('雑科目5');
+  });
+});
+
+describe('一括償却資産のグループと旧償却方法', () => {
+  test('同じグループの一括償却資産は償却費の合計が一括償却対象額の 1/3', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'p1',
+        name: '一括1',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '100000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+      },
+      {
+        id: 'p2',
+        name: '一括2',
+        acquisitionDate: '2026-05-01',
+        acquisitionCost: '200000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+      },
+    ];
+    const rows = mapKoa110RepeatedValues(ctx({}, assets)).AIM00010 ?? [];
+    const total = rows.reduce((sum, r) => sum.plus(r.AIM00150 ?? '0'), D(0));
+    expect(total.toString()).toBe('100000');
+  });
+
+  test('旧定額法・旧定率法のラベルを出力する', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'o1',
+        name: '旧資産',
+        acquisitionDate: '2006-01-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-straight-line',
+        accountCode: '1511',
+        assetCategory: 1,
+      },
+      {
+        id: 'o2',
+        name: '旧資産2',
+        acquisitionDate: '2006-02-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-declining-balance',
+        accountCode: '1511',
+        assetCategory: 1,
+      },
+    ];
+    const rows = mapKoa110RepeatedValues(ctx({}, assets)).AIM00010 ?? [];
+    expect(rows.map((r) => r.AIM00080)).toEqual(['旧定額法', '旧定率法']);
+  });
+});
+
+describe('D2-7：措法28の2は青色限定のため白色（KOA110）はまとめ行を出さない', () => {
+  test('D2-F9：少額特例資産は個別行のまま、まとめ行の摘要は出ない', () => {
+    const out = mapKoa110RepeatedValues(
+      ctx({}, [
+        asset({
+          id: 'a',
+          name: 'A',
+          acquisitionDate: '2026-06-01',
+          acquisitionCost: '150000',
+          depreciationMethod: 'small-asset-special',
+        }),
+      ]),
+    );
+    const rows = out.AIM00010 ?? [];
+    expect(rows.some((r) => r.AIM00210 === '措法28の2（明細は別途保管）')).toBe(false);
+    expect(rows.find((r) => r.AIM00020 === 'A')).toBeDefined();
   });
 });

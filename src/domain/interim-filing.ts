@@ -25,6 +25,13 @@ interface InterimInstallment {
 interface InterimFilingObligation {
   installmentCount: InterimInstallmentCount;
   installments: InterimInstallment[];
+  // 任意の中間申告（42条8項）は期限までに出さないと取りやめとみなされ（同条11項）、44条のみなし申告は生じない
+  voluntary?: true;
+}
+
+export interface InterimVoluntaryInputs {
+  interimVoluntaryFiled?: boolean;
+  interimVoluntaryLapsed?: boolean;
 }
 
 function ymd(year: number, month: number, day: number): string {
@@ -41,27 +48,55 @@ function monthEndAfter(year: number, month: number, monthsAfter: number): string
   const m = (total % 12) + 1;
   return ymd(y, m, lastDayOfMonth(y, m));
 }
-
+// 割ってから掛けると循環小数の丸めで1円ずれるため先に掛ける
 function installmentAmount(
   priorYearNationalTax: Decimal,
-  divisor: number,
+  priorPeriodMonths: number,
+  months: number,
 ): ConsumptionTaxBreakdown {
-  const national = priorYearNationalTax.dividedBy(divisor).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+  const national = priorYearNationalTax
+    .times(months)
+    .dividedBy(priorPeriodMonths)
+    .toDecimalPlaces(0, Decimal.ROUND_DOWN);
   return filingBreakdown(national);
 }
-// 前年確定消費税額（国税のみ）から当年の中間申告義務を判定する。
-//  48万円以下：義務なし
-//  48万円超 400万円以下：年1回（前年額×6/12、対象期間1/1-6/30、期限8/31）
-//  400万円超 4800万円以下：年3回（前年額×3/12、各四半期、期限は各四半期末+2月）
-//  4800万円超：年11回（前年額×1/12、毎月、1〜3月分は5/31・4月分以降は各月末+2月）
+// 除算の丸めを避けるため両辺に月数を掛けて比べる
+function exceeds(
+  priorYearNationalTax: Decimal,
+  priorPeriodMonths: number,
+  months: number,
+  limit: number,
+): boolean {
+  return priorYearNationalTax.times(months).greaterThan(D(limit).times(priorPeriodMonths));
+}
+// 消法42条1項・4項・6項：確定消費税額 ÷ 直前の課税期間の月数 の×1 が400万円超で年11回、×3 が100万円超で年3回、×6 が24万円超で年1回
 export function interimFilingObligation(
   year: number,
   priorYearNationalTax: Decimal,
+  months = 12,
+  voluntaryInputs: InterimVoluntaryInputs = {},
 ): InterimFilingObligation {
-  if (priorYearNationalTax.lessThanOrEqualTo(480_000)) {
+  if (!exceeds(priorYearNationalTax, months, 6, 240_000)) {
+    if (
+      voluntaryInputs.interimVoluntaryFiled === true &&
+      voluntaryInputs.interimVoluntaryLapsed !== true
+    ) {
+      return {
+        installmentCount: 1,
+        installments: [
+          {
+            start: ymd(year, 1, 1),
+            end: ymd(year, 6, 30),
+            dueDate: ymd(year, 8, 31),
+            amount: installmentAmount(priorYearNationalTax, months, 6),
+          },
+        ],
+        voluntary: true,
+      };
+    }
     return { installmentCount: 0, installments: [] };
   }
-  if (priorYearNationalTax.lessThanOrEqualTo(4_000_000)) {
+  if (!exceeds(priorYearNationalTax, months, 3, 1_000_000)) {
     return {
       installmentCount: 1,
       installments: [
@@ -69,13 +104,13 @@ export function interimFilingObligation(
           start: ymd(year, 1, 1),
           end: ymd(year, 6, 30),
           dueDate: ymd(year, 8, 31),
-          amount: installmentAmount(priorYearNationalTax, 2),
+          amount: installmentAmount(priorYearNationalTax, months, 6),
         },
       ],
     };
   }
-  if (priorYearNationalTax.lessThanOrEqualTo(48_000_000)) {
-    const amount = installmentAmount(priorYearNationalTax, 4);
+  if (!exceeds(priorYearNationalTax, months, 1, 4_000_000)) {
+    const amount = installmentAmount(priorYearNationalTax, months, 3);
     const quarters: Array<[number, number, string]> = [
       [1, 3, ymd(year, 5, 31)],
       [4, 6, ymd(year, 8, 31)],
@@ -91,7 +126,7 @@ export function interimFilingObligation(
       })),
     };
   }
-  const amount = installmentAmount(priorYearNationalTax, 12);
+  const amount = installmentAmount(priorYearNationalTax, months, 1);
   const installments: InterimInstallment[] = [];
   for (let month = 1; month <= 11; month++) {
     // 個人事業者は課税期間開始直後の分の期限が繰り下がる。消費税法42条1項が

@@ -8,7 +8,7 @@ import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
 import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
-const EXPECTED_VERSION = 8;
+const EXPECTED_VERSION = 9;
 
 // 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとの版を守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
@@ -72,5 +72,26 @@ describe('getSetting は加工しない', () => {
       await setSetting('aiEngine', engine);
       expect(await getSetting('aiEngine')).toBe(engine);
     }
+  });
+});
+
+// D1-F14：令和9年分以後の75万円が電磁的記録の備付け・保存を要件とすることを、
+// 三語すべての settings_aoiro_electronic が書いていること（両方の呼出経路が共通で使う）。
+describe('D1-F14：messages/*.json の settings_aoiro_electronic', () => {
+  function aoiroElectronicText(locale: string): string {
+    const json = JSON.parse(readFileSync(resolve(`messages/${locale}.json`), 'utf-8'));
+    return json.settings_aoiro_electronic as string;
+  }
+
+  test('ja：電磁的記録の備付け・保存に触れている', () => {
+    expect(aoiroElectronicText('ja')).toContain('電磁的記録の備付け・保存');
+  });
+
+  test('en：kept/preserved electronic records に触れている', () => {
+    expect(aoiroElectronicText('en')).toContain('kept and preserved electronic records');
+  });
+
+  test('zh-TW：電磁記錄備置保存に触れている', () => {
+    expect(aoiroElectronicText('zh-TW')).toContain('電磁記錄備置保存');
   });
 });

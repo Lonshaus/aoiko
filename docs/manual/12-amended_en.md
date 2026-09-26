@@ -24,10 +24,9 @@ The forms and processing differ on the e-Tax side. The aoiko-side work is simila
 
 ## 2. The filed snapshot
 
-When you click **"Lock as Filed"** ([06. Reports § 8](06-reports_en.md#8-year-lock-filed)), aoiko saves to IndexedDB a **snapshot** of:
+When you click **"Lock as filed"** ([06. Reports § 8](06-reports_en.md#8-year-lock-filed)), aoiko saves to IndexedDB a **snapshot** of:
 
-- Per-account totals (all P/L and BS items)
-- Key reports (monthly sales, fixed-asset table, etc.)
+- Four report types: monthly sales, profit & loss (P/L), balance sheet (BS), and consumption tax (if configured)
 
 This is the snapshot of what you reported on the return.
 
@@ -57,7 +56,7 @@ After unlocking:
 
 ### 3-3. Review the diff
 
-After entering correcting entries, the Reports → **Overview** block shows:
+After entering correcting entries, the Reports screen's **dedicated amended-return diff panel** (separate from the Overview block) shows:
 
 - The **diff** between current values (post-amendment) and the snapshot
 - `Before → After` for each item
@@ -76,16 +75,16 @@ Once the numbers are stable in aoiko:
 5. The diff is computed on the e-Tax side. It also shows estimated delinquency and additional penalty taxes
 6. Submit (electronically)
 
-> Re-exporting `.xtx` ([10. `.xtx` export](10-xtx-export_en.md)) from aoiko also reflects amended financial statements — useful as a reference for manual entry.
+> Re-exporting `.xtx` ([10. `.xtx` export](10-xtx-export_en.md)) from aoiko is built straight from the current state of your books, and the IT-part `SHINKOKU_KBN` (filing type) is always output as "確定" (final) — it never switches to an amended-return type. Treat the re-exported `.xtx` as a reference for checking the corrected figures, and create the actual amended-return submission through e-Tax's own amended-return menu.
 
 ### 3-5. Re-lock after submission
 
 After submitting the amended return:
 
-1. Reports → year → **"Lock as Filed"** to re-lock
+1. Reports → year → **"Lock as filed"** to re-lock
 2. The snapshot is **overwritten** with the post-amendment values (this becomes the new "filed" reference)
 
-> The old snapshot is lost. "Before-amendment vs after-amendment" comparison isn't possible afterward — the original return submission record is the ultimate source of truth.
+> The old snapshot isn't deleted — it's kept with status `superseded`. That gives you a baseline to look back at "before vs after" later, but keep the original return submission separately regardless.
 
 ## 4. Common cases
 
@@ -96,7 +95,7 @@ Discovered: 100,000 JPY sales for December missed after filing the 2026 return
 ```
 
 1. Unlock
-2. Add entry: `Debit 1320 Accounts receivable 100,000 / Credit 4110 Sales 100,000` (dated 2025-12-31 etc.)
+2. Add entry: `Debit 1320 Accounts receivable 100,000 / Credit 4110 Sales 100,000` (dated 2026-12-31 etc.)
 3. Confirm diff: Income +100,000
 4. File amended return on e-Tax → additional payment
 5. Re-lock
@@ -113,17 +112,17 @@ Discovered: same AWS bill of 5,000 JPY was booked twice — once via CSV import 
 4. File amended return → additional payment
 5. Re-lock
 
-### Case C: depreciation life error
+### Case C: missed depreciation entry
 
 ```
-Discovered: MacBook was depreciated over 4 years which is correct under tax law, but with under-counted expense
+Discovered: this year's depreciation entry for the MacBook was never generated (the 4-year useful life itself was correct)
 ```
 
 1. Unlock
-2. Fixed assets → review asset → check acquisition date, useful life, account
-3. Reverse the existing depreciation entry and regenerate with the correct calc
+2. Fixed assets → review the asset → confirm the acquisition date, useful life, and account are correct
+3. Generate this year's depreciation entry via [08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation)
 4. Confirm diff
-5. File amended return
+5. The missed expense means tax was over-reported, so file a **request for correction** on the e-Tax side
 6. Re-lock
 
 ### Case D: deduction correction (no journal correction needed)
@@ -138,22 +137,23 @@ File a **request for correction** directly on the e-Tax side. There is no busine
 
 ### Amended return deadlines
 
-- **Amended return** (additional payment): anytime. File early once you notice — delinquency tax accrues daily
+- **Amended return** (additional payment): can be filed any time before a reassessment under Art. 24 (更正) becomes final (Act on General Rules for National Taxes Art. 19(1)). File early once you notice — delinquency tax accrues daily
 - **Request for correction** (refund): typically within **5 years** from the original filing deadline
 
 ### Additional taxes
 
 - For amended returns, **under-reporting additional tax** (10% or 15%) and **delinquency tax** (rate varies) may apply
-- Voluntary amendment before a tax-office audit notice reduces or eliminates additional taxes
+- Voluntary amendment before a tax-office audit notice means under-reporting additional tax does not apply (Act on General Rules for National Taxes Art. 65(6)). Conversely, failing to present or submit books when requested increases the additional tax (Art. 65(4), by ten or five percentage points)
 - Confirm details with a tax accountant or tax office
 
 ### Records retention
 
-- Post-amendment **correcting entries** must be retained for 7 years under the Electronic Books Preservation Act
+- A blue-return filer's books must be retained for 7 years (Income Tax Act Enforcement Regulation Art. 63(1)(1)), counted from the day after March 15 of the year following the year the books were closed (Art. 63(4)). Post-amendment correcting entries are part of those books and are retained the same way
 - The pre/post-amendment diff in aoiko is stored as "correcting entry history" — also retain
 - Use backups ([11. Backup and restore](11-backup_en.md)) to preserve them
 
 ## 6. Next steps
 
-- That covers all aoiko features. Continue with day-to-day operation
-- Feature requests / bug reports go to [GitHub Issues](https://github.com/Lonshaus/aoiko/issues)
+- Setup for starting a business (Opening Wizard) → [13. Opening setup](13-opening-setup_en.md)
+- Entering income and tax deductions → [14. Income & tax deductions](14-income-deductions_en.md)
+- Issuing and managing invoices → [15. Invoices](15-invoices_en.md)

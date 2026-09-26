@@ -35,9 +35,12 @@ import {
   offsettableRealEstateLoss,
   realEstatePreDeductionIncome,
 } from './real-estate-income';
+import { homeWorkerNecessaryExpenses } from './home-worker-expense';
+import type { AoiroDeductionOptions } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues, XtxRepeatedValues } from './xtx-document';
+import type { PLReport } from '../../domain/reports';
 
 const SCHEMA = koa020 as XtxSchema;
 // 西暦 → 令和年（令和1年=2019）。NENBUN は gen:yy（非負整数）
@@ -114,8 +117,128 @@ function putTag(out: XtxLeafValues, tag: string, amount: string): void {
 
 type IncomeCtx = Pick<
   XtxContext,
-  'year' | 'pl' | 'filingType' | 'aoiroDeductionKind' | 'realEstatePl' | 'personalDeductions'
+  | 'year'
+  | 'pl'
+  | 'filingType'
+  | 'aoiroDeductionKind'
+  | 'cashBasis'
+  | 'realEstatePl'
+  | 'personalDeductions'
 >;
+// 措法25条の2第2項2号は事業所得を生ずべき事業を営む者に限るため、控除前所得の正負ではなく
+// 事業帳への記帳の有無（総収入・総経費・純損益のいずれかが0でない）で判定する（D1-1(a)）。
+// toKingaku と同じ方式（カンマ・空白除去）で文字列をDecimal化する。
+function parseAmount(s: string): Decimal {
+  const t = s.replace(/,/g, '').trim();
+  return t === '' ? D(0) : D(t);
+}
+
+export function isOperatingBusiness(pl: PLReport): boolean {
+  return (
+    parseAmount(pl.totalRevenue).greaterThan(0) ||
+    parseAmount(pl.totalExpense).greaterThan(0) ||
+    !parseAmount(pl.netIncome).isZero()
+  );
+}
+// 前々年分収入は、その所得を生ずべき事業を営む者にのみ渡す（措法25条の2第2項1号・2号）。
+// 不動産側は real-estate-income.ts の scopedAoiroOptions が事業的規模でなければ落とす。
+export function buildAoiroOptions(
+  ctx: IncomeCtx,
+  operatingBusiness: boolean,
+): AoiroDeductionOptions {
+  const pd = ctx.personalDeductions;
+  return {
+    ...(ctx.cashBasis !== undefined ? { cashBasis: ctx.cashBasis } : {}),
+    ...(operatingBusiness && pd?.priorPriorBusinessRevenue !== undefined
+      ? { priorPriorBusinessRevenue: pd.priorPriorBusinessRevenue }
+      : {}),
+    ...(pd?.priorPriorRealEstateRevenue !== undefined
+      ? { priorPriorRealEstateRevenue: pd.priorPriorRealEstateRevenue }
+      : {}),
+  };
+}
+// 事業側の特例適用前の必要経費（実額）。白色は専従者給与等の不算入項目を除いた実額に
+// 事業専従者控除（所法57条3項でみなし必要経費）を加えたものが「必要経費に算入すべき金額」
+// （措法27条・措令18条の2第2項）。青色は専従者給与が通常の経費のため pl.totalExpense のまま。
+function businessActualExpenseBeforeHomeWorker(ctx: IncomeCtx): Decimal {
+  if (ctx.filingType === 'white') {
+    const revenue = parseAmount(ctx.pl.totalRevenue);
+    const bookExpense = revenue.minus(whiteReturnAdjustedNetIncome(ctx.pl));
+    return bookExpense.plus(businessFamilyEmployeeDeductionResult(ctx).total);
+  }
+  return parseAmount(ctx.pl.totalExpense);
+}
+
+export interface HomeWorkerAdjustment {
+  applied: boolean;
+  businessExpenses: Decimal;
+  miscExpenses: Decimal;
+}
+// 措法27条・措令18条の2の家内労働者等の必要経費の特例。事業所得・雑所得を同時に持つ場合の
+// 按分（同条2項2号）を反映するため一箇所で計算し、事業所得・雑所得・第一表雑所得欄・
+// KOA210/220/110の各区塊で共有する（xtx.ts の personalDeductionsToCtx と同じ「一箇所で計算」方針）。
+export function homeWorkerAdjustment(ctx: IncomeCtx): HomeWorkerAdjustment {
+  const pd = ctx.personalDeductions;
+  const businessActual = businessActualExpenseBeforeHomeWorker(ctx);
+  const miscActual = pd?.miscIncome?.otherExpenses ?? D(0);
+  if (!pd?.homeWorker) {
+    return { applied: false, businessExpenses: businessActual, miscExpenses: miscActual };
+  }
+  const hasBusiness = isOperatingBusiness(ctx.pl);
+  const miscRevenue = pd.miscIncome?.otherIncome;
+  const hasMisc = miscRevenue !== undefined && miscRevenue.greaterThan(0);
+  const result = homeWorkerNecessaryExpenses({
+    year: ctx.year,
+    isHomeWorker: true,
+    ...(pd.salaryIncome ? { salaryPaidAmount: pd.salaryIncome.paidAmount } : {}),
+    ...(hasBusiness
+      ? { business: { totalRevenue: parseAmount(ctx.pl.totalRevenue), expenses: businessActual } }
+      : {}),
+    ...(hasMisc ? { misc: { totalRevenue: miscRevenue, expenses: miscActual } } : {}),
+  });
+  return {
+    applied: result.applied,
+    businessExpenses: hasBusiness ? result.businessExpenses : businessActual,
+    miscExpenses: hasMisc ? result.miscExpenses : miscActual,
+  };
+}
+// 措法25条の2の控除算定に使う「特例後の控除前事業所得」（青色のみ）。特例が未適用なら
+// pl.netIncome のまま（既存どおり）。所法27条2項の事業所得は既に措法27条を反映済みのため、
+// 青色申告特別控除の基数もこの値を使う（D1-4）。
+export function businessPreDeductionIncomeForAoiro(ctx: IncomeCtx): Decimal {
+  const adj = homeWorkerAdjustment(ctx);
+  if (!adj.applied) {
+    return D(ctx.pl.netIncome);
+  }
+  return parseAmount(ctx.pl.totalRevenue).minus(adj.businessExpenses);
+}
+// 白色申告の事業所得。特例適用時は専従者給与・専従者控除を経費計算から除外する
+// （所法57条3項の「必要経費とみなされる」控除は特例適用時は所得計算に入らない）。
+function whiteBusinessIncome(ctx: IncomeCtx): Decimal {
+  const adj = homeWorkerAdjustment(ctx);
+  if (adj.applied) {
+    return parseAmount(ctx.pl.totalRevenue).minus(adj.businessExpenses);
+  }
+  return whiteReturnAdjustedNetIncome(ctx.pl).minus(
+    businessFamilyEmployeeDeductionResult(ctx).total,
+  );
+}
+// otherIncomeAmount/otherMiscIncome へ渡す雑所得側の特例後経費（特例未適用なら undefined）。
+function homeWorkerMiscExpensesOverride(ctx: IncomeCtx): Decimal | undefined {
+  const adj = homeWorkerAdjustment(ctx);
+  return adj.applied ? adj.miscExpenses : undefined;
+}
+// 事業所得側の事業専従者控除の出力用（ABB00790・ABE00010）。特例適用時は所法57条3項の
+// みなし必要経費が所得計算に入らないため、金額は0で出力する（氏名・続柄・従事月数は残す）。
+export function businessFamilyEmployeeDeductionResultForOutput(
+  ctx: IncomeCtx,
+): FamilyEmployeeDeductionResult {
+  const result = businessFamilyEmployeeDeductionResult(ctx);
+  if (!homeWorkerAdjustment(ctx).applied) {
+    return result;
+  }
+  return { total: D(0), entries: result.entries.map((e) => ({ ...e, amount: D(0) })) };
+}
 // 事業所得側の事業専従者控除（白色申告のみ）。ABB00790・ABE00010 明細ブロックとも
 // この結果を共有する（totalIncomeAmount とは別々に算定して整合が崩れるのを防ぐ）。
 // IncomeDeductions.svelte の試算プレビュー（事業専従者控除の表示）からも直接呼ぶため export する。
@@ -156,11 +279,10 @@ export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
     // 専従者給与・貸倒引当金繰入額は白色申告では通常の経費として扱えないため、
     // pl.netIncome をそのまま使うと過小になる（詳細は white-return-income.ts）。
     // 白色申告に青色申告特別控除は無いため、不動産所得の有無はこの値に影響しない。
-    const preDeductionIncome = whiteReturnAdjustedNetIncome(ctx.pl);
-    return preDeductionIncome.minus(businessFamilyEmployeeDeductionResult(ctx).total);
+    return whiteBusinessIncome(ctx);
   }
-  const preIncome = D(ctx.pl.netIncome);
-  const hasBusinessIncome = preIncome.greaterThan(0);
+  const preIncome = businessPreDeductionIncomeForAoiro(ctx);
+  const hasBusinessIncome = isOperatingBusiness(ctx.pl);
   const combined = computeCombinedBusinessRealEstateIncome(
     ctx.year,
     ctx.aoiroDeductionKind,
@@ -168,6 +290,7 @@ export function totalIncomeAmount(ctx: IncomeCtx): Decimal {
     preIncome,
     ctx.realEstatePl,
     ctx.personalDeductions?.realEstateIncome,
+    buildAoiroOptions(ctx, hasBusinessIncome),
   );
   return combined.businessIncome;
 }
@@ -192,8 +315,8 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
       realEstateInput.landLoanInterestAmount ?? D(0),
     );
   }
-  const preIncome = D(ctx.pl.netIncome);
-  const hasBusinessIncome = preIncome.greaterThan(0);
+  const preIncome = businessPreDeductionIncomeForAoiro(ctx);
+  const hasBusinessIncome = isOperatingBusiness(ctx.pl);
   const combined = computeCombinedBusinessRealEstateIncome(
     ctx.year,
     ctx.aoiroDeductionKind,
@@ -201,6 +324,7 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
     preIncome,
     ctx.realEstatePl,
     realEstateInput,
+    buildAoiroOptions(ctx, hasBusinessIncome),
   );
   return combined.realEstateOffsettable;
 }
@@ -211,7 +335,9 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
 export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
   const business = totalIncomeAmount(ctx);
   const realEstate = realEstateOffsettableAmount(ctx);
-  const other = ctx.personalDeductions ? otherIncomeAmount(ctx.personalDeductions) : D(0);
+  const other = ctx.personalDeductions
+    ? otherIncomeAmount(ctx.year, ctx.personalDeductions, homeWorkerMiscExpensesOverride(ctx))
+    : D(0);
   return business.plus(realEstate).plus(other);
 }
 
@@ -219,7 +345,6 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
   const isWhite = ctx.filingType === 'white';
   put(out, '営業等　金額', ctx.pl.totalRevenue);
-  const preIncome = D(ctx.pl.netIncome);
   const businessIncome = totalIncomeAmount(ctx);
   put(out, '営業等', businessIncome.toString());
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
@@ -233,16 +358,19 @@ export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
     putIncomeDeductions(out, ctx);
     return out;
   }
+  const preIncome = businessPreDeductionIncomeForAoiro(ctx);
   // 実際に事業所得側へ配分された青色申告特別控除額（不動産所得が無ければ従来どおり）。
   const businessDeduction = preIncome.minus(businessIncome);
   if (ctx.realEstatePl && realEstateInput) {
+    const hasBusinessIncome = isOperatingBusiness(ctx.pl);
     const combined = computeCombinedBusinessRealEstateIncome(
       ctx.year,
       ctx.aoiroDeductionKind,
-      preIncome.greaterThan(0),
+      hasBusinessIncome,
       preIncome,
       ctx.realEstatePl,
       realEstateInput,
+      buildAoiroOptions(ctx, hasBusinessIncome),
     );
     const realEstatePreIncome = realEstatePreDeductionIncome(
       ctx.realEstatePl,
@@ -288,7 +416,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(
     out,
     'ABB00790',
-    businessFamilyEmployeeDeductionResult(ctx)
+    businessFamilyEmployeeDeductionResultForOutput(ctx)
       .total.plus(realEstateFamilyEmployeeDeductionResult(ctx).total)
       .toString(),
   );
@@ -341,7 +469,15 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   // 給与所得（収入金額等 ABB00080＝税引前・所得金額等 ABB00370＝給与所得控除後）
   if (pd.salaryIncome) {
     putTag(out, 'ABB00080', pd.salaryIncome.paidAmount.toString());
-    putTag(out, 'ABB00370', salaryIncomeAmount(pd.salaryIncome.paidAmount).toString());
+    putTag(
+      out,
+      'ABB00370',
+      salaryIncomeAmount(
+        ctx.year,
+        pd.salaryIncome.paidAmount,
+        pd.salaryIncome.lastPaymentBeforeDecember,
+      ).toString(),
+    );
   }
   // 雑所得。公的年金等は確定額を所得金額等側にのみ載せる（関数冒頭の注記参照）。
   // その他雑所得は収入金額等側（ABB00110＝収入）・所得金額等側（ABB01120＝収入−必要経費）両方に載せる。
@@ -351,11 +487,9 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
     }
     if (pd.miscIncome.otherIncome) {
       putTag(out, 'ABB00110', pd.miscIncome.otherIncome.toString());
-      putTag(
-        out,
-        'ABB01120',
-        otherMiscIncome(pd.miscIncome.otherIncome, pd.miscIncome.otherExpenses ?? D(0)).toString(),
-      );
+      const miscExpenses =
+        homeWorkerMiscExpensesOverride(ctx) ?? pd.miscIncome.otherExpenses ?? D(0);
+      putTag(out, 'ABB01120', otherMiscIncome(pd.miscIncome.otherIncome, miscExpenses).toString());
     }
   }
   // 源泉徴収税額（給与＋事業所得側の直接入力分）・申告納税額（マイナス＝還付相当）。
@@ -385,7 +519,7 @@ const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<'spouse' | 'other', string> = {
 
 export function mapKoa020RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const entries = [
-    ...businessFamilyEmployeeDeductionResult(ctx).entries,
+    ...businessFamilyEmployeeDeductionResultForOutput(ctx).entries,
     ...realEstateFamilyEmployeeDeductionResult(ctx).entries,
   ].slice(0, MAX_KOA020_FAMILY_EMPLOYEE_ROWS);
   if (entries.length === 0) {

@@ -33,8 +33,18 @@ export type TaxCategory =
 export type InputUsageCategory = 'taxableOnly' | 'common' | 'nonTaxableOnly';
 // 'small-asset-special' は少額減価償却資産の特例（措法28の2、青色申告限定）。取得年度に全額損金算入し、以降の償却なし。
 // 'lump-sum' は一括償却資産（施行令139条、青色/白色問わず）。取得価額を3年均等償却、除却後も償却継続。
+// 'old-straight-line' / 'old-declining-balance' は平成19年3月31日以前取得分の旧定額法・旧定率法（所令134条1項1号）。
+// 'lease-period-straight-line' はリース期間定額法（所令120条の2第1項6号、所有権移転外リース取引）。
 export type DepreciationMethod =
-  'straight-line' | 'declining-balance' | 'small-asset-special' | 'lump-sum';
+  | 'straight-line'
+  | 'declining-balance'
+  | 'small-asset-special'
+  | 'lump-sum'
+  | 'old-straight-line'
+  | 'old-declining-balance'
+  | 'lease-period-straight-line';
+// 所令6条の号（1 建物〜7 器具備品、8 無形固定資産、9 生物）。
+export type AssetCategory = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 // 'superseded'：申告ロックを解除した（修正申告等）スナップショット。
 // ロック判定（filed のみ）からは外れるが、修正申告差分の基準として残す。
@@ -90,6 +100,10 @@ export interface JournalLine {
   // 簡易在庫管理。仕入・売上科目の行でのみ意味を持つ（itemId とペアで指定）。
   itemId?: string;
   quantity?: string;
+  // 課税資産の譲渡等の対価。amount と同じく taxRate・taxIncluded に従って解釈する。
+  // 科目区分を問わずこの行を課税売上として集計する（固定資産の譲渡等）。
+  // 未指定の行は従来どおり科目区分で判定する。
+  taxableTransferConsideration?: string;
 }
 
 export interface Account {
@@ -180,7 +194,7 @@ export interface ParserRule {
   lastHitAt?: number;
 }
 // 'scrap'＝除却（廃棄、対価なし）。帳簿価額全額を必要経費（固定資産除却損）に計上。
-// 'sale'＝売却（対価あり）。個人事業主の事業用資産売却は譲渡所得（分離課税）に該当し
+// 'sale'＝売却（対価あり）。個人事業主の事業用資産売却は譲渡所得（総合課税）に該当し
 // 事業所得に含められないため、売却対価と帳簿価額の差額は事業主貸/事業主借で結転し
 // 損益計算書には影響させない（freee 方式、詳細は asset-disposal.ts 冒頭コメント参照）。
 export type DisposalType = 'scrap' | 'sale';
@@ -232,6 +246,34 @@ export interface FixedAsset {
   source?: 'opening';
   /** incomeType === 'realEstate' のときのみ使用 */
   realEstateDetail?: RealEstatePropertyDetail;
+  /** 非業務用から転用した資産の業務供用日時点の未償却残高（所令135条）。未指定は acquisitionCost を償却の基礎とする */
+  conversionBasis?: string;
+  /** 業務の用に供した日。未指定は acquisitionDate（転用資産は取得日と供用日が異なる） */
+  serviceStartDate?: string;
+  /** 所令6条の号。未指定は所令134条1項2号イ（取得価額−1円） */
+  assetCategory?: AssetCategory;
+  /** 坑道（所令134条1項1号ロ・2号ロ）。未指定は false */
+  isMineShaft?: boolean;
+  /** 所有権移転外リース取引の契約締結日。残価保証額と揃ったときだけ所令134条1項2号ハを適用 */
+  leaseContractDate?: string;
+  /** 所有権移転外リース取引の残価保証額 */
+  residualGuaranteeAmount?: string;
+  /** 一括償却資産の同一グループ識別子（所令139条の一括償却対象額）。未指定は資産単位で 3 等分 */
+  lumpSumPoolId?: string;
+  /** 使用可能期間が 1 年未満（所令138条1項）。未指定は false */
+  usableLifeUnderOneYear?: boolean;
+  /** 取得時点の常時使用する従業員数（措令18条の5第1項）。未指定は人数要件を満たすものとして扱う */
+  employeeCountAtAcquisition?: number;
+  /** 貸付け（主要な業務として行われるものを除く）の用に供した資産。未指定は false */
+  isLeasedOut?: boolean;
+  /** 開業精霊が登録した年度。未指定は acquisitionDate の年 */
+  openingYear?: number;
+  /** 業務の性質上基本的に重要な資産（所令81条2号・3号の除外要件）。未指定は false */
+  essentialToBusiness?: boolean;
+  /** リース期間定額法（所令120条の2第1項6号）のリース期間月数 */
+  leaseTermMonths?: number;
+  /** 定率法を選定（所令123条2項）または視為（同3項）している資産区分か。未指定は定額法 */
+  decliningBalanceElected?: boolean;
 }
 
 export interface ImportBatch {
@@ -327,6 +369,8 @@ interface PersonalDeductionLifeInsurance {
 interface PersonalDeductionSalaryIncome {
   paidAmount: string;
   withholdingTax: string;
+  /** 令和8年分のみ意味を持つ。最後の給与等の支払日が2026-12-01より前か（附則13条2項） */
+  lastPaymentBeforeDecember?: boolean;
 }
 // 雑所得。公的年金等は3軸の速算表で複雑なため確定額を直接入力（other-income.ts 冒頭コメント参照）、
 // その他雑所得（副業収入等）は収入−必要経費を aoiko が計算する。
@@ -406,6 +450,12 @@ export interface PersonalDeductionInput {
   otherWithholdingTax?: string;
   realEstateIncome?: RealEstateIncomeInput;
   familyEmployees?: PersonalDeductionFamilyEmployee[];
+  /** 前々年分の事業所得に係る総収入金額（措法25条の2第2項、令和9年分以後） */
+  priorPriorBusinessRevenue?: string;
+  /** 前々年分の不動産所得に係る総収入金額（同上） */
+  priorPriorRealEstateRevenue?: string;
+  /** 家内労働者等の必要経費の特例（措法27条）の適用を受けるか */
+  homeWorker?: boolean;
   updatedAt: number;
 }
 

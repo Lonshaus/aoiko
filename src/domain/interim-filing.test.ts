@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { D } from '../lib/decimal';
+import { D, Decimal } from '../lib/decimal';
+import { filingBreakdown } from './consumption-tax';
 import { interimFilingObligation } from './interim-filing';
 
 describe('interimFilingObligation（中間申告義務判定）', () => {
@@ -79,5 +80,126 @@ describe('interimFilingObligation（中間申告義務判定）', () => {
     expect(interimFilingObligation(2026, D('4000001')).installmentCount).toBe(3);
     expect(interimFilingObligation(2026, D('48000000')).installmentCount).toBe(3);
     expect(interimFilingObligation(2026, D('48000001')).installmentCount).toBe(11);
+  });
+});
+// 改修前の判定（年額 48万／400万／4800万、前年額 ÷2／÷4／÷12）をそのまま写した比較用
+function legacyObligation(prior: Decimal): { count: number; amounts: string[] } {
+  const part = (divisor: number) =>
+    filingBreakdown(prior.dividedBy(divisor).toDecimalPlaces(0, Decimal.ROUND_DOWN)).national;
+  if (prior.lessThanOrEqualTo(480_000)) {
+    return { count: 0, amounts: [] };
+  }
+  if (prior.lessThanOrEqualTo(4_000_000)) {
+    return { count: 1, amounts: [part(2)] };
+  }
+  if (prior.lessThanOrEqualTo(48_000_000)) {
+    return { count: 3, amounts: [part(4), part(4), part(4)] };
+  }
+  return { count: 11, amounts: Array.from({ length: 11 }, () => part(12)) };
+}
+
+describe('interimFilingObligation：直前の課税期間の月数（消法42条）', () => {
+  const samples = [
+    '0',
+    '1',
+    '479999',
+    '480000',
+    '480001',
+    '999999',
+    '1000000',
+    '1000001',
+    '1000003',
+    '3999999',
+    '4000000',
+    '4000001',
+    '4000003',
+    '47999999',
+    '48000000',
+    '48000001',
+    '96000005',
+  ];
+
+  test('R1：月数を渡さないときは改修前の判定・金額と完全に同じ', () => {
+    for (const v of samples) {
+      const prior = D(v);
+      const current = interimFilingObligation(2026, prior);
+      const legacy = legacyObligation(prior);
+      expect(current.installmentCount, v).toBe(legacy.count);
+      expect(
+        current.installments.map((i) => i.amount.national),
+        v,
+      ).toEqual(legacy.amounts);
+      expect(current.voluntary, v).toBeUndefined();
+      expect(interimFilingObligation(2026, prior, 12)).toEqual(current);
+    }
+  });
+
+  test('F1：直前の課税期間7か月・確定税額3,500,000は ÷7 で判定し、年額4,000,000以下の旧判定と異なる', () => {
+    const prior = D('3500000');
+    const legacy = legacyObligation(prior);
+    expect(legacy.count).toBe(1);
+    const result = interimFilingObligation(2026, prior, 7);
+    // 月割 500,000 × 3 = 1,500,000 が 100万円超のため三月中間申告
+    expect(result.installmentCount).toBe(3);
+    expect(result.installments[0]!.amount.national).toBe('1500000');
+    expect(result.installmentCount).not.toBe(legacy.count);
+  });
+
+  test('月数が短いと24万円の基準も月割で見る（6か月・確定税額240,001）', () => {
+    expect(interimFilingObligation(2026, D('240000'), 6).installmentCount).toBe(0);
+    const r = interimFilingObligation(2026, D('240001'), 6);
+    expect(r.installmentCount).toBe(1);
+    // 240,001 ÷ 6 × 6 = 240,001 → 百円未満切捨て
+    expect(r.installments[0]!.amount.national).toBe('240000');
+  });
+});
+
+describe('interimFilingObligation：任意の中間申告（消法42条8項・11項、44条）', () => {
+  test('R4：届出の入力が無ければ24万円以下の義務なしは従来どおり', () => {
+    expect(interimFilingObligation(2026, D('300000'))).toEqual({
+      installmentCount: 0,
+      installments: [],
+    });
+    expect(interimFilingObligation(2026, D('300000'), 12, {})).toEqual({
+      installmentCount: 0,
+      installments: [],
+    });
+    expect(
+      interimFilingObligation(2026, D('300000'), 12, {
+        interimVoluntaryFiled: false,
+        interimVoluntaryLapsed: false,
+      }),
+    ).toEqual({ installmentCount: 0, installments: [] });
+  });
+
+  test('届出をしていれば24万円以下でも六月中間申告を1回、みなし申告の対象外として返す', () => {
+    const r = interimFilingObligation(2026, D('300000'), 12, { interimVoluntaryFiled: true });
+    expect(r.installmentCount).toBe(1);
+    expect(r.voluntary).toBe(true);
+    expect(r.installments[0]!.start).toBe('2026-01-01');
+    expect(r.installments[0]!.end).toBe('2026-06-30');
+    expect(r.installments[0]!.dueDate).toBe('2026-08-31');
+    expect(r.installments[0]!.amount.national).toBe('150000');
+  });
+
+  test('F13：期限までに出さなかった後は以後の年度で任意の中間申告は生じず、みなし申告も生じない', () => {
+    for (const year of [2026, 2027, 2028]) {
+      const r = interimFilingObligation(year, D('300000'), 12, {
+        interimVoluntaryFiled: true,
+        interimVoluntaryLapsed: true,
+      });
+      expect(r.installmentCount).toBe(0);
+      expect(r.installments).toEqual([]);
+      expect(r.voluntary).toBeUndefined();
+    }
+  });
+
+  test('24万円超の義務がある年は届出の有無と関係なく通常の中間申告（みなし申告の対象）', () => {
+    const r = interimFilingObligation(2026, D('1000000'), 12, {
+      interimVoluntaryFiled: true,
+      interimVoluntaryLapsed: true,
+    });
+    expect(r.installmentCount).toBe(1);
+    expect(r.voluntary).toBeUndefined();
   });
 });

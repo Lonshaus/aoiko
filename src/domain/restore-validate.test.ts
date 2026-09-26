@@ -169,3 +169,30 @@ describe('明細と仕訳の対応', () => {
     expect(() => validateBackupPayload(payload({ journalLines: [validLine] }))).not.toThrow();
   });
 });
+
+describe('D1-R3：personalDeductions の旧フィールドのみの旧バックアップも還原できる', () => {
+  test('priorPriorBusinessRevenue・priorPriorRealEstateRevenue・homeWorker が無くても通る', () => {
+    const oldBackupRow = {
+      year: 2026,
+      socialInsurancePaid: '400000',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      updatedAt: 1,
+    };
+    expect(() =>
+      validateBackupPayload(payload({ personalDeductions: [oldBackupRow] })),
+    ).not.toThrow();
+  });
+});

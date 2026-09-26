@@ -8,10 +8,14 @@ import {
   realEstateFamilyEmployeeDeductionResult,
   totalIncomeAmount,
 } from './xtx-mapping-koa020';
+import { mapKoa210Values } from './xtx-mapping-koa210';
+import { mapKoa220Values } from './xtx-mapping-koa220';
+import { mapKoa110Values } from './xtx-mapping-koa110';
 import { personalDeductionsToCtx } from './xtx';
 import type { XtxContext } from './xtx';
 import type { IncomeDeductionInput } from './income-deductions';
 import type { PLReport } from '../../domain/reports';
+import type { PersonalDeductionInput } from '../../db/types';
 
 function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   return {
@@ -218,6 +222,23 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     expect(out.ABB00080).toBe('1000000');
     // 1,000,000 - 740,000(令和8・9年分の給与所得控除) = 260,000
     expect(out.ABB00370).toBe('260000');
+  });
+
+  test('給与所得(ABB00370)は年分に応じて算定する（措法29条の4第2項の表／令和10年分以降の本則）', () => {
+    const salaryCtx = (year: number, paid: number) =>
+      ctx({
+        year,
+        pl: { ...plBase, netIncome: '0' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          salaryIncome: { paidAmount: D(paid), withholdingTax: D(0) },
+        },
+      });
+    expect(mapKoa020LeafValues(salaryCtx(2026, 740_500)).ABB00370).toBe('0');
+    expect(mapKoa020LeafValues(salaryCtx(2026, 2_198_000)).ABB00370).toBe('1456000');
+    // 2,000,000 − 690,000（80,000 + 30% = 680,000 が69万円未満）
+    expect(mapKoa020LeafValues(salaryCtx(2028, 2_000_000)).ABB00370).toBe('1310000');
   });
 
   test('雑所得：公的年金等は所得金額等側のみ、その他雑所得は収入・所得金額等の両方に出力', () => {
@@ -668,5 +689,283 @@ describe('mapKoa020LeafValues / mapKoa020RepeatedValues（白色・事業専従�
     expect(row?.ABE00070).toBe('860000');
     expect(row?.ABE00025).toBeUndefined(); // 個人番号は収集しない
     expect(row?.ABE00030).toBeUndefined(); // 生年月日は収集しない
+  });
+});
+describe('D1：措法25条の2の事業を営むか否かの判定・前々年分収入・家内労働者等の特例', () => {
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+  function storedBase(overrides: Partial<PersonalDeductionInput> = {}) {
+    return {
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      ...overrides,
+    };
+  }
+
+  test('D1-F7：家内労働者等の特例あり／なし（簡易簿記、令和8年分）', () => {
+    const withHomeWorker = ctx({
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
+      aoiroDeductionKind: 'simple',
+      personalDeductions: { ...emptyPersonalDeductions, homeWorker: true },
+    });
+    expect(totalIncomeAmount(withHomeWorker).toString()).toBe('10000');
+    expect(mapKoa020LeafValues(withHomeWorker).ABB00800).toBe('100000');
+    const koa210With = mapKoa210Values(withHomeWorker);
+    expect(koa210With.AMF00500).toBe('110000'); // 控除前所得（特例後）
+    expect(koa210With.AMF00510).toBe('100000'); // 控除額
+    expect(koa210With.AMF00530).toBe('10000'); // 所得金額（第一表事業所得と一致）
+
+    const withoutHomeWorker = ctx({
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
+      aoiroDeductionKind: 'simple',
+      personalDeductions: emptyPersonalDeductions,
+    });
+    expect(totalIncomeAmount(withoutHomeWorker).toString()).toBe('600000');
+    expect(mapKoa020LeafValues(withoutHomeWorker).ABB00800).toBe('100000');
+    const koa210Without = mapKoa210Values(withoutHomeWorker);
+    expect(koa210Without.AMF00500).toBe('700000');
+    expect(koa210Without.AMF00510).toBe('100000');
+    expect(koa210Without.AMF00530).toBe('600000');
+  });
+
+  test('D1-F9：令和9年分・簡易簿記・前々年分事業収入1,200万円で事業的規模の不動産所得と合算すると控除0（修正前は100,000）', () => {
+    const personalDeductions = personalDeductionsToCtx(
+      storedBase({
+        priorPriorBusinessRevenue: '12000000',
+        realEstateIncome: { businessScale: true },
+      }),
+    );
+    const c = ctx({
+      year: 2027,
+      pl: { ...plBase, netIncome: '500000' },
+      aoiroDeductionKind: 'simple',
+      realEstatePl: { ...plBase, netIncome: '300000' },
+      personalDeductions,
+    });
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('0');
+    expect(mapKoa210Values(c).AMF00510).toBe('0');
+    expect(mapKoa220Values(c).ANF00260).toBe('0');
+  });
+
+  test('D1-F11(2)：事業を営んでいなければ前々年分事業収入を渡しても誤って0にならない（100,000のまま）', () => {
+    const personalDeductions = personalDeductionsToCtx(
+      storedBase({
+        priorPriorBusinessRevenue: '12000000',
+        realEstateIncome: { businessScale: false },
+      }),
+    );
+    const c = ctx({
+      year: 2027,
+      pl: { ...plBase },
+      aoiroDeductionKind: 'simple',
+      realEstatePl: { ...plBase, netIncome: '3000000' },
+      personalDeductions,
+    });
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('100000');
+    expect(mapKoa220Values(c).ANF00260).toBe('100000');
+  });
+
+  test('D1-F13(a)：事業が赤字でも収入があれば経営事業に当たり、事業的規模でない不動産所得にも65万枠が及ぶ', () => {
+    const c = ctx({
+      pl: { ...plBase, totalRevenue: '600000', totalExpense: '700000', netIncome: '-100000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: { ...plBase, netIncome: '3000000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: false },
+      },
+    });
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('650000');
+  });
+
+  test('D1-F13(b)：家内労働者等の特例で控除前事業所得が0でも経営事業の判定は変わらない（特例後所得の符号を使うと誤って100,000になる）', () => {
+    const c = ctx({
+      pl: { ...plBase, totalRevenue: '600000', totalExpense: '100000', netIncome: '500000' },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: { ...plBase, netIncome: '3000000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        realEstateIncome: { businessScale: false },
+      },
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('0');
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('650000');
+  });
+
+  test('D1-F15：事業帳への記帳が無ければ経営事業に当たらず、非事業的規模の不動産所得は10万に降格（回帰なし）', () => {
+    const c = ctx({
+      pl: { ...plBase },
+      aoiroDeductionKind: 'electronic',
+      realEstatePl: { ...plBase, netIncome: '3000000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        realEstateIncome: { businessScale: false },
+      },
+    });
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('100000');
+  });
+
+  test('D1-F16：家内労働者等の特例・雑所得のみ（事業なし）', () => {
+    const c = ctx({
+      pl: { ...plBase },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        miscIncome: { otherIncome: D(500_000), otherExpenses: D(50_000) },
+      },
+    });
+    expect(mapKoa020LeafValues(c).ABB01120).toBe('0');
+  });
+
+  test('D1-F17：家内労働者等の特例・給与所得ありで保障額から給与所得控除額を差し引く', () => {
+    const c = ctx({
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '50000', netIncome: '750000' },
+      aoiroDeductionKind: 'simple',
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        salaryIncome: { paidAmount: D(600_000), withholdingTax: D(0) },
+      },
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('610000');
+  });
+
+  test('D1-F18：事業所得・雑所得を両方持つ場合の措令18条の2第2項2号の按分', () => {
+    const c = ctx({
+      pl: { ...plBase, totalRevenue: '300000', totalExpense: '100000', netIncome: '200000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        miscIncome: { otherIncome: D(200_000), otherExpenses: D(20_000) },
+      },
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('0');
+    expect(mapKoa020LeafValues(c).ABB01120).toBe('0');
+  });
+
+  test('D1-F19：白色申告・家内労働者等の特例（専従者なし）', () => {
+    const c = ctx({
+      filingType: 'white',
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
+      personalDeductions: { ...emptyPersonalDeductions, homeWorker: true },
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('110000');
+    const koa110 = mapKoa110Values(c);
+    expect(koa110.AIG00370).toBe('110000'); // 専従者控除前の所得金額（特例後）
+    expect(koa110.AIG00380).toBe('0'); // 専従者控除
+    expect(koa110.AIG00400).toBe('110000'); // 所得金額（第一表事業所得と一致）
+  });
+
+  test('D1-F20：白色申告・家内労働者等の特例＋事業専従者（配偶者）：ABB00790は0、専従者本人は残る', () => {
+    const c = ctx({
+      filingType: 'white',
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        familyEmployees: [
+          { id: 'f1', name: '配偶者花子', relation: 'spouse', age: 40, monthsWorked: 12 },
+        ],
+      },
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('110000');
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00790).toBe('0');
+    const repeats = mapKoa020RepeatedValues(c);
+    expect(repeats.ABE00010).toHaveLength(1);
+    expect(repeats.ABE00010?.[0]?.ABE00020).toBe('配偶者花子');
+    expect(repeats.ABE00010?.[0]?.ABE00070).toBe('0');
+    const koa110 = mapKoa110Values(c);
+    expect(koa110.AIG00370).toBe('110000');
+    expect(koa110.AIG00380).toBe('0');
+    expect(koa110.AIG00400).toBe('110000');
+  });
+
+  test('D1-F21：事業側の家内労働者等の特例は不動産側の専従者控除に影響しない（ABB00790は不動産部分のみ）', () => {
+    const c = ctx({
+      filingType: 'white',
+      pl: { ...plBase, totalRevenue: '800000', totalExpense: '100000', netIncome: '700000' },
+      realEstatePl: { ...plBase, netIncome: '3000000' },
+      personalDeductions: {
+        ...emptyPersonalDeductions,
+        homeWorker: true,
+        realEstateIncome: { businessScale: true },
+        familyEmployees: [
+          { id: 'f1', name: '配偶者花子', relation: 'spouse', age: 40, monthsWorked: 12 },
+          {
+            id: 'f2',
+            name: '親族次郎',
+            relation: 'other',
+            age: 20,
+            monthsWorked: 12,
+            incomeType: 'realEstate' as const,
+          },
+        ],
+      },
+    });
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00790).toBe('500000');
+    const repeats = mapKoa020RepeatedValues(c);
+    const business = repeats.ABE00010?.find((r) => r.ABE00020 === '配偶者花子');
+    const realEstate = repeats.ABE00010?.find((r) => r.ABE00020 === '親族次郎');
+    expect(business?.ABE00070).toBe('0');
+    expect(realEstate?.ABE00070).toBe('500000');
+  });
+});
+describe('D1-F10（計算部分）：ctx.cashBasis が青色申告特別控除に反映される', () => {
+  test('cashBasis=true・electronic・令和8年分：控除は10万に留まる（65万ではない）', () => {
+    const c = ctx({
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '2000000',
+        totalExpense: '0',
+        netIncome: '2000000',
+        entryCount: 0,
+      },
+      aoiroDeductionKind: 'electronic',
+      cashBasis: true,
+    });
+    expect(totalIncomeAmount(c).toString()).toBe('1900000');
+    expect(mapKoa020LeafValues(c).ABB00800).toBe('100000');
   });
 });

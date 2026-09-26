@@ -703,6 +703,86 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
+  maybe('D2-F9：措法28の2第3項明細（まとめ行）が公式 xsd に適合する', () => {
+    const fixedAssets: FixedAsset[] = [
+      {
+        id: 'a',
+        name: 'A',
+        acquisitionDate: '2026-06-01',
+        acquisitionCost: '150000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'small-asset-special',
+        accountCode: '1510',
+      },
+      {
+        id: 'b',
+        name: 'B',
+        acquisitionDate: '2026-07-01',
+        acquisitionCost: '200000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'small-asset-special',
+        accountCode: '1510',
+      },
+    ];
+    const koa210Ctx: XtxContext = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'blue',
+      aoiroDeductionKind: 'electronic',
+      fixedAssets,
+    };
+    const repeats = mapKoa210RepeatedValues(koa210Ctx);
+    expect(repeats.AMF01600).toHaveLength(1);
+    const summary = repeats.AMF01600![0]!;
+    expect(summary.AMF01610).toBe('A 他');
+    expect(summary.AMF01790).toBe('措法28の2（明細は別途保管）');
+    const frag = buildFormFragment(
+      koa210 as XtxSchema,
+      {},
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      {},
+      repeats,
+    );
+    expect(frag).toContain('措法28の2（明細は別途保管）');
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, doc, 'utf8');
+    const r = spawnSync(
+      'xmllint',
+      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
+      { encoding: 'utf8' },
+    );
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
   maybe('組立済バンドル（buildXtx2026）の各様式が公式 xsd に適合する', () => {
     const ctx = {
       year: 2026,

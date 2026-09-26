@@ -17,30 +17,26 @@
 - [01. 初次設定](01-setup_zh-TW.md) — 免責同意、商號、年度、消費税方式、輔助科目、交易對象、OCR/AI 引擎選擇
 - [02. 建立傳票](02-journal_zh-TW.md) — 手動建立、沖銷傳票（修正傳票）、傳票列表複合搜尋
 - [03. CSV 匯入](03-csv-import_zh-TW.md) — 從銀行・信用卡明細一次建立傳票、自動分類規則、匯入紀錄
-- [06. 報表](06-reports_zh-TW.md) — 月別銷貨、損益計算書、資產負債表、月別 PL、交易對象別集計、消費税 4 方式比較
+- [06. 報表](06-reports_zh-TW.md) — 月別銷貨、損益計算書、資產負債表、月別 PL、交易對象別集計、消費稅的方式比較
 
-### B 群：周邊取込（視需要）
+### B 群：周邊匯入（視需要）
 
 - [04. 收據 OCR](04-receipt-ocr_zh-TW.md) — 紙本收據 → 傳票候選
-- [05. 訂單取込](05-order-import_zh-TW.md) — Amazon / 楽天 等貼上 → AI 抽取
+- [05. 訂單匯入](05-order-import_zh-TW.md) — Amazon / 楽天 等貼上 → AI 抽取
 
 ### C 群：進階功能（視需要）
 
-- [07. 消費税](07-consumption-tax_zh-TW.md) — 4 方式怎麼選、經過措置、仕入税額控除
+- [07. 消費税](07-consumption-tax_zh-TW.md) — 方式怎麼選、經過措置、仕入税額控除
 - [08. 減價償卻](08-depreciation_zh-TW.md) — 固定資產、定額・定率法、少額 40 萬日圓特例
 - [09. 前期繰越](09-carryover_zh-TW.md) — 年度切換、期首振替傳票
-- [10. `.xtx` 輸出](10-xtx-export_zh-TW.md) — e-Tax 格式產生與匯入驗證
+- [10. `.xtx` 輸出](10-xtx-export_zh-TW.md) — e-Tax 格式產生與匯入 e-Tax 軟體
 <!-- only:browser -->
-- [11. 備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、JSON 匯出
+- [11. 備份與還原](11-backup_zh-TW.md) — File System Access API、OPFS、zip 匯出
 <!-- /only -->
 <!-- only:native -->
 - [11. 備份與還原](11-backup_zh-TW.md) — 選一個資料夾就自動寫出、手動匯出、還原
 <!-- /only -->
-- [12. 修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差分偵測、提交手順
+- [12. 修正申告](12-amended_zh-TW.md) — 申告済 snapshot、差異偵測、提交步驟
 - [13. 開業時設定（開業精靈）](13-opening-setup_zh-TW.md) — 開業費、轉用資產未償卻殘額計算、自由項目
 - [14. 所得控除・税額控除](14-income-deductions_zh-TW.md) — 輸入家庭成員・保險費・醫療費・捐款等資料，試算基礎扣除〜復興特別所得税，並反映到 `.xtx` 輸出
 - [15. 請款單・報價單的發行](15-invoices_zh-TW.md) — 發行時自動產生仕訳・應收帳款、以打消し仕訳訂正、報價單轉請款單
-
-## 意見回饋
-
-不清楚的地方、錯誤、改善建議請到 [GitHub Issues](https://github.com/Lonshaus/aoiko/issues)。

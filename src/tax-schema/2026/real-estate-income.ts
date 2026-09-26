@@ -26,6 +26,7 @@ import {
   aoiroDeductionAmount,
   aoiroDeductionLimit,
   type AoiroDeductionKind,
+  type AoiroDeductionOptions,
 } from './aoiro-deduction';
 
 export const REAL_ESTATE_SENJUSHA_ACCOUNT_NAME = '専従者給与（不動産）';
@@ -61,9 +62,15 @@ export function computeCombinedBusinessRealEstateIncome(
   businessPreDeductionIncome: Decimal,
   realEstatePl: PLReport | undefined,
   realEstateInput: RealEstateIncomeCtx | undefined,
+  aoiroOptions: AoiroDeductionOptions = {},
 ): CombinedBusinessRealEstateIncome {
   if (!realEstatePl || !realEstateInput) {
-    const deduction = aoiroDeductionAmount(year, aoiroKind, businessPreDeductionIncome);
+    const deduction = aoiroDeductionAmount(
+      year,
+      aoiroKind,
+      businessPreDeductionIncome,
+      scopedAoiroOptions(aoiroOptions, realEstateInput?.businessScale ?? false),
+    );
     const businessIncome = businessPreDeductionIncome.minus(deduction);
     return {
       businessIncome,
@@ -83,6 +90,7 @@ export function computeCombinedBusinessRealEstateIncome(
     realEstateInput.businessScale,
     businessPreDeductionIncome,
     realEstatePreIncome,
+    aoiroOptions,
   );
   const businessIncome = businessPreDeductionIncome.minus(allocation.businessDeduction);
   const realEstateIncomeAfterDeduction = realEstatePreIncome.minus(allocation.realEstateDeduction);
@@ -154,6 +162,18 @@ interface CombinedAoiroDeductionResult {
   businessDeduction: Decimal;
   totalDeduction: Decimal;
 }
+// 措法25条の2第2項1号は不動産所得を生ずべき「事業」を営む者に限るため、事業的規模でなければ不動産側の収入は判定に使わない。
+function scopedAoiroOptions(
+  options: AoiroDeductionOptions,
+  businessScale: boolean,
+): AoiroDeductionOptions {
+  if (businessScale || !options.priorPriorRealEstateRevenue) {
+    return options;
+  }
+  const scoped: AoiroDeductionOptions = { ...options };
+  delete scoped.priorPriorRealEstateRevenue;
+  return scoped;
+}
 // 単一の共有枠を、不動産所得から先に・残りを事業所得から控除する形で配分する。
 // 基準額は両所得の黒字分の合計（赤字は0扱い）。
 export function allocateAoiroDeduction(
@@ -163,9 +183,14 @@ export function allocateAoiroDeduction(
   businessScale: boolean,
   businessPreDeductionIncome: Decimal,
   realEstatePreDeductionIncome: Decimal,
+  aoiroOptions: AoiroDeductionOptions = {},
 ): CombinedAoiroDeductionResult {
   const effectiveKind = combinedAoiroDeductionKind(kind, hasBusinessIncome, businessScale);
-  const limit = aoiroDeductionLimit(year, effectiveKind);
+  const limit = aoiroDeductionLimit(
+    year,
+    effectiveKind,
+    scopedAoiroOptions(aoiroOptions, businessScale),
+  );
   const businessBase = businessPreDeductionIncome.greaterThan(0)
     ? businessPreDeductionIncome
     : D(0);

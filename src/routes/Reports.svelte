@@ -25,7 +25,7 @@
     markYearFiled,
     unlockYear,
   } from '../domain/snapshots';
-  import { interimFilingObligation } from '../domain/interim-filing';
+  import { interimFilingObligation, type InterimVoluntaryInputs } from '../domain/interim-filing';
   import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
   import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
   import {
@@ -44,7 +44,18 @@
     xtxAdditionalExpenseOverflow,
     type FilingType,
   } from '../tax-schema/2026/xtx';
-  import { getSetting } from '../lib/settings';
+  import {
+    getSetting,
+    setSetting,
+    loadBusinessDates,
+    loadInterimPriorPeriodMonths,
+    loadInterimVoluntaryInputs,
+    loadSmallAmountSpecialInputs,
+    loadWariBaseAdjustments,
+    loadWariEligibilityInputs,
+    type StoredSpecifiedSmallAssetTransfer,
+    type StoredWariBaseAdjustments,
+  } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import {
     compareAll,
@@ -53,6 +64,7 @@
     isTwoWariEligibleYear,
     processYear,
     type ConsumptionTaxResult,
+    type WariBaseAdjustments,
   } from '../domain/consumption-tax';
   import {
     buildGeneralXtx,
@@ -133,6 +145,14 @@
   let interimPaidNationalInput = $state('');
   let interimPaidLocalInput = $state('');
   let selectedInstallmentIndex = $state(0);
+  let interimVoluntary = $state<InterimVoluntaryInputs>({});
+  // 中間申告：直前課税期間の月数（年分をキーに設定へ保存）。空欄は12（既定）
+  let interimPriorPeriodMonthsInput = $state('');
+  // 2割／3割特例の基数調整（年分をキーに設定へ保存）。空欄は未入力（除外事由なし）
+  let wariSalesReturnTax78Input = $state('');
+  let wariSalesReturnTax624Input = $state('');
+  let wariSpecifiedSmallAssetTransfers = $state<StoredSpecifiedSmallAssetTransfer[]>([]);
+  let wariAdjustments = $state<WariBaseAdjustments>({});
   // 複数年度トレンド分析。ボタン押下時のみ計算する（自動計算にしないのは、
   // 年数が多いと buildPL/buildBS を年数分呼ぶため、通常の年度別レポートより負荷が高いため）。
   const MAX_TREND_YEARS = 10;
@@ -272,9 +292,25 @@
     }
   }
 
+  function safeMonths(s: string): number {
+    const n = Number(s);
+    return Number.isInteger(n) && n >= 1 && n <= 12 ? n : 12;
+  }
   const interimObligation = $derived(
-    interimFilingObligation(year, safeDecimal(priorYearAmountInput)),
+    interimFilingObligation(
+      year,
+      safeDecimal(priorYearAmountInput),
+      safeMonths(interimPriorPeriodMonthsInput),
+      interimVoluntary,
+    ),
   );
+  async function saveInterimPriorPeriodMonths() {
+    const map = (await getSetting('interimPriorPeriodMonths')) ?? {};
+    await setSetting('interimPriorPeriodMonths', {
+      ...map,
+      [year]: safeMonths(interimPriorPeriodMonthsInput),
+    });
+  }
   // 前年額の編集により installments の件数が変わり selectedInstallmentIndex が範囲外に
   // なりうるため、範囲外なら先頭にフォールバックする（未定義のまま渡すと period が
   // undefined になり確定申告モードに化けてしまう——中間申告ボタンとしては致命的な誤動作）
@@ -293,7 +329,52 @@
       }
       priorYearAmountInput = snap?.netTaxNational ?? '';
     });
+    loadInterimPriorPeriodMonths(yr).then((months) => {
+      if (yr !== year) {
+        return;
+      }
+      interimPriorPeriodMonthsInput = String(months);
+    });
+    loadWariBaseAdjustments(yr).then((adj) => {
+      if (yr !== year) {
+        return;
+      }
+      wariSalesReturnTax78Input = adj.salesReturnTax78?.toString() ?? '';
+      wariSalesReturnTax624Input = adj.salesReturnTax624?.toString() ?? '';
+      wariSpecifiedSmallAssetTransfers = (adj.specifiedSmallAssetTransfers ?? []).map((t) => ({
+        date: t.date,
+        rate: t.rate,
+        netTax: t.netTax.toString(),
+      }));
+      wariAdjustments = adj;
+    });
   });
+  async function saveWariBaseAdjustments() {
+    const stored: StoredWariBaseAdjustments = {
+      ...(wariSalesReturnTax78Input !== '' ? { salesReturnTax78: wariSalesReturnTax78Input } : {}),
+      ...(wariSalesReturnTax624Input !== ''
+        ? { salesReturnTax624: wariSalesReturnTax624Input }
+        : {}),
+      ...(wariSpecifiedSmallAssetTransfers.length > 0
+        ? { specifiedSmallAssetTransfers: wariSpecifiedSmallAssetTransfers }
+        : {}),
+    };
+    const map = (await getSetting('wariBaseAdjustments')) ?? {};
+    await setSetting('wariBaseAdjustments', { ...map, [year]: stored });
+    wariAdjustments = await loadWariBaseAdjustments(year);
+  }
+  function addWariSpecifiedSmallAssetTransfer() {
+    wariSpecifiedSmallAssetTransfers = [
+      ...wariSpecifiedSmallAssetTransfers,
+      { date: '', rate: 0.1, netTax: '' },
+    ];
+  }
+  function removeWariSpecifiedSmallAssetTransfer(index: number) {
+    wariSpecifiedSmallAssetTransfers = wariSpecifiedSmallAssetTransfers.filter(
+      (_, i) => i !== index,
+    );
+    void saveWariBaseAdjustments();
+  }
 
   $effect(() => {
     const yr = year;
@@ -304,6 +385,15 @@
       const filing = (await getSetting('filingType')) ?? 'blue';
       const attributionMethod =
         (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
+      const simplifiedElectionFiledDate = (await getSetting('simplifiedElectionFiledDate')) ?? '';
+      const priorYearMethod = (await getConsumptionTaxSnapshot(yr - 1))?.method;
+      const compareOptions = {
+        eligibility: await loadWariEligibilityInputs(),
+        smallAmountSpecial: await loadSmallAmountSpecialInputs(),
+        wariAdjustments: await loadWariBaseAdjustments(yr),
+        ...(simplifiedElectionFiledDate !== '' ? { simplifiedElectionFiledDate } : {}),
+        ...(priorYearMethod !== undefined ? { priorYearMethod } : {}),
+      };
       const reports = await buildAll(yr, ax);
       const processed = await processYear(yr);
       const inventory = ledger.inventoryAutoValuationEnabled
@@ -322,7 +412,8 @@
         ...reports,
         amendment: await getAmendmentDiff(yr),
         staleCarryover: await detectStaleCarryover(yr),
-        consumptionTax: await compareAll(yr, cat, attributionMethod),
+        consumptionTax: await compareAll(yr, cat, attributionMethod, compareOptions),
+        interimVoluntary: await loadInterimVoluntaryInputs(),
         taxRegistration: reg,
         simplifiedCategory: cat,
         filingType: filing,
@@ -346,6 +437,7 @@
         amendment = v.amendment;
         staleCarryover = v.staleCarryover;
         consumptionTax = v.consumptionTax;
+        interimVoluntary = v.interimVoluntary;
         taxRegistration = v.taxRegistration;
         simplifiedCategory = v.simplifiedCategory;
         taxableSalesRatioPercent = v.taxableSalesRatioPercent;
@@ -538,12 +630,15 @@
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
+    const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : filingYear;
     const storedDeductions = await db.personalDeductions.get(filingYear);
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
+    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業精霊が書き込む）。
+    const businessDates = await loadBusinessDates();
     const xtxCtx = {
       year: exportYear,
       dataYear: filingYear,
@@ -556,6 +651,8 @@
       fixedAssets,
       filingType,
       aoiroDeductionKind,
+      cashBasis: cashBasisElection,
+      ...businessDates,
       ...(realEstatePl ? { realEstatePl } : {}),
       ...(storedDeductions
         ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
@@ -585,7 +682,7 @@
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
   // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。
   async function downloadConsumptionTaxXtx() {
-    if (!isTwoWariEligibleYear(year)) {
+    if (!isTwoWariEligibleYear(year, await loadWariEligibilityInputs())) {
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
     }
@@ -597,6 +694,7 @@
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year);
+    const adjustments = await loadWariBaseAdjustments(year);
     const xml = buildTwoWariXtx({
       year,
       businessName,
@@ -607,12 +705,16 @@
       badDebtTax8: processed.badDebtTax8,
       badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
       badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+      ...(adjustments.salesReturnTax78 ? { salesReturnTax78: adjustments.salesReturnTax78 } : {}),
+      ...(adjustments.salesReturnTax624
+        ? { salesReturnTax624: adjustments.salesReturnTax624 }
+        : {}),
       interimPaidNational: safeDecimal(interimPaidNationalInput),
       interimPaidLocal: safeDecimal(interimPaidLocalInput),
     });
     await downloadXml(xml, `aoiko-shohi-${year}.xtx`);
   }
-  // 簡易課税（単一事業区分）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
+  // 簡易課税（単一事業区分。印の付いた行があれば+第四種の兼業）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
     const { filer, missing } = await loadFiler();
     if (missing) {
@@ -634,6 +736,8 @@
       badDebtTax8: processed.badDebtTax8,
       badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
       badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+      markedTransferBase10: processed.markedTransferBase10,
+      markedTransferBase8: processed.markedTransferBase8,
       ...(period
         ? { interimPeriod: period }
         : {
@@ -652,7 +756,9 @@
     }
     consumptionTaxXtxError = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
-    const processed = await processYear(year, period);
+    const processed = await processYear(year, period, {
+      smallAmountSpecial: await loadSmallAmountSpecialInputs(),
+    });
     const attributionMethod =
       (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
     const xml = buildGeneralXtx({
@@ -1812,6 +1918,81 @@
           </label>
         </div>
         <p class="text-xs text-muted-foreground">{m.reports_interim_paid_hint()}</p>
+        {#if ct.some((r) => r.method === 'two-wari' || r.method === 'three-wari')}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <label class="text-xs text-muted-foreground">
+              {m.reports_wari_sales_return_tax_78()}
+              <input
+                type="text"
+                inputmode="numeric"
+                bind:value={wariSalesReturnTax78Input}
+                onchange={saveWariBaseAdjustments}
+                placeholder="0"
+                class="mt-1 w-full border rounded px-2 py-1 text-sm"
+              />
+            </label>
+            <label class="text-xs text-muted-foreground">
+              {m.reports_wari_sales_return_tax_624()}
+              <input
+                type="text"
+                inputmode="numeric"
+                bind:value={wariSalesReturnTax624Input}
+                onchange={saveWariBaseAdjustments}
+                placeholder="0"
+                class="mt-1 w-full border rounded px-2 py-1 text-sm"
+              />
+            </label>
+          </div>
+          <p class="text-xs text-muted-foreground">{m.reports_wari_sales_return_tax_hint()}</p>
+          <div class="space-y-1">
+            <p class="text-xs text-muted-foreground">
+              {m.reports_wari_specified_small_asset_transfers()}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {m.reports_wari_specified_small_asset_transfers_hint()}
+            </p>
+            {#each wariSpecifiedSmallAssetTransfers as transfer, i}
+              <div class="grid grid-cols-4 gap-1 items-end">
+                <input
+                  type="date"
+                  bind:value={transfer.date}
+                  onchange={saveWariBaseAdjustments}
+                  class="border rounded px-2 py-1 text-sm"
+                />
+                <select
+                  bind:value={transfer.rate}
+                  onchange={saveWariBaseAdjustments}
+                  class="border rounded px-2 py-1 text-sm"
+                >
+                  <option value={0.1}>10%</option>
+                  <option value={0.08}>8%</option>
+                </select>
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  bind:value={transfer.netTax}
+                  onchange={saveWariBaseAdjustments}
+                  placeholder="0"
+                  class="border rounded px-2 py-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onclick={() => removeWariSpecifiedSmallAssetTransfer(i)}
+                  class="px-2 py-1 border rounded text-xs hover:bg-accent"
+                >
+                  {m.income_deductions_dependent_remove()}
+                </button>
+              </div>
+            {/each}
+            <button
+              type="button"
+              onclick={addWariSpecifiedSmallAssetTransfer}
+              class="px-2 py-1 border rounded text-xs hover:bg-accent"
+            >
+              {m.settings_action_add()}
+            </button>
+          </div>
+        {/if}
         {#if ct.some((r) => r.method === 'two-wari')}
           <p class="text-xs text-muted-foreground">
             {m.reports_consumption_tax_xtx_two_wari_intro()}
@@ -1866,6 +2047,17 @@
           inputmode="numeric"
           bind:value={priorYearAmountInput}
           placeholder="0"
+          class="mt-1 w-full border rounded px-2 py-1 text-sm"
+        />
+      </label>
+      <label class="block text-xs text-muted-foreground">
+        {m.reports_interim_prior_period_months()}
+        <input
+          type="text"
+          inputmode="numeric"
+          bind:value={interimPriorPeriodMonthsInput}
+          onchange={saveInterimPriorPeriodMonths}
+          placeholder="12"
           class="mt-1 w-full border rounded px-2 py-1 text-sm"
         />
       </label>

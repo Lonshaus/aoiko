@@ -750,3 +750,114 @@ describe('#380 貸倒引当金・追加科目欄が KOA210 から落ちる問題
     expect(overflow).toEqual([{ accountName: '独自経費6', amount: '7000' }]);
   });
 });
+
+describe('一括償却資産のグループと旧償却方法', () => {
+  test('同じグループの一括償却資産は償却費の合計が一括償却対象額の 1/3', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'p1',
+        name: '一括1',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '100000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+      },
+      {
+        id: 'p2',
+        name: '一括2',
+        acquisitionDate: '2026-05-01',
+        acquisitionCost: '200000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+      },
+    ];
+    const rows = mapKoa210RepeatedValues(ctx({ fixedAssets: assets })).AMF01600 ?? [];
+    const total = rows.reduce((sum, r) => sum.plus(r.AMF01730 ?? '0'), D(0));
+    expect(total.toString()).toBe('100000');
+  });
+
+  test('旧定額法・旧定率法のラベルを出力する', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'o1',
+        name: '旧資産',
+        acquisitionDate: '2006-01-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-straight-line',
+        accountCode: '1511',
+        assetCategory: 1,
+      },
+      {
+        id: 'o2',
+        name: '旧資産2',
+        acquisitionDate: '2006-02-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-declining-balance',
+        accountCode: '1511',
+        assetCategory: 1,
+      },
+    ];
+    const rows = mapKoa210RepeatedValues(ctx({ fixedAssets: assets })).AMF01600 ?? [];
+    expect(rows.map((r) => r.AMF01660)).toEqual(['旧定額法', '旧定率法']);
+  });
+});
+
+describe('D2-7：措法28の2第3項明細（当年適用の少額特例資産を1行にまとめる）', () => {
+  test('D2-F9：2資産が適用 → 「A 他」1列、取得価額・償却基礎の合計、摘要固定文言', () => {
+    const out = mapKoa210RepeatedValues(
+      ctx({
+        fixedAssets: [
+          asset({
+            id: 'a',
+            name: 'A',
+            acquisitionDate: '2026-06-01',
+            acquisitionCost: '150000',
+            depreciationMethod: 'small-asset-special',
+          }),
+          asset({
+            id: 'b',
+            name: 'B',
+            acquisitionDate: '2026-07-01',
+            acquisitionCost: '200000',
+            depreciationMethod: 'small-asset-special',
+          }),
+        ],
+      }),
+    );
+    const rows = out.AMF01600 ?? [];
+    const summary = rows.find((r) => r.AMF01790 === '措法28の2（明細は別途保管）');
+    expect(summary).toBeDefined();
+    expect(summary?.AMF01610).toBe('A 他');
+    expect(summary?.AMF01640).toBe('350000');
+    expect(summary?.AMF01650).toBe('350000');
+    expect(summary?.AMF01730).toBe('350000');
+    expect(summary?.AMF01780).toBe('0');
+    // 個別の A・B 行は無い（まとめ行 1 件のみ）
+    expect(rows.filter((r) => r.AMF01610 === 'A' || r.AMF01610 === 'B')).toHaveLength(0);
+  });
+
+  test('cap 超過で落選した資産はまとめ行に入らず、方法欄は定額法／定率法で表示する', () => {
+    const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
+    const assets = dates.map((d, i) =>
+      asset({
+        id: `s${i}`,
+        name: `s${i}`,
+        acquisitionDate: `2026-${d}`,
+        acquisitionCost: '390000',
+        depreciationMethod: 'small-asset-special',
+        ...(i === 7 ? { decliningBalanceElected: true } : {}),
+      }),
+    );
+    const out = mapKoa210RepeatedValues(ctx({ fixedAssets: assets }));
+    const rows = out.AMF01600 ?? [];
+    const fallback = rows.find((r) => r.AMF01610 === 's7');
+    expect(fallback).toBeDefined();
+    expect(fallback?.AMF01660).toBe('定率法');
+  });
+});

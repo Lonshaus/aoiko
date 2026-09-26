@@ -29,7 +29,12 @@ import koa110 from './xtx-schema-koa110.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
-import { computeDepreciation } from '../../domain/depreciation';
+import {
+  computeDepreciation,
+  lumpSumPoolShares,
+  smallAssetSpecialStatuses,
+  type SmallAssetStatus,
+} from '../../domain/depreciation';
 import { D } from '../../lib/decimal';
 import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types';
 import { businessFamilyEmployees, familyEmployeeDeduction } from './family-employee-deduction';
@@ -38,6 +43,7 @@ import {
   whiteReturnAdjustedNetIncome,
 } from './white-return-income';
 import { stripClassificationSuffix } from './xtx-mapping-shared';
+import { homeWorkerAdjustment } from './xtx-mapping-koa020';
 
 const SCHEMA = koa110 as XtxSchema;
 
@@ -157,14 +163,22 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
     put(out, tag, formAmount(row.accountName, row.amount));
   }
   const preDeductionIncome = whiteReturnAdjustedNetIncome(pl);
-  put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), preDeductionIncome.toString());
   const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
-  put(out, tagByJa(PAGE1, '専従者控除'), deduction.total.toString());
+  // 措法27条（家内労働者等の特例）適用時は「総収入−特例後経費」を専従者控除前の
+  // 所得金額・所得金額の両方に使い、専従者控除は0にする（D1-4、所法57条3項の
+  // みなし必要経費は特例適用時は所得計算に入らない）。
+  const homeWorker = homeWorkerAdjustment(ctx);
+  const displayPreDeductionIncome = homeWorker.applied
+    ? D(pl.totalRevenue).minus(homeWorker.businessExpenses)
+    : preDeductionIncome;
+  const displayDeduction = homeWorker.applied ? D(0) : deduction.total;
+  put(out, tagByJa(PAGE1, '専従者控除前の所得金額'), displayPreDeductionIncome.toString());
+  put(out, tagByJa(PAGE1, '専従者控除'), displayDeduction.toString());
   put(
     out,
     tagByJa(PAGE1, '所得金額（上段）'),
-    preDeductionIncome.minus(deduction.total).toString(),
+    displayPreDeductionIncome.minus(displayDeduction).toString(),
   );
   const totalMonths = deduction.entries.reduce((sum, e) => sum + e.monthsWorked, 0);
   if (totalMonths > 0) {
@@ -181,7 +195,23 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
   'declining-balance': '定率法',
   'small-asset-special': '少額特例',
   'lump-sum': '一括償却',
+  'old-straight-line': '旧定額法',
+  'old-declining-balance': '旧定率法',
+  'lease-period-straight-line': 'リース期間定額法',
 };
+// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
+function effectiveMethodLabel(
+  asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },
+  status: SmallAssetStatus | undefined,
+): string {
+  if (
+    asset.depreciationMethod === 'small-asset-special' &&
+    (status === 'ineligible' || status === 'cap-exceeded')
+  ) {
+    return asset.decliningBalanceElected === true ? '定率法' : '定額法';
+  }
+  return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+}
 // AIM00020（名称等）は xsd で最大 16 文字。
 const ASSET_NAME_MAX_LENGTH = 16;
 // AIM00090（耐用年数）は xsd で 2〜100 年の範囲制限。範囲外は出力しない。
@@ -200,11 +230,20 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
 
 export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const detailYear = ctx.dataYear ?? ctx.year;
+  const pools = lumpSumPoolShares(ctx.fixedAssets);
+  const statuses = smallAssetSpecialStatuses(
+    ctx.fixedAssets,
+    ctx.businessStartDate,
+    ctx.businessCloseDate,
+  );
   // 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
-  // KOA210（青色・一般用）と同じ扱い。
+  // KOA210（青色・一般用）と同じ扱い。措法28の2は青色限定のためまとめ行は無い（KOA110は白色専用）。
   const rows = ctx.fixedAssets
     .filter((a) => a.incomeType !== 'realEstate')
-    .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
+    .map((asset) => ({
+      asset,
+      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
+    }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
     .slice(0, MAX_DEPRECIATION_ROWS)
@@ -216,7 +255,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       }
       putRow(row, 'AIM00060', asset.acquisitionCost);
       putRow(row, 'AIM00070', result.depreciationBase);
-      row.AIM00080 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+      row.AIM00080 = effectiveMethodLabel(asset, statuses.get(asset.id));
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AIM00090 = String(asset.usefulLifeYears);
       }
