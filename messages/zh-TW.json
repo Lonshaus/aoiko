@@ -628,7 +628,7 @@
   "settings_asset_disposal_run_success": "✓ 已產生分錄",
   "settings_asset_disposal_run_error_no_disposal": "⚠ 尚未設定除却日・賣出日",
   "settings_asset_disposal_run_error_exists": "分錄已存在",
-  "settings_asset_disposal_run_error_lump_sum": "⚠ 一括償却資産除却時不需要建立分錄（依所令81条3号不屬讓渡所得對象，3年均等攤提照常繼續）",
+  "settings_asset_disposal_run_error_lump_sum": "⚠ 一括償却資産除却時不需要建立分錄（依所令第81條第3號不屬讓渡所得對象，3年均等攤提照常繼續）",
   "settings_asset_disposal_error_sale_price": "請輸入賣出價格",
   "settings_asset_disposal_transfer_estimate": "讓渡所得參考試算（綜合課稅，不計入事業所得）：收入 {proceeds} − 取得費 {acquisitionExpense} = 概算 {estimate}（持有期間約{years}年）",
   "settings_rule_title": "自動分類規則",
