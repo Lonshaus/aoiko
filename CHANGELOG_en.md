@@ -4,6 +4,30 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.2] - 2026-09-26
+
+Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculations in line with the law and how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on next launch.
+
+### Changed
+
+- Corrected the Disclaimer, Privacy Policy and Security Policy to match the available engines and actual behavior
+- Blue-return special deduction: added "Double-entry + e-Tax filing only (¥650,000)", the cash-basis election (Income Tax Act Art. 67(1)), and the check based on business income two years prior
+- Deductions: you can now apply the home-worker expense rule (Special Taxation Measures Act Art. 27)
+- Fixed assets: added the old straight-line, old declining-balance and lease-period straight-line methods
+- Business Opening Wizard: you can now enter a closing date, and amortize start-up costs by any amount
+- 20%/30% consumption-tax special provisions: you can now enter tax on sales returns and specified small-asset transfers
+- Updated the Guide to match
+
+### Fixed
+
+- Employment income deduction not following Appended Table 5 of the Income Tax Act
+- White-return family-employee deduction not being calculated or written on the return
+- Fixed-asset sales missing from taxable sales for consumption tax (Type 4 under simplified taxation)
+- Interim-filing check ignoring the months in the preceding taxable period
+- The ¥3M cap for the small-value asset rule not being prorated correctly in the opening or closing year
+- Wrong cost and undepreciated balance for assets converted from personal use
+- Wrong tax categories in the Yayoi-format CSV
+
 ## [1.2.1] - 2026-09-14
 
 Fixes for narrow screens and for cancelling a change in Settings.
