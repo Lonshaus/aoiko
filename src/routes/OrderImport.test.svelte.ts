@@ -5,16 +5,15 @@ import { setLocale } from '../paraglide/runtime';
 import type { OrderExtracted } from '../domain/order-extract';
 import { m } from '../paraglide/messages';
 
-const { state } = vi.hoisted(() => ({
-  state: {
-    extracted: {
-      date: '2026-03-01',
-      vendor: 'テスト商店',
-      items: [{ description: '品目A', amount: '8200' }],
-      totalAmount: '9000',
-    } as OrderExtracted,
-  },
-}));
+const { defaultExtracted, state } = vi.hoisted(() => {
+  const defaultExtracted = {
+    date: '2026-03-01',
+    vendor: 'テスト商店',
+    items: [{ description: '品目A', amount: '8200' }],
+    totalAmount: '9000',
+  } as OrderExtracted;
+  return { defaultExtracted, state: { extracted: defaultExtracted } };
+});
 
 vi.mock('../lib/order-extractor', () => ({
   createOrderExtractor: async () => ({
@@ -63,6 +62,8 @@ let instance: Record<string, unknown> | undefined;
 beforeEach(async () => {
   // 既定ロケールは実行環境で変わる。文言を確かめるので明示的に日本語へ固定する。
   setLocale('ja', { reload: false });
+  // 前のテストが state.extracted を書き換えたまま戻さないため、順序に依存しないよう毎回戻す。
+  state.extracted = defaultExtracted;
   await db.delete();
   await db.open();
   container = document.createElement('div');
