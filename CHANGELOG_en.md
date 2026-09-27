@@ -4,6 +4,18 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.3] - 2026-09-27
+
+Receipt scanning with the built-in rule engine (Tesseract) now works offline.
+
+### Changed
+
+- The "How to use" guide now describes how the language data is fetched as it actually works
+
+### Fixed
+
+- The built-in rule engine (Tesseract) fetched its language data again on every scan, so receipts could not be read offline. The language data fetched on your first scan is now kept on your device, and later scans work offline
+
 ## [1.2.2] - 2026-09-26
 
 Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculations in line with the law and how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on next launch.
