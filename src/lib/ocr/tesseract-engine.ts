@@ -6,8 +6,9 @@
 //   2) 生テキストを receipt-text-extract に渡して構造化する
 //
 // 前処理（リサイズ・二値化等）は本最小版では未実装。精度が問題になれば後追い。
-// 画像は端末外に出ない。worker・コア WASM・日本語モデルはすべて同一オリジンから
-// 配るため、通信そのものが発生しない（scripts/copy-tesseract-assets.js が複製する）。
+// 画像は端末外に出ない。worker・コア WASM・日本語モデルは同一オリジンから配る
+// （web 版は初回の解析時だけ通信し、以降は Service Worker がキャッシュから返す。
+// native 版はアプリに同梱するため通信自体が発生しない）。
 import { OCRClient } from 'tesseract-wasm';
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
