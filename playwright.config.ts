@@ -26,15 +26,36 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
+  // Service Worker のキャッシュ確認は独立した project にする（下の pwa-chromium）。
+  // dev server 側の project ではその spec を走らせない。
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: ['pwa/**'] },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: ['pwa/**'] },
+    { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: ['pwa/**'] },
+    {
+      name: 'pwa-chromium',
+      // Service Worker の route 差し替え・Cache Storage の内容確認は Chromium 系専用の
+      // CDP 前提が要り、Firefox / WebKit では Playwright から同じ形で観測できない。
+      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:31527' },
+      testMatch: ['pwa/**'],
+      // 1 テストで解析を 2 回走らせる（初回取得＋オフライン再解析）ため既定の 30 秒では足りない。
+      timeout: 90_000,
+    },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:10708',
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-  },
+  webServer: [
+    {
+      command: 'npm run dev',
+      url: 'http://localhost:10708',
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+    },
+    {
+      // Service Worker は本物の build 産物でしか検証できない（dev server は生成しない）。
+      command: 'npm run build && npm run preview -- --port 31527 --strictPort',
+      url: 'http://localhost:31527',
+      reuseExistingServer: !process.env.CI,
+      // build 込みなので既定の 60 秒では足りない。
+      timeout: 180_000,
+    },
+  ],
 });

@@ -4,13 +4,39 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { fileURLToPath, URL } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { isPlatform, PLATFORMS, stripBuildOnly, type Platform } from './src/lib/build-only';
 import { execSync } from 'node:child_process';
+import {
+  tesseractCacheHash,
+  tesseractCacheName,
+  tesseractRuntimeCaching,
+} from './scripts/tesseract-cache';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
   version: string;
 };
+// scripts/copy-tesseract-assets.js が public/tesseract/ へ複製する元と同じ4ファイル。
+// キャッシュ名はこれらのバイト列から導くため、複製結果（public/ 側）には依存しない
+// （npm ci 直後、prebuild が走る前でもキャッシュ名は決まる）。
+function tesseractCacheAssets(): Uint8Array[] {
+  const root = fileURLToPath(new URL('.', import.meta.url));
+  const wasmDir = join(root, 'node_modules', 'tesseract-wasm', 'dist');
+  const paths = [
+    join(wasmDir, 'tesseract-worker.js'),
+    join(wasmDir, 'tesseract-core.wasm'),
+    join(wasmDir, 'tesseract-core-fallback.wasm'),
+    join(root, 'node_modules', '@tesseract.js-data', 'jpn', '4.0.0_best_int', 'jpn.traineddata.gz'),
+  ];
+  return paths.map((path) => {
+    if (!existsSync(path)) {
+      throw new Error(`Tesseract のキャッシュ名を計算できない：ソースファイルが無い（${path}）`);
+    }
+    return readFileSync(path);
+  });
+}
+const TESSERACT_CACHE_NAME = tesseractCacheName(tesseractCacheHash(tesseractCacheAssets()));
 // 言語の決め方。paraglide の生成物はこの並びで中身が変わる。
 const LOCALE_STRATEGY: NonNullable<Parameters<typeof paraglideVitePlugin>[0]['strategy']> = [
   'localStorage',
@@ -102,6 +128,8 @@ export default defineConfig(({ command }) => {
       // dev server だけ true。文書プレビュー用の選択肢とその文字列を build 産物に含めない。
       __DOC_PREVIEW__: JSON.stringify(command === 'serve'),
       __DOC_PLATFORM__: JSON.stringify(buildPlatform()),
+      // 旧キャッシュの掃除で比較に使う。runtimeCaching が書き込む名前と揃える。
+      __TESSERACT_CACHE_NAME__: JSON.stringify(TESSERACT_CACHE_NAME),
     },
     plugins: [
       stripDocsForBuild(buildPlatform()),
@@ -175,8 +203,12 @@ export default defineConfig(({ command }) => {
           globPatterns: ['**/*.{html,css,js,svg,png,ico,webmanifest,woff,woff2}'],
           // tesseract-wasm の worker・コア・日本語モデルは合計 6MB 超。OCR エンジンに
           // Tesseract を選んだ利用者だけが必要とするため precache から除外する
-          // （選んだ時点で通常のリクエストとして取得される）。
+          // （選んだ時点で通常のリクエストとして取得され、下の runtimeCaching が保持する）。
           globIgnores: ['tesseract/**'],
+          runtimeCaching: [tesseractRuntimeCaching(TESSERACT_CACHE_NAME)],
+          // 初回訪問でも SW が今のページを即座に制御する。既存の SW が居る更新時は
+          // waiting のまま変わらず、UpdatePrompt の「更新する」操作を経る（SW の仕様）。
+          clientsClaim: true,
         },
         devOptions: {
           // 開発時もサービスワーカーを動かして挙動確認できる（任意）
