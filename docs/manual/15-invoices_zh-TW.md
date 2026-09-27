@@ -58,8 +58,17 @@
 <!-- only:browser -->
 要存成 PDF，在列印對話框的輸出目的地選「另存為 PDF」。
 <!-- /only -->
-<!-- only:native -->
+<!-- only:macos -->
+可以在列印面板存成 PDF（左下角的「PDF」選單）。
+<!-- /only -->
+<!-- only:ios -->
 桌面環境可以在列印面板存成 PDF（例如 macOS 是左下角的「PDF」選單）。iPad・iPhone 則從分享選單存檔。
+<!-- /only -->
+<!-- only:windows -->
+可以在列印面板存成 PDF（在輸出目的地清單中選「另存為 PDF」）。
+<!-- /only -->
+<!-- only:android -->
+可以從系統的列印對話框存成 PDF。
 <!-- /only -->
 
 列印版面會自動包含適格請求書等保存方式要求的記載事項：

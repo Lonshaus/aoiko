@@ -5,7 +5,7 @@
 // 形態が host から決まらない ios はここを経由して AOIKO_PLATFORM を立てる。
 import { spawn } from 'node:child_process';
 
-const PLATFORMS = ['browser', 'macos', 'ios', 'windows'];
+const PLATFORMS = ['browser', 'macos', 'ios', 'windows', 'android'];
 const [platform, command, ...args] = process.argv.slice(2);
 
 if (platform === undefined || !PLATFORMS.includes(platform)) {

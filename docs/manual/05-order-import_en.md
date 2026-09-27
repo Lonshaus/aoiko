@@ -19,6 +19,9 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 <!-- only:windows -->
 > **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (the built-in rule engine is not supported here).
 <!-- /only -->
+<!-- only:android -->
+> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (the built-in rule engine is not supported here).
+<!-- /only -->
 
 ## 1. Why this feature exists
 

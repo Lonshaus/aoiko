@@ -446,7 +446,9 @@
             <option value={eng}>
               {eng === 'tesseract'
                 ? m.receipt_rule_engine_tesseract()
-                : m.receipt_rule_engine_native()}
+                : __DOC_PLATFORM__ === 'android'
+                  ? m.receipt_rule_engine_android()
+                  : m.receipt_rule_engine_native()}
             </option>
           {/each}
         </select>
@@ -474,7 +476,9 @@
             engine:
               receiptRuleEngine === 'tesseract'
                 ? m.receipt_rule_engine_name_tesseract()
-                : m.receipt_rule_engine_name_native(),
+                : __DOC_PLATFORM__ === 'android'
+                  ? m.receipt_rule_engine_name_android()
+                  : m.receipt_rule_engine_name_native(),
           })}
         {/if}
       </span>
@@ -513,7 +517,9 @@
           class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
         >
           {__NATIVE__ && lastEngine === 'native'
-            ? m.receipt_native_engine_notice()
+            ? __DOC_PLATFORM__ === 'android'
+              ? m.receipt_native_engine_notice_android()
+              : m.receipt_native_engine_notice()
             : m.receipt_local_engine_notice()}
         </div>
       {/if}

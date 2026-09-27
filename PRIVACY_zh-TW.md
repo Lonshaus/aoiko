@@ -14,8 +14,22 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 - 裝置資訊、IP 位址
 - 使用狀況分析（telemetry・analytics）
 - cookie、本地儲存的追蹤器
+<!-- only:browser -->
 
 應援機能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+<!-- /only -->
+<!-- only:apple -->
+
+應援機能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+<!-- /only -->
+<!-- only:windows -->
+
+應援機能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+<!-- /only -->
+<!-- only:android -->
+
+應援機能（App 內購買）的付款本身由商店（Google Play）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。
+<!-- /only -->
 <!-- only:browser -->
 
 提供 <https://aoiko.pages.dev> 的 hosting 的 **HTTP access log** 可能依該服務政策保留。aoiko 這邊無法控制這部分。
@@ -67,8 +81,14 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 
 - **vision 生成式 AI 路徑（Gemini / OpenAI 相容）**：生成式 AI 分類＝CSV 各列的文字（金額・摘要等）＋ 勘定科目清單／OCR＝收據圖片（Base64）＋ 抽取指示的 prompt
 - **Tesseract 路徑（OCR 限定）**：不用生成式 AI。圖片在 WASM 內本機處理、不外送。`jpn.traineddata` 也由 aoiko 自己提供，不會有對外連線
-<!-- only:native -->
+<!-- only:apple -->
 - **作業系統內建的文字辨識路徑（OCR 限定）**：不用生成式 AI。圖片由作業系統提供的文字辨識在本機處理、不外送，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。也不需額外下載任何資料
+<!-- /only -->
+<!-- only:windows -->
+- **作業系統內建的文字辨識路徑（OCR 限定）**：不用生成式 AI。圖片由作業系統提供的文字辨識在本機處理、不外送，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。也不需額外下載任何資料
+<!-- /only -->
+<!-- only:android -->
+- **裝置內的文字辨識路徑（OCR 限定）**：不用生成式 AI。圖片由隨 App 附帶的 ML Kit 在本機處理，圖片本身不外送，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。不需額外下載任何資料，但負責辨識的 ML Kit 會把使用狀況（機型、App 版本、每次安裝的識別碼、處理耗時、錯誤代碼）送給 Google。收據圖片與辨識出的文字內容不會被送出
 <!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence 路徑（生成式 AI 分類・OCR 共用）**：推論全程在裝置內完成，圖片與文字都不會外送。也不需額外下載任何資料
@@ -83,8 +103,14 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 | OpenAI 相容 / Ollama 等：指定 localhost 時 | 本機內（例 `http://localhost:11434`） | **否** |
 | OpenAI 相容 / Ollama 等：指定遠端時 | 使用者指定的 host | 是 |
 | Tesseract（純本地 WASM OCR） | 圖片不離開本機。`jpn.traineddata` 也內附 | **無**（不會有對外連線）|
-<!-- only:native -->
+<!-- only:apple -->
 | 作業系統內建的文字辨識 | 圖片不離開本機 | **無**（不會有對外連線）|
+<!-- /only -->
+<!-- only:windows -->
+| 作業系統內建的文字辨識 | 圖片不離開本機 | **無**（不會有對外連線）|
+<!-- /only -->
+<!-- only:android -->
+| 裝置內的文字辨識 | 圖片與文字都不離開本機 | **圖片與文字都無**（僅 ML Kit 的使用狀況會送給 Google）|
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | 圖片與文字都不離開本機 | **無**（不會有對外連線）|
@@ -101,10 +127,27 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 <!-- /only -->
 - **外部（雲端）送出引擎使用時送出前會跳確認對話框**（可透過設定跳過）
 - Gemini：送出內容依 Google 隱私政策與使用者 API 方案合約處理，是否用於訓練看合約形態（免費 vs 付費）
+<!-- only:browser -->
 - 本地（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須 vision 對應模型）。在裝置內完成的引擎同樣不會產生送出
+<!-- /only -->
+<!-- only:apple -->
+- 本地（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須 vision 對應模型）。在裝置內完成的引擎同樣不會產生送出
+<!-- /only -->
+<!-- only:windows -->
+- 本地（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須 vision 對應模型）。在裝置內完成的引擎同樣不會產生送出
+<!-- /only -->
+<!-- only:android -->
+- 本地（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須 vision 對應模型）。Tesseract 不會送出任何東西。裝置內的文字辨識不會送出圖片和文字，但使用狀況會送給 Google
+<!-- /only -->
 - Tesseract：不用生成式 AI，從 WASM OCR 文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。店名與品項不推測。使用者務必人工確認
-<!-- only:native -->
+<!-- only:apple -->
 - 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認
+<!-- /only -->
+<!-- only:windows -->
+- 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認
+<!-- /only -->
+<!-- only:android -->
+- 裝置內的文字辨識：不用生成式 AI，從隨 App 附帶的 ML Kit 辨識出的文字以確定性規則抽取（只 T+13 位登錄號碼・日期・合計）。會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認。負責辨識的 ML Kit 會把使用狀況送給 Google，但圖片與辨識出的文字內容不會被送出
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence：推論在裝置內完成，使用者的資料不會外送。只有在這台裝置支援 Apple Intelligence 時才會出現在選項中

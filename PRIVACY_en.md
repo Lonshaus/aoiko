@@ -14,8 +14,22 @@ The developer / distributor **collects none of the following** from users:
 - Device information, IP address
 - Usage analytics (telemetry, analytics)
 - Cookies, local-storage trackers
+<!-- only:browser -->
 
 In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is which stamps you purchased and the date of the last purchase; none of it identifies you personally. The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
+<!-- /only -->
+<!-- only:apple -->
+
+In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is which stamps you purchased and the date of the last purchase; none of it identifies you personally. The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
+<!-- /only -->
+<!-- only:windows -->
+
+In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is which stamps you purchased and the date of the last purchase; none of it identifies you personally. The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
+<!-- /only -->
+<!-- only:android -->
+
+In-app purchases (the supporter feature) are processed by the store (Google Play) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is which stamps you purchased and the date of the last purchase; none of it identifies you personally.
+<!-- /only -->
 <!-- only:browser -->
 
 The **HTTP access logs** of the host serving <https://aoiko.pages.dev> may exist per that service's policy. aoiko cannot control this.
@@ -67,8 +81,14 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 
 - **Vision generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
 - **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` is served by aoiko itself, so no external request is made
-<!-- only:native -->
+<!-- only:apple -->
 - **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+<!-- /only -->
+<!-- only:windows -->
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+<!-- /only -->
+<!-- only:android -->
+- **On-device text recognition path (OCR only)**: no generative AI. The image is processed on-device by ML Kit, which is bundled with the app, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
 <!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. Nothing extra is downloaded either
@@ -83,8 +103,14 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 | OpenAI-compatible / Ollama etc. when localhost | On-device (e.g. `http://localhost:11434`) | **None** |
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
 | Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` is bundled too | **None** (no external request is made) |
-<!-- only:native -->
+<!-- only:apple -->
 | The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
+<!-- /only -->
+<!-- only:windows -->
+| The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
+<!-- /only -->
+<!-- only:android -->
+| On-device text recognition | Image and text never leave device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | Images and text never leave the device | **None** (no external request is made) |
@@ -101,10 +127,27 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- /only -->
 - For **cloud (external) engines, a pre-send confirmation dialog** is shown (skippable via a setting)
 - Gemini: data handling follows Google's privacy policy and your API plan contract; whether data is used for training depends on your plan (free vs. paid)
+<!-- only:browser -->
 - When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:apple -->
+- When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:windows -->
+- When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:android -->
+- When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). Tesseract sends nothing. On-device text recognition doesn't send images or text, but usage information is sent to Google
+<!-- /only -->
 - Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
-<!-- only:native -->
+<!-- only:apple -->
 - The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+<!-- /only -->
+<!-- only:windows -->
+- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+<!-- /only -->
+<!-- only:android -->
+- On-device text recognition: no generative AI is used. Extraction from the text recognized by ML Kit, which is bundled with the app, is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required. ML Kit, which performs the recognition, sends usage information to Google, but the image and the recognized text are not sent
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence: inference runs on the device and none of your data is sent externally. It appears as an option only when this device supports Apple Intelligence

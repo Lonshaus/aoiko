@@ -159,6 +159,7 @@
     macos: 'macOS',
     ios: 'iOS',
     windows: 'Windows',
+    android: 'Android',
   };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
   // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、

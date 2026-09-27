@@ -208,6 +208,9 @@ None of the setup above is needed for receipt OCR alone. The built-in rule engin
 <!-- only:windows -->
 None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or on supported devices the OS's built-in text recognition) is always available, and images never leave your device. Tesseract does not extract vendor or items (those fields stay empty). The OS's built-in recognition also attempts to extract vendor and items. Both need manual verification.
 <!-- /only -->
+<!-- only:android -->
+None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or on-device text recognition) is always available, and images never leave your device. Tesseract does not extract vendor or items (those fields stay empty). On-device text recognition also attempts to extract vendor and items. Both need manual verification.
+<!-- /only -->
 
 You choose the engine, and its sub-engine, on the `Receipt` page itself, not in Settings. See [04. Receipt OCR](04-receipt-ocr_en.md) for details.
 

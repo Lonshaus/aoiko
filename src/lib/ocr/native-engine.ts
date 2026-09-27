@@ -19,7 +19,11 @@ export function createNativeReceiptExtractor(): ReceiptExtractor {
       // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。
       const recognize = nativeBridge()?.recognizeText;
       if (typeof recognize !== 'function') {
-        throw new Error(m.ocr_native_unavailable());
+        throw new Error(
+          __DOC_PLATFORM__ === 'android'
+            ? m.ocr_native_unavailable_android()
+            : m.ocr_native_unavailable(),
+        );
       }
       return extractFromOcrLayout(await recognize(image.base64));
     },
