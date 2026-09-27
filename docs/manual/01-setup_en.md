@@ -200,7 +200,7 @@ No API key or endpoint setup needed. **"The browser's built-in AI"** appears in 
 ### If you don't want AI: the built-in rule engine
 <!-- only:browser -->
 
-None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract) is always available, and neither images nor language data leave your device (the language data is served by aoiko itself). It does not extract vendor or items (those fields stay empty). Manual verification is required.
+None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract) is always available, and images never leave your device. Its language data is served by aoiko itself; it's fetched on your first scan and saved on this device, so it works offline afterwards. It does not extract vendor or items (those fields stay empty). Manual verification is required.
 <!-- /only -->
 <!-- only:apple -->
 None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or the OS's built-in text recognition) is always available, and images never leave your device. Tesseract does not extract vendor or items (those fields stay empty). The OS's built-in recognition also attempts to extract vendor and items. Both need manual verification.

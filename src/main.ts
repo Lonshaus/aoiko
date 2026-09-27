@@ -5,6 +5,7 @@ import { seedAndReconcileAccounts } from './db';
 import { getSetting, setSetting } from './lib/settings';
 import { migrateOcrEngineSetting } from './lib/settings-migration';
 import { applyUiLanguage } from './lib/ui-language';
+import { cleanupStaleTesseractCaches } from './lib/ocr/tesseract-cache-cleanup';
 // IndexedDB が使えない環境（プライベートモード・ストレージ拒否・容量枯渇）では
 // シードや設定読み書きが失敗する。例外を握りつぶして白画面にせず、状況を表示する。
 // paraglide（多言語メッセージ）はまだ読み込まれておらず、失敗の理由次第では
@@ -61,6 +62,15 @@ async function start(): Promise<void> {
   mount(App, {
     target: document.getElementById('app')!,
   });
+}
+// ハッシュ違いで残った旧い Tesseract 資産キャッシュを削除する。SW を使うのは web 版だけなので、
+// __NATIVE__ で畳んで native 版の産物には残さない。http（非セキュアコンテキスト）では caches
+// 自体が存在しないため、参照前に typeof で確かめる（bare 参照は ReferenceError になる）。
+if (!__NATIVE__) {
+  void cleanupStaleTesseractCaches(
+    typeof caches !== 'undefined' ? caches : undefined,
+    __TESSERACT_CACHE_NAME__,
+  );
 }
 // IndexedDB に触らないので、start() が落ちる環境でも先に済ませられる。
 applyUiLanguage();
