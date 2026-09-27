@@ -6,6 +6,8 @@
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
+  import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
+  import { isPlatform, PLATFORMS, type Platform } from '../lib/build-only';
   import { formatBytes } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
   import { describeLlmError } from '../domain/llm';
@@ -13,6 +15,7 @@
     DISCLAIMER_VERSION,
     deleteSetting,
     getSetting,
+    loadBusinessDates,
     setSetting,
     type AiEngine,
   } from '../lib/settings';
@@ -31,8 +34,22 @@
     exportGenericCsv,
     exportYayoiCsv,
   } from '../domain/accountant-export';
-  import { computeDepreciation, generateYearEndDepreciation } from '../domain/depreciation';
-  import { estimateTransferIncome, generateDisposalEntry } from '../domain/asset-disposal';
+  import {
+    computeDepreciation,
+    depreciableCost,
+    generateYearEndDepreciation,
+    lumpSumPoolShares,
+    serviceStartDate,
+    smallAssetSpecialStatuses,
+    type SmallAssetStatus,
+  } from '../domain/depreciation';
+  import {
+    aggregateTransferIncome,
+    estimateTransferIncome,
+    generateDisposalEntry,
+    transferIncomeByTerm,
+  } from '../domain/asset-disposal';
+  import { DEPRECIABLE_ASSET_ACCOUNTS, defaultAssetCategory } from '../tax-schema/2026/accounts';
   import {
     applyCarryover,
     computeCarryover,
@@ -55,6 +72,7 @@
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import type {
     Account,
+    AssetCategory,
     DepreciationMethod,
     DisposalType,
     FixedAsset,
@@ -119,6 +137,29 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
+  // 開発用：手引き・条文を dev server でどの配布形態向けに畳んで表示するか。
+  // __DOC_PLATFORM__ は dev server 起動時の AOIKO_PLATFORM で、未検証の生値なので isPlatform で確かめる。
+  // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、build 産物に doc-preview.ts が
+  // 混入する（tree-shaking は分岐の外側の参照までは削らない）。
+  let devDocPreviewPlatform = $state<Platform>(
+    __DOC_PREVIEW__
+      ? readPreviewPlatform(isPlatform(__DOC_PLATFORM__) ? __DOC_PLATFORM__ : 'browser')
+      : 'browser',
+  );
+  function onDocPreviewPlatformChange(e: Event) {
+    if (!__DOC_PREVIEW__) {
+      return;
+    }
+    const v = (e.currentTarget as HTMLSelectElement).value as Platform;
+    writePreviewPlatform(v);
+    location.reload();
+  }
+  const DOC_PREVIEW_LABELS: Record<Platform, string> = {
+    browser: 'Web',
+    macos: 'macOS',
+    ios: 'iOS',
+    windows: 'Windows',
+  };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
   // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
@@ -199,6 +240,38 @@
   let newAssetAccount = $state('1510');
   let newAssetMethod = $state<DepreciationMethod>('straight-line');
   let newAssetIncomeType = $state<IncomeType>('business');
+  // 所令6条の号。'mine-shaft' は2号（構築物）のうち坑道、'' は未指定。
+  type AssetCategoryChoice = '' | `${AssetCategory}` | 'mine-shaft';
+  const ASSET_CATEGORY_CHOICES: Array<{ value: AssetCategoryChoice; label: () => string }> = [
+    { value: '1', label: m.settings_asset_category_option_1 },
+    { value: '2', label: m.settings_asset_category_option_2 },
+    { value: 'mine-shaft', label: m.settings_asset_category_option_mine_shaft },
+    { value: '3', label: m.settings_asset_category_option_3 },
+    { value: '4', label: m.settings_asset_category_option_4 },
+    { value: '5', label: m.settings_asset_category_option_5 },
+    { value: '6', label: m.settings_asset_category_option_6 },
+    { value: '7', label: m.settings_asset_category_option_7 },
+    { value: '8', label: m.settings_asset_category_option_8 },
+    { value: '9', label: m.settings_asset_category_option_9 },
+  ];
+  function categoryChoiceForAccount(accountCode: string): AssetCategoryChoice {
+    const category = defaultAssetCategory(accountCode);
+    return category === undefined ? '' : (String(category) as AssetCategoryChoice);
+  }
+  let newAssetCategory = $state<AssetCategoryChoice>(categoryChoiceForAccount('1510'));
+  let newAssetEmployeeCount = $state('');
+  let newAssetLeasedOut = $state(false);
+  let newAssetLeaseContractDate = $state('');
+  let newAssetResidualGuarantee = $state('');
+  // 所令138条1項2号：使用可能期間が1年未満（金額にかかわらず即時費用化）。
+  let newAssetUsableLifeUnderOneYear = $state(false);
+  // 所令81条2号・3号の例外（業務の性質上基本的に重要）。
+  let newAssetEssentialToBusiness = $state(false);
+  // リース期間定額法（所令120条の2第1項6号）のリース期間月数。
+  let newAssetLeaseTermMonths = $state('');
+  // 少額特例落選時の切替先。true は定率法、未設定（false）は定額法（所令125条2号イ）。
+  let newAssetDecliningBalanceElected = $state(false);
+  let transferOccasionalIncome = $state('');
   let assetError = $state('');
   let propertyEditId = $state<string | null>(null);
   let propertyType = $state('');
@@ -257,6 +330,19 @@
   let taxFilingMethod = $state<TaxFilingMethod>('general');
   let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
   let consumptionTaxAttributionMethod = $state<'individual' | 'proportional'>('proportional');
+  let ctRegistrationStartDate = $state('');
+  let ctTaxableElectionFrom = $state('');
+  let ctTaxableElectionTo = $state('');
+  let ctInheritanceDate = $state('');
+  let ctAdjustedFixedAssetDate = $state('');
+  let ctShortenedFrom = $state('');
+  let ctShortenedTo = $state('');
+  let ctForeignWithoutDomesticPe = $state(false);
+  let ctBasePeriodSales = $state('');
+  let ctSpecifiedPeriodSales = $state('');
+  let ctSimplifiedElectionFiledDate = $state('');
+  let ctInterimVoluntaryFiled = $state(false);
+  let ctInterimVoluntaryLapsed = $state(false);
   let consumptionTaxSaved = $state(false);
   // 申告者情報（e-Tax 提出用）
   let userRiyoshaId = $state('');
@@ -269,6 +355,8 @@
   // 確認を通るまで filingType は変えないため、選択の見た目は別に持つ。同じ値へ戻すと
   // 再描画が起きず、取り消しても押した側に選択が残る。
   let filingTypeChoice = $state<FilingType>('blue');
+  // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業精霊が書き込む）。
+  let businessDates = $state<{ businessStartDate?: string; businessCloseDate?: string }>({});
   let pendingFilingType = $state<FilingType | null>(null);
   let confirmingFilingType = $state(false);
   type PendingConfirm = { title: string; desc: string; action: string; run: () => Promise<void> };
@@ -297,6 +385,7 @@
     await pendingConfirm?.run();
   }
   let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
+  let cashBasisElection = $state(false);
   let filerSaved = $state(false);
   const zeimushoCodeInvalid = $derived(
     userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode),
@@ -418,6 +507,21 @@
     simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
     consumptionTaxAttributionMethod =
       (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
+    ctRegistrationStartDate = (await getSetting('invoiceRegistrationStartDate')) ?? '';
+    const taxableElection = await getSetting('taxableElectionPeriod');
+    ctTaxableElectionFrom = String(taxableElection?.fromYear ?? '');
+    ctTaxableElectionTo = String(taxableElection?.toYear ?? '');
+    ctInheritanceDate = (await getSetting('inheritanceSpecialDate')) ?? '';
+    ctAdjustedFixedAssetDate = (await getSetting('adjustedFixedAssetDate')) ?? '';
+    const shortened = await getSetting('shortenedTaxPeriod');
+    ctShortenedFrom = shortened?.from ?? '';
+    ctShortenedTo = shortened?.to ?? '';
+    ctForeignWithoutDomesticPe = (await getSetting('foreignWithoutDomesticPe')) ?? false;
+    ctBasePeriodSales = (await getSetting('basePeriodTaxableSales')) ?? '';
+    ctSpecifiedPeriodSales = (await getSetting('specifiedPeriodTaxableSales')) ?? '';
+    ctSimplifiedElectionFiledDate = (await getSetting('simplifiedElectionFiledDate')) ?? '';
+    ctInterimVoluntaryFiled = (await getSetting('interimVoluntaryFiled')) ?? false;
+    ctInterimVoluntaryLapsed = (await getSetting('interimVoluntaryLapsed')) ?? false;
     userRiyoshaId = (await getSetting('userRiyoshaId')) ?? '';
     userFilerName = (await getSetting('userFilerName')) ?? '';
     userFilerZip = (await getSetting('userFilerZip')) ?? '';
@@ -427,7 +531,9 @@
     zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
     filingType = (await getSetting('filingType')) ?? 'blue';
     filingTypeChoice = filingType;
+    businessDates = await loadBusinessDates();
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
+    cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
@@ -468,11 +574,76 @@
     await setSetting('homeOfficeAccountRatios', $state.snapshot(homeOfficeRatios));
   }
 
+  type CtTextKey =
+    | 'invoiceRegistrationStartDate'
+    | 'inheritanceSpecialDate'
+    | 'adjustedFixedAssetDate'
+    | 'simplifiedElectionFiledDate';
+  type CtAmountKey = 'basePeriodTaxableSales' | 'specifiedPeriodTaxableSales';
+  type CtFlagKey = 'foreignWithoutDomesticPe' | 'interimVoluntaryFiled' | 'interimVoluntaryLapsed';
+  // 空欄・未チェックは未設定として消し、判定を従来どおりにする
+  async function saveCtText(key: CtTextKey, value: string) {
+    if (value.trim() === '') {
+      await deleteSetting(key);
+    } else {
+      await setSetting(key, value.trim());
+    }
+  }
+  async function saveCtAmount(key: CtAmountKey, value: string) {
+    const normalized = value.replace(/,/g, '').trim();
+    if (normalized === '') {
+      await deleteSetting(key);
+    } else if (/^\d+$/.test(normalized)) {
+      await setSetting(key, normalized);
+    }
+  }
+  async function saveCtFlag(key: CtFlagKey, value: boolean) {
+    if (value) {
+      await setSetting(key, true);
+    } else {
+      await deleteSetting(key);
+    }
+  }
+  function parseYear(value: string): number | undefined {
+    const trimmed = value.trim();
+    return /^\d{4}$/.test(trimmed) ? Number(trimmed) : undefined;
+  }
+  async function saveCtPeriods() {
+    const fromYear = parseYear(ctTaxableElectionFrom);
+    const toYear = parseYear(ctTaxableElectionTo);
+    if (ctTaxableElectionFrom.trim() === '') {
+      await deleteSetting('taxableElectionPeriod');
+    } else if (fromYear !== undefined) {
+      await setSetting('taxableElectionPeriod', {
+        fromYear,
+        ...(toYear !== undefined ? { toYear } : {}),
+      });
+    }
+    if (ctShortenedFrom === '') {
+      await deleteSetting('shortenedTaxPeriod');
+    } else {
+      await setSetting('shortenedTaxPeriod', {
+        from: ctShortenedFrom,
+        ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
+      });
+    }
+  }
+
   async function saveConsumptionTax() {
     await setSetting('taxRegistration', taxRegistration);
     await setSetting('taxFilingMethod', taxFilingMethod);
     await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
     await setSetting('consumptionTaxAttributionMethod', consumptionTaxAttributionMethod);
+    await saveCtText('invoiceRegistrationStartDate', ctRegistrationStartDate);
+    await saveCtText('inheritanceSpecialDate', ctInheritanceDate);
+    await saveCtText('adjustedFixedAssetDate', ctAdjustedFixedAssetDate);
+    await saveCtText('simplifiedElectionFiledDate', ctSimplifiedElectionFiledDate);
+    await saveCtAmount('basePeriodTaxableSales', ctBasePeriodSales);
+    await saveCtAmount('specifiedPeriodTaxableSales', ctSpecifiedPeriodSales);
+    await saveCtFlag('foreignWithoutDomesticPe', ctForeignWithoutDomesticPe);
+    await saveCtFlag('interimVoluntaryFiled', ctInterimVoluntaryFiled);
+    await saveCtFlag('interimVoluntaryLapsed', ctInterimVoluntaryLapsed);
+    await saveCtPeriods();
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
@@ -517,6 +688,7 @@
     await setSetting('userZeimushoName', userZeimushoName.trim());
     await setSetting('filingType', filingType);
     await setSetting('aoiroDeductionKind', aoiroDeductionKind);
+    await setSetting('cashBasisElection', cashBasisElection);
     filerSaved = true;
     setTimeout(() => {
       filerSaved = false;
@@ -755,6 +927,9 @@
     | { state: 'cost'; threshold: number }
     | { state: 'expired' };
 
+  const newAssetEmployeeCountValue = $derived(
+    newAssetEmployeeCount.trim() === '' ? undefined : Number(newAssetEmployeeCount),
+  );
   const newAssetSmallCheck = $derived.by<SmallAssetCheck>(() => {
     const threshold = smallAssetThreshold(newAssetDate);
     if (newAssetDate > SMALL_ASSET_EXPIRY) {
@@ -765,7 +940,58 @@
     }
     return { state: 'cost', threshold };
   });
-  const newAssetLumpSumEligible = $derived(isLumpSumEligible(newAssetCost.trim()));
+  // 表示用の newAssetSmallCheck は金額と期限だけを見る。登録可否は従業員数・貸付けの要件も含めて判定する。
+  const newAssetSmallEligible = $derived(
+    isSmallAssetEligible(newAssetDate, newAssetCost.trim(), {
+      employeeCount: newAssetEmployeeCountValue,
+      isLeasedOut: newAssetLeasedOut,
+    }),
+  );
+  const newAssetLumpSumEligible = $derived(
+    isLumpSumEligible(newAssetCost.trim(), {
+      isLeasedOut: newAssetLeasedOut,
+      acquisitionDate: newAssetDate,
+    }),
+  );
+  const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
+  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
+  const smallAssetStatuses = $derived(
+    smallAssetSpecialStatuses(
+      ledger.fixedAssets,
+      businessDates.businessStartDate,
+      businessDates.businessCloseDate,
+    ),
+  );
+  const transferIncomeTerms = $derived(
+    transferIncomeByTerm(ledger.fixedAssets, depreciationYear, smallAssetStatuses),
+  );
+  const transferIncomeAggregate = $derived.by(() => {
+    const occasional = transferOccasionalIncome.trim();
+    return aggregateTransferIncome({
+      shortTerm: transferIncomeTerms.shortTerm,
+      longTerm: transferIncomeTerms.longTerm,
+      ...(occasional !== '' && Number.isFinite(Number(occasional))
+        ? { occasionalIncome: occasional }
+        : {}),
+    });
+  });
+
+  function selectNewAssetAccount(code: string) {
+    newAssetAccount = code;
+    newAssetCategory = categoryChoiceForAccount(code);
+  }
+  // 画面の選択肢を FixedAsset の assetCategory / isMineShaft に写す。未指定は両方とも書かない（既存と同じ扱い）。
+  function assetCategoryFields(
+    choice: AssetCategoryChoice,
+  ): Pick<FixedAsset, 'assetCategory' | 'isMineShaft'> {
+    if (choice === '') {
+      return {};
+    }
+    if (choice === 'mine-shaft') {
+      return { assetCategory: 2, isMineShaft: true };
+    }
+    return { assetCategory: Number(choice) as AssetCategory };
+  }
 
   async function addAsset(e: Event) {
     e.preventDefault();
@@ -780,7 +1006,7 @@
     }
     if (
       newAssetMethod === 'small-asset-special' &&
-      (filingType !== 'blue' || newAssetSmallCheck.state !== 'eligible')
+      (filingType !== 'blue' || newAssetSmallCheck.state !== 'eligible' || !newAssetSmallEligible)
     ) {
       assetError = m.settings_asset_error_small_ineligible();
       return;
@@ -789,6 +1015,15 @@
       assetError = m.settings_asset_error_lump_sum_ineligible();
       return;
     }
+    const leaseContractDate = newAssetLeaseContractDate;
+    const residualGuarantee = newAssetResidualGuarantee.trim();
+    const employeeCount = newAssetEmployeeCountValue;
+    const employeeFields =
+      newAssetMethod === 'small-asset-special' &&
+      employeeCount !== undefined &&
+      Number.isInteger(employeeCount)
+        ? { employeeCountAtAcquisition: employeeCount }
+        : {};
     const a: FixedAsset = {
       id: newId(),
       name: newAssetName.trim(),
@@ -798,11 +1033,36 @@
       depreciationMethod: newAssetMethod,
       accountCode: newAssetAccount,
       ...(newAssetIncomeType === 'realEstate' ? { incomeType: 'realEstate' as const } : {}),
+      ...assetCategoryFields(newAssetCategory),
+      ...(newAssetLeasedOut ? { isLeasedOut: true } : {}),
+      ...(leaseContractDate ? { leaseContractDate } : {}),
+      ...(residualGuarantee ? { residualGuaranteeAmount: residualGuarantee } : {}),
+      ...employeeFields,
+      ...(newAssetUsableLifeUnderOneYear ? { usableLifeUnderOneYear: true } : {}),
+      ...(newAssetEssentialToBusiness ? { essentialToBusiness: true } : {}),
+      ...(newAssetMethod === 'lease-period-straight-line' && newAssetLeaseTermMonths.trim() !== ''
+        ? { leaseTermMonths: Number(newAssetLeaseTermMonths) }
+        : {}),
+      ...(newAssetMethod === 'small-asset-special' && newAssetDecliningBalanceElected
+        ? { decliningBalanceElected: true }
+        : {}),
+      // 同じ年に業務の用に供した一括償却資産を所得区分ごとに一括償却対象額としてまとめる（所令139条1項）。
+      ...(newAssetMethod === 'lump-sum'
+        ? { lumpSumPoolId: `${newAssetIncomeType}-${newAssetDate.slice(0, 4)}` }
+        : {}),
     };
     await db.fixedAssets.add(a);
     newAssetName = '';
     newAssetCost = '';
     newAssetLife = 4;
+    newAssetEmployeeCount = '';
+    newAssetLeasedOut = false;
+    newAssetLeaseContractDate = '';
+    newAssetResidualGuarantee = '';
+    newAssetUsableLifeUnderOneYear = false;
+    newAssetEssentialToBusiness = false;
+    newAssetLeaseTermMonths = '';
+    newAssetDecliningBalanceElected = false;
   }
 
   async function deleteAsset(id: string) {
@@ -944,7 +1204,7 @@
       'no-disposal': m.settings_asset_disposal_run_error_no_disposal(),
       'already-exists': m.settings_asset_disposal_run_error_exists(),
       'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
-      'lump-sum-unsupported': m.settings_asset_disposal_run_error_lump_sum(),
+      'lump-sum-scrap-no-entry': m.settings_asset_disposal_run_error_lump_sum(),
       'needs-year-end-depreciation': m.settings_asset_disposal_run_error_needs_depreciation(),
     };
     disposeStatus = { ...disposeStatus, [id]: messages[result.reason!] };
@@ -956,7 +1216,10 @@
       return;
     }
     try {
-      const r = await generateYearEndDepreciation(depreciationYear, { allowFiledYear: true });
+      const r = await generateYearEndDepreciation(depreciationYear, {
+        allowFiledYear: true,
+        ...businessDates,
+      });
       const parts: string[] = [];
       parts.push(
         r.skipped > 0
@@ -981,7 +1244,12 @@
     amount: string;
     book: string;
   } {
-    const r = computeDepreciation(asset, depreciationYear);
+    const r = computeDepreciation(
+      asset,
+      depreciationYear,
+      assetPools.get(asset.id),
+      smallAssetStatuses,
+    );
     return { amount: r.amount, book: r.bookValueEnd };
   }
 
@@ -1513,6 +1781,134 @@
             >
           </label>
         {/if}
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_ct_registration_start_date()}</span
+          >
+          <input
+            type="date"
+            bind:value={ctRegistrationStartDate}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <div class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_ct_taxable_election_filed()}</span
+          >
+          <div class="mt-1 flex items-center gap-2">
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              bind:value={ctTaxableElectionFrom}
+              onchange={saveConsumptionTax}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            />
+            <span class="text-muted-foreground">〜</span>
+            <input
+              type="text"
+              inputmode="numeric"
+              maxlength="4"
+              bind:value={ctTaxableElectionTo}
+              onchange={saveConsumptionTax}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            />
+          </div>
+        </div>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_ct_inheritance_special()}</span>
+          <input
+            type="date"
+            bind:value={ctInheritanceDate}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_ct_adjusted_fixed_asset_date()}</span
+          >
+          <input
+            type="date"
+            bind:value={ctAdjustedFixedAssetDate}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <div class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_ct_shortened_period()}</span>
+          <div class="mt-1 flex items-center gap-2">
+            <input
+              type="date"
+              bind:value={ctShortenedFrom}
+              onchange={saveConsumptionTax}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            />
+            <span class="text-muted-foreground">〜</span>
+            <input
+              type="date"
+              bind:value={ctShortenedTo}
+              onchange={saveConsumptionTax}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            />
+          </div>
+        </div>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_ct_base_period_sales()}</span>
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={ctBasePeriodSales}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_ct_specified_period_sales()}</span
+          >
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={ctSpecifiedPeriodSales}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
+          />
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_ct_simplified_election_filed_date()}</span
+          >
+          <input
+            type="date"
+            bind:value={ctSimplifiedElectionFiledDate}
+            onchange={saveConsumptionTax}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+          />
+        </label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
+          <input
+            type="checkbox"
+            bind:checked={ctForeignWithoutDomesticPe}
+            onchange={saveConsumptionTax}
+          />
+          {m.settings_ct_domestic_pe()}
+        </label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
+          <input
+            type="checkbox"
+            bind:checked={ctInterimVoluntaryFiled}
+            onchange={saveConsumptionTax}
+          />
+          {m.settings_ct_interim_voluntary_filed()}
+        </label>
+        <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
+          <input
+            type="checkbox"
+            bind:checked={ctInterimVoluntaryLapsed}
+            onchange={saveConsumptionTax}
+          />
+          {m.settings_ct_interim_voluntary_lapsed()}
+        </label>
       {/if}
     </div>
     {#if consumptionTaxSaved}
@@ -1636,10 +2032,15 @@
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             <option value="electronic">{m.settings_aoiro_electronic()}</option>
+            <option value="eTax">{m.settings_aoiro_etax()}</option>
             <option value="doubleEntry">{m.settings_aoiro_double_entry()}</option>
             <option value="simple">{m.settings_aoiro_simple()}</option>
             <option value="none">{m.settings_aoiro_none()}</option>
           </select>
+        </label>
+        <label class="flex items-center gap-2 py-2 sm:col-span-2">
+          <input type="checkbox" bind:checked={cashBasisElection} />
+          <span class="text-sm">{m.settings_cash_basis_election()}</span>
         </label>
       {/if}
     </div>
@@ -2037,17 +2438,18 @@
           class="w-20 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
         />
         <select
-          bind:value={newAssetAccount}
+          value={newAssetAccount}
+          onchange={(e) => selectNewAssetAccount(e.currentTarget.value)}
           title={m.settings_asset_account_title()}
           class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
         >
-          <option value="1510">1510 工具器具備品</option>
-          <option value="1511">1511 建物</option>
-          <option value="1540">1540 車両運搬具</option>
-          <option value="1550">1550 建物附属設備</option>
+          {#each DEPRECIABLE_ASSET_ACCOUNTS as acc (acc.code)}
+            <option value={acc.code}>{acc.code} {acc.name}</option>
+          {/each}
         </select>
         <select
-          bind:value={newAssetMethod}
+          value={newAssetMethod}
+          onchange={(e) => (newAssetMethod = e.currentTarget.value as DepreciationMethod)}
           title={m.settings_asset_method_title()}
           class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
@@ -2057,6 +2459,13 @@
             <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
           {/if}
           <option value="lump-sum">{m.settings_asset_method_lump_sum()}</option>
+          <option value="lease-period-straight-line"
+            >{m.settings_asset_method_lease_period()}</option
+          >
+          {#if newAssetDate <= '2007-03-31'}
+            <option value="old-straight-line">{m.settings_asset_method_old_straight()}</option>
+            <option value="old-declining-balance">{m.settings_asset_method_old_declining()}</option>
+          {/if}
         </select>
         {#if ledger.realEstateIncomeEnabled}
           <select
@@ -2074,6 +2483,80 @@
         >
           {m.settings_action_add()}
         </button>
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <select
+          bind:value={newAssetCategory}
+          title={m.settings_asset_category()}
+          class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
+        >
+          <option value="">{m.settings_asset_category()}</option>
+          {#each ASSET_CATEGORY_CHOICES as choice (choice.value)}
+            <option value={choice.value}>{choice.label()}</option>
+          {/each}
+        </select>
+        {#if newAssetMethod === 'small-asset-special'}
+          <input
+            type="number"
+            value={newAssetEmployeeCount}
+            oninput={assignInputString((v) => (newAssetEmployeeCount = v))}
+            min="0"
+            step="1"
+            placeholder={m.settings_asset_employee_count()}
+            title={m.settings_asset_employee_count()}
+            class="w-64 max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+          />
+        {/if}
+        <label class="flex items-center gap-1 text-sm py-2">
+          <input type="checkbox" bind:checked={newAssetLeasedOut} />
+          {m.settings_asset_leased_out()}
+        </label>
+        <label class="flex items-center gap-1 text-sm py-2">
+          <input type="checkbox" bind:checked={newAssetUsableLifeUnderOneYear} />
+          {m.settings_asset_usable_life_under_one_year()}
+        </label>
+        <label class="flex items-center gap-1 text-sm py-2">
+          <input type="checkbox" bind:checked={newAssetEssentialToBusiness} />
+          {m.settings_asset_essential_to_business()}
+        </label>
+        {#if newAssetMethod === 'small-asset-special'}
+          <label class="flex items-center gap-1 text-sm py-2">
+            <input type="checkbox" bind:checked={newAssetDecliningBalanceElected} />
+            {m.settings_asset_declining_balance_elected()}
+          </label>
+        {/if}
+      </div>
+      <div class="flex flex-wrap gap-2 items-center">
+        <label class="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+          {m.settings_asset_lease_contract_date()}
+          <input
+            type="date"
+            bind:value={newAssetLeaseContractDate}
+            class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+          />
+        </label>
+        <input
+          type="number"
+          value={newAssetResidualGuarantee}
+          oninput={assignInputString((v) => (newAssetResidualGuarantee = v))}
+          min="0"
+          step="1"
+          placeholder={m.settings_asset_residual_guarantee()}
+          title={m.settings_asset_residual_guarantee()}
+          class="w-48 max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+        />
+        {#if newAssetMethod === 'lease-period-straight-line'}
+          <input
+            type="number"
+            value={newAssetLeaseTermMonths}
+            oninput={assignInputString((v) => (newAssetLeaseTermMonths = v))}
+            min="1"
+            step="1"
+            placeholder={m.settings_asset_lease_term_months()}
+            title={m.settings_asset_lease_term_months()}
+            class="w-48 max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+          />
+        {/if}
       </div>
     </form>
     {#if newAssetMethod === 'small-asset-special'}
@@ -2124,7 +2607,7 @@
           <tbody>
             {#each ledger.fixedAssets as a (a.id)}
               {@const d = assetCurrentDepreciation(a)}
-              {@const estimate = estimateTransferIncome(a)}
+              {@const estimate = estimateTransferIncome(a, smallAssetStatuses)}
               <tr class="border-t border-border/50">
                 <td class="py-2">
                   {a.name}
@@ -2134,6 +2617,14 @@
                         ? m.settings_asset_disposal_type_sale()
                         : m.settings_asset_disposal_type_scrap()}
                       {a.disposedDate})
+                    </span>
+                  {/if}
+                  {#if a.conversionBasis !== undefined}
+                    <span class="block text-xs text-muted-foreground">
+                      {m.settings_asset_conversion_basis({
+                        amount: formatJPY(depreciableCost(a)),
+                        date: serviceStartDate(a),
+                      })}
                     </span>
                   {/if}
                 </td>
@@ -2399,6 +2890,32 @@
       </ScrollX>
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
+    {/if}
+    {#if transferIncomeTerms.count > 0}
+      <div class="space-y-2 pt-3 border-t border-border/50">
+        <h4 class="text-sm font-semibold">
+          {m.settings_transfer_income_aggregate_title({ year: depreciationYear })}
+        </h4>
+        <label class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {m.settings_transfer_income_occasional()}
+          <input
+            type="number"
+            value={transferOccasionalIncome}
+            oninput={assignInputString((v) => (transferOccasionalIncome = v))}
+            step="1"
+            class="w-36 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+          />
+        </label>
+        <p class="text-xs text-muted-foreground">
+          {m.settings_transfer_income_special_deduction({
+            gain: formatJPY(transferIncomeAggregate.gain),
+            deduction: formatJPY(transferIncomeAggregate.specialDeduction),
+            shortTerm: formatJPY(transferIncomeAggregate.shortTermIncome),
+            longTerm: formatJPY(transferIncomeAggregate.longTermIncome),
+            half: formatJPY(transferIncomeAggregate.halfOfLongTermAndOccasional),
+          })}
+        </p>
+      </div>
     {/if}
 
     <div class="flex flex-wrap items-end gap-3 pt-3 border-t border-border/50">
@@ -3037,6 +3554,24 @@
       </button>
     </div>
   </section>
+  {#if __DOC_PREVIEW__}
+    <section class="space-y-4 border border-dashed rounded-lg p-6 bg-card text-card-foreground">
+      <h3 class="text-lg font-semibold">開発用：文書のプレビュー対象</h3>
+      <p class="text-xs text-muted-foreground">
+        手引き・免責事項・プライバシーポリシー・セキュリティ方針をどの配布形態向けに畳んで表示するか。dev
+        server でのみ表示される。
+      </p>
+      <select
+        value={devDocPreviewPlatform}
+        onchange={onDocPreviewPlatformChange}
+        class="px-3 h-9 bg-background border rounded text-foreground text-sm"
+      >
+        {#each PLATFORMS as p (p)}
+          <option value={p}>{DOC_PREVIEW_LABELS[p]}</option>
+        {/each}
+      </select>
+    </section>
+  {/if}
   {#if canSupport}
     <div class="text-center">
       <button

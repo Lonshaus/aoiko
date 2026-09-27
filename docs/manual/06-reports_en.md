@@ -1,6 +1,6 @@
 # 06. Reports
 
-Monthly sales, P/L, balance sheet, monthly P/L, vendor and sub-account breakdowns, consumption-tax 4-method comparison.
+Monthly sales, P/L, balance sheet, monthly P/L, vendor and sub-account breakdowns, consumption-tax method comparison.
 
 **Language**: [日本語](06-reports.md) | **English** | [繁體中文](06-reports_zh-TW.md)
 
@@ -17,7 +17,7 @@ Click **"Reports"** in the navigation to open `Reports`. The screen shows per fi
 
 ## 1. Overview (year summary)
 
-The top **"{year} Overview"** block:
+The top **"{year} overview"** block:
 
 | Field | What |
 |---|---|
@@ -30,18 +30,18 @@ If the year is locked as filed, **🔒 Filed** appears on the right with an **"U
 
 ## 2. Monthly sales
 
-The **"Monthly sales"** section: each month's sales total as a bar-chart-like table. Top right shows **"Year total {amount}"**.
+The **"Monthly sales"** section: each month's sales total as a bar-chart-like table. Top right shows **"Annual total {amount}"**.
 
 > Sales here means the credit side of revenue accounts (4xxx) such as `4110 Sales`, aggregated by month.
 
 ## 3. Profit & Loss (P/L)
 
-**"Profit & Loss"** section:
+**"Profit and loss statement"** section:
 
 | Block | What |
 |---|---|
 | Revenue | Revenue accounts (4xxx) for the year, with a **"Revenue total"** |
-| Expenses | Expense accounts (5xxx) for the year, with an **"Expense total"** |
+| Expenses | Expense accounts (5xxx) for the year, with an **"Expenses total"** |
 | Income (revenue − expenses) | Net income (before Blue Return special deduction) |
 
 > Accounts with no activity are shown as **"None"** and skipped.
@@ -56,7 +56,7 @@ After running "Settings → Fixed assets → 'Generate depreciation entries'" at
 
 ## 4. Balance sheet (BS)
 
-**"Balance sheet"** section: snapshot of balances at year-end (or current). The right side shows **"As of {date}"**.
+**"Balance sheet"** section: snapshot of balances at year-end (or current). The right side shows **"as of {date}"**.
 
 | Block | What |
 |---|---|
@@ -81,7 +81,7 @@ Typical causes:
 
 ## 5. Monthly P/L (accounts × months)
 
-**"Monthly P/L"** section: cross-tab with accounts as rows and months (1–12 + Total) as columns.
+**"Monthly P/L (account × month)"** section: cross-tab with accounts as rows and months (1–12 + Total) as columns.
 
 | Use | Example |
 |---|---|
@@ -91,33 +91,32 @@ Typical causes:
 
 Top right: **"Net income {amount}"**.
 
-## 6. Vendor / sub-account breakdowns
+## 6. Vendor / sub-account / department breakdowns
 
-**"Vendor breakdown"** / **"Sub-account breakdown"** sections aggregate for the year by your chosen axis.
+The **"Breakdown"** section aggregates the year's totals by your chosen axis.
 
 | Axis | Use |
 |---|---|
 | Vendor | Total per major vendor (also useful for invoice-counterparty audits) |
 | Sub-account | Per-bank inflows/outflows, per-card spending, etc. |
+| Department | Totals per **"Department tag"** ([02. § 1-6](02-journal_en.md#1-6-adding-a-department-tag)) attached to entries |
 
-Unclassified entries (without vendor / sub-account) show under **"(Unknown vendor)"** etc.
+Unclassified entries (without vendor / sub-account) show under **"(Unclassified)"**. When an entry references a vendor or sub-account that no longer exists, it shows under **"(Unknown vendor)"** / **"(Unknown subaccount)"** instead.
 
 > If you've been linking vendors to entries, "How much did I spend at Amazon this year" pops out instantly.
 
-## 7. Consumption-tax 4-method comparison
+## 7. Consumption-tax method comparison
 
-For taxable businesses, **"Consumption-tax 4-method comparison"** runs the year's actuals through all four methods side by side:
+For taxable businesses, the **"Consumption tax"** section runs the year's actuals through each method side by side. General and simplified taxation are always shown; the 20% special provision is shown for years up to 2026, and the 30% special provision only for 2027 and 2028:
 
 | Method | Basis |
 |---|---|
 | General taxation | Output tax − input tax (auto-applies 80/70/50/30% transitional credit) |
-| Simplified taxation | Output tax − (output tax × deemed input rate) |
-| 2% special | Output tax × 20% (limited to 2023/10–2026/9) |
-| 3% special | Output tax × 30% (limited to Reiwa 9 & 10) |
+| Simplified taxation | Output tax − (whichever is larger of: the weighted average of each business category's output tax × its deemed input rate, or, when one category makes up 75% or more of taxable sales, that category's rate applied to the whole under the 75% special rule) |
+| 2-wari special | (Output tax minus the entered rate-specific tax on sales returns/discounts) × 20% (limited to 2023/10–2026/9) |
+| 3-wari special | (Output tax minus the entered rate-specific tax on sales returns/discounts and the tax on specified small-asset transfers) × 30% (limited to Reiwa 9 & 10; specified small-asset transfers dated 2026-10-01 to 2028-03-31 are not deducted — see [07. Consumption tax](07-consumption-tax_en.md)) |
 
-Lined up like this, the **lowest-payable method** is easy to spot.
-
-> **Important**: this screen provides **estimates and comparison**. `.xtx` output of the actual return is supported for **general taxation, the 20% special provision, and simplified taxation (single business category only)** ([10. `.xtx` export § 6](10-xtx-export_en.md#6-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). Multi-category simplified taxation and the 30% special provision are out of scope for form generation — use the online preparation corner ("作成コーナー") or a tax accountant for those. Details in [07. Consumption tax](07-consumption-tax_en.md).
+> **Important**: this screen provides **estimates and comparison**. `.xtx` output of the actual return is supported for **general taxation, the 20% special provision, and simplified taxation** (simplified taxation supports the two-category computation — including the 75% special rule — for a fixed-asset sale's 4th category alongside your set category, but not a filer who actually runs multiple business categories; [10. `.xtx` export § 5](10-xtx-export_en.md#5-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). The 30% special provision is out of scope for form generation — use the online preparation corner ("作成コーナー") or a tax accountant for that. Details in [07. Consumption tax](07-consumption-tax_en.md).
 
 ## 8. Year lock (Filed)
 
@@ -125,7 +124,7 @@ Once you've filed for a year, you can **lock** it to prevent accidental edits.
 
 ### 8-1. Locking
 
-Select the year → in the overview block, click **"Lock as Filed"**.
+Select the year → in the overview block, click **"Lock as filed"**.
 
 After locking:
 - 🔒 Filed badge appears
@@ -134,7 +133,7 @@ After locking:
 
 ### 8-2. Unlocking
 
-For an amended return: **"Unlock"** → add correcting entries → **"Lock as Filed"** again. The diff is saved as a new snapshot, overwriting the old. The amended-filing flow is in [12. Amended filing](12-amended_en.md).
+For an amended return: **"Unlock"** → add correcting entries → **"Lock as filed"** again. The diff is saved as a new snapshot, overwriting the old. The amended-filing flow is in [12. Amended filing](12-amended_en.md).
 
 ## 9. Multi-year trend analysis
 

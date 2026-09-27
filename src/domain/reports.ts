@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from './journal';
 import type { Account, AccountCategory, IncomeType, JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
 // 売上原価・仕入（accounts.ts code 5020）。月別「仕入金額」欄に算入する科目。
 // 期首/期末商品棚卸高（5010/5030）は年末調整項目のため月別仕入には含めない。
 const PURCHASES_ACCOUNT_CODE = '5020';
@@ -117,13 +118,13 @@ export async function buildBreakdown(
 
   const labelFor = (key: string): string => {
     if (!key) {
-      return '（未分類）';
+      return m.reports_breakdown_unclassified();
     }
     if (axis === 'vendor') {
-      return vendorMap.get(key) ?? '（不明な取引先）';
+      return vendorMap.get(key) ?? m.reports_breakdown_unknown_vendor();
     }
     if (axis === 'subAccount') {
-      return subMap.get(key) ?? '（不明な補助科目）';
+      return subMap.get(key) ?? m.reports_breakdown_unknown_subaccount();
     }
     return key;
   };

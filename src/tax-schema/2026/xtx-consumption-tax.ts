@@ -4,14 +4,14 @@
 // 文書モデルで駆動する。所得税（RKO0010・KOA020等）とは別の送信データとして
 // 生成する（同一の CONTENTS には併載しない。手続そのものが異なるため）。
 //
-// ⚠ 手続コードは様式によって異なる（RSH0010-232.xsd の CONTENTS 定義を実際に
+// ⚠ 手続コードは様式によって異なる（RSH0010 の CONTENTS 定義を実際に
 // 読んで確認済み。2026-07-05、実機組み込みで「不明な要素 'SHA020'」エラーが出て
 // 発覚——手続の CONTENTS 型が xsd:group ref で許可する様式を限定しており、
 // RSH0010 は SHA010（一般用）系統のみ許可、SHA020（簡易課税用）系統は許可しない）：
 //   - 一般課税（SHA010＋付表1-3＋付表2-3）　　　　　　→ 手続 RSH0010（一般・個人）
 //   - 2割特例／簡易課税（SHA020＋付表6／付表4-3＋付表5-3）→ 手続 RSH0030（簡易課税・個人）
-// 対応済み：2割特例（措法57の2）／簡易課税（単一事業区分のみ）／一般課税（本則）。
-// 複数事業区分の簡易課税・3割特例は未対応（詳細は
+// 対応済み：2割特例（措法57の2）／簡易課税（単一の設定区分、印の付いた行があれば+第四種の
+// 2区分兼業まで）／一般課税（本則）。3区分以上の簡易課税の按分・3割特例は未対応（詳細は
 // src/tax-schema/2026/xtx-mapping-sha020.ts・xtx-mapping-sha010.ts 冒頭コメント・
 // docs/xtx-spec/README.md 参照）。
 
@@ -39,8 +39,8 @@ const SHB067_SCHEMA = shb067 as XtxSchema;
 const SHA010_SCHEMA = sha010 as XtxSchema;
 const SHB017_SCHEMA = shb017 as XtxSchema;
 const SHB033_SCHEMA = shb033 as XtxSchema;
-// e-tax19 shohi/RSH0010-232.xsd・RSH0030-232.xsd の documentation より。
-const PROCEDURE_VERSION = '23.2.0';
+// 手続 VR は提出日ではなく年度世代で決まる（手続一覧（申告）Ver260x、RSH0010-260.xsd・RSH0030-260.xsd）。
+const PROCEDURE_VERSION = '26.0.0';
 // 消費税及び地方消費税申告(一般・個人)。CONTENTS が SHA010 系統のみ許可。
 const PROCEDURE_TAG_GENERAL = 'RSH0010';
 const PROCEDURE_NAME_GENERAL = '消費税及び地方消費税申告';
@@ -90,6 +90,9 @@ interface TwoWariXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** 売上対価の返還等に係る消費税額（税率別、未相殺の分のみ）。附則51条の2第2項 */
+  salesReturnTax78?: Decimal;
+  salesReturnTax624?: Decimal;
   /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
   interimPaidNational?: Decimal;
   /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
@@ -104,6 +107,8 @@ export function buildTwoWariXtx(ctx: TwoWariXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
+    ...(ctx.salesReturnTax78 ? { salesReturnTax78: ctx.salesReturnTax78 } : {}),
+    ...(ctx.salesReturnTax624 ? { salesReturnTax624: ctx.salesReturnTax624 } : {}),
     ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
     ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),
   });
@@ -136,7 +141,7 @@ interface SimplifiedXtxContext {
   filer: XtxFiler;
   taxableBase10: Decimal;
   taxableBase8: Decimal;
-  /** 事業区分（第1種〜第6種）。aoiko は単一事業区分のみ対応 */
+  /** 設定した事業区分（第1種〜第6種）。印の付いた行の第四種分は markedTransferBase10/8 で別に渡す */
   category: SimplifiedTaxCategory;
   /** みなし仕入率。simplified-tax.ts の deemedInputRate(category) を渡す */
   deemedInputRate: number;
@@ -146,6 +151,10 @@ interface SimplifiedXtxContext {
   /** 貸倒回収に係る消費税額（税率別） */
   badDebtRecoveryTax10: Decimal;
   badDebtRecoveryTax8: Decimal;
+  /** taxableTransferConsideration の印の付いた行（消基通13-2-9で第四種）分の課税標準額
+   * （税抜、税率別）。無ければ単一区分の従来計算のまま */
+  markedTransferBase10?: Decimal;
+  markedTransferBase8?: Decimal;
   /** 中間申告（仮決算方式）の対象期間。指定時は SHINKOKU_KBN=2（中間）で出力する */
   interimPeriod?: { start: string; end: string };
   /** 本年中に中間納付した消費税額（国税分）。確定申告出力時のみ意味を持つ */
@@ -153,8 +162,8 @@ interface SimplifiedXtxContext {
   /** 本年中に中間納付した地方消費税額（譲渡割額）。確定申告出力時のみ意味を持つ */
   interimPaidLocal?: Decimal;
 }
-// 簡易課税（単一事業区分）の .xtx を生成する。interimPeriod 指定時は中間申告
-// （仮決算方式）用に SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
+// 簡易課税（単一事業区分。印の付いた行があれば+第四種の兼業）の .xtx を生成する。interimPeriod
+// 指定時は中間申告（仮決算方式）用に SHINKOKU_KBN=2・対象期間を出力する（未指定は確定申告）。
 export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
   const mapping = mapSimplified({
     taxableBase10: ctx.taxableBase10,
@@ -165,6 +174,8 @@ export function buildSimplifiedXtx(ctx: SimplifiedXtxContext): string {
     badDebtTax8: ctx.badDebtTax8,
     badDebtRecoveryTax10: ctx.badDebtRecoveryTax10,
     badDebtRecoveryTax8: ctx.badDebtRecoveryTax8,
+    ...(ctx.markedTransferBase10 ? { markedTransferBase10: ctx.markedTransferBase10 } : {}),
+    ...(ctx.markedTransferBase8 ? { markedTransferBase8: ctx.markedTransferBase8 } : {}),
     ...(ctx.interimPeriod ? { interimPeriod: ctx.interimPeriod } : {}),
     ...(ctx.interimPaidNational ? { interimPaidNational: ctx.interimPaidNational } : {}),
     ...(ctx.interimPaidLocal ? { interimPaidLocal: ctx.interimPaidLocal } : {}),

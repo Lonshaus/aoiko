@@ -2,13 +2,12 @@
 
 **Language**: [日本語](SECURITY.md) | [English](SECURITY_en.md) | **繁體中文**
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。只有在使用者明確啟動生成式 AI 分類・OCR 時，內容才會送到所選的引擎（選擇在裝置內完成的引擎時連送出都不會發生）。本文件整理已知風險・支援方針・漏洞回報手順。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時連送出都不會發生）。本文件整理已知風險・支援方針・漏洞回報流程。
 
 ## 正規發布來源
 
 aoiko 只透過以下管道正式發布：
 
-- 原始碼：<https://github.com/Lonshaus/aoiko>
 - 線上試用版：<https://aoiko.pages.dev>
 <!-- only:apple -->
 - App Store（macOS 版・iOS 版）
@@ -18,19 +17,19 @@ aoiko 只透過以下管道正式發布：
 <!-- /only -->
 <!-- only:browser -->
 
-如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的，**在輸入 API 金鑰或任何機微資訊之前，請務必回來上述其中一個管道核對內容**。
+如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的，**在輸入 API 金鑰或任何敏感資訊之前，請務必回來上述線上試用版核對內容**。
 <!-- /only -->
 <!-- only:native -->
 
-如果你是從商店以外的地方拿到的，**在輸入 API 金鑰或任何機微資訊之前，請務必回到上述任一管道核對內容**。
+如果你是從商店以外的地方拿到的，**在輸入 API 金鑰或任何敏感資訊之前，請務必回到上述任一管道核對內容**。
 <!-- /only -->
 
-aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表可以排除有人拿這個名字去偽裝散布釣魚或惡意程式。有疑慮時，可以去 GitHub repo 的 commit 歷史、issue 核對真偽。
+請留意有人冒用 aoiko 的名稱偽裝散布釣魚或惡意程式。有疑慮時，可以跟上面列出的正規發布來源核對真偽。
 
 ## 支援版本
-
 <!-- only:browser -->
-支援對象是反映 `master` branch 最新 commit 的公開版（<https://aoiko.pages.dev>）。
+
+支援對象是 <https://aoiko.pages.dev> 目前公開的版本。
 <!-- /only -->
 <!-- only:native -->
 支援對象是各商店上架的最新發布版。若以舊版回報，可能會請你確認在最新版是否仍然重現。
@@ -41,7 +40,7 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 機密性的漏洞回報請用 **GitHub Security Advisories**：
 
 1. repo 的 **Security** tab → **Report a vulnerability**
-2. 寫影響範圍・重現手順・預期影響
+2. 寫影響範圍・重現步驟・預期影響
 3. 不要在 public issue 回報
 
 公開狀態的問題（例如錯誤的勘定科目、UI bug）走一般 issue 即可。
@@ -51,8 +50,8 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 ## 設計上的安全前提
 
 ### BYOK 模式
-
 <!-- only:browser -->
+
 - 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 瀏覽器內建的 AI）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在自己的瀏覽器 IndexedDB**（Tesseract 與瀏覽器內建的 AI 不需要金鑰也不需要設定）
 <!-- /only -->
 <!-- only:apple -->
@@ -73,7 +72,7 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 
 - 帳簿資料、API 金鑰、設定全都存在 **IndexedDB（本機）**
 <!-- only:browser -->
-- 備份：同步資料夾（File System Access API・支援的瀏覽器）／ OPFS（不支援的瀏覽器的後備）／ 手動匯出
+- 備份：同步資料夾（File System Access API・支援的瀏覽器）／ OPFS（不支援的瀏覽器的備援）／ 手動匯出
 <!-- /only -->
 <!-- only:native -->
 - 備份：同步資料夾（App 會記住一個）／ 手動匯出
@@ -104,7 +103,7 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 - CSV 各列・收據圖片依使用者選的引擎送到以下處：
   - **Gemini** → `generativelanguage.googleapis.com`（依 Google 資料處理方針，學習利用與否看合約）
   - **OpenAI 相容**（Ollama 等）→ 使用者指定的 baseURL。localhost 時不離開本機
-  - **Tesseract** → 不送（WASM 在本機處理。語言資料也是同梱，不會產生對外通訊）
+  - **Tesseract** → 不送（WASM 在本機處理。語言資料也內附，不會產生對外通訊）
 <!-- only:browser -->
   - **瀏覽器內建的 AI** → aoiko 這邊不送（推論在哪裡跑由瀏覽器的實作決定，不一定在本機）
 <!-- /only -->
@@ -114,14 +113,13 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 <!-- only:apple -->
   - **Apple Intelligence** → 不送（推論全程在本機完成）
 <!-- /only -->
-- 機密度高的資料送出前請確認（外部引擎使用時送出前會跳確認對話框）
-- AI/OCR 功能是 **opt-in（UI 按鈕觸發）**，不自動送出
-
+- 機密度高的資料送出前請確認（外部引擎使用時送出前會跳確認對話框，可透過設定跳過）
+- AI/OCR 功能與其 API 金鑰保存・模型清單取得・連線測試，都是**使用者操作觸發**（UI 按鈕），不自動送出
 <!-- only:browser -->
+
 ### 4. PWA 快取
 
-- 舊版 build 可能被 Service Worker 快取
-- bug 修正版的傳播會有時間差
+- 如果 Service Worker 的快取裡還留著舊版 build，bug 修正版送達的時間可能會延後
 <!-- /only -->
 
 ## 強化建議
@@ -136,5 +134,4 @@ aoiko 是用 AGPL-3.0 發布，任何人都可以合法 fork，但這不代表�
 
 ## 相依函式庫的漏洞
 
-- 計畫在 CI 跑 `npm audit`（未實裝）
 - 高嚴重度 CVE 會盡快反映，但無法保證

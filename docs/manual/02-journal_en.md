@@ -27,12 +27,12 @@ The bottom half of the **"Home"** navigation contains the **New journal entry** 
    - **Tax included**: checked means tax-inclusive; unchecked means tax-exclusive
 4. Enter one or more **credit** lines (same fields)
 5. Use **"+ Add debit"** / **"+ Add credit"** for composite (multi-line) entries
-6. When debit and credit totals match, a green **"✓ Balanced"** badge appears. Otherwise a **"Difference ¥xxx"** warning
+6. **"Difference"** at the bottom shows the gap between the debit and credit totals (in red while they don't match). When they match, **"✓ Balanced"** appears
 7. Click **"Add entry"** → it appears immediately in the "Recent entries" list on the Home screen
 
 ### 1-2. Recording real estate income entries (only if enabled in Settings)
 
-Once **Settings → Use real estate income** is turned on, a **"Business" / "Real estate"** toggle appears at the top of the form. Choosing "Real estate" narrows the account dropdown to real-estate-only accounts (named with a "（不動産）" suffix). The toggle remembers its state for the rest of the session, so you don't need to reselect it for every entry when recording a batch of similar transactions.
+Once **Settings → Use real estate income** is turned on, a **"Business" / "Real estate"** toggle appears at the top of the form. Choosing "Real estate" narrows the account dropdown to real-estate-only accounts (named with a "（不動産）" suffix). The toggle keeps its state while you stay on the Home screen entering further entries, so you don't need to reselect it for every entry when recording a batch of similar transactions. It resets to "Business" once you navigate to another screen.
 
 > While this setting is off, the toggle doesn't appear at all and the screen is unchanged from before.
 
@@ -52,9 +52,9 @@ Use **"Clear"** to reset everything mid-entry.
 
 ### 1-5. Recording item and quantity (simple inventory)
 
-Choosing a **Purchases (5020)** or **Sales (4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **Settings** item master. Once recorded, the [06. Reports](06-reports_en.md) profit & loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
+Choosing a **Purchases (5020)** or **Sales (4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **"Items (simple inventory)"** section of Settings. Once recorded, the [06. Reports](06-reports_en.md) profit & loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
 
-> If you've filed for a valuation method other than most-recent-purchase-cost, tick **Settings → Valuation method is not most-recent-purchase-cost** to disable this estimate and go back to journaling ending inventory manually.
+> This is on by default. If you've filed for a valuation method other than most-recent-purchase-cost, untick **Settings → Auto-calculate ending inventory (most-recent-purchase-cost method)** to disable this estimate and go back to journaling ending inventory manually.
 
 ### 1-6. Adding a department tag
 
@@ -74,9 +74,7 @@ Choosing a photo in the **"Receipt photo"** field below the description opens a 
 
 aoiko has no dedicated multi-currency feature or exchange-rate lookup. In practice, most foreign-currency transactions already come with a settled yen amount by the time you record them — credit card statements, bank remittance slips, etc. do the conversion at their own rate — so just enter that yen amount as a normal entry (noting the foreign amount in the description, e.g. `USD 100`, makes it easier to cross-reference later).
 
-For an outstanding foreign-currency receivable/payable, or a cash purchase made abroad where you need to work out the yen equivalent yourself, just enter whatever yen amount you consider reasonable at the time. Once the actual settled amount is known, book the difference as an additional entry using "Exchange loss" / "Exchange gain" accounts (create them under **Settings → Accounts**).
-
-> **Why there's no dedicated feature**: neither freee nor Money Forward's individual/sole-proprietor plans offer automatic rate lookup or automatic exchange-gain/loss calculation as a standard feature (freee only offers it via a separate paid app). In practice, "record the yen amount as it occurred, then true up the difference as exchange gain/loss at settlement" is sufficient — aoiko follows the same approach.
+For an outstanding foreign-currency receivable/payable, or a cash purchase made abroad where you need to work out the yen equivalent yourself, just enter whatever yen amount you consider reasonable at the time. Once the actual settled amount is known, book the difference to `4910 Miscellaneous income` or `5910 Miscellaneous expenses`. Accounts themselves can't be added, but sub-accounts (e.g. `Exchange gain/loss`) can be added and removed under **Settings → Subaccounts** if you want to separate it out.
 
 ### 1-9. Recording employee salary and withholding tax
 
@@ -84,9 +82,7 @@ aoiko has no payroll calculation or automatic withholding-tax feature. If you em
 
 1. **Debit**: `5230 Salaries` for the gross salary (before social insurance deductions)
 2. **Credit**: `1130 Ordinary deposit` etc. for the actual net amount paid
-3. **Credit**: a `2xxx Withholdings payable` account (create one under **Settings → Accounts** if you don't have one) for the withholding tax plus the employee's share of social insurance
-
-> **Why there's no dedicated feature**: even freee's individual/sole-proprietor "tax return" product doesn't calculate withholding tax or estimate monthly payroll — you just enter the confirmed totals into a summary field, and the actual calculation is handled by a separate product ("freee HR/payroll"). Since hiring regular employees is a relatively uncommon scenario for aoiko's target users, aoiko follows the same approach.
+3. **Credit**: `2140 Withholdings payable` for the withholding tax plus the employee's share of social insurance
 
 ### Common patterns
 
@@ -165,7 +161,7 @@ The net effect on the ledger is zero. Add a new entry with the correct amount (e
 
 No — a reversed entry can't be reversed again (the **"Reversed"** badge appears and the button is hidden). You could reverse the reversal to restore the original, but the history accumulates.
 
-> If many mistakes came from a CSV import, look at the **Import history** for **"Reverse this batch"** instead (see [03. CSV import](03-csv-import_en.md)).
+> If many mistakes came from a CSV import, look at the **Import history** for **"Reverse batch"** instead (see [03. CSV import](03-csv-import_en.md)).
 
 ## 4. Next steps
 

@@ -1,5 +1,5 @@
 // aoiko 業務データ（PL / BS / 月別）→ KOA210（青色申告決算書 一般用）参照側
-// 直接値 leaf（gen:kingaku 等）への対映。
+// 直接値 leaf（gen:kingaku 等）への転記。
 //
 // KOA210 は KOA020 と異なり、決算書の金額は IT部 IDREF ではなく要素テキストで
 // 直接保持する（leaf.idref 無し）。本モジュールは schema（refTree）を走査して
@@ -10,8 +10,20 @@
 
 import koa210 from './xtx-schema-koa210.generated.json';
 import { D } from '../../lib/decimal';
-import { computeDepreciation } from '../../domain/depreciation';
+import {
+  computeDepreciation,
+  isImmediateExpenseAsset,
+  lumpSumPoolShares,
+  serviceStartDate,
+  smallAssetSpecialStatuses,
+  type SmallAssetStatus,
+} from '../../domain/depreciation';
 import { computeCombinedBusinessRealEstateIncome } from './real-estate-income';
+import {
+  buildAoiroOptions,
+  businessPreDeductionIncomeForAoiro,
+  isOperatingBusiness,
+} from './xtx-mapping-koa020';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
@@ -115,7 +127,7 @@ function extraAccountRows(
     return row;
   });
 }
-// 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対映。
+// 売上原価ブロック（AMF00120/00130/00150）の科目名差異吸収。KOA110 と同じ対応付け。
 // 差引原価（AMF00160）は KOA110 も算出していないため、揃えて出力しない。
 const EXPENSE_ALIAS: Record<string, string> = {
   期首商品棚卸高: '期首商品（製品）棚卸高',
@@ -249,19 +261,22 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   // AMF00170／AMF00390 差引金額は、既存実装でも KOA210 が一切出力していない
   // 小計・合計欄（e-Tax 側で再計算される）。ここだけ出すと様式内で扱いが
   // 不揃いになるため、意図的に対象外のまま揃える。
-  // 青色申告特別控除：控除前所得・控除額・控除後所得
-  const preIncome = D(pl.netIncome);
+  // 青色申告特別控除：控除前所得・控除額・控除後所得。措法27条（家内労働者等の特例）
+  // 適用時は控除前所得も特例後の値を使う（businessPreDeductionIncomeForAoiro）。
+  const preIncome = businessPreDeductionIncomeForAoiro(ctx);
+  const hasBusinessIncome = isOperatingBusiness(pl);
   // 控除は不動産所得から先に充当し（措法25の2③）、44欄には事業への配分残額のみ入れる（二重計上防止）。
   const combined = computeCombinedBusinessRealEstateIncome(
     ctx.year,
     ctx.aoiroDeductionKind,
-    preIncome.greaterThan(0),
+    hasBusinessIncome,
     preIncome,
     ctx.realEstatePl,
     ctx.personalDeductions?.realEstateIncome,
+    buildAoiroOptions(ctx, hasBusinessIncome),
   );
   const deduction = preIncome.minus(combined.businessIncome);
-  put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), pl.netIncome);
+  put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), preIncome.toString());
   put(out, tagByJa(PAGE1, '青色申告特別控除額'), deduction.toString());
   put(out, tagByJa(PAGE1, '所得金額'), preIncome.minus(deduction).toString());
   // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）。
@@ -310,7 +325,12 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
   'declining-balance': '定率法',
   'small-asset-special': '少額特例',
   'lump-sum': '一括償却',
+  'old-straight-line': '旧定額法',
+  'old-declining-balance': '旧定率法',
+  'lease-period-straight-line': 'リース期間定額法',
 };
+// 措法28の2第3項明細（措置法通達28の2-3）の摘要。KOA210 AMF01790・KOA220 ANF01080 とも maxLength 15。
+const SMALL_ASSET_SUMMARY_NOTE = '措法28の2（明細は別途保管）';
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
   const v = toKingaku(amount);
@@ -318,15 +338,79 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
+// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、
+// 決算書の方法欄は実際に適用されている方法（asset.depreciationMethod の見た目ではなく）を出す。
+function effectiveMethodLabel(
+  asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },
+  status: SmallAssetStatus | undefined,
+): string {
+  if (
+    asset.depreciationMethod === 'small-asset-special' &&
+    (status === 'ineligible' || status === 'cap-exceeded')
+  ) {
+    return asset.decliningBalanceElected === true ? '定率法' : '定額法';
+  }
+  return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+}
 
 export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const detailYear = ctx.dataYear ?? ctx.year;
-  const rows = ctx.fixedAssets
-    .filter((a) => a.incomeType !== 'realEstate')
-    .map((asset) => ({ asset, result: computeDepreciation(asset, detailYear) }))
+  const pools = lumpSumPoolShares(ctx.fixedAssets);
+  const statuses = smallAssetSpecialStatuses(
+    ctx.fixedAssets,
+    ctx.businessStartDate,
+    ctx.businessCloseDate,
+  );
+  const businessAssets = ctx.fixedAssets.filter((a) => a.incomeType !== 'realEstate');
+  // 当年に適用（措法28の2）された資産は個別行から外し、1 行にまとめる（第7項）。
+  const applicableThisYear = businessAssets.filter(
+    (a) =>
+      a.depreciationMethod === 'small-asset-special' &&
+      !isImmediateExpenseAsset(a) &&
+      Number(serviceStartDate(a).slice(0, 4)) === detailYear &&
+      statuses.get(a.id) === 'applicable',
+  );
+  const applicableIds = new Set(applicableThisYear.map((a) => a.id));
+  const summaryRow: XtxLeafValues | undefined = (() => {
+    if (applicableThisYear.length === 0) {
+      return undefined;
+    }
+    const sorted = [...applicableThisYear].sort(
+      (a, b) => a.acquisitionDate.localeCompare(b.acquisitionDate) || a.id.localeCompare(b.id),
+    );
+    const first = sorted[0]!;
+    const name = `${first.name.trim().slice(0, ASSET_NAME_MAX_LENGTH - 2)} 他`;
+    const totalAcquisitionCost = sorted
+      .reduce((sum, a) => sum.plus(a.acquisitionCost), D(0))
+      .toString();
+    const totalExpensed = sorted
+      .reduce(
+        (sum, a) => sum.plus(computeDepreciation(a, detailYear, pools.get(a.id)).amount),
+        D(0),
+      )
+      .toString();
+    const row: XtxLeafValues = {};
+    row.AMF01610 = sorted.length === 1 ? first.name.trim().slice(0, ASSET_NAME_MAX_LENGTH) : name;
+    putRow(row, 'AMF01640', totalAcquisitionCost);
+    putRow(row, 'AMF01650', totalAcquisitionCost);
+    row.AMF01660 = '少額特例';
+    putRow(row, 'AMF01730', totalExpensed);
+    putRow(row, 'AMF01750', totalExpensed);
+    row.AMF01760 = BUSINESS_USE_RATIO;
+    putRow(row, 'AMF01770', totalExpensed);
+    putRow(row, 'AMF01780', '0');
+    row.AMF01790 = SMALL_ASSET_SUMMARY_NOTE;
+    return row;
+  })();
+  const individualRows = businessAssets
+    .filter((a) => !applicableIds.has(a.id))
+    .map((asset) => ({
+      asset,
+      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
+    }))
     .filter(({ result }) => !D(result.amount).isZero())
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
-    .slice(0, MAX_DEPRECIATION_ROWS)
+    .slice(0, MAX_DEPRECIATION_ROWS - (summaryRow ? 1 : 0))
     .map(({ asset, result }) => {
       const row: XtxLeafValues = {};
       const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
@@ -337,7 +421,7 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
       putRow(row, 'AMF01640', asset.acquisitionCost);
       putRow(row, 'AMF01650', result.depreciationBase);
-      row.AMF01660 = DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
+      row.AMF01660 = effectiveMethodLabel(asset, statuses.get(asset.id));
       if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
         row.AMF01670 = String(asset.usefulLifeYears);
       }
@@ -351,6 +435,7 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       }
       return row;
     });
+  const rows = summaryRow ? [summaryRow, ...individualRows] : individualRows;
   const repeats: XtxRepeatedValues = rows.length > 0 ? { AMF01600: rows } : {};
   const { bs } = ctx;
   const extraAssets = unmatchedBsRows(bs.assets);

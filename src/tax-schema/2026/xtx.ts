@@ -9,7 +9,7 @@
 // （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部 必須）は
 // 必ず載る。所得控除・税額計算は、利用者が personalDeductions を入力した場合のみ載せ、
 // 未入力の場合は従来どおり利用者が e-Tax 上で補完する。
-// 決算書・収支内訳書側は PL/BS/月別を対映する。実申告可否は e-Taxソフト(DL版) での
+// 決算書・収支内訳書側は PL/BS/月別を記載する。実申告可否は e-Taxソフト(DL版) での
 // 実機取込検証を経て利用者が確認すること（docs/xtx-spec/README.md・DISCLAIMER.md 参照）。
 
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
@@ -68,7 +68,7 @@ export class RealEstateIncomeInputMissingError extends Error {
     this.name = 'RealEstateIncomeInputMissingError';
   }
 }
-// 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対映する。
+// 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対応する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
   name: string; // 氏名・名称
@@ -92,8 +92,14 @@ export interface XtxContext {
   filer: XtxFiler;
   filingType: FilingType;
   aoiroDeductionKind: AoiroDeductionKind;
+  /** 所得税法67条1項（小規模事業者の現金主義）の適用を受けるか（措法25条の2の各項に影響） */
+  cashBasis?: boolean;
   /** 白色申告の収支内訳書 第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
+  /** 少額特例の年合計上限の月割に使う開業日。未指定は最も古い開業仕訳の日付 */
+  businessStartDate?: string;
+  /** 少額特例の年合計上限の月割に使う廃業日。未指定は廃業なし（全年扱い） */
+  businessCloseDate?: string;
   /** 不動産所得のPL（incomeType: 'realEstate' の仕訳から buildPL で算出）。無ければ不動産所得なし */
   realEstatePl?: PLReport;
   /** 所得控除・税額控除・給与/雑所得の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
@@ -102,6 +108,12 @@ export interface XtxContext {
     OtherIncomeInput & {
       realEstateIncome?: RealEstateIncomeCtx;
       familyEmployees?: PersonalDeductionFamilyEmployee[];
+      /** 前々年分の事業所得に係る総収入金額（措法25条の2第2項、令和9年分以後） */
+      priorPriorBusinessRevenue?: Decimal;
+      /** 前々年分の不動産所得に係る総収入金額（同上） */
+      priorPriorRealEstateRevenue?: Decimal;
+      /** 家内労働者等の必要経費の特例（措法27条）の適用を受けるか */
+      homeWorker?: boolean;
     };
 }
 
@@ -200,6 +212,9 @@ export function personalDeductionsToCtx(
           salaryIncome: {
             paidAmount: toDec(stored.salaryIncome.paidAmount),
             withholdingTax: toDec(stored.salaryIncome.withholdingTax),
+            ...(stored.salaryIncome.lastPaymentBeforeDecember !== undefined
+              ? { lastPaymentBeforeDecember: stored.salaryIncome.lastPaymentBeforeDecember }
+              : {}),
           },
         }
       : {}),
@@ -241,6 +256,13 @@ export function personalDeductionsToCtx(
         }
       : {}),
     ...(familyEmployees.length > 0 ? { familyEmployees } : {}),
+    ...(stored.priorPriorBusinessRevenue !== undefined
+      ? { priorPriorBusinessRevenue: toDec(stored.priorPriorBusinessRevenue) }
+      : {}),
+    ...(stored.priorPriorRealEstateRevenue !== undefined
+      ? { priorPriorRealEstateRevenue: toDec(stored.priorPriorRealEstateRevenue) }
+      : {}),
+    ...(stored.homeWorker !== undefined ? { homeWorker: stored.homeWorker } : {}),
   };
 }
 

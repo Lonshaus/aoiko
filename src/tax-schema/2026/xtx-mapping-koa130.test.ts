@@ -155,7 +155,7 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
     expect(out.AKG00230).toBe('1000000');
   });
 
-  test('貸倒金（不動産）は AKG00120 へ対映する', () => {
+  test('貸倒金（不動産）は AKG00120 へ転記する', () => {
     const out = mapKoa130Values(
       ctx({
         realEstatePl: realEstatePl({
@@ -673,5 +673,66 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
       }),
     );
     expect(repeats.AKL00000).toHaveLength(2);
+  });
+});
+
+describe('一括償却資産のグループと旧償却方法', () => {
+  test('同じグループの一括償却資産は償却費の合計が一括償却対象額の 1/3', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'p1',
+        name: '一括1',
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '100000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+        incomeType: 'realEstate',
+      },
+      {
+        id: 'p2',
+        name: '一括2',
+        acquisitionDate: '2026-05-01',
+        acquisitionCost: '200000',
+        usefulLifeYears: 4,
+        depreciationMethod: 'lump-sum',
+        accountCode: '1510',
+        lumpSumPoolId: 'g',
+        incomeType: 'realEstate',
+      },
+    ];
+    const rows = mapKoa130RepeatedValues(ctx({ fixedAssets: assets })).AKK00010 ?? [];
+    const total = rows.reduce((sum, r) => sum.plus(r.AKK00150 ?? '0'), D(0));
+    expect(total.toString()).toBe('100000');
+  });
+
+  test('旧定額法・旧定率法のラベルを出力する', () => {
+    const assets: FixedAsset[] = [
+      {
+        id: 'o1',
+        name: '旧資産',
+        acquisitionDate: '2006-01-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-straight-line',
+        accountCode: '1511',
+        assetCategory: 1,
+        incomeType: 'realEstate',
+      },
+      {
+        id: 'o2',
+        name: '旧資産2',
+        acquisitionDate: '2006-02-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears: 20,
+        depreciationMethod: 'old-declining-balance',
+        accountCode: '1511',
+        assetCategory: 1,
+        incomeType: 'realEstate',
+      },
+    ];
+    const rows = mapKoa130RepeatedValues(ctx({ fixedAssets: assets })).AKK00010 ?? [];
+    expect(rows.map((r) => r.AKK00080)).toEqual(['旧定額法', '旧定率法']);
   });
 });

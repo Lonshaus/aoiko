@@ -7,6 +7,7 @@
   import { todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
+  import { DEPRECIABLE_ASSET_ACCOUNTS } from '../tax-schema/2026/accounts';
   import {
     computeConvertedAssetBasis,
     generateOpeningEntries,
@@ -15,13 +16,15 @@
     type OpeningCustomItem,
   } from '../domain/business-opening';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
-  import { getSetting } from '../lib/settings';
+  import { getSetting, setSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import type { DepreciationMethod } from '../db/types';
   import type { FilingType } from '../tax-schema/2026/xtx';
 
   let businessStartDate = $state(todayISO());
+  // 少額特例の年合計上限の月割（措法28の2）に使う。未入力は廃業なし（全年扱い）。
+  let businessCloseDate = $state('');
   // 少額特例は青色申告限定（措法28の2）。
   let filingType = $state<FilingType>('blue');
   onMount(async () => {
@@ -34,6 +37,7 @@
   }
   let expenses = $state<ExpenseRow[]>([]);
   let expenseAmortization = $state<ExpenseAmortization>('immediate');
+  let customAmortizationAmount = $state('');
   let expenseName = $state('');
   let expenseAmount = $state('');
 
@@ -101,13 +105,13 @@
       return null;
     }
   }
-  // 少額特例の 30/40 万円閾値切替（令和8年改正、2026-04-01）は事業供用日ではなく取得日で判定する（措法 28 の 2）
+  // 少額特例の適用の閾値は原始取得価額で判定する（所令135条：転用資産も所令126条の取得価額が基準）。
+  // 30/40 万円閾値切替（令和8年改正、2026-04-01）は取得日で判定する（措法 28 の 2）
   function smallAssetEligibleByAcquisition(row: ConvertedAssetRow): boolean {
-    const basis = assetBasis(row);
-    if (!basis) {
+    if (!row.acquisitionDate || !row.acquisitionCost) {
       return false;
     }
-    return isSmallAssetEligible(row.acquisitionDate, basis.businessStartBasis.toString());
+    return isSmallAssetEligible(row.acquisitionDate, row.acquisitionCost);
   }
   function toggleSmallAssetSpecial(row: ConvertedAssetRow) {
     row.applySmallAssetSpecial = !row.applySmallAssetSpecial;
@@ -197,6 +201,7 @@
           businessStartDate,
           expenses,
           expenseAmortization,
+          ...(expenseAmortization === 'custom' ? { customAmortizationAmount } : {}),
           convertedAssets: convertedAssets.map((a) => ({
             name: a.name,
             acquisitionDate: a.acquisitionDate,
@@ -213,6 +218,11 @@
         },
         { allowFiledYear: true },
       );
+      // 少額特例の年合計上限の月割（措法28の2）に使う。仕訳が1件も作られない場合も書く。
+      await setSetting('businessStartDate', businessStartDate);
+      if (businessCloseDate) {
+        await setSetting('businessCloseDate', businessCloseDate);
+      }
       if ('reason' in result) {
         error = m.opening_already_exists();
         canRedo = true;
@@ -270,6 +280,14 @@
         bind:value={businessStartDate}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
       />
+      <label class="block text-sm font-medium mt-4">
+        {m.opening_business_close_date()}
+        <input
+          type="date"
+          bind:value={businessCloseDate}
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        />
+      </label>
     </section>
 
     <section class="space-y-3 border rounded-lg p-6 bg-card text-card-foreground">
@@ -334,7 +352,21 @@
             <input type="radio" bind:group={expenseAmortization} value="five-year" />
             {m.opening_expense_amortize_five_year()}
           </label>
+          <label class="flex items-center gap-1">
+            <input type="radio" bind:group={expenseAmortization} value="custom" />
+            {m.opening_expense_amortize_custom()}
+          </label>
         </div>
+        {#if expenseAmortization === 'custom'}
+          <input
+            type="text"
+            inputmode="numeric"
+            value={customAmortizationAmount}
+            oninput={assignInputString((v) => (customAmortizationAmount = v))}
+            placeholder={m.opening_expense_custom_amount()}
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums w-40"
+          />
+        {/if}
       {/if}
     </section>
 
@@ -385,9 +417,9 @@
             title={m.settings_asset_account_title()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           >
-            <option value="1510">1510 工具器具備品</option>
-            <option value="1540">1540 車両運搬具</option>
-            <option value="1550">1550 建物附属設備</option>
+            {#each DEPRECIABLE_ASSET_ACCOUNTS as acc (acc.code)}
+              <option value={acc.code}>{acc.code} {acc.name}</option>
+            {/each}
           </select>
           <button
             type="submit"
