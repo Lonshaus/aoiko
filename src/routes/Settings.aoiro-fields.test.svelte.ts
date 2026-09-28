@@ -20,14 +20,21 @@ async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void
 
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderSettings(): Promise<HTMLElement> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
   const el = container;
   await waitFor(() => el.querySelector('option[value="eTax"]') !== null);
-  await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => (el.textContent ?? '').includes(MOUNT_SENTINEL));
   return el;
 }
 

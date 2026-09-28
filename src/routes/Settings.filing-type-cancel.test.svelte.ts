@@ -39,13 +39,20 @@ function dialogButton(label: string): HTMLButtonElement {
   }
   return found;
 }
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderSettings(): Promise<void> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
   await waitFor(() => container!.querySelector('input[name="filingType"]') !== null);
-  await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 }
 
 async function chooseWhite(): Promise<void> {

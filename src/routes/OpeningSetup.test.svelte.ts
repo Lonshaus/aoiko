@@ -79,6 +79,8 @@ function setValue(el: HTMLInputElement | HTMLSelectElement, value: string, event
 
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderOpeningSetup(): Promise<void> {
   container = document.createElement('div');
@@ -280,6 +282,11 @@ describe('開業精霊', () => {
     container!.remove();
     container = undefined;
 
+    await db.settings.put({
+      key: 'homeOfficeAccountRatios',
+      value: { [MOUNT_SENTINEL]: '0.30' },
+      updatedAt: Date.now(),
+    });
     // Settings の固定資産登録フォームから、転用資産ではない通常の少額特例資産を4件登録する
     // （conversionBasis は付かない）。
     container = document.createElement('div');
@@ -290,7 +297,7 @@ describe('開業精霊', () => {
         container!.querySelector(`input[placeholder="${m.settings_asset_name_placeholder()}"]`) !==
         null,
     );
-    await tick();
+    await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 
     function assetForm(): HTMLFormElement {
       const nameInput = container!.querySelector<HTMLInputElement>(
