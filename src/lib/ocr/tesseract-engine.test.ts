@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { m } from '../../paraglide/messages';
+import { createTesseractReceiptExtractor } from './tesseract-engine';
 
 const loadModel = vi.fn(async (_model: string) => {});
 const loadImage = vi.fn(async (_image: unknown) => {});
@@ -32,13 +34,11 @@ afterEach(() => {
 });
 
 async function extract(image = { base64: 'QUJD', mimeType: 'image/png' }) {
-  const { createTesseractReceiptExtractor } = await import('./tesseract-engine');
   return createTesseractReceiptExtractor().extract(image);
 }
 
 describe('createTesseractReceiptExtractor', () => {
-  test('engine ラベルと送信先（端末外に出ない）', async () => {
-    const { createTesseractReceiptExtractor } = await import('./tesseract-engine');
+  test('engine ラベルと送信先（端末外に出ない）', () => {
     const extractor = createTesseractReceiptExtractor();
     expect(extractor.engine).toBe('tesseract');
     expect(extractor.external).toBe(false);
@@ -71,7 +71,6 @@ describe('createTesseractReceiptExtractor', () => {
   // モデルは precache 対象外なので、初回だけオフラインで落ちうる。
   // 素の fetch 失敗のままだと設定ミスと区別が付かない。
   test('オフラインでモデルを取得できない時は原因の分かる文言に変換する', async () => {
-    const { m } = await import('../../paraglide/messages');
     vi.stubGlobal('navigator', { onLine: false });
     loadModel.mockRejectedValueOnce(new Error('Failed to fetch'));
     await expect(extract()).rejects.toThrow(m.common_offline_error());
