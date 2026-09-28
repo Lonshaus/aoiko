@@ -121,7 +121,7 @@ Inference runs entirely on-device, so no confirmation dialog appears. This engin
 
 Tesseract processes on-device only, so no confirmation appears.
 <!-- only:browser -->
-Its language data (`jpn.traineddata`, about 2.9 MB) is served by aoiko itself and fetched over the network only on your first scan; the browser caches it afterwards, so no external request is ever made again.
+Its language data (`jpn.traineddata`, about 2.9 MB) is served by aoiko itself. It's fetched on your first scan and saved on this device, so it works offline afterwards. It's fetched again after you clear this site's browser data, or when aoiko updates the language data. On your very first visit, scanning before that save finishes can also trigger a second fetch on your next scan.
 <!-- /only -->
 <!-- only:native -->
 Its language data (`jpn.traineddata`, about 2.9 MB) is bundled with the app itself, so no external request is ever made, even on your first scan.
@@ -255,7 +255,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - T+13 invoice number is extracted by regex (`T` + 13 digits)
 - Date and total are filled in only when the matching pattern is detected; otherwise the field stays empty. Always verify manually
 <!-- only:browser -->
-- The language data is served by aoiko itself and fetched over the network only on your first scan (no external communication afterwards)
+- The language data is served by aoiko itself. It's fetched on your first scan and saved on this device, so it works offline afterwards (clearing this site's browser data, or an update to the language data, triggers another fetch)
 <!-- /only -->
 <!-- only:native -->
 - The language data is bundled with the app itself, so there is no external communication, even on your first scan

@@ -78,6 +78,17 @@ export default defineConfig({
           include: ['src/**/*.doc-preview.test.{ts,svelte.ts}'],
         },
       },
+      // scripts/ は build 時（Node）専用で、src/ の projects とは import 条件が違う
+      // （tesseract-cache.ts は node:crypto を使う。DOM 環境も svelte plugin も要らない）。
+      {
+        test: {
+          name: 'scripts',
+          environment: 'node',
+          globals: false,
+          exclude: sharedTest.exclude,
+          include: ['scripts/**/*.test.ts'],
+        },
+      },
     ],
   },
 });
