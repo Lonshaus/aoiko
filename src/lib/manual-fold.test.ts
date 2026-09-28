@@ -760,10 +760,11 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlug: '7-c-ブラウザ内蔵-ai対応ブラウザのみ',
     headingSlugEn: '7-c-your-browsers-built-in-ai-supported-browsers-only',
     headingSlugZhTw: '7-c-瀏覽器內建-ai僅限支援的瀏覽器',
-    kinds: ['browser'],
+    kinds: ['browser', 'android'],
     occurrence: 0,
-    reason: '7-C節「ブラウザ内蔵 AI」。native にはブラウザ内蔵 AI という選択肢自体が無い',
-    reach: ['browser'],
+    reason:
+      '7-C節。browser は「ブラウザ内蔵 AI」、android は「端末内 Gemini Nano」で、どちらも 7-C の兄弟区画（apple 版と同じ枠）。native にはどちらの選択肢も無い',
+    reach: ['android', 'browser'],
   },
   {
     base: '04-receipt-ocr',
@@ -913,6 +914,37 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     reason:
       'Firefox/Safari の OPFS フォールバックと iOS 手動運用の節。OPFS はブラウザ専用ストレージで native には無い',
     reach: ['browser'],
+  },
+  {
+    base: '03-csv-import',
+    headingSlug: '4-ai-分類任意',
+    headingSlugEn: '4-ai-classification-optional',
+    headingSlugZhTw: '4-ai-分類選用',
+    kinds: ['android'],
+    occurrence: 0,
+    reason:
+      '「端末内 Gemini Nano（Android）を選んでいる場合」の説明。他の platform にこの選択肢は無い',
+    reach: ['android'],
+  },
+  {
+    base: '04-receipt-ocr',
+    headingSlug: 'ai-エンジン端末内-gemini-nanoの場合送信ダイアログ無し',
+    headingSlugEn: 'ai-engine-on-device-gemini-nano-no-dialog',
+    headingSlugZhTw: 'ai-引擎裝置內-gemini-nano不跳對話框',
+    kinds: ['android'],
+    occurrence: 0,
+    reason: '見出し「AI エンジン（端末内 Gemini Nano）の場合」。他の platform に対応する経路が無い',
+    reach: ['android'],
+  },
+  {
+    base: '05-order-import',
+    headingSlug: '端末内-gemini-nanoandroid使用時',
+    headingSlugEn: 'when-using-on-device-gemini-nano-android',
+    headingSlugZhTw: '使用裝置內-gemini-nanoandroid時',
+    kinds: ['android'],
+    occurrence: 0,
+    reason: '見出し「端末内 Gemini Nano（Android）使用時」。他の platform にこの選択肢は無い',
+    reach: ['android'],
   },
 ];
 

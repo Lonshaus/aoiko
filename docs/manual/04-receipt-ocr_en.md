@@ -100,16 +100,16 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 - Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import AI sends)
 
 > **Think twice before checking**: if you check it by mistake, undo it from Settings → "Basic info" → **"Restore hidden confirmations"**. "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+<!-- only:android -->
+#### AI engine (on-device Gemini Nano): no dialog
+
+Inference and the image both stay on this device. However, ML Kit reports API usage to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
+<!-- /only -->
 <!-- only:browser -->
 
 #### AI engine (your browser's built-in AI): no dialog
 
 Inference runs entirely on-device, so no confirmation dialog appears. This engine is selectable only when your browser already holds the AI model (aoiko never fetches it).
-<!-- /only -->
-<!-- only:android -->
-#### AI engine (on-device Gemini Nano): no dialog
-
-Inference and the image both stay on this device. However, ML Kit reports API usage to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
 <!-- /only -->
 <!-- only:browser -->
 

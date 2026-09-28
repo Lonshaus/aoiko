@@ -54,7 +54,6 @@ Click **"Analyze"** to send to the selected AI engine.
 #### When using a cloud engine
 
 Same as [04. § 2-2](04-receipt-ocr_en.md#2-2-analyze) — a pre-send confirmation dialog appears. The "don't ask again" toggle is shared with receipt OCR.
-
 <!-- only:android -->
 #### When using on-device Gemini Nano (Android)
 
