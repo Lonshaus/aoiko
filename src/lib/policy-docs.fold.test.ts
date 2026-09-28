@@ -33,6 +33,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /追加の読み込みも外部への通信もありません/,
       only: [...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'DISCLAIMER_en.md': [
     { name: "browser's IndexedDB", pattern: /browser's IndexedDB/, only: ['browser'] },
@@ -53,6 +54,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /Nothing extra is downloaded and no external request is made/,
       only: [...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'DISCLAIMER_zh-TW.md': [
     { name: '瀏覽器的 IndexedDB', pattern: /瀏覽器的 IndexedDB/, only: ['browser'] },
@@ -69,6 +71,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /不需額外下載，也不會有對外連線/,
       only: [...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY.md': [
     { name: 'HTTP アクセスログ', pattern: /HTTP アクセスログ/, only: ['browser'] },
@@ -115,6 +118,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /端末内で完結するエンジンも同様に送信が発生しません/,
       only: ['browser', ...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY_en.md': [
     { name: 'HTTP access logs', pattern: /HTTP access logs/, only: ['browser'] },
@@ -168,6 +172,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /The engines that run entirely on the device send nothing either/,
       only: ['browser', ...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY_zh-TW.md': [
     { name: 'HTTP access log', pattern: /HTTP access log/, only: ['browser'] },
@@ -213,6 +218,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /在裝置內完成的引擎同樣不會產生送出/,
       only: ['browser', ...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'SECURITY.md': [
     { name: 'ブラウザ内に閉じます', pattern: /ブラウザ内に閉じます/, only: [] },
@@ -249,11 +255,12 @@ const RULES: Record<string, Rule[]> = {
       only: [],
     },
     {
-      name: '冒頭段落の android は Tesseract と端末内の文字認識を分けて書く',
+      name: '冒頭段落の android は Tesseract と端末内の文字認識・端末内 Gemini Nano を分けて書く',
       pattern:
-        /Tesseract を選んだ場合は送信は発生しません。端末内の文字認識を選んだ場合は画像・テキストの送信は発生しませんが、利用状況は Google に送信されます/,
+        /Tesseract を選んだ場合は送信は発生しません。端末内の文字認識・端末内 Gemini Nano を選んだ場合は画像・テキストの送信は発生しませんが、利用状況は Google に送信されます/,
       only: ['android'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
     {
       name: '冒頭段落の端末内で完結するエンジンを選んだ場合は送信も発生しません、は android では書けない',
       pattern: /端末内で完結するエンジンを選んだ場合は送信も発生しません/,
@@ -299,9 +306,9 @@ const RULES: Record<string, Rule[]> = {
       only: [],
     },
     {
-      name: 'opening paragraph on android states Tesseract and on-device recognition separately',
+      name: 'opening paragraph on android states Tesseract and on-device recognition/Nano separately',
       pattern:
-        /not at all if you chose Tesseract; if you chose on-device text recognition, images and text are not sent, but usage information is sent to Google/,
+        /not at all if you chose Tesseract; if you chose on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google/,
       only: ['android'],
     },
     {
@@ -309,6 +316,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /not at all if you chose an engine that runs entirely on the device/,
       only: ['browser', ...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'SECURITY_zh-TW.md': [
     { name: '閉合在瀏覽器內', pattern: /閉合在瀏覽器內/, only: [] },
@@ -345,9 +353,9 @@ const RULES: Record<string, Rule[]> = {
       only: [],
     },
     {
-      name: '開頭段落的 android 分開寫 Tesseract 和裝置內的文字辨識',
+      name: '開頭段落的 android 分開寫 Tesseract 和裝置內的文字辨識・裝置內 Gemini Nano',
       pattern:
-        /選擇 Tesseract 時不會送出。選擇裝置內的文字辨識時不會送出圖片和文字，但使用狀況會送給 Google/,
+        /選擇 Tesseract 時不會送出。選擇裝置內的文字辨識或裝置內 Gemini Nano 時不會送出圖片和文字，但使用狀況會送給 Google/,
       only: ['android'],
     },
     {
@@ -355,6 +363,7 @@ const RULES: Record<string, Rule[]> = {
       pattern: /選擇在裝置內完成的引擎時連送出都不會發生/,
       only: ['browser', ...APPLE, 'windows'],
     },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
 };
 

@@ -89,6 +89,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- /only -->
 <!-- only:android -->
 - **On-device text recognition path (OCR only)**: no generative AI. The image is processed on-device by ML Kit, which is bundled with the app, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
+- **On-device Gemini Nano path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. Nothing extra is downloaded, but ML Kit sends usage information to Google
 <!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. Nothing extra is downloaded either
@@ -111,6 +112,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- /only -->
 <!-- only:android -->
 | On-device text recognition | Image and text never leave device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
+| On-device Gemini Nano | Image and text never leave device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | Images and text never leave the device | **None** (no external request is made) |
@@ -137,7 +139,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 - When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
 <!-- /only -->
 <!-- only:android -->
-- When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). Tesseract sends nothing. On-device text recognition doesn't send images or text, but usage information is sent to Google
+- When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). Tesseract sends nothing. On-device text recognition doesn't send images or text, but usage information is sent to Google. On-device Gemini Nano works the same way
 <!-- /only -->
 - Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
 <!-- only:apple -->
@@ -148,6 +150,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- /only -->
 <!-- only:android -->
 - On-device text recognition: no generative AI is used. Extraction from the text recognized by ML Kit, which is bundled with the app, is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required. ML Kit, which performs the recognition, sends usage information to Google, but the image and the recognized text are not sent
+- On-device Gemini Nano: inference runs on the device and neither images, text, nor inference content are sent externally. It appears as an option only when this device supports it. ML Kit does, however, send usage information to Google
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence: inference runs on the device and none of your data is sent externally. It appears as an option only when this device supports Apple Intelligence

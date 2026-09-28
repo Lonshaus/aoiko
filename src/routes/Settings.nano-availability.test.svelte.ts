@@ -1,4 +1,4 @@
-// ML Kit の FeatureStatus（0 UNAVAILABLE / 1 DOWNLOADABLE / 2 DOWNLOADING / 3 AVAILABLE）
+// 端末内 AI 基盤の判定状態（0 UNAVAILABLE / 1 DOWNLOADABLE / 2 DOWNLOADING / 3 AVAILABLE）
 // ごとに選択肢の出し分けが正しいかを見る。0 とその他の未知値は選択肢ごと隠す、1/2 は
 // 選び直せる余地があるので disabled のまま理由を出す。
 // __NATIVE__ は vitest.config.ts で true に固定されているので、実際の DOM で確かめられる。
@@ -27,7 +27,6 @@ function stubNanoAvailability(status: number | null): void {
     status === null ? undefined : vi.fn().mockResolvedValue({ status, tokenLimit: null });
   vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { nanoAvailability } }));
 }
-
 // onMount の直列読みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が
 // 未処理の rejection として残り、テストは通るのに vitest が exit 1 になる。最後に読む
 // homeOfficeAccountRatios に他へ出てこない科目コードを仕込み、画面に出るまで待って

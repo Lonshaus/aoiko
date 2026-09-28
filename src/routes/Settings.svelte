@@ -191,7 +191,7 @@
   // 原生の産物にこの経路の問い合わせを残さないため。
   let chromeAiAvailability = $state<string | null>(null);
   const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
-  // 端末内の Gemini Nano（Android）。status は ML Kit の FeatureStatus そのまま
+  // 端末内の Gemini Nano。status は端末側の判定状態そのまま
   // （0 UNAVAILABLE / 1 DOWNLOADABLE / 2 DOWNLOADING / 3 AVAILABLE）。0 とその他の未知値は
   // 利用者側でどうにもならないので選択肢ごと隠す。1/2 は選べないが理由は出す。
   let nanoAvailability = $state<number | null>(null);

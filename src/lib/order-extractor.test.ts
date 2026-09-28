@@ -55,8 +55,7 @@ describe('createOrderExtractor', () => {
     expect(result.items).toEqual([{ description: 'USB-C ハブ', amount: '2580' }]);
     expect(result.orderNumber).toBeUndefined();
   });
-
-  // 端末内の Gemini Nano（Android）。nano.rs 側は data をそのまま渡すだけで、指示は
+  // 端末内の Gemini Nano。nano.rs 側は data をそのまま渡すだけで、指示は
   // 環境側に固定で埋め込まれている。fetch は一切呼ばれないことも確かめる。
   test('nano：runDataTask 経由で注文情報を抽出し、fetch は呼ばれない', async () => {
     await setSetting('aiEngine', 'nano');

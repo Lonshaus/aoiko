@@ -48,6 +48,7 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
 <!-- /only -->
 <!-- only:android -->
   - **On-device text recognition (on-device OCR, OCR only)**: images never leave your device. Text is read by ML Kit, which is bundled with the app and runs on-device, and which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
+  - **On-device Gemini Nano (purely-local inference)**: inference and data stay entirely on-device, and it needs neither an API key nor any endpoint setting. It appears as an option only when this device supports it. Inference content itself is never sent, but ML Kit sends usage information to Google. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
 <!-- /only -->
 <!-- only:apple -->
   - **Apple Intelligence (purely-local inference)**: images and text never leave your device, and inference itself makes no request. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. Nothing extra is downloaded either. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
@@ -101,6 +102,9 @@ Revision numbers are one sequence shared with the version shown in the consent s
 
 | version | Date | Changes |
 | --- | --- | --- |
+<!-- only:android -->
+| 10 | 2026-09-28 | Added the disclaimer for on-device Gemini Nano, and stated that ML Kit sends API usage information to Google (§5) |
+<!-- /only -->
 <!-- only:browser -->
 | 9 | 2026-09-26 | Revised the White Return family-employee deduction: aoiko now calculates it and records it on the return (§3). Stated that the confirmation dialog can be skipped via the setting's checkbox or "don't ask again" (§5). Corrected the bundled Tesseract language data to `jpn.traineddata` only, and removed the wording that compared its accuracy with other engines (§5). Removed references to the development process from the tax-data and `.xtx` statements (§2, §3). Corrected the local-AI note: Ollama and similar work on localhost once `OLLAMA_ORIGINS` on the Ollama side allows aoiko's public URL (§5). Corrected the simplified-taxation scope to cover your configured business category plus the two-category calculation with a fixed-asset sale (4th category), and adjusted the unsupported special cases to match (§3a) |
 <!-- /only -->

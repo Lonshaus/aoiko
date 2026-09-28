@@ -58,8 +58,7 @@ describe('createReceiptExtractor', () => {
       await expect(createReceiptExtractor('ai', 'tesseract')).rejects.toThrow();
     }
   });
-
-  // nano は端末内完結の経路（Android）。__NATIVE__（テスト全体で true）で試験できる。
+  // nano は端末内完結の経路。__NATIVE__（テスト全体で true）で試験できる。
   // 可用性は Settings の選択肢の出し分けだけに使う判定なので、ここでは問い合わせない。
   test('ai・nano：常に external=false、native 側の抽出器を返す', async () => {
     await setSetting('aiEngine', 'nano');

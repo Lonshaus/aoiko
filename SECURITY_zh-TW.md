@@ -15,7 +15,7 @@ aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺�
 <!-- /only -->
 <!-- only:android -->
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇 Tesseract 時不會送出。選擇裝置內的文字辨識時不會送出圖片和文字，但使用狀況會送給 Google）。本文件整理已知風險・支援方針・漏洞回報流程。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇 Tesseract 時不會送出。選擇裝置內的文字辨識或裝置內 Gemini Nano 時不會送出圖片和文字，但使用狀況會送給 Google）。本文件整理已知風險・支援方針・漏洞回報流程。
 <!-- /only -->
 
 ## 正規發布來源
@@ -78,7 +78,7 @@ aoiko 只透過以下管道正式發布：
 - 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與作業系統內建的文字辨識不需要金鑰也不需要設定）
 <!-- /only -->
 <!-- only:android -->
-- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 裝置內的文字辨識）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與裝置內的文字辨識不需要金鑰也不需要設定）
+- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 裝置內的文字辨識 ／ 裝置內 Gemini Nano）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract、裝置內的文字辨識與裝置內 Gemini Nano 不需要金鑰也不需要設定）
 <!-- /only -->
 - 開發者・發布者**不取得・轉發・保存**使用者的 API 金鑰・endpoint 資訊
 <!-- only:browser -->
@@ -91,7 +91,7 @@ aoiko 只透過以下管道正式發布：
 - 外部 API 使用時的 request **由 App 直接送到選中的 endpoint**（沒有 aoiko 的中繼伺服器）。選在本機辨識的引擎時根本不會發生 AI API 送出
 <!-- /only -->
 <!-- only:android -->
-- 外部 API 使用時的 request **由 App 直接送到選中的 endpoint**（沒有 aoiko 的中繼伺服器）。選在本機辨識的引擎時，AI API（Gemini・OpenAI 相容）不會送出。不過使用裝置內的文字辨識時，負責辨識的 ML Kit 會把使用狀況送給 Google（不含圖片與文字內容）
+- 外部 API 使用時的 request **由 App 直接送到選中的 endpoint**（沒有 aoiko 的中繼伺服器）。選在本機辨識的引擎時，AI API（Gemini・OpenAI 相容）不會送出。不過使用裝置內的文字辨識或裝置內 Gemini Nano 時，ML Kit 會把使用狀況送給 Google（不含圖片與文字內容）
 <!-- /only -->
 
 ### 儲存
@@ -103,7 +103,18 @@ aoiko 只透過以下管道正式發布：
 <!-- only:native -->
 - 備份：同步資料夾（App 會記住一個）／ 手動匯出
 <!-- /only -->
+<!-- only:browser -->
 - **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。AI/OCR API 使用時只送到使用者設定的外部 endpoint（Gemini / OpenAI 相容等）
+<!-- /only -->
+<!-- only:apple -->
+- **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。AI/OCR API 使用時只送到使用者設定的外部 endpoint（Gemini / OpenAI 相容等）
+<!-- /only -->
+<!-- only:windows -->
+- **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。AI/OCR API 使用時只送到使用者設定的外部 endpoint（Gemini / OpenAI 相容等）
+<!-- /only -->
+<!-- only:android -->
+- **完全沒有送到 aoiko 管理伺服器**（aoiko 沒有管理伺服器）。AI/OCR API 使用時只送到使用者設定的外部 endpoint（Gemini / OpenAI 相容等）。使用裝置內的文字辨識或裝置內 Gemini Nano 時，ML Kit 會另外把使用狀況送給 Google
+<!-- /only -->
 
 ## 已知風險
 
@@ -141,6 +152,7 @@ aoiko 只透過以下管道正式發布：
 <!-- /only -->
 <!-- only:android -->
   - **裝置內的文字辨識** → 圖片與文字都不送（在本機處理；負責辨識的 ML Kit 會把使用狀況送給 Google）
+  - **裝置內 Gemini Nano** → 圖片與文字都不送（在本機處理；ML Kit 會把使用狀況送給 Google）
 <!-- /only -->
 <!-- only:apple -->
   - **Apple Intelligence** → 不送（推論全程在本機完成）
