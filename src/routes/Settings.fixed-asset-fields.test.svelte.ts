@@ -48,8 +48,15 @@ function setValue(el: HTMLInputElement | HTMLSelectElement, value: string, event
 async function tick(): Promise<void> {
   await new Promise((r) => setTimeout(r, 20));
 }
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderSettings(): Promise<void> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
@@ -58,7 +65,7 @@ async function renderSettings(): Promise<void> {
       container!.querySelector(`input[placeholder="${m.settings_asset_name_placeholder()}"]`) !==
       null,
   );
-  await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 }
 
 beforeEach(async () => {
