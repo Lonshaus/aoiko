@@ -50,7 +50,7 @@ describe('chromeAiAvailability', () => {
     await expect(chromeAiAvailability()).resolves.toBe('unavailable');
   });
 
-  // 画像入力を問わない実装は、収據の経路（画像を渡す OCR）が成り立たないので外す。
+  // 画像入力を問わない実装は、領収書の経路（画像を渡す OCR）が成り立たないので外す。
   test('画像入力込みで問う', async () => {
     const availability = vi.fn(async (_options?: unknown) => 'available');
     vi.stubGlobal('LanguageModel', {

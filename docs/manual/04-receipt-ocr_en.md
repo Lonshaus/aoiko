@@ -33,6 +33,9 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 <!-- only:windows -->
 | **Built-in rule engine** (the OS's built-in text recognition) | None | Supported devices only; re-checked automatically every time the `Receipt` page opens |
 <!-- /only -->
+<!-- only:android -->
+| **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit reports usage information to Google) | Always available on this device; the text recognition ships with the app |
+<!-- /only -->
 
 > Detailed AI engine setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
 
@@ -77,6 +80,9 @@ Below the preview, a two-way switch for the reading method appears: **"AI engine
 <!-- only:windows -->
   - The OS's built-in text recognition only enters the option set on supported devices. It is re-checked with the device every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable the next time the page is opened
 <!-- /only -->
+<!-- only:android -->
+  - On-device text recognition is always in the option set. The text recognition ships with the app, so nothing has to be added on the OS side
+<!-- /only -->
 
 Once chosen, click **"Analyze"** to send to the selected reading method.
 
@@ -103,8 +109,14 @@ Inference runs entirely on-device, so no confirmation dialog appears. This engin
 
 #### Built-in rule engine (Tesseract): no dialog
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 #### Built-in rule engine (Tesseract, the OS's built-in text recognition): no dialog
+<!-- /only -->
+<!-- only:windows -->
+#### Built-in rule engine (Tesseract, the OS's built-in text recognition): no dialog
+<!-- /only -->
+<!-- only:android -->
+#### Built-in rule engine (Tesseract, on-device text recognition): no dialog
 <!-- /only -->
 
 Tesseract processes on-device only, so no confirmation appears.
@@ -121,6 +133,10 @@ The OS's built-in text recognition shows no dialog either, and fetches nothing e
 <!-- only:windows -->
 
 The OS's built-in text recognition shows no dialog either, and fetches nothing extra at all — recognition runs entirely on-device using the OS's own engine.
+<!-- /only -->
+<!-- only:android -->
+
+On-device text recognition shows no dialog either and fetches nothing extra, but ML Kit, which powers the recognition, reports usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are never sent.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result
@@ -140,11 +156,25 @@ When done, **"2. Extracted result (editable)"** expands below:
 > - The AI engine extracts vendor and total, and picks up line items
 > - The built-in rule engine (Tesseract) only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
 > - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
 > - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
+> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+<!-- /only -->
+<!-- only:windows -->
+> **AI engine path vs built-in rule engine path**:
+> - The AI engine extracts vendor and total, and picks up line items
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
+> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+<!-- /only -->
+<!-- only:android -->
+> **AI engine path vs built-in rule engine path**:
+> - The AI engine extracts vendor and total, and picks up line items
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
 > - For both paths, raw OCR text is held internally but not auto-copied into the journal description
 <!-- /only -->
 
@@ -153,11 +183,23 @@ When done, **"2. Extracted result (editable)"** expands below:
 For built-in rule engine output, a caution banner appears below the result header. For Tesseract:
 
 > Result from purely-local OCR (Tesseract). Please verify and correct the total, date and vendor before saving. OCR raw text is shown on screen only, not stored.
-<!-- only:native -->
+<!-- only:apple -->
 
 For the OS's built-in text recognition:
 
 > These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+<!-- /only -->
+<!-- only:windows -->
+
+For the OS's built-in text recognition:
+
+> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+<!-- /only -->
+<!-- only:android -->
+
+For on-device text recognition:
+
+> These results come from on-device text recognition (ML Kit). Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
 <!-- /only -->
 
 ### 2-4. Choose counterpart account and payment source
@@ -218,9 +260,29 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- only:native -->
 - The language data is bundled with the app itself, so there is no external communication, even on your first scan
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 
 ### Built-in rule engine (the OS's built-in text recognition)
+
+- No AI engine and no extra download
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
+- Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
+- Always verify the total and date
+<!-- /only -->
+<!-- only:windows -->
+
+### Built-in rule engine (the OS's built-in text recognition)
+
+- No AI engine and no extra download
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
+- Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
+- Always verify the total and date
+<!-- /only -->
+<!-- only:android -->
+
+### Built-in rule engine (on-device text recognition)
 
 - No AI engine and no extra download
 - On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
@@ -235,6 +297,9 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- only:windows -->
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number in the right format is one you cannot spot by looking)
 - **Not every device can use it.** It only enters the option set when Japanese text recognition is present on the OS side. This is re-checked every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable next time you open the page
+<!-- /only -->
+<!-- only:android -->
+- The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number in the right format is one you cannot spot by looking)
 <!-- /only -->
 
 ## 4. Troubleshooting

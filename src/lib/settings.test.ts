@@ -19,7 +19,7 @@ function versionsFromSource(): Record<Platform, number> {
     throw new Error('settings.ts から DISCLAIMER_VERSION を読めない（分岐の形が変わった？）');
   }
   const value = Number(flat[1]);
-  return { browser: value, macos: value, ios: value, windows: value };
+  return { browser: value, macos: value, ios: value, windows: value, android: value };
 }
 
 describe('DISCLAIMER_VERSION', () => {

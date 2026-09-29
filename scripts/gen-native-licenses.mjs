@@ -19,6 +19,10 @@ const TARGETS = [
   'aarch64-apple-ios',
   'x86_64-pc-windows-msvc',
   'aarch64-pc-windows-msvc',
+  'aarch64-linux-android',
+  'armv7-linux-androideabi',
+  'i686-linux-android',
+  'x86_64-linux-android',
 ];
 
 // ファイル名の揺れ（LICENSE / LICENSE-MIT / license-apache-2.0 / LICENSE_MIT / *.txt 等）を総当たりで拾う。

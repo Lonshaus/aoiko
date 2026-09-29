@@ -119,6 +119,9 @@ If you set up a Gemini API key, an OpenAI-compatible endpoint, or Apple Intellig
 <!-- only:windows -->
 If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
 <!-- /only -->
+<!-- only:android -->
+If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then during CSV import:
+<!-- /only -->
 
 - Rows that **didn't match any rule** are sent to the AI, which proposes a counterpart account
 - Badges **"AI↑"** / **"AI↓"** indicate confidence

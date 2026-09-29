@@ -40,8 +40,14 @@ aoiko is a tool that helps Japanese sole proprietors with Blue Return (青色申
   - **Google Gemini (default, cloud)**: data sent (CSV rows, receipt images) is handled per **Google's privacy policy** and your API plan contract (the free tier may be used for training).
   - **OpenAI-compatible / Ollama etc. (local)**: when the endpoint is localhost, data does not leave your device. When a remote endpoint is specified, the policies of that service apply.
   - **Tesseract (purely-local WASM OCR, OCR only)**: images never leave your device. No generative AI is used; only T+13-digit registration number, date, and total are extracted from OCR text by deterministic rules. Vendor and items are not guessed. Manual verification and correction by the user are mandatory. `jpn.traineddata` is served by aoiko itself, so no external request is made.
-<!-- only:native -->
+<!-- only:apple -->
   - **The OS's built-in text recognition (purely-local OCR, OCR only)**: images never leave your device. Text is read by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded and no external request is made. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
+<!-- /only -->
+<!-- only:windows -->
+  - **The OS's built-in text recognition (purely-local OCR, OCR only)**: images never leave your device. Text is read by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded and no external request is made. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
+<!-- /only -->
+<!-- only:android -->
+  - **On-device text recognition (on-device OCR, OCR only)**: images never leave your device. Text is read by ML Kit, which is bundled with the app and runs on-device, and which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.
 <!-- /only -->
 <!-- only:apple -->
   - **Apple Intelligence (purely-local inference)**: images and text never leave your device, and inference itself makes no request. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. Nothing extra is downloaded either. **Accuracy is not guaranteed** — manual verification and correction by the user are mandatory.

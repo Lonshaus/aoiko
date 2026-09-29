@@ -23,7 +23,7 @@ export const ASSETS = [
 ];
 export const MODEL_FILE = 'jpn.traineddata';
 // 4.0.0_best_int は best を整数量子化したもの。非量子化版は展開後 40MB 超あり、
-// 収據の認識精度差に見合わない。
+// 領収書の認識精度差に見合わない。
 const MODEL_GZ = join(
   root,
   'node_modules',

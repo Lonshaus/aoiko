@@ -15,6 +15,7 @@ const COMMANDS: &[&str] = &[
     "export_open",
     "recognize_text",
     "is_text_recognition_available",
+    "is_camera_available",
     "apple_ai_availability",
     "apple_ai_extract",
     "apple_ai_run",
@@ -34,7 +35,10 @@ fn main() {
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         build_apple_intelligence_lib();
     }
-    tauri_plugin::Builder::new(COMMANDS).ios_path("ios").build();
+    tauri_plugin::Builder::new(COMMANDS)
+        .android_path("android")
+        .ios_path("ios")
+        .build();
 }
 // FoundationModels は -weak_framework でしかリンクできない（-framework だと macOS 13 で
 // 起動に失敗する）。ただし依存 crate の build.rs が出す cargo:rustc-link-arg は最終バイナリの

@@ -121,6 +121,9 @@ CSV 的每一列會以**匯入候選**的形式排成表格，每列包含：
 <!-- only:windows -->
 在 [01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 設好 Gemini API 金鑰或 OpenAI 相容端點，CSV 匯入時：
 <!-- /only -->
+<!-- only:android -->
+在 [01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 設好 Gemini API 金鑰或 OpenAI 相容 endpoint，CSV 匯入時：
+<!-- /only -->
 
 - **沒有命中規則的列**會送給 AI 依上下文推測，並自動帶入對應科目
 - 徽章「**AI↑**」 / 「**AI↓**」標示信度

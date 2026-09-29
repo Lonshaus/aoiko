@@ -67,11 +67,11 @@ afterEach(async () => {
 });
 
 describe('開発用：文書のプレビュー対象', () => {
-  test('区画が出て、選択肢が 4 個ある', async () => {
+  test('区画が出て、選択肢が 5 個ある', async () => {
     await renderSettings();
     expect(container!.textContent).toContain('開発用：文書のプレビュー対象');
     const options = selectEl().querySelectorAll('option');
-    expect(options).toHaveLength(4);
+    expect(options).toHaveLength(5);
   });
 
   test('初期値は localStorage の設定を反映する', async () => {

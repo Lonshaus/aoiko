@@ -53,9 +53,11 @@
         <li>{@html m.disclaimer_bullet_tax_law_html()}</li>
         <li>{@html m.disclaimer_bullet_xtx_html()}</li>
         <li>
-          {@html __NATIVE__ && nativeBridge()
-            ? m.disclaimer_bullet_llm_html_native()
-            : m.disclaimer_bullet_llm_html()}
+          {@html __DOC_PLATFORM__ === 'android'
+            ? m.disclaimer_bullet_llm_html_android()
+            : __NATIVE__ && nativeBridge()
+              ? m.disclaimer_bullet_llm_html_native()
+              : m.disclaimer_bullet_llm_html()}
         </li>
         <li>
           <!-- 文言カタログは条件を問わず全部がモジュールへ組まれる。実行時だけの判定にすると、
