@@ -56,8 +56,8 @@ export type SettingsMap = {
   aiEngine: AiEngine;
   // 領収書の読み取り方法。ai = 上の aiEngine、rule = 下の receiptRuleEngine（人手確認前提）。
   receiptMethod: ReceiptMethod;
-  // receiptMethod = rule のときに使う確定性抽出エンジン。
-  // - tesseract：WASM の純ローカル OCR（通信無し）
+  // receiptMethod = rule のときに使うルールベース抽出エンジン。
+  // - tesseract：WASM の完全ローカル OCR（通信無し）
   // - native：OS 内蔵の文字認識（対応環境のみ・通信無し）
   receiptRuleEngine: ReceiptRuleEngine;
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
@@ -134,7 +134,7 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
-  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業精霊が書き込む）。
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定が書き込む）。
   // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
   businessStartDate: string;
   businessCloseDate: string;

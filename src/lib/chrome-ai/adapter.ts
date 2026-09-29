@@ -1,6 +1,6 @@
-// ブラウザ内蔵 AI（LanguageModel）の包装層。web の産物にだけ入る。
+// ブラウザ内蔵 AI（LanguageModel）のラッパー。web のビルド成果物にだけ入る。
 //
-// 推論は端末内で完結し、使用中に外部へは出ない。雲へ逃がす hybrid の SDK
+// 推論は端末内で完結し、使用中に外部へは出ない。クラウドへ逃がす hybrid の SDK
 // （Firebase AI Logic 等）は入れない。入れた時点で external: false が嘘になる。
 import { LlmError, type LlmAdapter, type LlmImageInput } from '../../domain/llm';
 import { m } from '../../paraglide/messages';
@@ -45,7 +45,7 @@ export class ChromeAiAdapter implements LlmAdapter {
         content.push({ type: 'image', value: base64ToBlob(image.base64, image.mimeType) });
       }
       const input = [{ role: 'user', content }];
-      // 文脈窓は入力と出力で分け合う。送ってから溢れると途中まで書いた応答が返り、
+      // コンテキストウィンドウは入力と出力で分け合う。送ってから溢れると途中まで書いた応答が返り、
       // 欠けたまま通ってしまう。送る前に量り、収まらないなら呼ばない。
       const usage = await session.measureContextUsage(input);
       if (usage >= session.contextWindow) {

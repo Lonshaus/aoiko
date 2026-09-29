@@ -442,7 +442,7 @@ describe('総合課税への書き換え', () => {
   });
 });
 describe('所令81条2号・3号の例外（essentialToBusiness）', () => {
-  test('138条資産・10万円未満・使用可能期間1年未満でなく・業務上基本重要 → 譲渡所得に算入', () => {
+  test('138条資産・10万円未満・使用可能期間1年未満でなく・業務上基本的に重要 → 譲渡所得に算入', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '80000',
@@ -455,7 +455,7 @@ describe('所令81条2号・3号の例外（essentialToBusiness）', () => {
     expect(transferIncomeByTerm([a], 2026).count).toBe(1);
   });
 
-  test('使用可能期間1年未満は業務上基本重要でも譲渡所得にならない', () => {
+  test('使用可能期間1年未満は業務上基本的に重要でも譲渡所得にならない', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '80000',
@@ -468,7 +468,7 @@ describe('所令81条2号・3号の例外（essentialToBusiness）', () => {
     expect(estimateTransferIncome(a)).toBeNull();
   });
 
-  test('原始取得価額10万円以上の138条資産は業務上基本重要でも譲渡所得にならない', () => {
+  test('原始取得価額10万円以上の138条資産は業務上基本的に重要でも譲渡所得にならない', () => {
     const a = asset({
       depreciationMethod: 'small-asset-special',
       acquisitionCost: '150000',

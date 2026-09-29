@@ -52,8 +52,8 @@ const RELOAD_SCRIPT: &str = r#"
 fn force_close(window: tauri::WebviewWindow) {
     let _ = window.destroy();
 }
-// 題名欄と Alt+Tab のアイコンは exe に埋めた .ico が既定で、1 枚しか持てない。座布団なしの猫は
-// 明るい題名欄では読めるが暗い題名欄では沈むため、暗いときだけ白い座布団を敷いた版へ差し替える。
+// タイトルバーと Alt+Tab のアイコンは exe に埋めた .ico が既定で、1 枚しか持てない。背景プレートなしの猫は
+// 明るいタイトルバーでは読めるが暗いタイトルバーでは沈むため、暗いときだけ白い背景プレートを敷いたバージョンへ差し替える。
 // 猫そのものの色は変えない。
 //
 // 絵は icons/titlebar-*.png。build.rs が RGBA へ展開して OUT_DIR へ出す。
@@ -90,7 +90,7 @@ fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
                 if wk.is_null() || ns_window.is_null() {
                     return;
                 }
-                // with_webview のクロージャは主スレッドで実行されるため OS の UI を直接触れる。
+                // with_webview のクロージャはメインスレッドで実行されるため OS の UI を直接触れる。
                 unsafe {
                     let wk = &*wk;
                     let ns_window = &*ns_window;
@@ -120,7 +120,7 @@ fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
                 use windows_core::Interface;
 
                 // controller() が返すのは基底のインタフェースで、印刷 UI の呼び出しは
-                // 後の版で追加された。QueryInterface で降りる必要がある。
+                // 後のバージョンで追加された。QueryInterface で降りる必要がある。
                 // クロージャは Send + 'static のため、もう一方と同じく内部の失敗を
                 // コマンドの戻り値へは返せない。失敗した場合はダイアログが出ないだけになる。
                 unsafe {
@@ -247,7 +247,7 @@ async fn aoiko_fetch(request: tauri::ipc::Request<'_>) -> Result<tauri::ipc::Res
     };
     Ok(tauri::ipc::Response::new(fetch_frame(frame).await?))
 }
-// IPC の殻から切り離してあるのはテストのため。tauri::ipc::Request は組み立てられない。
+// IPC のラッパーから切り離してあるのはテストのため。tauri::ipc::Request は組み立てられない。
 async fn fetch_frame(frame: &[u8]) -> Result<Vec<u8>, String> {
     let (meta, body) = split_frame(frame)?;
     let meta: FetchRequestMeta =
@@ -595,8 +595,8 @@ pub fn run() {
                 }
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    // eval をこのコールバックの中で直接呼ぶと固まる。コールバックは主スレッドで走り、
-                    // eval も主スレッドへディスパッチするため再入してデッドロックする（実機で確認）。
+                    // eval をこのコールバックの中で直接呼ぶと固まる。コールバックはメインスレッドで走り、
+                    // eval もメインスレッドへディスパッチするため再入してデッドロックする（実機で確認）。
                     // 別スレッドへ逃がして、コールバックから抜けたあとにディスパッチさせる。
                     let target = event_target.clone();
                     tauri::async_runtime::spawn(async move {
@@ -779,7 +779,7 @@ mod frame_roundtrip {
         assert_eq!(got.method, "GET");
         // ここが効くのは method の転送とヘッダーの保持。llm.ts のモデル一覧がこの形。
         // Content-Length の 2 行は reqwest 側の振る舞いを固定するためで、fetch_frame の
-        // is_empty 分岐は捕まえない——分岐の有無で線に乗るものは変わらないことを実測済み。
+        // is_empty 分岐は捕まえない——分岐の有無で実際に送出されるバイト列は変わらないことを実測済み。
         assert_eq!(got.header("content-length"), None);
         assert_eq!(got.header("transfer-encoding"), None);
         assert_eq!(got.body.len(), 0);

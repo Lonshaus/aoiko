@@ -33,7 +33,7 @@
     itemId: string; // 簡易在庫管理。仕入・売上科目でのみ意味を持つ
     quantity: string;
   };
-  // 簡易在庫管理の対象科目（仕入・売上高）。実estate用の複製科目は対象外
+  // 簡易在庫管理の対象科目（仕入・売上高）。不動産用の複製科目は対象外
   // （不動産所得に在庫の概念は無い）。
   const INVENTORY_TRACKED_ACCOUNTS = new Set(['5020', '4110']);
 
@@ -108,7 +108,7 @@
   let credits = $state<DraftLine[]>([emptyLine()]);
   let error = $state('');
   let saving = $state(false);
-  // 事業/不動産の切替（セッション内のみ記憶、分錄には保存しない）。
+  // 事業/不動産の切替（セッション内のみ記憶、仕訳には保存しない）。
   // realEstateIncomeEnabled が false の間はトグル自体を表示しない。
   let incomeType = $state<IncomeType>('business');
 

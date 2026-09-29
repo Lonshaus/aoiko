@@ -16,7 +16,7 @@ npm install
 npm run dev    # http://localhost:10708
 ```
 
-## 提交前のチェック
+## PR 前のチェック
 
 ```bash
 npm run verify   # typecheck + tests + build を順に実行
@@ -63,13 +63,13 @@ npm run verify   # typecheck + tests + build を順に実行
    - `parse` 関数の中身：実際の解析ロジック
 
 3. **fixture CSV を作る**
-   - **匿名化**：実際の金額、店名、口座番号は虚構の値に置き換える
+   - **匿名化**：実際の金額、店名、口座番号は架空の値に置き換える
    - 数行で OK（例：入金 1 件 + 出金 2 件 + 任意項目あり 1 件）
    - 実際の銀行 CSV のエンコーディング・改行コードと一致させる
 
 4. **テストを書く**
    - 最低 3 つ：`metadata`、`parses sample fixture`、`throws on missing required column`
-   - エッジケースがあれば追加（千分位カンマ、CRLF、BOM 等）
+   - エッジケースがあれば追加（桁区切りのカンマ、CRLF、BOM 等）
 
 5. **動作確認**
    ```bash
@@ -84,9 +84,9 @@ npm run verify   # typecheck + tests + build を順に実行
 ## fixture の匿名化指針
 
 - **金額**：きりの良い数字に変更（実際の金額を避ける）
-- **店名・取引先**：実在企業名はそのままでも fair use の範囲内だが、明らかに虚構と分かる名前推奨（`取引先A`、`サービスB`）
+- **店名・取引先**：実在企業名はそのままでも fair use の範囲内だが、明らかに架空と分かる名前推奨（`取引先A`、`サービスB`）
 - **口座番号・カード番号**：絶対に残さない
-- **個人情報**：氏名、住所、電話番号は削除または虚構値に
+- **個人情報**：氏名、住所、電話番号は削除または架空の値に
 - **件数**：3-5 行で十分。網羅的な例を作る必要はない
 
 ---
@@ -94,7 +94,7 @@ npm run verify   # typecheck + tests + build を順に実行
 ## テストの方針
 
 - **すべての parser に fixture スナップショットテストが必須**
-- **エッジケース**（BOM、CRLF、千分位、空行、欠損列）も対象に
+- **エッジケース**（BOM、CRLF、桁区切り、空行、欠損列）も対象に
 - **DB 関連の domain function** は `fake-indexeddb` で実 Dexie API を叩く（モック禁止）
 - 詳細は `CLAUDE.md` の Testing Requirements を参照
 

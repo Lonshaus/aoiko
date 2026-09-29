@@ -26,7 +26,7 @@ Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculat
 - Blue-return special deduction: added "Double-entry + e-Tax filing only (¥650,000)", the cash-basis election (Income Tax Act Art. 67(1)), and the check based on business income two years prior
 - Deductions: you can now apply the home-worker expense rule (Special Taxation Measures Act Art. 27)
 - Fixed assets: added the old straight-line, old declining-balance and lease-period straight-line methods
-- Business Opening Wizard: you can now enter a closing date, and amortize start-up costs by any amount
+- Opening Setup: you can now enter a closing date, and amortize start-up costs by any amount
 - 20%/30% consumption-tax special provisions: you can now enter tax on sales returns and specified small-asset transfers
 - Updated the Guide to match
 
@@ -119,7 +119,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 - **Folder backups**. Backups are now written as loose files inside a folder. Receipt photos are deduplicated by SHA-256, so a ledger with many photos writes out quickly and only the differences grow from one backup to the next. Receipts no longer referenced are cleaned up automatically
 - **Protection for filed years**. Any operation that would change a year already marked as filed is detected and warned about before it is written. The same safeguard now also covers paths that bypass the screen, so import and year-end processing can no longer rewrite a filed year silently
 - **Bad-debt reserve**. Individually-assessed and lump-sum-assessed reserves are now handled separately, and the individually-assessed portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
-- **Redo for the business-opening wizard**. The wizard can now be run again from the start even after it has already been run once. A second run no longer double-books opening costs or converted assets
+- **Redo for Opening Setup**. Opening Setup can now be run again from the start even after it has already been run once. A second run no longer double-books opening costs or converted assets
 - **Editing invoice and quote drafts**. Drafts can now be edited after being created. Printouts now show the reduced-rate notice and the payment due date
 - The copyright notices of the third-party software we bundle can now be opened from within aoiko. Dependencies distributed only through CSS are now included as well
 
@@ -213,13 +213,13 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 - Cancellation and refund rows on SMBC card statements (`-1,110`, `▲732`) made the whole import fail
 - Receipt OCR could create a journal entry that appeared on no screen at all when the date could not be read
 - Inventory valuation counted returns in the wrong direction, shifting closing inventory and cost of sales
-- The business-opening wizard always failed for converted assets with a useful life of 21 years or more (such as a 22-year wooden or 47-year reinforced-concrete building), and long-held assets produced a negative book value that aborted the whole operation
+- Opening Setup always failed for converted assets with a useful life of 21 years or more (such as a 22-year wooden or 47-year reinforced-concrete building), and long-held assets produced a negative book value that aborted the whole operation
 - The tax office setting could be silently overwritten with an empty value on save after editing the field
 - The submit buttons on receipt OCR and order import stayed active during processing, creating duplicate entries
 
 ### Changed
 
-- Leaving a screen with unsaved input now asks for confirmation (journal entry, deductions, invoices, receipt OCR, order import, CSV import, business-opening wizard), covering in-app navigation, the browser back button and closing the tab
+- Leaving a screen with unsaved input now asks for confirmation (journal entry, deductions, invoices, receipt OCR, order import, CSV import, Opening Setup), covering in-app navigation, the browser back button and closing the tab
 
 ### What to check
 
@@ -256,9 +256,9 @@ Initial release.
 - Double-entry bookkeeping: journal entries, correcting entries, audit history that preserves the original entry, composite search by year / month / description / amount range / vendor
 - Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
 - e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule)
-- Bank and credit-card CSV import, import history, duplicate detection, batch-level reverse
+- Bank and credit-card CSV import, import history, duplicate detection, batch-level reversal
 - Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract; the pre-send confirmation dialog is skippable via a setting)
-- Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, business opening setup (Opening Wizard)
+- Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, Opening Setup
 - Consumption tax estimation with method comparison (general / simplified taxation, plus whichever special provision applies to that year — the 20% special provision through 2026, the 30% special provision for 2027–2028), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns
 - Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)

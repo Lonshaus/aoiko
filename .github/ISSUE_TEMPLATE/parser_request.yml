@@ -27,7 +27,7 @@ body:
     id: sample
     attributes:
       label: 匿名化したサンプル数行
-      description: 入金 1 件 + 出金 2 件程度。金額・取引先は虚構の値に置き換えること
+      description: 入金 1 件 + 出金 2 件程度。金額・取引先は架空の値に置き換えること
       render: text
     validations:
       required: true

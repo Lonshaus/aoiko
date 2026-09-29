@@ -34,7 +34,7 @@ const MPL_NAMES = new Set([
   'option-ext',
 ]);
 
-// 以下 2 つは opensource.org 掲載の正文（SPDX の参照本文と同一）。crates.io の配布物に
+// 以下 2 つは opensource.org 掲載の原文（SPDX の参照本文と同一）。crates.io の配布物に
 // 本文ファイルが無いクレート向けに、著作権表示だけ差し替えて掲げる。
 function mitLicenseText(copyrightLine) {
   return `MIT License

@@ -1,4 +1,4 @@
-# 13. Business opening setup (Opening Wizard)
+# 13. Opening Setup
 
 Generate the journal entries and fixed-asset registrations needed at business opening, from a single form covering pre-opening expenses, converted assets, and custom items.
 
@@ -11,9 +11,9 @@ Generate the journal entries and fixed-asset registrations needed at business op
 >
 > **Prerequisites**: [01. Initial setup](01-setup_en.md) done. This is for a brand-new business (no prior-year entries exist). For switching years on an existing business, use [09. Prior-period carryover](09-carryover_en.md) instead.
 
-## 1. What the Opening Wizard is
+## 1. What Opening Setup is
 
-Opened from **"Business opening setup"** in Settings. It bundles the journal entries and fixed-asset registrations specific to business opening. You can still enter these by hand, but the **converted assets** opening book value calculation follows a nontrivial official formula.
+Opened from **"Opening Setup"** in Settings. It bundles the journal entries and fixed-asset registrations specific to business opening. You can still enter these by hand, but the **converted assets** opening book value calculation follows a nontrivial official formula.
 
 ## 2. Business start date
 

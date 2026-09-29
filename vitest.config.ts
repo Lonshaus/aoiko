@@ -21,7 +21,7 @@ const sharedTest = {
 export default defineConfig({
   test: {
     // native / web で __NATIVE__ の畳み込みが違うため、同じテストプロセスに
-    // 2 つの Vite 環境を projects として持たせる。web 側の産物は build 時に
+    // 2 つの Vite 環境を projects として持たせる。web 側のビルド成果物は build 時に
     // __NATIVE__ が false へ畳まれ、native 側のテストではそこが死んだ分岐になる。
     projects: [
       {

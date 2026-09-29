@@ -4,7 +4,7 @@
 // 出力：エンベロープ付き .xtx XML 文字列
 //
 // 構造は e-Tax 自身が書き出した実ファイルに準拠する。実機取込が SC00X010 で
-// fail した根因＝旧封包の構造誤りを修正：
+// fail した根本原因＝旧エンベロープの構造誤りを修正：
 //   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
 //     <RKO0010 VR="25.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
 //       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）
@@ -16,7 +16,7 @@
 //           <{様式ID}-N page="N"> … </{様式ID}-N>     各ページを子に持つ単一様式要素
 //         <SOFUSHO VR="15.0" fid="TEA060" … xmlns=…/kyotsu/>  送信票（必須）
 //
-// 様式要素は官公式 xsd（KOA210-011.xsd 等）の定義どおり「単一 <KOA210> がページ
+// 様式要素は公式 xsd（KOA210-011.xsd 等）の定義どおり「単一 <KOA210> がページ
 // 子要素 KOA210-1..4 を内包する」モデル。id は様式インスタンスID＝`{様式ID}-1`。
 
 import type { XtxSchema } from './xtx-schema';
@@ -67,7 +67,7 @@ export interface XtxDocumentOptions {
   /**
    * 送信票（SOFUSHO/TEA060）を CONTENTS に含めるか。既定 true（所得税 RKO0010 は必須）。
    * 手続によっては CONTENTS 型が SOFUSHO を許可しない（例：消費税 RSH0010/RSH0030、
-   * 2026-07-05 実機組み込みで発覚：CONTENTS の xsd:sequence に SOFUSHO が定義されて
+   * 2026-07-05 実機での取込で発覚：CONTENTS の xsd:sequence に SOFUSHO が定義されて
    * いない）。その場合は false を指定する。
    */
   includeSofusho?: boolean;
@@ -95,7 +95,7 @@ const NS_XSI = 'http://www.w3.org/2001/XMLSchema-instance';
 const NS_RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 // IT部 VR（参照ファイル＝1.5）。
 const IT_VERSION = '1.5';
-// 送信票（汎用送信票 TEA060）。所得税申告でも必須。kyotsu ns で自閉出力。
+// 送信票（汎用送信票 TEA060）。所得税申告でも必須。kyotsu ns で空要素タグ出力。
 const SOFUSHO_VR = '15.0';
 const SOFUSHO_FID = 'TEA060';
 const SOFUSHO_ID = 'TEA060-1';
@@ -187,10 +187,10 @@ interface ItPart {
   idByName: Map<string, string>;
 }
 // 定義側（IT部）を出力。
-//  - NENBUN は複合型 <gen:era>5</gen:era><gen:yy>{年}</gen:yy>（純文字ではない）
+//  - NENBUN は複合型 <gen:era>5</gen:era><gen:yy>{年}</gen:yy>（単純な文字列ではない）
 //  - ZEIMUSHO / NOZEISHA_ZIP も複合型（gen:zeimusho_CD/_NM、gen:zip1/zip2）
 //  - NOZEISHA_ID / NOZEISHA_NM / NOZEISHA_ADR は申告者情報（filer）から（IT部 必須）
-//  - TETSUZUKI / SHINKOKU_KBN は所得税申告の構造項目として常に出力（個資ではない）
+//  - TETSUZUKI / SHINKOKU_KBN は所得税申告の構造項目として常に出力（個人情報ではない）
 //  - その他は値が与えられた定義のみ <名> ID="名">値</名> で出力
 // xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を fixed="<定義名>" で
 // 固定するため、参照側 IDREF＝定義名＝定義側 ID）。出力順は ITdefinition.xsd の
@@ -349,7 +349,7 @@ function renderNode(
 function formInstanceId(formId: string): string {
   return `${formId}-1`;
 }
-// ページ要素タグ（KOA210-2 等）から面番号を取り出す（末尾連番）。
+// ページ要素タグ（KOA210-2 等）からページ番号を取り出す（末尾連番）。
 function pageNumberOf(tag: string): string {
   const m = /-(\d+)$/.exec(tag);
   return m ? m[1]! : '1';
@@ -386,7 +386,7 @@ interface RenderedForm {
 // 様式（参照側）を単一様式要素として描画。公式 xsd モデルどおり、ルート様式要素
 // <KOA210 …> がページ子要素 <KOA210-N page="N"> を内包する。出力対象データを持つ
 // ページのみ出力。全ページ空なら null（その様式は CONTENTS/CATALOG に載せない）。
-// 様式ルートの子要素が「{様式ID}-{面番号}」のページラッパになっているか
+// 様式ルートの子要素が「{様式ID}-{ページ番号}」のページラッパになっているか
 // （KOA020/KOA210/KOA110 等の複数頁様式）。付表6 等の単頁様式は子要素が
 // 意味のあるタグ（AYB00000 等）で、ページラッパを持たない。
 function isPageWrapperTag(formId: string, tag: string): boolean {
@@ -526,7 +526,7 @@ export interface XtxFormInput {
 }
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
-// 様式で共通）。各様式の参照側を順に出力し、CATALOG・送信票を付して封包する。
+// 様式で共通）。各様式の参照側を順に出力し、CATALOG・送信票を付してエンベロープする。
 export function buildXtxBundle(forms: XtxFormInput[], options: XtxDocumentOptions = {}): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureVersion = options.procedureVersion ?? DEFAULT_PROCEDURE_VERSION;

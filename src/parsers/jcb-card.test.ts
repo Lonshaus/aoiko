@@ -11,7 +11,7 @@ describe('jcbCardParser', () => {
     expect(jcbCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips支払サマリ前言 and parses明細; 利用行は credit', () => {
+  test('skips支払サマリの冒頭の情報行 and parses明細; 利用行は credit', () => {
     const r = jcbCardParser.parse(sample);
     expect(r).toHaveLength(4);
     for (const tx of r.slice(0, 3)) {

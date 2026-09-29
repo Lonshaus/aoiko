@@ -54,7 +54,7 @@ test('Uint8Array は CHUNK_SIZE ごとに割られ、繋ぎ直すと元に戻る
   const { calls, invoke } = fakeInvoke({ 'plugin:aoiko-native|backup_open': 3 });
   await writeBackupFile(invoke, 'aoiko-ledger.zip', sent);
 
-  // Rust の rel_path は シェル が camelCase へ寄せた relPath で届く。
+  // Rust の rel_path はシェルが camelCase へ寄せた relPath で届く。
   assert.deepEqual(calls[0].args, { relPath: 'aoiko-ledger.zip' });
   assert.deepEqual(names(calls), [
     'backup_open',

@@ -51,7 +51,7 @@ type ReportType = 'monthly-sales' | 'pl' | 'bs' | 'consumption-tax';
 type ReportStatus = 'draft' | 'filed' | 'superseded';
 export type VendorEntityType = 'corporation' | 'individual' | 'public' | 'foreign' | 'unknown';
 // 所得区分。未指定（undefined）は 'business' 扱い（既存データ互換）。
-// freee/MF と同じく科目層級で持つ（同じ費用性質でも所得区分ごとに科目を複製する）。
+// freee/MF と同じく科目の単位で持つ（同じ費用性質でも所得区分ごとに科目を複製する）。
 export type IncomeType = 'business' | 'realEstate';
 // 消費税の納税義務区分。免税事業者は仕入税額控除の計算対象外。
 export type TaxRegistration = 'taxable' | 'tax-free';
@@ -93,7 +93,7 @@ export interface JournalLine {
   invoiceCompliant: boolean;
   homeOfficeRatio?: string;
   memo?: string;
-  // 科目の taxCategory 既定値を、この分錄だけ上書きしたい場合に指定（輸出免税・輸入消費税・特定課税仕入れ等）
+  // 科目の taxCategory 既定値を、この仕訳だけ上書きしたい場合に指定（輸出免税・輸入消費税・特定課税仕入れ等）
   taxCategory?: TaxCategory;
   // 個別対応方式の用途区分の上書き。未指定なら 'taxableOnly'
   inputUsageCategory?: InputUsageCategory;
@@ -138,15 +138,15 @@ export interface Vendor {
   // 請求書の送付先住所。既存の取引先（仕入先）には不要なので任意項目。
   address?: string;
 }
-// 簡易在庫管理の商品主檔。数量・単価は保持しない（JournalLine の itemId/quantity から
-// 都度導出する。分錄が唯一の真実の情報源という原則に従い、別途可変状態を持たない）。
+// 簡易在庫管理の商品マスタ。数量・単価は保持しない（JournalLine の itemId/quantity から
+// 都度導出する。仕訳が唯一の真実の情報源という原則に従い、別途可変状態を持たない）。
 export interface InventoryItem {
   id: string;
   name: string;
 }
-// 証憑原本。分錄と同一 transaction で書き込む（孤児画像・空参照を防ぐため）。
+// 証憑原本。仕訳と同一 transaction で書き込む（孤児画像・空参照を防ぐため）。
 // entryId は 1:N（同じ仕訳に複数枚の添付可）。確定仕訳と同様、更新・削除の口は用意しない
-// （不可竄改。附け間違いは訂正仕訳＋別記録で対応、電子帳簿保存法の真実性確保要件）。
+// （改ざん不可。付け間違いは訂正仕訳＋別記録で対応、電子帳簿保存法の真実性確保要件）。
 export interface Attachment {
   id: string;
   entryId: string;
@@ -154,7 +154,7 @@ export interface Attachment {
   mimeType: string;
   fileName: string;
   createdAt: number;
-  // 内容定址バックアップ（#397）用。省略可なのは、旧形式のバックアップから復元した行に
+  // コンテンツアドレス方式バックアップ（#397）用。省略可なのは、旧形式のバックアップから復元した行に
   // 付いていないため。読む側は欠けていたらその場で計算する。
   sha256?: string;
 }
@@ -166,8 +166,8 @@ export interface Budget {
   revenueBudget: string;
   expenseBudget: string;
 }
-// 現金流予測用の独立した売掛金/買掛金子帳。JournalLine に到期日を持たせず
-// 独立表にした理由：分錄は確定後不可変更だが、入金/支払は分割・延滞等で状態が変化し続けるため
+// 資金繰り予測用の独立した売掛金/買掛金の補助簿。JournalLine に期日を持たせず
+// 別テーブルにした理由：仕訳は確定後に変更できないが、入金/支払は分割・延滞等で状態が変化し続けるため
 // （詳細は project memory 参照）。
 export type ArApType = 'receivable' | 'payable';
 
@@ -240,7 +240,7 @@ export interface FixedAsset {
   /** 未指定は 'business'（既存データ互換） */
   incomeType?: IncomeType;
   /**
-   * 開業精霊が登録した資産の印。やり直し（removeOpeningEntries）で取り除ける対象を
+   * 開業設定が登録した資産の印。やり直し（removeOpeningEntries）で取り除ける対象を
    * 判別するためだけに使う。手で登録した資産は未指定。
    */
   source?: 'opening';
@@ -266,7 +266,7 @@ export interface FixedAsset {
   employeeCountAtAcquisition?: number;
   /** 貸付け（主要な業務として行われるものを除く）の用に供した資産。未指定は false */
   isLeasedOut?: boolean;
-  /** 開業精霊が登録した年度。未指定は acquisitionDate の年 */
+  /** 開業設定が登録した年度。未指定は acquisitionDate の年 */
   openingYear?: number;
   /** 業務の性質上基本的に重要な資産（所令81条2号・3号の除外要件）。未指定は false */
   essentialToBusiness?: boolean;
@@ -404,7 +404,7 @@ export interface RealEstateProfessionalFeeDetail extends RealEstatePayeeDetail {
   withholdingTax?: string;
 }
 // 不動産所得の入力（年度ごと）。損益自体は incomeType: 'realEstate' の仕訳から導出するため
-// ここには保存しない。事業的規模は「5棟10室」等の非正式基準で機械判定できないため
+// ここには保存しない。事業的規模は「5棟10室」等の形式的な目安で機械判定できないため
 // 利用者の自己申告とする（real-estate-income.ts 冒頭コメント参照）。
 export interface RealEstateIncomeInput {
   /** 事業的規模か（自己申告）。青色申告特別控除65/55万・専従者給与の可否に影響 */

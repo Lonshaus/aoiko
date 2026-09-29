@@ -4,7 +4,7 @@
 export interface ParsedTransaction {
   date: string; // 'YYYY-MM-DD'
   description: string;
-  amount: string; // Decimal 字串、必ず非負
+  amount: string; // Decimal 文字列、必ず非負
   side: 'debit' | 'credit'; // 既知側の借方/貸方
   balance?: string; // 残高（存在すれば）
   memo?: string;

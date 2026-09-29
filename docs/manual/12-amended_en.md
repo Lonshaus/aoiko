@@ -154,6 +154,6 @@ File a **request for correction** directly on the e-Tax side. There is no busine
 
 ## 6. Next steps
 
-- Setup for starting a business (Opening Wizard) → [13. Opening setup](13-opening-setup_en.md)
+- Opening Setup → [13. Opening Setup](13-opening-setup_en.md)
 - Entering income and tax deductions → [14. Income & tax deductions](14-income-deductions_en.md)
 - Issuing and managing invoices → [15. Invoices](15-invoices_en.md)

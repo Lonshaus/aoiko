@@ -11,15 +11,15 @@ export function looksLikeZip(bytes: Uint8Array): boolean {
   return bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b;
 }
 // 証憑写真は base64 化すると容量が約1.4倍に膨らむため、JSON に埋め込まず
-// zip 内に原始バイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
+// zip 内に生のバイナリのまま同梱する。画像は既に圧縮済みなので zip 自体は無圧縮（store）にする。
 //
-// payload.json → 添付1件ずつ → 目録、を pull() 1回につき1エントリずつ ReadableStream へ
+// payload.json → 添付1件ずつ → セントラルディレクトリ、を pull() 1回につき1エントリずつ ReadableStream へ
 // 流すことで、常に添付1件分だけがメモリに乗る。ReadableStream のデフォルトキューイング
 // 戦略が enqueue した分だけ desiredSize を下げるため、追加のキューやハンドシェイクを
 // 自前で組む必要はない。
 //
 // 以前は UI 凍結を避けるため処理を Worker へ逃がす非同期 API を使っていた。この書き出しは
-// 主スレッドで走るが、store なので実処理は memcpy と CRC32 だけで、しかも添付1件ごとに
+// メインスレッドで走るが、store なので実処理は memcpy と CRC32 だけで、しかも添付1件ごとに
 // await が挟まる。全証憑を抱え込むことをやめる方が凍結対策として確実なので入れ替えた。
 export function buildBackupZipStream(
   payload: BackupPayload,
@@ -103,8 +103,8 @@ interface CentralDirectoryRecord {
   crc32: number;
   localHeaderOffset: number;
 }
-// EOCD（末尾の目録）は末尾から最大 65557 バイト以内にある（コメント長の上限が 65535）。
-// そこだけ読めば全体を読まずに目録の位置が分かる。
+// EOCD（末尾のセントラルディレクトリ）は末尾から最大 65557 バイト以内にある（コメント長の上限が 65535）。
+// そこだけ読めば全体を読まずにセントラルディレクトリの位置が分かる。
 async function findEocd(
   file: Blob,
 ): Promise<{ tail: Uint8Array; tailStart: number; offsetInTail: number }> {
@@ -130,7 +130,7 @@ function readSafeUint64(view: DataView, pos: number): number {
   }
   return Number(value);
 }
-// 65536 件以上のエントリや 4GiB 超の目録・添付は zip64 の拡張レコードに真の値が入る。
+// 65536 件以上のエントリや 4GiB 超のセントラルディレクトリ・添付は zip64 の拡張レコードに真の値が入る。
 // ZIP64 EOCD ロケータ→ ZIP64 EOCD 本体とたどって取り直す。
 async function readZip64Eocd(
   file: Blob,
@@ -280,7 +280,7 @@ function parseCentralDirectory(bytes: Uint8Array, recordCount: number): CentralD
   }
   return records;
 }
-// ローカルヘッダの名前長・extra 長は中央目録のものと食い違うことがある（spec 上どちらも
+// ローカルヘッダの名前長・extra 長はセントラルディレクトリのものと食い違うことがある（spec 上どちらも
 // 正当なので、実データの開始位置は必ずローカルヘッダ側の値から計算する）。
 async function readEntryBlob(
   file: Blob,
@@ -302,7 +302,7 @@ async function readEntryBlob(
   const extraLen = view.getUint16(28, true);
   const dataStart = record.localHeaderOffset + LOCAL_FILE_HEADER_FIXED_SIZE + nameLen + extraLen;
   const dataEnd = dataStart + record.compressedSize;
-  // Blob.slice は範囲外を黙って切り詰めて短い Blob を返す。目録が実体より大きいサイズを
+  // Blob.slice は範囲外を黙って切り詰めて短い Blob を返す。セントラルディレクトリが実体より大きいサイズを
   // 主張していた場合、確認しないと切り詰められた実体をそのまま復元してしまう。
   if (dataEnd > file.size) {
     throw new Error(ZIP_READ_ERROR);
@@ -332,8 +332,8 @@ async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): 
 // 復元は他ツールが書いた zip も受け取る（aoiko 自身の書き出しは data descriptor を使わないが、
 // 他のストリーミング書き出しは使う）。data descriptor 付きの zip を先頭から逐次読みすると、
 // サイズも CRC も分からないまま次の PK\x07\x08 シグネチャを探すしかなく、添付のバイナリ中に
-// 同じ4バイトが出るだけで無音に切り詰まる（#280）。
-// 中央目録には真のサイズとオフセットが入っているので、そこだけ読んで各エントリへ
+// 同じ4バイトが出るだけで黙って切り詰まる（#280）。
+// セントラルディレクトリには真のサイズとオフセットが入っているので、そこだけ読んで各エントリへ
 // Blob.slice で直接飛ぶ。slice はコピーしないので、無圧縮（store）の添付は
 // バイト列が JS ヒープに一切乗らない。
 export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
@@ -372,7 +372,7 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
     }
   }
-  // payload.json 自体が壊れている（または見つからない）場合だけ硬く止める。帳簿の
+  // payload.json 自体が壊れている（または見つからない）場合だけエラーで中断する。帳簿の
   // 検証を通ったデータまで一緒に捨てないよう、添付だけ壊れている場合は続行し、
   // 何枚壊れていたかを呼び出し元へ返す（#316。missingBlobCount と同型の警告経路）。
   if (corruptNames.includes(PAYLOAD_ENTRY_NAME)) {

@@ -55,7 +55,7 @@ actor Latch {
     }
 }
 
-// ゲートが空くまで、他人事な軽いリクエストを送って観測する（内部のロックへは触れない）。
+// ゲートが空くまで、無関係な軽いリクエストを送って観測する（内部のロックへは触れない）。
 // 空いていれば即座に受理されて即返る一手なので、ポーリングの負荷は無視できる。
 func waitForGateFree(timeoutSeconds: Double = 3) {
     let giveUpAt = Date().addingTimeInterval(timeoutSeconds)

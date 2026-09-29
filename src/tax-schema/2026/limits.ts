@@ -123,7 +123,7 @@ const LEASED_OUT_EXCLUSION_START = '2022-04-01';
 function appliesLeasedOutExclusion(acquisitionDate: string | undefined): boolean {
   return acquisitionDate === undefined || acquisitionDate >= LEASED_OUT_EXCLUSION_START;
 }
-// 所令138条1項の両支線（10 万円未満・使用可能期間 1 年未満）は「又は」の選択関係。
+// 所令138条1項の両要件（10 万円未満・使用可能期間 1 年未満）は「又は」の選択関係。
 export function isImmediateExpenseRequired(
   acquisitionCost: string,
   conditions: AssetUseConditions,

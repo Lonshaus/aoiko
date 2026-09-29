@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { acceptDisclaimer } from './helpers';
-// UI 播種 → /reports → .xtx 書き出しまでを 1 本で通す。過去の回帰（exportYear 錯位・
-// BS 欄錯置・リバースチャージ漏配線）は「unit は各自緑・繋ぐと壊れる」接線層だったため、
-// 出力フロー全体を通して封包後の値・ファイル名・文書構造を確かめる。
+// UI でのデータ投入 → /reports → .xtx 書き出しまでを 1 本で通す。過去の回帰（exportYear のずれ・
+// BS 欄の取り違え・リバースチャージの配線漏れ）は「unit は各自緑・繋ぐと壊れる」結合部分だったため、
+// 出力フロー全体を通して .xtx 出力後の値・ファイル名・文書構造を確かめる。
 // ドメイン計算そのものは Vitest（xtx.test.ts 等）で網羅済み。ここは統合のみ。
 
 // JournalEntryForm へ 1 仕訳を UI 操作で投入する（journal.spec.ts と同じ操作パターン）。
@@ -28,7 +28,7 @@ async function addEntry(
   await expect(page.getByText(opts.description).first()).toBeVisible({ timeout: 5000 });
 }
 
-test('UIで播種した仕訳が .xtx 出力に反映され、年・売上・経費・文書構造が一致する', async ({
+test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・経費・文書構造が一致する', async ({
   page,
 }) => {
   await page.goto('/');
@@ -62,7 +62,7 @@ test('UIで播種した仕訳が .xtx 出力に反映され、年・売上・経
   });
 
   // 売上 550,000（借方 現金／貸方 売上高）と 経費 消耗品費 11,000（借方 消耗品費／貸方 現金）。
-  // aoiko は税込経理で PL は仕訳金額をそのまま集計するため、封包後の leaf は税抜換算されず
+  // aoiko は税込経理で PL は仕訳金額をそのまま集計するため、.xtx 出力後の leaf は税抜換算されず
   // この金額がそのまま入る（xtx-mapping-koa020/210 の toKingaku は整数化のみ）。
   const today = new Date().toISOString().slice(0, 10);
   await addEntry(page, {
@@ -88,7 +88,7 @@ test('UIで播種した仕訳が .xtx 出力に反映され、年・売上・経
   await downloadButton.click();
   const download = await downloadPromise;
 
-  // ファイル名の年は処理年度（既定＝今年 2026）と一致する（#169 exportYear 錯位の回帰防護）。
+  // ファイル名の年は処理年度（既定＝今年 2026）と一致する（#169 exportYear のずれの回帰防止）。
   const processYear = new Date().getFullYear();
   expect(download.suggestedFilename()).toBe(`aoiko-${processYear}.xtx`);
 

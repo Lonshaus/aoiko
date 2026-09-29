@@ -107,7 +107,7 @@ Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatfo
 Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform) ?? {});
 
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
-//    本機 Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
+//    ローカルの Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
 //    同一 origin の取得（tesseract の worker・wasm・traineddata 等）は素のまま通す。
 async function rawIpcFetch(req, body) {
   let reply;

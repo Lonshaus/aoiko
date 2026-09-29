@@ -97,7 +97,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<IT VR="1.5" id="IT">');
   });
 
-  test('封包に CATALOG(RDF)・送信票 SOFUSHO・名前空間が揃う（参照ファイル準拠）', () => {
+  test('エンベロープに CATALOG(RDF)・送信票 SOFUSHO・名前空間が揃う（参照ファイル準拠）', () => {
     const x = buildXtx2026(makeCtx());
     // DATA の 5 名前空間
     expect(x).toContain('xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general"');
@@ -110,7 +110,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<rdf:description about="#KOA020-1"/>');
     expect(x).toContain('<rdf:description about="#KOA210-1"/>');
     expect(x).toContain('<SOFUSHO_SEC><rdf:description about="#TEA060-1"/></SOFUSHO_SEC>');
-    // 送信票 SOFUSHO（kyotsu ns で自閉）
+    // 送信票 SOFUSHO（kyotsu ns で空要素タグ）
     expect(x).toMatch(
       /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
     );

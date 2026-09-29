@@ -1,7 +1,7 @@
-// OS 内蔵の文字認識の包装層。engine 選択時のみ動的 import される。
+// OS 内蔵の文字認識のラッパー。engine 選択時のみ動的 import される。
 //
 // 認識はネイティブ側が持つ。画像は端末外に出ない。
-// 返るのは座標付きの版面なので、Tesseract とは別の抽出を通す。
+// 返るのは座標付きのレイアウトなので、Tesseract とは別の抽出を通す。
 import { extractFromOcrLayout } from '../../domain/receipt-text-extract';
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
