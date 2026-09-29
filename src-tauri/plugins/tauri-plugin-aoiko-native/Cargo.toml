@@ -56,7 +56,7 @@ windows = { version = "0.61", features = [
 ] }
 
 # フォルダ選択・保存先の指定・未保存確認はこのプラグインの中で完結させる。デスクトップの
-# plugin-dialog は rfd の薄い殻でしかないので、その rfd を直接持って plugin-dialog ごと外す。
+# plugin-dialog は rfd の薄いラッパーでしかないので、その rfd を直接持って plugin-dialog ごと外す。
 # 外れていれば dialog:* はどの権限マニフェストにも無く、capabilities に 1 行足しても
 # 解決できずビルドが落ちる（plugin-fs と同じ状態）。cfg と feature は plugin-dialog の
 # 宣言に合わせてある。

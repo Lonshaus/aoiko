@@ -112,7 +112,7 @@ const POLICY_DOC_LINK = /^(?:\.\.\/)+(DISCLAIMER|PRIVACY|SECURITY)(?:_(?:en|zh-T
 // マニュアル内リンクの href を marked のレンダリング時に解決する。
 // `#アンカー`・`rewriteLinks` 済みの `/manual/...` はアプリ内遷移のためそのまま。
 // `http(s)://` は外部リンク。条文は上記のとおりアプリ内へ。
-// それ以外（`../../CONTRIBUTING.md`・原始碼等、開発者向けで同梱する意味がないもの）は
+// それ以外（`../../CONTRIBUTING.md`・ソースコード等、開発者向けで同梱する意味がないもの）は
 // GitHub 上の実体を指す絶対 URL に書き換え、外部リンク扱いにする。
 export function resolveManualLink(href: string): ResolvedManualLink {
   if (href.startsWith('#') || href.startsWith('/manual')) {

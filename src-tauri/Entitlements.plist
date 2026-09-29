@@ -4,7 +4,7 @@
 <dict>
   <key>com.apple.security.app-sandbox</key>
   <true/>
-  <!-- 対外連線（Gemini・本機 Ollama）だけでなく WKWebView 自体にも必要。
+  <!-- 外部への通信（Gemini・ローカルの Ollama）だけでなく WKWebView 自体にも必要。
        欠けると TestFlight で白画面になる（tauri-apps/tauri#13815）。 -->
   <key>com.apple.security.network.client</key>
   <true/>

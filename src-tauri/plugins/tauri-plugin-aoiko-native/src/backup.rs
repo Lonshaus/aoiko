@@ -2,7 +2,7 @@
 // 落とすための置き換えで、JS からパスを受け取る唯一の経路になる。
 //
 // 実処理は base: &Path を取る素の関数に置いてある。tauri::command は AppHandle が要り
-// テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄い殻にする。
+// テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄いラッパーにする。
 // この環境はネイティブ側が入出力を持つので、この module のパス操作は通らない。
 #![cfg_attr(target_os = "android", allow(dead_code))]
 use std::collections::HashMap;

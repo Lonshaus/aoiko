@@ -1,4 +1,4 @@
-// build ごとに出し分ける区画の印。web の産物に別配布形態向けの記述を一切残さないため、
+// build ごとに出し分ける区画の印。web のビルド成果物に別配布形態向けの記述を一切残さないため、
 // 表示時ではなくビルド時に取り除く（vite.config.ts の load フックから呼ぶ）。
 //
 //   <!-- only:browser -->
@@ -13,7 +13,7 @@ const OPEN = /^[ \t]*<!--[ \t]*only:([a-z]+)[ \t]*-->/gm;
 const CLOSE = /^[ \t]*<!--[ \t]*\/only[ \t]*-->/gm;
 const ANY = /<!--[ \t]*\/?only[^>]*-->/g;
 export const KINDS = ['browser', 'native', 'apple', 'windows', 'android', 'macos', 'ios'];
-// 配布形態ごとに、その形態が読む種別の集合。native は封装版すべてに当てはまる記述で、
+// 配布形態ごとに、その形態が読む種別の集合。native はネイティブ版すべてに当てはまる記述で、
 // apple / windows / android はそこから更に絞る（入れ子は扱わないので、絞る側は兄弟の区画で書く）。
 // macos / ios は apple の中でさらに絞る側（apple の 2 つの環境で記述が異なるとき用）。同じ理由で兄弟の区画で書く。
 export const PLATFORM_KINDS: Record<Platform, readonly string[]> = {

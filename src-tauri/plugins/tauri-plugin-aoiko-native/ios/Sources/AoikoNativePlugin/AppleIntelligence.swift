@@ -192,7 +192,7 @@ func aoiko_ai_extract(
 
 // MARK: - 分類（CSV 相手科目）・注文取込
 
-// 配列出力（classifications: [Item]）はコンテキスト窓（4096 トークン）を埋めるまで
+// 配列出力（classifications: [Item]）はコンテキストウィンドウ（4096 トークン）を埋めるまで
 // 項目を吐き続ける暴走が実測で確認されたため、単一オブジェクト出力にする
 // （ClassifyLoop.swift がトランザクション 1 件ずつ回す）。ref はモデルに書かせない。
 @available(macOS 26, iOS 26, *)

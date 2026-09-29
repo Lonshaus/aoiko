@@ -18,9 +18,9 @@ interface ClassifySuggestion {
   /** モデル呼び出し自体が失敗した行。「答えたが候補に無かった」とは区別する */
   failed?: boolean;
 }
-// 在庫運用が無い帳簿では売上原価が成立せず、これらは対方になり得ない
+// 在庫運用が無い帳簿では売上原価が成立せず、これらは相手科目になり得ない
 const INVENTORY_ACCOUNT_CODES = ['1340', '5010', '5020', '5030'];
-// 対方候補の絞り込み：事業所得のみ・既知科目を除外・既知側の性質に応じたカテゴリ・在庫運用の有無
+// 相手科目候補の絞り込み：事業所得のみ・既知科目を除外・既知側の性質に応じたカテゴリ・在庫運用の有無
 export function counterpartCandidates(
   accounts: Account[],
   knownAccountCode: string,
@@ -37,7 +37,7 @@ export function counterpartCandidates(
       (inventoryLive || !INVENTORY_ACCOUNT_CODES.includes(a.code)),
   );
 }
-// 負債（未払金等）は借方・貸方どちらも対方は費用/資産：貸方＝計上、借方＝取消（戻し）や返済
+// 負債（未払金等）は借方・貸方どちらも相手科目は費用/資産：貸方＝計上、借方＝取消（戻し）や返済
 function counterpartCategories(
   knownCategory: AccountCategory | undefined,
   knownSide: 'debit' | 'credit',

@@ -52,7 +52,7 @@ class FakeAdapter implements BackupAdapter {
       });
     });
   }
-  // 保存先にある物の一覧。汰換・全削除の対象選びを見るために持つ。
+  // 保存先にある物の一覧。古い世代の整理・全削除の対象選びを見るために持つ。
   stored = new Set<string>();
   list(subdir?: string): Promise<string[]> {
     const prefix = subdir === undefined ? '' : `${subdir}/`;
@@ -258,7 +258,7 @@ describe('backupManager.backup（掃除が返ってこない場合）', () => {
     expect(fake.reads).toBe(reads);
   });
 
-  test('時限切れは利用者向けのエラーにしない', async () => {
+  test('タイムアウトは利用者向けのエラーにしない', async () => {
     await runBackup();
     expect(backupManager.lastError).toBe('');
   });
@@ -271,7 +271,7 @@ describe('backupManager.backup（掃除が返ってこない場合）', () => {
 // OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者は ファイル管理 から見ることも
 // 消すこともできない。ここに取りこぼしがあると、譲渡・廃棄した端末に帳簿が残る。
 describe('backupManager.clearStoredBackups（OPFS の控えの全削除）', () => {
-  test('散ファイルも旧形式の zip も残さない', async () => {
+  test('個別のファイルも旧形式の zip も残さない', async () => {
     const injectable = backupManager as unknown as { adapterKind: string };
     injectable.adapterKind = 'opfs';
     fake.stored = new Set([

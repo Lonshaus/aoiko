@@ -79,7 +79,7 @@ describe('申告済み年度への直接の書き込み', () => {
     });
     expect(await db.journalEntries.count()).toBe(1);
   });
-  // 印は取引に付く。全域の旗にすると、確認したのとは別の書き込みまで通ってしまう。
+  // 印は取引に付く。グローバルなフラグにすると、確認したのとは別の書き込みまで通ってしまう。
   test('印は次の取引へ持ち越されない', async () => {
     await markYearFiled(FILED, { monthlySales, pl }, `${FILED}-12-31`);
     await db.transaction('rw', db.journalEntries, async () => {
@@ -91,8 +91,8 @@ describe('申告済み年度への直接の書き込み', () => {
   });
 });
 
-describe('申告済み年度の記憶', () => {
-  test('申告した直後の書き込みが古い記憶で素通りしない', async () => {
+describe('申告済み年度のメモリ上のキャッシュ', () => {
+  test('申告した直後の書き込みが古いキャッシュで素通りしない', async () => {
     await db.journalEntries.add(entry());
     expect(filedYearsSnapshot()).toEqual([]);
     await markYearFiled(FILED, { monthlySales, pl }, `${FILED}-12-31`);
@@ -108,9 +108,9 @@ describe('申告済み年度の記憶', () => {
     await db.journalEntries.add(entry());
     expect(await db.journalEntries.count()).toBe(1);
   });
-  // Dexie の ready は既定で一度きり。sticky を外すと、開き直しても記憶が読み直されず
+  // Dexie の ready は既定で一度きり。sticky を外すと、開き直してもキャッシュが読み直されず
   // 前のデータベースの年度が残る。
-  test('開き直すと記憶も張り直される', async () => {
+  test('開き直すとキャッシュも張り直される', async () => {
     await markYearFiled(FILED, { monthlySales, pl }, `${FILED}-12-31`);
     expect(filedYearsSnapshot()).toEqual([FILED]);
     await db.delete();

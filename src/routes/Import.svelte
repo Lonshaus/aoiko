@@ -61,7 +61,7 @@
     counterpartSubAccountId: string;
     description: string;
     skip: boolean;
-    matchedRuleId: string; // ルール命中時の ID、'' = 非適用
+    matchedRuleId: string; // ルール一致時の ID、'' = 非適用
     llmConfidence: '' | 'high' | 'low'; // LLM 分類の信頼度、'' = LLM 未適用
     taxRate: number; // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
     invoiceCompliant: boolean; // 適格請求書あり（仕入税額控除 100%）
@@ -129,7 +129,7 @@
       .slice(pageRange.start, pageRange.end)
       .map((row, i) => ({ row, index: pageRange.start + i })),
   );
-  // 取込元の下拉が変わったら、読み込み済みの表を parser 不一致のまま残さない。
+  // 取込元のプルダウンが変わったら、読み込み済みの表を parser 不一致のまま残さない。
   // 再解析ではなく破棄：computeFileHash / 重複チェック / findOverlappingRows / ルール適用を
   // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
   function handleParserChange(newName: string) {

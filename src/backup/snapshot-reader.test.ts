@@ -85,7 +85,7 @@ describe('readLatestSnapshot', () => {
     expect(await readLatestSnapshot(adapter)).toBeNull();
   });
 
-  test('一番新しい版を読み、証憑は id → 実体で返す', async () => {
+  test('一番新しいバージョンを読み、証憑は id → 実体で返す', async () => {
     const { adapter, files } = fakeAdapter();
     files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
     putSnapshot(files, '2026-08-08T12:00:00.000Z', []);
@@ -117,7 +117,7 @@ describe('readLatestSnapshot', () => {
     expect(reads.filter((p) => p === `${ATTACHMENT_DIR}/${redSha}`)).toHaveLength(1);
   });
   // 同期ツールがスナップショットを blob より先に運んでくると起きる。
-  test('参照先が欠けている版は飛ばして、1 つ前の揃っている版を使う', async () => {
+  test('参照先が欠けているバージョンは飛ばして、1 つ前の揃っているバージョンを使う', async () => {
     const { adapter, files } = fakeAdapter();
     files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
     const older = putSnapshot(files, '2026-08-08T12:00:00.000Z', [
@@ -134,7 +134,7 @@ describe('readLatestSnapshot', () => {
     expect(found?.skippedSnapshots).toBe(1);
   });
 
-  test('壊れた JSON の版も飛ばす', async () => {
+  test('壊れた JSON のバージョンも飛ばす', async () => {
     const { adapter, files } = fakeAdapter();
     const older = putSnapshot(files, '2026-08-08T12:00:00.000Z', []);
     putText(files, `${SNAPSHOT_DIR}/2026-08-09T120000Z.json`, '{ broken');
@@ -145,12 +145,12 @@ describe('readLatestSnapshot', () => {
     expect(found?.skippedSnapshots).toBe(1);
   });
 
-  test('使える版が 1 つも無ければ null', async () => {
+  test('使えるバージョンが 1 つも無ければ null', async () => {
     const { adapter, files } = fakeAdapter();
     putSnapshot(files, '2026-08-09T12:00:00.000Z', [{ id: 'att1', sha256: redSha, bytes: 3 }]);
     expect(await readLatestSnapshot(adapter)).toBeNull();
   });
-  // 中身が名前の SHA-256 と合わない＝同期が途中で切れた半端なファイル。内容定址の効き目。
+  // 中身が名前の SHA-256 と合わない＝同期が途中で切れた半端なファイル。コンテンツアドレス方式の効き目。
   test('名前と中身が合わない写真は捨て、帳簿は復元できる形で返す', async () => {
     const { adapter, files } = fakeAdapter();
     files.set(`${ATTACHMENT_DIR}/${redSha}`, BLUE);
@@ -163,7 +163,7 @@ describe('readLatestSnapshot', () => {
     expect(found?.payload.tables).toEqual({ journalEntries: [{ id: 'e1' }] });
   });
   // iCloud Drive の dataless ファイルはオフラインで読むと例外も errno も返らず止まる（実測）。
-  test('実体の読みが時限切れなら notDownloadedCount に数え、corruptAttachmentCount には数えない', async () => {
+  test('実体の読みがタイムアウトなら notDownloadedCount に数え、corruptAttachmentCount には数えない', async () => {
     const { adapter, files, hangPaths } = fakeAdapter();
     files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
     hangPaths.add(`${ATTACHMENT_DIR}/${redSha}`);
@@ -178,7 +178,7 @@ describe('readLatestSnapshot', () => {
   });
   // 時限は 1 件ごとなので、諦める仕組みが無いと未ダウンロードの枚数 × 30 秒だけ待つ。
   // 400 枚なら 3 時間を超え、「遅い」ではなく「終わらない」になる。
-  test('時限切れが続いたら残りは読まずに畳む', async () => {
+  test('タイムアウトが続いたら残りは読まずに畳む', async () => {
     const { adapter, files, reads, hangPaths } = fakeAdapter();
     const shas = Array.from({ length: 10 }, (_, i) => String(i).repeat(64));
     for (const sha of shas) {
@@ -219,7 +219,7 @@ describe('readLatestSnapshot', () => {
     expect(reads.filter((p) => p.startsWith(ATTACHMENT_DIR))).toHaveLength(5);
   });
 
-  test('スナップショット本体の読みが時限切れなら飛ばして、1 つ前の版を使う', async () => {
+  test('スナップショット本体の読みがタイムアウトなら飛ばして、1 つ前のバージョンを使う', async () => {
     const { adapter, files, hangPaths } = fakeAdapter();
     const older = putSnapshot(files, '2026-08-08T12:00:00.000Z', []);
     const newest = putSnapshot(files, '2026-08-09T12:00:00.000Z', []);
@@ -251,7 +251,7 @@ describe('readLatestSnapshot', () => {
     expect(calls.at(-1)).toEqual([2, 2]);
   });
 
-  test('時限切れの sha256 を 2 つの証憑 id が参照していても、実体読みは 1 回だけ', async () => {
+  test('タイムアウトの sha256 を 2 つの証憑 id が参照していても、実体読みは 1 回だけ', async () => {
     const { adapter, files, hangPaths, reads } = fakeAdapter();
     files.set(`${ATTACHMENT_DIR}/${redSha}`, RED);
     hangPaths.add(`${ATTACHMENT_DIR}/${redSha}`);

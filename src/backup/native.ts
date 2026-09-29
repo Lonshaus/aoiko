@@ -19,7 +19,7 @@ interface NativeBackupBridge {
   backupWrite(token: string, fileName: string, data: ReadableStream<Uint8Array>): Promise<void>;
   backupList(token: string): Promise<string[]>;
   backupRemove(token: string, fileName: string): Promise<void>;
-  // 内容定址バックアップ用。wrapper 側が未実装のため optional にしてあり、
+  // コンテンツアドレス方式バックアップ用。wrapper 側が未実装のため optional にしてあり、
   // 呼び出し側は関数の有無で能力を判定する（別スライスで wrapper へ追加する）。
   // 見つからないファイルは wrapper 側で null にする。IO 失敗は例外のまま。
   backupRead?(token: string, path: string): Promise<Uint8Array<ArrayBuffer> | null>;

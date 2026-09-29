@@ -38,7 +38,7 @@ afterEach(async () => {
 });
 
 describe('straightLineRate（定額法償却率＝1/N の小数第3位未満切上げ）', () => {
-  test('整除する年数はそのまま', () => {
+  test('割り切れる年数はそのまま', () => {
     expect(straightLineRate(2).toString()).toBe('0.5');
     expect(straightLineRate(4).toString()).toBe('0.25');
     expect(straightLineRate(5).toString()).toBe('0.2');
@@ -938,12 +938,12 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
     expect(r.smallAssetCapExceeded).toBe(1);
   });
 
-  test('開業日は開業精霊の開業仕訳の日付から取る', async () => {
+  test('開業日は開業設定の開業仕訳の日付から取る', async () => {
     await db.journalEntries.add({
       id: 'opening',
       date: '2026-07-01',
       year: 2026,
-      description: '開業費計上（開業精霊）',
+      description: '開業費計上（開業設定）',
       status: 'confirmed',
       source: 'opening',
       createdAt: 0,

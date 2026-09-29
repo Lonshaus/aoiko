@@ -52,7 +52,7 @@ async function* chunksOf(data) {
   }
 }
 // custom protocol IPC は一度失敗すると customProtocolIpcFailed が立ち、以降
-// そのページでは postMessage へ固定される（tauri/scripts/ipc-protocol.js）。旗は閉包の
+// そのページでは postMessage へ固定される（tauri/scripts/ipc-protocol.js）。フラグはクロージャの
 // 中なので消せず、再読込まで戻らない。その状態では ArrayBuffer が JSON 化されて Rust に
 // 生バイトとして届かず、書き出しが全部落ちる。
 //

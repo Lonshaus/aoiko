@@ -90,7 +90,7 @@ If something is wrong:
 
 When you first start using aoiko, there's no prior year so **"No journal entries in the previous year — nothing to carry over"** appears. Use the dedicated business-opening screen instead of carryover:
 
-- If you have assets bought before opening and put into business use afterward (converted assets), or pre-opening expenses to book → use **[13. Business opening setup (Opening Wizard)](13-opening-setup_en.md)**, which computes the opening book value and generates the offsetting entry against owner's capital automatically
+- If you have assets bought before opening and put into business use afterward (converted assets), or pre-opening expenses to book → use **[13. Opening Setup](13-opening-setup_en.md)**, which computes the opening book value and generates the offsetting entry against owner's capital automatically
 - If you're simply contributing cash or assets whose book value you already know, you can also create the entry by hand:
 
 ```

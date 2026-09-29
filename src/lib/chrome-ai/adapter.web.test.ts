@@ -16,7 +16,7 @@ function stubSession(overrides: Partial<ChromeAiSession> = {}): ChromeAiSession 
 }
 
 describe('ChromeAiAdapter.generateJson', () => {
-  test('文脈窓を超える見込みなら prompt を呼ばずに投げる', async () => {
+  test('コンテキストウィンドウを超える見込みなら prompt を呼ばずに投げる', async () => {
     const prompt = vi.fn(async () => '{}');
     const session = stubSession({
       contextWindow: 100,

@@ -11,8 +11,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-# build.rs が題名欄のアイコンを RGBA へ展開するのに使う。ビルド時にしか動かないので
-# 出荷物には入らない。tauri-codegen が既に同じ版を使っており、crate は増えない。
+# build.rs がタイトルバーのアイコンを RGBA へ展開するのに使う。ビルド時にしか動かないので
+# 配布物には入らない。tauri-codegen が既に同じバージョンを使っており、crate は増えない。
 png = { version = "0.18", default-features = false }
 
 [dependencies]
@@ -49,8 +49,8 @@ objc2-app-kit = { version = "0.3", features = [
 ] }
 objc2-web-kit = { version = "0.3", features = ["WKWebView"] }
 # Windows も同じ理由でネイティブ側へ回す。WebView2 の ShowPrintUI を呼ぶ。
-# webview2-com は tauri 自身が cfg(windows) で使っている版に合わせる（controller() が
-# ここの ICoreWebView2Controller を返すため、版がずれると型が合わない）。
+# webview2-com は tauri 自身が cfg(windows) で使っているバージョンに合わせる（controller() が
+# ここの ICoreWebView2Controller を返すため、バージョンがずれると型が合わない）。
 # windows-core は ICoreWebView2 から ICoreWebView2_16 へ QueryInterface するために要る。
 [target.'cfg(target_os = "windows")'.dependencies]
 webview2-com = "0.38"

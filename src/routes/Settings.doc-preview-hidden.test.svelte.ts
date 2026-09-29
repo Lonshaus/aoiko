@@ -37,7 +37,7 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('build 産物では開発用の文書プレビュー区画が出ない', () => {
+describe('ビルド成果物では開発用の文書プレビュー区画が出ない', () => {
   test('見出しが見付からない', async () => {
     await db.settings.put({
       key: 'homeOfficeAccountRatios',

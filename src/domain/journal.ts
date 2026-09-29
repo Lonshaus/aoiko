@@ -11,7 +11,7 @@ export function plContribution(category: AccountCategory, line: JournalLine): De
   }
   return null;
 }
-// 集計対象の判定（成対排除方式）。
+// 集計対象の判定（ペア除外方式）。
 // 訂正は「原仕訳（status='reversed'）」と「訂正仕訳（originalEntryId 持ち）」のペアで
 // 帳簿上に残るが、集計上は両方除外して正味ゼロにする。
 // 片方だけ算入すると B/S・繰越が原仕訳 1 件分マイナスに歪むため、必ずペアで扱うこと。

@@ -246,7 +246,7 @@ describe('buildBreakdown', () => {
     expect(g!.entries[0]!.amount).toBe('50000');
   });
 
-  test('部門別（department、分錄ではなく仕訳単位のタグ）', async () => {
+  test('部門別（department、明細行ではなく仕訳単位のタグ）', async () => {
     await addEntry({
       date: '2026-04-01',
       department: '東京店',

@@ -11,7 +11,7 @@ const APPLE: Platform[] = ['macos', 'ios'];
 
 type Rule = { name: string; pattern: RegExp; only: Platform[] };
 
-// only: その語が出てよい形態。ここに無い形態の産物に出ていたら失敗させる。
+// only: その語が出てよい形態。ここに無い形態のビルド成果物に出ていたら失敗させる。
 const RULES: Record<string, Rule[]> = {
   'DISCLAIMER.md': [
     { name: 'ブラウザ IndexedDB', pattern: /ブラウザ IndexedDB/, only: ['browser'] },
@@ -24,7 +24,7 @@ const RULES: Record<string, Rule[]> = {
     // 仕様はクラウドを使う実装を認めているので、ブラウザ内蔵 AI に端末内を約束させない。
     {
       name: 'ブラウザ内蔵の AI に端末内を約束しない',
-      pattern: /ブラウザ内蔵の AI（純ローカル推論）/,
+      pattern: /ブラウザ内蔵の AI（完全ローカル推論）/,
       only: [],
     },
     { name: 'ML Kit の利用状況開示', pattern: /ML Kit/, only: ['android'] },
@@ -58,13 +58,13 @@ const RULES: Record<string, Rule[]> = {
   ],
   'DISCLAIMER_zh-TW.md': [
     { name: '瀏覽器的 IndexedDB', pattern: /瀏覽器的 IndexedDB/, only: ['browser'] },
-    { name: '清除快取', pattern: /瀏覽器清除快取/, only: ['browser'] },
+    { name: '清除快取', pattern: /清除瀏覽器快取/, only: ['browser'] },
     { name: 'OPFS', pattern: /OPFS/, only: ['browser'] },
     { name: 'File System Access API', pattern: /File System Access API/, only: [] },
     { name: 'OLLAMA_ORIGINS', pattern: /OLLAMA_ORIGINS/, only: ['browser'] },
     { name: 'ITP', pattern: /追蹤防護機制/, only: ['browser', ...APPLE] },
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
-    { name: '不對瀏覽器內建 AI 承諾本機', pattern: /瀏覽器內建的 AI（純本地推論）/, only: [] },
+    { name: '不對瀏覽器內建 AI 承諾本機', pattern: /瀏覽器內建的 AI（純本機推論）/, only: [] },
     { name: 'ML Kit 使用狀況揭露', pattern: /ML Kit/, only: ['android'] },
     {
       name: '不對 android 寫成不會有對外連線',
@@ -175,20 +175,20 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY_zh-TW.md': [
-    { name: 'HTTP access log', pattern: /HTTP access log/, only: ['browser'] },
+    { name: 'HTTP 存取紀錄', pattern: /HTTP 存取紀錄/, only: ['browser'] },
     { name: '瀏覽器的 IndexedDB', pattern: /瀏覽器的 \*\*IndexedDB\*\*/, only: ['browser'] },
-    { name: '站點資料清除', pattern: /瀏覽器站點資料清除/, only: ['browser'] },
-    { name: '瀏覽器直接', pattern: /使用者瀏覽器\*\*直接\*\*/, only: ['browser'] },
+    { name: '網站資料清除', pattern: /清除瀏覽器的網站資料/, only: ['browser'] },
+    { name: '瀏覽器直接', pattern: /使用者的瀏覽器\*\*直接\*\*/, only: ['browser'] },
     { name: 'OPFS', pattern: /OPFS/, only: ['browser'] },
     { name: 'File System Access API', pattern: /File System Access API/, only: ['browser'] },
-    { name: 'referer', pattern: /referer 送出/, only: ['browser'] },
+    { name: 'referer', pattern: /referer 的送出/, only: ['browser'] },
     { name: 'Google Drive 同步', pattern: /Google Drive 同步/, only: [] },
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: '推論內容不離開本機', pattern: /推論內容不離開本機/, only: [] },
     { name: 'ML Kit 使用狀況揭露', pattern: /ML Kit/, only: ['android'] },
     {
       name: '作業系統內建的文字辨識表格列：android 不寫成不會有對外連線',
-      pattern: /作業系統內建的文字辨識 \| 圖片不離開本機 \|/,
+      pattern: /作業系統內建的文字辨識 \| 照片不離開本機 \|/,
       only: [...APPLE, 'windows'],
     },
     {
@@ -214,8 +214,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '在裝置內完成的引擎同樣不會產生送出，android 不能有',
-      pattern: /在裝置內完成的引擎同樣不會產生送出/,
+      name: '在裝置內完成的引擎同樣不會送出資料，android 不能有',
+      pattern: /在裝置內完成的引擎同樣不會送出資料/,
       only: ['browser', ...APPLE, 'windows'],
     },
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
@@ -327,7 +327,7 @@ const RULES: Record<string, Rule[]> = {
     { name: 'OPFS', pattern: /OPFS/, only: ['browser'] },
     { name: 'File System Access API', pattern: /File System Access API/, only: ['browser'] },
     { name: '瀏覽器擴充功能', pattern: /瀏覽器擴充功能/, only: ['browser'] },
-    { name: '瀏覽器 profile', pattern: /瀏覽器 profile/, only: ['browser'] },
+    { name: '瀏覽器設定檔', pattern: /瀏覽器設定檔/, only: ['browser'] },
     { name: 'Service Worker', pattern: /Service Worker/, only: ['browser'] },
     { name: '首次 DL traineddata', pattern: /首次 DL traineddata/, only: [] },
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
@@ -415,8 +415,9 @@ describe('android で剥がした結果に他プラットフォーム専用の�
     }
   }
 });
-// 封装版で消えてはいけない記述。出し分けを足したときに、native 側を書き忘れると「その形態には何も書いていない」という別の嘘になる。
-describe('封装版にも保存とバックアップの記述が残る', () => {
+// ネイティブ版で消えてはいけない記述。出し分けを足したときに、native 側を書き忘れると
+// 「その形態には何も書いていない」という別の嘘になる。
+describe('ネイティブ版にも保存とバックアップの記述が残る', () => {
   for (const doc of ['DISCLAIMER.md', 'PRIVACY.md', 'SECURITY.md']) {
     const src = readFileSync(resolve(doc), 'utf-8');
     for (const platform of PACKAGED) {

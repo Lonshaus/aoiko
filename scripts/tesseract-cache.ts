@@ -1,4 +1,4 @@
-// Tesseract の資産（worker・コア WASM・言語モデル）からキャッシュ名と
+// Tesseract のアセット（worker・コア WASM・言語モデル）からキャッシュ名と
 // vite-plugin-pwa の runtimeCaching 設定を組み立てる純粋関数。vite.config.ts から呼ぶ。
 // node:crypto を使うため build 時（Node）専用。src/ の外に置き、svelte-check の対象からも外す。
 import { createHash } from 'node:crypto';

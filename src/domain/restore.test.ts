@@ -209,7 +209,7 @@ describe('restoreFromJson', () => {
     expect(vendors[0]?.name).toBe('新業者');
   });
 
-  test('申告者情報がバックアップに無ければ本機の値を保持する', async () => {
+  test('申告者情報がバックアップに無ければこの端末の値を保持する', async () => {
     const now = Date.now();
     await db.settings.bulkPut([
       { key: 'userRiyoshaId', value: '1234567890123456', updatedAt: now },

@@ -24,7 +24,7 @@ const { parserA, parserB, parserC, parserD } = vi.hoisted(() => {
       { date: '2026-02-20', description: 'B由来', amount: '2000', side: 'credit', rawRow: {} },
     ],
   };
-  // ルール命中・非命中の 2 行を返す、相手科目セレクトの幅検証専用のパーサー
+  // ルール一致・不一致の 2 行を返す、相手科目セレクトの幅検証専用のパーサー
   const parserC: CsvParser = {
     name: 'parser-c',
     displayName: 'パーサーC',
@@ -35,7 +35,7 @@ const { parserA, parserB, parserC, parserD } = vi.hoisted(() => {
       { date: '2026-04-02', description: '未分類の店', amount: '700', side: 'debit', rawRow: {} },
     ],
   };
-  // LLM 分類の失敗件数表示専用。41 行、全行ルール非命中・同一側で 1 回のバッチにまとまる。
+  // LLM 分類の失敗件数表示専用。41 行、全行ルール不一致・同一側で 1 回のバッチにまとまる。
   const parserD: CsvParser = {
     name: 'parser-d',
     displayName: 'パーサーD',
@@ -357,7 +357,7 @@ describe('Import: キャンセル時の破棄確認', () => {
 });
 
 describe('Import: 相手科目セレクトの幅はバッジの有無で変わらない', () => {
-  test('ルール命中の行にだけバッジが出て、select の幅クラスは両行で同じ・content 依存でない', async () => {
+  test('ルール一致の行にだけバッジが出て、select の幅クラスは両行で同じ・content 依存でない', async () => {
     await db.parserRules.add({
       id: 'rule-1',
       matchType: 'description-includes',
@@ -370,7 +370,7 @@ describe('Import: 相手科目セレクトの幅はバッジの有無で変わ�
     changeParser(c, parserC.name);
     await loadFile(c);
 
-    expect(c.textContent).toContain('規則');
+    expect(c.textContent).toContain('ルール');
 
     const rows = Array.from(c.querySelectorAll('tbody tr'));
     expect(rows.length).toBe(2);

@@ -261,7 +261,7 @@ export function isSmallAmountPurchase(transactionInclusive: Decimal, date: strin
     date <= SMALL_AMOUNT_SPECIAL_END
   );
 }
-// 附則90条3項：令和8年10月1日以後開始の課税期間から1億円、それ前は10億円
+// 附則90条3項：令和8年10月1日以後開始の課税期間から1億円、それより前は10億円
 export function transitionalCapAmount(year: number): Decimal {
   return D(year >= 2027 ? 100_000_000 : 1_000_000_000);
 }
@@ -791,7 +791,7 @@ export async function computeGeneral(
   const effectiveInputRaw = inputRaw.plus(rcTax);
   const net = effectiveOutput.plus(badDebtRecovery).minus(deductible.total).minus(badDebtTax);
   const official = computeOfficialOutputTax(taxableBase10.plus(rcBase), taxableBase8);
-  // 控除対象仕入税額は税率ごとに1円未満切捨て済（deductible.total）を官庁側の売上税額から控除
+  // 控除対象仕入税額は税率ごとに1円未満切捨て済（deductible.total）を申告書ベースの売上税額から控除
   const filingNet = official.outputTax
     .plus(badDebtRecovery)
     .minus(deductible.total)
@@ -812,7 +812,7 @@ export async function computeGeneral(
 // 施行令57条3項（75%特例）：一区分が75%以上ならその区分の率を全体に適用。二区分しかない
 // aoiko の兼業（設定区分＋印の付いた行の第四種）では、どちらも75%未満のケースの二区分特例は
 // 各区分が自身の率を適用する式と代数的に一致するため、原則計算と同値になる。
-// 概算（filingRounded を伴わない）版：税率別に分けず合計のみで算定する。
+// 概算（filingRounded を伴わない）方式：税率別に分けず合計のみで算定する。
 export function simplifiedDeductionTotal(
   category: SimplifiedTaxCategory,
   mainBase: Decimal,

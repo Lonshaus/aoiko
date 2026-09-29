@@ -80,8 +80,8 @@ describe('sweepUnreferencedBlobs', () => {
     expect(await sweepUnreferencedBlobs(adapter, 30, NOW)).toEqual([]);
     expect(removed).toEqual([]);
   });
-  // 窓の外の版が参照していても、その版はもう復元には使われない。
-  test('日数の窓より古い版だけが参照している実体は消す', async () => {
+  // 保持期間外のバージョンが参照していても、そのバージョンはもう復元には使われない。
+  test('日数の保持期間より古いバージョンだけが参照している実体は消す', async () => {
     const { adapter, removed } = fakeAdapter({
       ...Object.fromEntries([snapshotAt('2026-08-09T12:00:00.000Z', [A])]),
       ...Object.fromEntries([snapshotAt('2026-05-01T12:00:00.000Z', [A, B])]),
@@ -92,7 +92,7 @@ describe('sweepUnreferencedBlobs', () => {
     expect(removed).toEqual([`${ATTACHMENT_DIR}/${B}`]);
   });
   // 最新版の参照先を消すと、直近のバックアップが写真の欠けたものになる。
-  test('最新版が窓の外でも、その参照先は消さない', async () => {
+  test('最新版が保持期間外でも、その参照先は消さない', async () => {
     const { adapter, removed } = fakeAdapter({
       ...Object.fromEntries([snapshotAt('2026-05-01T12:00:00.000Z', [A])]),
       ...blobs(A, B),
@@ -101,8 +101,8 @@ describe('sweepUnreferencedBlobs', () => {
     expect(await sweepUnreferencedBlobs(adapter, 30, NOW)).toEqual([B]);
     expect(removed).toEqual([`${ATTACHMENT_DIR}/${B}`]);
   });
-  // 同期が途中・他端末の版がまだ届いていない、はどちらも普通に起きる。
-  test('読めない版が 1 つでもあれば何も消さない', async () => {
+  // 同期が途中・他端末のバージョンがまだ届いていない、はどちらも普通に起きる。
+  test('読めないバージョンが 1 つでもあれば何も消さない', async () => {
     const { adapter, removed } = fakeAdapter({
       ...Object.fromEntries([snapshotAt('2026-08-09T12:00:00.000Z', [A])]),
       [`${SNAPSHOT_DIR}/2026-08-08T120000Z.json`]: '{ broken',
@@ -113,7 +113,7 @@ describe('sweepUnreferencedBlobs', () => {
     expect(removed).toEqual([]);
   });
 
-  test('窓の中の全ての版の参照を足し合わせる', async () => {
+  test('保持期間内の全てのバージョンの参照を足し合わせる', async () => {
     const { adapter, removed } = fakeAdapter({
       ...Object.fromEntries([snapshotAt('2026-08-09T12:00:00.000Z', [A])]),
       ...Object.fromEntries([snapshotAt('2026-08-08T12:00:00.000Z', [B])]),
@@ -134,7 +134,7 @@ describe('sweepUnreferencedBlobs', () => {
     expect(removed).toEqual([]);
   });
 
-  test('境界ちょうどの版はまだ窓の中', async () => {
+  test('境界ちょうどのバージョンはまだ保持期間内', async () => {
     const edge = new Date(NOW - 30 * DAY).toISOString();
     const { adapter, removed } = fakeAdapter({
       ...Object.fromEntries([snapshotAt('2026-08-09T12:00:00.000Z', [])]),

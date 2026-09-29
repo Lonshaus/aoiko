@@ -13,7 +13,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'node_modules', 'tesseract-wasm', 'dist');
 const outDir = join(root, 'public', 'tesseract');
 // fallback は WASM SIMD 非対応の実行環境向け。worker が supportsFastBuild() で
-// 選ぶため、どちらが要るかは建置時には決まらない。
+// 選ぶため、どちらが要るかはビルド時には決まらない。
 // scripts/gen-third-party-licenses.js がこの配列を import して手動ライセンス一覧との
 // 突き合わせに使うため、ここを直接編集すれば向こうの検査に反映される。
 export const ASSETS = [
@@ -48,7 +48,7 @@ function main() {
   if (!existsSync(MODEL_GZ)) {
     throw new Error(`OCR model not found: ${MODEL_GZ}`);
   }
-  // tesseract-wasm の loadModel は生の traineddata を読むため建置時に展開しておく。
+  // tesseract-wasm の loadModel は生の traineddata を読むためビルド時に展開しておく。
   writeFileSync(join(outDir, MODEL_FILE), gunzipSync(readFileSync(MODEL_GZ)));
 }
 
