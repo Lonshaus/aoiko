@@ -4,7 +4,7 @@
 手で保守する EXTERNAL_ARTIFACTS から生成しています。直接編集せず、依存やビルド構成を
 変えたら再生成してください。
 
-対象：npm 依存として自動収集した 50 件 + npm 外から手動で追跡する 4 件。
+対象：npm 依存として自動収集した 49 件 + npm 外から手動で追跡する 4 件。
 npm の dependencies に加え、devDependencies に置かれていても実際に配られるもの
 （Svelte のランタイム・UI 部品・フォント・サービスワーカー等）とその依存を含む。
 ビルド時にしか動かないものは除く。バンドラの tree shaking で最終的に落ちるものも
@@ -18,28 +18,27 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   @floating-ui/dom@1.7.6  —  MIT
   @floating-ui/utils@0.2.11  —  MIT
   @fontsource-variable/inter@5.3.0  —  OFL-1.1
-  @inlang/paraglide-js@2.24.1  —  MIT
+  @inlang/paraglide-js@2.25.4  —  MIT
   @jridgewell/gen-mapping@0.3.13  —  MIT
   @jridgewell/remapping@2.3.5  —  MIT
   @jridgewell/resolve-uri@3.1.2  —  MIT
-  @jridgewell/sourcemap-codec@1.5.5  —  MIT
+  @jridgewell/sourcemap-codec@1.6.0  —  MIT
   @jridgewell/trace-mapping@0.3.31  —  MIT
-  @sveltejs/acorn-typescript@1.0.10  —  MIT
+  @sveltejs/acorn-typescript@1.0.13  —  MIT
   @types/estree@1.0.9  —  MIT
-  @types/trusted-types@2.0.7  —  MIT
-  acorn@8.17.0  —  MIT
+  acorn@8.18.0  —  MIT
   aria-query@5.3.1  —  Apache-2.0
   axobject-query@4.1.0  —  Apache-2.0
-  bits-ui@2.19.0  —  MIT
+  bits-ui@2.19.3  —  MIT
   clsx@2.1.1  —  MIT
   comlink@4.4.2  —  Apache-2.0
   decimal.js@10.6.0  —  MIT
   dequal@2.0.3  —  MIT
-  devalue@5.8.1  —  MIT
+  devalue@5.9.4  —  MIT
   dexie@4.4.6  —  Apache-2.0
   encoding-japanese@2.4.0  —  MIT
   esm-env@1.2.2  —  MIT
-  esrap@2.2.13  —  MIT
+  esrap@2.3.14  —  MIT
   fflate@0.8.3  —  MIT
   inline-style-parser@0.2.7  —  MIT
   is-reference@3.0.3  —  MIT
@@ -48,12 +47,12 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   magic-string@0.30.21  —  MIT
   marked@18.0.14  —  MIT
   runed@0.35.1  —  MIT
-  shadcn-svelte@1.5.0  —  MIT
+  shadcn-svelte@1.7.0  —  MIT
   style-to-object@1.0.14  —  MIT
-  svelte@5.56.10  —  MIT
+  svelte@5.57.1  —  MIT
   svelte-toolbelt@0.10.6  —  MIT License（本文から判定）
   tabbable@6.4.0  —  MIT
-  tailwind-merge@3.6.0  —  MIT
+  tailwind-merge@3.7.0  —  MIT
   tailwind-variants@3.3.1  —  MIT
   tailwindcss@4.3.3  —  MIT
   tesseract-wasm@0.11.0  —  BSD-2-Clause
@@ -211,7 +210,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：@inlang/paraglide-js@2.24.1
+対象：@inlang/paraglide-js@2.25.4
 
 MIT License
 
@@ -237,7 +236,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：@jridgewell/gen-mapping@0.3.13, @jridgewell/remapping@2.3.5, @jridgewell/sourcemap-codec@1.5.5, @jridgewell/trace-mapping@0.3.31
+対象：@jridgewell/gen-mapping@0.3.13, @jridgewell/remapping@2.3.5, @jridgewell/sourcemap-codec@1.6.0, @jridgewell/trace-mapping@0.3.31
 
 Copyright 2024 Justin Ridgewell <justin@ridgewell.name>
 
@@ -285,7 +284,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：@sveltejs/acorn-typescript@1.0.10
+対象：@sveltejs/acorn-typescript@1.0.13
 
 MIT License
 
@@ -312,7 +311,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：@types/estree@1.0.9, @types/trusted-types@2.0.7
+対象：@types/estree@1.0.9
 
     MIT License
 
@@ -338,7 +337,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：acorn@8.17.0
+対象：acorn@8.18.0
 
 MIT License
 
@@ -570,7 +569,7 @@ limitations under the License.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：bits-ui@2.19.0
+対象：bits-ui@2.19.3
 
 MIT License
 
@@ -870,7 +869,7 @@ THE SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：devalue@5.8.1
+対象：devalue@5.9.4
 
 Copyright (c) 2018-19 [these people](https://github.com/rich-harris/devalue/graphs/contributors)
 
@@ -1168,7 +1167,7 @@ THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR I
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：esrap@2.2.13
+対象：esrap@2.3.14
 
 Copyright (c) 2023-2025 [these people](https://github.com/sveltejs/esrap/graphs/contributors)
 
@@ -1334,7 +1333,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：shadcn-svelte@1.5.0, shadcn-svelte（vendor コンポーネント）（src/lib/components/ui/alert-dialog/, src/lib/components/ui/button/（bundle へ組み込み））
+対象：shadcn-svelte@1.7.0, shadcn-svelte（vendor コンポーネント）（src/lib/components/ui/alert-dialog/, src/lib/components/ui/button/（bundle へ組み込み））
 
 ── shadcn-svelte（vendor コンポーネント） の著作権表示（upstream: https://github.com/huntabyte/shadcn-svelte） ──
 
@@ -1393,7 +1392,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：svelte@5.56.10
+対象：svelte@5.57.1
 
 Copyright (c) 2016-2025 [Svelte Contributors](https://github.com/sveltejs/svelte/graphs/contributors)
 
@@ -1431,7 +1430,7 @@ SOFTWARE.
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：tailwind-merge@3.6.0
+対象：tailwind-merge@3.7.0
 
 MIT License
 
