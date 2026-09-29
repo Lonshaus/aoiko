@@ -29,7 +29,7 @@ export function foldModules(
   }
   return folded;
 }
-// build では __DOC_PREVIEW__ が false に畳まれ、この分岐ごと産物から落ちる。
+// build では __DOC_PREVIEW__ が false に畳まれ、この分岐ごとビルド成果物から落ちる。
 export function previewModules(modules: Record<string, string>): Record<string, string> {
   if (!__DOC_PREVIEW__) {
     return modules;

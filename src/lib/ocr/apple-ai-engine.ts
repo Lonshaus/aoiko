@@ -1,7 +1,7 @@
-// OS 内蔵の AI の包装層。engine 選択時のみ動的 import される。
+// OS 内蔵の AI のラッパー。engine 選択時のみ動的 import される。
 //
 // 認識も構造化もネイティブ側で完結する。画像は端末外に出ない。native-engine と違い、
-// 返るのは既に構造化済みの JSON なので、receipt-text-extract の確定性抽出は通さない。
+// 返るのは既に構造化済みの JSON なので、receipt-text-extract のルールベース抽出は通さない。
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtracted, ReceiptItem } from '../../domain/ocr';
 import type { ReceiptExtractor } from '../receipt-extractor';
@@ -111,7 +111,7 @@ function parseAppleReceipt(raw: string): AppleReceipt {
 }
 
 // 環境の文字認識が先頭の T を落として返すのは receipt-text-extract.ts の recoverInvoiceNumber
-// と同じ既知の癖（実測、自信度は最大）。ここは新しい後処理層ではなく、その既知の欠落を
+// と同じ既知の癖（実測、信頼度は最大）。ここは新しい後処理層ではなく、その既知の欠落を
 // この経路でも同じように埋めるだけの修復。
 function recoverInvoiceNumber(value: string): string | undefined {
   if (INVOICE_NUMBER_WITH_T_RE.test(value)) {

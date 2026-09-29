@@ -50,7 +50,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      // Service Worker は本物の build 産物でしか検証できない（dev server は生成しない）。
+      // Service Worker は本物のビルド成果物でしか検証できない（dev server は生成しない）。
       command: 'npm run build && npm run preview -- --port 31527 --strictPort',
       url: 'http://localhost:31527',
       reuseExistingServer: !process.env.CI,

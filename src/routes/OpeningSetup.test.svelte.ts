@@ -1,4 +1,4 @@
-// 開業精霊：転用資産の少額特例判定（原始取得価額基準、所令135条）・開業日／廃業日の設定書き込み。
+// 開業設定：転用資産の少額特例判定（原始取得価額基準、所令135条）・開業日／廃業日の設定書き込み。
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { mount, unmount } from 'svelte';
 import { db } from '../db/db';
@@ -106,7 +106,7 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('開業精霊', () => {
+describe('開業設定', () => {
   test('転用資産は原始取得価額で少額特例の閾値を判定し、転用日価額を保存する', async () => {
     await db.settings.put({ key: 'filingType', value: 'blue', updatedAt: Date.now() });
     await renderOpeningSetup();
@@ -239,7 +239,7 @@ describe('開業精霊', () => {
     expect(await getSetting('businessCloseDate')).toBe('2026-09-30');
   });
 
-  test('開業精霊で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
+  test('開業設定で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
     await renderOpeningSetup();
     const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
     setValue(dateInputs[0]!, '2026-07-01', 'input');

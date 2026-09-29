@@ -159,7 +159,7 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
 
     // perform は同期。呼び元の (async) がすでにワーカースレッドなので、ここは
     // DispatchQueue.main へ乗せない（乗せると認識のあいだメインスレッドが止まる）。
-    // 対応言語は認識の水準と revision の組で変わる。読み取りと同じ設定へ揃えてから
+    // 対応言語は認識レベルと revision の組で変わる。読み取りと同じ設定へ揃えてから
     // 問わないと、実際には使えない言語を「使える」と答えてしまう。
     @objc public func isTextRecognitionAvailable(_ invoke: Invoke) {
         let request = VNRecognizeTextRequest()

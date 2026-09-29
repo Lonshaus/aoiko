@@ -1,12 +1,12 @@
 use std::{env, fs, io::BufReader, path::Path};
-// 題名欄のアイコンは実行時に差し替えるため、PNG ではなく展開済みの RGBA が要る
-// （tauri の image-png feature を足すと出荷物へ画像デコーダが 4 crate 増える）。
+// タイトルバーのアイコンは実行時に差し替えるため、PNG ではなく展開済みの RGBA が要る
+// （tauri の image-png feature を足すと配布物へ画像デコーダが 4 crate 増える）。
 // 絵は repo へ PNG で置き、ここで展開して OUT_DIR へ出す。手で作った .rgba を
 // 併置すると、絵を直したときに黙って古いままになる。
 const TITLEBAR_ICONS: [&str; 2] = ["titlebar-light", "titlebar-dark"];
 
 fn main() {
-    // build.rs は host 向けに構築されるため cfg!(target_os) は host を指す。
+    // build.rs は host 向けにビルドされるため cfg!(target_os) は host を指す。
     // 目的の環境は環境変数でしか分からない。
     let target_os = env::var("CARGO_CFG_TARGET_OS");
     if target_os.as_deref() == Ok("windows") {

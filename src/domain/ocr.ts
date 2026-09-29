@@ -14,7 +14,7 @@ export interface ReceiptExtracted {
   date: string;
   /** 店名 / 取引先 */
   vendorName: string;
-  /** 合計金額（税込）、Decimal 字串 */
+  /** 合計金額（税込）、Decimal 文字列 */
   totalAmount: string;
   /** 内訳（任意、店舗による） */
   items: ReceiptItem[];

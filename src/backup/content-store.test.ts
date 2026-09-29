@@ -27,7 +27,7 @@ describe('buildSnapshot', () => {
     const attachments = [{ id: 'a', sha256: 'f'.repeat(64), bytes: 10 }];
     const snapshot = buildSnapshot(payload, attachments);
     expect(snapshot.format).toBe(SNAPSHOT_FORMAT);
-    // 入れ物の版（format）と中身の版（payloadVersion）は別々に動く。
+    // 入れ物のバージョン（format）と中身のバージョン（payloadVersion）は別々に動く。
     expect(snapshot.payloadVersion).toBe(payload.version);
     expect(snapshot.exportedAt).toBe(payload.exportedAt);
     expect(snapshot.tables).toBe(payload.tables);
@@ -279,15 +279,15 @@ describe('snapshotsToScanForSweep', () => {
     expect(snapshotsToScanForSweep([], now, 30)).toEqual([]);
   });
 
-  test('日数の窓に入る版だけ読む', () => {
+  test('日数の保持期間に入るバージョンだけ読む', () => {
     expect(snapshotsToScanForSweep([recent, old], now, 30)).toEqual([recent]);
   });
   // 最新版の参照先を消すと、直近のバックアップが写真の欠けたものになる。
-  test('最新版は窓の外でも必ず含める', () => {
+  test('最新版は保持期間外でも必ず含める', () => {
     expect(snapshotsToScanForSweep([old], now, 30)).toEqual([old]);
   });
 
-  test('境界ちょうどは窓の中', () => {
+  test('境界ちょうどは保持期間内', () => {
     const edge =
       new Date(now - 30 * DAY)
         .toISOString()

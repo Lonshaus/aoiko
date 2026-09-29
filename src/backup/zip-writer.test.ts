@@ -120,7 +120,7 @@ describe('ZipStoreWriter（zip64）', () => {
     expect(view.getUint32(eocd + 16, true)).toBe(0xffffffff);
   });
 
-  test('zip64 EOCD が件数・目録サイズ・目録位置を持つ', () => {
+  test('zip64 EOCD が件数・セントラルディレクトリサイズ・セントラルディレクトリ位置を持つ', () => {
     const zip = build(
       [
         ['a', bytes('0123456789')],
@@ -133,7 +133,7 @@ describe('ZipStoreWriter（zip64）', () => {
     expect(Number(view.getBigUint64(at + 32, true))).toBe(2);
     const cdSize = Number(view.getBigUint64(at + 40, true));
     const cdOffset = Number(view.getBigUint64(at + 48, true));
-    // 目録は実体の直後から始まり、zip64 EOCD の直前で終わる。
+    // セントラルディレクトリは実体の直後から始まり、zip64 EOCD の直前で終わる。
     expect(cdOffset + cdSize).toBe(at);
   });
 

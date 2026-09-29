@@ -154,7 +154,7 @@ test('取り消しと承認待ちでは consume しない', async () => {
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
   assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
-  // プラグインは文字列で寄越す。ストア 側は code が文面に畳み込まれる。
+  // プラグインは文字列で寄越す。ストア側は code が文面に畳み込まれる。
   assert.equal(purchaseResultOfError('Purchase cancelled by user'), 'cancelled');
   assert.equal(
     purchaseResultOfError('[purchaseNotCompleted] - Purchase was not completed'),

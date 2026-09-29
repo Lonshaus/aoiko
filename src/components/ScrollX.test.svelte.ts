@@ -141,12 +141,12 @@ describe('ScrollX', () => {
     expect(rightHintVisible(container!)).toBe(true);
   });
 
-  test('容器だけでなく中身も観測する', async () => {
+  test('コンテナだけでなく中身も観測する', async () => {
     stubResizeObserver();
     instance = mount(ScrollX, { target: container!, props: { children: childrenSnippet } });
     flushSync();
     const el = scroller(container!);
-    // 容器の大きさが変わらず中身だけ伸びる場合は、子を観測していないと気付けない。
+    // コンテナの大きさが変わらず中身だけ伸びる場合は、子を観測していないと気付けない。
     expect(observedTargets).toContain(el);
     expect(observedTargets).toContain(el.firstElementChild);
   });

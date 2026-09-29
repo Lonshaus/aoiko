@@ -3,7 +3,7 @@
 // 添付を求めており、配布物そのものに載っていなければ満たせない。ストアの規約ではなく
 // 各ライセンス自身の要求なので、web 版・app 版のどちらにも等しく掛かる。
 //
-// 一覧の出所は package-lock.json（実際に配る版が固定されている唯一の場所）で、
+// 一覧の出所は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
 // node_modules は本文を読むためだけに使う。--check は生成し直して差分を見る。
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -22,7 +22,7 @@ const LICENSE_FILE = /^(licen[cs]e|copying)(\.(md|txt|markdown))?$/i;
 const NOTICE_FILE = /^notice(\.(md|txt))?$/i;
 
 // npm の dev フラグは「インストール時に要るか」であって「配布物へ入るか」ではない。
-// 次の 2 つは devDependencies に置かれているがコードや資産がそのまま配られるもので、
+// 次の 2 つは devDependencies に置かれているがコードやアセットがそのまま配られるもので、
 // 判定根拠は src からの import か、dist に出る成果物そのもの。
 // こちらは自身も依存も一緒に配られるため、推移的依存まで辿る。
 const SHIPPED_DEV_ROOTS = [
@@ -37,12 +37,12 @@ const SHIPPED_DEV_ROOTS = [
 // 自身のコードは配られるが、依存は配られないもの。依存は辿らない。
 const SHIPPED_DEV_ONLY = [
   // 生成物 src/paraglide/ は ./runtime.js しか import しない自己完結のコードで、
-  // 生成器側の依存（sqlite-wasm・kysely 等）は建置時にしか動かない。
+  // 生成器側の依存（sqlite-wasm・kysely 等）はビルド時にしか動かない。
   '@inlang/paraglide-js',
   // dist/workbox-*.js へ束ねられる実行時モジュール。どれが入るかは workbox の
-  // 建置設定で決まり、minify 後の成果物からは判定できない（識別子が消える）。
+  // ビルド設定で決まり、minify 後の成果物からは判定できない（識別子が消える）。
   // globPatterns で precaching、navigateFallback で routing を使っているため
-  // 実行時一式を対象にする。建置専用の workbox-build は入らない。
+  // 実行時一式を対象にする。ビルド専用の workbox-build は入らない。
   'workbox-core',
   'workbox-precaching',
   'workbox-routing',
@@ -50,7 +50,7 @@ const SHIPPED_DEV_ONLY = [
   'workbox-window',
   // CSS の @import だけで配布物へ入るため、JS の import を辿る調べ方では見つからない。
   // dist/assets/index-*.css の先頭に tailwindcss の著作権表示がそのまま出ている。
-  // どちらも建置専用の依存（oxide・CLI 等）は配られないので、依存は辿らない。
+  // どちらもビルド専用の依存（oxide・CLI 等）は配られないので、依存は辿らない。
   'tailwindcss', // src/app.css の @import。preflight・theme 層は tailwindcss 自身のコード
   'shadcn-svelte', // src/app.css が dist/tailwind.css を @import する
 ];
@@ -501,7 +501,7 @@ SOFTWARE.`;
 const EXTERNAL_ARTIFACTS = [
   {
     name: 'Tesseract OCR engine',
-    // tesseract-wasm 0.11.0 に静的リンクされた版で、上流の tesseract 自体の
+    // tesseract-wasm 0.11.0 に静的リンクされたバージョンで、上流の tesseract 自体の
     // バージョン番号は tesseract-wasm 側で公開されていない。
     version: '(バージョン不明・tesseract-wasm 0.11.0 に静的リンク)',
     license: 'Apache-2.0',

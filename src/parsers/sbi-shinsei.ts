@@ -2,11 +2,11 @@ import { parseCsv } from '../lib/csv';
 import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
 // SBI新生銀行 パワーダイレクトの入出金明細 CSV ダウンロード形式（実データ確認済）。
-// 旧「新生銀行」が 2023-01 に SBI 集団へ加入し改名した個人向け銀行。
+// 旧「新生銀行」が 2023-01 に SBI グループ入りして改名した個人向け銀行。
 // 住信SBIネット銀行（sbi-hybrid）とは別行なので注意。
 // エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）
 // ヘッダー：取引日, 摘要, 出金金額, 入金金額, 残高, メモ
-// 数値：千分位カンマあり、片側のみ取引（出金 or 入金）
+// 数値：桁区切りのカンマあり、片側のみ取引（出金 or 入金）
 // 日付：YYYY/MM/DD
 
 const DISPLAY = 'SBI新生銀行';

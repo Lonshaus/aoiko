@@ -2,7 +2,7 @@
 // 落とすための置き換えで、JS からパスを受け取る唯一の経路になる。
 //
 // 実処理は base: &Path を取る素の関数に置いてある。tauri::command は AppHandle が要り
-// テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄い殻にする。
+// テストから呼べないので、コマンド側はフォルダを解決して渡すだけの薄いラッパーにする。
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{ErrorKind, Write};

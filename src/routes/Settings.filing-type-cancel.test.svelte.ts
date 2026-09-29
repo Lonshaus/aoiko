@@ -105,7 +105,7 @@ describe('確定申告方式の切り替え確認', () => {
     await waitFor(() => radio('blue').checked);
     const form = radio('blue').closest('form');
     if (!form) {
-      throw new Error('申報者資訊のフォームが見付からない');
+      throw new Error('申告者情報のフォームが見付からない');
     }
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await waitFor(() => container!.textContent?.includes('保存しました') === true);

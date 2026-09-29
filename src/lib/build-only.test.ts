@@ -27,7 +27,7 @@ describe('stripBuildOnly', () => {
       expect(stripBuildOnly(DOC, platform)).not.toMatch(/only:/);
     }
   });
-  // 形態ごとに読む種別の集合。取り違えると反対側の文章がその形態の産物へ出る。
+  // 形態ごとに読む種別の集合。取り違えると反対側の文章がその形態のビルド成果物へ出る。
   test('形態ごとに自分の種別だけ残る', () => {
     const kept = {
       browser: ['ブラウザの説明'],
@@ -92,7 +92,7 @@ describe('stripBuildOnly', () => {
     expect(() => stripBuildOnly(doc, 'macos')).toThrow();
   });
 });
-// 剥がす側が外れると、web の産物へ反対側の文章がそのまま出る。実際に剥がれることは
+// 剥がす側が外れると、web のビルド成果物へ反対側の文章がそのまま出る。実際に剥がれることは
 // ビルドしないと確かめられないので、ここでは配線が残っているかだけ見る。
 describe('ビルドへの配線', () => {
   const config = readFileSync(resolve(process.cwd(), 'vite.config.ts'), 'utf8');
@@ -104,7 +104,7 @@ describe('ビルドへの配線', () => {
   test('フックが stripBuildOnly を通している', () => {
     expect(config).toMatch(/stripBuildOnly\(readFileSync\(/);
   });
-  // 不正な値を browser に落とすと、ネイティブ版の産物へ web 向けの文章が入る。
+  // 不正な値を browser に落とすと、ネイティブ版のビルド成果物へ web 向けの文章が入る。
   test('形態が不正なら落とさず例外にする', () => {
     expect(config).toMatch(/AOIKO_PLATFORM が不正です/);
   });

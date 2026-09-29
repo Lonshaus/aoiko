@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
-// Node の Request は undici 実装。あるブラウザ と同じ 6 形状で meta が一致することを
+// Node の Request は undici 実装。あるブラウザと同じ 6 形状で meta が一致することを
 // 実測して確かめてある（method の導出・ヘッダーの並び・content-type の補完・バイト数）。
-// アプリが実際に載る web view / web view は別実装だが、ここで固定するのは fetch 仕様の側。
+// アプリが実際に載る web view は別実装だが、ここで固定するのは fetch 仕様の側。
 function decode(frame) {
   const metaLength = new DataView(frame.buffer, frame.byteOffset).getUint32(0, true);
   return {

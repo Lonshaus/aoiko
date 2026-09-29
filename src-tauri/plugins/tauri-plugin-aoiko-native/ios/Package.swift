@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "tauri-plugin-aoiko-native",
-    // forOpeningContentTypes(UTType) は後の版で入った。
+    // forOpeningContentTypes(UTType) は後のバージョンで入った。
     platforms: [.iOS(.v14)],
     products: [
         .library(

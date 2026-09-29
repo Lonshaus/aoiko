@@ -26,7 +26,7 @@ describe('固定資産の登録に使う科目', () => {
     expect(codes).toEqual(['1510', '1511', '1512', '1513', '1514', '1516']);
   });
 
-  test('設定画面・開業精霊の科目選択は科目表から作り、存在しないコードを書いていない', () => {
+  test('設定画面・開業設定の科目選択は科目表から作り、存在しないコードを書いていない', () => {
     for (const file of ['src/routes/Settings.svelte', 'src/routes/OpeningSetup.svelte']) {
       const text = readFileSync(file, 'utf8');
       expect(text, file).toContain('DEPRECIABLE_ASSET_ACCOUNTS');

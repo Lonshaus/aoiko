@@ -78,8 +78,8 @@ export function requireColumns(
 export function optionalColumn(header: string[], name: string): number {
   return header.indexOf(name);
 }
-// カード明細 CSV はカード名・支払日等の前言行＋空行の後に表頭が来る形式が多い。
-// 必須列名をすべて含む最初の行を表頭とみなし、その行インデックスを返す。
+// カード明細 CSV はカード名・支払日等の冒頭の情報行＋空行の後にヘッダー行が来る形式が多い。
+// 必須列名をすべて含む最初の行をヘッダー行とみなし、その行インデックスを返す。
 // 見つからなければ -1。
 export function findHeaderRow(
   rows: string[][],

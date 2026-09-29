@@ -54,7 +54,7 @@ describe('normalizeDate', () => {
 });
 
 describe('stripComma', () => {
-  test('千分位カンマを除去', () => {
+  test('桁区切りのカンマを除去', () => {
     expect(stripComma('1,234,567')).toBe('1234567');
     expect(stripComma('100')).toBe('100');
   });

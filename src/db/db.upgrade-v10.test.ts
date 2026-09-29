@@ -65,7 +65,7 @@ describe('v10 upgrade：証憑写真の sha256 を埋める', () => {
     expect(rows[1]?.sha256).toBe(await sha256Hex(b));
   });
 
-  test('中身が同じなら同じ hash になる（内容定址の前提）', async () => {
+  test('中身が同じなら同じ hash になる（コンテンツアドレス方式の前提）', async () => {
     const same = bytes(7, 1024);
     await seedAtV9([
       { id: 'att-1', blob: nodeBlob(same) },

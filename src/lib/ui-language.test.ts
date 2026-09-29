@@ -29,7 +29,7 @@ describe('applyUiLanguage', () => {
   });
   // 破棄確認はネイティブのダイアログで出る。シェル側は公開 repo のメッセージカタログを
   // 読めないので、訳した文言をここから渡す。渡し忘れると日本語のまま出る。
-  it('破棄確認の文言を今の言語で橋へ渡す', () => {
+  it('破棄確認の文言を今の言語でネイティブ連携へ渡す', () => {
     const setDiscardText = vi.fn();
     vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { setDiscardText } }));
 
@@ -47,7 +47,7 @@ describe('applyUiLanguage', () => {
     expect(text.closeOk).toBe('Discard and quit');
   });
 
-  it('橋が無い環境では何もしない（ブラウザで開いたとき）', () => {
+  it('ネイティブ連携が無い環境では何もしない（ブラウザで開いたとき）', () => {
     expect(() => applyUiLanguage()).not.toThrow();
   });
 });

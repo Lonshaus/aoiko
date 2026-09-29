@@ -213,8 +213,8 @@ describe('parseBackupZip（他ツールが書いた zip・sizes をローカル�
   });
 });
 // 復元は失敗しても既存の帳簿を壊さないことが前提になっている。途中で切れたバックアップが
-// 「一部だけ読めた」状態で通ると、欠けた帳簿で全置換してしまう。中央目録を読む方式は
-// 末尾の EOCD が無いと目録の位置すら分からないため、末尾が欠けた zip は一律読めない。
+// 「一部だけ読めた」状態で通ると、欠けた帳簿で全置換してしまう。セントラルディレクトリを読む方式は
+// 末尾の EOCD が無いとセントラルディレクトリの位置すら分からないため、末尾が欠けた zip は一律読めない。
 describe('parseBackupZip（途中で切れたバックアップ）', () => {
   const payload: BackupPayload = { version: 1, exportedAt: '2026-07-08', tables: {} };
   const attachmentSize = 2000;
@@ -226,7 +226,7 @@ describe('parseBackupZip（途中で切れたバックアップ）', () => {
     ];
     return drain(buildBackupZipStream(payload, asyncAttachments(entries)));
   }
-  // EOCD（PK\x05\x06）に入っている中央目録の開始位置。添付の実体はすべてこれより前にある。
+  // EOCD（PK\x05\x06）に入っているセントラルディレクトリの開始位置。添付の実体はすべてこれより前にある。
   function centralDirectoryOffset(zip: Uint8Array): number {
     for (let i = zip.length - 22; i >= 0; i--) {
       if (zip[i] === 0x50 && zip[i + 1] === 0x4b && zip[i + 2] === 0x05 && zip[i + 3] === 0x06) {
@@ -243,9 +243,9 @@ describe('parseBackupZip（途中で切れたバックアップ）', () => {
       'zip として読み込めませんでした',
     );
   });
-  // 実体は全部揃っていても、末尾の EOCD（中央目録の位置を指す唯一の手がかり）が
-  // 無ければ目録自体を見つけられない。読めるはずのものでも安全側で拒否する。
-  test('実体が揃っていて末尾の目録だけ欠けていれば拒否する', async () => {
+  // 実体は全部揃っていても、末尾の EOCD（セントラルディレクトリの位置を指す唯一の手がかり）が
+  // 無ければセントラルディレクトリ自体を見つけられない。読めるはずのものでも安全側で拒否する。
+  test('実体が揃っていて末尾のセントラルディレクトリだけ欠けていれば拒否する', async () => {
     const zip = await completeZip();
     await expect(
       parseBackupZip(new Blob([zip.slice(0, centralDirectoryOffset(zip))])),
@@ -254,7 +254,7 @@ describe('parseBackupZip（途中で切れたバックアップ）', () => {
 });
 // data descriptor 付き zip をシグネチャ探索で読むストリーミング Unzip は、添付の
 // バイナリ中に偶然 PK\x07\x08（データ記述子のシグネチャ）と同じ4バイトが出ただけで
-// 実データの終端と誤認し、無音で切り詰める。中央目録から真のサイズを読む今の実装は
+// 実データの終端と誤認し、黙って切り詰める。セントラルディレクトリから真のサイズを読む今の実装は
 // この4バイトの中身に一切左右されない。
 function buildDataDescriptorLookalike(): Uint8Array {
   const bytes = new Uint8Array(1000 + 4 + 5000);
@@ -369,8 +369,8 @@ describe('parseBackupZip（多数エントリの取り違え防止）', () => {
   });
 });
 
-describe('parseBackupZip（中央目録そのものが途中で切れている）', () => {
-  test('目録を途中で削ると読めるべきでないものとして拒否する', async () => {
+describe('parseBackupZip（セントラルディレクトリそのものが途中で切れている）', () => {
+  test('セントラルディレクトリを途中で削ると読めるべきでないものとして拒否する', async () => {
     const payload: BackupPayload = { version: 1, exportedAt: '2026-07-08', tables: {} };
     const entries: Array<readonly [string, Uint8Array]> = [
       ['a1', new Uint8Array([1, 2, 3])],
@@ -394,9 +394,9 @@ describe('parseBackupZip（中央目録そのものが途中で切れている�
     await expect(parseBackupZip(new Blob([cut]))).rejects.toThrow('zip として読み込めませんでした');
   });
 });
-// Blob.slice は範囲外を黙って切り詰める。目録が実体より大きいサイズを主張していても
+// Blob.slice は範囲外を黙って切り詰める。セントラルディレクトリが実体より大きいサイズを主張していても
 // エラーにならず短い Blob が返るため、切り詰められた添付をそのまま復元してしまう。
-describe('parseBackupZip（目録が実体より大きいサイズを主張している）', () => {
+describe('parseBackupZip（セントラルディレクトリが実体より大きいサイズを主張している）', () => {
   test('実体が足りなければ拒否する', async () => {
     const payload: BackupPayload = { version: 1, exportedAt: '2026-07-08', tables: {} };
     const zip = await drain(
@@ -411,7 +411,7 @@ describe('parseBackupZip（目録が実体より大きいサイズを主張し�
       }
     }
     const cdStart = view.getUint32(eocdOffset + 16, true);
-    // 先頭レコードの圧縮後サイズ（中央目録レコード先頭 +20）をファイル長より大きくする
+    // 先頭レコードの圧縮後サイズ（セントラルディレクトリレコード先頭 +20）をファイル長より大きくする
     const tampered = new Uint8Array(zip);
     new DataView(tampered.buffer).setUint32(cdStart + 20, zip.length + 1000, true);
     await expect(parseBackupZip(new Blob([tampered]))).rejects.toThrow(
@@ -419,8 +419,8 @@ describe('parseBackupZip（目録が実体より大きいサイズを主張し�
     );
   });
 });
-// 中央目録の CRC32 と実体から計算した CRC32 の照合（#281）。ビット単位の破損は
-// サイズも目録も無傷なまま起きるため、照合しない限り壊れたまま復元されてしまう。
+// セントラルディレクトリの CRC32 と実体から計算した CRC32 の照合（#281）。ビット単位の破損は
+// サイズもセントラルディレクトリも無傷なまま起きるため、照合しない限り壊れたまま復元されてしまう。
 describe('parseBackupZip（CRC32 照合）', () => {
   const payload: BackupPayload = {
     version: 1,
@@ -437,7 +437,7 @@ describe('parseBackupZip（CRC32 照合）', () => {
     }
     throw new Error('EOCD が見つかりません');
   }
-  // 実体の開始位置は中央目録のローカルヘッダオフセットから引く（実装と同じ経路をたどる）。
+  // 実体の開始位置はセントラルディレクトリのローカルヘッダオフセットから引く（実装と同じ経路をたどる）。
   function entryDataOffset(zip: Uint8Array, name: string): number {
     const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
     const eocd = eocdOffsetOf(zip);
@@ -456,7 +456,7 @@ describe('parseBackupZip（CRC32 照合）', () => {
       }
       pos = pos + 46 + nameLen + extraLen + commentLen;
     }
-    throw new Error(`${name} が目録に見つかりません`);
+    throw new Error(`${name} がセントラルディレクトリに見つかりません`);
   }
 
   function flipBits(zip: Uint8Array, offsets: readonly number[]): Uint8Array<ArrayBuffer> {
@@ -538,9 +538,9 @@ describe('parseBackupZip（CRC32 照合）', () => {
     expect(parsed.payload).toEqual(payload);
     expect(parsed.corruptAttachmentNames).toEqual(['attachments/a1', 'attachments/a3']);
   });
-  // 目録が実体より小さいサイズを主張していると Blob.slice は素直に短い実体を返す。
+  // セントラルディレクトリが実体より小さいサイズを主張していると Blob.slice は素直に短い実体を返す。
   // サイズ検査だけでは通ってしまうが、切り詰められた実体は CRC が合わない（#281）。
-  test('目録のサイズが実体より小さく書き換わっていれば添付として報告する', async () => {
+  test('セントラルディレクトリのサイズが実体より小さく書き換わっていれば添付として報告する', async () => {
     const zip = await drain(
       buildBackupZipStream(payload, asyncAttachments([['a1', new Uint8Array(500).fill(7)]])),
     );
