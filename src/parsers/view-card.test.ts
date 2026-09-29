@@ -11,7 +11,7 @@ describe('viewCardParser', () => {
     expect(viewCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips前言とカード会員行, parses明細', () => {
+  test('skips冒頭の情報行とカード会員行, parses明細', () => {
     const r = viewCardParser.parse(sample);
     expect(r).toHaveLength(4);
     expect(r[0]).toMatchObject({

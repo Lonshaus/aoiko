@@ -185,7 +185,7 @@ fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> cra
         .collect();
     crate::RecognizedText::from_lines(lines)
 }
-// 関数が生えていることと読めることは別。対応言語は OS の版や導入内容で変わる。
+// 関数が生えていることと読めることは別。対応言語は OS のバージョンや導入内容で変わる。
 #[cfg(target_os = "macos")]
 pub(crate) fn is_text_recognition_available() -> bool {
     macos::supports_japanese()
@@ -278,7 +278,7 @@ mod windows_ocr {
                     y: f64::from(r.Y) / height,
                     width: f64::from(r.Width) / width,
                     height: f64::from(r.Height) / height,
-                    // このエンジンは語ごとの自信度も次の候補も返さない。
+                    // このエンジンは語ごとの信頼度も次の候補も返さない。
                     confidence: None,
                     alternates: Vec::new(),
                     // 向きは `OcrResult.TextAngle` に紙面で 1 つだけ乗る。語ごとには無い。
@@ -466,7 +466,7 @@ mod macos {
         }
     }
 
-    // 対応言語は認識の水準と revision の組で変わる。読み取りと同じ設定に揃えてから
+    // 対応言語は認識レベルと revision の組で変わる。読み取りと同じ設定に揃えてから
     // 問わないと、実際には使えない言語を「使える」と答えてしまう。
     pub(super) fn supports_japanese() -> bool {
         let request = VNRecognizeTextRequest::new();

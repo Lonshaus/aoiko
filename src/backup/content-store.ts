@@ -12,8 +12,8 @@ export interface SnapshotAttachmentRef {
 
 export interface Snapshot {
   format: number;
-  // 中身（tables）の版。format は入れ物の版で、別々に動く。これを落とすと復元時に
-  // BackupPayload の版を検査できず、IncompatibleBackupError の防壁が効かなくなる。
+  // 中身（tables）のバージョン。format は入れ物のバージョンで、別々に動く。これを落とすと復元時に
+  // BackupPayload のバージョンを検査できず、IncompatibleBackupError の防壁が効かなくなる。
   payloadVersion: number;
   exportedAt: string;
   tables: Record<string, unknown[]>;
@@ -177,12 +177,12 @@ export function snapshotTimeMs(fileName: string): number | null {
 /**
  * 実体の掃除で「参照されている」を数えるために読むべきスナップショット。
  *
- * retentionDays 以内の版だけ読めば足りる。その範囲のどれからも参照されていない
+ * retentionDays 以内のバージョンだけ読めば足りる。その範囲のどれからも参照されていない
  * 実体は、少なくとも retentionDays のあいだ参照されていないことになるため。
  * 判定に「いつ参照されなくなったか」の記録は要らず、フォルダに状態ファイルを
  * 増やさずに済む。
  *
- * 最新版だけは年齢に関わらず必ず含める。復元に使われるのはその版なので、参照先を
+ * 最新版だけは年齢に関わらず必ず含める。復元に使われるのはそのバージョンなので、参照先を
  * 消してしまうと直近のバックアップが写真の欠けたものになる。
  */
 export function snapshotsToScanForSweep(

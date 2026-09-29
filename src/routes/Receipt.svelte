@@ -96,7 +96,7 @@
     if (resolved !== stored) {
       await setSetting('receiptRuleEngine', resolved);
     }
-    // 解析ボタンの活殺はこの値で決まる。確定した engine を入れ終えてから公開する。
+    // 解析ボタンの有効／無効はこの値で決まる。確定した engine を入れ終えてから公開する。
     availableRuleEngines = engines;
   });
 
@@ -193,7 +193,7 @@
     error = '';
     try {
       const extractor = await createReceiptExtractor(receiptMethod, receiptRuleEngine);
-      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI は文脈窓が理由で、
+      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI はコンテキストウィンドウが理由で、
       // 端末内かどうかとは別の軸になる。
       const source = extractor.downscale ? await downscaleForUpload(file) : file;
       const image = await fileToBase64(source);
@@ -298,7 +298,7 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
-      // OCR に使った原本画像を証憑として保存。分錄と同一 transaction で
+      // OCR に使った原本画像を証憑として保存。仕訳と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
@@ -385,7 +385,7 @@
   <header>
     <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      <!-- OS 内蔵の文字認識は原生版にしか無いエンジンなので、説明も同じ旗で分ける。 -->
+      <!-- OS 内蔵の文字認識はネイティブ版にしか無いエンジンなので、説明も同じフラグで分ける。 -->
       {m.receipt_subtitle()}
     </p>
   </header>

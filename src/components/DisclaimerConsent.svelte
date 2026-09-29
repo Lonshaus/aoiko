@@ -23,7 +23,7 @@
   }
 </script>
 
-<!-- viewport-fit=cover なので inset-0 は安全領域まで覆う。避けないと端末のステータスバーに隠れる（#457） -->
+<!-- viewport-fit=cover なので inset-0 はセーフエリアまで覆う。避けないと端末のステータスバーに隠れる（#457） -->
 <div
   class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
   role="dialog"
@@ -60,8 +60,8 @@
               : m.disclaimer_bullet_llm_html()}
         </li>
         <li>
-          <!-- 文言カタログは条件を問わず全部が模組へ組まれる。実行時だけの判定にすると、
-               選ばれない側の文字列まで産物に残る（購入画面と同じ理由で build 時に畳む）。 -->
+          <!-- 文言カタログは条件を問わず全部がモジュールへ組まれる。実行時だけの判定にすると、
+               選ばれない側の文字列までビルド成果物に残る（購入画面と同じ理由で build 時に畳む）。 -->
           {@html __NATIVE__ && nativeBridge()
             ? m.disclaimer_bullet_storage_html_native()
             : m.disclaimer_bullet_storage_html()}

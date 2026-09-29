@@ -21,7 +21,7 @@ if (!existsSync(dest)) {
 }
 
 // 1. 最低 OS バージョン。tauri ios init は既存の project.yml を上書きしないため、
-// tauri.conf.json だけ直しても古い値のまま建ってしまう。黙って通すと、宣言より低い
+// tauri.conf.json だけ直しても古い値のままビルドされてしまう。黙って通すと、宣言より低い
 // 端末へ入るビルドが出来上がる。
 const conf = JSON.parse(
   readFileSync(new URL('../src-tauri/tauri.conf.json', import.meta.url), 'utf8'),
@@ -58,7 +58,7 @@ if (want) {
 
 // 2. Info.ios.plist の項目。tauri ios init はこのファイルを読まない（2026-08-22 実測。
 // init 直後の生成物には 1 項目も入っていなかった）。アイコンと同じで、こちらを出所として
-// 毎回入れ直す。カメラの利用目的が抜けたまま建った版は、審査中に選択ボタンを押した瞬間
+// 毎回入れ直す。カメラの利用目的が抜けたままビルドされたバージョンは、審査中に選択ボタンを押した瞬間
 // OS に終了させられて返ってきた。
 const iosPlist = new URL('../src-tauri/Info.ios.plist', import.meta.url).pathname;
 const genPlist = join(genRoot, `${genName}_iOS/Info.plist`);

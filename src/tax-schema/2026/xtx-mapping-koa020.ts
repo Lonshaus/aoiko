@@ -176,7 +176,7 @@ export interface HomeWorkerAdjustment {
 }
 // 措法27条・措令18条の2の家内労働者等の必要経費の特例。事業所得・雑所得を同時に持つ場合の
 // 按分（同条2項2号）を反映するため一箇所で計算し、事業所得・雑所得・第一表雑所得欄・
-// KOA210/220/110の各区塊で共有する（xtx.ts の personalDeductionsToCtx と同じ「一箇所で計算」方針）。
+// KOA210/220/110の各様式で共有する（xtx.ts の personalDeductionsToCtx と同じ「一箇所で計算」方針）。
 export function homeWorkerAdjustment(ctx: IncomeCtx): HomeWorkerAdjustment {
   const pd = ctx.personalDeductions;
   const businessActual = businessActualExpenseBeforeHomeWorker(ctx);
@@ -329,7 +329,7 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
   return combined.realEstateOffsettable;
 }
 // 事業所得＋不動産所得（損益通算可能分）＋給与所得＋雑所得（B7）。所得控除の計算
-// （基礎控除の級距・配偶者控除の判定等）はこちらを使う。totalIncomeAmount（事業所得のみ）は
+// （基礎控除の区分・配偶者控除の判定等）はこちらを使う。totalIncomeAmount（事業所得のみ）は
 // 白色申告の所得補正や IncomeDeductions.svelte の「事業所得」表示にそのまま使うため、
 // 意味を変えず残す。
 export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {

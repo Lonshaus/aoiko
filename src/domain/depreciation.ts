@@ -13,7 +13,7 @@ import { oldStraightLineRate } from './business-opening';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 // 減価償却の計算と仕訳生成。
-// 直接法（straight-line）と 200% 定率法（declining-balance）に加え、
+// 定額法（straight-line）と 200% 定率法（declining-balance）に加え、
 // 少額減価償却資産の特例（措法28の2、small-asset-special）に対応。
 // 取得月から決算月まで月按分、償却可能限度額は所令134条（既定は 1 円残し、無形固定資産・坑道は全額）。
 // 200% 定率法は平成24年4月1日以後取得分の標準。改定償却率による均等償却切替も実装。
@@ -784,7 +784,7 @@ interface YearEndDepreciationResult {
   smallAssetIneligible: number;
 }
 
-// 全年度分の開業仕訳のうち最も古い日付を開業日とみなす。精霊を使っていなければ undefined（全年扱い）。
+// 全年度分の開業仕訳のうち最も古い日付を開業日とみなす。開業設定を使っていなければ undefined（全年扱い）。
 async function earliestOpeningDate(): Promise<string | undefined> {
   const openings = await db.journalEntries
     .filter((e) => e.source === 'opening' && countsTowardTotals(e))

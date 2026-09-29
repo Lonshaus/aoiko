@@ -115,7 +115,7 @@
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
   let bs = $state<BSReport | null>(null);
-  // 不動産所得等の科目が存在する年度のみ、PL(事業)とBS(全帳簿合算)の口径差を注記する
+  // 不動産所得等の科目が存在する年度のみ、PL(事業)とBS(全帳簿合算)の集計範囲の違いを注記する
   let hasRealEstate = $state(false);
   let inventoryValuation = $state<InventoryValuation | null>(null);
   let monthlyPL = $state<MonthlyPLReport | null>(null);
@@ -222,7 +222,7 @@
       budgetSaving = false;
     }
   }
-  // 現金流予測。売掛金/買掛金子帳は年度非依存（全件）で持つため、専用の liveQuery で購読する。
+  // 資金繰り予測。売掛金・買掛金の補助簿は年度非依存（全件）で持つため、専用の liveQuery で購読する。
   let arApEntries = $state<ArApEntry[]>([]);
   let newArApType = $state<ArApType>('receivable');
   let newArApDescription = $state('');
@@ -602,10 +602,10 @@
     return { filer, missing };
   }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
-  // 令和7年分（NENBUN=7）で行う。封包構造は年分非依存（同一コード生成）。
+  // 令和7年分（NENBUN=7）で行う。.xtx のファイル構造は年分に依存しない（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
-    // 対象年度をその場再計算して封包する（消費税側の processYear 方式と統一）
+    // 対象年度をその場再計算して .xtx を組み立てる（消費税側の processYear 方式と統一）
     const filingYear = year;
     const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
@@ -637,7 +637,7 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
-    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業精霊が書き込む）。
+    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業設定が書き込む）。
     const businessDates = await loadBusinessDates();
     const xtxCtx = {
       year: exportYear,

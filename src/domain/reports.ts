@@ -203,7 +203,7 @@ export interface BSReport {
   totalLiabilitiesAndEquity: string;
   balanced: boolean;
 }
-// 訂正は成対排除方式：原仕訳（status='reversed'）と訂正仕訳（originalEntryId 持ち）を
+// 訂正はペア除外方式：原仕訳（status='reversed'）と訂正仕訳（originalEntryId 持ち）を
 // 両方とも集計から除外する（countsTowardTotals）。片方だけ算入すると正味が −1×原仕訳 になり、
 // B/S・繰越に幻の残高が生じるため、必ずペアで除外すること。
 // 期締め後の訂正処理（修正申告ロジック）は reportSnapshots の filed フラグ機構で対応予定。

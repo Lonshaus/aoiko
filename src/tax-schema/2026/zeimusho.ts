@@ -1,5 +1,5 @@
 // 税務署コード（5桁）と署名。.xtx の IT部 ZEIMUSHO/gen:zeimusho_CD は zeimusho.xsd の
-// enumeration（有効コード 557 件）に限定される。コードは権威（xsd 由来）、署名は
+// enumeration（有効コード 557 件）に限定される。コードは xsd を正とし、署名は
 // 表示・検索用の補助（zeimusho_NM は任意で妥当性に影響しない）。
 import { ZEIMUSHO_MASTER, type ZeimushoEntry } from './zeimusho-master.generated';
 

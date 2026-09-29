@@ -422,7 +422,7 @@ pub(crate) fn backup_open<R: Runtime>(app: AppHandle<R>, rel_path: String) -> Re
         app.state::<OpenFiles>().open(&base, &rel_path)
     }
 }
-// チャンクは殻を被せず生バイトで受ける。JSON へ載せると 1 バイトが数字 1 個へ膨らみ、
+// チャンクはラッパーを被せず生バイトで受ける。JSON へ載せると 1 バイトが数字 1 個へ膨らみ、
 // 行き先の rid だけをヘッダーで渡す。
 //
 // 生バイトが届かない経路もある。custom protocol IPC が一度でも失敗すると
@@ -714,7 +714,7 @@ mod tests {
         );
     }
     // 分類の @Generable 型が配列プロパティを持たない単一オブジェクトである退行を検知する
-    // （配列出力はコンテキスト窓を埋め切る暴走の原因だった＝実測済み）。
+    // （配列出力はコンテキストウィンドウを埋め切る暴走の原因だった＝実測済み）。
     #[test]
     fn classify_answer_is_a_single_object_with_no_array_property() {
         let source = include_str!("../ios/Sources/AoikoNativePlugin/AppleIntelligence.swift");

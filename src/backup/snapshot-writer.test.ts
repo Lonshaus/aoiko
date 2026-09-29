@@ -158,7 +158,7 @@ describe('writeLooseBackup', () => {
     await expect(
       writeLooseBackup(adapter, payload, sources(att('att1', '../../etc/passwd', 1))),
     ).rejects.toThrow(RangeError);
-    // 弾いたならスナップショットも書かれていない（参照先の無い版を残さない）。
+    // 弾いたならスナップショットも書かれていない（参照先の無いバージョンを残さない）。
     expect([...files.keys()]).toEqual([]);
   });
 });
@@ -185,7 +185,7 @@ describe('pruneSnapshots', () => {
     expect(await pruneSnapshots(adapter, 0)).toEqual([]);
     expect(removed).toEqual([]);
   });
-  // blob は内容定址で、消したスナップショット以外も参照しうる。ここでは触らない。
+  // blob はコンテンツアドレス方式で、消したスナップショット以外も参照しうる。ここでは触らない。
   test('blob には触らない', async () => {
     const { adapter, removed } = fakeAdapter({
       [SNAPSHOT_DIR]: ['2026-08-07T120000Z.json', '2026-08-09T120000Z.json'],

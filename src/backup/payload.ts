@@ -96,7 +96,7 @@ export async function* iterateAttachmentBlobs(): AsyncGenerator<readonly [string
     yield [id, new Uint8Array(await row.blob.arrayBuffer())];
   }
 }
-// 内容定址バックアップ用。id・SHA-256・大きさ・実体を 1 件ずつ生成する。
+// コンテンツアドレス方式バックアップ用。id・SHA-256・大きさ・実体を 1 件ずつ生成する。
 // zip 同梱用の iterateAttachmentBlobs と分けてあるのは、あちらが id をファイル名に使う
 // のに対し、こちらは SHA-256 をファイル名に使うため（同じ写真は 1 つしか置かない）。
 //

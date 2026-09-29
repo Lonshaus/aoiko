@@ -13,10 +13,10 @@ export interface SplittableLine {
   side: 'debit' | 'credit';
   accountCode: string;
   subAccountId: string;
-  amount: string; // Decimal 字串、円単位
+  amount: string; // Decimal 文字列、円単位
   taxRate: number;
   taxIncluded: boolean;
-  homeOfficeRatio: string; // '' = 適用しない、'0' .. '1' の Decimal 字串
+  homeOfficeRatio: string; // '' = 適用しない、'0' .. '1' の Decimal 文字列
   taxCategory?: '' | TaxCategory;
   inputUsageCategory?: '' | InputUsageCategory;
   itemId?: string;

@@ -13,7 +13,7 @@ async function addEntry(page: import('@playwright/test').Page, description: stri
   await page.getByRole('button', { name: /仕訳を追加/ }).click();
 }
 // 申告済みの年度へ書き込む前に警告が出て、続行を選べば書き込まれること（#339）。
-// 硬く擋がないのが仕様なので、「出る」だけでなく「続行できる」ところまで確認する。
+// 強制的には止めないのが仕様なので、「出る」だけでなく「続行できる」ところまで確認する。
 test('申告済み年度への記帳は警告後に続行できる', async ({ page }) => {
   await page.goto('/');
   await acceptDisclaimer(page);

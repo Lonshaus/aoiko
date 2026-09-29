@@ -34,11 +34,11 @@ export type NativeBridge = {
   // 機種変更・再インストール後に、購入済みの非消耗型を取り戻す。
   // 戻り値は復元できた品目。消耗型（スタンプ）は対象外。
   restoreIapPurchases?(): Promise<IapProductKind[]>;
-  // OS 内蔵の文字認識。行に加えて 1 単語ごとの座標・自信度・次の候補まで返す。
+  // OS 内蔵の文字認識。行に加えて 1 単語ごとの座標・信頼度・次の候補まで返す。
   // 構造化は receipt-text-extract が行う。読めなければ拒否する。
   recognizeText?(base64: string): Promise<OcrLayout>;
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
-  // OS の版や導入内容で変わる。
+  // OS のバージョンや導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
   // 撮影の入口を出してよいか。備えていない環境では生えない。
   isCameraAvailable?(): Promise<boolean>;

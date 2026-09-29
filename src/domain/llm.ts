@@ -291,7 +291,7 @@ export async function listGeminiModels(apiKey: string): Promise<string[]> {
     .sort();
 }
 // 一覧から既定を 1 つ選ぶ。preview / exp は予告なく消えるので避け、OCR と分類には
-// pro の能力が要らないため flash を優先する。版番号は数値として比べる（10 と 9 の順序）。
+// pro の能力が要らないため flash を優先する。バージョン番号は数値として比べる（10 と 9 の順序）。
 export function pickDefaultGeminiModel(models: string[]): string | undefined {
   const stable = models.filter((id) => !/preview|exp/i.test(id));
   const version = (id: string): number => Number(/gemini-([\d.]+)/i.exec(id)?.[1] ?? 0);

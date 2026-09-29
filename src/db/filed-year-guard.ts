@@ -5,7 +5,7 @@ import type { JournalEntry, ReportSnapshot } from './types';
 // 「どの年度で止まったか」を利用者へ出せるようにするため。
 //
 // domain ではなくここに置く。db.ts がこの module を読み込むため、domain 側に置くと
-// db → guard → domain → db の輪ができる。domain/year-lock.ts が再輸出する。
+// db → guard → domain → db の循環参照になる。domain/year-lock.ts が再エクスポートする。
 export class FiledYearError extends Error {
   readonly years: number[];
   constructor(years: number[]) {
@@ -22,10 +22,10 @@ export class FiledYearError extends Error {
 // db.journalEntries.add を呼ぶ経路や、これから増える入口には効かず、足し忘れても
 // 気付けない。dbcore middleware なら書き込みは全部ここを通る。
 //
-// 申告済み年度の集合は多くても数個なので記憶に載せる。書き込みのたびに DB を引かずに
+// 申告済み年度の集合は多くても数個なのでメモリ上のキャッシュに載せる。書き込みのたびに DB を引かずに
 // 済み、書込トランザクションの中から reportSnapshots を読む必要も無い。
 const filedYears = new Set<number>();
-// 「この取引は画面の確認を通っている」の印。全域の旗にすると、確認したのとは別の
+// 「この取引は画面の確認を通っている」の印。グローバルなフラグにすると、確認したのとは別の
 // 書き込みが同時に走ったときに巻き込んで通してしまう。取引に付ければ巻き込まない。
 const ALLOW_MARK = '__aoikoAllowFiledYear';
 
@@ -120,8 +120,8 @@ function blockedYears(values: readonly unknown[]): number[] {
  * 行う決まりで、確定仕訳を物理削除する経路はそもそも無い（#332）。全消し（clear）は
  * 復元だけが行い、そこは印を付けて通す。
  *
- * reportSnapshots：申告の記録そのものなので、書き込みを拾って記憶を更新する。これで
- * 「申告した直後の書き込み」が古い記憶で素通りすることを防ぐ。
+ * reportSnapshots：申告の記録そのものなので、書き込みを拾ってメモリ上のキャッシュを更新する。これで
+ * 「申告した直後の書き込み」が古いキャッシュで素通りすることを防ぐ。
  */
 export function installFiledYearGuard(db: Dexie): void {
   db.use({
@@ -156,12 +156,12 @@ export function installFiledYearGuard(db: Dexie): void {
       };
     },
   });
-  // 開くたびに読み直す。ready は最初の取引が完了する前に走るので、門が空の記憶で
+  // 開くたびに読み直す。ready は最初の取引が完了する前に走るので、門が空のキャッシュで
   // 判定してしまう隙間は空かない。
   //
   // 第 3 引数の sticky が要る。Dexie の ready は既定で一度発火したら購読が外れるため、
   // 付けないと db.delete() 後の開き直しで読み直されず、前のデータベースの年度が
-  // 記憶に residual として残る（復元後や、テストのように張り直す経路で必ず起きる）。
+  // メモリ上のキャッシュに residual として残る（復元後や、テストのように張り直す経路で必ず起きる）。
   db.on(
     'ready',
     async () => {

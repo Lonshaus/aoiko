@@ -141,7 +141,7 @@ describe('pickDefaultGeminiModel', () => {
     ).toBe('gemini-2.0-flash');
   });
 
-  test('版番号は数値として比較する（10 が 9 に勝つ）', () => {
+  test('バージョン番号は数値として比較する（10 が 9 に勝つ）', () => {
     expect(pickDefaultGeminiModel(['gemini-9.0-flash', 'gemini-10.0-flash'])).toBe(
       'gemini-10.0-flash',
     );

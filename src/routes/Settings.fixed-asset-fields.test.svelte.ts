@@ -256,7 +256,7 @@ describe('少額特例落選資産の画面での扱い', () => {
     expect(stored[0]?.decliningBalanceElected).toBe(true);
   });
 
-  test('落選資産の処分は定額法の累計償却額で1520を借記する（修正前は390,000）', async () => {
+  test('落選資産の処分は定額法の累計償却額で1520を借方に計上する（修正前は390,000）', async () => {
     const { generateYearEndDepreciation } = await import('../domain/depreciation');
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     await db.fixedAssets.bulkAdd(

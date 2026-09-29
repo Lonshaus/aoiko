@@ -113,7 +113,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '表：僅限支援的裝置 只限 windows',
-      pattern: /僅限支援的裝置。每次打開 `Receipt` 畫面都會自動判定/,
+      pattern: /僅限支援的裝置。每次開啟 `Receipt` 畫面都會自動判定/,
       only: ['windows'],
     },
     {
@@ -123,7 +123,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '本文：windows 在作業系統加裝日文文字辨識後就能選到',
-      pattern: /在作業系統那邊加裝日文的文字辨識後重新打開就能選到/,
+      pattern: /在作業系統那邊加裝日文的文字辨識後重新開啟就能選到/,
       only: ['windows'],
     },
     {
@@ -313,7 +313,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '7-C：Apple Intelligence 只限 apple',
-      pattern: /### 7-C\. Apple Intelligence（限支援機種）/,
+      pattern: /### 7-C\. Apple Intelligence（限支援機型）/,
       only: APPLE,
     },
   ],
@@ -364,8 +364,8 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/11-backup_zh-TW.md': [
     {
-      name: 'macos / windows 會開啟選擇存放位置的對話框',
-      pattern: /會開啟選擇存放位置的對話框/,
+      name: 'macos / windows 會開啟選擇儲存位置的對話框',
+      pattern: /會開啟選擇儲存位置的對話框/,
       only: ['macos', 'windows'],
     },
     {
@@ -427,8 +427,8 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/10-xtx-export_zh-TW.md': [
     {
-      name: 'macos / windows 會開啟選擇保存位置的對話框',
-      pattern: /會開啟選擇保存位置的對話框/,
+      name: 'macos / windows 會開啟選擇儲存位置的對話框',
+      pattern: /會開啟選擇儲存位置的對話框/,
       only: ['macos', 'windows'],
     },
     {
@@ -483,8 +483,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['macos', 'windows'],
     },
     {
-      name: 'ios 從分享選單存檔',
-      pattern: /iPad・iPhone 則從分享選單存檔/,
+      name: 'ios 從分享選單儲存',
+      pattern: /iPad・iPhone 則從分享選單儲存/,
       only: ['ios'],
     },
     {
@@ -748,7 +748,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     base: '01-setup',
     headingSlug: '7-c-apple-intelligence対応機種のみ',
     headingSlugEn: '7-c-apple-intelligence-supported-devices-only',
-    headingSlugZhTw: '7-c-apple-intelligence限支援機種',
+    headingSlugZhTw: '7-c-apple-intelligence限支援機型',
     kinds: ['apple'],
     occurrence: 0,
     reason:
@@ -840,9 +840,9 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジンのときの警告バナー',
+    headingSlug: '内蔵のルールベースエンジンのときの警告バナー',
     headingSlugEn: 'built-in-rule-engine-warning-banner',
-    headingSlugZhTw: '內建規則引擎時的警告-banner',
+    headingSlugZhTw: '內建規則引擎時的警告橫幅',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 3,
     reason:
@@ -872,7 +872,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジンos-内蔵の文字認識',
+    headingSlug: '内蔵のルールベースエンジンos-内蔵の文字認識',
     headingSlugEn: 'built-in-rule-engine-the-oss-built-in-text-recognition',
     headingSlugZhTw: '內建規則引擎作業系統內建的文字辨識',
     kinds: ['apple', 'windows', 'android'],

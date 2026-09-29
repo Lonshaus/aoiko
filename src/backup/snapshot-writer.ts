@@ -8,7 +8,7 @@ import {
   type SnapshotAttachmentRef,
 } from './content-store';
 import type { BackupAdapter, BackupPayload } from './types';
-// 同期フォルダへ「散ファイル」で書き出す側。zip を作り直さず、変わった分だけ書く。
+// 同期フォルダへ「個別のファイル」で書き出す側。zip を作り直さず、変わった分だけ書く。
 //
 // まだ backup.svelte.ts からは呼んでいない。書き出しだけ先に切り替えると、
 // 書けたものを読み戻す経路が無い状態（S6 未着手）になるため、切替は復元と同時に行う。
@@ -38,7 +38,7 @@ function streamOf(bytes: Uint8Array): ReadableStream<Uint8Array> {
  * blob を先に、スナップショットを最後に書く。
  *
  * 順序に意味があるのは「揃っている確率を上げる」ためだけで、正しさを担保しているのは
- * 内容定址そのもの。同期ツールが上げる順序は制御できないので、復元側は参照する blob が
+ * コンテンツアドレス方式そのもの。同期ツールが上げる順序は制御できないので、復元側は参照する blob が
  * 全て揃っているスナップショットを選ぶ（content-store.ts の missingBlobs）。
  *
  * 既に保存先にある blob は書き直さない。SHA-256 が同じなら中身も同じで、書き直しても
@@ -75,7 +75,7 @@ export async function writeLooseBackup(
 /**
  * 古いスナップショットを消す。blob には触らない。
  *
- * 内容定址なので、消したスナップショットが参照していた blob も他が参照している限り
+ * コンテンツアドレス方式なので、消したスナップショットが参照していた blob も他が参照している限り
  * 生きている必要がある。参照されなくなった blob の削除は既定で行わない（決定 3）。
  */
 export async function pruneSnapshots(

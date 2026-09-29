@@ -120,12 +120,12 @@ describe('非業務期間の月数計算（応当日ベース）', () => {
     expect(result.nonBusinessDepreciation.toString()).toBe('0');
   });
 
-  it('跨年の6か月境界の手前は0年：2025-10-15→2026-04-14は5か月', () => {
+  it('年をまたぐ6か月境界の手前は0年：2025-10-15→2026-04-14は5か月', () => {
     const result = computeConvertedAssetBasis('2025-10-15', '2026-04-14', cost, life);
     expect(result.nonBusinessDepreciation.toString()).toBe('0');
   });
 
-  it('跨年の6か月境界ちょうどは1年：2025-10-15→2026-04-15', () => {
+  it('年をまたぐ6か月境界ちょうどは1年：2025-10-15→2026-04-15', () => {
     const result = computeConvertedAssetBasis('2025-10-15', '2026-04-15', cost, life);
     expect(result.nonBusinessDepreciation.toString()).toBe('44820');
   });
@@ -316,7 +316,7 @@ describe('removeOpeningEntries', () => {
     expect(await removeOpeningEntries(2026)).toEqual({ removed: false });
   });
 
-  it('開業仕訳を打ち消し、精霊が登録した資産を消す', async () => {
+  it('開業仕訳を打ち消し、開業設定が登録した資産を消す', async () => {
     await generateOpeningEntries(input);
     const created = await db.journalEntries.where('year').equals(2026).toArray();
 

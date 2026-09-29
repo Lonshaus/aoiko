@@ -15,7 +15,7 @@ describe('createNativeReceiptExtractor', () => {
     expect(extractor.destinationHost).toBe('');
   });
 
-  test('返ってきた版面を確定性抽出へ渡す', async () => {
+  test('返ってきたレイアウトをルールベース抽出へ渡す', async () => {
     const recognizeText = vi.fn(async () => layout());
     vi.stubGlobal('window', { __aoikoNative: { recognizeText } });
     const result = await createNativeReceiptExtractor().extract(IMAGE);
@@ -25,7 +25,7 @@ describe('createNativeReceiptExtractor', () => {
     expect(result.invoiceNumber).toBe('T1234567890123');
   });
   // 座標を素通しにすると店名が空のまま返る。ここが繋がっているかを見る。
-  test('版面から店名も取り出す', async () => {
+  test('レイアウトから店名も取り出す', async () => {
     vi.stubGlobal('window', { __aoikoNative: { recognizeText: async () => layout() } });
     const result = await createNativeReceiptExtractor().extract(IMAGE);
     expect(result.vendorName).toBe('あおい商店');

@@ -30,7 +30,7 @@ const CONCURRENCY_SWIFT: &str = "ios/Sources/AoikoNativePlugin/Concurrency.swift
 const CLASSIFY_LOOP_SWIFT: &str = "ios/Sources/AoikoNativePlugin/ClassifyLoop.swift";
 
 fn main() {
-    // build.rs は host 向けに構築されるため cfg!(target_os) は host を指す。
+    // build.rs は host 向けにビルドされるため cfg!(target_os) は host を指す。
     // 目的の環境は環境変数でしか分からない（desktop.rs 冒頭のコメントと同じ理由）。
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         build_apple_intelligence_lib();

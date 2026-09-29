@@ -132,7 +132,7 @@ describe('NativeFolderBackupAdapter.backup', () => {
     ).rejects.toThrow('バックアップフォルダが未設定です');
     expect(api.backupWrite).not.toHaveBeenCalled();
   });
-  // 内容定址の版面では書き出し先が全部サブフォルダ付きになる。ここで弾くと
+  // コンテンツアドレス方式のフォルダ構成では書き出し先が全部サブフォルダ付きになる。ここで弾くと
   // wrapper 版のバックアップが 1 件も通らない（#430）。
   test('サブフォルダ付きのパスをそのまま wrapper へ渡す', async () => {
     const api = stubNative();
@@ -188,7 +188,7 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(await adapterWith(CONFIGURED).adapter.list()).toEqual(['aoiko-ledger-2026-07-28.zip']);
     expect(api.backupList).toHaveBeenCalledWith('tok');
   });
-  // 汰換処理（pruneOldBackups）から呼ばれる。未設定を例外にすると、
+  // 古い世代の整理処理（pruneOldBackups）から呼ばれる。未設定を例外にすると、
   // 成功したバックアップが失敗として表示されてしまう。
   test('フォルダ未設定でも list は空配列で返す', async () => {
     stubNative();
@@ -228,7 +228,7 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(api.backupListDir).toHaveBeenCalledWith('tok', 'snapshots');
     expect(api.backupList).not.toHaveBeenCalled();
   });
-  // 空配列で返すと「フォルダが空」と区別できず、汰換や GC が誤動作する。
+  // 空配列で返すと「フォルダが空」と区別できず、古い世代の整理や GC が誤動作する。
   test('backupListDir が無い wrapper では空配列ではなく例外', async () => {
     stubNative();
     await expect(adapterWith(CONFIGURED).adapter.list('snapshots')).rejects.toThrow(

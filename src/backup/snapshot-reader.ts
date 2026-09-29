@@ -13,7 +13,7 @@ import type { BackupAdapter, BackupPayload } from './types';
 
 const DEFAULT_READ_DEADLINE_MS = 30_000;
 /**
- * 時限切れがこの回数続いたら、残りは読まずに「未ダウンロード」として畳む。
+ * タイムアウトがこの回数続いたら、残りは読まずに「未ダウンロード」として畳む。
  *
  * 時限は 1 件ごとに掛かるので、これが無いと写真 400 枚がすべて未ダウンロードの端末では
  * 400 × 30 秒 = 3 時間以上ずっと待つことになる。それは「遅い」ではなく「終わらない」。
@@ -32,7 +32,7 @@ export interface FolderRestoreSource {
   payload: BackupPayload;
   attachmentBlobs: Map<string, Blob>;
   snapshotName: string;
-  // 参照先が揃っていない・読めない等で飛ばした版の数。同期の途中なら普通に起きる。
+  // 参照先が揃っていない・読めない等で飛ばしたバージョンの数。同期の途中なら普通に起きる。
   skippedSnapshots: number;
   // 実体を取り戻せなかった証憑の数。帳簿本体は復元できるので警告に留める。
   corruptAttachmentCount: number;
@@ -42,7 +42,7 @@ export interface FolderRestoreSource {
 /**
  * 保存先フォルダから、そのまま復元できる一番新しいスナップショットを読む。
  *
- * 同期ツールがファイルを運ぶ順序は制御できないので、新しい版から順に見て、参照する
+ * 同期ツールがファイルを運ぶ順序は制御できないので、新しいバージョンから順に見て、参照する
  * blob が全部揃っているものを選ぶ。1 つも無ければ null。
  */
 export async function readLatestSnapshot(
@@ -152,9 +152,9 @@ async function loadAttachments(
   return { attachmentBlobs, corruptAttachmentCount, notDownloadedCount };
 }
 /**
- * 内容定址が効くのはここ。名前が中身の SHA-256 なので、同期が途中で切れた半端な
+ * コンテンツアドレス方式が効くのはここ。名前が中身の SHA-256 なので、同期が途中で切れた半端な
  * ファイルを中身から見分けられる。合わなければその写真 1 枚を諦め、帳簿は復元する。
- * 時限切れは「壊れている」とは別に扱う。クラウド側にまだ実体があるだけで、回線が
+ * タイムアウトは「壊れている」とは別に扱う。クラウド側にまだ実体があるだけで、回線が
  * 戻れば読めるようになる。
  */
 async function readVerifiedBlob(
