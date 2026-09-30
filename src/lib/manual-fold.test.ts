@@ -30,7 +30,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '表：対応端末のみ は windows',
-      pattern: /対応端末のみ。`Receipt` 画面を開くたびに自動判定/,
+      pattern: /対応端末のみ。領収書 OCR 画面を開くたびに自動判定/,
       only: ['windows'],
     },
     {
@@ -113,7 +113,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '表：僅限支援的裝置 只限 windows',
-      pattern: /僅限支援的裝置。每次開啟 `Receipt` 畫面都會自動判定/,
+      pattern: /僅限支援的裝置。每次開啟收據 OCR 畫面都會自動判定/,
       only: ['windows'],
     },
     {
@@ -207,7 +207,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'prose: windows adding optical character recognition makes it selectable',
       pattern:
-        /It is re-checked with the device every time the `Receipt` page opens, so adding Japanese text recognition on the OS side/,
+        /It is re-checked with the device every time the Receipt OCR screen opens, so adding Japanese text recognition on the OS side/,
       only: ['windows'],
     },
     {
@@ -821,7 +821,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     base: '04-receipt-ocr',
     headingSlug: 'ai-エンジンブラウザ内蔵-aiの場合送信ダイアログ無し',
     headingSlugEn: 'ai-engine-your-browsers-built-in-ai-no-dialog',
-    headingSlugZhTw: 'ai-引擎瀏覽器內建-ai不跳對話框',
+    headingSlugZhTw: 'ai-引擎瀏覽器內建-ai不會跳出對話框',
     kinds: ['browser'],
     occurrence: 1,
     reason: '見出し「AI エンジン（ブラウザ内蔵 AI）の場合」。native 側に対応する経路が無い',
@@ -831,7 +831,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     base: '04-receipt-ocr',
     headingSlug: '内蔵の規則エンジンtesseract端末内の文字認識の場合送信ダイアログ無し',
     headingSlugEn: 'built-in-rule-engine-tesseract-on-device-text-recognition-no-dialog',
-    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不跳對話框',
+    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不會跳出對話框',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 2,
     reason:

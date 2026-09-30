@@ -10,7 +10,7 @@ Receipt scanning with the built-in rule engine (Tesseract) now works offline.
 
 ### Changed
 
-- The "How to use" guide now describes how the language data is fetched as it actually works
+- The Guide now describes how the language data is fetched as it actually works
 
 ### Fixed
 
@@ -18,31 +18,31 @@ Receipt scanning with the built-in rule engine (Tesseract) now works offline.
 
 ## [1.2.2] - 2026-09-26
 
-Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculations in line with the law and how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on next launch.
+Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculations in line with the law and how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on the next launch.
 
 ### Changed
 
 - Corrected the Disclaimer, Privacy Policy and Security Policy to match the available engines and actual behavior
-- Blue-return special deduction: added "Double-entry + e-Tax filing only (¥650,000)", the cash-basis election (Income Tax Act Art. 67(1)), and the check based on business income two years prior
+- Blue-return special deduction: added "Double-entry + e-Tax filing only (¥650,000)", the cash-basis election (Income Tax Act Art. 67(1)), and the check based on total business revenue two years prior
 - Deductions: you can now apply the home-worker expense rule (Special Taxation Measures Act Art. 27)
 - Fixed assets: added the old straight-line, old declining-balance and lease-period straight-line methods
-- Opening Setup: you can now enter a closing date, and amortize start-up costs by any amount
+- Opening Setup: you can now enter a closing date, and amortize pre-opening expenses by any amount
 - 20%/30% consumption-tax special provisions: you can now enter tax on sales returns and specified small-asset transfers
 - Updated the Guide to match
 
 ### Fixed
 
 - Employment income deduction not following Appended Table 5 of the Income Tax Act
-- White-return family-employee deduction not being calculated or written on the return
-- Fixed-asset sales missing from taxable sales for consumption tax (Type 4 under simplified taxation, calculated as two categories when your configured category differs)
+- White return family employee deduction not being calculated or written on the return
+- Fixed-asset sales missing from taxable sales for consumption tax (4th category under simplified taxation, calculated as two categories when your configured category differs)
 - Interim-filing check ignoring the months in the preceding taxable period
-- The ¥3M cap for the small-value asset rule not being prorated correctly in the opening or closing year
+- The ¥3,000,000 cap for the small-asset special provision not being prorated correctly in the opening or closing year
 - Wrong cost and undepreciated balance for assets converted from personal use
 - Wrong tax categories in the Yayoi-format CSV
 
 ## [1.2.1] - 2026-09-14
 
-Fixes for narrow screens and for cancelling a change in Settings.
+Fixes for narrow screens and for canceling a change in Settings.
 
 ### Changed
 
@@ -51,11 +51,11 @@ Fixes for narrow screens and for cancelling a change in Settings.
 
 ### Fixed
 
-- Cancelling the confirmation for switching the filing method did not put the selection back
+- Canceling the confirmation for switching the filing method did not put the selection back
 
 ## [1.2.0] - 2026-09-13
 
-The version where reading with OCR comes back, and the browser's built-in AI can read too.
+OCR reading returns, and the browser's built-in AI can now read too.
 
 ### Added
 
@@ -64,7 +64,7 @@ The version where reading with OCR comes back, and the browser's built-in AI can
 ### Changed
 
 - Reading with OCR, taken off the list in 1.1.2, is available again. When reading a receipt, you can choose whether to use the AI engine or the built-in rule engine
-- Wording that said "LLM" on screen and in the manual now says "AI"
+- Wording that said "LLM" on screen and in the Guide now says "AI"
 - The Gemini settings appear only when Gemini is selected, and the description of the AI features now matches the engine you have chosen
 - Receipts, CSV import and order import now confirm before you cancel, so what has been read is not discarded without asking. Choosing another file or source asks in the same way
 
@@ -89,8 +89,8 @@ This release lets you pick the AI model used for reading receipts.
 
 - The model ID could not be changed from the screen, leaving you stuck once that model was retired
 - The save result and the error message sat side by side and squeezed each other when the text was long
-- The warning symbol on errors had no colour, making it hard to tell apart from a success
-- On the browsers of some devices, the menu could not be closed by tapping outside it or pressing Escape
+- The warning symbol on errors had no color, making it hard to tell apart from a success
+- In the browsers on some devices, the menu could not be closed by tapping outside it or pressing Escape
 
 ## [1.1.1] - 2026-08-30
 
@@ -118,7 +118,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 
 - **Folder backups**. Backups are now written as loose files inside a folder. Receipt photos are deduplicated by SHA-256, so a ledger with many photos writes out quickly and only the differences grow from one backup to the next. Receipts no longer referenced are cleaned up automatically
 - **Protection for filed years**. Any operation that would change a year already marked as filed is detected and warned about before it is written. The same safeguard now also covers paths that bypass the screen, so import and year-end processing can no longer rewrite a filed year silently
-- **Bad-debt reserve**. Individually-assessed and lump-sum-assessed reserves are now handled separately, and the individually-assessed portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
+- **Allowance for doubtful accounts**. Individual and lump-sum assessments are now handled separately, and the individually assessed portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
 - **Redo for Opening Setup**. Opening Setup can now be run again from the start even after it has already been run once. A second run no longer double-books opening costs or converted assets
 - **Editing invoice and quote drafts**. Drafts can now be edited after being created. Printouts now show the reduced-rate notice and the payment due date
 - The copyright notices of the third-party software we bundle can now be opened from within aoiko. Dependencies distributed only through CSS are now included as well
@@ -134,20 +134,20 @@ Backups are now written as loose files inside a folder instead of one archive, a
 
 - A failed restore could leave the ledger fully erased with no way back. Erasing and writing now happen as a single unit
 - A backup that had exported successfully could fail to restore. Restore now also verifies the backup's CRC32
-- Backup zips over 4GiB were corrupted (zip64 support added)
+- Backup zips over 4 GiB were corrupted (zip64 support added)
 - Ledgers with many receipt photos could fail to save, so export was not possible
 - The ledger itself is now restored even when an attachment is corrupted. Orphaned line items are no longer imported, and a failed save of income deductions is no longer silently swallowed
-- On browsers that cannot observe when a save has completed, a cancelled backup was treated as saved
+- On browsers that cannot observe when a save has completed, a canceled backup was treated as saved
 - The screen now reloads automatically after a backup is restored
 - Reading a receipt photo evicted from cloud storage could hang indefinitely
 
 ### Fixed (tax filings and forms)
 
-- On the blue-return statement (real estate), bad-debt reserve and expenses with no matching field were dropped (KOA210)
-- On the statement of earnings, expenses entered in the additional-item field with no matching field were dropped (KOA110, KOA130)
-- The single-parent deduction is now year-specific, supporting the ¥380,000 amount for 令和9年分 (2027) onward
-- Redoing the opening-of-period transfer now uses reversing entries, so the history is preserved
-- Fixed the year on screen not following after a restore, year-end depreciation not being checked against a filed year, and negative amounts on line items not being handled the same way everywhere
+- On the blue-return statement (real estate), the allowance for doubtful accounts and expenses with no matching field were dropped (KOA220)
+- On the income/expense breakdown statement, expenses entered in the additional-item field with no matching field were dropped (KOA110, KOA130)
+- The single-parent deduction is now year-specific, supporting the ¥380,000 amount for tax year 2027 (Reiwa 9) onward
+- Redoing the carryover entry now uses reversing entries, so the history is preserved
+- Fixed the displayed year not updating after a restore, year-end depreciation not being checked against a filed year, and negative amounts on line items not being handled the same way everywhere
 
 ### Fixed (import)
 
@@ -166,7 +166,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 - Just opening the share sheet showed an error
 - `<html lang>` stayed Japanese even after switching the UI language
 - Layout issues on narrow screens: overflowing button labels, text links too small to tap, cramped account columns, and mismatched form control heights
-- Japanese shinjitai kanji had leaked into the Traditional Chinese translation
+- Japanese shinjitai (simplified) kanji forms used in Japan had leaked into the Traditional Chinese translation
 - Misleading states after a failed load: the heading updating to the new year while old figures remained, and lists staying stuck on "loading"
 - Connection failures now also show the actual reason
 
@@ -178,12 +178,12 @@ Backups are now written as loose files inside a folder instead of one archive, a
 
 ### Changed
 
-- The purely-local OCR engine switched from tesseract.js to tesseract-wasm. The engine, the WASM core and the Japanese model are now all served by aoiko itself, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). The download also shrank from over 12MB to about 5MB
+- The purely local OCR engine switched from tesseract.js to tesseract-wasm. The engine, the WASM core and the Japanese model are now all served by aoiko itself, so the local OCR engine makes no external request at all (previously the trained data was fetched from a CDN on first use). The download also shrank from over 12 MB to about 5 MB
 - The "trained data source" setting was removed, since the model is now bundled
 
 ### Fixed
 
-- The purely-local OCR could pick up the wrong total when it misread the thousands separator on a receipt. Reading `合計 2,200円` as `2.200` or `2.,200` caused the total to be imported as 200 yen
+- The purely local OCR could pick up the wrong total when it misread the thousands separator on a receipt. Reading `合計 2,200円` as `2.200` or `2.,200` caused the total to be imported as ¥200
 
 ## [1.0.3] - 2026-07-31
 
@@ -193,15 +193,15 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 
 - Real-estate income was treated in full as the blue-return special deduction, and disappeared from the main form. Exporting `.xtx` now stops and prompts you when the real-estate section of the deductions screen has not been filled in
 - The balance sheet on the financial statement did not balance: accumulated depreciation was dropped (so fixed assets were reported at acquisition cost) and "income before the blue-return special deduction" was never written. A balance sheet is required for the ¥650,000 / ¥750,000 deduction
-- The basic deduction for 令和8年分 (2026) is now the post-reform amount (¥620,000 plus the income-based addition). The dependant income threshold is updated from ¥580,000 to ¥620,000
-- The white-return family employee deduction was never subtracted anywhere. Family employee entry (name, relationship, age, months worked) has been added and now flows into both the statement of earnings and the main form. A spouse or relative registered as a family employee is automatically excluded from the spouse and dependant deductions
+- The basic deduction for tax year 2026 (Reiwa 8) is now the post-reform amount (¥620,000 plus the income-based addition). The dependent income threshold is updated from ¥580,000 to ¥620,000
+- The white-return family employee deduction was never subtracted anywhere. Family employee entry (name, relationship, age, months worked) has been added and now flows into both the income/expense breakdown statement and the main form. A spouse or relative registered as a family employee is automatically excluded from the spouse and dependent deductions
 - The declining-balance method wrote acquisition cost into the "base amount for depreciation" column (it should be the prior year-end book value, or the revised acquisition cost after the switch to the revised rate). On the general blue-return statement the column was left blank entirely
-- Closing inventory was written as a negative number, overstating cost of sales by twice the closing inventory
-- Deductible consumption-tax input was computed separately on screen and in the `.xtx`, differing by up to ¥100. The per-rate breakdowns on appendix tables 1-3 and 2-3 are also fixed
-- Rental properties appeared in the depreciation schedule of the general statement of earnings
+- Ending inventory was written as a negative number, overstating cost of sales by twice the ending inventory
+- Deductible consumption-tax input was computed separately on screen and in the `.xtx`, differing by up to ¥100. The per-rate breakdowns on Attachments 1-3 and 2-3 are also fixed
+- Rental properties appeared in the depreciation schedule of the general income/expense breakdown statement
 - On the real-estate blue-return statement, family employee salary went into the "additional item" expense rows instead of its own field
-- Bad-debt reserve (real estate) was not added back to income on white returns
-- The due dates for the first three monthly instalments of consumption-tax interim filing (11-instalment case) were wrong
+- The provision to the allowance for doubtful accounts (real estate) was not added back to income on white returns
+- The due dates for the first three monthly installments of consumption-tax interim filing (11-installment case) were wrong
 
 ### Fixed (ledger and backups)
 
@@ -212,7 +212,7 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 - A CSV decoded with the wrong character encoding did not raise an error; every description was imported as mojibake. The app now tells you the selected source is wrong
 - Cancellation and refund rows on SMBC card statements (`-1,110`, `▲732`) made the whole import fail
 - Receipt OCR could create a journal entry that appeared on no screen at all when the date could not be read
-- Inventory valuation counted returns in the wrong direction, shifting closing inventory and cost of sales
+- Inventory valuation counted returns in the wrong direction, shifting ending inventory and cost of sales
 - Opening Setup always failed for converted assets with a useful life of 21 years or more (such as a 22-year wooden or 47-year reinforced-concrete building), and long-held assets produced a negative book value that aborted the whole operation
 - The tax office setting could be silently overwritten with an empty value on save after editing the field
 - The submit buttons on receipt OCR and order import stayed active during processing, creating duplicate entries
@@ -253,18 +253,18 @@ Initial release.
 
 ### Added
 
-- Double-entry bookkeeping: journal entries, correcting entries, audit history that preserves the original entry, composite search by year / month / description / amount range / vendor
+- Double-entry bookkeeping: journal entries, reversing entries, audit history that preserves the original entry, composite search by year / month / description / amount range / vendor
 - Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
-- e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special rule)
+- e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special provision)
 - Bank and credit-card CSV import, import history, duplicate detection, batch-level reversal
 - Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract; the pre-send confirmation dialog is skippable via a setting)
-- Depreciation (straight-line, 200% declining-balance, small-asset special rule, lump-sum), home office allocation, prior-period carryover, Opening Setup
+- Depreciation (straight-line, 200% declining-balance, small-asset special provision, lump-sum), home office allocation, prior-period carryover, Opening Setup
 - Consumption tax estimation with method comparison (general / simplified taxation, plus whichever special provision applies to that year — the 20% special provision through 2026, the 30% special provision for 2027–2028), transitional 80/70/50/30% input-tax credit applied automatically
-- Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / sub-account breakdowns
-- Invoice and quotation creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quotation-to-invoice conversion)
+- Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / subaccount breakdowns
+- Invoice and quote creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quote-to-invoice conversion)
 - Amended filing guide (diff between filed snapshot and current values)
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
-- PWA: bookkeeping, reports, depreciation, consumption-tax calculation, `.xtx`, invoices/quotations, and backup restore work offline (Tesseract's first-time language data fetch, cloud engines, and the third-party license list require a connection); trilingual UI (Japanese / English / Traditional Chinese)
+- PWA: bookkeeping, reports, depreciation, consumption-tax calculation, `.xtx`, invoices/quotes, and backup restore work offline (Tesseract's first-time language data fetch, cloud engines, and the third-party license list require a connection); trilingual UI (Japanese / English / Traditional Chinese)
 
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1

@@ -81,7 +81,7 @@ function withFamilyEmployee(employee: {
   });
 }
 
-describe('mapKoa110Values（収支内訳書 一般用）', () => {
+describe('mapKoa110Values（収支内訳書・一般用）', () => {
   test('売上（収入）金額・専従者控除前の所得金額を出力（経費が無ければ所得＝収入）', () => {
     const out = mapKoa110Values(ctx({ totalRevenue: '5000000', netIncome: '5000000' }));
     expect(out.AIG00030).toBe('5000000');
@@ -230,7 +230,7 @@ describe('mapKoa110Values（収支内訳書 一般用）', () => {
     const out = mapKoa110Values(
       ctx({ totalRevenue: '5000000', netIncome: '4000000' }, [], personalDeductions),
     );
-    // 専従者控除前所得金額400万→配偶者の定額86万 と 400万÷2=200万 のいずれか低い方＝86万
+    // 専従者控除前所得金額400万→配偶者の定額86万と 400万÷2=200万のいずれか低い方＝86万
     expect(out.AIG00380).toBe('860000');
     expect(out.AIG00400).toBe('3140000');
   });
@@ -281,7 +281,7 @@ function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
   };
 }
 
-describe('mapKoa110RepeatedValues（第2頁 減価償却資産の明細）', () => {
+describe('mapKoa110RepeatedValues（第2頁の減価償却資産の明細）', () => {
   test('資産1件分の明細行を出力する', () => {
     const out = mapKoa110RepeatedValues(ctx({}, [asset()]));
     expect(out.AIM00010).toHaveLength(1);

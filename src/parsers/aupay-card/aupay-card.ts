@@ -11,7 +11,7 @@ import type { CsvParser, ParsedTransaction } from '../types';
 // au PAY カード（旧 au WALLET クレジットカード）の利用明細 CSV（実データ確認済）。
 // エンコーディング：Shift_JIS
 // ヘッダー：ご利用者, 支払区分, 利用日, 利用店名, 利用金額, 摘要
-// クレジットのため全行 credit 側（未払金 増加）。
+// クレジットのため全行 credit 側（未払金の増加）。
 
 const DISPLAY = 'au PAY カード';
 const REQUIRED = ['利用日', '利用店名', '利用金額'] as const;

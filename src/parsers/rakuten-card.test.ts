@@ -14,7 +14,7 @@ describe('rakutenCardParser', () => {
     expect(rakutenCardParser.encoding).toBe('utf-8');
   });
 
-  test('parses sample fixture; 利用行は credit (未払金 増)', () => {
+  test('サンプルを読む。利用行は credit（未払金の増）', () => {
     const r = rakutenCardParser.parse(sample);
     expect(r).toHaveLength(4);
     for (const tx of r.slice(0, 3)) {
@@ -33,7 +33,7 @@ describe('rakutenCardParser', () => {
     expect(refund?.side).toBe('debit');
   });
 
-  test('omits memo for default 本人 / 1回払い', () => {
+  test('既定の「本人 / 1回払い」ならメモを省く', () => {
     const r = rakutenCardParser.parse(sample);
     expect(r[0]?.memo).toBeUndefined();
   });

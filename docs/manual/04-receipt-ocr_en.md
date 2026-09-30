@@ -5,21 +5,21 @@ Generate journal candidates from photos or images of paper receipts.
 **Language**: [日本語](04-receipt-ocr.md) | **English** | [繁體中文](04-receipt-ocr_zh-TW.md)
 
 > **By the end of this chapter you can**
-> - Choose per receipt between the "AI engine" and the "built-in rule engine", extract date, vendor, total, and qualified invoice registration number, and turn it into a journal entry
+> - Choose per receipt between the "AI engine" and the "Built-in rule engine", extract date, vendor, total, and qualified invoice registration number, and turn it into a journal entry
 > - Understand what each of the built-in rule engine's sub-engines can and cannot read
 > - Know which path sends data off the device and which does not
-> - Understand the pre-send confirmation dialog and the "don't ask again" toggle
+> - Understand the pre-send confirmation dialog and the "Don't ask again" toggle
 >
 > **Prerequisites**: to use the AI engine, configure either Gemini or an OpenAI-compatible endpoint in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) first. This is not required if you only use the built-in rule engine.
 
 ## 1. Picking a reading method (summary)
 
-The reading method (AI engine or built-in rule engine) and which sub-engine the built-in rule engine uses are both chosen on the `Receipt` page itself. Settings only chooses which AI engine is used.
+The reading method (AI engine or built-in rule engine) and which sub-engine the built-in rule engine uses are both chosen on the Receipt OCR screen itself. Settings only chooses which AI engine is used.
 
 | Reading method | Off-device transmission | Required |
 |---|---|---|
 | **AI engine** (Gemini) | Yes | Gemini API key |
-| **AI engine** (OpenAI-compatible / Ollama etc.) | None for localhost / Yes for remote | Endpoint + vision model |
+| **AI engine** (OpenAI-compatible / Ollama etc.) | None for localhost / Yes for remote | Endpoint + vision-capable model |
 <!-- only:apple -->
 | **AI engine** (Apple Intelligence) | None | Appears only on a supported device with macOS 26 / iOS 26 or later and the system setting turned on |
 <!-- /only -->
@@ -31,7 +31,7 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 | **Built-in rule engine** (the OS's built-in text recognition) | None | None — always available on every OS aoiko supports |
 <!-- /only -->
 <!-- only:windows -->
-| **Built-in rule engine** (the OS's built-in text recognition) | None | Supported devices only; re-checked automatically every time the `Receipt` page opens |
+| **Built-in rule engine** (the OS's built-in text recognition) | None | Supported devices only; re-checked automatically every time the Receipt OCR screen opens |
 <!-- /only -->
 <!-- only:android -->
 | **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit reports usage information to Google) | Always available on this device; the text recognition ships with the app |
@@ -41,13 +41,13 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 
 ## 2. Import flow
 
-Click **"Receipts"** in the navigation to open `Receipt`.
+Click **"Receipts"** in the navigation to open the Receipt OCR screen.
 
 ### 2-1. Choose an image
 
 Click the file input under **"1. Choose an image"**:
 
-- PC: pick JPG / PNG / WebP / HEIC from the file dialog
+- PC: pick a JPEG / PNG / GIF / WebP / BMP / HEIC image from the file dialog
 - Phone or tablet: choose from the photo library, take a photo on the spot, or pick a file
 
 The chosen image is shown as a preview.
@@ -78,7 +78,7 @@ Below the preview, a two-way switch for the reading method appears: **"AI engine
   - Whether the OS's built-in text recognition includes Japanese depends on the OS version, and it is already included in every macOS / iOS·iPadOS aoiko supports
 <!-- /only -->
 <!-- only:windows -->
-  - The OS's built-in text recognition only enters the option set on supported devices. It is re-checked with the device every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable the next time the page is opened
+  - The OS's built-in text recognition only enters the option set on supported devices. It is re-checked with the device every time the Receipt OCR screen opens, so adding Japanese text recognition on the OS side makes it selectable the next time the page is opened
 <!-- /only -->
 <!-- only:android -->
   - On-device text recognition is always in the option set. The text recognition ships with the app, so nothing has to be added on the OS side
@@ -88,9 +88,9 @@ Once chosen, click **"Analyze"** to send to the selected reading method.
 
 #### AI engine (Gemini / remote OpenAI-compatible): pre-send confirmation
 
-Because data leaves the device, **CloudSendConfirmDialog** appears:
+Because data leaves the device, the **"Confirm send to external AI"** dialog appears:
 
-> Send image to 〇〇?
+> This data (receipt image / CSV rows) will be sent to {host}. It is handled per the destination's privacy policy and your API plan. Free tiers may be used for model training; a paid-tier API key is recommended for sensitive receipts. Proceed?
 >
 > ☐ Don't ask again
 
@@ -98,12 +98,12 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 - **"Cancel"** to abort
 - Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import AI sends)
 
-> **Think twice before checking**: if you check it by mistake, undo it from Settings → "Basic info" → **"Restore hidden confirmations"**. "Settings → Data management → Delete all data" also clears it but wipes your books — last resort only.
+> **Think twice before checking**: if you check it by mistake, undo it from Settings > "Basic info" > **"Restore hidden confirmations"**. "Settings > Data management > Delete all data" also clears it but wipes your books — last resort only.
 <!-- only:browser -->
 
 #### AI engine (your browser's built-in AI): no dialog
 
-Inference runs entirely on-device, so no confirmation dialog appears. This engine is selectable only when your browser already holds the AI model (aoiko never fetches it).
+aoiko itself sends nothing, so no confirmation dialog appears. Whether inference runs on your device or in an external service is decided by the browser's implementation. This engine is selectable only when your browser already holds the AI model (aoiko never fetches it).
 <!-- /only -->
 <!-- only:browser -->
 
@@ -146,60 +146,60 @@ When done, **"2. Extracted result (editable)"** expands below:
 | Field | Content |
 |---|---|
 | Transaction date | Receipt date, `YYYY-MM-DD` |
-| Vendor | Store name (editable) |
+| Vendor | The store or vendor name (editable) |
 | Total amount (¥) | Tax-inclusive total (editable, integer) |
-| Invoice number | Shown only when a T+13 number is recognized (informational) |
-| Items | Collapsible list if any (informational; not reflected in the entry) |
+| Invoice registration number | Shown only when a T+13 number is recognized (informational) |
+| Line items | Collapsible list if any (informational; not reflected in the entry) |
 <!-- only:browser -->
 
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - The built-in rule engine (Tesseract) only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**. Raw OCR text is held internally but not auto-copied into the journal description
+> - The built-in rule engine (Tesseract) only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**. Raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 <!-- only:apple -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 <!-- only:windows -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 <!-- only:android -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 
 #### Built-in rule engine warning banner
 
 For built-in rule engine output, a caution banner appears below the result header. For Tesseract:
 
-> Result from purely-local OCR (Tesseract). Please verify and correct the total, date and vendor before saving. OCR raw text is shown on screen only, not stored.
+> Result from purely local OCR (Tesseract). Please verify and correct the total, date and vendor before saving. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- only:apple -->
 
 For the OS's built-in text recognition:
 
-> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 <!-- only:windows -->
 
 For the OS's built-in text recognition:
 
-> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 <!-- only:android -->
 
 For on-device text recognition:
 
-> These results come from on-device text recognition (ML Kit). Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from on-device text recognition (ML Kit). Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 
 ### 2-4. Choose counterpart account and payment source
@@ -208,18 +208,18 @@ Two dropdowns at the bottom of the result:
 
 | Dropdown | Default | Meaning |
 |---|---|---|
-| **Counterpart (expense)** | `5910 Miscellaneous expenses` | The expense account for this receipt |
-| **Payment source** | `1110 Cash` | What paid (cash / ordinary deposit / payable etc.) |
+| **Counterpart account (expense)** | `5910 雑費` (Miscellaneous expenses) | The expense account for this receipt |
+| **Payment source** | `1110 現金` (Cash) | What paid (cash / ordinary deposit / payable etc.) |
 
-For a simple business expense (no home-office allocation), switch to the appropriate account (e.g. food receipt → `5170 Entertainment`; stationery → `5200 Consumables`).
+For a simple business expense (no home-office allocation), switch to the appropriate account (e.g. food receipt → `5170 接待交際費` (Entertainment expenses); stationery → `5200 消耗品費` (Consumables)).
 
-For card payment, change **payment source** to `2120 Accounts payable` (or the sub-account of that specific card if you use them).
+For card payment, change **payment source** to `2120 未払金` (Accounts payable) (or the subaccount of that specific card if you use them).
 
 ### 2-5. Save
 
 Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = payment source) is created and shown in the Home recent list.
 
-> If an **invoice registration number** was extracted, the line's `invoiceCompliant` flag is saved as `true` (eligible for input tax credit under general consumption taxation).
+> If an **invoice registration number** was extracted, the line is saved as invoice-compliant (eligible for input tax credit under general consumption taxation).
 
 ## 3. Practical tips per engine
 
@@ -296,7 +296,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- /only -->
 <!-- only:windows -->
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number in the right format is one you cannot spot by looking)
-- **Not every device can use it.** It only enters the option set when Japanese text recognition is present on the OS side. This is re-checked every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable next time you open the page
+- **Not every device can use it.** It only enters the option set when Japanese text recognition is present on the OS side. This is re-checked every time the Receipt OCR screen opens, so adding Japanese text recognition on the OS side makes it selectable next time you open the page
 <!-- /only -->
 <!-- only:android -->
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number in the right format is one you cannot spot by looking)
@@ -308,7 +308,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 |---|---|
 | Total is off | Retake or edit manually |
 | Date is empty | Both `YYYY/MM/DD` and Reiwa-format were already tried. Manual entry is fine |
-| Vendor garbled | Improve photo quality and resolution. Tesseract does not extract the vendor, so type it in |
+| Vendor has stray Latin characters or is garbled | Improve photo quality and resolution. Tesseract does not extract the vendor, so type it in |
 | Invoice number not detected | Recapture with the number area well-lit |
 | Connection error | Check API key / endpoint in Settings via **"Test connection"** |
 
@@ -319,5 +319,5 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 
 ## 6. Next steps
 
-- For order-page imports (Amazon / 楽天 etc.) → [05. Order import](05-order-import_en.md)
+- For order-page imports (Amazon / Rakuten etc.) → [05. Order import](05-order-import_en.md)
 - Confirm and edit imported entries → [02. Creating journal entries](02-journal_en.md)

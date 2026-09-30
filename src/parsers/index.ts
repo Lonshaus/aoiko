@@ -47,7 +47,7 @@ for (const [path, mod] of Object.entries(modules)) {
     }
   }
 }
-// 銀行 → カード → 電子マネー の順で並べる。同種は displayName 50 音順
+// 銀行 → カード → 電子マネーの順で並べる。同種は displayName 50 音順
 const KIND_ORDER: Record<string, number> = {
   '1110': 0,
   '1120': 0,

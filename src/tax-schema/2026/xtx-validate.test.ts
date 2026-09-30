@@ -537,7 +537,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('KOA110 第2頁 減価償却資産の明細（繰り返しブロック）が公式 xsd に適合する', () => {
+  maybe('KOA110 第2頁の減価償却資産の明細（繰り返しブロック）が公式 xsd に適合する', () => {
     const fixedAssets: FixedAsset[] = [
       {
         id: 'a1',
@@ -620,7 +620,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('KOA210 第3頁 減価償却費の計算（繰り返しブロック）が公式 xsd に適合する', () => {
+  maybe('KOA210 第3頁の減価償却費の計算（繰り返しブロック）が公式 xsd に適合する', () => {
     const fixedAssets: FixedAsset[] = [
       {
         id: 'a1',

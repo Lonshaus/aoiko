@@ -254,7 +254,7 @@ describe('decideNativeState', () => {
       'idle',
     );
   });
-  // wrapper 版へ移ってきた FSA 既存利用者。ここを unconfigured にすると
+  // wrapper 実装へ移ってきた FSA 既存利用者。ここを unconfigured にすると
   // scheduleBackup が即 return し、設定済みのつもりのまま自動バックアップが止まる。
   test('FSA の handle しか無ければ reconfigure-required（未設定と区別する）', () => {
     expect(decideNativeState({ hasFolder: false, hasLegacyHandle: true, ready: false })).toBe(

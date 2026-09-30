@@ -11,7 +11,7 @@ describe('jcbCardParser', () => {
     expect(jcbCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips支払サマリの冒頭の情報行 and parses明細; 利用行は credit', () => {
+  test('支払サマリ冒頭の情報行を飛ばして明細を読む。利用行は credit', () => {
     const r = jcbCardParser.parse(sample);
     expect(r).toHaveLength(4);
     for (const tx of r.slice(0, 3)) {
@@ -33,7 +33,7 @@ describe('jcbCardParser', () => {
     expect(refund?.side).toBe('debit');
   });
 
-  test('trims leading space in date and keeps摘要 as memo', () => {
+  test('日付の先頭の空白を除き、摘要をメモに残す', () => {
     const r = jcbCardParser.parse(sample);
     expect(r[2]?.date).toBe('2026-05-07');
     expect(r[2]?.amount).toBe('3080');

@@ -1,6 +1,6 @@
 # 05. Order import
 
-Create item-level journal entries by pasting text from EC order pages (Amazon, 楽天, etc.).
+Create item-level journal entries by pasting text from online-store order pages (Amazon, Rakuten, etc.).
 
 **Language**: [日本語](05-order-import.md) | **English** | [繁體中文](05-order-import_zh-TW.md)
 
@@ -25,13 +25,13 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 
 ## 1. Why this feature exists
 
-Card CSV only shows "楽天市場 ¥3,280" — fine for the payment side, but it doesn't help when you need to split by line item (book → news/books expense; consumable → office supplies; computer → fixed asset).
+The card CSV only shows "楽天市場 ¥3,280" — enough for the payment side, but splitting expense accounts by line item (book → 新聞図書費 (newspapers and books expense); consumables → 消耗品費 (consumables expense), etc.) used to require manual work.
 
 **Order import** asks an AI to extract line items from a pasted order page.
 
 ## 2. Import flow
 
-Click **"Orders"** in the navigation to open `OrderImport`.
+Click **"Orders"** in the navigation to open the order import screen.
 
 ### 2-1. Get the order page text
 
@@ -47,13 +47,13 @@ On that page, select all (PC: `Cmd+A` / `Ctrl+A` on Windows and Linux; phone or 
 
 ### 2-2. Paste and analyze
 
-Paste into the textarea under **"1. Paste the order page text"** (PC: `Cmd+V` / `Ctrl+V`; phone or tablet: long-press and choose "Paste").
+Paste into the text box under **"1. Paste the order page text"** (PC: `Cmd+V` / `Ctrl+V`; phone or tablet: long-press and choose "Paste").
 
 Click **"Analyze"** to send to the selected AI engine.
 
 #### When using a cloud engine
 
-Same as [04. § 2-2](04-receipt-ocr_en.md#2-2-analyze) — a pre-send confirmation dialog appears. The "don't ask again" toggle is shared with receipt OCR.
+Same as [04. § 2-2](04-receipt-ocr_en.md#2-2-analyze) — a pre-send confirmation dialog appears. The "Don't ask again" toggle is shared with receipt OCR.
 
 ### 2-3. Review and edit the extracted result
 
@@ -76,14 +76,14 @@ Each item is one row:
 |---|---|
 | **Item** | Item name (model / spec included; editable) |
 | **Amount** | Unit × qty (integer; editable; discount lines are negative, e.g. `-300`) |
-| **Account** | Expense account for this item (default `5200 Consumables`, dropdown) |
+| **Account** | Expense account for this item (default `5200 消耗品費` (Consumables), dropdown) |
 | ✕ | Delete the row |
 
 A **"Add row"** button below the table lets you add items the AI missed.
 
 #### Payment source
 
-Below the table, **"Payment source (default: accounts payable)"** dropdown. For credit card payment, `2120 Accounts payable` (use a sub-account per card if you have them). For PayPay balance, `1110 Cash` or your configured account.
+Below the table, **"Payment source (default: accounts payable)"** dropdown. For credit card payment, `2120 未払金` (Accounts payable) (use a subaccount per card if you have them). For PayPay balance, `1110 現金` (Cash) or your configured account.
 
 ### 2-4. Item-sum / total mismatch
 
@@ -91,7 +91,7 @@ When you press **"Save entry"**, aoiko checks whether the item subtotal matches 
 
 > Item subtotal does not match the total (items ¥4,280 / total ¥4,580). Correct one of them before saving.
 
-Because each item becomes a debit line and the total becomes the single payable credit line, the entry can't balance while the two disagree. Fix either the item amounts (common causes: the AI missed a "-300 yen point use" line, shipping wasn't included as an item, tax rounding differs) or the "Total amount" field, then press **"Save entry"** again.
+Because each item becomes a debit line and the total becomes the single payable credit line, the entry can't balance while the two disagree. Fix either the item amounts (common causes: the AI missed a "point use −¥300" line, shipping wasn't included as an item, tax rounding differs) or the "Total amount" field, then press **"Save entry"** again.
 
 ### 2-5. What entry is created
 
@@ -99,22 +99,22 @@ Example: 3 items + shipping, total ¥4,580, credit card paid:
 
 ```
 2026-05-20  Amazon.co.jp 250-1234567-1234567
-  Debit   5200 Consumables       ¥1,580   Screw set
-  Debit   5200 Consumables       ¥2,580   USB-C hub
-  Debit   5120 Packing/freight   ¥420     Shipping
-  Credit  2120 Accounts payable  ¥4,580   Total
+  Debit   5200 消耗品費   ¥1,580   Screw set
+  Debit   5200 消耗品費   ¥2,580   USB-C hub
+  Debit   5120 荷造運賃   ¥420     Shipping
+  Credit  2120 未払金     ¥4,580   Total
 ```
 
 If there are discount lines (negative), they're routed to the credit side:
 
 ```
 2026-05-20  Rakuten Ichiba - Yodobashi.com
-  Debit   5200 Consumables       ¥3,000   Item A
-  Credit  5200 Consumables       ¥500     Coupon discount
-  Credit  2120 Accounts payable  ¥2,500   Total
+  Debit   5200 消耗品費   ¥3,000   Item A
+  Credit  5200 消耗品費   ¥500     Coupon discount
+  Credit  2120 未払金     ¥2,500   Total
 ```
 
-> The entry's **source** field is `paste` (handy if you want to filter by source in [02. § 2-1](02-journal_en.md#2-1-filters)).
+> The entry's **source** field is recorded internally as `paste` (the journal list has no filter for it).
 
 ## 3. Practical tips
 
@@ -122,12 +122,12 @@ If there are discount lines (negative), they're routed to the credit side:
 
 | Item example | Recommended account |
 |---|---|
-| Books / e-books | `5910 Miscellaneous expenses` (add a sub-account such as `News & books` under **Settings → Subaccounts** if you want to separate it out) |
-| Stationery / cables / USB hubs | `5200 Consumables` |
-| Business PC / monitor | `1510 Tools & equipment` → register separately as a fixed asset ([08. Depreciation](08-depreciation_en.md)) |
-| AWS / SaaS monthly | `5150 Communications` (sub-account: service name) |
-| Shipping | `5120 Packing/freight` or roll into the item |
-| Coupon discount | Same account as the item, negative (or `4910 Misc. income` as positive) |
+| Books / e-books | `5910 雑費` (Miscellaneous expenses) (add a subaccount such as `新聞図書費` (news & books) under **Settings > Subaccounts** if you want to separate it out) |
+| Stationery / cables / USB hubs | `5200 消耗品費` |
+| Business PC / monitor | `1510 工具器具備品` (Tools & equipment) → register separately as a fixed asset ([08. Depreciation](08-depreciation_en.md)) |
+| AWS / SaaS monthly | `5150 通信費` (Communications) (subaccount: service name) |
+| Shipping | `5120 荷造運賃` (Packing/freight) or roll into the item |
+| Coupon discount | Same account as the item, negative (or `4910 雑収入` (Miscellaneous income) as positive) |
 
 ### Pasting tips
 
@@ -137,14 +137,14 @@ If there are discount lines (negative), they're routed to the credit side:
 
 ### Amazon Business / Rakuten Business
 
-Their business-focused portals may offer **"Order history report CSV"** for direct download. If you can get that, you can also import it via [03. CSV import](03-csv-import_en.md) instead of order import, as a separate layer from card statements (there's no dedicated format support for Amazon Business / Rakuten Business, so enter it row by row manually).
+Their business-focused portals may offer **"Order history report CSV"** for direct download. However, [03. CSV import](03-csv-import_en.md) only reads formats that have a dedicated parser (banks, cards, and so on). There is no parser for order history reports and no generic one where you map the columns yourself, so this CSV cannot be imported. Either paste each individual order page into order import, one order at a time, or register the entries manually one by one in [02. Creating journal entries](02-journal_en.md).
 
 ## 4. Troubleshooting
 
 | Symptom | Action |
 |---|---|
-| "Analyze" doesn't progress | Settings → "AI features" → "Test connection" to verify API key / endpoint |
-| Output isn't in English/Japanese | The prompt is in Japanese, so this is uncommon. For local AI, switch to a model with better Japanese support |
+| "Analyze" doesn't progress | Settings > "AI features" > "Test connection" to verify API key / endpoint |
+| Output is not in Japanese | The prompt is in Japanese, so this is uncommon. For local AI, switch to a model with better Japanese support |
 | Some items missing | AI extraction limitation. Use **"Add row"** to add manually |
 | Amount wrong | Edit the row. If items don't sum to the total, saving fails with an error; fix either the item amounts or the total |
 | Empty order number | Optional field — ignore. Entry description will use vendor only |
@@ -153,11 +153,11 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 ## 5. Privacy notes
 
 - Order pages often contain **shipping address, name, phone number**. Double-check before sending to a cloud AI
-- For sensitive addresses, remove personal-info lines from the textarea before clicking Analyze
+- For sensitive addresses, remove personal-info lines from the text box before clicking Analyze
 - See [PRIVACY_en.md](../../PRIVACY_en.md)
 
 ## 6. Next steps
 
 - Confirm/edit imported entries → [02. Creating journal entries](02-journal_en.md)
 - Aggregate / verify → [06. Reports](06-reports_en.md)
-- Reconciling with card statements: [03. CSV import](03-csv-import_en.md) — be careful not to double-count the same transaction (order import + card CSV)
+- Month-end card statement reconciliation: import the card CSV in [03. CSV import](03-csv-import_en.md) and cross-check it against the order imports (be careful not to double-count the same transaction)

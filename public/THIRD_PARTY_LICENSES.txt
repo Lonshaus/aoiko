@@ -1335,7 +1335,7 @@ SOFTWARE.
 
 対象：shadcn-svelte@1.7.0, shadcn-svelte（vendor コンポーネント）（src/lib/components/ui/alert-dialog/, src/lib/components/ui/button/（bundle へ組み込み））
 
-── shadcn-svelte（vendor コンポーネント） の著作権表示（upstream: https://github.com/huntabyte/shadcn-svelte） ──
+── shadcn-svelte（vendor コンポーネント）の著作権表示（upstream: https://github.com/huntabyte/shadcn-svelte） ──
 
   Copyright (c) 2023 Hunter Johnston / Copyright (c) 2023 CokaKoala / Copyright (c) 2023 shadcn
 
@@ -1861,7 +1861,7 @@ Apache License
 
 対象：日本語学習モデル（jpn.traineddata）（public/tesseract/jpn.traineddata）
 
-── 日本語学習モデル（jpn.traineddata） の著作権表示（upstream: https://github.com/tesseract-ocr/tessdata_best） ──
+── 日本語学習モデル（jpn.traineddata）の著作権表示（upstream: https://github.com/tesseract-ocr/tessdata_best） ──
 
   (C) Copyright 1992, Hewlett-Packard Ltd.
   (C) Copyright 2006, Google Inc.

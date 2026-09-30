@@ -20,7 +20,7 @@ export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
 export type ReceiptRuleEngine = 'native' | 'tesseract';
-// __NATIVE__ は build 時の define で、vitest 実行全体では true に畳まれる
+// __NATIVE__ はビルド時の define で、vitest 実行全体では true に畳まれる
 // （vitest.config.ts）。false 側を試験できるよう、判定を引数で渡す形にしておく。
 export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
   return isNative ? 'native' : 'tesseract';

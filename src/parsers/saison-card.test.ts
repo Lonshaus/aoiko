@@ -11,7 +11,7 @@ describe('saisonCardParser', () => {
     expect(saisonCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips card-info preamble and parses明細', () => {
+  test('冒頭のカード情報行を飛ばして明細を読む', () => {
     const r = saisonCardParser.parse(sample);
     expect(r).toHaveLength(3);
     for (const tx of r) {
@@ -25,7 +25,7 @@ describe('saisonCardParser', () => {
     expect(r[1]?.amount).toBe('2200');
   });
 
-  test('omits memo for default 本人 / 1回, keeps非デフォルト', () => {
+  test('既定の「本人 / 1回」ならメモを省き、既定以外は残す', () => {
     const r = saisonCardParser.parse(sample);
     expect(r[0]?.memo).toBeUndefined();
     expect(r[2]?.memo).toBe('家族 / 3回 / 分割手数料あり');

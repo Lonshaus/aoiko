@@ -36,7 +36,7 @@ describe('paypayCardParser', () => {
     });
   });
 
-  test('1回 / 本人* alone are not surfaced as memo', () => {
+  test('「1回」「本人*」だけならメモに出さない', () => {
     const result = paypayCardParser.parse(sampleCsv);
     expect(result[2]?.memo).toBeUndefined();
   });

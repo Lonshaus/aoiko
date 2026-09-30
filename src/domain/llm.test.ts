@@ -147,7 +147,7 @@ describe('pickDefaultGeminiModel', () => {
     );
   });
 
-  test('flash が無ければ安定版の非 flash モデルに落ちる', () => {
+  test('flash が無ければ安定バージョンの非 flash モデルに落ちる', () => {
     expect(pickDefaultGeminiModel(['gemini-2.5-pro-preview', 'gemini-1.5-pro'])).toBe(
       'gemini-1.5-pro',
     );

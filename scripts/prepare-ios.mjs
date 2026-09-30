@@ -57,7 +57,7 @@ if (want) {
 }
 
 // 2. Info.ios.plist の項目。tauri ios init はこのファイルを読まない（2026-08-22 実測。
-// init 直後の生成物には 1 項目も入っていなかった）。アイコンと同じで、こちらを出所として
+// init 直後の生成物には 1 項目も入っていなかった）。アイコンと同じで、こちらをコピー元として
 // 毎回入れ直す。カメラの利用目的が抜けたままビルドされたバージョンは、審査中に選択ボタンを押した瞬間
 // OS に終了させられて返ってきた。
 const iosPlist = new URL('../src-tauri/Info.ios.plist', import.meta.url).pathname;
@@ -81,7 +81,7 @@ if (applied.length > 0) {
 }
 
 // 3. アイコン。tauri ios init は Assets.xcassets を既定のロゴで作り直す。
-// 新規 clone でも同じことが起きるので、icons/ios を出所として毎回上書きし直す。
+// 新規 clone でも同じことが起きるので、icons/ios をコピー元として毎回上書きし直す。
 const icons = readdirSync(src).filter((f) => f.endsWith('.png'));
 if (icons.length === 0) {
   console.error(`${src} に PNG が無い`);
@@ -105,7 +105,7 @@ for (const icon of icons) {
 // 行うため cargo の link-arg は届かない。ビルド設定へ直接埋め込む必要がある。
 // project.yml は tauri ios init が既存ファイルを上書きしない限りでしか効かない
 // （xcodegen が動くのは init 時だけ）ので、実際にビルドへ効くのは pbxproj への直書き。
-// project.yml 側も合わせておくのは、将来 gen/apple を消して作り直した時の出所にするため。
+// project.yml 側も合わせておくのは、将来 gen/apple を消して作り直した時のコピー元にするため。
 const ldflagText = '$(inherited) -weak_framework FoundationModels';
 const projectYmlPath = join(genRoot, 'project.yml');
 let ldApplied = 0;

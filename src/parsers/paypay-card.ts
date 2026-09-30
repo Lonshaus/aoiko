@@ -8,7 +8,7 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// PayPayカード（旧 ヤフーカード）会員メニューの利用明細 CSV（実データ確認済）。
+// PayPayカード（旧ヤフーカード）会員メニューの利用明細 CSV（実データ確認済）。
 // QR 決済の取引履歴 CSV（paypay.ts）とは別物。本 parser はクレジットカードの会員明細 CSV。
 // どちらもクレジット運用前提で accountCode は 2120（未払金）。
 // エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）

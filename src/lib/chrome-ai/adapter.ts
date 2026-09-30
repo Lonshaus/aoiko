@@ -1,6 +1,6 @@
 // ブラウザ内蔵 AI（LanguageModel）のラッパー。web のビルド成果物にだけ入る。
 //
-// 推論は端末内で完結し、使用中に外部へは出ない。クラウドへ逃がす hybrid の SDK
+// aoiko からは送信しない（推論先が端末内かどうかはブラウザの実装が決める）。クラウドへ逃がす hybrid の SDK
 // （Firebase AI Logic 等）は入れない。入れた時点で external: false が嘘になる。
 import { LlmError, type LlmAdapter, type LlmImageInput } from '../../domain/llm';
 import { m } from '../../paraglide/messages';

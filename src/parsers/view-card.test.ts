@@ -11,7 +11,7 @@ describe('viewCardParser', () => {
     expect(viewCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips冒頭の情報行とカード会員行, parses明細', () => {
+  test('冒頭の情報行とカード会員行を飛ばして明細を読む', () => {
     const r = viewCardParser.parse(sample);
     expect(r).toHaveLength(4);
     expect(r[0]).toMatchObject({
@@ -23,12 +23,12 @@ describe('viewCardParser', () => {
     expect(r[0]?.memo).toBeUndefined();
   });
 
-  test('keeps非デフォルト支払区分 as memo', () => {
+  test('既定以外の支払区分をメモに残す', () => {
     const r = viewCardParser.parse(sample);
     expect(r[1]).toMatchObject({ amount: '3000', memo: '３回払' });
   });
 
-  test('払戻額のみの行は debit（未払金 減）', () => {
+  test('払戻額のみの行は debit（未払金の減）', () => {
     const r = viewCardParser.parse(sample);
     expect(r[2]).toMatchObject({
       date: '2026-04-20',

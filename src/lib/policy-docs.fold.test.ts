@@ -74,7 +74,7 @@ const RULES: Record<string, Rule[]> = {
     { name: 'HTTP アクセスログ', pattern: /HTTP アクセスログ/, only: ['browser'] },
     { name: 'ブラウザの IndexedDB', pattern: /ブラウザの \*\*IndexedDB\*\*/, only: ['browser'] },
     { name: 'サイトデータ削除', pattern: /サイトデータ削除/, only: ['browser'] },
-    { name: 'ブラウザから直接', pattern: /利用者のブラウザから \*\*直接\*\*/, only: ['browser'] },
+    { name: 'ブラウザから直接', pattern: /利用者のブラウザから\*\*直接\*\*/, only: ['browser'] },
     { name: 'OPFS', pattern: /OPFS/, only: ['browser'] },
     { name: 'File System Access API', pattern: /File System Access API/, only: ['browser'] },
     { name: 'リファラ', pattern: /リファラ送信/, only: ['browser'] },
@@ -138,7 +138,7 @@ const RULES: Record<string, Rule[]> = {
     { name: 'ML Kit usage disclosure', pattern: /ML Kit/, only: ['android'] },
     {
       name: 'OS recognition table row: no no-external-request claim on android',
-      pattern: /The OS's built-in text recognition \| Image never leaves device \|/,
+      pattern: /The OS's built-in text recognition \| The image never leaves the device \|/,
       only: [...APPLE, 'windows'],
     },
     {
@@ -149,7 +149,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'new-name table row has the ML Kit usage disclosure',
       pattern:
-        /On-device text recognition \| Image and text never leave device \| \*\*Image and text: none\*\* \(ML Kit's usage information alone is sent to Google\)/,
+        /On-device text recognition \| The image and text never leave the device \| \*\*Image and text: none\*\* \(ML Kit's usage information alone is sent to Google\)/,
       only: ['android'],
     },
     {
@@ -205,7 +205,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'android 分開寫 Tesseract 和裝置內的文字辨識各自是否送出',
       pattern:
-        /Tesseract 不會送出任何東西。裝置內的文字辨識不會送出圖片和文字，但使用狀況會送給 Google/,
+        /Tesseract 不會送出任何資料。裝置內的文字辨識不會送出圖片和文字，但使用狀況會送給 Google/,
       only: ['android'],
     },
     {
@@ -301,12 +301,12 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'opening paragraph on android states Tesseract and on-device recognition separately',
       pattern:
-        /not at all if you chose Tesseract; if you chose on-device text recognition, images and text are not sent, but usage information is sent to Google/,
+        /\(nothing is sent if you chose Tesseract; if you chose on-device text recognition, images and text are not sent, but usage information is sent to Google\)/,
       only: ['android'],
     },
     {
-      name: "opening paragraph's 'not at all if you chose an engine that runs entirely on the device' cannot appear on android",
-      pattern: /not at all if you chose an engine that runs entirely on the device/,
+      name: "opening paragraph's 'nothing is sent if you chose an engine that runs entirely on the device' cannot appear on android",
+      pattern: /nothing is sent if you chose an engine that runs entirely on the device/,
       only: ['browser', ...APPLE, 'windows'],
     },
   ],
@@ -351,8 +351,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '開頭段落的選擇在裝置內完成的引擎時連送出都不會發生，android 不能有',
-      pattern: /選擇在裝置內完成的引擎時連送出都不會發生/,
+      name: '開頭段落的選擇在裝置內完成的引擎時根本不會送出，android 不能有',
+      pattern: /選擇在裝置內完成的引擎時根本不會送出/,
       only: ['browser', ...APPLE, 'windows'],
     },
   ],

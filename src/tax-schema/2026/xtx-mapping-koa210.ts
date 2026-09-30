@@ -1,10 +1,10 @@
-// aoiko 業務データ（PL / BS / 月別）→ KOA210（青色申告決算書 一般用）参照側
+// aoiko 業務データ（PL / BS / 月別）→ KOA210（青色申告決算書・一般用）参照側
 // 直接値 leaf（gen:kingaku 等）への転記。
 //
 // KOA210 は KOA020 と異なり、決算書の金額は IT部 IDREF ではなく要素テキストで
 // 直接保持する（leaf.idref 無し）。本モジュールは schema（refTree）を走査して
 // 「ページ × 日本語名 → leaf tag」を解決し、aoiko の勘定科目名で対応付ける。
-// 貸借対照表（第4頁）に対応する固定 leaf が無い科目は、追加科目 繰り返し枠（AMG00025 /
+// 貸借対照表（第4頁）に対応する固定 leaf が無い科目は、追加科目の繰り返し枠（AMG00025 /
 // AMG00465・AMG00475）へ回す。それ以外のページで対応する leaf が無い項目は出力しない
 // （buildXtxDocument が整形式・整合を保証）。
 
@@ -84,12 +84,12 @@ const PAGE4_END = bsPeriodEndLeaves();
 function tagByJa(leaves: Leaf[], ja: string): string | undefined {
   return leaves.find((l) => l.ja === ja)?.tag;
 }
-// aoiko 勘定科目名 → KOA210 決算書 行名 の差異吸収
+// aoiko 勘定科目名 → KOA210 決算書の行名の差異吸収
 const BS_ALIAS: Record<string, string> = {
   普通預金: 'その他の預金',
   工具器具備品: '工具　器具　備品',
 };
-// 貸借対照表の欄に無い科目（減価償却累計額・利用者独自科目）を収める追加科目 繰り返し枠。
+// 貸借対照表の欄に無い科目（減価償却累計額・利用者独自科目）を収める追加科目の繰り返し枠。
 // 資産の部は AMG00025（maxOccurs 7）の 1 枠のみ。
 // 負債・資本の部は用紙の 2 列分 AMG00465・AMG00475（各 maxOccurs 7）が並び、
 // 1 枠目が埋まったら 2 枠目へ続ける（計 14 件）。
@@ -161,7 +161,7 @@ const AMF00470_RESERVE_ACCRUAL = 'AMF00470';
 const AMF01010_INDIVIDUAL_ACCRUAL = 'AMF01010';
 const AMF01050_LUMP_SUM_ACCRUAL = 'AMF01050';
 const AMF01060_TOTAL_ACCRUAL = 'AMF01060';
-// 経費の追加科目 繰り返し枠（AMF00355、公式 xsd で maxOccurs 6）。
+// 経費の追加科目の繰り返し枠（AMF00355、公式 xsd で maxOccurs 6）。
 // 科目名（AMF00060）は最大10文字。
 const MAX_ADDITIONAL_EXPENSE_ROWS = 6;
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
@@ -279,7 +279,7 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   put(out, tagByJa(PAGE1, '青色申告特別控除前の所得金額(上段)'), preIncome.toString());
   put(out, tagByJa(PAGE1, '青色申告特別控除額'), deduction.toString());
   put(out, tagByJa(PAGE1, '所得金額'), preIncome.minus(deduction).toString());
-  // 月別売上（収入）/ 仕入 金額（ページ2、先頭から 12 ヶ月分のペア）。
+  // 月別売上（収入）/ 仕入金額（ページ2、先頭から 12 ヶ月分のペア）。
   // 仕入欄には経費合計ではなく仕入(売上原価)のみ（mo.purchases）を入れる。
   const sales = PAGE2.filter((l) => l.ja === '売上（収入）金額').slice(0, 12);
   const shiire = PAGE2.filter((l) => l.ja === '仕入金額').slice(0, 12);
