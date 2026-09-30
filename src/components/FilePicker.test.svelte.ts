@@ -10,7 +10,7 @@ let component: Record<string, unknown> | null = null;
 
 type Bridged = { __aoikoNative?: { isCameraAvailable?: () => Promise<boolean> } };
 
-// 橋そのものを差し替える。相機の有無は端末の事情で、部品の都合では決まらない。
+// ブリッジそのものを差し替える。カメラの有無は端末の事情で、部品の都合では決まらない。
 function withCamera(available: boolean | null): void {
   const w = window as unknown as Bridged;
   if (available === null) {
@@ -109,7 +109,7 @@ describe('FilePicker', () => {
     expect(target?.querySelector('input[capture]')).toBeNull();
   });
 
-  test('camera かつ相機が在れば入口が 2 つになる', async () => {
+  test('camera かつカメラが在れば入口が 2 つになる', async () => {
     withCamera(true);
     render({ camera: true, accept: 'image/*' });
     await settle();
@@ -121,15 +121,15 @@ describe('FilePicker', () => {
     expect(shot?.getAttribute('accept')).toBe('image/*');
   });
 
-  test('camera でも相機が無ければ入口は 1 つ', async () => {
+  test('camera でもカメラが無ければ入口は 1 つ', async () => {
     withCamera(false);
     render({ camera: true });
     await settle();
     expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
   });
 
-  // 橋の無い環境（web 版・桌面版）で撮影のボタンを生やさない。
-  test('橋が無ければ入口は 1 つ', async () => {
+  // ブリッジの無い環境（web 版・デスクトップ版）で撮影のボタンを生やさない。
+  test('ブリッジが無ければ入口は 1 つ', async () => {
     withCamera(null);
     render({ camera: true });
     await settle();

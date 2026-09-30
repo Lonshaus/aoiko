@@ -20,7 +20,7 @@
 > **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容端點**（內建規則引擎不能用）。
 <!-- /only -->
 <!-- only:android -->
-> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好 **Gemini API 金鑰**、**OpenAI 相容 endpoint**，或對應裝置的 **裝置內 Gemini Nano**（內建規則引擎不能用）。
+> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好 **Gemini API 金鑰**、**OpenAI 相容端點**，或對應裝置的 **裝置內 Gemini Nano**（內建規則引擎不能用）。
 <!-- /only -->
 
 ## 1. 這個功能的意義
@@ -57,7 +57,7 @@
 <!-- only:android -->
 #### 使用裝置內 Gemini Nano（Android）時
 
-貼上的文字和推論內容都不會離開裝置，所以不會跳確認對話框。但 ML Kit 會把 API 使用狀況（裝置型號、App 版本、每次安裝的識別碼、處理時間、錯誤代碼等）送到 Google。
+貼上的文字和推論內容都不會離開裝置，所以不會跳確認對話框。但 ML Kit 會把 API 使用狀況（機型、App 版本、每次安裝的識別碼、處理耗時、錯誤代碼等）送到 Google。
 <!-- /only -->
 
 ### 2-3. 抽取結果確認・修正

@@ -199,7 +199,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: '新名稱的表格列有 ML Kit 使用狀況揭露',
       pattern:
-        /裝置內的文字辨識 \| 圖片與文字都不離開本機 \| \*\*圖片與文字都無\*\*（僅 ML Kit 的使用狀況會送給 Google）/,
+        /裝置內的文字辨識 \| 照片與文字都不離開本機 \| \*\*照片與文字都無\*\*（僅 ML Kit 的使用狀況會送給 Google）/,
       only: ['android'],
     },
     {
@@ -210,7 +210,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'android 分開寫 Tesseract 和裝置內的文字辨識各自是否送出',
       pattern:
-        /Tesseract 不會送出任何東西。裝置內的文字辨識不會送出圖片和文字，但使用狀況會送給 Google/,
+        /Tesseract 不會送出任何資料。裝置內的文字辨識不會送出照片和文字，但使用狀況會送給 Google/,
       only: ['android'],
     },
     {
@@ -308,7 +308,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'opening paragraph on android states Tesseract and on-device recognition/Nano separately',
       pattern:
-        /not at all if you chose Tesseract; if you chose on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google/,
+        /\(nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google\)/,
       only: ['android'],
     },
     {
@@ -344,7 +344,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: '新名稱的條目有 ML Kit 使用狀況揭露',
       pattern:
-        /裝置內的文字辨識\*\* → 圖片與文字都不送（在本機處理；負責辨識的 ML Kit 會把使用狀況送給 Google）/,
+        /裝置內的文字辨識\*\* → 照片與文字都不送（在本機處理；負責辨識的 ML Kit 會把使用狀況送給 Google）/,
       only: ['android'],
     },
     {
@@ -355,7 +355,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: '開頭段落的 android 分開寫 Tesseract 和裝置內的文字辨識・裝置內 Gemini Nano',
       pattern:
-        /選擇 Tesseract 時不會送出。選擇裝置內的文字辨識或裝置內 Gemini Nano 時不會送出圖片和文字，但使用狀況會送給 Google/,
+        /選擇 Tesseract 時不會送出。選擇裝置內的文字辨識或裝置內 Gemini Nano 時不會送出照片和文字，但使用狀況會送給 Google/,
       only: ['android'],
     },
     {

@@ -64,7 +64,7 @@ src-tauri/gen/
 src-tauri/init.js
 # tauri ios build がプラグインへ複製する Tauri の Swift API。
 src-tauri/plugins/*/.tauri/
-# 署名鍵と商店の資格情報。テンプレートの .gitignore は keystore.properties しか
+# 署名鍵とストアの資格情報。テンプレートの .gitignore は keystore.properties しか
 # 除外せず、鍵の実体は素通しになる。
 *.jks
 *.keystore

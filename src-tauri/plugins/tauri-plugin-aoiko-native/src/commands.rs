@@ -561,7 +561,7 @@ pub(crate) fn backup_close<R: Runtime>(app: AppHandle<R>, rid: u32) -> Result<()
 // ask_save_path だけで、web 側から渡せるのは初期ファイル名だけ。取り消しは Ok(None)。
 #[tauri::command(async)]
 pub(crate) fn export_open<R: Runtime>(app: AppHandle<R>, file_name: String) -> Result<Option<u32>> {
-    // この環境の rid はネイティブ側の登記簿にある。書き込みも close も既にそちらへ回るので、
+    // この環境の rid はネイティブ側の台帳にある。書き込みも close も既にそちらへ回るので、
     // 開くところだけ Rust に残すと rid が噛み合わない。
     #[cfg(target_os = "android")]
     {

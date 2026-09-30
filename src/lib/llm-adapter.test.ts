@@ -73,7 +73,7 @@ describe('createLlmAdapter', () => {
   });
   // nano は端末内完結の経路。__NATIVE__（テスト全体で true）では NanoAdapter を返し、
   // Gemini キーが設定済みでも黙ってクラウドへ差し替えない。可用性は Settings の選択肢の
-  // 出し分けだけに使う判定なので、ここでは問い合わせず常に返す（invariant）。
+  // 出し分けだけに使う判定なので、ここでは問い合わせず常に返す（不変条件）。
   test('nano：__NATIVE__ では NanoAdapter を返す（Gemini キー設定済みでも gemini に落ちない、可用性は問わない）', async () => {
     await setSetting('aiEngine', 'nano');
     await setSetting('geminiApiKey', 'sk-test');

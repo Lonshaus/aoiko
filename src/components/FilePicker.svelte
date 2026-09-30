@@ -13,7 +13,7 @@
 
   let { accept, onchange, onclick, camera = false }: Props = $props();
 
-  // 相機の無い端末で押せないボタンを生やさないため、プラットフォームだけでは決めない。
+  // カメラの無い端末で押せないボタンを生やさないため、プラットフォームだけでは決めない。
   let cameraReady = $state(false);
   $effect(() => {
     if (!camera) {
@@ -47,7 +47,7 @@
     </span>
   </label>
   <!-- capture が付くと wry の onShowFileChooser が ACTION_IMAGE_CAPTURE へ回す。
-       選ぶ側の入口は上に残すので、撮影を足しても相簿から選ぶ道は塞がらない。 -->
+       選ぶ側の入口は上に残すので、撮影を足しても写真ライブラリから選ぶ道は塞がらない。 -->
   {#if cameraReady}
     <label class="inline-flex cursor-pointer items-center">
       <input type="file" {accept} {onchange} {onclick} capture="environment" class="peer sr-only" />

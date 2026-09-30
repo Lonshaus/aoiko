@@ -1,6 +1,6 @@
 // android 環境専用の *_android キーが三語すべてに存在し、文字認識の利用状況開示を含むこと、
 // エンジン名が新名称（端末内の文字認識／on-device text recognition／裝置內的文字辨識）を
-// 使い旧名称（OS 内蔵の文字認識 等）の表記を含まないこと、共用キー（*_native・_html 無印）の
+// 使い旧名称（OS 内蔵の文字認識等）の表記を含まないこと、共用キー（*_native・_html 無印）の
 // 文字列は変えていないことを確認する。
 import { describe, expect, test } from 'vitest';
 import ja from '../../messages/ja.json';
@@ -100,7 +100,7 @@ describe('messages/*.json の *_android キー', () => {
       sep: '。',
       name: NEW_ENGINE_NAME.zhTW,
       hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('使用狀況'),
-      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何東西/,
+      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何(東西|資料)/,
     },
   ];
 
@@ -153,7 +153,7 @@ describe('messages/*.json の *_android キー', () => {
       sep: '。',
       name: NANO_NAME.zhTW,
       hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('使用狀況'),
-      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何東西/,
+      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何(東西|資料)/,
     },
   ];
 

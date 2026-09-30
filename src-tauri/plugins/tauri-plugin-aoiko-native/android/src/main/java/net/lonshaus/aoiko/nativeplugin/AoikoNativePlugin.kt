@@ -207,8 +207,8 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         invoke.resolveObject(true)
     }
 
-    // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでも相機を
-    // 起こせなければファイル選択へ退避するため、こちらも同じ resolveActivity で揃える。
+    // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでもカメラを
+    // 起こせなければファイル選択に切り替えるため、こちらも同じ resolveActivity で揃える。
     @Command
     fun isCameraAvailable(invoke: Invoke) {
         val pm = activity.packageManager
@@ -230,7 +230,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             onFailure = { e -> invoke.reject("端末内モデルの状態を取得できません: ${e.javaClass.simpleName}") },
         )
     }
-    // 推論 1 回分。塊への分割と合併は Rust 側が持つ。失敗は固定のコードで返す。
+    // 推論 1 回分。チャンクへの分割と結合は Rust 側が持つ。失敗は固定のコードで返す。
     @Command
     fun nanoGenerate(invoke: Invoke) {
         val args = invoke.parseArgs(NanoGenerateArgs::class.java)
@@ -275,8 +275,8 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             onFailure = { message -> invoke.reject(message) },
         )
     }
-    // BitmapFactory は EXIF を見ないので、相機で撮った画像は寝たまま解ける。角度を
-    // 別に取り出して認識へ渡す（回さないと版面の行と列が入れ替わる。実機で踏んだ）。
+    // BitmapFactory は EXIF を見ないので、カメラで撮った画像は横倒しのまま復号される。角度を
+    // 別に取り出して認識へ渡す（回さないとレイアウトの行と列が入れ替わる。実機で踏んだ）。
     private fun exifRotation(bytes: ByteArray): Int =
         try {
             when (
@@ -342,7 +342,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         io(invoke) { invoke.resolveObject(Saf.openPicked(activity, uri)) }
     }
 
-    // 破棄が選ばれたあとの終了。window.destroy() は画面の器を
+    // 破棄が選ばれたあとの終了。window.destroy() はウィンドウ本体を
     // 終わらせないので、こちらで畳む。webview から直に呼べる口は生やさない。
     @Command
     fun closeApp(invoke: Invoke) {

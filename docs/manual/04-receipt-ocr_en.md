@@ -34,8 +34,8 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 | **Built-in rule engine** (the OS's built-in text recognition) | None | Supported devices only; re-checked automatically every time the `Receipt` page opens |
 <!-- /only -->
 <!-- only:android -->
-| **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit reports usage information to Google) | Always available on this device; the text recognition ships with the app |
-| **AI engine** (on-device Gemini Nano) | No image or text sent (ML Kit reports usage information to Google) | Appears only on supported Android devices |
+| **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit sends usage information to Google) | Always available on this device; the text recognition ships with the app |
+| **AI engine** (on-device Gemini Nano) | No image or text sent (ML Kit sends usage information to Google) | Appears only on supported Android devices |
 <!-- /only -->
 
 > Detailed AI engine setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
@@ -103,7 +103,7 @@ Because data leaves the device, **CloudSendConfirmDialog** appears:
 <!-- only:android -->
 #### AI engine (on-device Gemini Nano): no dialog
 
-Inference and the image both stay on this device. However, ML Kit reports API usage to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
+Inference and the image both stay on this device. However, ML Kit sends API usage to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
 <!-- /only -->
 <!-- only:browser -->
 
@@ -142,7 +142,7 @@ The OS's built-in text recognition shows no dialog either, and fetches nothing e
 <!-- /only -->
 <!-- only:android -->
 
-On-device text recognition shows no dialog either and fetches nothing extra, but ML Kit, which powers the recognition, reports usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are never sent.
+On-device text recognition shows no dialog either and fetches nothing extra, but ML Kit, which powers the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are never sent.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result
@@ -179,8 +179,8 @@ When done, **"2. Extracted result (editable)"** expands below:
 <!-- only:android -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
-> - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** using fixed rules. **Vendor and items are left blank**
+> - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the vendor, and rows between the header and the total with a name on the left and an amount on the right are taken as items
 > - For both paths, raw OCR text is held internally but not auto-copied into the journal description
 <!-- /only -->
 
@@ -291,9 +291,9 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 ### Built-in rule engine (on-device text recognition)
 
 - No AI engine and no extra download
-- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the vendor, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
-- Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
+- Rows that look like "text on the left, digits on the right" but are actually phone numbers, cash register numbers or slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify the total and date
 <!-- /only -->
 <!-- only:apple -->
@@ -305,7 +305,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - **Not every device can use it.** It only enters the option set when Japanese text recognition is present on the OS side. This is re-checked every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable next time you open the page
 <!-- /only -->
 <!-- only:android -->
-- The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number in the right format is one you cannot spot by looking)
+- The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number that happens to have the right format would be hard to notice)
 <!-- /only -->
 
 ## 4. Troubleshooting

@@ -55,7 +55,7 @@ const RELOAD_SCRIPT: &str = r#"
 // JS から明示的に呼ぶ必要がある。destroy() は CloseRequested を再発火しない。
 #[tauri::command]
 fn force_close(window: tauri::WebviewWindow) {
-    // この環境の destroy() は web view を畳むだけで画面の器は残る。BACK で終了するには
+    // この環境の destroy() は web view を畳むだけでウィンドウ本体は残る。BACK で終了するには
     // Activity 自体を終わらせる必要がある。
     #[cfg(target_os = "android")]
     {
@@ -268,7 +268,7 @@ async fn aoiko_fetch(
     let _ = &app;
     // この環境の IPC は文字列一本で、request body を運べない
     // （そもそも要求オブジェクト自体に無い）。backup_write_chunk と同じく base64 も受ける。
-    // 数字の配列だと 3.57 倍に膨らみ、画像を載せたときに Java 側の文字列が持たない。
+    // 数字の配列だと 3.57 倍に膨らみ、画像を載せたときに Java 側の文字列に収まらない。
     let decoded;
     let frame: &[u8] = match request.body() {
         tauri::ipc::InvokeBody::Raw(frame) => frame,
@@ -292,7 +292,7 @@ async fn aoiko_fetch(
     let out = fetch_frame(frame).await?;
     Ok(tauri::ipc::Response::new(out))
 }
-// 検査を通った要求を実際に送る。ここだけが platform で分かれ、allowlist も禁止ヘッダーも
+// 検査を通った要求を実際に送る。ここだけがプラットフォームで分かれ、allowlist も禁止ヘッダーも
 // 呼び出し側に残る。
 #[cfg(not(target_os = "android"))]
 async fn send(
@@ -329,8 +329,8 @@ async fn send(
         .map_err(|e| e.without_url().to_string())?;
     Ok((meta, body.to_vec()))
 }
-// この環境は system TLS を Rust から借りられないので、送信だけネイティブへ渡す。
-// リダイレクトはネイティブ側で追わせず、1 跳ごとにここへ戻して allowlist に掛ける。
+// この環境は OS 標準の TLS を Rust から借りられないので、送信だけネイティブへ渡す。
+// リダイレクトはネイティブ側で追わせず、リダイレクト 1 回ごとにここへ戻して allowlist に掛ける。
 #[cfg(target_os = "android")]
 async fn send(
     app: &tauri::AppHandle,

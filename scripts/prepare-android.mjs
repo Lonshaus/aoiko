@@ -1,7 +1,7 @@
 // gen/android は生成物で git に入っていない。tauri android init はランチャーアイコンを
 // 既定のロゴで置き、こちらから差し替える口も無い（CLI は出力先を
-// gen/android/app/src/main/res/ に固定していて、出所ディレクトリという概念が無い）。
-// prepare-ios.mjs と同じ形で、icons/android を出所として毎回上書きし直す。
+// gen/android/app/src/main/res/ に固定していて、コピー元ディレクトリという概念が無い）。
+// prepare-ios.mjs と同じ形で、icons/android をコピー元として毎回上書きし直す。
 import {
   copyFileSync,
   existsSync,
@@ -37,8 +37,8 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-// 前景 PNG は自適応アイコンの安全域（中央 72/108）へ収めてある。tauri icon はそれを
-// 考えずに敷き詰めるので、あちらを回すとランチャーの遮罩で猫の下端が切れる。
+// 前景 PNG はアダプティブアイコンのセーフエリア（中央 72/108）へ収めてある。tauri icon はそれを
+// 考えずに敷き詰めるので、あちらを回すとランチャーのマスクで猫の下端が切れる。
 for (const file of files) {
   const rel = relative(src, file);
   const to = join(dest, rel);
@@ -47,8 +47,8 @@ for (const file of files) {
 }
 
 // 署名設定は Tauri の公式手順が生成物 build.gradle.kts の直接編集を指示しており、置き場所が
-// gen/ の中しか無い。消えると戻らないのでここから足す。範本の中身には触れず末尾へ追記する
-// だけにして、Tauri が範本を変えても壊れないようにしてある。
+// gen/ の中しか無い。消えると戻らないのでここから足す。テンプレートの中身には触れず末尾へ追記する
+// だけにして、Tauri がテンプレートを変えても壊れないようにしてある。
 const MARKER = '// aoiko: 署名設定';
 const SIGNING_BLOCK = `${MARKER}。gen/ は生成物なので prepare-android.mjs が毎回ここへ足す。
 // 鍵は repo 外の ~/.playconsole、パスワードは macOS のキーチェーンから取る。
@@ -117,7 +117,7 @@ if (!gradle.includes(MARKER)) {
 }
 
 writeFileSync(gradleFile, gradle);
-// genai-prompt が載せる kotlin-stdlib 2.3 のメタデータは範本の 1.9.25 では読めない。
+// genai-prompt が載せる kotlin-stdlib 2.3 のメタデータはテンプレートの 1.9.25 では読めない。
 const KOTLIN_GRADLE_PLUGIN = '2.2.21';
 const rootGradleFile = new URL('../src-tauri/gen/android/build.gradle.kts', import.meta.url)
   .pathname;

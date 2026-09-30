@@ -5,7 +5,7 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
-// この環境には Rust から借りられる system TLS が無い。ここは OS の TLS を使うためだけに在り、
+// この環境には Rust から借りられる OS 標準の TLS が無い。ここは OS の TLS を使うためだけに在り、
 // 宛先の検査もリダイレクトの判断も Rust 側に残してある。
 object HttpSend {
     private const val CONNECT_TIMEOUT_MS = 30_000
@@ -30,7 +30,7 @@ object HttpSend {
         }
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
-        // リダイレクトを追わせない。1 跳ごとに Rust 側の allowlist へ掛ける必要がある。
+        // リダイレクトを追わせない。リダイレクト 1 回ごとに Rust 側の allowlist へ掛ける必要がある。
         connection.instanceFollowRedirects = false
         connection.requestMethod = method
         for ((name, value) in headers) {

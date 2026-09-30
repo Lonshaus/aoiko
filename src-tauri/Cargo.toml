@@ -18,7 +18,7 @@ png = { version = "0.18", default-features = false }
 [dependencies]
 # Android では IPC が生バイトを運べず、aoiko_fetch が base64 で受け取る。
 base64 = "0.22"
-# aoiko_fetch が扱う型。reqwest が再輸出しているのと同じ実体で、Android では
+# aoiko_fetch が扱う型。reqwest が再エクスポートしているのと同じ実体で、Android では
 # reqwest を入れないためここで直に持つ。
 http = "1"
 url = "2"
@@ -68,7 +68,7 @@ strip = true
 # 自前の暗号実装を同梱すると輸出管理上の分類が変わるため持ち込まない。
 # native-tls だけだと ALPN を要求しないので h2 が選ばれず、http2 を有効にしていても
 # 実際の接続は HTTP/1.1 へ落ちる（実測）。native-tls-alpn は ALPN を有効にするだけ。
-# Android には借りられる system TLS が無く native-tls が OpenSSL を要求するので、
+# Android には借りられる OS 標準の TLS が無く native-tls が OpenSSL を要求するので、
 # 送信そのものを Kotlin の HttpsURLConnection へ回し、reqwest ごと外す。
 [target.'cfg(not(target_os = "android"))'.dependencies]
 reqwest = { version = "0.12", default-features = false, features = [

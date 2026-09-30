@@ -3116,7 +3116,7 @@
           <option value="chrome-ai">{m.settings_engine_chrome_ai()}</option>
         {/if}
         <!-- 0（使えない）とその他の未知値は選択肢ごと隠す。1/2 は選び直せるので disabled で残し、
-             下に理由を出す。__NATIVE__ で畳むのは web の産物にこの経路の文言を残さないため。 -->
+             下に理由を出す。__NATIVE__ で畳むのは web のビルド成果物にこの経路の文言を残さないため。 -->
         {#if nanoOptionShown}
           <option value="nano" disabled={nanoAvailability !== 3}>
             {m.settings_engine_nano()}

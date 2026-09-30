@@ -8,5 +8,5 @@
 }
 # @InvokeArg は JSON から reflection で埋めるので、フィールドと setter を残す。
 -keep @app.tauri.annotation.InvokeArg public class * { *; }
-# 上の照合が実行時に効くよう、注解そのものを残す。
+# 上の照合が実行時に効くよう、アノテーションそのものを残す。
 -keepattributes *Annotation*, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations

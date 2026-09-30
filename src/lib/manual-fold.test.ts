@@ -148,8 +148,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '本文：android 也不會送出圖片與文字內容',
-      pattern: /收據圖片與辨識出的文字內容不會被送出/,
+      name: '本文：android 也不會送出照片與文字內容',
+      pattern: /收據照片與辨識出的文字內容不會被送出/,
       only: ['android'],
     },
     {
@@ -226,9 +226,9 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE_WINDOWS,
     },
     {
-      name: 'prose: android reports ML Kit usage to Google',
+      name: 'prose: android sends ML Kit usage to Google',
       pattern:
-        /ML Kit, which powers the recognition, reports usage information \(device model, app version, a per-install identifier, timing, and error codes\) to Google/,
+        /ML Kit, which powers the recognition, sends usage information \(device model, app version, a per-install identifier, timing, and error codes\) to Google/,
       only: ['android'],
     },
     {
@@ -512,10 +512,10 @@ const RULES: Record<string, Rule[]> = {
   ],
 };
 // RULES の 1 件が「その family の唯一の宣言」になるよう、真偽値の一致ではなく出現回数で見る。
-// 例えば only:windows の変種が only:native に化けると、apple/windows 両方の文が macos の産物にも並んで出る
+// 例えば only:windows の変種が only:native に化けると、apple/windows 両方の文が macos のビルド成果物にも並んで出る
 // ため、対象文が「ある/ない」の 2 値では素通りする。1 つの platform には家族内で高々 1 個という
 // 前提を数で確かめれば、変種が丸ごと消えるケースも、印が化けて隣の platform に漏れるケースも同じ
-// チェックで拾える。ここでは 2 つ目の hand-kept list を別に持たず、RULES だけを唯一の宣言源にする。
+// チェックで拾える。ここでは 2 つ目の手書きの一覧を別に持たず、RULES だけを唯一の宣言源にする。
 function countMatches(folded: string, pattern: RegExp): number {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
   return [...folded.matchAll(new RegExp(pattern.source, flags))].length;
@@ -537,8 +537,8 @@ describe('配布形態ごとに、その形態で成り立つ文だけが、ち�
 });
 // RULES は言語ごとに手書きの配列を並べているだけなので、1 件消えてもそのテストが
 // ただ消えるだけで green のまま通ってしまう（FAMILY_EXCEPTIONS の劣化防止と違い、
-// RULES 自体にはこの手の歯止めが無かった）。ja/en/zh-TW の 3 版は同じ話題を出し分けている
-// はずなので、件数と only の並びが揃うことを確かめ、どれか 1 版だけの削除を拾う。
+// RULES 自体にはこの手の歯止めが無かった）。ja/en/zh-TW の 3 言語は同じ話題を出し分けている
+// はずなので、件数と only の並びが揃うことを確かめ、どれか 1 言語だけの削除を拾う。
 function baseAndLangOf(doc: string): { base: string; lang: 'ja' | 'en' | 'zh-TW' } {
   if (doc.endsWith('_en.md')) {
     return { base: doc.slice(0, -'_en.md'.length), lang: 'en' };
@@ -549,7 +549,7 @@ function baseAndLangOf(doc: string): { base: string; lang: 'ja' | 'en' | 'zh-TW'
   return { base: doc.slice(0, -'.md'.length), lang: 'ja' };
 }
 
-describe('RULES は ja/en/zh-TW の 3 版で件数と only の並びが揃う（削除の検出漏れを防ぐ）', () => {
+describe('RULES は ja/en/zh-TW の 3 言語で件数と only の並びが揃う（削除の検出漏れを防ぐ）', () => {
   const byBase = new Map<string, Partial<Record<'ja' | 'en' | 'zh-TW', Rule[]>>>();
   for (const [doc, rules] of Object.entries(RULES)) {
     const { base, lang } = baseAndLangOf(doc);
@@ -687,12 +687,12 @@ function reachOf(family: Family): Set<Platform> {
   }
   return reach;
 }
-// reach（family 全体の集合）だけを見ると、家族内の 1 区画がその time点で既に他の兄弟に
+// reach（family 全体の集合）だけを見ると、家族内の 1 区画がその時点で既に他の兄弟に
 // 覆われている platform しか足していなくても検出できない（余分な区画が紛れ込んでも
 // 集合としては変わらないため）。ここでは block を先頭から見て、各区画が「まだ誰も
 // 覆っていない platform」を 1 つ以上足しているかを確かめる。足していない区画があれば
-// その index を返す。これは reach が偶然 5 形態ぴったりに揃う「本物の merge」と
-// 「余計な区画が紛れ込んだ merge」を区別する唯一の手がかりだが、後者のうち
+// その index を返す。これは reach が偶然 5 形態ぴったりに揃う「本物の結合」と
+// 「余計な区画が紛れ込んだ結合」を区別する唯一の手がかりだが、後者のうち
 // 元から欠けていた区画分がちょうど埋め合わされて reach が 5 になるケース
 // （例：browser と native の 2 区画がたまたま隣接し、本来は無関係な別々の話題なのに
 // 合わせて 5 形態に届いてしまう）は、どの区画も新しい platform を足しているので
@@ -722,7 +722,7 @@ type FamilyException = {
   reason: string;
   reach: Platform[];
 };
-// 全 5 形態に届かないことが意図通りの family。旧版は日本語版の行番号で照合していたが、
+// 全 5 形態に届かないことが意図通りの family。以前の方式は日本語の行番号で照合していたが、
 // 対象より前の block 数が変わるだけで無関係な例外まで巻き添えで失敗し、失敗の指す先が
 // 編集箇所からずれていた。ここでは行番号の代わりに、family 自身が持つ内容だけで決まる
 // キー（見出し slug ＋ block の kind 列 ＋ 同じ kind 列がその見出し内で何番目に出たか）で
@@ -738,7 +738,7 @@ type FamilyException = {
 // headingSlug も occurrence も本文の中身を見ずに算出するため、この種の swap には無反応
 //（docs/manual/04-receipt-ocr_zh-TW.md の `## 1` 表の行と `### 2-2` の箇条書きで実測済み）。
 // reach は「その family が実際に届くべき形態」の厳密な一覧。<5 かどうかの緩い判定にすると、
-// deriveFamilies が地続きの別 family を誤って 1 つに merge したとき（例：browser 単独の
+// deriveFamilies が地続きの別 family を誤って 1 つに結合したとき（例：browser 単独の
 // 話題の直後に、本来は別話題である apple/windows のみ・android 抜け、のような不完全な話題が
 // 空行だけ挟んで続く場合）、混入後の reach もたまたま 5 未満のままなら、この例外の記録に
 // 一致するというだけで通ってしまい、android 抜けという本物の欠落を見逃す。reach を厳密一致に
@@ -794,7 +794,8 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlugZhTw: '1-引擎挑選速查',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 0,
-    reason: '表の「内蔵の規則エンジン（OS 内蔵の文字認識）」行。browser に OS 内蔵の文字認識は無い',
+    reason:
+      '表の「内蔵のルールベースエンジン（OS 内蔵の文字認識）」行。browser に OS 内蔵の文字認識は無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
@@ -830,9 +831,9 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジンtesseract端末内の文字認識の場合送信ダイアログ無し',
+    headingSlug: '内蔵のルールベースエンジンtesseract端末内の文字認識の場合送信ダイアログ無し',
     headingSlugEn: 'built-in-rule-engine-tesseract-on-device-text-recognition-no-dialog',
-    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不跳對話框',
+    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不會跳出對話框',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 2,
     reason:
@@ -847,7 +848,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows', 'android'],
     occurrence: 3,
     reason:
-      '内蔵の規則エンジンの警告バナーのうち、OS 内蔵の文字認識向けに足した追加文。browser に OS 内蔵の文字認識は無い',
+      '内蔵のルールベースエンジンの警告バナーのうち、OS 内蔵の文字認識向けに足した追加文。browser に OS 内蔵の文字認識は無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
@@ -879,12 +880,12 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows', 'android'],
     occurrence: 4,
     reason:
-      '見出し「内蔵の規則エンジン（OS 内蔵の文字認識）」の tips 節。browser に該当エンジンは無い',
+      '見出し「内蔵のルールベースエンジン（OS 内蔵の文字認識）」の tips 節。browser に該当エンジンは無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジン端末内の文字認識',
+    headingSlug: '内蔵のルールベースエンジン端末内の文字認識',
     headingSlugEn: 'built-in-rule-engine-on-device-text-recognition',
     headingSlugZhTw: '內建規則引擎裝置內的文字辨識',
     kinds: ['apple', 'windows', 'android'],
@@ -930,7 +931,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     base: '04-receipt-ocr',
     headingSlug: 'ai-エンジン端末内-gemini-nanoの場合送信ダイアログ無し',
     headingSlugEn: 'ai-engine-on-device-gemini-nano-no-dialog',
-    headingSlugZhTw: 'ai-引擎裝置內-gemini-nano不跳對話框',
+    headingSlugZhTw: 'ai-引擎裝置內-gemini-nano不會跳出對話框',
     kinds: ['android'],
     occurrence: 0,
     reason: '見出し「AI エンジン（端末内 Gemini Nano）の場合」。他の platform に対応する経路が無い',
@@ -953,7 +954,7 @@ const manualFiles = readdirSync(MANUAL_DIR)
   .filter((file) => file.endsWith('.md'))
   .sort();
 const usedExceptions = new Set<number>();
-// 「形態ごとに変種は高々 1 つ」は独立の test にしない：deriveFamilies 自身が同じ kind の
+// 「形態ごとに変種は高々 1 つ」は独立のテストにしない：deriveFamilies 自身が同じ kind の
 // 重複を family 内で弾き（seenKinds）、native → apple/windows/android の遷移でも family を
 // 割る（上の nativeToNarrower）ため、1 つの platform を読む kind が family 内で 2 つ以上
 // 揃うことは derivation の作りそのものが防いでいる。ここで同じ判定をもう一度 family ごとに
@@ -965,7 +966,7 @@ describe('family は例外を除き全形態に届く', () => {
     const src = readFileSync(resolve(MANUAL_DIR, file), 'utf-8');
     const { base, lang } = baseAndLangOf(file);
     // kind 列の出現順は only:xxx マーカーそのもの（翻訳されない）なので、ja/en/zh-TW の
-    // どの版で数えても揃う。この出現回数を照合キーの一部にする：headingSlug だけでは
+    // どの言語で数えても揃う。この出現回数を照合キーの一部にする：headingSlug だけでは
     // 同じ見出しの下に同じ kind 列を持つ family が複数あるケースを区別できない
     // （現状は無いが、将来増えても静かに誤爆しないようにする）。
     const occurrenceByKinds = new Map<string, number>();
@@ -1134,8 +1135,8 @@ describe('android の剥がした結果に旧エンジン名の表記が残っ�
     });
   }
 });
-// 04-receipt-ocr の「内蔵の規則エンジンのときの警告バナー」節にある引用文は、実際に画面へ
-// 出す receipt_native_engine_notice（_android）と文字ズレしていると使用者に嘘の画面を
+// 04-receipt-ocr の「内蔵のルールベースエンジンのときの警告バナー」節にある引用文は、実際に画面へ
+// 出す receipt_native_engine_notice（_android）と文言がずれていると利用者に嘘の画面を
 // 見せたまま説明することになる。マニュアルと messages を両方読んで一致を機械的に確かめる。
 const RECEIPT_OCR_DOC = {
   ja: { file: 'docs/manual/04-receipt-ocr.md', quoteRe: /^> (.*文字認識.*の結果です。.*)$/m },

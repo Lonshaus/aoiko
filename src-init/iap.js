@@ -34,7 +34,7 @@ const PLAY = 'android';
 // Play の保留（コンビニ払い等）を見つけるための間隔と上限。
 const PENDING_POLL_MS = 1000;
 const PENDING_POLL_LIMIT = 20;
-// race の勝者が「保留だった」ことを示す目印。購入オブジェクトと取り違えない。
+// 競合（Promise.race）の勝者が「保留だった」ことを示す目印。購入オブジェクトと取り違えない。
 const PENDING = Symbol('pending');
 
 export function productIdsFor(platform) {
@@ -76,7 +76,7 @@ export function purchaseResultOfError(error) {
   return null;
 }
 
-// 課金画面が出ている間はこちらが hidden になる。一度隠れて戻ってくるまでは、
+// 課金画面が出ている間はこちらが非表示になる。一度隠れて戻ってくるまでは、
 // 結果が出ていなくて当たり前なので待つ側の時計を進めない。
 function whenBackFromStore() {
   if (typeof document === 'undefined') {
@@ -145,7 +145,7 @@ export function createIap(invoke, platform, deps = {}) {
           }
           lastError = null;
         } catch (error) {
-          // billing client が一時的に落ちていることがある。理由は捨てず、
+          // 課金クライアントが一時的に落ちていることがある。理由は捨てず、
           // 見切りをつけるときの文面に載せる。
           lastError = error;
         }
@@ -224,7 +224,7 @@ export function createIap(invoke, platform, deps = {}) {
       if (kindFor(platform, purchase.productId) !== NON_CONSUMABLE) {
         continue;
       }
-      // 保留のままの購入を「持っている」に数えると、支払い前にバッジが点く。
+      // 保留のままの購入を「持っている」に数えると、支払い前にバッジが付く。
       if (purchaseResultOf(purchase) !== 'purchased') {
         continue;
       }

@@ -54,7 +54,7 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(Into::into)
     }
     // 以下は選ばれたフォルダ配下の入出力。パスで触れないのでネイティブ側で完結させる。
-    // 見つからないのは正常な分岐なので None。frame の found に translate するのは呼出側。
+    // 見つからないのは正常な分岐なので None。frame の found に変換するのは呼出側。
     pub fn backup_read(&self, token: &str, rel_path: &str) -> Result<Option<Vec<u8>>> {
         #[derive(serde::Deserialize)]
         struct Body {
@@ -78,7 +78,7 @@ impl<R: Runtime> AoikoNative<R> {
         Ok(Some(bytes))
     }
 
-    // 保存ダイアログ相当。取り消しは None。rid は backup_* と同じ登記簿のもの。
+    // 保存ダイアログ相当。取り消しは None。rid は backup_* と同じ台帳のもの。
     pub fn export_open(&self, file_name: &str) -> Result<Option<u32>> {
         self.0
             .run_mobile_plugin("exportOpen", serde_json::json!({ "fileName": file_name }))
@@ -152,7 +152,7 @@ impl<R: Runtime> AoikoNative<R> {
             .unwrap_or(false)
     }
 
-    // 相機の無い端末で押せないボタンを生やさないための問い合わせ。
+    // カメラの無い端末で押せないボタンを生やさないための問い合わせ。
     pub fn is_camera_available(&self) -> bool {
         self.0
             .run_mobile_plugin("isCameraAvailable", ())
@@ -202,7 +202,7 @@ impl<R: Runtime> AoikoNative<R> {
             )
             .map_err(Into::into)
     }
-    // この環境には Rust から借りられる system TLS が無い。送信だけネイティブへ渡し、
+    // この環境には Rust から借りられる OS 標準の TLS が無い。送信だけネイティブへ渡し、
     // 宛先の検査もリダイレクトの判断も本体 crate 側に残す。
     pub fn http_send(&self, request: HttpRequest) -> Result<HttpResponse> {
         self.0

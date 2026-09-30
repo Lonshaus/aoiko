@@ -20,7 +20,7 @@ Create item-level journal entries by pasting text from EC order pages (Amazon, �
 > **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (the built-in rule engine is not supported here).
 <!-- /only -->
 <!-- only:android -->
-> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key**, **OpenAI-compatible endpoint**, or **on-device Gemini Nano** on a supported device (the built-in rule engine is not supported here).
+> **Prerequisites**: You have set up a **Gemini API key**, an **OpenAI-compatible endpoint**, or **on-device Gemini Nano** (on a supported device) in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) (the built-in rule engine is not supported here).
 <!-- /only -->
 
 ## 1. Why this feature exists
@@ -57,7 +57,7 @@ Same as [04. § 2-2](04-receipt-ocr_en.md#2-2-analyze) — a pre-send confirmati
 <!-- only:android -->
 #### When using on-device Gemini Nano (Android)
 
-The pasted text and the inference content never leave the device, so no confirmation dialog appears. However, ML Kit reports API usage (device model, app version, per-install identifier, processing time, error codes) to Google.
+The pasted text and the inference content never leave the device, so no confirmation dialog appears. However, ML Kit sends API usage (device model, app version, per-install identifier, processing time, error codes) to Google.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result

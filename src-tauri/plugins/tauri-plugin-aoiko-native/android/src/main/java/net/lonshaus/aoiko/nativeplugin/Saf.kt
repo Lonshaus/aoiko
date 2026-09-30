@@ -90,7 +90,7 @@ object Saf {
         }
     }
 
-    // 保存ダイアログが返した書き出し先。backup と同じ登記簿に入れるので、rid の扱いは
+    // 保存ダイアログが返した書き出し先。backup と同じ台帳に入れるので、rid の扱いは
     // 呼び出し側から見て 1 種類で済む。
     fun openPicked(context: Context, target: Uri): Int {
         synchronized(open) {
@@ -114,7 +114,7 @@ object Saf {
     fun close(rid: Int) {
         val stream = synchronized(open) { open.remove(rid) }
             ?: throw IllegalStateException("対象のファイルは開かれていません")
-        // flush が投げても close はする。登記簿からは既に外してあるので、ここで漏らすと
+        // flush が投げても close はする。台帳からは既に外してあるので、ここで漏らすと
         // ストリームを閉じる手段が無くなる。
         stream.use { it.flush() }
     }

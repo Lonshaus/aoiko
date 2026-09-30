@@ -230,7 +230,7 @@ const PLAY_DEPS = { sleep: async () => {}, backFromStore: async () => {} };
 test('acknowledge の要否は isAcknowledged で決まる', () => {
   assert.equal(needsAcknowledge({ isAcknowledged: false, purchaseToken: 'tok' }), true);
   assert.equal(needsAcknowledge({ isAcknowledged: true, purchaseToken: 'tok' }), false);
-  // ストア は isAcknowledged を返さない。undefined を「未承認」と読むと毎回呼んでしまう。
+  // isAcknowledged が返らない場合がある。undefined を「未承認」と読むと毎回呼んでしまう。
   assert.equal(needsAcknowledge({ purchaseToken: 'tok' }), false);
   assert.equal(needsAcknowledge({ isAcknowledged: false }), false);
 });
@@ -263,7 +263,7 @@ test('承認済みなら acknowledge を呼ばない', async () => {
   assert.equal(calls.length, 1);
 });
 
-// ストア と ストア に acknowledge は無く、プラグインは no-op か拒否を返す。
+// App Store と Microsoft Store に acknowledge は無く、プラグインは no-op か拒否を返す。
 test('Play 以外では acknowledge を呼ばない', async () => {
   for (const platform of ['macos', 'ios', 'windows']) {
     const { invoke, calls } = fakeInvoke({
@@ -340,7 +340,7 @@ test('isPendingStatus は保有していない品目を保留と読まない', (
   assert.equal(isPendingStatus(undefined), false);
 });
 
-// 支払い前にバッジが点くと、返金された後も点いたままになる。
+// 支払い前にバッジが付くと、返金された後も付いたままになる。
 test('復元は保留の購入を持ち物に数えない', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|restore_purchases': () => ({

@@ -1,5 +1,5 @@
 // 端末内の Gemini Nano へ渡す前後の組み立て。モデルを呼ぶのはネイティブ側で、ここは
-// 分割・選択・合併だけを持つ（ネイティブ側に単体テストの場が無いため）。
+// 分割・選択・結合だけを持つ（ネイティブ側に単体テストの場が無いため）。
 use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
@@ -10,7 +10,7 @@ pub(crate) const CLASSIFY_CHUNK: usize = 24;
 pub(crate) const RECEIPT_USER_TEXT: &str = "このレシートを読み取ってください。";
 /// 端末内モデルを載せていない環境の拒否コード。
 pub(crate) const UNSUPPORTED: &str = "unsupported";
-// これらはどの塊で起きても残りを流す意味が無い。呼び出し全体を同じ理由で断る。
+// これらはどのチャンクで起きても残りを流す意味が無い。呼び出し全体を同じ理由で断る。
 const WHOLE_CALL_CODES: [&str; 4] = ["background", "quota", "unavailable", "too-long"];
 
 #[derive(Deserialize)]
@@ -46,7 +46,7 @@ struct ChunkInput<'a> {
 struct OrderData {
     text: String,
 }
-/// 既知科目と側から指示を選ぶ。測っていない組み合わせには推論させない。
+/// 既知の科目と借方・貸方の別から指示を選ぶ。測っていない組み合わせには推論させない。
 fn classify_prompt(known_account_code: &str, known_side: &str) -> Option<&'static str> {
     match (known_account_code, known_side) {
         ("1130", "credit") => Some("classify-a"),
@@ -79,7 +79,7 @@ pub(crate) fn strip_fence(reply: &str) -> &str {
         None => body.trim(),
     }
 }
-// 1 塊ぶんの結果。失敗した塊の ref は failed として返し、候補の自動入力を必ず塞ぐ。
+// 1 チャンクぶんの結果。失敗したチャンクの ref は failed として返し、候補の自動入力を必ず塞ぐ。
 fn chunk_entries(refs: &[String], outcome: Result<String, String>) -> Result<Vec<Value>, String> {
     let failed = || -> Vec<Value> {
         refs.iter()

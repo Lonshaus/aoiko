@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createNativeCamera } from './native-camera.js';
 
-// 生やす環境を間違えると、押しても何も起きないボタンが並ぶ。ある環境 は選択シートが
+// 生やす環境を間違えると、押しても何も起きないボタンが並ぶ。ある環境では選択シートが
 // 撮影も面倒を見るので、足すと入口が二重になる。
 test('Android でだけ入口が生える', () => {
   assert.equal(typeof createNativeCamera(async () => {}, 'android')?.isCameraAvailable, 'function');

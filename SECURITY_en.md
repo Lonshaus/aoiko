@@ -15,7 +15,7 @@ aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server
 <!-- /only -->
 <!-- only:android -->
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection — not at all if you chose Tesseract; if you chose on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google. This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection (nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google). This document outlines known risks, the support stance, and vulnerability reporting.
 <!-- /only -->
 
 ## Official distribution sources
@@ -91,7 +91,7 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 - External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that read on the device have no AI API transmission at all
 <!-- /only -->
 <!-- only:android -->
-- External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that read on the device have no AI API (Gemini / OpenAI-compatible) transmission at all. When you use on-device text recognition or on-device Gemini Nano, however, ML Kit sends usage information to Google in each case (not the image or text content)
+- External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that read on the device have no AI API (Gemini / OpenAI-compatible) transmission at all. When you use on-device text recognition or on-device Gemini Nano, however, ML Kit sends usage information to Google in each case (never the image or text content)
 <!-- /only -->
 
 ### Storage
