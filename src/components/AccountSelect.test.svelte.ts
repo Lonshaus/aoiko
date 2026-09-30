@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('AccountSelect', () => {
-  it('collapsed + placeholder + empty value: プレースホルダーの option 1件のみ', () => {
+  it('折りたたみ時、placeholder ありで value が空：プレースホルダーの option 1件のみ', () => {
     const select = mountSelect({ value: '', groups, placeholder: '選択してください' });
     const options = select.querySelectorAll('option');
     expect(options.length).toBe(1);
@@ -60,7 +60,7 @@ describe('AccountSelect', () => {
     expect(select.querySelectorAll('optgroup').length).toBe(0);
   });
 
-  it('collapsed + 非空の value: 選択中の科目 1件のみ、コード・科目名を含む', () => {
+  it('折りたたみ時、value が空でない：選択中の科目 1件のみ、コード・科目名を含む', () => {
     const select = mountSelect({ value: '502', groups, placeholder: '選択してください' });
     const options = select.querySelectorAll('option');
     expect(options.length).toBe(1);
@@ -70,7 +70,7 @@ describe('AccountSelect', () => {
     expect(select.querySelectorAll('optgroup').length).toBe(0);
   });
 
-  it('collapsed + placeholder なし + 空の value: option 0件（OrderImport の呼び出し方）', () => {
+  it('折りたたみ時、placeholder なしで value が空：option 0件（OrderImport の呼び出し方）', () => {
     const select = mountSelect({ value: '', groups });
     expect(select.querySelectorAll('option').length).toBe(0);
   });

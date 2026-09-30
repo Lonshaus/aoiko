@@ -4,7 +4,7 @@ import { mufgCardParser } from '../parsers/mufg-card';
 
 describe('decodeCsv - shift_jis (CP932)', () => {
   test('多バイト漢字を正しく復号', () => {
-    // 2026,店 ＝ [ascii..., 店=0x93 0x58]
+    // 2026,店＝ [ascii..., 店=0x93 0x58]
     const bytes = Uint8Array.from([0x32, 0x30, 0x32, 0x36, 0x2c, 0x93, 0x58]);
     expect(decodeCsv(bytes, 'shift_jis')).toBe('2026,店');
   });

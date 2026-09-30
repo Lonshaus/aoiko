@@ -24,7 +24,7 @@
 - **CSV 匯入**：銀行＝三菱 UFJ／三井住友／SBI 新生／PayPay（僅支援信用卡消費，餘額未對應）；卡片＝楽天／JCB（含 Recruit Card 等）／セゾン／三井住友／三菱 UFJ／au PAY／PayPay／ビュー（JRE CARD）／ライフ
 - **匯入紀錄**：CSV 匯入的批次紀錄、檔案 hash 重複偵測、可整批沖銷
 - **OCR**：收據 → 傳票候選。引擎可選：Gemini 影像辨識（預設）／OpenAI 相容・Ollama 等本機影像辨識 AI／瀏覽器內建的 AI／**Tesseract（純本機 WASM OCR、不抽取店名・品項（欄位維持空白）、必須人工確認）**
-- **訂單匯入（貼上 → AI 抽取）**：把 Amazon・楽天 等的訂單頁全文貼進來，由 AI 抽取品項明細 → 確認 → 轉成傳票。不依賴 DOM 解析，所以網站改版也不受影響
+- **訂單匯入（貼上 → AI 抽取）**：把 Amazon・楽天等的訂單頁全文貼進來，由 AI 抽取品項明細 → 確認 → 轉成傳票。不依賴 DOM 解析，所以網站改版也不受影響
 - **AI 分類**：CSV 列 → 會計科目（規則優先、AI 後援）。引擎可選 Gemini／OpenAI 相容・Ollama 等本機 AI／瀏覽器內建的 AI
 - **OCR/AI 隱私**：對外送出前會跳確認對話框（可在設定跳過）。把 Ollama 等指向 localhost、或選 Tesseract 時，影像不會離開本機（使用 localhost 時需在 Ollama 端的 `OLLAMA_ORIGINS` 允許 aoiko 的公開網址；Tesseract 連語言資料都內附，完全不會有對外連線）
 - **家事分攤**：把家庭兼事務所的經費自動拆成事業用與事業主貸

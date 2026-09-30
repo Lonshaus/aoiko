@@ -525,7 +525,7 @@ describe('売却資産の消費税（消令2条3項・消法28条1項）', () =>
     expect(lines.every((l) => l.taxableTransferConsideration === undefined)).toBe(true);
   });
 
-  test('非essentialな一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
+  test('essentialToBusiness でない一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
     const { ACCOUNTS_2026 } = await import('../tax-schema/2026');
     const { buildYayoiCsvRows } = await import('./accountant-export');
     const { processYear } = await import('./consumption-tax');

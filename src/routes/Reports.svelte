@@ -587,7 +587,7 @@
       lockError = describeStorageError(e);
     }
   }
-  // 申告者情報を設定から読む。IT部 必須項目（税務署・利用者識別番号・氏名・住所）が
+  // 申告者情報を設定から読む。IT部の必須項目（税務署・利用者識別番号・氏名・住所）が
   // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
   async function loadFiler() {
     const filer = {

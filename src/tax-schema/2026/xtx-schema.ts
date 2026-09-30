@@ -46,7 +46,7 @@ interface XtxRefElement {
   refType: string;
   /** 最小出現回数（0=任意、1=必須） */
   minOccurs: number;
-  /** 最大出現回数（数値 or 'unbounded'） */
+  /** 最大出現回数（数値または 'unbounded'） */
   maxOccurs: number | 'unbounded';
 }
 /** 定義側（IT部）のデータ項目カタログ（ITdefinition.xsd / ITtype より） */

@@ -8,17 +8,17 @@ aoiko が `.xtx` 出力を生成するために参照する国税庁公式 XML �
 - 配布元：国税庁 e-Tax「仕様公開資料」一覧 <https://www.e-tax.nta.go.jp/shiyo/shiyo3.htm>
 - 元 CAB：`e-tax19.CAB`「XMLスキーマ」 <https://www.e-tax.nta.go.jp/shiyo/download/e-tax19.CAB>（約9.3MB、令和8年5月18日版）
 - 展開：`7z x e-tax19.CAB` → `19XMLスキーマ/{shotoku,general}/`
-- 取得日：2026-05-16（2026-05-20 に 5/18 更新版と照合済。本 dir 内の 7 ファイル（KOA020-023 / KOA210-011 / General / ITdefinition / ITreference / zeimusho / zeimoku）は byte 単位で一致、更新は不要）
+- 取得日：2026-05-16（2026-05-20 に 5/18 更新版と照合済。本ディレクトリ内の 7 ファイル（KOA020-023 / KOA210-011 / General / ITdefinition / ITreference / zeimusho / zeimoku）はバイト単位で一致、更新は不要）
 - `KOA110-012.xsd`（白色申告用）は 2026-07-05 に同一 CAB から追加抽出。同じ CAB の再取得で SHA256 一致を確認済み
 - `shohi/SHA020-009.xsd`・`shohi/SHB070-001.xsd`（消費税・2割特例用）、`shohi/SHB047-001.xsd`・`shohi/SHB067-001.xsd`（消費税・簡易課税用）、`shohi/SHA010-010.xsd`・`shohi/SHB017-002.xsd`・`shohi/SHB033-002.xsd`（消費税・一般課税用）は 2026-07-05 に同一 CAB から追加抽出
-- `shohi/RSH0010-260.xsd`・`shohi/RSH0030-260.xsd`（消費税の個人手続、令和8年度世代 26.0.0）は `e-tax19.CAB`（令和8年8月28日版、<https://www.e-tax.nta.go.jp/shiyo/ksk2/download/e-tax19.CAB>）の `19XMLスキーマ/shohi/` から抽出。この世代でも個人手続が include する様式は `SHA010-010.xsd`・`SHA020-009.xsd` と同組の SHB のままで、様式の版は変わらない。旧世代の `RSH0010-232.xsd`・`RSH0030-232.xsd` は検証対象から外した
+- `shohi/RSH0010-260.xsd`・`shohi/RSH0030-260.xsd`（消費税の個人手続、令和8年度世代 26.0.0）は `e-tax19.CAB`（令和8年8月28日版、<https://www.e-tax.nta.go.jp/shiyo/ksk2/download/e-tax19.CAB>）の `19XMLスキーマ/shohi/` から抽出。この世代でも個人手続が include する様式は `SHA010-010.xsd`・`SHA020-009.xsd` と同組の SHB のままで、様式のバージョンは変わらない。旧世代の `RSH0010-232.xsd`・`RSH0030-232.xsd` は検証対象から外した
 
 ## なぜ XSD か（xlsx 構造設計書ではなく）
 
 e-Tax `.xtx` は **2 段式 ID/IDREF モデル**：
 
 - 定義側（IT部）：実値を持つ要素を `ID` 属性付きで列挙（`general/ITdefinition.xsd` の `ITtype`）
-- 参照側（帳票個別部分）：様式 xsd（`shotoku/KOA020-023.xsd` 等）。各 leaf は
+- 参照側（帳票個別部分）：様式 xsd（`shotoku/KOA020-023.xsd` 等）。各葉要素は
   `general/ITreference.xsd` の `*ref` 型で、`IDREF` 属性により定義側 ID を指す空要素
 
 e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦化した派生物で、機械処理には
@@ -26,7 +26,7 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 
 ## 収録ファイル
 
-| パス | 様式/役割 | 版 |
+| パス | 様式/役割 | バージョン |
 |---|---|---|
 | `shotoku/KOA020-023.xsd` | 確定申告書（第一表〜第四表） | 23.0（令和8年分・2025-08-15） |
 | `shotoku/KOA210-011.xsd` | 青色申告決算書（一般用） | 11.0（2023-09-27、現行適用） |
@@ -40,7 +40,7 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 | `shohi/SHB033-002.xsd` | 付表2-3（課税売上割合・控除対象仕入税額等の計算表） | 2.0（2023-06-26） |
 | `shohi/RSH0010-260.xsd` | 手続定義：消費税及び地方消費税申告(**一般**・個人)。CONTENTS が SHA010 系統のみ許可（include は `SHA010-010.xsd`） | 26.0.0（2026-07-14、令和8年度世代） |
 | `shohi/RSH0030-260.xsd` | 手続定義：消費税及び地方消費税申告(**簡易課税**・個人)。CONTENTS が SHA020 系統のみ許可（include は `SHA020-009.xsd`） | 26.0.0（2026-07-14、令和8年度世代） |
-| `general/ITdefinition.xsd` | 定義側 IT部 カタログ | — |
+| `general/ITdefinition.xsd` | 定義側（IT部）カタログ | — |
 | `general/ITreference.xsd` | 参照側 `*ref` 型（IDREF fixed） | — |
 | `general/General.xsd` | 基底データ型（gen:） | — |
 | `general/zeimusho.xsd` | 税務署コード（General 依存） | — |
@@ -53,7 +53,7 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 これらが `xsd:include`/`xsd:import` する周辺様式（SHB013/015/025/030/043/045/055/065/
 100/110、SHC025、SHE020/040/060/080/100、`general/CATALOG.xsd`、`general/XMLDSIG050.xsd`、
 `somu/SOZ-001.xsd` とその依存一式）も `docs/xtx-spec/{shohi,general,somu}/` に置いている。
-これらは aoiko が mapping を実装した様式ではなく、**schema のロードを通すためだけ**の
+これらは aoiko が対応付けを実装した様式ではなく、**スキーマのロードを通すためだけ**の
 付随ファイル（`build-xtx-schema.js` の対象外、SHA256 追跡もしない）。
 
 ## SHA256
@@ -79,25 +79,25 @@ b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643  general/ITdefi
 
 ## 著作権
 
-国の機関が発する告示・通達等は **著作権法第 13 条** により著作物に該当しないため、
+国の機関が発する告示・通達等は**著作権法第 13 条**により著作物に該当しないため、
 再配布に著作権法上の制限は無い。
 
 ## 更新方針
 
 決算書（KOA210）は構造が安定しており毎年は改定されない。確定申告書（KOA020）は
-年度版が増える。新しいバージョンが出たら：
+年度ごとのバージョンが増える。新しいバージョンが出たら：
 
 1. `e-tax19.CAB` を再取得し `7z x` で展開
-2. 最新版 xsd（`KOA020-0NN.xsd` 等）を本ディレクトリへ更新（旧版は履歴で追跡）
+2. 最新版 xsd（`KOA020-0NN.xsd` 等）を本ディレクトリへ更新（旧バージョンは履歴で追跡）
 3. 本 README の SHA256 と `scripts/build-xtx-schema.js` の `EXPECTED_SHA256` を更新
 4. `npm run xtx:build-schema` で JSON 再生成、`npm run verify`
 
 ### 消費税：対応状況
 
-- **2割特例**（`SHA020` ＋ 付表6）・**簡易課税**（`SHA020` ＋ 付表4-3 ＋ 付表5-3、固定資産の売却〔常に第四種〕と設定事業区分が異なる場合の消費税法施行令57条の二区分計算〔原則・75%特例〕込み）・**一般課税（本則）**（`SHA010` ＋ 付表1-3 ＋ 付表2-3）：対応済み。`src/tax-schema/2026/xtx-mapping-sha020.ts` の `mapTwoWari()`/`mapSimplified()`、`xtx-mapping-sha010.ts` の `mapGeneral()`
+- **2割特例**（`SHA020` ＋付表6）・**簡易課税**（`SHA020` ＋付表4-3 ＋付表5-3、固定資産の売却〔常に第四種〕と設定事業区分が異なる場合の消費税法施行令57条の二区分計算〔原則・75%特例〕込み）・**一般課税（本則）**（`SHA010` ＋付表1-3 ＋付表2-3）：対応済み。`src/tax-schema/2026/xtx-mapping-sha020.ts` の `mapTwoWari()`/`mapSimplified()`、`xtx-mapping-sha010.ts` の `mapGeneral()`
 - **一般課税・課税売上割合95%未満／課税売上高5億円超の場合の按分控除**（個別対応方式・一括比例配分方式）：対応済み（設定 → 消費税で選択）。免税売上（輸出）・非課税売上・課税貨物に係る消費税額（輸入消費税）・特定課税仕入れ（リバースチャージ）も `TaxCategory`/`InputUsageCategory` として記帳側で分類可能。`src/domain/consumption-tax.ts` の `computeTaxableSalesRatio()`/`isFullDeductionEligible()`、付表2-3 の DTB/DTC/DTD/DTE/DTG 各欄に反映
-- **貸倒れに係る消費税額の調整・貸倒回収**（消費税法39条）：対応済み。本則・簡易課税・2割特例・3割特例のすべてに適用。記帳側は仕訳の `TaxCategory` に `badDebt`/`badDebtRecovery` を指定（その行の既存 `taxRate`/`taxIncluded` から税額を逆算）。`src/domain/consumption-tax.ts` の `badDebtTotals()`、一般課税は SHA010 の AAJ00030/AAJ00070 ＋ 付表1-3 の DSE/DSF ＋ 付表2-3 の DTJ、簡易課税は付表4-3 の DUE/DUF ＋ 付表5-3 の DVB（基準消費税額に貸倒回収を算入）、2割特例は付表6 の AYB/AYD に反映
-- **中間申告**（予定申告方式の義務判定・仮決算方式の`.xtx`出力、消費税法42条）：対応済み。本則・簡易課税・2割特例に適用（3割特例は上記のとおりXSD自体が未対応）。義務判定・予定納付額は `src/domain/interim-filing.ts` の `interimFilingObligation()`（前年確定消費税額・国税分のみを直前の課税期間の月数で割り、×6 が24万円超・×3 が100万円超・×1 が400万円超で年1/3/11回を判定。月数は既定12。任意の中間申告の届出と期限徒過による取りやめにも対応）。仮決算は `consumption-tax.ts` の `processYear()`/`computeGeneral()`/`computeSimplified()`/`computeTwoWari()` に任意の `period`（開始・終了日）を渡して期間限定集計。`.xtx`側はSHA010のAAI00160・SHA020のABH00160/ABM00130（対象期間、`gen:yymmdd`複合型で`xtx-document.ts`の`toYymmdd()`が組み立て）とIT部共有のSHINKOKU_KBN（申告の種類、`XtxDocumentOptions.shinkokuKbn`で1→2に上書き）に対応。確定申告への中間納付税額の充当（AAJ00110-130・ABI00110-130、超過時は還付欄に切替）も実装。前年度確定消費税額は新設の`ReportSnapshot`type `'consumption-tax'`（`markYearFiled()`の`consumptionTax`payload・`getConsumptionTaxSnapshot()`）に記録、無い場合は利用者が手入力（フェイクの記録は作らない）
+- **貸倒れに係る消費税額の調整・貸倒回収**（消費税法39条）：対応済み。本則・簡易課税・2割特例・3割特例のすべてに適用。記帳側は仕訳の `TaxCategory` に `badDebt`/`badDebtRecovery` を指定（その行の既存 `taxRate`/`taxIncluded` から税額を逆算）。`src/domain/consumption-tax.ts` の `badDebtTotals()`、一般課税は SHA010 の AAJ00030/AAJ00070 ＋付表1-3 の DSE/DSF ＋付表2-3 の DTJ、簡易課税は付表4-3 の DUE/DUF ＋付表5-3 の DVB（基準消費税額に貸倒回収を算入）、2割特例は付表6 の AYB/AYD に反映
+- **中間申告**（予定申告方式の義務判定・仮決算方式の`.xtx`出力、消費税法42条）：対応済み。本則・簡易課税・2割特例に適用（3割特例は上記のとおりXSD自体が未対応）。義務判定・予定納付額は `src/domain/interim-filing.ts` の `interimFilingObligation()`（前年確定消費税額・国税分のみを直前の課税期間の月数で割り、×6 が24万円超・×3 が100万円超・×1 が400万円超で年1/3/11回を判定。月数は既定12。任意の中間申告の届出と期限徒過による取りやめにも対応）。仮決算は `consumption-tax.ts` の `processYear()`/`computeGeneral()`/`computeSimplified()`/`computeTwoWari()` に任意の `period`（開始・終了日）を渡して期間限定集計。`.xtx`側はSHA010のAAI00160・SHA020のABH00160/ABM00130（対象期間、`gen:yymmdd`複合型で`xtx-document.ts`の`toYymmdd()`が組み立て）とIT部共有のSHINKOKU_KBN（申告の種類、`XtxDocumentOptions.shinkokuKbn`で1→2に上書き）に対応。確定申告への中間納付税額の充当（AAJ00110-130・ABI00110-130、超過時は還付欄に切替）も実装。前年度確定消費税額は新設の`ReportSnapshot`type `'consumption-tax'`（`markYearFiled()`の`consumptionTax` のペイロード・`getConsumptionTaxSnapshot()`）に記録、無い場合は利用者が手入力（フェイクの記録は作らない）
 - **簡易課税で実際に複数の事業区分を営む場合の按分計算**（付表5-3 二面）：未対応。対応済みなのは固定資産の売却に係る第四種事業と設定事業区分の二区分のみ（消費税法施行令57条、上記）。aoiko の設定は単一の事業区分のみを持つ前提
 - **3割特例**：令和8年度税制改正の新設制度。**現行 CAB（2026-05-18版）の消費税フォルダには対応欄が一切無い**（`SHA010`・`SHA020` とも）。SHA010 自体が次のバージョン（v11、令和8年10月公開予定）で改定される見込みのため、それを待って再調査すること
 - 簡易課税・一般課税は「売上対価の返還等に係る税額」欄を意図的に省略している（課税標準額へネット計上済みのため、最終税額は正しいが内訳非表示）。2割特例（付表6）は画面で入力した税率別（7.8%/6.24%）の返還等に係る消費税額をこの欄に反映する。詳細は各 `xtx-mapping-*.ts` 冒頭コメント参照
@@ -106,8 +106,8 @@ b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643  general/ITdefi
 
 xmllint による様式単体の検証（`xtx-validate-consumption-tax.test.ts`）は通っていたが、
 実際に e-Taxソフト(ダウンロード版) へ組み込んだところ「不明な要素 'SHA020'」等、
-SHA020 配下の全要素が unknown 扱いになるエラーで失敗した。原因は 2 点、いずれも
-**手続（procedure）レベルのエンベロープ構造**の誤りで、様式個別の mapping には問題なかった：
+SHA020 配下の全要素が未定義扱いになるエラーで失敗した。原因は 2 点、いずれも
+**手続（procedure）レベルのエンベロープ構造**の誤りで、様式ごとの対応付けには問題なかった：
 
 1. **procedure_CD の取り違え**：2割特例・簡易課税は手続 `RSH0010`（消費税及び地方消費税
    申告・**一般**・個人）ではなく `RSH0030`（同・**簡易課税**・個人）を使う必要がある。
@@ -120,18 +120,18 @@ SHA020 配下の全要素が unknown 扱いになるエラーで失敗した。�
    CONTENTS 型にも SOFUSHO は定義されていない（許可される子要素ではない）。
 
 いずれも `xtx-document.ts` の `buildXtxBundle()` に `includeSofusho` オプションを追加し
-（既定 true＝所得税は従来どおり、消費税は false）、`xtx-consumption-tax.ts` で procedure
+（既定 true＝所得税は従来どおり、消費税は false）、`xtx-consumption-tax.ts` で手続
 ごとに正しい procedureTag（RSH0010/RSH0030）を渡すよう修正して解決した。
 
 **教訓**：様式単体の xmllint 検証だけでは、手続の CONTENTS 型がその様式を許可している
 かどうか、手続がどの要素を必須/禁止としているかは検証できない。`RSH0010-260.xsd`／
 `RSH0030-260.xsd`（当時は 232 世代）を直接読んで CONTENTS の `xsd:sequence`/`xsd:group ref` を確認した上で、
-組み立てた完全な `.xtx`（procedure 込み）をその procedure の xsd に対して xmllint 検証する
+組み立てた完全な `.xtx`（手続込み）をその手続の xsd に対して xmllint 検証する
 （`xtx-validate-consumption-tax-envelope.test.ts`）ことで、この種の不具合を機械的に検出
 できるようにした。新しい手続を追加する時は、様式単体の検証に加えて必ずこのエンベロープ全体の
 検証も書くこと。
 
-### schema 生成の注意（simpleContent 型の誤判定に注意）
+### スキーマ生成の注意（simpleContent 型の誤判定に注意）
 
 `scripts/build-xtx-schema.js` の型判定は、`xsd:complexType` を参照する要素を無条件に
 `kind: 'branch'` として扱っていたため、`simpleContent`（例：`AutoCalc` 属性付き decimal/

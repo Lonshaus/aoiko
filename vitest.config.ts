@@ -21,7 +21,7 @@ const sharedTest = {
 export default defineConfig({
   test: {
     // native / web で __NATIVE__ の畳み込みが違うため、同じテストプロセスに
-    // 2 つの Vite 環境を projects として持たせる。web 側のビルド成果物は build 時に
+    // 2 つの Vite 環境を projects として持たせる。web 側のビルド成果物はビルド時に
     // __NATIVE__ が false へ畳まれ、native 側のテストではそこが死んだ分岐になる。
     projects: [
       {
@@ -78,7 +78,7 @@ export default defineConfig({
           include: ['src/**/*.doc-preview.test.{ts,svelte.ts}'],
         },
       },
-      // scripts/ は build 時（Node）専用で、src/ の projects とは import 条件が違う
+      // scripts/ はビルド時（Node）専用で、src/ の projects とは import 条件が違う
       // （tesseract-cache.ts は node:crypto を使う。DOM 環境も svelte plugin も要らない）。
       {
         test: {

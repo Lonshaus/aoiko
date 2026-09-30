@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import type { ConsumptionTaxSnapshotData, ReportSnapshot, ReportSnapshotData } from '../db/types';
 // 年度を「申告済み」としてロックする。
-// PL / BS / 月別売上 の 3 種類のスナップショットを `status='filed'` で記録し、
+// PL / BS / 月別売上の 3 種類のスナップショットを `status='filed'` で記録し、
 // 以降その年度の仕訳を訂正できなくする。
 export async function markYearFiled(
   year: number,

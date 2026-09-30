@@ -379,7 +379,7 @@ class BackupManager {
     }
     const prev = this.status;
     // ループで追い掛ける（再帰だと高速な保存の連打でスタックが伸びる）。
-    // 失敗時はループを抜ける ＝ 失敗中のアダプタへ再突入して空回りしない。
+    // 失敗時はループを抜ける＝失敗中のアダプタへ再突入して空回りしない。
     do {
       this.backupPending = false;
       this.status = 'writing';

@@ -114,7 +114,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toMatch(
       /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
     );
-    // IT部 構造項目（手続・申告区分）
+    // IT部の構造項目（手続・申告区分）
     expect(x).toContain(
       '<TETSUZUKI ID="TETSUZUKI"><procedure_CD>RKO0010</procedure_CD><procedure_NM>所得税及び復興特別所得税申告</procedure_NM></TETSUZUKI>',
     );
@@ -125,7 +125,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/<KOA020 VR="23\.0"/);
     expect(x).toMatch(/<KOA210 VR="11\.0"/);
-    // CONTENTS / IT部 は 1 つだけ
+    // CONTENTS / IT部は 1 つだけ
     expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
     expect(x.match(/<IT VR="1\.5" id="IT">/g)).toHaveLength(1);
   });
