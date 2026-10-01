@@ -29,7 +29,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '表：対応端末のみ は windows',
+      name: '表：対応端末のみは windows',
       pattern: /対応端末のみ。`Receipt` 画面を開くたびに自動判定/,
       only: ['windows'],
     },
@@ -70,7 +70,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '本文：使えない端末もある は windows のみ',
+      name: '本文：使えない端末もあるは windows のみ',
       pattern: /\*\*使えない端末もある\*\*。OS 側に日本語の文字認識が入っていないと選択肢に出ない/,
       only: ['windows'],
     },
@@ -80,7 +80,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：1 つしか無いときはセレクトが出ない は windows のみ',
+      name: '本文：1 つしか無いときはセレクトが出ないは windows のみ',
       pattern: /使えるサブエンジンが 1 つしか無いとき（多くの端末）はセレクト自体が出ず/,
       only: ['windows'],
     },
@@ -95,7 +95,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['browser'],
     },
     {
-      name: '本文：登録番号の複数候補を順に探す は apple のみ',
+      name: '本文：登録番号の複数候補を順に探すは apple のみ',
       pattern: /文字認識は 1 単語につき複数の候補を返すので、`T` ＋ 13 桁の形に合う候補を順に探す/,
       only: APPLE,
     },
@@ -112,7 +112,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '表：僅限支援的裝置 只限 windows',
+      name: '表：僅限支援的裝置只限 windows',
       pattern: /僅限支援的裝置。每次開啟 `Receipt` 畫面都會自動判定/,
       only: ['windows'],
     },
@@ -153,7 +153,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '本文：不是每台裝置都能用 只限 windows',
+      name: '本文：不是每台裝置都能用只限 windows',
       pattern: /\*\*不是每台裝置都能用\*\*。作業系統那邊沒裝日文的文字辨識就不會進選項/,
       only: ['windows'],
     },
@@ -163,7 +163,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：只有 1 個能用時不出下拉 只限 windows',
+      name: '本文：只有 1 個能用時不出下拉只限 windows',
       pattern: /只有 1 個能用時（大多數裝置）不會出現下拉/,
       only: ['windows'],
     },
@@ -178,7 +178,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['browser'],
     },
     {
-      name: '本文：登錄號碼多候選依序尋找 只限 apple',
+      name: '本文：登錄號碼多候選依序尋找只限 apple',
       pattern: /文字辨識每個字詞會回傳多個候選，所以會依序尋找符合 `T` 加上剛好 13 位數字的候選/,
       only: APPLE,
     },
@@ -217,7 +217,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'prose: android always in the option set',
-      pattern: /text recognition is always in the option set/,
+      pattern: /text recognition is always among the available options/,
       only: ['android'],
     },
     {
@@ -275,7 +275,7 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/01-setup.md': [
     {
-      name: '本文：OS 内蔵の文字認識は対応端末のみ は windows',
+      name: '本文：OS 内蔵の文字認識は対応端末のみは windows',
       pattern: /Tesseract、対応端末では OS 内蔵の文字認識も選択可/,
       only: ['windows'],
     },
@@ -297,7 +297,7 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/01-setup_zh-TW.md': [
     {
-      name: '本文：OS 內建文字辨識限支援的裝置 只限 windows',
+      name: '本文：OS 內建文字辨識限支援的裝置只限 windows',
       pattern: /Tesseract，支援的裝置還能選作業系統內建的文字辨識/,
       only: ['windows'],
     },
@@ -375,7 +375,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'android 的系統儲存對話框',
-      pattern: /系統的儲存位置選擇對話框會開啟，讓你選擇存放位置/,
+      pattern: /會開啟系統的儲存位置選擇對話框/,
       only: ['android'],
     },
     { name: 'iCloud 的例子只給 apple', pattern: /iCloud Drive\/aoiko-backup\//, only: APPLE },
@@ -438,7 +438,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'android 的系統儲存對話框',
-      pattern: /系統的儲存位置選擇對話框會開啟，讓你選擇保存位置/,
+      pattern: /會開啟系統的儲存位置選擇對話框/,
       only: ['android'],
     },
   ],
@@ -608,12 +608,12 @@ const NARROWER_THAN_NATIVE = new Set<OnlyKind>(['apple', 'windows', 'android', '
 //     その直後に機種限定の話題が始まっても地続きに見えてしまう。実例：04-receipt-ocr.md:119 の
 //     「言語データのキャッシュ先（browser/native）」→「OS 内蔵文字認識の説明（apple/windows/
 //     android）」、11-backup.md:69 の「フォルダの選び方（browser/native）」→「クラウド同期の
-//     Tip（apple/windows）」。native 側の reach（apple・windows・android を含む）をそのまま
+//     ヒント（apple/windows）」。native 側の reach（apple・windows・android を含む）をそのまま
 //     持ち込むと、機種限定の話題が実際には届いていない機種にも届いたことになってしまう）。
 // (3) 直前が apple/windows/android で今回が browser（(2) の逆向き。機種限定の話題の直後に
 //     browser 専用の別節が地続きで始まる場合も、話題が変わっている。実例：11-backup.md の
-//     「クラウド同期の Tip（apple/windows）」→「### 3-2. Firefox / Safari（OPFS のみ）」。
-//     見出し自体は browser 専用の別節であって、直前の Tip の続きではない）。
+//     「クラウド同期のヒント（apple/windows）」→「### 3-2. Firefox / Safari（OPFS のみ）」。
+//     見出し自体は browser 専用の別節であって、直前のヒントの続きではない）。
 function deriveFamilies(markdown: string): Family[] {
   const blocks = findOnlyBlocks(markdown);
   const families: Family[] = [];
@@ -648,7 +648,7 @@ function deriveFamilies(markdown: string): Family[] {
 }
 // FAMILY_EXCEPTIONS の照合キーに使う見出し slug。GitHub 互換の厳密さは不要（内部の
 // 照合用キーであってリンクの anchor には使わない）ので、manual.ts の slugifyHeading とは
-// 独立した簡易版を持つ。
+// 独立した簡易的な実装を持つ。
 function slugifyHeading(text: string): string {
   return text
     .replace(/`([^`]+)`/g, '$1')
@@ -725,9 +725,9 @@ type FamilyException = {
 // 全 5 形態に届かないことが意図通りの family。以前の方式は日本語の行番号で照合していたが、
 // 対象より前の block 数が変わるだけで無関係な例外まで巻き添えで失敗し、失敗の指す先が
 // 編集箇所からずれていた。ここでは行番号の代わりに、family 自身が持つ内容だけで決まる
-// キー（見出し slug ＋ block の kind 列 ＋ 同じ kind 列がその見出し内で何番目に出たか）で
+// キー（見出し slug ＋ block の kind 列＋同じ kind 列がその見出し内で何番目に出たか）で
 // 照合する。kind の並びは only:xxx マーカーそのものなので言語間で翻訳されない。照合キー自体は
-// kind 列 ＋ occurrence（ファイル内での通し番号）で言語共通にしつつ、見出し slug は ja/en/zh-TW
+// kind 列＋ occurrence（ファイル内での通し番号）で言語共通にしつつ、見出し slug は ja/en/zh-TW
 // それぞれの言語で機械的に算出した値を別々に記録し、3 言語すべてで実際の見出しと突き合わせる
 // （headingSlug 系のフィールド）。occurrence は「kind 列が一致する家族が家族の中身と無関係に
 // マッチしてしまう」弱い照合キーだが、見出し slug を言語ごとに厳密照合することで、family が
@@ -859,7 +859,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple'],
     occurrence: 1,
     reason:
-      '見出し「AI エンジン（Apple Intelligence）」の tips 節。他の platform に Apple Intelligence という選択肢自体が無い',
+      '見出し「AI エンジン（Apple Intelligence）」のヒント節。他の platform に Apple Intelligence という選択肢自体が無い',
     reach: ['ios', 'macos'],
   },
   {
@@ -869,7 +869,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlugZhTw: 'ai-引擎瀏覽器內建-ai',
     kinds: ['browser'],
     occurrence: 2,
-    reason: '見出し「AI エンジン（ブラウザ内蔵 AI）」の tips 節。native 側に対応する経路が無い',
+    reason: '見出し「AI エンジン（ブラウザ内蔵 AI）」のヒント節。native 側に対応する経路が無い',
     reach: ['browser'],
   },
   {
@@ -880,7 +880,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows', 'android'],
     occurrence: 4,
     reason:
-      '見出し「内蔵のルールベースエンジン（OS 内蔵の文字認識）」の tips 節。browser に該当エンジンは無い',
+      '見出し「内蔵のルールベースエンジン（OS 内蔵の文字認識）」のヒント節。browser に該当エンジンは無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
@@ -902,7 +902,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows'],
     occurrence: 0,
     reason:
-      '「クラウド同期の Tip」。browser には同じ内容が「3-1. Chromium 系」の説明に既に含まれている。android はフォルダ選択でクラウドの保存先を選べるか確かめていないので置かない',
+      '「クラウド同期のヒント」。browser には同じ内容が「3-1. Chromium 系」の説明に既に含まれている。android はフォルダ選択でクラウドの保存先を選べるか確かめていないので置かない',
     reach: ['ios', 'macos', 'windows'],
   },
   {

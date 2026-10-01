@@ -1,6 +1,6 @@
 // 端末内の Gemini Nano を LlmAdapter / ReceiptExtractor として橋渡しする。
 // apple-ai-adapter.ts / ocr/apple-ai-engine.ts と対称。可用性はここでは問わない：
-// 可用性は Settings の選択肢を出すためだけの判定で、経路そのものを塞ぐ門番ではない
+// 可用性は設定画面の選択肢を出すためだけの判定で、経路そのものを塞ぐ門番ではない
 // （llm-adapter.ts の他エンジンと同じ理由）。
 import { LlmError, type LlmAdapter, type LlmDataTask, type LlmImageInput } from '../domain/llm';
 import type { ReceiptExtracted, ReceiptItem } from '../domain/ocr';

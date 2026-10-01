@@ -73,7 +73,7 @@ export async function createReceiptExtractor(
         };
       }
       case 'apple-ai':
-        // native と同じ理由で build 時に畳む。
+        // native と同じ理由でビルド時に畳む。
         if (__NATIVE__) {
           const { createAppleAiReceiptExtractor } = await import('./ocr/apple-ai-engine');
           return createAppleAiReceiptExtractor();
@@ -81,7 +81,7 @@ export async function createReceiptExtractor(
         // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
         throw new Error('apple-ai OCR is unavailable in this build');
       case 'nano':
-        // native と同じ理由で build 時に畳む。
+        // native と同じ理由でビルド時に畳む。
         if (__NATIVE__) {
           const { createNanoReceiptExtractor } = await import('./nano-engine');
           return createNanoReceiptExtractor();

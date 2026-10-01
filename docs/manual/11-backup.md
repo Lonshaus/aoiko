@@ -97,7 +97,7 @@ aoiko は FSA が使えるブラウザでは FSA、使えなければ OPFS、そ
 <!-- /only -->
 <!-- only:windows -->
 
-> **クラウド同期フォルダの Tip**：選んだフォルダがクラウド同期の対象なら、実質クラウドバックアップになります。例：`OneDrive/aoiko-backup/` を指定 → 書き出された JSON が自動で OneDrive に同期。
+> **クラウド同期フォルダのヒント**：選んだフォルダがクラウド同期の対象なら、実質クラウドバックアップになります。例：`OneDrive/aoiko-backup/` を指定 → 書き出された JSON が自動で OneDrive に同期。
 <!-- /only -->
 <!-- only:browser -->
 

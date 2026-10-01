@@ -200,7 +200,7 @@ No API key or endpoint setup needed. **"The browser's built-in AI"** appears in 
 
 ### 7-C. On-device Gemini Nano (Android only)
 
-No API key or endpoint setup needed. On a supported Android device, **"On-device Gemini Nano"** appears in the engine picker in Settings. If it doesn't appear, or is disabled, this device can't use this engine (yet).
+No API key or endpoint setup needed. On a supported Android device, "**On-device Gemini Nano (Android, free)**" appears in the engine picker in Settings. If it doesn't appear, or can't be selected, this device can't use this engine (yet).
 
 > Inference and data both stay on-device. However, ML Kit sends API usage (device model, app version, per-install identifier, processing time, errors, etc.) to Google — the inference content itself is never sent.
 <!-- /only -->

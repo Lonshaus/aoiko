@@ -82,7 +82,7 @@ Below the preview, a two-way switch for the reading method appears: **"AI engine
   - The OS's built-in text recognition only enters the option set on supported devices. It is re-checked with the device every time the `Receipt` page opens, so adding Japanese text recognition on the OS side makes it selectable the next time the page is opened
 <!-- /only -->
 <!-- only:android -->
-  - On-device text recognition is always in the option set. The text recognition ships with the app, so nothing has to be added on the OS side
+  - On-device text recognition is always among the available options. The text recognition ships with the app, so nothing has to be added on the OS side
 <!-- /only -->
 
 Once chosen, click **"Analyze"** to send to the selected reading method.
@@ -165,23 +165,23 @@ When done, **"2. Extracted result (editable)"** expands below:
 <!-- only:apple -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 <!-- only:windows -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by deterministic rules. **Vendor and items are left blank**
-> - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the store name, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
+> - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the vendor, and rows between the header and the total with a name on the left and an amount on the right are taken as items
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 <!-- only:android -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
-> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** using fixed rules. **Vendor and items are left blank**
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the largest line in the header is taken as the vendor, and rows between the header and the total with a name on the left and an amount on the right are taken as items
-> - For both paths, raw OCR text is held internally but not auto-copied into the journal description
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you register the entry: it is not shown on any screen and not saved to the journal entry (description or notes)
 <!-- /only -->
 
 #### Built-in rule engine warning banner
@@ -193,19 +193,19 @@ For built-in rule engine output, a caution banner appears below the result heade
 
 For the OS's built-in text recognition:
 
-> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 <!-- only:windows -->
 
 For the OS's built-in text recognition:
 
-> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from the OS's built-in text recognition. Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 <!-- only:android -->
 
 For on-device text recognition:
 
-> These results come from on-device text recognition (ML Kit). Please check and correct the total, date and vendor. The full OCR text is not saved to the notes field (it is only shown here).
+> These results come from on-device text recognition (ML Kit). Please check and correct the total, date and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 
 ### 2-4. Choose counterpart account and payment source
@@ -281,7 +281,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 ### Built-in rule engine (the OS's built-in text recognition)
 
 - No AI engine and no extra download
-- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the store name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the vendor, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
 - Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
 - Always verify the total and date

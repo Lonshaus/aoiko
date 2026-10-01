@@ -82,13 +82,13 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 - **Vision generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
 - **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` is served by aoiko itself, so no external request is made
 <!-- only:apple -->
-- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
 <!-- /only -->
 <!-- only:windows -->
-- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides, which guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
 <!-- /only -->
 <!-- only:android -->
-- **On-device text recognition path (OCR only)**: no generative AI. ML Kit, bundled with the app, reads the text on-device. The app then guesses the vendor and writes it to the memo. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
+- **On-device text recognition path (OCR only)**: no generative AI. ML Kit, bundled with the app, reads the text on-device. aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
 - **On-device Gemini Nano path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. Nothing extra is downloaded, but ML Kit sends usage information to Google
 <!-- /only -->
 <!-- only:apple -->
@@ -105,14 +105,14 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
 | Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` is bundled too | **None** (no external request is made) |
 <!-- only:apple -->
-| The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
+| The OS's built-in text recognition | The image never leaves the device | **None** (no external request is made) |
 <!-- /only -->
 <!-- only:windows -->
-| The OS's built-in text recognition | Image never leaves device | **None** (no external request is made) |
+| The OS's built-in text recognition | The image never leaves the device | **None** (no external request is made) |
 <!-- /only -->
 <!-- only:android -->
-| On-device text recognition | Image and text never leave device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
-| On-device Gemini Nano | Image and text never leave device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
+| On-device text recognition | The image and text never leave the device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
+| On-device Gemini Nano | The image and text never leave the device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | Images and text never leave the device | **None** (no external request is made) |
@@ -143,13 +143,13 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- /only -->
 - Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
 <!-- only:apple -->
-- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is rule-based (T+13 registration number, date, total only). aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
 <!-- /only -->
 <!-- only:windows -->
-- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is deterministic (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is rule-based (T+13 registration number, date, total only). aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
 <!-- /only -->
 <!-- only:android -->
-- On-device text recognition: no generative AI is used. It uses rule-based extraction on the text recognized by ML Kit, which is bundled with the app (T+13 registration number, date, total only). It guesses the vendor and writes it to the memo; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required. ML Kit, which performs the recognition, sends usage information to Google, but the image and the recognized text are not sent
+- On-device text recognition: no generative AI is used. It uses rule-based extraction on the text recognized by ML Kit, which is bundled with the app (T+13 registration number, date, total only). aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required. ML Kit, which performs the recognition, sends usage information to Google, but the image and the recognized text are not sent
 - On-device Gemini Nano: inference runs on the device and neither images, text, nor inference content are sent externally. It appears as an option only when this device supports it. ML Kit does, however, send usage information to Google
 <!-- /only -->
 <!-- only:apple -->

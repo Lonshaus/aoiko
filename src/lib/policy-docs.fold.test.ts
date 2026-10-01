@@ -142,7 +142,7 @@ const RULES: Record<string, Rule[]> = {
     { name: 'ML Kit usage disclosure', pattern: /ML Kit/, only: ['android'] },
     {
       name: 'OS recognition table row: no no-external-request claim on android',
-      pattern: /The OS's built-in text recognition \| Image never leaves device \|/,
+      pattern: /The OS's built-in text recognition \| The image never leaves the device \|/,
       only: [...APPLE, 'windows'],
     },
     {
@@ -153,7 +153,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'new-name table row has the ML Kit usage disclosure',
       pattern:
-        /On-device text recognition \| Image and text never leave device \| \*\*Image and text: none\*\* \(ML Kit's usage information alone is sent to Google\)/,
+        /On-device text recognition \| The image and text never leave the device \| \*\*Image and text: none\*\* \(ML Kit's usage information alone is sent to Google\)/,
       only: ['android'],
     },
     {
@@ -312,8 +312,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: "opening paragraph's 'not at all if you chose an engine that runs entirely on the device' cannot appear on android",
-      pattern: /not at all if you chose an engine that runs entirely on the device/,
+      name: "opening paragraph's 'nothing is sent if you chose an engine that runs entirely on the device' cannot appear on android",
+      pattern: /nothing is sent if you chose an engine that runs entirely on the device/,
       only: ['browser', ...APPLE, 'windows'],
     },
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
@@ -359,8 +359,8 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '開頭段落的選擇在裝置內完成的引擎時連送出都不會發生，android 不能有',
-      pattern: /選擇在裝置內完成的引擎時連送出都不會發生/,
+      name: '開頭段落的選擇在裝置內完成的引擎時根本不會送出，android 不能有',
+      pattern: /選擇在裝置內完成的引擎時根本不會送出/,
       only: ['browser', ...APPLE, 'windows'],
     },
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },

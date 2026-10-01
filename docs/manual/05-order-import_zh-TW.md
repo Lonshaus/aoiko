@@ -20,7 +20,7 @@
 > **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好 **Gemini API 金鑰** 或 **OpenAI 相容端點**（內建規則引擎不能用）。
 <!-- /only -->
 <!-- only:android -->
-> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好 **Gemini API 金鑰**、**OpenAI 相容端點**，或對應裝置的 **裝置內 Gemini Nano**（內建規則引擎不能用）。
+> **前提**：[01. 初次設定 § 7](01-setup_zh-TW.md#7-要用-ocrai-才做的設定) 已設好**Gemini API 金鑰**、**OpenAI 相容端點**，或對應裝置的**裝置內 Gemini Nano**（內建規則引擎不能用）。
 <!-- /only -->
 
 ## 1. 這個功能的意義

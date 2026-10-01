@@ -66,7 +66,7 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       // 文言はカタログから引かない。引くと、この経路を持たない側のビルド成果物にも文字列が残る。
       throw new Error('apple-ai is unavailable in this build');
     case 'nano':
-      // apple-ai と同じ理由で build 時に畳む。
+      // apple-ai と同じ理由でビルド時に畳む。
       if (__NATIVE__) {
         const { createNanoAdapter } = await import('./nano-engine');
         return createNanoAdapter();

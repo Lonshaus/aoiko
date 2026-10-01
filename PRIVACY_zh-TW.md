@@ -16,15 +16,15 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 - cookie、本機儲存的追蹤器
 <!-- only:browser -->
 
-應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用到的必要理由 API 只有存取檔案時間戳記（C617.1）。
 <!-- /only -->
 <!-- only:apple -->
 
-應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用到的必要理由 API 只有存取檔案時間戳記（C617.1）。
 <!-- /only -->
 <!-- only:windows -->
 
-應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用的必要理由 API 只有檔案時間戳記存取（C617.1）。
+應援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存購買的集章種類與最後購買日期，不含任何可識別個人的資訊。iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用到的必要理由 API 只有存取檔案時間戳記（C617.1）。
 <!-- /only -->
 <!-- only:android -->
 
@@ -130,13 +130,13 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 - **使用會對外（雲端）送出資料的引擎時，送出前會跳出確認對話框**（可透過設定跳過）
 - Gemini：送出內容依 Google 隱私政策與使用者 API 方案合約處理，是否用於訓練要看合約類型（免費或付費）
 <!-- only:browser -->
-- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
 <!-- /only -->
 <!-- only:apple -->
-- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
 <!-- /only -->
 <!-- only:windows -->
-- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用影像辨識對應模型）。在裝置內完成的引擎同樣不會送出資料
 <!-- /only -->
 <!-- only:android -->
 - 本機（Ollama 等使用 localhost）時資料不離開本機（OCR 必須使用影像辨識對應模型）。Tesseract 不會送出任何資料。裝置內的文字辨識不會送出照片和文字，但使用狀況會送給 Google。裝置內 Gemini Nano 也是同樣情況

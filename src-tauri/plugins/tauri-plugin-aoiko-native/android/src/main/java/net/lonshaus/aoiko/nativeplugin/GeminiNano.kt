@@ -59,7 +59,7 @@ object GeminiNano {
             "{\"classifications\":[{\"ref\":\"入力の ref\",\"accountCode\":\"科目の code または null\",\"confidence\":\"high、low、none のいずれか\"}]}"
     // 呼び出しごとに作って閉じる。1 度でも失敗したクライアントは、以後の呼び出しがすべて
     // CancellationException で即座に返るようになる（実測）。使い回すと 1 回の BUSY で全部が止まる。
-    // 試験提供版のモデルは本番に出さない。
+    // 試験提供段階のモデルは本番に出さない。
     private fun <T> withClient(block: (GenerativeModelFutures) -> T): T {
         val modelConfig = ModelConfig.Builder().apply { releaseStage = ModelReleaseStage.STABLE }.build()
         val client: GenerativeModel =

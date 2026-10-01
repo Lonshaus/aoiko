@@ -97,7 +97,7 @@ aoiko 會依序自動切換：FSA 可用就用 FSA，不行就改用 OPFS，再�
 <!-- /only -->
 <!-- only:windows -->
 
-> **雲端同步資料夾 tip**：選的資料夾如果是雲端同步對象，實質等於有雲端備份。例：指定 `OneDrive/aoiko-backup/` → 寫出的 JSON 自動同步到 OneDrive。
+> **雲端同步資料夾提示**：選的資料夾如果是雲端同步對象，實質等於有雲端備份。例：指定 `OneDrive/aoiko-backup/` → 寫出的 JSON 自動同步到 OneDrive。
 <!-- /only -->
 <!-- only:browser -->
 
@@ -164,7 +164,7 @@ OPFS 備份：
 - 會開啟選擇儲存位置的對話框
 <!-- /only -->
 <!-- only:android -->
-- 系統的儲存位置選擇對話框會開啟，讓你選擇存放位置
+- 會開啟系統的儲存位置選擇對話框
 <!-- /only -->
 - 檔名：`aoiko-ledger-{年月日}.zip` 等（不含時間，所以同一天匯出幾次都是同一個檔名）
 
