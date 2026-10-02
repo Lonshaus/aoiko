@@ -157,7 +157,7 @@ test('取り消しと承認待ちでは consume しない', async () => {
   }
 });
 
-// 取りこぼすと、買わずに閉じただけの操作でエラーバナーが点く。
+// 取りこぼすと、買わずに閉じただけの操作でエラーバナーが表示される。
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
   assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
@@ -340,7 +340,7 @@ test('isPendingStatus は保有していない品目を保留と読まない', (
   assert.equal(isPendingStatus(undefined), false);
 });
 
-// 支払い前にバッジが付くと、返金された後も付いたままになる。
+// 支払い前にバッジが表示されると、返金された後も表示されたままになる。
 test('復元は保留の購入を持ち物に数えない', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|restore_purchases': () => ({

@@ -77,7 +77,7 @@ const RULES: Record<string, Rule[]> = {
     { name: 'HTTP アクセスログ', pattern: /HTTP アクセスログ/, only: ['browser'] },
     { name: 'ブラウザの IndexedDB', pattern: /ブラウザの \*\*IndexedDB\*\*/, only: ['browser'] },
     { name: 'サイトデータ削除', pattern: /サイトデータ削除/, only: ['browser'] },
-    { name: 'ブラウザから直接', pattern: /利用者のブラウザから \*\*直接\*\*/, only: ['browser'] },
+    { name: 'ブラウザから直接', pattern: /利用者のブラウザから\*\*直接\*\*/, only: ['browser'] },
     { name: 'OPFS', pattern: /OPFS/, only: ['browser'] },
     { name: 'File System Access API', pattern: /File System Access API/, only: ['browser'] },
     { name: 'リファラ', pattern: /リファラ送信/, only: ['browser'] },

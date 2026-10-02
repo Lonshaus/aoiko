@@ -1,7 +1,7 @@
 import { parseCsv } from '../lib/csv';
 import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// 三井住友銀行 SMBCダイレクト の CSV 形式（実データ確認済）。
+// 三井住友銀行 SMBCダイレクトの CSV 形式（実データ確認済）。
 // エンコーディング：Shift_JIS
 // ヘッダー：年月日, お引出し, お預入れ, お取り扱い内容, 残高, メモ, ラベル
 

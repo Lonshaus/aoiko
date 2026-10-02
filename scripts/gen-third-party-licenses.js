@@ -3,7 +3,7 @@
 // 添付を求めており、配布物そのものに載っていなければ満たせない。ストアの規約ではなく
 // 各ライセンス自身の要求なので、web 版・app 版のどちらにも等しく掛かる。
 //
-// 一覧の出所は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
+// 一覧の取得元は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
 // node_modules は本文を読むためだけに使う。--check は生成し直して差分を見る。
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -764,7 +764,7 @@ function render(packages) {
     lines.push(`対象：${labels.join(', ')}`, '');
     for (const a of entry.externals) {
       lines.push(
-        `── ${a.name} の著作権表示（upstream: ${a.upstream}） ──`,
+        `── ${a.name}${a.name.endsWith('）') ? '' : ' '}の著作権表示（upstream: ${a.upstream}） ──`,
         '',
         `  ${a.copyright}`,
         '',

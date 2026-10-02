@@ -104,7 +104,7 @@ export async function createReceiptExtractor(
     const { createTesseractReceiptExtractor } = await import('./ocr/tesseract-engine');
     return createTesseractReceiptExtractor();
   }
-  // 判定は build 時に畳む。実行時だけの分岐にすると、このエンジンを持たない web にも
+  // 判定はビルド時に畳む。実行時だけの分岐にすると、このエンジンを持たない web にも
   // ラッパーが丸ごと入り、ビルド成果物に文言が残る（購入画面と同じ理由）。
   if (__NATIVE__) {
     const { createNativeReceiptExtractor } = await import('./ocr/native-engine');

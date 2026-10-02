@@ -33,7 +33,7 @@ describe('文書プレビュー：localStorage の選択に応じて畳まれる
     localStorage.setItem(DOC_PREVIEW_STORAGE_KEY, 'windows');
     const { getManualContent } = await import('./manual');
     const receiptOcr = getManualContent('04-receipt-ocr', 'ja');
-    expect(receiptOcr).toContain('対応端末のみ。`Receipt` 画面を開くたびに自動判定');
+    expect(receiptOcr).toContain('対応端末のみ。領収書 OCR 画面を開くたびに自動判定');
   });
 
   test('未設定: __DOC_PLATFORM__（browser）で畳んだ結果と一致する', async () => {

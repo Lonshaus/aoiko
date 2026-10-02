@@ -191,7 +191,7 @@ describe('reverseEntry', () => {
     await expect(reverseEntry('does-not-exist')).rejects.toThrow(/見つかりません/);
   });
 
-  test('rejects reversing a correction entry (訂正の訂正は不可)', async () => {
+  test('訂正仕訳をさらに訂正することはできない', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2026-04-15',
@@ -204,7 +204,7 @@ describe('reverseEntry', () => {
     await expect(reverseEntry(reversalId)).rejects.toThrow(/訂正仕訳そのもの/);
   });
 
-  test('rejects when entry year is locked (申告済み)', async () => {
+  test('申告済みでロック中の年の仕訳は拒否する', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2026-04-15',

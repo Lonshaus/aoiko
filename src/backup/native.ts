@@ -45,7 +45,7 @@ export function decideNativeState(input: {
   ready: boolean;
 }): NativeBackupState {
   if (!input.hasFolder) {
-    // FSA の handle しか無い ＝ wrapper 版へ移ってきた既存利用者。未設定と区別する。
+    // FSA の handle しか無い＝ wrapper 実装へ移ってきた既存利用者。未設定と区別する。
     return input.hasLegacyHandle ? 'reconfigure-required' : 'unconfigured';
   }
   return input.ready ? 'idle' : 'reconfigure-required';

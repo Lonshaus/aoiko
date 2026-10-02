@@ -80,7 +80,7 @@ describe('extractFromOcrText', () => {
     expect(r.date).toBe('2019-12-03');
   });
 
-  test('YYYY年M月D日 形式（区切り混在）', () => {
+  test('YYYY年M月D日形式（区切り混在）', () => {
     const r = extractFromOcrText('2026年5月1日 14:23\n合計 800');
     expect(r.date).toBe('2026-05-01');
   });

@@ -8,24 +8,24 @@ Choosing a method, transitional credit, input tax credit, deemed input rate.
 > - Understand each method (general / simplified / 20% special provision / 30% special provision) and pick the most favorable
 > - Know how the transitional measures (80/70/50/30%) are applied inside aoiko
 > - Use the method comparison in the Reports' "Consumption tax" section as a decision aid
-> - Map your choices to the settings (taxRegistration / taxFilingMethod)
+> - Know how your choices map to the settings on screen (registration / filing method)
 >
 > **Prerequisites**: consumption tax method set per [01. § 4](01-setup_en.md#4-choose-a-consumption-tax-method).
 >
-> **Important**: aoiko's consumption tax calculation is an **estimation/comparison tool**. `.xtx` export is supported for **general taxation, the 20% special provision, and simplified taxation** (simplified taxation supports the two-category computation — including the 75% special rule — for a fixed-asset sale's 4th category alongside your set category, but not a filer who actually runs multiple business categories; [10. `.xtx` export § 5](10-xtx-export_en.md#5-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). The 30% special provision is out of scope for form generation — use the online preparation corner ("作成コーナー") or a tax accountant for that.
+> **Important**: aoiko's consumption tax calculation is an **estimation/comparison tool**. `.xtx` export is supported for **general taxation, the 20% special provision, and simplified taxation** (simplified taxation supports the two-category computation — including the 75% rule — for a fixed-asset sale's 4th category alongside your set category, but does not cover a filer who actually runs multiple business categories; [10. `.xtx` export § 5](10-xtx-export_en.md#5-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export)). The 30% special provision is out of scope for form generation — use the Return Preparation Corner (確定申告書等作成コーナー) or a tax accountant for that.
 >
-> The method comparison in the Reports' "Consumption tax" section also shows a **"Filing-form equivalent (est.)"** column alongside the whole-yen estimate used for method comparison. It mimics the actual return's rounding (taxable base rounded down to the nearest 1,000 yen, tax amounts rounded down to 100 yen), so it's closer to what you'd actually pay — but it is still not a formal return produced with the supporting tables.
+> The method comparison in the Reports' "Consumption tax" section also shows a **"Filing-form equivalent (est.)"** column alongside the ¥1-unit estimate used for method comparison. It mimics the actual return's rounding (taxable base rounded down to the nearest ¥1,000, tax amounts rounded down to ¥100), so it's closer to what you'd actually pay — but it is still not a formal return produced with the supporting tables.
 
 ## 1. Overview of the methods
 
 | Method | Formula | Scope | Tends to favor |
 |---|---|---|---|
 | **General** | Output tax − input tax | All taxable businesses | Lots of inputs, many qualified invoices |
-| **Simplified** | Output tax − (whichever is larger of: the weighted average of each business category's output tax × its deemed input rate, or, when one category makes up 75% or more of taxable sales, that category's rate applied to the whole under the 75% special rule) | Sales ≤ ¥50M, prior notification filed | Actual input rate < deemed input rate |
-| **2-wari special** | (Output tax minus the entered rate-specific tax on sales returns/discounts) × 20% | 2023/10–2026/9 only — periods you became taxable because of invoice registration | New-to-taxable due to invoice registration, around ¥10M sales |
-| **3-wari special** | (Output tax minus the entered rate-specific tax on sales returns/discounts and the tax on specified small-asset transfers) × 30% | Reiwa 9 & 10 only, individuals only, base-period (2 years prior) taxable sales ≤ ¥10M | Better than simplified in some cases |
+| **Simplified** | Output tax − (whichever is larger of: the weighted average of each business category's output tax × its deemed input rate, or, when one category makes up 75% or more of taxable sales, that category's rate applied to the whole under the 75% rule) | Sales ≤ ¥50 million, prior notification filed | Actual input rate < deemed input rate |
+| **20% special provision** | (Output tax minus the entered rate-specific tax on sales returns/discounts) × 20% | 2023/10–2026/9 only — periods you became taxable because of invoice registration | New-to-taxable due to invoice registration, around ¥10 million sales |
+| **30% special provision** | (Output tax minus the entered rate-specific tax on sales returns/discounts and the tax on specified small-asset transfers) × 30% | Tax years 2027–2028 (Reiwa 9–10) only, individuals only, base-period (2 years prior) taxable sales ≤ ¥10 million | Better than simplified in some cases |
 
-> Both the 20% and 30% special provisions apply only to a taxable period that would otherwise have been tax-exempt without registration. They don't apply to: a foreign business with no permanent establishment in Japan; a period where you're still under an election to be a taxable business; a period in which you acquired an asset subject to the adjusted-fixed-asset rules; a period you became taxable because of inheritance; or a period with a shortened taxable period (the 30% provision excludes only the inheritance case). "Newly established corporation" is not a criterion here at all — that concept (Consumption Tax Act Art. 12-2) only applies to corporations, judged by fiscal year and capital. From October 1, 2026 through March 31, 2028, the rule that excludes small-value asset transfers from the base is read-substituted, so those transfers are not excluded during that window (Reiwa 8 Act No. 12, Suppl. Prov. Art. 90 Para. 2).
+> Both the 20% and 30% special provisions apply only to a taxable period that would otherwise have been tax-exempt without registration. They don't apply to: a foreign business with no permanent establishment in Japan; a period where you're still under an election to be a taxable business; a period in which you acquired an asset subject to the adjusted-fixed-asset rules; a period you became taxable because of inheritance; or a period with a shortened taxable period (the 30% provision excludes only the inheritance case). "Newly established corporation" is not a criterion here at all — that concept (Consumption Tax Act Art. 12-2) only applies to corporations, judged by fiscal year and capital. From October 1, 2026 through March 31, 2028, the rule that excludes specified small-asset transfers from the base applies with substituted wording, so those transfers are not excluded during that window (Reiwa 8 Act No. 12, Suppl. Prov. Art. 90 Para. 2).
 
 > **National / local breakdown**: aoiko separates national (7.8% or 6.24%) and local (2.2% or 1.76%) consumption tax internally and shows totals. The method comparison in the Reports' "Consumption tax" section displays totals.
 >
@@ -46,7 +46,7 @@ Statutory rates by business category:
 
 > Refer to the National Tax Agency's business-category FAQ. Typical IT freelancers / consultants are usually **5th category** (services).
 >
-> When a fixed-asset sale (always 4th category) falls in a different category from the one you set, aoiko computes it as running two business categories under Consumption Tax Act Enforcement Order Art. 57: either the principle method (each category's taxable-base tax × its deemed input rate, weighted and summed) or, when one category makes up 75% or more of taxable sales (excluding tax-exempt sales), the 75% special rule that applies that category's rate to the whole (same article, Para. 3). aoiko automatically uses whichever gives the larger credit, and the `.xtx` export includes the per-category fields on Attached Table 5-3. A filer who actually runs multiple business categories is out of scope.
+> When a fixed-asset sale (always 4th category) falls in a different category from the one you set, aoiko computes it as running two business categories under Consumption Tax Act Enforcement Order Art. 57: either the principle method (each category's taxable-base tax × its deemed input rate, weighted and summed) or, when one category makes up 75% or more of taxable sales (excluding tax-exempt sales), the 75% rule that applies that category's rate to the whole (same article, Para. 3). aoiko automatically uses whichever gives the larger credit, and the `.xtx` export includes the per-category fields on Attachment 5-3. A filer who actually runs multiple business categories is out of scope.
 
 ## 3. Transitional measure (purchases without qualified invoice)
 
@@ -62,43 +62,43 @@ Under the invoice system (started 2023/10), the **input tax credit ratio** for *
 
 > Purchases **with** a qualified invoice are always 100% creditable (assuming conditions met). The transitional measure applies only to "no qualified invoice" cases.
 >
-> Each journal line in aoiko has an `invoiceCompliant: true / false` flag (auto-set to `true` when [04. Receipt OCR](04-receipt-ocr_en.md) recognizes a T+13 number; defaults to `false` for CSV and manual entries). Under general taxation, this flag together with the transaction date determines the applied credit ratio.
+> Each journal line in aoiko is marked as qualified-invoice compliant or not (set automatically when [04. Receipt OCR](04-receipt-ocr_en.md) recognizes a T+13 number; defaults to not compliant for CSV and manual entries). Under general taxation, this mark together with the transaction date determines the applied credit ratio.
 
 ## 4. Operation in aoiko
 
 ### 4-1. Settings mapping
 
-| Setting key | Value | Effect |
+| Setting | Choice | Effect |
 |---|---|---|
-| `taxRegistration` | `taxable` | File as a taxable business |
-| `taxRegistration` | `tax-free` | Tax-exempt; Reports show estimates only as reference |
-| `taxFilingMethod` | `general` | General taxation |
-| `taxFilingMethod` | `simplified` | Simplified taxation (with `simplifiedTaxCategory` for the business category) |
-| `taxFilingMethod` | `two-wari` | 20% special provision |
-| `taxFilingMethod` | `three-wari` | 30% special provision |
+| Registration | Taxable entity | File as a taxable business |
+| Registration | Tax-free entity (no consumption-tax filing) | Tax-exempt; Reports show estimates only as reference |
+| Filing method | General method | General taxation |
+| Filing method | Simplified method | Simplified taxation (with "Simplified-method category" for the business category) |
+| Filing method | 20% special provision (2023/10–2026/9) | 20% special provision |
+| Filing method | 30% special provision (tax years 2027–2028, Reiwa 9–10) | 30% special provision |
 
 Configure these on the Settings screen per [01. § 4](01-setup_en.md#4-choose-a-consumption-tax-method).
 
 ### 4-2. The Reports' "Consumption tax" section
 
-Navigation **"Reports"** → **"Consumption tax"** section. The year's actuals are run through general and simplified taxation (always shown) plus the special provision that applies to that year (the 20% special provision up to 2026, the 30% special provision for 2027 and 2028) side by side, showing the payable (national, local, total).
+Navigation **"Reports"** > **"Consumption tax"** section. The year's actuals are run through general and simplified taxation (always shown) plus the special provision that applies to that year (the 20% special provision up to 2026, the 30% special provision for 2027 and 2028) side by side, showing the payable (national, local, total).
 
 | Column | Content |
 |---|---|
-| Method | General and simplified taxation, plus the special provision that applies to the year (simplified shows the registered category) |
-| Output tax | Tax on taxable sales (4xxx accounts) for the year, plus the tax on journal lines carrying a taxable-transfer marker (e.g. a fixed-asset sale), whatever their account — including asset-account and `Owner's contribution` lines |
-| Input tax (pre-transitional) | Tax on taxable purchases (5xxx + 1xxx, excluding owner's draws 1610) — informational |
+| Filing method | General and simplified taxation, plus the special provision that applies to the year (simplified shows the registered category) |
+| Output tax | Tax on taxable sales (4xxx accounts) for the year, plus the tax on journal lines carrying a taxable-transfer marker (e.g. a fixed-asset sale), whatever their account — including asset-account and `事業主借` (Owner's contributions) lines |
+| Input tax (before transitional rule) | Tax on taxable purchases (5xxx + 1xxx, excluding `1610 事業主貸` (owner's draws)) — informational |
 | Creditable input tax | Post-transitional credit amount |
-| Payable | Output − creditable (simplified / 20% / 30% special provision use separate formulas) |
-| Filing-form equivalent (est.) | An estimate that mimics the actual return's rounding (taxable base rounded down to the nearest 1,000 yen, tax amounts rounded down to 100 yen, etc.) |
+| Tax payable | Output − creditable (simplified / 20% / 30% special provision use separate formulas) |
+| Filing-form equivalent (est.) | An estimate that mimics the actual return's rounding (taxable base rounded down to the nearest ¥1,000, tax amounts rounded down to ¥100, etc.) |
 
 > The currently selected method is highlighted. If **another method has a lower payable**, that's a candidate for next year's choice.
 
 ### 4-3. What aoiko aggregates for input tax
 
-- Debit side with **expense** or **asset** category (5xxx + 1xxx excluding owner's draws 1610)
+- Debit side with **expense** or **asset** category (5xxx + 1xxx excluding `1610 事業主貸`)
 - Tax rate > 0 (10% / 8%)
-- If `taxIncluded: true`, the inclusive amount is back-calculated; if `false`, exclusive is used
+- If **Tax included** is ticked, the inclusive amount is back-calculated; if not, exclusive is used
 
 > Output tax: credit side of revenue category with tax rate > 0. A line carrying a taxable-transfer amount — e.g. a fixed-asset sale — is counted once, using that line's own tax rate and inclusive/exclusive flag, into both output tax and the numerator (taxable sales) of the taxable-sales ratio, regardless of its account category (see [08. Depreciation](08-depreciation_en.md) for details).
 
@@ -120,25 +120,25 @@ Selling a business fixed asset is an act incidental to the business and counts a
 ## 5. Practical flow for choosing a method
 
 1. **Can you stay tax-exempt?**
-   - Sales ≤ ¥10M + no invoice registration → set `tax-free`, done
+   - Sales ≤ ¥10 million + no invoice registration → set registration to **"Tax-free entity"**, done
 2. **Have you registered (newly taxable due to invoice system)?**
-   - Around ¥10M sales: start with **20% special provision** (until 2026/9), compare in Reports
-   - Base-period taxable sales ≤ ¥10M and an individual: consider **30% special provision** (Reiwa 9 & 10)
-3. **Continuing taxable with sales ≤ ¥50M?**
+   - Around ¥10 million sales: start with **20% special provision** (until 2026/9), compare in Reports
+   - Base-period taxable sales ≤ ¥10 million and an individual: consider **30% special provision** (tax years 2027–2028, Reiwa 9–10)
+3. **Continuing taxable with sales ≤ ¥50 million?**
    - Few inputs → **simplified** often wins (depends on category)
    - Many inputs + most invoices qualified → **general**
-4. **Sales > ¥50M?**
+4. **Sales > ¥50 million?**
    - **General** only (simplified / specials not available)
 
-> Simplified taxation requires a **prior notification** (Simplified Taxation Selection Notification, by the end of the prior fiscal year). Setting `simplified` in aoiko alone doesn't fulfill this — file the notification with the tax office too.
+> Simplified taxation requires a **prior notification** (Simplified Taxation Selection Notification, by the end of the prior fiscal year). Choosing simplified taxation in aoiko alone doesn't fulfill this — file the notification with the tax office too.
 
 ## 6. Caveats
 
 - **Cross-border transactions** (export exemption, import consumption tax, reverse charge) can be classified in the "tax category" field that appears when a line's rate is 0% (see [02. Creating journal entries](02-journal_en.md))
-- **Non-taxable sales** (e.g. residential rent) use the same "tax category" field — select "tax-exempt" so the amount is counted in the taxable-sales-ratio denominator (registering at rate 0% alone does not include it in that ratio)
-- When the **taxable-sales ratio is under 95%, or taxable sales exceed ¥500M**, the general method splits the deduction using either the individual attribution method or the proportional allocation method. Choose the method under **Settings ＞ Consumption tax**; with the individual attribution method, also set each purchase line's "usage category" (taxable-sales only / common use / non-taxable-sales only — unset defaults to taxable-sales only). Once you choose the proportional allocation method, you can't switch back to the individual attribution method until you've used it continuously through every taxable period starting up to and including the one in which 2 years have passed since you started (Consumption Tax Act Art. 30 Para. 5)
-- **Bad-debt tax adjustment** (Consumption Tax Act Art. 39): when a receivable becomes uncollectible, select "bad debt write-off" in the "tax category" field on that entry's debit line (e.g. the bad-debt-loss account), and set `taxRate` to the original sale's rate (10% / 8%) — aoiko back-calculates the tax portion from the tax-included write-off amount and deducts it from the period's payable tax. If the receivable is later recovered, select "bad debt recovery" on the income-side line to add the previously-deducted tax back. Applies under general, simplified, 20% special provision, and 30% special provision taxation alike
-- Misc. and home-office allocation expense handling: see [02. Creating journal entries § 1-3](02-journal_en.md#1-3-use-the-home-office-mixed-use-allocation)
+- **Non-taxable sales** (e.g. residential rent) use the same "tax category" field — select **"Non-taxable"** so the amount is counted in the taxable-sales-ratio denominator (registering at rate 0% alone does not include it in that ratio)
+- When the **taxable-sales ratio is under 95%, or taxable sales exceed ¥500 million**, the general method splits the deduction using either the individual attribution method or the proportional allocation method. Choose the method under **Settings > Consumption tax**. With the individual attribution method, also set each purchase line's "usage category" (taxable-sales only / common use / non-taxable-sales only — unset defaults to taxable-sales only). Once you choose the proportional allocation method, you can't switch back to the individual attribution method until you've used it continuously through every taxable period starting up to and including the one in which 2 years have passed since you started (Consumption Tax Act Art. 30 Para. 5)
+- **Bad-debt tax adjustment** (Consumption Tax Act Art. 39): when a receivable becomes uncollectible, select "Bad debt write-off" in the "tax category" field on that entry's debit line (e.g. the `5270 貸倒金` (bad debt loss) account), and set the **Tax rate** to the original sale's rate (10% / 8%) — aoiko back-calculates the tax portion from the tax-included write-off amount and deducts it from the period's payable tax. If the receivable is later recovered, select "Bad debt recovery" on the income-side line to add the previously-deducted tax back. Applies under general, simplified, 20% special provision, and 30% special provision taxation alike
+- Handling of miscellaneous expenses and the business-use portion of home-office allocation: see [02. Creating journal entries § 1-3](02-journal_en.md#1-3-use-the-home-office-mixed-use-allocation)
 
 ## 7. Next steps
 

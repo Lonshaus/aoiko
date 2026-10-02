@@ -41,7 +41,7 @@ If you obtained aoiko from anywhere else (an unfamiliar site, a packaged executa
 If you obtained aoiko from outside the store, **verify it against one of the sources above before entering an API key or any sensitive information**.
 <!-- /only -->
 
-Beware of phishing or malware distributed under the aoiko name or a confusingly similar guise. If in doubt, check authenticity against the official distribution sources listed above.
+Beware of phishing or malware distributed under the aoiko name or a confusingly similar name. If in doubt, check authenticity against the official distribution sources listed above.
 
 ## Supported versions
 <!-- only:browser -->
@@ -60,7 +60,7 @@ For confidential reports, please use **GitHub Security Advisories**:
 2. Include scope, reproduction steps, and expected impact
 3. Do **not** report via a public issue
 
-Public issues (e.g. incorrect account codes, UI bugs) can go through regular issues.
+Issues that are not security-sensitive (e.g. incorrect account codes, UI bugs) can be filed as regular public issues.
 
 A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 
@@ -82,7 +82,7 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- /only -->
 - The developer / distributor **does not obtain, transmit, or retain** the user's API keys or endpoint information
 <!-- only:browser -->
-- External API requests are sent **directly from the user's browser to the chosen endpoint** (no proxy). Engines that read on the device have no AI API transmission at all
+- External API requests are sent **directly from the user's browser to the chosen endpoint** (no proxy). Engines that run on the device make no AI API requests
 <!-- /only -->
 <!-- only:apple -->
 - External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that run on the device make no AI API requests
@@ -133,12 +133,12 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 - The app's storage may be read by other users on the same device or by malware
 <!-- /only -->
 - Personal information, transaction history, and API keys can be read directly
-- Use on a business-only device and full-disk encryption are recommended
+- Using a business-only device and enabling full-disk encryption are recommended
 
 ### 3. AI API transmission content risk
 
 - CSV rows / receipt images are sent according to the user's selected engine:
-  - **Gemini** → `generativelanguage.googleapis.com` (handled per Google's data policy; training-use depends on plan)
+  - **Gemini** → `generativelanguage.googleapis.com` (handled per Google's data policy; whether it is used for training depends on your plan)
   - **OpenAI-compatible** (Ollama etc.) → user-specified baseURL. No off-device transmission for localhost
   - **Tesseract** → no transmission (processed in WASM on-device; the language data ships with aoiko, so no external request is made)
 <!-- only:browser -->

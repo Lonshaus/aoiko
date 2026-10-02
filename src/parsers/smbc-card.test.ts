@@ -24,7 +24,7 @@ describe('smbcCardParser', () => {
     expect(r[1]).toMatchObject({ amount: '48000', memo: '３' });
   });
 
-  test('キャッシュバック等の負値は debit（未払金 減）', () => {
+  test('キャッシュバック等の負値は debit（未払金の減）', () => {
     const r = smbcCardParser.parse(sample);
     expect(r[2]).toMatchObject({
       description: 'キャッシュバック（ポイント交換）',

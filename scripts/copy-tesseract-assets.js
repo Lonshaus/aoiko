@@ -22,7 +22,7 @@ export const ASSETS = [
   'tesseract-core-fallback.wasm',
 ];
 export const MODEL_FILE = 'jpn.traineddata';
-// 4.0.0_best_int は best を整数量子化したもの。非量子化版は展開後 40MB 超あり、
+// 4.0.0_best_int は best を整数量子化したもの。非量子化のものは展開後 40MB 超あり、
 // 領収書の認識精度差に見合わない。
 const MODEL_GZ = join(
   root,

@@ -47,11 +47,11 @@ The following is stored in the app's managed storage (database `aoiko`):
 
 | Data | Storage | Sent to |
 |---|---|---|
-| Journal entries, lines, chart of accounts, vendors, sub-accounts | IndexedDB | Not sent |
+| Journal entries, lines, chart of accounts, vendors, subaccounts | IndexedDB | Not sent |
 | Fixed assets | IndexedDB | Not sent |
 | Receipt photos (attached images) | IndexedDB | Not sent (no screen to update or delete them; always included in backups) |
 | Per-account home-office allocation ratios (in settings) | IndexedDB | Not sent |
-| Invoices and quotations | IndexedDB | Not sent |
+| Invoices and quotes | IndexedDB | Not sent |
 | Simple inventory item master | IndexedDB | Not sent |
 | Budgets | IndexedDB | Not sent |
 | Receivables and payables | IndexedDB | Not sent |
@@ -59,8 +59,8 @@ The following is stored in the app's managed storage (database `aoiko`):
 | CSV-import classification rules | IndexedDB | Not sent |
 | Filed-year snapshots | IndexedDB | Not sent |
 | Support stamps and the supporter-badge purchase date | IndexedDB | Not sent (excluded from backup; kept as-is across restore) |
-| Gemini API key | IndexedDB | When you start generative-AI/OCR classification, receipt OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to the Gemini API as a URL query parameter |
-| OpenAI-compatible API key, baseURL | IndexedDB | When you start generative-AI/OCR classification, receipt OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to your specified baseURL via an `Authorization: Bearer` header (not sent off-device when localhost is specified) |
+| Gemini API key | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to the Gemini API as a URL query parameter |
+| OpenAI-compatible API key, baseURL | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you save the key (which also fetches the model list), fetch the model list, or test the connection (these three skip the dialog), sent to your specified baseURL via an `Authorization: Bearer` header (not sent off-device when localhost is specified) |
 | Business profile (trade name, invoice number) | IndexedDB | Not sent |
 | Backup folder handle | IndexedDB | Not sent |
 | Import history (file hashes) | IndexedDB | Not sent |
@@ -79,7 +79,7 @@ All of the above exists only locally on your device. **Uninstalling the app, or 
 
 When you **explicitly invoke** generative AI classification or receipt OCR, and also when you save an API key (which also fetches the model list), fetch the model list, or test the connection, content is sent to the selected engine:
 
-- **Vision generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
+- **Vision-capable generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = CSV row text (amount, description, etc.) + chart of accounts. OCR = receipt image (Base64) + extraction prompt
 - **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. `jpn.traineddata` is served by aoiko itself, so no external request is made
 <!-- only:apple -->
 - **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
@@ -103,7 +103,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 | Google Gemini (default) | `generativelanguage.googleapis.com` | Yes (cloud) |
 | OpenAI-compatible / Ollama etc. when localhost | On-device (e.g. `http://localhost:11434`) | **None** |
 | OpenAI-compatible / Ollama etc. when remote | The host you specified | Yes |
-| Tesseract (purely-local WASM OCR) | Image never leaves device. `jpn.traineddata` is bundled too | **None** (no external request is made) |
+| Tesseract (purely local WASM OCR) | The image never leaves the device. `jpn.traineddata` is bundled too | **None** (no external request is made) |
 <!-- only:apple -->
 | The OS's built-in text recognition | The image never leaves the device | **None** (no external request is made) |
 <!-- /only -->
@@ -141,7 +141,7 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 <!-- only:android -->
 - When using local (e.g. Ollama on localhost), data stays on-device (vision-capable model required for OCR). Tesseract sends nothing. On-device text recognition doesn't send images or text, but usage information is sent to Google. On-device Gemini Nano works the same way
 <!-- /only -->
-- Tesseract: no generative AI is used. Extraction from WASM OCR text is deterministic (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
+- Tesseract: no generative AI is used. Extraction from WASM OCR text is rule-based (T+13 registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
 <!-- only:apple -->
 - The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is rule-based (T+13 registration number, date, total only). aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
 <!-- /only -->
@@ -185,10 +185,10 @@ When you **explicitly invoke** generative AI classification or receipt OCR, and 
 
 ## Legal alignment
 
-- Intended for use within Japan. The "Personal Information Handling Operator" requirement under the Personal Information Protection Act is considered **inapplicable** because aoiko's developer / distributor does not collect personal information from users.
+- Intended for use within Japan. The "personal information handling business operator" requirement under the Act on the Protection of Personal Information is considered **not applicable** because aoiko's developer / distributor does not collect personal information from users.
 - The user is responsible for managing third-party personal information (vendor names, customer names on receipts, etc.) that they handle via aoiko.
-- Use in the EU is not contemplated; from a GDPR standpoint, with no data collected, the data-controller relevance is considered low.
+- Use in the EU is not contemplated; aoiko is unlikely to count as a data controller under the GDPR, since no data is collected.
 
 ## Change history
 
-This policy may change without notice. Material changes can be tracked in this tool's CHANGELOG.
+This policy may change without notice. Material changes can be tracked in aoiko's CHANGELOG.

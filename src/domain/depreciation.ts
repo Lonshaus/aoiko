@@ -32,7 +32,7 @@ const OLD_METHOD_LIMIT_RATE = '0.95';
 // 耐用年数省令別表第十一：別表第一・第二・第五・第六（ソフトウエア除く）の残存割合。
 const OLD_TANGIBLE_RESIDUAL_RATE = '0.1';
 // 平成19年4月1日以後取得分の定額法償却率。償却費 = 取得価額 × 償却率。
-// 率は 1/耐用年数 を小数第3位未満で切り上げた値（国税庁「減価償却資産の償却率表」）。
+// 率は 1/耐用年数を小数第3位未満で切り上げた値（国税庁「減価償却資産の償却率表」）。
 // 例：3年→0.334、6年→0.167、7年→0.143、9年→0.112（単純な 1/N とは一致しない）。
 export function straightLineRate(usefulLifeYears: number): Decimal {
   if (usefulLifeYears < 1) {

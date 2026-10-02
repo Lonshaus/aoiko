@@ -22,7 +22,7 @@
 ### B 群：周邊匯入（視需要）
 
 - [04. 收據 OCR](04-receipt-ocr_zh-TW.md) — 紙本收據 → 傳票候選
-- [05. 訂單匯入](05-order-import_zh-TW.md) — Amazon / 楽天 等貼上 → AI 抽取
+- [05. 訂單匯入](05-order-import_zh-TW.md) — Amazon / 楽天等貼上 → AI 抽取
 
 ### C 群：進階功能（視需要）
 

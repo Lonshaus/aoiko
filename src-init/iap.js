@@ -62,7 +62,7 @@ export function needsAcknowledge(purchase) {
 }
 
 // プラグインは取消と保留を戻り値ではなく例外で伝える。放置すると未捕捉の例外として
-// エラーバナーが点く。
+// エラーバナーが表示される。
 export function purchaseResultOfError(error) {
   // プラグインは Error を文字列へ直列化して寄越すので、判るのは文面だけ。
   // ストアごとに文言が違う（「cancelled by user」「[purchaseNotCompleted] - ...」など）。
@@ -224,7 +224,7 @@ export function createIap(invoke, platform, deps = {}) {
       if (kindFor(platform, purchase.productId) !== NON_CONSUMABLE) {
         continue;
       }
-      // 保留のままの購入を「持っている」に数えると、支払い前にバッジが付く。
+      // 保留のままの購入を「持っている」に数えると、支払い前にバッジが表示される。
       if (purchaseResultOf(purchase) !== 'purchased') {
         continue;
       }

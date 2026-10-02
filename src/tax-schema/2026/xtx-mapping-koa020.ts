@@ -94,10 +94,10 @@ export function mapKoa020Values(ctx: XtxContext): XtxValues {
 }
 // KOA020 第一表（KOA020-1）の「事業」部分の直接値 leaf。
 //  - 営業等収入金額(ア)＝売上(収入)合計
-//  - 事業 営業等所得金額(①)＝控除前事業所得 − 青色申告特別控除額
+//  - 事業の営業等所得金額(①)＝控除前事業所得 − 青色申告特別控除額
 //  - 青色申告特別控除額
 // 合計所得金額(⑫) は e-Tax が自動計算するため載せない（ja「所得金額」は
-// その他＞変動・臨時所得金額 の子要素 ABB00870 で別物のため取り違えを避ける）。
+// その他＞変動・臨時所得金額の子要素 ABB00870 で別物のため取り違えを避ける）。
 // 各種所得控除・税額は本人情報が必要なため載せず、利用者が e-Tax 上で補完する。
 function put(out: XtxLeafValues, ja: string, amount: string): void {
   const tag = firstTableLeafTagByJa(ja);
@@ -459,7 +459,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(out, 'ABB00670', diffTax.toString());
   // ABB01010（再差引所得税額＝基準所得税額）＝差引所得税額 − 災害減免額。外国税額控除は
   // 復興特別所得税の算定後（所得税及び復興特別所得税の額のあと）に控除するため、ここでは
-  // 含めない（手引き 令和7年分 060.pdf の欄順：再差引所得税額→復興特別所得税→合計→外国税額控除等）。
+  // 含めない（令和7年分の手引き 060.pdf の欄順：再差引所得税額→復興特別所得税→合計→外国税額控除等）。
   const saiSashihiki = maxZero(diffTax.minus(pd.disasterExemptionAmount ?? D(0)));
   putTag(out, 'ABB01010', saiSashihiki.toString());
   const surtax = reconstructionSurtax(saiSashihiki);

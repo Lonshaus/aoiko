@@ -24,21 +24,21 @@ import { todayISO } from '../../lib/date';
 import { m } from '../../paraglide/messages';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
-// 申告者情報（IT部 定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
+// 申告者情報（IT部の定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
 // 含むため XtxValues とは別に構造化して渡す。第一表の氏名/住所/税務署は
 // この IT部 ID を参照側 IDREF で引くため、ここに値があれば自動的に帳票へ反映される。
 export interface XtxFilerInfo {
-  /** 提出先税務署コード（5桁、gen:zeimusho_CD、IT部 必須） */
+  /** 提出先税務署コード（5桁、gen:zeimusho_CD、IT部で必須） */
   zeimushoCode?: string;
   /** 提出先税務署名（gen:zeimusho_NM、任意） */
   zeimushoName?: string;
-  /** 利用者識別番号（16桁、NOZEISHA_ID、IT部 必須） */
+  /** 利用者識別番号（16桁、NOZEISHA_ID、IT部で必須） */
   riyoshaId?: string;
-  /** 氏名・名称（NOZEISHA_NM、IT部 必須） */
+  /** 氏名・名称（NOZEISHA_NM、IT部で必須） */
   name?: string;
   /** 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP、任意） */
   zip?: string;
-  /** 住所（NOZEISHA_ADR、IT部 必須） */
+  /** 住所（NOZEISHA_ADR、IT部で必須） */
   address?: string;
 }
 
@@ -50,7 +50,7 @@ export interface XtxDocumentOptions {
    */
   procedureTag?: string;
   /**
-   * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書 表1-1-1：2005 年度以降の
+   * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書の表1-1-1：2005 年度以降の
    * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.0」）が必須。
    */
   procedureVersion?: string;
@@ -62,7 +62,7 @@ export interface XtxDocumentOptions {
   creatorName?: string;
   /** 作成日（gen:FormAttribute sakuseiDay、必須、xsd:date YYYY-MM-DD） */
   creationDate?: string;
-  /** 申告者情報（IT部 定義側の必須項目）。未指定だと IT部 必須項目が欠落する */
+  /** 申告者情報（IT部の定義側の必須項目）。未指定だと IT部の必須項目が欠落する */
   filer?: XtxFilerInfo;
   /**
    * 送信票（SOFUSHO/TEA060）を CONTENTS に含めるか。既定 true（所得税 RKO0010 は必須）。
@@ -75,7 +75,7 @@ export interface XtxDocumentOptions {
    * IT部 SHINKOKU_KBN（申告の種類）の kubun_CD。既定 '1'（確定）。
    * 消費税の中間申告（仮決算方式）を送信する場合のみ '2'（中間）を指定する
    * （e-tax11.CAB「帳票フィールド仕様書(消費-申告)」で確認：1:確定 2:中間
-   * 3:修正確定 4:修正中間。所得税 KOA020 とも共有する IT部 定義のため、
+   * 3:修正確定 4:修正中間。所得税 KOA020 とも共有する IT部の定義のため、
    * 所得税側の呼び出しは既定値のまま変更しない）。
    */
   shinkokuKbn?: string;
@@ -189,7 +189,7 @@ interface ItPart {
 // 定義側（IT部）を出力。
 //  - NENBUN は複合型 <gen:era>5</gen:era><gen:yy>{年}</gen:yy>（単純な文字列ではない）
 //  - ZEIMUSHO / NOZEISHA_ZIP も複合型（gen:zeimusho_CD/_NM、gen:zip1/zip2）
-//  - NOZEISHA_ID / NOZEISHA_NM / NOZEISHA_ADR は申告者情報（filer）から（IT部 必須）
+//  - NOZEISHA_ID / NOZEISHA_NM / NOZEISHA_ADR は申告者情報（filer）から（IT部で必須）
 //  - TETSUZUKI / SHINKOKU_KBN は所得税申告の構造項目として常に出力（個人情報ではない）
 //  - その他は値が与えられた定義のみ <名> ID="名">値</名> で出力
 // xsd:ID は定義名そのもの（ITreference.xsd の *ref 型は IDREF を fixed="<定義名>" で
@@ -290,7 +290,7 @@ function buildItPart(
   return { xml: `<IT VR="${IT_VERSION}" id="IT">${parts.join('')}</IT>`, idByName };
 }
 // 参照側 leaf/branch（level >= 2）を描画。
-//  - leaf.idref 有：対応 IT部 ID があるとき IDREF 空要素
+//  - leaf.idref 有：対応する IT部の ID があるとき IDREF 空要素
 //  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG>
 //  - branch：repeats[tag] があれば繰り返しブロックとして 1 件ごとに独立した
 //    leafValues で子要素を解決し、<TAG>...</TAG> をエントリ数だけ並べて出力する

@@ -1,5 +1,5 @@
 // aoiko 業務データ（不動産所得PL・FixedAsset・personalDeductions.realEstateIncome）
-// → KOA220（青色申告決算書・不動産所得用）参照側 直接値 leaf への転記。
+// → KOA220（青色申告決算書・不動産所得用）参照側の直接値の葉要素への転記。
 //
 // KOA210 と同じく決算書の金額は要素テキストで直接保持する（leaf.idref 無し）。
 // 第2頁（貸家等の状況・給料賃金・専従者給与の内訳）・第3頁（減価償却・地代家賃・
@@ -73,7 +73,7 @@ const PAGE1 = PAGES.get('KOA220-1') ?? []; // 損益計算書
 function tagByJa(leaves: Leaf[], ja: string): string | undefined {
   return leaves.find((l) => l.ja === ja)?.tag;
 }
-// aoiko 勘定科目名（不動産用、末尾「（不動産）」）→ KOA220 決算書 行名 の差異吸収
+// aoiko 勘定科目名（不動産用、末尾「（不動産）」）→ KOA220 決算書の行名の差異吸収
 const EXPENSE_ALIAS: Record<string, string> = {
   '租税公課（不動産）': '租税公課',
   '損害保険料（不動産）': '損害保険料',
