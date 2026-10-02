@@ -137,7 +137,7 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
-  // 開発用：手引き・条文を dev server でどの配布形態向けに畳んで表示するか。
+  // 開発用：手引き・条文と画面の出し分けを dev server でどの配布形態向けに見せるか。
   // __DOC_PLATFORM__ は dev server 起動時の AOIKO_PLATFORM で、未検証の生値なので isPlatform で確かめる。
   // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、ビルド成果物に doc-preview.ts が
   // 混入する（tree-shaking は分岐の外側の参照までは削らない）。
@@ -3556,9 +3556,9 @@
   </section>
   {#if __DOC_PREVIEW__}
     <section class="space-y-4 border border-dashed rounded-lg p-6 bg-card text-card-foreground">
-      <h3 class="text-lg font-semibold">開発用：文書のプレビュー対象</h3>
+      <h3 class="text-lg font-semibold">開発用：プレビュー対象</h3>
       <p class="text-xs text-muted-foreground">
-        手引き・免責事項・プライバシーポリシー・セキュリティ方針をどの配布形態向けに畳んで表示するか。dev
+        手引き・免責事項・プライバシーポリシー・セキュリティ方針と、画面の文言・選択肢をどの配布形態向けに表示するか。見た目の確認用で、ネイティブ専用の機能は動かない。dev
         server でのみ表示される。
       </p>
       <select
