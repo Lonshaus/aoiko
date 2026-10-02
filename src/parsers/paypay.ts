@@ -10,8 +10,8 @@ import type { CsvParser, ParsedTransaction } from './types';
 //
 // このアカウントは PayPay 残高ではなくクレジット（PayPayカード／クレジット VISA）
 // 決済で運用されている前提のため accountCode は 2120（未払金）。
-// 出金金額（円）がある支払い行は credit（未払金の増）として取り込む。
-// 入金行のうち「返金・返品・キャンセル」は debit（未払金の減）として取り込み、
+// 出金金額（円）がある支払い行は貸方（未払金の増）として取り込む。
+// 入金行のうち「返金・返品・キャンセル」は借方（未払金の減）として取り込み、
 // それ以外の入金（ポイント・残高の獲得など）は仕訳対象外として読み飛ばす。
 // 残高チャージ運用が必要になった場合は別 parser で対応する。
 
@@ -57,7 +57,7 @@ const paypayParser: CsvParser = {
         amount = stripComma(outRaw);
         side = 'credit';
       } else if (inRaw && REFUND_PATTERN.test(content)) {
-        // 返金・返品・キャンセルの入金は未払金の減少（debit）として取り込む
+        // 返金・返品・キャンセルの入金は未払金の減少（借方）として取り込む
         amount = stripComma(inRaw);
         side = 'debit';
       } else {

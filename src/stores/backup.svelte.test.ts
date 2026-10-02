@@ -268,7 +268,7 @@ describe('backupManager.backup（掃除が返ってこない場合）', () => {
     expect(await getSetting('lastBlobSweepAt')).toBeUndefined();
   });
 });
-// OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者は ファイル管理 から見ることも
+// OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者はファイル管理アプリから見ることも
 // 消すこともできない。ここに取りこぼしがあると、譲渡・廃棄した端末に帳簿が残る。
 describe('backupManager.clearStoredBackups（OPFS の控えの全削除）', () => {
   test('個別のファイルも旧形式の zip も残さない', async () => {

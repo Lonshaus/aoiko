@@ -11,7 +11,7 @@ Create item-level journal entries by pasting text from online-store order pages 
 > - Reconcile the item-sum / total mismatch
 >
 <!-- only:browser -->
-> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key** or **OpenAI-compatible endpoint** (the built-in rule engine is not supported here).
+> **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key**, **OpenAI-compatible endpoint**, or **the browser's built-in AI** (the built-in rule engine is not supported here).
 <!-- /only -->
 <!-- only:apple -->
 > **Prerequisites**: [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) has set up **Gemini API key**, **OpenAI-compatible endpoint**, or **Apple Intelligence** on a supported device (the built-in rule engine is not supported here).
@@ -22,7 +22,7 @@ Create item-level journal entries by pasting text from online-store order pages 
 
 ## 1. Why this feature exists
 
-The card CSV only shows "楽天市場 ¥3,280" — enough for the payment side, but splitting expense accounts by line item (book → 新聞図書費 (newspapers and books expense); consumables → 消耗品費 (consumables expense), etc.) used to require manual work.
+The card CSV only shows "楽天市場 ¥3,280" — enough for the payment side, but splitting expense accounts by line item (book → 新聞図書費 (newspapers and books); consumables → 消耗品費 (consumables), etc.) used to require manual work.
 
 **Order import** asks an AI to extract line items from a pasted order page.
 
@@ -38,13 +38,13 @@ Open the **individual order detail** page (not the order history list). Examples
 - **Rakuten Ichiba**: Purchase history → detail page for each order
 - **Yahoo! Shopping**: Order history → click an order ID
 
-On that page, select all (PC: `Cmd+A` / `Ctrl+A` on Windows and Linux; phone or tablet: long-press the text and choose "Select All") → copy (PC: `Cmd+C` / `Ctrl+C`; phone or tablet: "Copy" from the menu).
+On that page, select all (Mac: `Cmd+A`; Windows and Linux: `Ctrl+A`; phone or tablet: long-press the text and choose "Select All") → copy (Mac: `Cmd+C`; Windows and Linux: `Ctrl+C`; phone or tablet: "Copy" from the menu).
 
 > Headers, navigation, recommendations, footers, etc. are fine in the clipboard. The AI filters out noise. You don't need to be precise about selection range.
 
 ### 2-2. Paste and analyze
 
-Paste into the text box under **"1. Paste the order page text"** (PC: `Cmd+V` / `Ctrl+V`; phone or tablet: long-press and choose "Paste").
+Paste into the text box under **"1. Paste the order page text"** (Mac: `Cmd+V`; Windows and Linux: `Ctrl+V`; phone or tablet: long-press and choose "Paste").
 
 Click **"Analyze"** to send to the selected AI engine.
 
@@ -73,6 +73,7 @@ Each item is one row:
 |---|---|
 | **Item** | Item name (model / spec included; editable) |
 | **Amount** | Unit × qty (integer; editable; discount lines are negative, e.g. `-300`) |
+| **Tax rate** | Consumption tax rate of this item (10% or 8%, default 10%; a discount line uses the rate of the item it reduces) |
 | **Account** | Expense account for this item (default `5200 消耗品費` (Consumables), dropdown) |
 | ✕ | Delete the row |
 
@@ -80,7 +81,7 @@ A **"Add row"** button below the table lets you add items the AI missed.
 
 #### Payment source
 
-Below the table, **"Payment source (default: accounts payable)"** dropdown. For credit card payment, `2120 未払金` (Accounts payable) (use a subaccount per card if you have them). For PayPay balance, `1110 現金` (Cash) or your configured account.
+Below the table, **"Payment source (default: 未払金)"** dropdown. For credit card payment, `2120 未払金` (Other payables) (use a subaccount per card if you have them). For PayPay balance, `1110 現金` (Cash) or your configured account.
 
 ### 2-4. Item-sum / total mismatch
 
@@ -107,10 +108,12 @@ If there are discount lines (negative), they're routed to the credit side:
 ```
 2026-05-20  Rakuten Ichiba - Yodobashi.com
   Debit   5200 消耗品費   ¥3,000   Item A
-  Credit  5200 消耗品費   ¥500     Coupon discount
+  Credit  5200 消耗品費   ¥500     Coupon discount (deducted from the same account)
   Credit  2120 未払金     ¥2,500   Total
 ```
 
+> Each item's name is saved as the memo of that item's line in the entry (the text at the right of the examples above). Items are saved tax-included, and you choose each item's rate, 10% or 8%, in the item table's "Tax rate" column (default 10%). A discount line is saved at the rate of the item it reduces (that rate when all items share one rate; when an order mixes 10% and 8% items, choose the reduced item's rate in the discount line's "Tax rate" column). There is no field for a qualified invoice — every line is saved without one — so if you need to treat the order as a qualified invoice, enter it by hand in [02. Journal entries](02-journal_en.md).
+>
 > The entry's **source** field is recorded internally as `paste` (the journal list has no filter for it).
 
 ## 3. Practical tips
@@ -119,7 +122,7 @@ If there are discount lines (negative), they're routed to the credit side:
 
 | Item example | Recommended account |
 |---|---|
-| Books / e-books | `5910 雑費` (Miscellaneous expenses) (add a subaccount such as `新聞図書費` (news & books) under **Settings > Subaccounts** if you want to separate it out) |
+| Books / e-books | `5910 雑費` (Miscellaneous expenses) (add a subaccount such as `新聞図書費` (newspapers and books) under **Settings > Subaccounts** if you want to separate it out) |
 | Stationery / cables / USB hubs | `5200 消耗品費` |
 | Business PC / monitor | `1510 工具器具備品` (Tools & equipment) → register separately as a fixed asset ([08. Depreciation](08-depreciation_en.md)) |
 | AWS / SaaS monthly | `5150 通信費` (Communications) (subaccount: service name) |
@@ -140,7 +143,7 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 
 | Symptom | Action |
 |---|---|
-| "Analyze" doesn't progress | Settings > "AI features" > "Test connection" to verify API key / endpoint |
+| "Analyze" doesn't progress | **Settings > AI features > "Test connection"** to verify API key / endpoint |
 | Output is not in Japanese | The prompt is in Japanese, so this is uncommon. For local AI, switch to a model with better Japanese support |
 | Some items missing | AI extraction limitation. Use **"Add row"** to add manually |
 | Amount wrong | Edit the row. If items don't sum to the total, saving fails with an error; fix either the item amounts or the total |
@@ -150,11 +153,11 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 ## 5. Privacy notes
 
 - Order pages often contain **shipping address, name, phone number**. Double-check before sending to a cloud AI
-- For sensitive addresses, remove personal-info lines from the text box before clicking Analyze
+- If your home address appears in the text, remove personal-info lines from the text box before clicking Analyze
 - See [PRIVACY_en.md](../../PRIVACY_en.md)
 
 ## 6. Next steps
 
 - Confirm/edit imported entries → [02. Creating journal entries](02-journal_en.md)
 - Aggregate / verify → [06. Reports](06-reports_en.md)
-- Month-end card statement reconciliation: import the card CSV in [03. CSV import](03-csv-import_en.md) and cross-check it against the order imports (be careful not to double-count the same transaction)
+- Month-end card statement reconciliation: import the card CSV in [03. CSV import](03-csv-import_en.md) and tick "Skip" on the rows for orders you already registered with order import (otherwise the same purchase is counted twice)

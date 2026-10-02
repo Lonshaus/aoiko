@@ -1,5 +1,5 @@
 // ボタンの見た目を自前にしても、選ばせる仕組みは input 側のまま——という前提を固定する。
-// input を消すと、キーボード操作も読み上げも ある環境 の選択シートも一緒に消える。
+// input を消すと、キーボード操作も読み上げも、ある環境の選択シートも一緒に消える。
 
 import { describe, expect, test, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';

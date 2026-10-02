@@ -43,7 +43,7 @@ afterEach(async () => {
 });
 
 describe('申告済み年度への直接の書き込み', () => {
-  test('domain 関数を通らない add でも止まる（画面から直に書く経路）', async () => {
+  test('ドメイン関数を通らない add でも止まる（画面から直に書く経路）', async () => {
     await markYearFiled(FILED, { monthlySales, pl }, `${FILED}-12-31`);
     await expect(db.journalEntries.add(entry())).rejects.toThrow(FiledYearError);
     expect(await db.journalEntries.count()).toBe(0);

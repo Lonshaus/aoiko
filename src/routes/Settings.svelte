@@ -380,6 +380,15 @@
     };
     confirmingDelete = true;
   }
+  function askReverseCarryover(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_carryover_delete_confirm_title(),
+      desc: m.settings_carryover_delete_confirm_desc({ name }),
+      action: m.settings_carryover_delete_button(),
+      run,
+    };
+    confirmingDelete = true;
+  }
   async function runPendingConfirm() {
     confirmingDelete = false;
     await pendingConfirm?.run();
@@ -954,7 +963,7 @@
     }),
   );
   const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
   const smallAssetStatuses = $derived(
     smallAssetSpecialStatuses(
       ledger.fixedAssets,
@@ -2080,7 +2089,9 @@
       </button>
       <button
         type="button"
-        onclick={() => askDelete(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
+        data-testid="carryover-reverse-button"
+        onclick={() =>
+          askReverseCarryover(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
         {m.settings_carryover_delete_button()}

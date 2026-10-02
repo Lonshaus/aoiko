@@ -25,9 +25,9 @@ The same screen has a "Business closing date (leave blank if not closing)" field
 
 Register expenses paid before opening to prepare the business (business cards, advertising, website design, supplies, meeting costs, etc.).
 
-- **Not included**: items costing ¥100,000 or more (register those under "Converted assets" below, or as a regular fixed asset), cost of goods purchased for resale, deposits/key money, and expenses incurred after opening
+- **Not included**: items costing ¥100,000 or more (register those under "Converted assets" below, or as a regular fixed asset), cost of goods purchased for resale, security/guarantee deposits, and expenses incurred after opening
 - The total of the items you register creates an entry: **debit 開業費 (pre-opening expenses) / credit 元入金 (owner's capital)**
-- Then choose **"Expense in full this year"**, **"Amortize over 5 years (records only the first year's portion)"**, or **"Voluntary amortization"** (Enforcement Order Art. 137(3)):
+- Then choose **"Expense in full this year"**, **"Amortize over 5 years (records only the first year's portion)"**, or **"Voluntary amortization (Enforcement Order Art. 137(3))"**:
   - Full expensing: also books **debit 減価償却費 (depreciation) / credit 開業費 (pre-opening expenses)** for the full amount (the pre-opening expense balance becomes zero)
   - 5-year: under Income Tax Act Enforcement Order Art. 137(1)(1), year 1's portion is the deferred-asset amount divided by 60, multiplied by the number of months you were in business during the year you incurred the cost (rounding any partial month up). The remainder stays on the books as a deferred asset; add the amortization entries for later years yourself from the regular journal entry screen.
   - Voluntary amortization: enter the amount yourself in the "This year's amortization amount" field, capped at the pre-opening expense's undepreciated balance. Unlike the 5-year split, you can choose any amount for any year.
@@ -55,15 +55,15 @@ There's a checkbox to indicate whether the **actual purchase price (original acq
 
 > ⚠ **Whether this special provision can be applied to a converted asset is not clearly established by any published position from the National Tax Agency, the Ministry of Finance, or the National Tax Tribunal** (the ordinary provision's text and circulars center on newly acquired assets). The treatment described here — eligibility judged on the original acquisition cost, actual expensing capped at the undepreciated balance as of the conversion date — is aoiko's implementation, following the majority view among accounting-software vendors and tax-accountant practice explanations. This setting is only a provisional choice — **please confirm with a tax accountant before actual filing**. For anything already filed, you'll need to work out the appropriate response with your tax accountant yourself.
 >
-> If you want to change this choice later, you can correct the generated entries and fixed-asset registration using the reversing-entry feature in [02. Creating journal entries](02-journal_en.md).
+> If you want to change this choice later, run Opening Setup again and press **"Reverse the existing opening entries and start over"**, which then appears: it cancels the opening entries with reversing entries, deletes the fixed assets registered by Opening Setup, and recreates everything (it stops if any of those assets already has depreciation or disposal entries).
 
 ### 4-3. The ¥300,000 / ¥400,000 threshold
 
-The Reiwa 8 tax reform raised the small-asset special provision's cap from under ¥300,000 to under ¥400,000, but **the higher cap applies only when the acquisition date is on or after April 1, 2026** (not the business-supply date). Since a converted asset's purchase date is often earlier, even if your business start date is after April 1, the ¥300,000 threshold still applies if the purchase date itself (= the acquisition date) predates April 1. This threshold check also uses the actual purchase price (original acquisition cost).
+The Reiwa 8 tax reform raised the small-asset special provision's cap from under ¥300,000 to under ¥400,000, but **the higher cap applies only when the acquisition date is on or after April 1, 2026** (not the date put into business use). Since a converted asset's purchase date is often earlier, even if your business start date is after April 1, the ¥300,000 threshold still applies if the purchase date itself (= the acquisition date) predates April 1. This threshold check also uses the actual purchase price (original acquisition cost).
 
 ## 5. Opening inventory / deposits (optional)
 
-If you already have inventory purchased before opening, or a deposit/key money for rented office space, register these via "Custom items" below using the appropriate account.
+If you already have inventory purchased before opening, or a security or guarantee deposit for rented office space, register these via "Custom items" below using the appropriate account.
 
 ## 6. Custom items
 

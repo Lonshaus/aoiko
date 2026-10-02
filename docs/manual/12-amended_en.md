@@ -16,17 +16,17 @@ Filed-year snapshots, diff detection, reversing entries, submission flow.
 After submitting your tax return, if you find an error:
 
 - **Tax under-reported** (additional payment needed) → **Amended return** (修正申告)
-- **Tax over-reported** (refund right) → **Request for correction** (更正の請求)
+- **Tax over-reported** (right to a refund) → **Request for correction** (更正の請求)
 
 The forms and processing differ on the e-Tax side. The aoiko-side work is similar in both (enter the changes, look at the diff), but the e-Tax procedure varies.
 
-> aoiko does not directly assist with creating or submitting the return. It provides diff detection and organization of "what changed".
+> aoiko does not create the amended return or the request for correction itself (`.xtx` export covers the final return only). It provides diff detection and a summary of what changed.
 
 ## 2. The filed snapshot
 
 When you click **"Lock as filed"** ([06. Reports § 8](06-reports_en.md#8-year-lock-filed)), aoiko saves to IndexedDB a **snapshot** of:
 
-- Four report types: monthly sales, profit & loss (P/L), balance sheet (BS), and consumption tax (if configured)
+- Monthly sales, profit & loss (P/L), and balance sheet (BS), plus, for a year in which you are a taxable business, consumption tax (the calculation method you chose when locking and its tax amount)
 
 This is the snapshot of what you reported on the return.
 
@@ -36,7 +36,7 @@ This is the snapshot of what you reported on the return.
 
 ### 3-1. Unlock
 
-You must unlock to make changes.
+Even while the year is locked, you can add or fix entries by choosing "Proceed" in the confirmation shown on each write. When making several fixes, unlock first so the confirmation does not appear.
 
 1. Reports → select the year
 2. Beside 🔒 Filed badge, click **"Unlock"**
@@ -69,13 +69,13 @@ After entering reversing entries, the Reports screen's **"Amended return guide"*
 Once the numbers are stable in aoiko:
 
 1. Open e-Tax software (download edition) or the Return Preparation Corner (the e-Tax software web edition does not support income-tax amended returns)
-2. **"Create an amended return"** menu (exact name varies by year)
+2. **"修正申告書の作成"** (create an amended return) menu (exact name varies by year)
 3. Bring in the **original return** values (financial statements — blue-return statements or the white return breakdown statement — → tax return) by loading a re-exported `.xtx` into the download edition, or by hand in the Return Preparation Corner
 4. Enter **the corrected amounts**
-5. The diff is computed on the e-Tax side. It also shows estimated delinquency and additional penalty taxes
+5. The diff is computed on the e-Tax side. Check delinquency and additional penalty taxes separately with the e-Tax software or the tax office
 6. Submit (electronically)
 
-> Re-exporting `.xtx` ([10. `.xtx` export](10-xtx-export_en.md)) from aoiko is built straight from the current state of your books, and the income-tax section's filing-type field (the `SHINKOKU_KBN` tag) is always output as "確定" (final) — it never switches to an amended-return type. Treat the re-exported `.xtx` as a reference for checking the corrected figures, and create the actual amended-return submission through e-Tax's own amended-return menu.
+> Re-exporting `.xtx` ([10. `.xtx` export](10-xtx-export_en.md)) from aoiko is built straight from the current state of your books, and the IT section's return-type field (the `SHINKOKU_KBN` tag, 「申告の種類」) is always output as "確定" (final) — it never switches to an amended-return type. Treat the re-exported `.xtx` as a reference for checking the corrected figures, and create the actual amended-return submission through e-Tax's own amended-return menu.
 
 ### 3-5. Re-lock after submission
 
@@ -107,7 +107,7 @@ Discovered: same AWS bill of ¥5,000 was booked twice — once via CSV import an
 ```
 
 1. Unlock
-2. Reverse the batch from [03. CSV § 5](03-csv-import_en.md#5-import-history-and-batch-reverse) or reverse the manual one
+2. Reverse one of the two duplicates as in [02. § 3](02-journal_en.md#3-reversing-entries--fixing-mistakes) (don't use the batch reversal in [03. CSV § 5](03-csv-import_en.md#5-import-history-and-batch-reverse) here: it reverses every entry in that batch)
 3. Confirm diff: Expenses −5,000, Income +5,000
 4. File amended return → additional payment
 5. Re-lock
@@ -137,7 +137,7 @@ File a **request for correction** directly on the e-Tax side. There is no busine
 
 ### Amended return deadlines
 
-- **Amended return** (additional payment): can be filed any time before a reassessment under Art. 24 (更正) becomes final (Act on General Rules for National Taxes Art. 19(1)). File early once you notice — delinquency tax accrues daily
+- **Amended return** (additional payment): can be filed any time until the tax office makes a reassessment under Art. 24 of the Act (更正) (Act on General Rules for National Taxes Art. 19(1)). File early once you notice — delinquency tax accrues daily
 - **Request for correction** (refund): typically within **5 years** from the original filing deadline
 
 ### Additional taxes and delinquency tax

@@ -3,7 +3,7 @@ import { LlmError } from './llm';
 import { buildOrderPrompt, parseOrderResponse } from './order-extract';
 
 describe('buildOrderPrompt', () => {
-  test('returns a non-empty JSON-instruction prompt', () => {
+  test('空でない JSON 指示のプロンプトを返す', () => {
     const p = buildOrderPrompt();
     expect(p.length).toBeGreaterThan(100);
     expect(p).toContain('"date"');
@@ -133,7 +133,7 @@ describe('parseOrderResponse', () => {
     expect(() => parseOrderResponse(42)).toThrow(LlmError);
   });
 
-  test('date / vendor 欠落は空文字に降格（throw しない）', () => {
+  test('date / vendor 欠落は空文字に降格（例外を投げない）', () => {
     const r = parseOrderResponse({
       items: [{ description: 'a', amount: '100' }],
       totalAmount: '100',

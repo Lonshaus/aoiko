@@ -5,13 +5,13 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/mufg-sample.csv', mufgParser.encoding);
 
 describe('mufgParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(mufgParser.name).toBe('mufg');
     expect(mufgParser.accountCode).toBe('1130');
     expect(mufgParser.encoding).toBe('shift_jis');
   });
 
-  test('parses sample fixture', () => {
+  test('サンプルCSVを読み取る', () => {
     const r = mufgParser.parse(sample);
     expect(r).toHaveLength(3);
 
@@ -38,7 +38,7 @@ describe('mufgParser', () => {
     expect(r[0]?.description).toBe('給与');
   });
 
-  test('throws on missing required column', () => {
+  test('必須列が欠けていれば例外を投げる', () => {
     const csv = '日付,摘要,預かり金額\n2026/05/01,test,100';
     expect(() => mufgParser.parse(csv)).toThrow(/CSV ヘッダー形式/);
   });

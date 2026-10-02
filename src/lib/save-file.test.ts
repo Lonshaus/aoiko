@@ -19,7 +19,7 @@ beforeEach(() => {
       revoked.push(url);
     },
   });
-  // click 時点で DOM に入っていることを確認する（入っていないと あるブラウザ で発火しない）
+  // click 時点で DOM に入っていることを確認する（入っていないとあるブラウザで発火しない）
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
     this: HTMLAnchorElement,
   ) {

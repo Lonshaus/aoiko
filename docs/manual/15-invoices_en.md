@@ -10,7 +10,7 @@ Create and issue invoices and quotes for your customers from the "Invoices" scre
 > - Correct an issued document (via a reversing entry)
 > - One-click convert a quote into an invoice
 >
-> **Prerequisites**: [01. Initial setup](01-setup_en.md) done. Register your customer beforehand under Settings > "Vendors" (customers are registered as vendors; the "Recipient (customer)" field on the form picks from them).
+> **Prerequisites**: [01. Initial setup](01-setup_en.md) done. Register your customer beforehand under **Settings > Vendors** (customers are registered as vendors; the "Recipient (customer)" field on the form picks from them).
 
 ## 1. Invoices vs. quotes
 
@@ -31,7 +31,7 @@ A quote is only a proposal that hasn't become a deal yet, so issuing it never to
 5. Consumption tax is calculated once per tax-rate group (per the invoice system's "round fractions once per rate" rule — not per line item)
 6. Review, then click **"Save draft"** (to keep editing later) or **"Issue"**
 
-> **To show the customer's address on the invoice**: register a mailing address for that customer under Settings > "Vendors" (optional field).
+> **To show the customer's address on the invoice**: register a mailing address for that customer under **Settings > Vendors** (optional field).
 >
 > **An invoice can't be issued if its transaction date falls in a locked year** ([06. § 8](06-reports_en.md#8-year-lock-filed)). The entry auto-generated on issue would write to a locked year and is refused. Quotes don't generate an entry, so they aren't subject to this restriction.
 
@@ -41,7 +41,7 @@ A quote is only a proposal that hasn't become a deal yet, so issuing it never to
 
 - Assigns the number (the prefix set in Settings + year + sequence, e.g. `INV-2026-0001`)
 - Auto-generates a journal entry: debit 売掛金 (accounts receivable; tax-inclusive total), credit 売上高 (sales; per tax-rate group, tax-inclusive amount)
-- Creates a receivable record, which feeds the expected-inflow forecast ([06. Reports § 10-2](06-reports_en.md#10-2-receivablespayables-and-cash-flow-forecast))
+- Creates a receivable record (its description reads "invoice number (vendor name)"), which feeds the expected-inflow forecast ([06. Reports § 10-2](06-reports_en.md#10-2-receivablespayables-and-cash-flow-forecast))
 - Locks the content (can't go back to draft)
 
 **Issuing a quote:**
@@ -64,8 +64,8 @@ On desktop, save as PDF from the print panel (on macOS, for example, that's the 
 
 The printed layout automatically includes the fields required under the qualified invoice retention system:
 
-- Issuer's name and registration number (from Settings > "Basic info"; the registration-number line is omitted for tax-exempt businesses without one)
-- Transaction date
+- Issuer's name and registration number (from **Settings > Basic info**; the registration-number line is omitted for tax-exempt businesses without one)
+- Transaction date (printed as "Date issued")
 - Description of the transaction (line items)
 - Subtotal and applicable rate, grouped by tax rate
 - Consumption tax amount, grouped by tax rate

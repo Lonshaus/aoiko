@@ -9,11 +9,11 @@ Manual entry creation, browsing/searching the journal list, and reversing entrie
 > - Filter the journal list by year / month / description / amount / vendor
 > - Reverse a confirmed entry with a reversing entry
 >
-> **Prerequisites**: [01. Initial setup](01-setup_en.md) is done (trade name, fiscal year, and any subaccounts you need).
+> **Prerequisites**: [01. Initial setup](01-setup_en.md) is done (trade name, tax year, and any subaccounts you need).
 
 ## 1. Manual entry — Home screen
 
-The bottom half of the **"Home"** navigation contains the **New journal entry** form.
+The bottom half of the **"Home"** screen contains the **New journal entry** form.
 
 ### 1-1. Basic flow
 
@@ -52,7 +52,7 @@ Use **"Clear"** to reset everything mid-entry.
 
 ### 1-5. Recording item and quantity (simple inventory)
 
-Choosing a **仕入 (Purchases, 5020)** or **売上高 (Sales, 4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **"Items (simple inventory)"** section of Settings. Once recorded, the [06. Reports](06-reports_en.md) profit & loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
+Choosing a **仕入 (Purchases, 5020)** or **売上高 (Sales, 4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **"Items (simple inventory)"** section of Settings. Once recorded, the [06. Reports](06-reports_en.md) profit and loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
 
 > This is on by default. If you've filed for a valuation method other than most-recent-purchase-cost, untick **Settings > Auto-calculate ending inventory (most-recent-purchase-cost method)** to disable this estimate and go back to journaling ending inventory manually.
 
@@ -60,7 +60,7 @@ Choosing a **仕入 (Purchases, 5020)** or **売上高 (Sales, 4110)** line reve
 
 The **"Department tag"** field next to the description lets you attach a free-text tag (e.g. `Tokyo branch`, `Online sales`) for lightly separating multiple locations, business lines, or channels. Previously used tags appear as autocomplete suggestions.
 
-> Department tags are a display label for aggregation/filtering only — they never affect tax calculations or `.xtx` export. You can filter the account breakdown by department in [06. Reports](06-reports_en.md).
+> Department tags are a display label for aggregation only — they never affect tax calculations or `.xtx` export. In [06. Reports](06-reports_en.md), the **"Breakdown"** section can aggregate by department.
 
 ### 1-7. Attaching a receipt photo
 
@@ -78,7 +78,7 @@ For an outstanding foreign-currency receivable/payable, or a cash purchase made 
 
 ### 1-9. Recording employee salary and withholding tax
 
-aoiko has no payroll calculation or automatic withholding-tax feature. If you employ regular staff (not a family employee under blue-return status), work out the withholding tax yourself using the NTA's official "[Withholding tax table for employment income](https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/01.htm)" and record it as a normal entry.
+aoiko has no payroll calculation or automatic withholding-tax feature. If you employ regular staff (anyone other than a family employee (専従者)), work out the withholding tax yourself using the NTA's official "[Withholding tax table for employment income](https://www.nta.go.jp/publication/pamph/gensen/zeigakuhyo2026/01.htm)" and record it as a normal entry.
 
 1. **Debit**: `5230 給料賃金` (Salaries and wages) for the gross salary (before social insurance deductions)
 2. **Credit**: `1130 普通預金` (Ordinary deposit) etc. for the actual net amount paid
@@ -89,7 +89,7 @@ aoiko has no payroll calculation or automatic withholding-tax feature. If you em
 | Transaction | Debit | Credit |
 |---|---|---|
 | Sale, received by card | 1320 未収入金 (Other receivables) | 4110 売上高 |
-| Expense paid by credit card | 5xxx Expense | 2120 未払金 (Accounts payable) |
+| Expense paid by credit card | 5xxx Expense | 2120 未払金 (Other payables) |
 | Card auto-debit from bank | 2120 未払金 | 1130 普通預金 |
 | Inject cash into business | 1110 現金 (Cash) | 3110 元入金 (Owner's capital) |
 | Withdraw personal funds from business account | 1610 事業主貸 | 1130 普通預金 |
@@ -110,11 +110,11 @@ The filter row at the top:
 | **Description contains** | text (substring match; applied on Enter or blur) |
 | **Amount (min)** | number; blank = no minimum |
 | **Amount (max)** | number; blank = no maximum |
-| **Vendor** | dropdown of registered vendors |
+| **Vendor** | dropdown of registered vendors (only entries created by issuing an invoice carry a vendor) |
 
-> **Any two or more in combination** is supported, satisfying the search-capability requirement of Japan's Electronic Books Preservation Act (qualified e-bookkeeping).
+> **Any two or more in combination** is supported (designed for the search requirement of the Electronic Books Preservation Act's enforcement regulations). Only entries created by issuing an invoice carry a vendor, so for other entries write the vendor name in the description and search with "Description contains".
 
-Use **"Reset"** to clear filters (year reverts to current, month to current).
+Use **"Reset"** to clear filters (year reverts to the "Current tax year" in Settings, month to the current month).
 
 ### 2-2. View entry details
 
@@ -134,7 +134,7 @@ Below the line details you'll find a list of **receipt photos** (click a thumbna
 
 1. Click on the entry to expand it
 2. Click **"Reverse"**
-3. Confirmation dialog: "A reversing entry with debits and credits swapped will be created with today's date, and the original entry will be marked “Reversed”" → click **"Reverse"**
+3. Confirmation dialog: "A reversing entry with debits and credits swapped will be created with today's date, and the original entry will be marked "Reversed". Both entries are retained as history (required by Japan's Electronic Books Preservation Act)." → click **"Reverse"**
 4. The original entry now shows a **"Reversed"** badge with strikethrough
 5. A new reversing entry appears in the list (today's date)
 6. Re-enter the correct entry (manually, via CSV, OCR, or order import)
@@ -159,7 +159,7 @@ The net effect on the ledger is zero. Add a new entry with the correct amount (e
 
 ### 3-3. Can I undo a reversal?
 
-No — a reversed entry can't be reversed again (the **"Reversed"** badge appears and the button is hidden). You could reverse the reversal to restore the original, but the history accumulates.
+No — a reversed entry can't be reversed again (the **"Reversed"** badge appears and the button is hidden). A reversing entry itself cannot be reversed either; to restore the original, enter it again as a new entry.
 
 > If many mistakes came from a CSV import, look at the **Import history** for **"Reverse batch"** instead (see [03. CSV import](03-csv-import_en.md)).
 

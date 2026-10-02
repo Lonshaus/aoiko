@@ -8,14 +8,14 @@ const sampleCsv = readSample(
 );
 
 describe('sbiShinseiParser', () => {
-  test('parser metadata', () => {
+  test('パーサーのメタデータ', () => {
     expect(sbiShinseiParser.name).toBe('sbi-shinsei');
     expect(sbiShinseiParser.displayName).toBe('SBI新生銀行');
     expect(sbiShinseiParser.accountCode).toBe('1130');
     expect(sbiShinseiParser.encoding).toBe('utf-8');
   });
 
-  test('sample fixture parses to expected transactions', () => {
+  test('サンプルCSVが期待どおりの取引に変換される', () => {
     const result = sbiShinseiParser.parse(sampleCsv);
     expect(result).toHaveLength(4);
 
@@ -36,18 +36,18 @@ describe('sbiShinseiParser', () => {
     });
   });
 
-  test('empty memo not included in result', () => {
+  test('空の memo は結果に含めない', () => {
     const result = sbiShinseiParser.parse(sampleCsv);
     expect(result[0]?.memo).toBeUndefined();
   });
 
-  test('handles CRLF line endings', () => {
+  test('CRLF の改行を扱える', () => {
     const withCrlf = sampleCsv.replace(/\n/g, '\r\n');
     const result = sbiShinseiParser.parse(withCrlf);
     expect(result).toHaveLength(4);
   });
 
-  test('strips thousand-separator commas from amounts', () => {
+  test('金額の桁区切りカンマを取り除く', () => {
     const csv =
       '"取引日","摘要","出金金額","入金金額","残高","メモ"\n' +
       '"2026/05/01","テスト","","1,234,567","2,000,000",""';
@@ -56,7 +56,7 @@ describe('sbiShinseiParser', () => {
     expect(result[0]?.balance).toBe('2000000');
   });
 
-  test('skips rows with both columns empty', () => {
+  test('両方の金額列が空の行は飛ばす', () => {
     const csv =
       '"取引日","摘要","出金金額","入金金額","残高","メモ"\n' +
       '"2026/05/01","空行テスト","","","300,000",""\n' +
@@ -66,17 +66,17 @@ describe('sbiShinseiParser', () => {
     expect(result[0]?.description).toBe('正常');
   });
 
-  test('throws on unrecognized header', () => {
+  test('認識できないヘッダーは例外を投げる', () => {
     const csv = '"DATE","DESC","OUT","IN"\n"2026/05/01","x","100",""';
     expect(() => sbiShinseiParser.parse(csv)).toThrow(/CSV ヘッダー形式と一致しません/);
   });
 
-  test('returns empty for header-only CSV', () => {
+  test('ヘッダーだけの CSV は空を返す', () => {
     const csv = '"取引日","摘要","出金金額","入金金額","残高","メモ"';
     expect(sbiShinseiParser.parse(csv)).toEqual([]);
   });
 
-  test('rawRow contains original header-keyed values', () => {
+  test('rawRow は元のヘッダー名をキーにした値を持つ', () => {
     const result = sbiShinseiParser.parse(sampleCsv);
     expect(result[0]?.rawRow['取引日']).toBe('2026/02/26');
     expect(result[0]?.rawRow['摘要']).toBe('ATM 現金入金（提携取引）');

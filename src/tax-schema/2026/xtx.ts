@@ -122,7 +122,7 @@ const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
-// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、throw させず 0 扱いにする。
+// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、例外を投げず 0 扱いにする。
 function toDec(s: string): Decimal {
   const trimmed = s.trim();
   if (trimmed === '') {

@@ -4,8 +4,8 @@ import type { JournalEntry, ReportSnapshot } from './types';
 // 申告済み年度への書き込みを止められたときに投げる。年度を持たせるのは、呼出側が
 // 「どの年度で止まったか」を利用者へ出せるようにするため。
 //
-// domain ではなくここに置く。db.ts がこの module を読み込むため、domain 側に置くと
-// db → guard → domain → db の循環参照になる。domain/year-lock.ts が再エクスポートする。
+// ドメイン層ではなくここに置く。db.ts がこのモジュールを読み込むため、ドメイン層側に置くと
+// `db → guard → domain → db` の循環参照になる。domain/year-lock.ts が再エクスポートする。
 export class FiledYearError extends Error {
   readonly years: number[];
   constructor(years: number[]) {
@@ -35,7 +35,7 @@ interface MarkedTransaction {
 /**
  * 今の取引を「申告済み年度へ書いてよい」と印を付ける。取引の中から呼ぶ。
  *
- * 呼ぶのは、画面で確認を取った経路だけ。domain 側の門（assertYearsWritable）を
+ * 呼ぶのは、画面で確認を取った経路だけ。ドメイン層側の門（assertYearsWritable）を
  * 通っただけでは足りない——門は取引の外で判定するので、書き込み自体には印が残らない。
  */
 export function allowFiledYearWriteInThisTransaction(): void {
@@ -161,7 +161,7 @@ export function installFiledYearGuard(db: Dexie): void {
   //
   // 第 3 引数の sticky が要る。Dexie の ready は既定で一度発火したら購読が外れるため、
   // 付けないと db.delete() 後の開き直しで読み直されず、前のデータベースの年度が
-  // メモリ上のキャッシュに residual として残る（復元後や、テストのように張り直す経路で必ず起きる）。
+  // メモリ上のキャッシュに残骸として残る（復元後や、テストのように張り直す経路で必ず起きる）。
   db.on(
     'ready',
     async () => {

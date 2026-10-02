@@ -19,7 +19,7 @@
 
   const PAGE_SIZE = 50;
   const now = new Date();
-  // 処理年度に追従（利用者がセレクタで別年度を選ぶと override、Settings で年度が
+  // 処理年度に追従（利用者がセレクタで別年度を選ぶと上書き、設定画面で年度が
   // 変わると再計算されて追従に戻る writable derived）。
   let year = $derived(ledger.currentYear);
   let month = $state<number | null>(now.getMonth() + 1);
@@ -266,7 +266,7 @@
     confirmingReverseId = null;
     reverseError = '';
     const targetYear = rows.find((r) => r.entry.id === target)?.entry.year;
-    // 通常は展開中の行から確定した id なので必ず見つかる。念のための fallback は
+    // 通常は展開中の行から確定した id なので必ず見つかる。念のための代替処理は
     // ガードを経ずに reverseEntry 自身のロック判定に委ねる（既存の安全側の挙動を維持）。
     if (targetYear !== undefined && !(await filedYearGuard.confirm([targetYear]))) {
       return;
@@ -693,7 +693,11 @@
 
                     <div class="flex items-center justify-between pt-2 border-t border-border/50">
                       <div class="text-xs text-muted-foreground font-mono">{row.entry.id}</div>
-                      {#if !reversed}
+                      {#if reversed}
+                        <span class="text-xs text-muted-foreground"
+                          >{m.journal_list_reversed_label()}</span
+                        >
+                      {:else if !isCorrection}
                         <button
                           type="button"
                           onclick={(e) => {
@@ -704,10 +708,6 @@
                         >
                           {m.journal_list_reverse_button()}
                         </button>
-                      {:else}
-                        <span class="text-xs text-muted-foreground"
-                          >{m.journal_list_reversed_label()}</span
-                        >
                       {/if}
                     </div>
                   </div>

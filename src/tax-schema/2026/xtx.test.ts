@@ -237,13 +237,13 @@ describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否�
     };
   }
 
-  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（青色）', () => {
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ例外を投げる（青色）', () => {
     const ctx = makeCtx();
     ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
     expect(() => buildXtx2026(ctx)).toThrow(RealEstateIncomeInputMissingError);
   });
 
-  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（白色 KOA130）', () => {
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ例外を投げる（白色 KOA130）', () => {
     const ctx = makeCtx();
     ctx.filingType = 'white';
     ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
@@ -283,13 +283,13 @@ describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否�
     expect(x).not.toContain('<ANF00260>2800000</ANF00260>');
   });
 
-  test('realEstatePl が無ければ従来どおり throw せず出力する', () => {
+  test('realEstatePl が無ければ従来どおり例外を投げず出力する', () => {
     const ctx = makeCtx();
     expect(() => buildXtx2026(ctx)).not.toThrow();
   });
 });
 
-describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が throw せず 0 扱い）', () => {
+describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が例外を投げず 0 扱い）', () => {
   function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
     return {
       socialInsurancePaid: '',
@@ -314,7 +314,7 @@ describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が thro
     };
   }
 
-  test('空文字・空白・全角数字を含む入力で throw せず 0 として扱われる', () => {
+  test('空文字・空白・全角数字を含む入力で例外を投げず 0 として扱われる', () => {
     const ctx = personalDeductionsToCtx(makeStored());
     expect(ctx.socialInsurancePaid.toString()).toBe('0');
     expect(ctx.smallBusinessMutualAidPaid.toString()).toBe('0');

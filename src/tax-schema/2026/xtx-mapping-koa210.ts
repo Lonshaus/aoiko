@@ -338,7 +338,7 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
-// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、
+// 落選（要件外・上限超過）した少額特例資産は定額法／定率法に切替済みなので、
 // 決算書の方法欄は実際に適用されている方法（asset.depreciationMethod の見た目ではなく）を出す。
 function effectiveMethodLabel(
   asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },

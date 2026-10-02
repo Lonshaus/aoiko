@@ -2,7 +2,7 @@
 // worker は自分自身の URL を基準に .wasm を取りに行くため、3 つを同じ階層へ置く。
 //
 // モデルを同梱するのは CSP の都合。web 版の connect-src は https: を許すが、
-// wrapper 版は 'self' しか許さないので、外部 CDN から取る作りだと wrapper 版で
+// ラッパー版は 'self' しか許さないので、外部 CDN から取る作りだとラッパー版で
 // 必ず失敗する。同一オリジンに置けば両方で動き、初回もオフラインで完結する。
 import { copyFileSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'node_modules', 'tesseract-wasm', 'dist');
 const outDir = join(root, 'public', 'tesseract');
-// fallback は WASM SIMD 非対応の実行環境向け。worker が supportsFastBuild() で
+// `tesseract-core-fallback.wasm` は WASM SIMD 非対応の実行環境向け。worker が supportsFastBuild() で
 // 選ぶため、どちらが要るかはビルド時には決まらない。
 // scripts/gen-third-party-licenses.js がこの配列を import して手動ライセンス一覧との
 // 突き合わせに使うため、ここを直接編集すれば向こうの検査に反映される。
@@ -23,7 +23,7 @@ export const ASSETS = [
 ];
 export const MODEL_FILE = 'jpn.traineddata';
 // 4.0.0_best_int は best を整数量子化したもの。非量子化のものは展開後 40MB 超あり、
-// 収據の認識精度差に見合わない。
+// 領収書の認識精度差に見合わない。
 const MODEL_GZ = join(
   root,
   'node_modules',

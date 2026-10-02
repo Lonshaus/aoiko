@@ -1144,7 +1144,7 @@ describe('課税資産の譲渡等の行単位の印（taxableTransferConsiderat
     expect(r.outputTax.national).toBe('7800');
   });
 
-  test('印の付いた行は仕入としては扱われない（本来なら非適格仕入で経過措置が掛かる資産の debit 側でも）', async () => {
+  test('印の付いた行は仕入としては扱われない（本来なら非適格仕入で経過措置が掛かる資産の借方でも）', async () => {
     await seedEntry({
       date: '2026-05-01',
       pairs: [
