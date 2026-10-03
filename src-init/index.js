@@ -23,7 +23,6 @@ function isExternal(url) {
   }
   return false;
 }
-
 // 印刷とリンクの扱いだけプラットフォームで分ける。値は起動後変わらないため
 // 一度だけ問い合わせて使い回す。
 let isMobileCache;
@@ -51,19 +50,16 @@ window.__aoikoNative = {
   async saveFile(data, filename) {
     return exportFile(invoke, data, filename);
   },
-
   // ネイティブメニューは WebView の外にあるので、公開 repo のメッセージカタログを読めない。
   // 言語の切り替えはページの再読み込みを伴うため、読み込みのたびに現在の言語を渡す。
   // 同じ言語なら Rust 側は何もしない。
   async setUiLocale(locale) {
     return invoke('set_ui_locale', { locale });
   },
-
   // 破棄確認はネイティブのダイアログで出すため、訳した文言をこちらへ渡してもらう。
   setDiscardText(next) {
     discardText.set(next);
   },
-
   // 取り消しは null。戻り値の token は web 側が保管するだけで、解決には使われない。
   async backupChooseFolder() {
     return invoke('plugin:aoiko-native|pick_folder');
@@ -110,7 +106,6 @@ Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatfo
 Object.assign(window.__aoikoNative, createNativeCamera(invoke, window.__aoikoPlatform) ?? {});
 Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform) ?? {});
 Object.assign(window.__aoikoNative, createGeminiNano(invoke, window.__aoikoPlatform) ?? {});
-
 // IPC が生バイトを運べず、ArrayBuffer が JSON 化されて届く環境がある。file-io.js の
 // チャンク送信と同じく、駄目だった経路は覚えて以後 base64 で載せる（膨張 1.33 倍。
 // 数字の配列は 3.57 倍で、領収書の画像を載せると収まらない）。
@@ -189,7 +184,6 @@ window.fetch = function (input, init) {
   }
   return externalFetch(input, init);
 };
-
 // 2. 外部リンクを OS 標準のブラウザで開く。Rust 側の on_navigation はナビゲーションしか拾えず、
 //    target="_blank" は新規ウィンドウの要求として別経路を通るため素通りする。実機では
 //    マニュアルの外部リンクを押してもウィンドウは動かずブラウザも開かない＝無反応だった。
@@ -224,7 +218,6 @@ async function openExternal(url, isMail) {
   }
   await openUrl(url.href);
 }
-
 // 3. ネイティブのウィンドウ終了要求を web 版の未保存ガードへ繋ぐ。シェル側の終了では beforeunload が
 //    発火しない。router.svelte.ts が登録済みのリスナーをそのまま使えるよう、合成
 //    イベントを投げて preventDefault の有無を見る。判定をデスクトップ版で書き直さない。

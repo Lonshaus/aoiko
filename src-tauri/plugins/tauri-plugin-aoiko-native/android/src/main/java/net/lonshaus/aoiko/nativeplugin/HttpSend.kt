@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
-
 // この環境には Rust から借りられる OS 標準の TLS が無い。ここは OS の TLS を使うためだけに在り、
 // 宛先の検査もリダイレクトの判断も Rust 側に残してある。
 object HttpSend {

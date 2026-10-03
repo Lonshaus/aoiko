@@ -32,7 +32,6 @@ const ERROR_MESSAGES: Record<number, () => string> = {
   6: m.ocr_apple_ai_error_6,
   7: m.ocr_apple_ai_error_7,
 };
-
 // aoiko_ai_availability 専用の表。extract の理由コードとは別の意味体系（1 端末非対応 /
 // 2 機能無効 / 3 モデル準備中 / 4 OS が古い / 5 不明）なので、番号が同じでも
 // ERROR_MESSAGES とは混ぜない。混ぜると code 2 が「文字が読めない」に誤訳される。
@@ -72,7 +71,6 @@ export function createAppleAiReceiptExtractor(): ReceiptExtractor {
     },
   };
 }
-
 // 判定できない場合は常に抽出へ進む：この確認は良いメッセージを出すためのものであって、
 // 機能の門番ではない。ここを門番にすると、確認自体が使えない環境で機能ごと壊れる。
 async function checkAvailability(): Promise<void> {
@@ -109,7 +107,6 @@ function parseAppleReceipt(raw: string): AppleReceipt {
   }
   return parsed as AppleReceipt;
 }
-
 // 環境の文字認識が先頭の T を落として返すのは receipt-text-extract.ts の recoverInvoiceNumber
 // と同じ既知の癖（実測、信頼度は最大）。ここは新しい後処理層ではなく、その既知の欠落を
 // この経路でも同じように埋めるだけの修復。

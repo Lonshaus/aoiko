@@ -17,7 +17,6 @@ A pure-frontend bookkeeping tool for Japanese sole proprietors. Supports the thr
   <img src="docs/images/screenshot-reports-en.png" alt="Reports: yearly summary and monthly sales" width="49%" />
 </p>
 
-
 ## Features
 
 - **Double-entry bookkeeping**: journal entries, reversing entries (修正仕訳), audit history that preserves the original entry

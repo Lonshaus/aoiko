@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
 
 class NanoFailure(val code: String) : Exception(code)
-
 // 端末内の Gemini Nano。プロンプトを端末の外へ送れる SDK はこのモジュールへ足さない。
 object GeminiNano {
     private const val TAG = "AoikoGeminiNano"

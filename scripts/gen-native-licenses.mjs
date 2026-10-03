@@ -24,10 +24,8 @@ const TARGETS = [
   'i686-linux-android',
   'x86_64-linux-android',
 ];
-
 // ファイル名の揺れ（LICENSE / LICENSE-MIT / license-apache-2.0 / LICENSE_MIT / *.txt 等）を総当たりで拾う。
 const LICENSE_FILE = /^(licen[cs]e|copying)([-_.].*)?$/i;
-
 // MPL-2.0 は改変ファイルの再配布時のみソース開示義務を負う（§3.3）。crates.io からそのまま
 // 使っており改変していないため、本文を同梱する代わりに取得先を示す専用セクションにする。
 const MPL_NAMES = new Set([
@@ -37,7 +35,6 @@ const MPL_NAMES = new Set([
   'selectors',
   'option-ext',
 ]);
-
 // 以下 2 つは opensource.org 掲載の原文（SPDX の参照本文と同一）。crates.io の配布物に
 // 本文ファイルが無いクレート向けに、著作権表示だけ差し替えて掲げる。
 function mitLicenseText(copyrightLine) {
@@ -95,7 +92,6 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.`;
 }
-
 // license 本文ファイルを同梱していないクレート向けに、宣言された SPDX 識別子から
 // 標準本文を補う。選択式（MIT OR Apache-2.0 等）は MIT を採用する（本文を確実に
 // 用意できる側を選ぶだけで、他の選択肢を否定するものではない）。該当が無ければ null を返し、
@@ -146,7 +142,6 @@ function cargoMetadata(target) {
   );
   return JSON.parse(out.toString('utf8'));
 }
-
 // resolve.nodes を root から辿り、kind === null（通常依存）の辺だけを踏む。
 // dev は配布物に入らず、build はコンパイル時にしか動かず自身のコードはリンクされない。
 function normalDepIds(metadata) {
@@ -232,7 +227,6 @@ function render(packages) {
 
   const mpl = packages.filter((p) => MPL_NAMES.has(p.name));
   const rest = packages.filter((p) => !MPL_NAMES.has(p.name));
-
   // 同一本文（複数ファイルを持つクレートはその組み合わせ）が並ぶ場合、対象クレートをまとめて 1 回だけ載せる。
   const byText = new Map();
   const supplied = new Map();

@@ -133,7 +133,6 @@ fn print_page(window: tauri::WebviewWindow) -> Result<(), String> {
                     ICoreWebView2_16, COREWEBVIEW2_PRINT_DIALOG_KIND_BROWSER,
                 };
                 use windows_core::Interface;
-
                 // controller() が返すのは基底のインタフェースで、印刷 UI の呼び出しは
                 // 後のバージョンで追加された。QueryInterface で降りる必要がある。
                 // クロージャは Send + 'static のため、もう一方と同じく内部の失敗を
@@ -442,7 +441,6 @@ async fn fetch_frame(
     frame.extend_from_slice(&body);
     Ok(frame)
 }
-
 /// 今メニューが出している言語。web 側が渡してきた値を覚えておき、同じ言語で
 /// 作り直さないようにする（ページを読み込むたびに渡ってくるため）。
 #[cfg(desktop)]

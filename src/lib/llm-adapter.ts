@@ -5,7 +5,6 @@
 import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../domain/llm';
 import { getSetting, type AiEngine } from './settings';
 import { m } from '../paraglide/messages';
-
 // order は注文取込。openai-compatible では classify と同じモデルを使うが、
 // エンジンによっては渡す JSON Schema が違うため用途として分けて持つ。
 type LlmPurpose = 'ocr' | 'classify' | 'order';

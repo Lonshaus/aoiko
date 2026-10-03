@@ -149,7 +149,6 @@ pub(crate) fn print_page<R: Runtime>(app: AppHandle<R>) -> Result<()> {
         Err(Error::UnsupportedPlatform)
     }
 }
-
 // Vision の perform は同期。(async) がワーカースレッドへ逃がすので、DispatchQueue.main には
 // 乗せない（乗せると画像 1 枚ぶんの認識のあいだメインスレッド、ひいては UI が止まる）。
 #[tauri::command(async)]
@@ -190,7 +189,6 @@ pub(crate) fn recognize_text<R: Runtime>(
         Err(Error::UnsupportedPlatform)
     }
 }
-
 // 設定画面はこの答えで案内を出し分ける。選択肢自体は消さない（消すと、選べない
 // 理由が画面のどこにも出ない）。関数が生えていることと読めることは別。
 #[tauri::command(async)]
@@ -223,13 +221,11 @@ pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
         4
     }
 }
-
 // 実測（このMac）：8064x6048・最大画質 JPEG はレシート相当の内容で 2.0MB、
 // 同じ画素数の純ノイズという病的な内容でも 41.3MB。この画素数・画質での実用上限。
 const APPLE_AI_IMAGE_CEILING_BYTES: usize = 64 * 1024 * 1024;
 // 分類・注文取込に渡す JSON テキスト。通常の使い方でここまで大きくなることは無い。
 const APPLE_AI_DATA_CEILING_BYTES: usize = 8 * 1024 * 1024;
-
 // 空はデコードできても中身が無く、Swift 側は長さ 0 の非 null ポインタ（何も指していない
 // ダングリングポインタ）を渡されることになる。上限は、この経路が画像を downscale せずに
 // 素通しする（する経路は receipt-text-extract.ts 側だけ）ことへの歯止め。
@@ -242,7 +238,6 @@ fn check_apple_ai_payload_len(len: usize, ceiling: usize) -> std::result::Result
     }
     Ok(())
 }
-
 // FoundationModels でのレシート抽出。失敗の理由は AppleIntelligence.swift の
 // aoiko_ai_extract のコメントに揃えた数値でフロントへ返す（0 は成功なのでここには来ない）。
 // ネイティブ側は最大 60 秒のブロッキング待ち（appleAIDeadlineSeconds）を持つので、
@@ -279,7 +274,6 @@ fn apple_ai_extract_native(bytes: &[u8]) -> std::result::Result<String, u8> {
         Err(4)
     }
 }
-
 // FoundationModels での分類・注文取込。task は 1 = 分類、2 = 注文で Swift 側と揃える。
 // エラーの意味は apple_ai_extract と同じ数値（0 は成功なのでここには来ない）。
 // spawn_blocking へ逃がす理由も apple_ai_extract と同じ。
@@ -311,7 +305,6 @@ fn apple_ai_run_native(task: i32, data: &str) -> std::result::Result<String, u8>
         Err(4)
     }
 }
-
 // 端末内の Gemini Nano の状態。載せているのはこの環境だけ。
 #[tauri::command(async)]
 pub(crate) fn nano_availability<R: Runtime>(app: AppHandle<R>) -> Result<NanoAvailability> {
@@ -325,7 +318,6 @@ pub(crate) fn nano_availability<R: Runtime>(app: AppHandle<R>) -> Result<NanoAva
         Err(Error::UnsupportedPlatform)
     }
 }
-
 // 端末内の Gemini Nano でレシートを読む。推論は数十秒待つので spawn_blocking へ逃がす。
 #[tauri::command(async)]
 pub(crate) async fn nano_extract_receipt<R: Runtime>(
@@ -374,7 +366,6 @@ pub(crate) async fn nano_run<R: Runtime>(
         Err(crate::nano::UNSUPPORTED.to_string())
     }
 }
-
 // 撮影の入口を生やしてよいか。撮影に回せる環境だけ true で、他は一律 false。
 #[tauri::command(async)]
 pub(crate) fn is_camera_available<R: Runtime>(app: AppHandle<R>) -> bool {
@@ -654,7 +645,6 @@ pub(crate) fn backup_remove<R: Runtime>(app: AppHandle<R>, rel_path: String) -> 
 mod tests {
     use super::*;
     use tauri::ipc::InvokeBody;
-
     // 実測（このMac）：8064x6048 の最大画質 JPEG はレシート相当の内容で 2.0MB、
     // 純ノイズという病的な内容でも 41.3MB。どちらも 64MiB の上限内。
     #[test]

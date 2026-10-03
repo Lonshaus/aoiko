@@ -4,7 +4,6 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 /// 分類を 1 回の推論へ渡す件数。実測で完全性と正答率がいちばん良かった大きさ。
 pub(crate) const CLASSIFY_CHUNK: usize = 24;
 pub(crate) const RECEIPT_USER_TEXT: &str = "このレシートを読み取ってください。";

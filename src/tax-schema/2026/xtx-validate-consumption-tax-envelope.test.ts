@@ -11,8 +11,8 @@
 // 対して、buildTwoWariXtx 等が実際に組み立てた完全な .xtx 文字列をそのまま
 // xmllint 検証する。ValidationRoot ラッパは不要（DATA 自体が public element のため）。
 /// <reference types="node" />
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,13 +28,19 @@ function xmllintAvailable(): boolean {
   return r.error === undefined && r.status === 0;
 }
 
-function validateAgainstSchema(schemaFile: string, xml: string): { ok: boolean; out: string } {
+function runXmllint(schemaPath: string, xml: string): SpawnSyncReturns<string> {
   const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-envelope-'));
-  const xmlPath = join(dir, 'doc.xml');
-  writeFileSync(xmlPath, xml, 'utf8');
-  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, schemaFile), xmlPath], {
-    encoding: 'utf8',
-  });
+  try {
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, xml, 'utf8');
+    return spawnSync('xmllint', ['--noout', '--schema', schemaPath, xmlPath], { encoding: 'utf8' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function validateAgainstSchema(schemaFile: string, xml: string): { ok: boolean; out: string } {
+  const r = runXmllint(join(SPEC_DIR, schemaFile), xml);
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 

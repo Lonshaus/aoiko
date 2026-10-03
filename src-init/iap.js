@@ -60,7 +60,6 @@ export function isPendingStatus(status) {
 export function needsAcknowledge(purchase) {
   return purchase?.isAcknowledged === false && typeof purchase?.purchaseToken === 'string';
 }
-
 // プラグインは取消と保留を戻り値ではなく例外で伝える。放置すると未捕捉の例外として
 // エラーバナーが表示される。
 export function purchaseResultOfError(error) {
@@ -75,7 +74,6 @@ export function purchaseResultOfError(error) {
   }
   return null;
 }
-
 // 課金画面が出ている間はこちらが非表示になる。一度隠れて戻ってくるまでは、
 // 結果が出ていなくて当たり前なので待つ側の時計を進めない。
 function whenBackFromStore() {

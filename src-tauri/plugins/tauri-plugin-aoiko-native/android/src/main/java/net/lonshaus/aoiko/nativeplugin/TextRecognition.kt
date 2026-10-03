@@ -8,7 +8,6 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import org.json.JSONArray
 import org.json.JSONObject
-
 // 他の実装と同じ形へ揃える。web 側は出どころを
 // 区別しない。座標は 0..1 の正規化・左上原点・y 下向き。
 object TextRecognizer {

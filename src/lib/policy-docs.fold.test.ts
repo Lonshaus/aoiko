@@ -10,7 +10,6 @@ const PACKAGED: Platform[] = ['macos', 'ios', 'windows', 'android'];
 const APPLE: Platform[] = ['macos', 'ios'];
 
 type Rule = { name: string; pattern: RegExp; only: Platform[] };
-
 // only: その語が出てよい形態。ここに無い形態のビルド成果物に出ていたら失敗させる。
 const RULES: Record<string, Rule[]> = {
   'DISCLAIMER.md': [

@@ -28,7 +28,6 @@ describe('createOrderExtractor', () => {
     const ex = await createOrderExtractor();
     expect(ex.external).toBe(false);
   });
-
   // アダプターが送るバイト列と環境が返す JSON の形で、貼り付けテキストから注文が
   // 抽出される経路。プロンプトではなくデータ（貼り付けテキストそのもの）を渡す。
   test('apple-ai：runDataTask 経由で注文情報を抽出する', async () => {

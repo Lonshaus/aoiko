@@ -1,23 +1,19 @@
 import Foundation
-
 // respond(to:generating:) は async。@_cdecl は C ABI なので async のまま公開できず、
 // ここで同期に落とす。aoiko_ai_extract と aoiko_ai_run はプロセス内で同じモデルを
 // 取り合うので、単一化・締め切り付きの待ち・見捨てる判断をここへ集約する
 // （AppleIntelligence.swift は body を組み立てて渡すだけにする）。
-
 /// 生成 1 回ぶんの結果。json が nil でも err == 0 はあり得ない
 /// （0 が nil を伴って外へ漏れないようにするのは呼び出し元 = AppleIntelligence.swift の責務）。
 struct AppleAIOutcome: Sendable {
     var json: String?
     var err: Int32
 }
-
 /// 締め切り超過。0 は成功、1..4 は既存の意味（AppleIntelligence.swift 側）、
 /// 6/7 は commands.rs 側（ゲート・入力サイズ）で使う。
 let appleAITimedOutError: Int32 = 5
 /// 直前の生成がまだ終わっていない。ゲートが弾いたことを示す。
 let appleAIBusyError: Int32 = 6
-
 // 読み書きを同じロックの下に置き、「完了」と「見捨てられた」の判定を単一の
 // トランザクションにする。締め切りの瞬間に書き込みが間に合った場合、待つ側が
 // wait(timeout:) の戻り値ではなくここの finished を見て判断するので、
@@ -40,7 +36,6 @@ private final class OutcomeBox: @unchecked Sendable {
         return (finished, outcome)
     }
 }
-
 // aoiko_ai_extract と aoiko_ai_run は同じプロセス内モデルを取り合うので、
 // 1 つのゲートで両方の入り口を締め合う（プロセス全体で単一化）。
 private final class SingleFlightGate: @unchecked Sendable {
@@ -56,7 +51,6 @@ private final class SingleFlightGate: @unchecked Sendable {
         busy = true
         return true
     }
-
     // 締め切りでは呼ばない。締め切りが見捨てるのは「待つ側」であって「仕事」ではなく、
     // ここで解放すると、まだ載っている生成の横で次の生成が始まってしまう
     // （ゲートが防ぎたい積み上がりそのもの）。生成が終わらない限りゲートは閉じたままで、
@@ -70,7 +64,6 @@ private final class SingleFlightGate: @unchecked Sendable {
 }
 
 private let gate = SingleFlightGate()
-
 /// FoundationModels を使う 3 経路（レシート抽出・分類・注文取込）が共通で通る唯一の入口。
 /// ゲート確保 → Task 開始 → 締め切り付きで待つ → 見捨てる/受け取るの判断までをここに閉じる。
 /// body は自分の結果を書き込んで返すだけで、コード 1..4 の意味は呼び出し元が決める。

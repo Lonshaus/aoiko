@@ -7,7 +7,6 @@ test('開業費・転用資産を登録 → 仕訳一覧に反映される', asy
   await acceptDisclaimer(page);
 
   await page.goto('/opening-setup');
-
   // 開業日を固定し、未償却残高の期待値（255,180）を実行時刻に依存させない。
   const dateInputs = page.locator('input[type=date]');
   await dateInputs.nth(0).fill('2022-01-01');

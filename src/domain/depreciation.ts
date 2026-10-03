@@ -783,7 +783,6 @@ interface YearEndDepreciationResult {
   /** 少額特例として設定されているが取得日・価額が要件外で適用不可の件数（仕訳未作成） */
   smallAssetIneligible: number;
 }
-
 // 全年度分の開業仕訳のうち最も古い日付を開業日とみなす。開業設定を使っていなければ undefined（全年扱い）。
 async function earliestOpeningDate(): Promise<string | undefined> {
   const openings = await db.journalEntries

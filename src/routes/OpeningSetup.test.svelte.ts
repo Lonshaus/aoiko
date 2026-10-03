@@ -175,7 +175,6 @@ describe('開業設定', () => {
     const lines = await db.journalLines.toArray();
     const expenseLine = lines.find((l) => l.accountCode === '5210');
     expect(expenseLine?.amount).toBe('25900');
-
     // 少額特例の年度上限累計は原始取得価額（250,000）で計る（所令126条・所令135条）。
     const statuses = smallAssetSpecialStatuses([asset!], '2026-05-01');
     expect(statuses.get(asset!.id)).toBe('applicable');
@@ -189,7 +188,6 @@ describe('開業設定', () => {
     expect(summary?.AMF01750).toBe('25900');
     expect(summary?.AMF01770).toBe('25900');
     expect(summary?.AMF01780).toBe('0');
-
     // 資産科目（1510、転用日価額 25,900 相当）から 1520 の累計償却額を引いても負にならない。
     for (let y = 2026; y <= 2030; y++) {
       const result = computeDepreciation(asset!, y, undefined, statuses);
@@ -340,7 +338,6 @@ describe('開業設定', () => {
       await tick();
     }
     await waitFor(async () => (await db.fixedAssets.toArray()).length === 4);
-
     // 2026 → 2027 の順で、開業日を渡さずに年末償却を生成する（earliestOpeningDate のフォールバックに委ねる）。
     const r2026 = await generateYearEndDepreciation(2026);
     expect(r2026.smallAssetCapExceeded).toBe(1);

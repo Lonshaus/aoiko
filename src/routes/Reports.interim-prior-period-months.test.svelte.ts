@@ -85,18 +85,15 @@ describe('設定経由の直前課税期間月数が中間申告義務判定に�
     container = document.createElement('div');
     document.body.appendChild(container);
     instance = mount(Reports, { target: container, props: {} });
-
     // 2027年分の前年（2026年分）確定消費税額欄が出るまで待つ（year切替の反映確認）
     await waitFor(() => containsText(container!, '2026年分の確定消費税額（国税分）'));
     const amountInput2027 = findInputByLabelText(container, '2026年分の確定消費税額（国税分）');
     setInputValue(amountInput2027, '150000');
-
     // ÷3か月で判定される：150,000×6/3=300,000 > 240,000 なので年1回の義務になる
     // （÷12のままなら150,000×6/12=75,000 < 240,000 で無義務のまま）
     await waitFor(() =>
       containsText(container!, '年 1 回の中間申告義務があります（予定申告方式の按分額）。'),
     );
-
     // 2028年分へ切り替える（記録が無いので月数は12のまま）
     await setSetting('currentYear', 2028);
     await waitFor(() => containsText(container!, '2027年分の確定消費税額（国税分）'));

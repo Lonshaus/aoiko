@@ -11,7 +11,6 @@ const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 // AOIKO_VERSION があればそちらを使う。
 // プラットフォームごとにバージョン番号が違うため、パッケージング側が AOIKO_VERSION を渡してきたらそちらを優先する。
 const tauriConf = JSON.parse(readFileSync(resolve(root, 'src-tauri', 'tauri.conf.json'), 'utf8'));
-
 // 出し分けの対象となる配布形態。引数か環境変数が明示されていればそれを使い、
 // 無いときだけ build ホストから決める（tauri build は macOS と Windows で同じ入口）。
 const HOST_PLATFORM = { darwin: 'macos', win32: 'windows' };
@@ -51,7 +50,6 @@ for (const script of ['check', 'build']) {
     process.exit(result.status ?? 1);
   }
 }
-
 // build の直前に再生成する。古いままの THIRD_PARTY_LICENSES_NATIVE.txt が
 // そのまま同梱されるのを防ぐ。
 const genResult = spawnSync('node', ['scripts/gen-native-licenses.mjs'], {
@@ -61,7 +59,6 @@ const genResult = spawnSync('node', ['scripts/gen-native-licenses.mjs'], {
 if (genResult.status !== 0) {
   process.exit(genResult.status ?? 1);
 }
-
 // public/ から読む。dist/ は前回ビルドの出力そのものなので、そこを読むと
 // 毎回ネイティブ側の章が積み増しされてしまう。public/ は vite が素通しする
 // 手の加わっていない元の入力なので、何度ビルドしても結果は同じになる（冪等）。

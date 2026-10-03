@@ -17,7 +17,6 @@ const dest = new URL('../src-tauri/gen/android/app/src/main/res/', import.meta.u
 const gradleFile = new URL('../src-tauri/gen/android/app/build.gradle.kts', import.meta.url)
   .pathname;
 const tauriConfFile = new URL('../src-tauri/tauri.conf.json', import.meta.url).pathname;
-
 // まだ init していない作業コピーでは置き先が無い。ここで落とすと android:dev /
 // android:build が本来の「先に init しろ」という案内へ進めなくなるので黙って通す。
 if (!existsSync(dest)) {
@@ -36,7 +35,6 @@ if (files.length === 0) {
   console.error(`${src} に何も無い`);
   process.exit(1);
 }
-
 // 前景 PNG はアダプティブアイコンのセーフエリア（中央 72/108）へ収めてある。tauri icon はそれを
 // 考えずに敷き詰めるので、あちらを回すとランチャーのマスクで猫の下端が切れる。
 for (const file of files) {
@@ -45,7 +43,6 @@ for (const file of files) {
   mkdirSync(dirname(to), { recursive: true });
   copyFileSync(file, to);
 }
-
 // 署名設定は Tauri の公式手順が生成物 build.gradle.kts の直接編集を指示しており、置き場所が
 // gen/ の中しか無い。消えると戻らないのでここから足す。テンプレートの中身には触れず末尾へ追記する
 // だけにして、Tauri がテンプレートを変えても壊れないようにしてある。

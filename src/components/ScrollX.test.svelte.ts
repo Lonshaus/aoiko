@@ -38,7 +38,6 @@ afterEach(() => {
     container = undefined;
   }
 });
-
 // 幅の変化だけで出入りする経路は scroll イベントを通らない。ResizeObserver を差し替えて
 // その経路だけを呼ぶ。
 let resizeCallbacks: ResizeObserverCallback[] = [];

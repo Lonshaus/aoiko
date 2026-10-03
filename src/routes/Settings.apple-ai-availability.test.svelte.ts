@@ -25,7 +25,6 @@ function stubAppleAiAvailability(resolve: number | null): void {
   const appleAiAvailability = resolve === null ? undefined : vi.fn().mockResolvedValue(resolve);
   vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { appleAiAvailability } }));
 }
-
 // onMount の直列読みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が
 // 未処理の rejection として残り、テストは通るのに vitest が exit 1 になる。最後に読む
 // homeOfficeAccountRatios に他へ出てこない科目コードを仕込み、画面に出るまで待って

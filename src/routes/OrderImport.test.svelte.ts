@@ -46,7 +46,6 @@ function button(c: HTMLElement, label: string): HTMLButtonElement {
   }
   return found;
 }
-
 // ダイアログは AlertDialog の portal で document.body 直下に出る。
 function bodyButton(label: string): HTMLButtonElement {
   const found = Array.from(document.body.querySelectorAll('button')).find((b) =>

@@ -64,7 +64,6 @@ function loadXsd(rel) {
   }
   return parser.parse(readFileSync(path, 'utf8'));
 }
-
 // preserveOrder ノードヘルパ
 function tagOf(node) {
   for (const k of Object.keys(node)) {
@@ -87,7 +86,6 @@ function textOf(node) {
   }
   return '';
 }
-
 // xsd:annotation/xsd:appinfo のテキスト（前後の引用符・空白を除去）
 function appinfoOf(node) {
   const ann = kid(node, 'xsd:annotation');
@@ -108,7 +106,6 @@ function schemaRoot(doc) {
   }
   return s;
 }
-
 // 同一ファイル内の named complexType / simpleType を索引化
 function indexTypes(schema) {
   const complex = new Map();
@@ -127,7 +124,6 @@ function indexTypes(schema) {
   }
   return { complex, simple };
 }
-
 // complexType ノードから子 xsd:element 列を取り出す
 // （xsd:sequence / xsd:complexContent>xsd:extension>xsd:sequence を吸収）
 function sequenceElements(ctype) {
@@ -144,7 +140,6 @@ function sequenceElements(ctype) {
   }
   return kids(seq, 'xsd:element');
 }
-
 // xsd:simpleContent（例：AutoCalc 属性付き decimal/string 等）を持つ complexType か。
 // これは要素の子を持たず、テキスト値＋属性のみ（gen:kingaku 等の単純 leaf と同じ扱いで良い）。
 // 判定を誤ると renderNode() が「子の無い branch」として値を握り潰す（例：KOA110 の
@@ -161,7 +156,6 @@ function parseOccurs(attrs) {
     maxOccurs: max === undefined ? 1 : max === 'unbounded' ? 'unbounded' : Number(max),
   };
 }
-
 // 様式 xsd の参照側ツリーを level でフラット化
 function buildRefTree(schema, types, idrefMap) {
   const group = kid(schema, 'xsd:group');
@@ -226,7 +220,6 @@ function buildRefTree(schema, types, idrefMap) {
   walk(rootEl, 0);
   return out;
 }
-
 // ITreference.xsd: complexType 名 → IDREF fixed 値（例 NENBUNref → NENBUN）
 function buildIdrefMap() {
   const doc = loadXsd('general/ITreference.xsd');
@@ -249,7 +242,6 @@ function buildIdrefMap() {
   }
   return map;
 }
-
 // ITdefinition.xsd の complexType name="ITtype" → 定義側カタログ
 function buildDefinitions() {
   const doc = loadXsd('general/ITdefinition.xsd');
