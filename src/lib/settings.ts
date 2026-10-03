@@ -30,7 +30,7 @@ export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版で選んだバックアップ先。token は端末固有の
+  // ラッパー版で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
@@ -155,8 +155,9 @@ export type SettingsMap = {
 // 本文が変わっていないのでそのまま 6 に据え置く。
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
-// v10: 端末内 Gemini Nano を持つ環境だけの改訂で、他の環境は本文が変わらないので 9 に据え置く。
-export const DISCLAIMER_VERSION = __DOC_PLATFORM__ === 'android' ? 10 : 9;
+// v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
+// v11: 端末内 Gemini Nano を持つ環境だけの改訂で、他の環境は本文が変わらないので 10 に据え置く。
+export const DISCLAIMER_VERSION = __DOC_PLATFORM__ === 'android' ? 11 : 10;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

@@ -1142,7 +1142,7 @@ const RECEIPT_OCR_DOC = {
   ja: { file: 'docs/manual/04-receipt-ocr.md', quoteRe: /^> (.*文字認識.*の結果です。.*)$/m },
   en: {
     file: 'docs/manual/04-receipt-ocr_en.md',
-    quoteRe: /^> (.*recognition.*Please check and correct.*)$/m,
+    quoteRe: /^> (.*recognition.*Be sure to check and correct.*)$/m,
   },
   'zh-TW': {
     file: 'docs/manual/04-receipt-ocr_zh-TW.md',

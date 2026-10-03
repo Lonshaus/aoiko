@@ -28,7 +28,7 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 
 - [07. Consumption tax](07-consumption-tax_en.md) — choosing a method, transitional credit, input tax credit
 - [08. Depreciation](08-depreciation_en.md) — fixed assets, straight-line / declining balance, ¥400,000 small-asset special provision
-- [09. Prior-period carryover](09-carryover_en.md) — fiscal year transition, carryover entry
+- [09. Prior-period carryover](09-carryover_en.md) — tax year transition, carryover entry
 - [10. `.xtx` export](10-xtx-export_en.md) — e-Tax format generation and loading into e-Tax software
 <!-- only:browser -->
 - [11. Backup and restore](11-backup_en.md) — File System Access API, OPFS, zip export

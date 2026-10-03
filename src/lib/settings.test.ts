@@ -9,8 +9,8 @@ import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
 // vitest の 3 project はいずれも __DOC_PLATFORM__ を 'browser' に固定しているため、
-// 実行時の定数はこの値になる（android だけ 10 になる分岐は versionsFromSource() 側で見る）。
-const EXPECTED_VERSION = 9;
+// 実行時の定数はこの値になる（android だけ 11 になる分岐は versionsFromSource() 側で見る）。
+const EXPECTED_VERSION = 10;
 
 // 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとのバージョンを守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
@@ -44,10 +44,10 @@ describe('DISCLAIMER_VERSION', () => {
     expect(DISCLAIMER_VERSION).toBe(EXPECTED_VERSION);
   });
 
-  test('原文から読めるバージョンも同じ（android だけ 10、他は 9）', () => {
+  test('原文から読めるバージョンも同じ（android だけ 11、他は 10）', () => {
     const versions = versionsFromSource();
     for (const platform of PLATFORMS) {
-      const expected = platform === 'android' ? 10 : EXPECTED_VERSION;
+      const expected = platform === 'android' ? 11 : EXPECTED_VERSION;
       expect(versions[platform], `${platform} のバージョンが違う`).toBe(expected);
     }
   });
@@ -106,7 +106,7 @@ describe('messages/*.json の settings_aoiro_electronic', () => {
     expect(aoiroElectronicText('ja')).toContain('電磁的記録の備付け・保存');
   });
 
-  test('en：kept/preserved electronic records に触れている', () => {
+  test('en：「kept and preserved electronic records」に触れている', () => {
     expect(aoiroElectronicText('en')).toContain('kept and preserved electronic records');
   });
 

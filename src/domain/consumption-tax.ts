@@ -4,9 +4,9 @@
 // 経過措置：適格請求書なしの仕入は取引日に応じた控除率（80/70/50/30/0%）を適用。
 //
 // 仕訳分類：
-//   売上税額 = revenue category、taxRate > 0。credit がプラス、debit（売上値引・返品）はマイナス
-//   仕入税額 = expense category（debit プラス / credit＝返金はマイナス）
-//            + asset category の debit 側（事業主貸 1610 を除外）、taxRate > 0
+//   売上税額 = revenue category、taxRate > 0。貸方がプラス、借方（売上値引・返品）はマイナス
+//   仕入税額 = expense category（借方プラス / 貸方＝返金はマイナス）
+//            + asset category の借方側（事業主貸 1610 を除外）、taxRate > 0
 //
 // 各 ConsumptionTaxResult は 2 系統の数値を持つ：
 //   円単位（outputTax/inputTax/netTax 等）：方式比較用の概算。円未満切捨てのみ
@@ -499,7 +499,7 @@ export async function processYear(
       }
       continue;
     }
-    // 売上：revenue は両建てネット（debit ＝売上値引・返品は課税標準から控除）
+    // 売上：revenue は両建てネット（借方＝売上値引・返品は課税標準から控除）
     if (acc.category === 'revenue') {
       if (line.taxRate === 0) {
         // 免税・非課税売上は税額こそ無いが、課税売上割合の算定基礎として集計する
@@ -577,8 +577,8 @@ export async function processYear(
     if (line.taxRate === 0) {
       continue;
     }
-    // 仕入：expense は両建てネット（credit ＝返金は仕入対価の返還）、
-    // asset は debit 側のみ（事業主貸を除外。credit 側は通常は決済行や資産譲渡で、仕入控除の対象外）
+    // 仕入：expense は両建てネット（貸方＝返金は仕入対価の返還）、
+    // asset は借方側のみ（事業主貸を除外。貸方側は通常は決済行や資産譲渡で、仕入控除の対象外）
     const isInput =
       acc.category === 'expense' ||
       (acc.category === 'asset' && line.side === 'debit' && acc.code !== OWNER_WITHDRAW_CODE);

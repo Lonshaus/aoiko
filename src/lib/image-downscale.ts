@@ -22,7 +22,7 @@ export function scaledSize(
   };
 }
 // 縮小できなかった場合は必ず元の Blob を返す。OCR に送れないより、
-// 大きいまま送る方がましなため、ここで throw しない。
+// 大きいまま送る方がましなため、ここで例外を投げない。
 export async function downscaleForUpload(file: Blob, maxEdge = MAX_UPLOAD_EDGE): Promise<Blob> {
   if (typeof createImageBitmap !== 'function' || typeof OffscreenCanvas !== 'function') {
     return file;

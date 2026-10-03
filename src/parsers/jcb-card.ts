@@ -15,7 +15,7 @@ import type { CsvParser, ParsedTransaction } from './types';
 // 冒頭の情報行：今回のお支払日等 4 行＋「【ご利用明細】」行の後にヘッダー行が来る。
 // ヘッダー行：ご利用者, カテゴリ, ご利用日, ご利用先など, ご利用金額(￥),
 //       支払区分, 今回回数, 訂正サイン, お支払い金額(￥), 国内／海外, 摘要, 備考
-// 取込額は「ご利用金額(￥)」（利用総額）。クレジットのため全行 credit 側。
+// 取込額は「ご利用金額(￥)」（利用総額）。クレジットのため全行貸方側。
 
 const DISPLAY = 'JCBカード';
 const REQUIRED = ['ご利用日', 'ご利用先など', 'ご利用金額(￥)'] as const;
@@ -48,7 +48,7 @@ const jcbCardParser: CsvParser = {
       if (!amountRaw) {
         continue;
       }
-      // キャンセル・返金行は負数 → 絶対値 + debit（未払金の減少）
+      // キャンセル・返金行は負数 → 絶対値 + 借方（未払金の減少）
       const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       let memo: string | undefined;

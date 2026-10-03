@@ -41,7 +41,7 @@ type BackupStatus =
   | 'unsupported'
   | 'unconfigured'
   // 保存先が失われ、選び直す以外に回復手段が無い状態。FSA 時代の handle しか無い
-  // wrapper 版と、保存先への参照が失効した場合の両方で使う（回復動線が同じため）。
+  // ラッパー版と、保存先への参照が失効した場合の両方で使う（回復動線が同じため）。
   | 'reconfigure-required'
   | 'permission-required'
   | 'idle'
@@ -128,7 +128,7 @@ class BackupManager {
 
   private async initAdapter(): Promise<void> {
     await this.requestPersistentStorage();
-    // showDirectoryPicker が無い環境があるため、wrapper 版はネイティブ層を先に見る。
+    // showDirectoryPicker が無い環境があるため、ラッパー版はネイティブ層を先に見る。
     // これが無いとそこでは opfs 止まりになり、同期フォルダへの
     // 自動書き出しに到達できない。
     const native = new NativeFolderBackupAdapter(
@@ -267,7 +267,7 @@ class BackupManager {
   // 古いスナップショットを保持件数まで減らす。証憑写真の実体は消さない（コンテンツアドレス方式で、
   // 消したバージョン以外からも参照され得るため。参照されなくなった実体の掃除は別立て）。
   // 呼ばれる時点でバックアップ本体は成功しているため、設定の読み取り失敗も含めて
-  // 例外を外へ出さない。ここで throw すると成功した保存が失敗として表示されてしまう。
+  // 例外を外へ出さない。ここで例外を投げると成功した保存が失敗として表示されてしまう。
   private async pruneOldBackups(): Promise<void> {
     try {
       const keepCount = (await getSetting('backupRetentionCount')) ?? 0;

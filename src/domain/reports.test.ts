@@ -93,7 +93,7 @@ afterEach(async () => {
 });
 
 describe('buildPL', () => {
-  test('aggregates revenue and expense across the year', async () => {
+  test('年間の収益と費用を集計する', async () => {
     await addEntry({
       date: '2026-04-15',
       lines: [
@@ -148,7 +148,7 @@ describe('buildPL', () => {
     expect(pl.netIncome).toBe('130000');
   });
 
-  test('skips zero-amount accounts in result rows', async () => {
+  test('金額 0 の科目は結果の行に含めない', async () => {
     await addEntry({
       date: '2026-04-15',
       lines: [
@@ -160,7 +160,7 @@ describe('buildPL', () => {
     expect(pl.expense.map((r) => r.accountCode)).toEqual(['5130']);
   });
 
-  test('reversed original is excluded; reversal does not double-count', async () => {
+  test('訂正された原仕訳は除外し、訂正仕訳で二重計上しない', async () => {
     const id = await addEntry({
       date: '2026-04-15',
       lines: [
@@ -175,7 +175,7 @@ describe('buildPL', () => {
     expect(pl.expense).toHaveLength(0);
   });
 
-  test('returns zeros when no entries', async () => {
+  test('仕訳が無ければ 0 を返す', async () => {
     const pl = await buildPL(2026);
     expect(pl.totalRevenue).toBe('0');
     expect(pl.totalExpense).toBe('0');
@@ -359,7 +359,7 @@ describe('buildBS', () => {
 });
 
 describe('buildMonthly', () => {
-  test('distributes sales across months', async () => {
+  test('売上を月ごとに振り分ける', async () => {
     await addEntry({
       date: '2026-01-10',
       lines: [
@@ -392,7 +392,7 @@ describe('buildMonthly', () => {
     expect(m.totalExpense).toBe('5000');
   });
 
-  test('returns 12 zero months when no entries', async () => {
+  test('仕訳が無ければ 0 の月を 12 件返す', async () => {
     const m = await buildMonthly(2026);
     expect(m.months).toHaveLength(12);
     expect(m.totalSales).toBe('0');

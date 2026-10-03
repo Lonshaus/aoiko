@@ -5,13 +5,13 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/jcb-card-sample.csv', jcbCardParser.encoding);
 
 describe('jcbCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(jcbCardParser.name).toBe('jcb-card');
     expect(jcbCardParser.accountCode).toBe('2120');
     expect(jcbCardParser.encoding).toBe('shift_jis');
   });
 
-  test('支払サマリ冒頭の情報行を飛ばして明細を読む。利用行は credit', () => {
+  test('支払サマリ冒頭の情報行を飛ばして明細を読む。利用行は貸方', () => {
     const r = jcbCardParser.parse(sample);
     expect(r).toHaveLength(4);
     for (const tx of r.slice(0, 3)) {
@@ -25,7 +25,7 @@ describe('jcbCardParser', () => {
     expect(r[1]?.amount).toBe('3300');
   });
 
-  test('返品行（負数）は絶対値 + debit（未払金の減少）', () => {
+  test('返品行（負数）は絶対値 + 借方（未払金の減少）', () => {
     const r = jcbCardParser.parse(sample);
     const refund = r[3];
     expect(refund?.description).toBe('家電量販店 返品');
@@ -40,7 +40,7 @@ describe('jcbCardParser', () => {
     expect(r[2]?.memo).toBe('内手数料１９円');
   });
 
-  test('throws when no header row is found', () => {
+  test('ヘッダー行が見つからなければ例外を投げる', () => {
     expect(() => jcbCardParser.parse('foo,bar\n1,2')).toThrow(/CSV ヘッダー形式/);
   });
 });

@@ -4,7 +4,7 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 //
 // 設計方針：
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
-//   （vision LLM 経路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
+//   （vision LLM 経路の `parseOcrResponse` が例外を投げる条件でも、本関数は投げない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
 // - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
 //   当てずっぽうになる

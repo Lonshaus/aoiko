@@ -189,7 +189,7 @@ describe('messages/*.json の *_android キー', () => {
       'Tesseract や OS 内蔵の文字認識など、端末内で完結するエンジンでは送信そのものが発生しません',
     );
     expect(ja.backup_panel_intro_folder_html).toContain(
-      'iCloud Drive・Google Drive Desktop・Dropbox',
+      'iCloud Drive・パソコン版 Google ドライブ・Dropbox',
     );
   });
 });

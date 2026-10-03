@@ -135,7 +135,7 @@ describe('extractFromOcrText', () => {
     expect(r.notes).toBe(text);
   });
 
-  test('空入力でも throw しない（全欄空）', () => {
+  test('空入力でも例外を投げない（全欄空）', () => {
     const r = extractFromOcrText('');
     expect(r.date).toBe('');
     expect(r.totalAmount).toBe('');
@@ -144,7 +144,7 @@ describe('extractFromOcrText', () => {
     expect(r.invoiceNumber).toBeUndefined();
   });
 
-  test('解読不能なノイズでも throw しない', () => {
+  test('解読不能なノイズでも例外を投げない', () => {
     const r = extractFromOcrText('@#$%^&*()_\nXXX YYY ZZZ');
     expect(r.totalAmount).toBe('');
     expect(r.date).toBe('');
@@ -199,7 +199,7 @@ describe('extractFromOcrText', () => {
     expect(r.totalAmount).toBe('480');
   });
 });
-// ある環境 の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
+// ある環境の文字認識に通したあと、行まとめを経た形の雛形。中身は作り物だが、
 // 単語ごとに矩形が返るため空白を挟むと一文字ずつばらける点と、通貨記号が半角の
 // `\\` で返り `円` が一度も出ない点は実測どおりに写してある。
 describe('OS 内蔵の文字認識で一文字ずつ返る環境の形', () => {

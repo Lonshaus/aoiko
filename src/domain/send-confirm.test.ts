@@ -34,7 +34,7 @@ describe('shouldConfirmExternalSend', () => {
     ).toBe(true);
   });
 
-  test('「次回から確認しない」を選ぶと外部送信でも skip', () => {
+  test('「次回から確認しない」を選ぶと外部送信でも確認を省く', () => {
     expect(
       shouldConfirmExternalSend(
         { external: true, host: 'generativelanguage.googleapis.com' },
@@ -43,7 +43,7 @@ describe('shouldConfirmExternalSend', () => {
     ).toBe(false);
   });
 
-  test('設定画面での skip 切り替えが Dexie 経由で往復反映される', async () => {
+  test('設定画面での確認省略の切り替えが Dexie 経由で往復反映される', async () => {
     const target = { external: true, host: 'generativelanguage.googleapis.com' };
     await setSetting('skipExternalSendConfirm', true);
     expect(shouldConfirmExternalSend(target, await getSetting('skipExternalSendConfirm'))).toBe(

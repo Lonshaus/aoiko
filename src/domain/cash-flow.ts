@@ -24,7 +24,7 @@ export async function addArApEntry(input: {
     createdAt: Date.now(),
   });
 }
-// 入金・支払の一部/全部消込。残高を超える額は throw（過収受・過払いは別の記帳で扱う想定、
+// 入金・支払の一部/全部消込。残高を超える額は例外を投げる（過収受・過払いは別の記帳で扱う想定、
 // ここでは単純な補助簿の整合性のみ担保する）。
 export class OverpaymentError extends Error {
   constructor() {

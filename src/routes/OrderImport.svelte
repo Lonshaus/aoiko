@@ -31,7 +31,8 @@
         ? 'Cmd'
         : uaModKey;
 
-  type ReviewItem = OrderItem & { accountCode: string };
+  type ReviewItem = OrderItem & { accountCode: string; taxRate: number; rateTouched: boolean };
+  const TAX_RATES = [0.1, 0.08];
 
   let pastedText = $state('');
   let processing = $state(false);
@@ -106,7 +107,12 @@
       const result = await extractor.extract(text);
       extracted = result;
       const def = defaultExpenseAccount();
-      reviewItems = result.items.map((it) => ({ ...it, accountCode: def }));
+      reviewItems = result.items.map((it) => ({
+        ...it,
+        accountCode: def,
+        taxRate: 0.1,
+        rateTouched: false,
+      }));
     } catch (e) {
       error = describeLlmError(e);
     } finally {
@@ -141,8 +147,33 @@
   function addItem() {
     reviewItems = [
       ...reviewItems,
-      { description: '', amount: '0', accountCode: defaultExpenseAccount() },
+      {
+        description: '',
+        amount: '0',
+        accountCode: defaultExpenseAccount(),
+        taxRate: 0.1,
+        rateTouched: false,
+      },
     ];
+  }
+  // 値引行は触られていなければ、値引対象と見なせる品目（正の金額の行）の税率が1種類のときそれに従う
+  function effectiveRate(item: ReviewItem): number {
+    if (item.rateTouched || !/^-\d+$/.test(item.amount)) {
+      return item.taxRate;
+    }
+    const rates = new Set(
+      reviewItems
+        .filter(
+          (it) => it.description.trim() !== '' && /^\d+$/.test(it.amount) && D(it.amount).gt(0),
+        )
+        .map((it) => it.taxRate),
+    );
+    const [only] = [...rates];
+    return rates.size === 1 && only !== undefined ? only : item.taxRate;
+  }
+  function setRate(item: ReviewItem, value: string) {
+    item.taxRate = Number(value);
+    item.rateTouched = true;
   }
 
   async function commit() {
@@ -184,7 +215,7 @@
       const entryId = newId();
       const now = Date.now();
       const lines: JournalLine[] = [];
-      // 各品目：正値 → debit、負値（値引）→ credit
+      // 各品目：正値 → 借方、負値（値引）→ 貸方
       for (const it of validItems) {
         const amount = D(it.amount);
         const abs = amount.abs().toString();
@@ -196,12 +227,13 @@
           accountCode: it.accountCode,
           amount: abs,
           amountIndexed: toIndexable(abs),
-          taxRate: amount.isNegative() ? 0 : 0.1,
+          taxRate: effectiveRate(it),
           taxIncluded: true,
           invoiceCompliant: false,
+          memo: it.description.trim(),
         });
       }
-      // 支払元（既定：未払金）への credit 1 行
+      // 支払元（既定：未払金）への貸方 1 行
       lines.push({
         id: newId(),
         entryId,
@@ -372,6 +404,7 @@
             <tr class="text-xs text-muted-foreground border-b">
               <th class="text-left font-normal px-2 py-2">{m.order_th_description()}</th>
               <th class="text-right font-normal px-2 py-2 w-32">{m.order_th_amount()}</th>
+              <th class="text-left font-normal px-2 py-2 w-24">{m.order_th_tax_rate()}</th>
               <th class="text-left font-normal px-2 py-2 w-64">{m.order_th_account()}</th>
               <th class="px-2 py-2 w-12"></th>
             </tr>
@@ -396,6 +429,18 @@
                     step="1"
                     class="w-full px-2 py-1 bg-background border rounded text-right text-foreground tabular-nums"
                   />
+                </td>
+                <td class="px-2 py-2">
+                  <select
+                    value={effectiveRate(item)}
+                    onchange={(e) => setRate(item, (e.target as HTMLSelectElement).value)}
+                    aria-label={m.order_th_tax_rate()}
+                    class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs"
+                  >
+                    {#each TAX_RATES as rate (rate)}
+                      <option value={rate}>{rate * 100}%</option>
+                    {/each}
+                  </select>
                 </td>
                 <td class="px-2 py-2">
                   <AccountSelect
@@ -425,6 +470,7 @@
         >
           + {m.order_item_add()}
         </button>
+        <p class="mt-2 text-xs text-muted-foreground">{m.order_rate_hint()}</p>
       </ScrollX>
 
       <div class="pt-4 border-t border-border/50">

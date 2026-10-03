@@ -27,7 +27,12 @@
     findOverlappingRows,
     type ImportRow,
   } from '../domain/import';
-  import { findMatchingRule, loadRules, recordRuleHit } from '../domain/rules';
+  import {
+    findMatchingRule,
+    findVendorByDefaultAccount,
+    loadRules,
+    recordRuleHit,
+  } from '../domain/rules';
   import { describeLlmError, type LlmAdapter } from '../domain/llm';
   import {
     classifyWithLlm,
@@ -62,6 +67,7 @@
     description: string;
     skip: boolean;
     matchedRuleId: string; // ルール一致時の ID、'' = 非適用
+    vendorMatched: boolean; // 取引先の既定科目を適用した行（ルール不一致の場合のみ）
     llmConfidence: '' | 'high' | 'low'; // LLM 分類の信頼度、'' = LLM 未適用
     taxRate: number; // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
     invoiceCompliant: boolean; // 適格請求書あり（仕入税額控除 100%）
@@ -191,9 +197,11 @@
       // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
       const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
       const rules = await loadRules();
+      const vendors = await db.vendors.toArray();
       rows = txs.map((t, i): RowState => {
         const rule = findMatchingRule(rules, t.description);
-        const code = rule?.accountCode ?? '';
+        const vendor = rule ? null : findVendorByDefaultAccount(vendors, t.description);
+        const code = rule?.accountCode ?? vendor?.defaultAccountCode ?? '';
         return {
           transaction: t,
           counterpartAccountCode: code,
@@ -201,6 +209,7 @@
           description: t.description,
           skip: overlapping.has(i),
           matchedRuleId: rule?.id ?? '',
+          vendorMatched: vendor !== null,
           llmConfidence: '',
           taxRate: defaultTaxRateFor(code),
           invoiceCompliant: false,
@@ -225,6 +234,7 @@
     row.counterpartSubAccountId = '';
     // 利用者が上書きしたら自動分類の出所を解除
     row.matchedRuleId = '';
+    row.vendorMatched = false;
     row.llmConfidence = '';
     // 科目変更時は税区分由来の既定税率に追従する
     row.taxRate = defaultTaxRateFor(row.counterpartAccountCode);
@@ -623,6 +633,11 @@
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
                         title={m.import_badge_rule_title()}>{m.import_badge_rule()}</span
+                      >
+                    {:else if row.vendorMatched}
+                      <span
+                        class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
+                        title={m.import_badge_vendor_title()}>{m.import_badge_vendor()}</span
                       >
                     {:else if row.llmConfidence === 'high'}
                       <span

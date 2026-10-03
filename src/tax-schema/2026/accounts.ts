@@ -82,7 +82,7 @@ export const ACCOUNTS_2026: Account[] = [
   },
   // 収益（4xxx）— 不動産所得用（B7 part2、freee/MF と同じく科目を複製）。
   // 賃貸料・礼金等は住宅家賃なら非課税が多いため既定は 'exempt'、店舗等の課税賃貸は
-  // 仕訳行の taxCategory 上書きで対応（既存の taxCategory override と同じ運用）。
+  // 仕訳行の taxCategory 上書きで対応（既存の taxCategory 上書きと同じ運用）。
   {
     code: '4210',
     year: 2026,
@@ -282,7 +282,7 @@ export const ACCOUNTS_2026: Account[] = [
     displayOrder: 270,
   },
   // 固定資産の除却損（B6）。青色申告決算書一般用の18経費科目には対応欄が無いため
-  // KOA210/KOA110 の個別明細行には出力されない（tagByJa 不一致で silently 出力スキップ）が、
+  // KOA210/KOA110 の個別明細行には出力されない（tagByJa 不一致のため警告なしで出力を省く）が、
   // pl.netIncome は通常の経費として正しく反映される（専従者控除前の所得金額等の合計値は正しい）。
   {
     code: '5280',

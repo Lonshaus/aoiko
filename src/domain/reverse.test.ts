@@ -5,6 +5,7 @@ import { newId } from '../lib/id';
 import { reverseEntry } from './reverse';
 import { markYearFiled } from './snapshots';
 import { todayISO } from '../lib/date';
+import { setLocale } from '../paraglide/runtime';
 import type { JournalLine, ReportSnapshotData } from '../db/types';
 
 async function seedEntry(opts: {
@@ -67,7 +68,7 @@ afterEach(async () => {
 });
 
 describe('reverseEntry', () => {
-  test('creates a reversal entry with swapped sides', async () => {
+  test('貸借を入れ替えた訂正仕訳を作る', async () => {
     const origId = await seedEntry({
       description: '電気代',
       date: '2026-04-15',
@@ -144,7 +145,7 @@ describe('reverseEntry', () => {
     }
   });
 
-  test('marks the original as reversed and links forward', async () => {
+  test('原仕訳を訂正済みにし、訂正仕訳へリンクする', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2026-04-15',
@@ -159,7 +160,7 @@ describe('reverseEntry', () => {
     expect(orig?.reversedByEntryId).toBe(reversalId);
   });
 
-  test('uses today as reversal date, not original', async () => {
+  test('訂正仕訳の日付は原仕訳ではなく今日', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2025-01-01',
@@ -174,7 +175,7 @@ describe('reverseEntry', () => {
     expect(reversal?.year).toBe(Number(todayISO().slice(0, 4)));
   });
 
-  test('rejects already-reversed entry', async () => {
+  test('訂正済みの仕訳は拒否する', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2026-04-15',
@@ -187,7 +188,7 @@ describe('reverseEntry', () => {
     await expect(reverseEntry(origId)).rejects.toThrow(/訂正済み/);
   });
 
-  test('rejects nonexistent entry', async () => {
+  test('存在しない仕訳は拒否する', async () => {
     await expect(reverseEntry('does-not-exist')).rejects.toThrow(/見つかりません/);
   });
 
@@ -202,6 +203,24 @@ describe('reverseEntry', () => {
     const reversalId = await reverseEntry(origId);
 
     await expect(reverseEntry(reversalId)).rejects.toThrow(/訂正仕訳そのもの/);
+  });
+
+  test('訂正仕訳そのものを訂正できない理由は表示言語に従う', async () => {
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    });
+    const reversalId = await reverseEntry(origId);
+
+    setLocale('en', { reload: false });
+    try {
+      await expect(reverseEntry(reversalId)).rejects.toThrow(/cannot itself be reversed/);
+    } finally {
+      setLocale('ja', { reload: false });
+    }
   });
 
   test('申告済みでロック中の年の仕訳は拒否する', async () => {
@@ -228,6 +247,34 @@ describe('reverseEntry', () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
 
     await expect(reverseEntry(origId)).rejects.toThrow(/申告済み.*ロック/);
+  });
+
+  test('ロック中の年の拒否理由は表示言語に従い、年が入る', async () => {
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: { rows: [], totalRevenue: '0', totalExpense: '0', netIncome: '0' },
+        },
+      },
+      '2026-12-31',
+    );
+
+    setLocale('en', { reload: false });
+    try {
+      await expect(reverseEntry(origId)).rejects.toThrow(/2026 is locked as filed/);
+    } finally {
+      setLocale('ja', { reload: false });
+    }
   });
 
   test('allowFiledYear:true でロック済み原仕訳年度でも訂正できる（#339 の修正申告フロー向けオプトイン）', async () => {

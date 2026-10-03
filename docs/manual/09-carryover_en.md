@@ -1,6 +1,6 @@
 # 09. Prior-period carryover
 
-Carry prior year-end balances into the new fiscal year as a carryover entry.
+Carry prior year-end balances into the new tax year as a carryover entry.
 
 **Language**: [日本語](09-carryover.md) | **English** | [繁體中文](09-carryover_zh-TW.md)
 
@@ -23,15 +23,16 @@ This carryover entry is what aoiko's **"Prior-period carryover (opening balance)
 
 ## 2. The carryover entry's structure
 
-Example: 2026 fiscal year carryover entry (prior 2025 year-end values)
+Example: 2026 tax year carryover entry (prior 2025 year-end values)
 
 ```
 2026-01-01  前期繰越（2025年から）
   Debit   1110 現金             500,000
   Debit   1130 普通預金        1,200,000
   Debit   1310 売掛金           300,000
-  Debit   1510 工具器具備品     250,000   (cost − accumulated depreciation)
+  Debit   1510 工具器具備品     300,000   (acquisition cost)
   Credit  2120 未払金            80,000
+  Credit  1520 減価償却累計額    50,000
   Credit  3110 元入金         2,170,000   (= debit total − other credits)
 ```
 
@@ -50,11 +51,11 @@ i.e.:
 
 ### 3-1. Switch to the new year
 
-Settings > **"Current fiscal year"** → set to the new year (e.g. 2026) → **"Save"**.
+**Settings > Current tax year** → set to the new year (e.g. 2026) → **"Save"**.
 
 ### 3-2. Preview
 
-In Settings > **"Prior-period carryover (opening balance)"** → click **"Preview"**:
+In **Settings > Prior-period carryover (opening balance)** → click **"Preview"**:
 
 - Shows the debit (assets) and credit (liabilities + capital) breakdown
 - Shows the capital calculation basis:
@@ -71,11 +72,11 @@ When OK, click **"Create carryover entry"**. An entry dated `{year}-01-01` is cr
 Success message:
 > ✓ Carryover entry created
 
-### 3-4. Redo (delete and recreate)
+### 3-4. Redo (reverse and recreate)
 
 If something is wrong:
 
-1. Click **"Delete existing carryover entry"** to cancel the existing `{year}-01-01` carryover entry (this is **not a physical delete**: aoiko automatically creates a reversing entry dated the same day that offsets it. Confirmed entries are immutable and corrections are kept as reversing entries, per the Electronic Books Preservation Act. Both the original carryover entry and the reversing entry stay in the history)
+1. Click **"Reverse existing carryover entry"** to cancel the existing `{year}-01-01` carryover entry (this is **not a physical delete**: aoiko automatically creates a reversing entry dated the same day that offsets it. Confirmed entries are immutable and corrections are kept as reversing entries, per the Electronic Books Preservation Act. Both the original carryover entry and the reversing entry stay in the history)
 2. Fix the prior year's entries / fixed assets
 3. Click **"Preview"** again → **"Create carryover entry"**
 
@@ -83,7 +84,7 @@ If something is wrong:
 
 | Error | Meaning |
 |---|---|
-| A carryover entry already exists. Delete it first. | Already exists at `{year}-01-01`. See 3-4 |
+| A carryover entry already exists. Reverse it first with "Reverse existing carryover entry". | Already exists at `{year}-01-01`. See 3-4 |
 | No journal entries in the previous year — nothing to carry over | No prior-year journal entries at all (e.g. first year of use) |
 
 ## 4. First year (no prior data)
@@ -108,8 +109,8 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 
 1. Complete prior-year entries through **year-end** (e.g. 2025-12-31)
 2. Reports > **"Lock as filed"** to lock the year ([06. § 8](06-reports_en.md#8-year-lock-filed))
-3. Settings > **"Current fiscal year"** → change to 2026
-4. Settings > Prior-period carryover > **"Create carryover entry"**
+3. **Settings > Current tax year** → change to 2026
+4. **Settings > Prior-period carryover > "Create carryover entry"**
 5. Begin booking 2026 entries
 
 > Note: **current-year depreciation entries** are separate from carryover. The correct order is: generate depreciation entries for the prior year ([08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation)), then run carryover.
@@ -117,7 +118,7 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 ## 6. Notes
 
 - The carryover entry is dated `2026-01-01` (year-start)
-- You cannot create it twice in the same year; recreate via delete-then-create
+- You cannot create it twice in the same year; recreate via reverse-then-create
 - The entry's description is "前期繰越（○○年から）" (fixed Japanese text that includes the prior year)
 - Internally tagged as `source: 'carryover'` (the journal list has no filter for it)
 
@@ -125,11 +126,11 @@ Use [02. Creating journal entries § 1](02-journal_en.md#1-manual-entry--home-sc
 
 ### 7-1. Why it exists
 
-Under Income Tax Act Art. 52(3), the allowance for doubtful accounts booked at the end of the prior year must be added back to this year's gross revenue in full (the "洗替方式" / replacement method), and a fresh allowance is booked at this year's end. The carryover covered by this chapter just carries `2170 貸倒引当金` (Allowance for doubtful accounts) forward like any other liability — it does not perform this reversal. If nobody books the reversal, the allowance balance stays on the balance sheet, this year's new addition stacks on top of it, and the deduction accumulates year after year while gross revenue is understated. aoiko gives you a button that generates this entry.
+Under Income Tax Act Art. 52(3), the allowance for doubtful accounts booked at the end of the prior year must be added back to this year's gross revenue in full (the "洗替方式" / write-back method), and a fresh allowance is booked at this year's end. The carryover covered by this chapter just carries `2170 貸倒引当金` (Allowance for doubtful accounts) forward like any other liability — it does not perform this reversal. If nobody books the reversal, the allowance balance stays on the balance sheet, this year's new addition stacks on top of it, and the deduction accumulates year after year while gross revenue is understated. aoiko gives you a button that generates this entry.
 
 ### 7-2. Where the button is
 
-Settings > the year-end processing area, next to Depreciation and Prior-period carryover: **"Reverse the allowance for doubtful accounts"**. Pressing it generates one journal entry dated `{year}-01-01`.
+Settings > **"Prior-period carryover (opening balance)"** section, under "Reversal of the allowance for doubtful accounts": **"Reverse the allowance for doubtful accounts"**. Pressing it generates one journal entry dated `{year}-01-01`.
 
 ### 7-3. What it generates
 

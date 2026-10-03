@@ -1,7 +1,7 @@
 import { LlmError } from './llm';
 import { m } from '../paraglide/messages';
 // EC サイト（Amazon、楽天等）の注文ページの貼り付けテキストから、
-// LLM で品目内訳を抽出する純ロジック。DOM scraping を使わないため
+// LLM で品目内訳を抽出する純ロジック。DOM スクレイピングを使わないため
 // サイト改修に強い。Phase 3：ブラウザ拡張案を本方式に置き換え。
 
 export interface OrderItem {

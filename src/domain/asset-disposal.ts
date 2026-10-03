@@ -247,7 +247,7 @@ export async function generateDisposalEntry(
   if (existing) {
     return { created: false, reason: 'already-exists' };
   }
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日に依るので、ここで DB から読んで算出する。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日に依るので、ここで DB から読んで算出する。
   const [allAssets, businessDates] = await Promise.all([
     db.fixedAssets.toArray(),
     loadBusinessDates(),

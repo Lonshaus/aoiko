@@ -10,7 +10,7 @@ Fixed-asset registration, straight-line / declining-balance methods, monthly pro
 > - Determine eligibility for the small-asset depreciation special provision (Special Taxation Measures Act Art. 28-2, ¥400,000)
 > - Generate year-end depreciation entries in bulk
 >
-> **Prerequisites**: [01. Initial setup](01-setup_en.md) — basic info and fiscal year are configured.
+> **Prerequisites**: [01. Initial setup](01-setup_en.md) — basic info and tax year are configured.
 
 ## 1. What is a fixed asset (in aoiko)
 
@@ -26,7 +26,7 @@ Business assets acquired for **¥100,000 or more** are registered as fixed asset
 
 ## 2. Register a fixed asset
 
-Navigation **"Settings"** > **"Fixed assets"** section.
+Navigation **Settings > Fixed assets** section.
 
 ### 2-1. Registration form
 
@@ -36,10 +36,15 @@ Navigation **"Settings"** > **"Fixed assets"** section.
 | Acquisition date | When put into business use (not necessarily purchase date) | `2026-05-01` |
 | Acquisition cost | Tax-inclusive amount (integer) | `350000` |
 | Useful life | Statutory life from the National Tax Agency table | `4` (PCs typically 4 years) |
-| Account | The debit account (Building / Vehicles / Tools etc.) | `1514 車両運搬具` (Vehicles) |
-| Depreciation method | Straight-line / Declining balance (200%) / "Old straight-line method (acquired on/before 2007-03-31)" / "Old declining-balance method (acquired on/before 2007-03-31)" / "Lease-period straight-line method" / Small-asset special provision (Special Taxation Measures Act Art. 28-2, immediate expense) / Lump-sum depreciable asset (3-year even split) | ↓ see below |
+| Account | The debit account (Building / Vehicles / Tools etc.) | `1510 工具器具備品` (Tools, furniture and fixtures) |
+| Method | Straight-line / Declining balance (200%) / "Old straight-line method (acquired on/before 2007-03-31)" / "Old declining-balance method (acquired on/before 2007-03-31)" / "Lease-period straight-line method" / Small-asset special provision (Special Taxation Measures Act Art. 28-2, immediate expense) / Lump-sum depreciable asset (3-year even split) | ↓ see below |
 | "Usable period is under 1 year" | Checkbox, for the Income Tax Act Enforcement Order Art. 138(1) immediate-expensing branch | |
 | "Essential in nature to the business" | Checkbox. Affects whether a sale/disposal counts as capital gain (see § 5-2) | |
+| "Asset class (Income Tax Act Enforcement Order, Art. 6)" | Building, structure, machinery, vehicles, tools/furniture/fixtures, intangible assets, living things, etc. Used to decide the depreciation end point (¥1 memorandum value or full amount) | `Tools, furniture and fixtures` |
+| "Regular employees at acquisition (optional)" | Only for the small-asset special provision; used for the employee-count test of Special Taxation Measures Act Art. 28-2 (≤500 for acquisitions through 2026-03-31, ≤400 from 2026-04-01) | |
+| "Used for leasing (other than leasing as a principal business)" | Checkbox. If ticked, the asset is (depending on the acquisition date) excluded from small-amount immediate expensing, lump-sum depreciation, and the small-asset special provision | |
+| "Non-transfer finance lease contract date (optional)" | Lease assets only; a contract on or before 2027-03-31 deducts the guaranteed residual value | |
+| "Guaranteed residual value (optional)" | Amount deducted from the cost under the lease-period straight-line method | |
 | "Lease term (months)" | Only entered when "Lease-period straight-line method" is selected | `60` |
 | "Use declining-balance if disqualified (elected or deemed elected)" | Checkbox. Chooses the normal-depreciation method used for small-asset-special assets that fall out of eligibility (see § 3) | |
 
@@ -51,7 +56,7 @@ Click **"Add"** to register.
 
 #### Straight-line (default)
 
-Same amount each year. Formula: `Acquisition cost × 1/useful life × monthly proration` (for a converted asset, the acquisition cost here is the original acquisition cost; see § 2-3)
+Same amount each year. Formula: `Acquisition cost × straight-line rate × monthly proration` (the rate is the NTA rate table value: 1/useful life rounded up at the third decimal place, e.g. 0.334 for 3 years) (for a converted asset, the acquisition cost here is the original acquisition cost; see § 2-3)
 
 - Business PCs, software, machinery, etc.
 - Predictable, easy to plan
@@ -59,7 +64,7 @@ Same amount each year. Formula: `Acquisition cost × 1/useful life × monthly pr
 
 #### Declining-balance (200%)
 
-Larger amount earlier, smaller later. Formula: `Undepreciated balance × rate (200%/life) × monthly proration`, switching to equal-amount mode when `tentative amount < guaranteed minimum`. The guaranteed minimum is `acquisition cost × guarantee rate`. A converted asset uses its original acquisition cost for the guaranteed minimum and starts from the undepreciated balance as of the conversion date (see § 2-3).
+Larger amount earlier, smaller later. Formula: `Undepreciated balance × rate (the 200% declining-balance rate from the NTA rate table, e.g. 0.667 for 3 years, 0.500 for 4 years) × monthly proration`, switching to equal-amount mode when `tentative amount < guaranteed minimum`. The guaranteed minimum is `acquisition cost × guarantee rate`. A converted asset uses its original acquisition cost for the guaranteed minimum and starts from the undepreciated balance as of the conversion date (see § 2-3).
 
 - Vehicles, machinery, etc., when you want larger initial expense
 - For sole proprietors, **prior notification** (Depreciation Method Notification) is required
@@ -67,7 +72,7 @@ Larger amount earlier, smaller later. Formula: `Undepreciated balance × rate (2
 
 #### Old straight-line / Old declining-balance (acquired on or before March 31, 2007)
 
-Assets acquired on or before March 31, 2007 (Heisei 19) depreciate under the old system. Old straight-line: `(cost − residual value) × 1/useful life`. Old declining-balance: `undepreciated balance × old rate`. Both switch, from the year after reaching 95% of cost, to amortizing the remainder (5% of cost minus ¥1) equally over the remaining 5 years (Income Tax Act Enforcement Order Art. 134(2), which applies to old declining-balance too). Residual value comes from Useful Life Ministerial Ordinance Schedule 11 (Schedules 1, 2, 5, 6: generally 10%, 0% for software; Schedule 3 intangibles, Schedule 6 software, mining rights, and mine tunnels: 0%; Schedule 4 living things: 5–50%; cattle/horses: the smaller of that percentage or ¥100,000). aoiko has old declining-balance rates for useful lives 2–100 years.
+Assets acquired on or before March 31, 2007 (Heisei 19) depreciate under the old system. Old straight-line: `(cost − residual value) × old straight-line rate` (Useful Life Ministerial Ordinance Schedule 7; e.g. 0.100 for 10 years, 0.048 for 21 years). Old declining-balance: `undepreciated balance × old rate`. Both switch, from the year after reaching 95% of cost, to amortizing the remainder (5% of cost minus ¥1) equally over the remaining 5 years (Income Tax Act Enforcement Order Art. 134(2), which applies to old declining-balance too). Residual value comes from Useful Life Ministerial Ordinance Schedule 11 (Schedules 1, 2, 5, 6: generally 10%, 0% for software; Schedule 3 intangibles, Schedule 6 software, mining rights, and mine tunnels: 0%; Schedule 4 living organisms: 5–50%; cattle/horses: the smaller of that percentage or ¥100,000). aoiko has old straight-line and old declining-balance rates for useful lives 2–100 years.
 
 #### Lease-period straight-line (Income Tax Act Enforcement Order Art. 120-2(1)(6))
 
@@ -82,7 +87,7 @@ Fully expensed in the year if requirements met.
   - Acquired by 2026/3/31: < ¥300,000
   - **Acquired on/after 2026/4/1: < ¥400,000** (Reiwa 8 reform)
 - **Number of regular employees** at or below a limit (500 or fewer if acquired before 2026/4/1, 400 or fewer on/after)
-- **Assets acquired on or after April 1, 2022 only**: assets used for leasing (other than leasing carried out as a main business) are excluded from eligibility (Reiwa 4 Government Ordinance No. 136 Suppl. Prov. Art. 4; Reiwa 4 Act No. 4 Suppl. Prov. Art. 31). Assets acquired on or before March 31, 2022 stay under the old rule, with no leasing exclusion at all. The National Tax Agency describes three types of "leasing carried out as a main business": leasing mainly to those who supply you goods, leasing that continuously uses your own business resources (staff, equipment, etc.), and leasing incidental to your main business. It also describes an exclusion when a buy-back condition covers roughly 90% or more of the acquisition cost. aoiko doesn't determine this automatically; self-declare it with the "Used for leasing (other than leasing as a principal business)" checkbox on the form
+- **Assets acquired on or after April 1, 2022 only**: assets used for leasing (other than leasing carried out as a principal business) are excluded from eligibility (Reiwa 4 Government Ordinance No. 136 Suppl. Prov. Art. 4; Reiwa 4 Act No. 4 Suppl. Prov. Art. 31). Assets acquired on or before March 31, 2022 stay under the old rule, with no leasing exclusion at all. The National Tax Agency describes three types of "leasing carried out as a principal business": leasing mainly to those who supply you goods, leasing that continuously uses your own business resources (staff, equipment, etc.), and leasing incidental to your main business. It also describes an exclusion when a buy-back condition covers roughly 90% or more of the acquisition cost. aoiko doesn't determine this automatically; self-declare it with the "Used for leasing (other than leasing as a principal business)" checkbox on the form
 - Attaching a **breakdown statement** to the return is a requirement for eligibility (satisfied instead by recording set items on the blue-return statement's "Depreciation calculation" section — see § 4)
 - Annual cap of ¥3,000,000 (excess goes through normal depreciation; prorated by the number of months in business during the year you started or closed, rounding any partial month up; the start date comes from [13. Opening Setup](13-opening-setup_en.md), and the closing date is entered on the same screen)
 - Expiry: through 2029-03-31
@@ -111,19 +116,19 @@ An asset purchased before starting the business and put into business use afterw
 - **Original acquisition cost** (the actual purchase price): the basis for the straight-line/old-straight-line annual amount, the declining-balance guaranteed minimum, where depreciation stops under each method (the ¥1 memorandum value, or full write-off for intangibles), eligibility for Enforcement Order Art. 138 (immediate expensing) / Art. 139 (lump-sum) / Special Taxation Measures Act Art. 28-2 (small-asset special provision), and the year's ¥3,000,000 cap tally
 - **Undepreciated balance as of the conversion date**: the declining-balance/old-declining-balance starting balance, and the ceiling on how much can actually be expensed (the decline before conversion belongs to a non-business period and isn't a deductible expense). The fixed-assets table's "Year-end book value" and the opening entry's debit amount are also based on this figure
 
-Whether Enforcement Order Art. 138, Art. 139, and Special Taxation Measures Act Art. 28-2 apply to converted assets, and how the eligibility threshold and cap interact with these two figures, has no published position from the NTA, the Ministry of Finance, or the National Tax Tribunal. What's described above follows the majority view among accounting-software vendors and tax-accountant practice explanations that aoiko implements; confirm with a tax accountant before filing.
+Whether Enforcement Order Art. 138, Art. 139, and Special Taxation Measures Act Art. 28-2 apply to converted assets, and how the eligibility threshold and cap interact with these two figures, no published position from the NTA, the Ministry of Finance, or the National Tax Tribunal could be found. What's described above follows the majority view among accounting-software vendors and tax-accountant practice explanations that aoiko implements; confirm with a tax accountant before filing.
 
 ### 2-4. Monthly proration and ¥1 memorandum value
 
 Automatic behavior:
 
 - **Monthly proration**: count the acquisition month as month 1, prorate by months in business use that year. Example: acquired in June, life 4 years, straight-line → 7/12 booked in current year
-- **Where depreciation stops**: for assets acquired on or after 2007-04-01, tangible fixed assets under Income Tax Act Enforcement Order Art. 6 items 1–7 and 9 (excluding living things) depreciate until the book value reaches ¥1 (the memorandum value). Intangible fixed assets and mine tunnels under item 8 depreciate to the full cost (ending book value ¥0). Assets under a lease other than one transferring ownership (contracted on or before 2027-03-31) depreciate to cost minus the residual guarantee amount. Living things differ between the new system (above, ¥1 memorandum value) and the old system (acquired on or before 2007-03-31, depreciate to cost minus residual value)
+- **Where depreciation stops**: for assets acquired on or after 2007-04-01, tangible fixed assets under Income Tax Act Enforcement Order Art. 6 items 1–7 and 9 (excluding living organisms) depreciate until the book value reaches ¥1 (the memorandum value). Intangible fixed assets and mine tunnels under item 8 depreciate to the full cost (ending book value ¥0). Assets under a lease other than one transferring ownership (contracted on or before 2027-03-31) depreciate to cost minus the residual guarantee amount. Living things differ between the new system (above, ¥1 memorandum value) and the old system (acquired on or before 2007-03-31, depreciate to cost minus residual value)
 - Amortizing the remainder equally over 5 years after reaching 95% of cost applies only to assets acquired on or before 2007-03-31 (old straight-line and old declining-balance alike; Income Tax Act Enforcement Order Art. 134(2))
 
 ### 2-5. Fixed assets for real estate income (only if enabled in Settings)
 
-Once **Settings > Use real estate income** is turned on, the registration form gains a **"Business" / "Real estate"** category selector. For assets (e.g. buildings) registered as "Real estate", the **"Property detail"** button in the asset list lets you fill in the rental property's details (address, property type, tenant, rental period, floor area, annual rent, key money etc., deposit balance). The depreciation calculation and entry generation itself use the same logic as business assets.
+Once **Settings > Use real estate income** is turned on, the registration form gains a **"Business" / "Real estate"** category selector. For assets (e.g. buildings) registered as "Real estate", the **"Property detail"** button in the asset list lets you fill in the rental property's details (property type, address, residential use, tenant name and address, rental period, floor area, annual rent, key money / premium / renewal fee, other income such as name transfer fees, deposit balance). The depreciation calculation and entry generation itself use the same logic as business assets.
 
 > While this setting is off, neither the category selector nor the property detail button appears.
 
@@ -161,7 +166,7 @@ Settings > Fixed assets table:
 
 Assets expensed immediately under the small-asset special provision show **"Current-year depreciation" = acquisition cost** (for a converted asset, the "Undepreciated balance when put into business use" instead of the acquisition cost) and **"Year-end book value" = 0** (no ¥1 memorandum value, since the rule is immediate write-off). An asset that fell out of small-asset eligibility (over the ¥3,000,000 cap, or otherwise ineligible) is listed in the `.xtx` export's "Depreciation calculation" section (the depreciable-asset breakdown on the white return statement) with the method 定額法 (straight-line) or 定率法 (declining-balance), with the amount matching the generated entry (it isn't part of the small-asset summary row on the blue-return statement below).
 
-The blue-return statement KOA210 (and KOA220, if you have real estate income)'s "Depreciation calculation" section groups every asset that used the small-asset special provision this year into a single row (Special Taxation Measures Act Basic Directive 28-2-3): the name is the earliest-acquired asset's name, with the Japanese suffix " 他" ("and others") appended when two or more assets are grouped, acquisition cost and the depreciation base are the sum of each asset's original acquisition cost, this year's ordinary depreciation / this year's total depreciation / the amount included as a necessary expense are the sum of each asset's actual expensed amount this year (capped at the undepreciated balance as of conversion for a converted asset), the ending undepreciated balance is ¥0, and the remarks read "措法28の2（明細は別途保管）" (Special Taxation Measures Act Art. 28-2; details kept separately). No individual breakdown statement needs to be attached (Special Taxation Measures Act Basic Directive 28-2-3). This summary row only applies to the blue-return statement, not the white return's income/expense breakdown statement.
+In the "Depreciation calculation" section of the blue-return statement KOA210 (and KOA220, if you have real estate income), aoiko groups every asset that used the small-asset special provision this year into a single row (Special Taxation Measures Act Basic Directive 28-2-3): the name is the earliest-acquired asset's name, with the Japanese suffix " 他" ("and others") appended when two or more assets are grouped, acquisition cost and the depreciation base are the sum of each asset's original acquisition cost, this year's ordinary depreciation / this year's total depreciation / the amount included as a necessary expense are the sum of each asset's actual expensed amount this year (capped at the undepreciated balance as of conversion for a converted asset), the ending undepreciated balance is ¥0, and the remarks read "措法28の2（明細は別途保管）" (Special Taxation Measures Act Art. 28-2; details kept separately). No per-asset detail schedule needs to be attached (Special Taxation Measures Act Basic Directive 28-2-3). This summary row only applies to the blue-return statement, not the white return's income/expense breakdown statement.
 
 ## 5. Disposal / sale
 
@@ -203,7 +208,7 @@ When several lump-sum depreciable assets are registered as a group, the denomina
 
 ### 5-4. Reflecting this in the `.xtx` export
 
-For the year of disposal/sale, the remarks field on KOA110 (income/expense breakdown statement) page 2's depreciation schedule automatically notes "Scrap" or "Sale".
+For the year of disposal/sale, the remarks field of the depreciation schedule (on all of KOA110 income/expense statement (general), KOA130 income/expense statement (real estate), KOA210 blue-return financial statements (general), and KOA220 blue-return financial statements (real estate)) automatically writes "除却" (disposal) or "売却" (sale).
 
 ## 6. FAQs
 
@@ -216,9 +221,9 @@ As an intangible fixed asset. Useful life 5 years (self-use software). Straight-
 Simplified-method formula (round any partial year down, minimum 2 years):
 `(Statutory life − years elapsed) + years elapsed × 20%`
 
-The simplified method only applies to assets on Useful Life Ministerial Ordinance Schedules 1, 2, 5, and 6 — it can't be used for Schedule 3 intangible fixed assets or Schedule 4 living things (use the statutory life instead). It also can't be used when capital expenditure made after acquisition exceeds 50% of the acquisition cost (use the estimation method or the statutory life instead).
+The simplified method only applies to assets on Useful Life Ministerial Ordinance Schedules 1, 2, 5, and 6 — it can't be used for Schedule 3 intangible fixed assets or Schedule 4 living organisms (use the statutory life instead). It also can't be used when capital expenditure made after acquisition exceeds 50% of the acquisition cost (use the estimation method or the statutory life instead).
 
-aoiko doesn't auto-compute; enter the resulting years.
+aoiko doesn't auto-compute; enter the resulting years in **"Useful life"**.
 
 ## 7. Next steps
 

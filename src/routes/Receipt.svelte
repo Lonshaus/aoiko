@@ -253,7 +253,7 @@
     if (committing) {
       return;
     }
-    const data = extracted; // 以降のクロージャ内でも narrowed 保証
+    const data = extracted; // 以降のクロージャ内でも絞り込み済みの保証
     error = '';
     success = '';
     // 日付が空・不正でも IndexedDB は受け付けてしまい、year が 0 の仕訳として
@@ -474,14 +474,16 @@
         {:else if availableRuleEngines === null}
           {m.receipt_engine_checking()}
         {:else}
-          {m.receipt_rule_engine_notice({
-            engine:
-              receiptRuleEngine === 'tesseract'
-                ? m.receipt_rule_engine_name_tesseract()
-                : __DOC_PLATFORM__ === 'android'
+          {#if receiptRuleEngine === 'tesseract'}
+            {m.receipt_rule_engine_notice({ engine: m.receipt_rule_engine_name_tesseract() })}
+          {:else}
+            {m.receipt_rule_engine_notice_native({
+              engine:
+                __DOC_PLATFORM__ === 'android'
                   ? m.receipt_rule_engine_name_android()
                   : m.receipt_rule_engine_name_native(),
-          })}
+            })}
+          {/if}
         {/if}
       </span>
     </div>

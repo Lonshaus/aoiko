@@ -31,28 +31,28 @@ afterEach(async () => {
 });
 
 describe('parseBackupJson', () => {
-  test('throws on invalid JSON', () => {
+  test('不正な JSON は例外を投げる', () => {
     expect(() => parseBackupJson('{ not json')).toThrow(/JSON として/);
   });
 
-  test('throws when missing required fields', () => {
+  test('必須項目が無ければ例外を投げる', () => {
     expect(() => parseBackupJson('{"foo":"bar"}')).toThrow(/バックアップ形式ではありません/);
   });
 
-  test('returns object when valid', () => {
+  test('正しければオブジェクトを返す', () => {
     const json = JSON.stringify({ version: 1, tables: {}, exportedAt: 'x' });
     expect(parseBackupJson(json).version).toBe(1);
   });
 });
 
 describe('restoreFromJson', () => {
-  test('throws on incompatible version', async () => {
+  test('互換性のないバージョンは例外を投げる', async () => {
     await expect(
       restoreFromJson({ version: 999, exportedAt: '2026-05-10', tables: {} }),
     ).rejects.toThrow(IncompatibleBackupError);
   });
 
-  test('round-trips: export → restore yields identical state', async () => {
+  test('往復：書き出し → 復元で同じ状態になる', async () => {
     const entryId = newId();
     const now = Date.now();
     await db.transaction('rw', [db.journalEntries, db.journalLines, db.vendors], async () => {
@@ -108,7 +108,7 @@ describe('restoreFromJson', () => {
     expect(vendors[0]?.name).toBe('東京電力');
   });
 
-  test('不正な payload では既存データを消さずに throw（検証は削除前）', async () => {
+  test('不正な payload では既存データを消さずに例外を投げる（検証は削除前）', async () => {
     await db.vendors.add({ id: 'keep-1', name: '残る業者' });
 
     await expect(
@@ -145,7 +145,7 @@ describe('restoreFromJson', () => {
 
   test('書き込み途中の失敗はトランザクションで全ロールバックされ半書き込みを残さない', async () => {
     // validateGeneric は主キーの有無しか見ないため関数値を持つ行は検証を通過するが、
-    // structured clone 不可で bulkPut が throw する。全消去後の書き込み失敗を再現する。
+    // structured clone 不可で bulkPut が例外を投げる。全消去後の書き込み失敗を再現する。
     await expect(
       restoreFromJson({
         version: PAYLOAD_VERSION,
@@ -195,7 +195,7 @@ describe('restoreFromJson', () => {
     expect(vendors[0]?.name).toBe('残るべき業者');
   });
 
-  test('clears existing data before restore', async () => {
+  test('復元の前に既存データを消す', async () => {
     await db.vendors.add({ id: newId(), name: '消える業者' });
 
     await restoreFromJson({

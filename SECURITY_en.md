@@ -3,19 +3,19 @@
 **Language**: [日本語](SECURITY.md) | **English** | [繁體中文](SECURITY_zh-TW.md)
 <!-- only:browser -->
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
 <!-- /only -->
 <!-- only:apple -->
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
 <!-- /only -->
 <!-- only:windows -->
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
 <!-- /only -->
 <!-- only:android -->
 
-aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification or OCR, and also when you save an API key, fetch the model list, or test the connection (nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google). This document outlines known risks, the support stance, and vulnerability reporting.
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google). This document outlines known risks, the support stance, and vulnerability reporting.
 <!-- /only -->
 
 ## Official distribution sources
@@ -69,16 +69,16 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 ### BYOK model
 <!-- only:browser -->
 
-- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the browser's built-in AI) chosen by the user are **registered by the user and kept in the user's browser IndexedDB** (Tesseract and the browser's built-in AI need neither a key nor any setting)
+- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the browser's built-in AI) chosen by the user are **registered by the user and kept in the user's browser IndexedDB** (Tesseract and the browser's built-in AI need neither an API key nor any setting)
 <!-- /only -->
 <!-- only:apple -->
-- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition / Apple Intelligence) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract, the OS's built-in text recognition and Apple Intelligence need neither a key nor any setting)
+- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition / Apple Intelligence) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract, the OS's built-in text recognition and Apple Intelligence need neither an API key nor any setting)
 <!-- /only -->
 <!-- only:windows -->
-- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract and the OS's built-in text recognition need neither a key nor any setting)
+- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract and the OS's built-in text recognition need neither an API key nor any setting)
 <!-- /only -->
 <!-- only:android -->
-- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / on-device text recognition / on-device Gemini Nano) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract, on-device text recognition, and on-device Gemini Nano need neither a key nor any setting)
+- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / on-device text recognition / on-device Gemini Nano) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract, on-device text recognition, and on-device Gemini Nano need neither an API key nor any setting)
 <!-- /only -->
 - The developer / distributor **does not obtain, transmit, or retain** the user's API keys or endpoint information
 <!-- only:browser -->
@@ -104,16 +104,16 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 - Backup: a sync folder (the app remembers one) / manual export
 <!-- /only -->
 <!-- only:browser -->
-- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini / OpenAI-compatible / etc.)
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
 <!-- /only -->
 <!-- only:apple -->
-- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini / OpenAI-compatible / etc.)
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
 <!-- /only -->
 <!-- only:windows -->
-- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini / OpenAI-compatible / etc.)
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
 <!-- /only -->
 <!-- only:android -->
-- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini / OpenAI-compatible / etc.). When you use on-device text recognition or on-device Gemini Nano, ML Kit separately sends usage information to Google
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.). When you use on-device text recognition or on-device Gemini Nano, ML Kit separately sends usage information to Google
 <!-- /only -->
 
 ## Known risks
@@ -134,13 +134,19 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- /only -->
 - Personal information, transaction history, and API keys can be read directly
 - Using a business-only device and enabling full-disk encryption are recommended
+- With "Include API keys in backups" on, API keys are written to backup files in plain text; the same applies to filer info with "Include filer info (user identification number, name, address, tax office)" on. If the backup destination is inside a synced folder, they reach the sync service as they are
 
 ### 3. AI API transmission content risk
 
-- CSV rows / receipt images are sent according to the user's selected engine:
+- Unclassified CSV-import rows (description and amount), receipt images, and the full text pasted into order import (which may include delivery names, addresses, and phone numbers) are sent according to the user's selected engine:
   - **Gemini** → `generativelanguage.googleapis.com` (handled per Google's data policy; whether it is used for training depends on your plan)
   - **OpenAI-compatible** (Ollama etc.) → user-specified baseURL. No off-device transmission for localhost
-  - **Tesseract** → no transmission (processed in WASM on-device; the language data ships with aoiko, so no external request is made)
+<!-- only:browser -->
+  - **Tesseract** → no transmission (processed in WASM on-device; the program and language data are fetched from aoiko's own server on first use and stored, and no other request is made)
+<!-- /only -->
+<!-- only:native -->
+  - **Tesseract** → no transmission (processed in WASM on-device; the language data is built into the app, so no request is made)
+<!-- /only -->
 <!-- only:browser -->
   - **The browser's built-in AI** → nothing sent by aoiko (where inference runs is decided by the browser's implementation, not necessarily on the device)
 <!-- /only -->
@@ -157,8 +163,10 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- only:apple -->
   - **Apple Intelligence** → no transmission (inference runs entirely on-device)
 <!-- /only -->
-- Always review content with high sensitivity before sending (a pre-send confirmation dialog is shown for external engines; skippable via a setting)
-- AI/OCR features and their API-key saving, model listing, and connection testing are all **actions you take** (UI buttons) — no automatic transmission
+- Receipt images are downscaled and re-encoded as JPEG before sending only when their long edge exceeds 2048px (and only if that makes them smaller); otherwise the original file is sent as is, so any Exif data such as the shooting date and location reaches the destination too
+- The Gemini API key is sent as a URL query parameter, which is how Google's API takes it. The connection is encrypted with HTTPS, but if your workplace network or security software inspects HTTPS traffic, the full URL, API key included, may be logged there
+- Review highly sensitive data before sending it (a pre-send confirmation dialog is shown for external engines; the setting that skips it is a single one that covers all three features and any engine or destination you switch to later, and it is carried over when you restore a backup)
+- Generative AI classification, OCR, order import, and the "Fetch model list" (for Gemini, also saves the API key) and "Test connection" buttons in Settings send only as **actions you take** (UI buttons) — no automatic transmission (the OpenAI-compatible "Save" button sends nothing)
 <!-- only:browser -->
 
 ### 4. PWA cache
@@ -174,7 +182,7 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 - Don't install untrusted browser extensions
 <!-- /only -->
 - Run backups regularly
-- **Always revoke** unused API keys on Google's side
+- **Always revoke** unused API keys with the issuer (Google, the OpenAI-compatible service, etc.)
 
 ## Dependency vulnerabilities
 
