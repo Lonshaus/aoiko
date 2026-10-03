@@ -122,8 +122,8 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：windows 在作業系統加裝日文文字辨識後就能選到',
-      pattern: /在作業系統那邊加裝日文的文字辨識後重新開啟就能選到/,
+      name: '本文：windows 在作業系統中加裝日文文字辨識後就能選擇',
+      pattern: /在作業系統中加裝日文的文字辨識後，重新開啟就能選擇/,
       only: ['windows'],
     },
     {
@@ -154,7 +154,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: '本文：不是每台裝置都能用只限 windows',
-      pattern: /\*\*不是每台裝置都能用\*\*。作業系統那邊沒裝日文的文字辨識就不會進選項/,
+      pattern: /\*\*不是每台裝置都能用\*\*。作業系統中沒有安裝日文的文字辨識時，不會列入選項/,
       only: ['windows'],
     },
     {
@@ -207,7 +207,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'prose: windows adding optical character recognition makes it selectable',
       pattern:
-        /It is re-checked with the device every time the Receipt OCR screen opens, so adding Japanese text recognition on the OS side/,
+        /It is re-checked with the device every time the Receipt OCR screen opens, so after you add Japanese text recognition to the OS/,
       only: ['windows'],
     },
     {
@@ -238,7 +238,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'prose: not every device can use it is windows only',
-      pattern: /\*\*Not every device can use it\.\*\* It only enters the option set/,
+      pattern: /\*\*Not every device can use it\.\*\* It is offered only when/,
       only: ['windows'],
     },
     {

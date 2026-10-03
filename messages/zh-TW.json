@@ -292,7 +292,7 @@
   "receipt_success": "✓ 已建立傳票（{name} {amount}）",
   "receipt_local_engine_notice": "這是純本機 OCR（Tesseract）的結果。請務必確認並修正合計金額、日期與店名。OCR 全文既不會顯示在畫面上，也不會存進傳票。",
   "receipt_native_engine_notice": "這是作業系統內建文字辨識的結果。合計金額、日期、店名請務必確認後修正。OCR 全文既不會顯示在畫面上，也不會存進傳票。",
-  "receipt_native_engine_notice_android": "這是裝置內的文字辨識（ML Kit）的結果。合計金額、日期、店名請務必確認後修正。OCR 全文既不會顯示在畫面上，也不會存進傳票。",
+  "receipt_native_engine_notice_android": "這是由裝置內的文字辨識（ML Kit）產生的結果。合計金額、日期、店名請務必確認後修正。OCR 全文既不會顯示在畫面上，也不會存進傳票。",
   "receipt_amount_required": "請輸入合計金額（半形整數）。",
   "order_title": "訂單匯入（貼上→AI 抽取）",
   "order_subtitle": "把 Amazon、楽天等訂單頁全文貼進來，由 AI 抽取品項明細 → 確認 → 轉成傳票。不透過解析 DOM，不怕網站改版。",

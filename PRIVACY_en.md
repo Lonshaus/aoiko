@@ -111,14 +111,14 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 - **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
 <!-- /only -->
 <!-- only:windows -->
-- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. aoiko itself downloads nothing. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it
 <!-- /only -->
 <!-- only:android -->
 - **On-device text recognition path (OCR only)**: no generative AI. ML Kit, bundled with the app, reads the text on-device. aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
-- **On-device Gemini Nano path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. Nothing extra is downloaded, but ML Kit sends usage information to Google
+- **On-device Gemini Nano path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. The model's distribution and updates are managed by AICore, a system component, and its downloads go through the system's Private Compute Services; aoiko never requests a model download. ML Kit sends usage information to Google
 <!-- /only -->
 <!-- only:apple -->
-- **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. Nothing extra is downloaded either
+- **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. The model is downloaded by the operating system when Apple Intelligence is turned on; aoiko never fetches it or starts that download
 <!-- /only -->
 <!-- only:browser -->
 - **Your browser's built-in AI path (generative AI classification and OCR alike)**: aoiko itself sends nothing, but whether inference runs on the device or in an external service is decided by the browser's implementation (the API specification permits cloud-backed implementations, so aoiko cannot guarantee the content stays on the device). This engine can be used only when your browser already holds the AI model — aoiko never fetches that model itself
@@ -211,17 +211,20 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- only:android -->
 | Manual export | The location you choose |
 <!-- /only -->
-
 <!-- only:browser -->
+
 **Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
 <!-- /only -->
 <!-- only:apple -->
+
 **Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
 <!-- /only -->
 <!-- only:windows -->
+
 **Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
 <!-- /only -->
 <!-- only:android -->
+
 **Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by a cloud service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
 <!-- /only -->
 

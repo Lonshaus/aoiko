@@ -96,7 +96,6 @@ class BackupChunkArgs {
 class BackupRidArgs {
     var rid: Int = 0
 }
-
 // デスクトップの CLOSE_SCRIPT と同じ入口。呼べたかどうかを返す。
 private const val REQUEST_CLOSE =
     "(function () {" +
@@ -206,7 +205,6 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
     fun isTextRecognitionAvailable(invoke: Invoke) {
         invoke.resolveObject(true)
     }
-
     // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでもカメラを
     // 起こせなければファイル選択に切り替えるため、こちらも同じ resolveActivity で揃える。
     @Command
@@ -292,7 +290,6 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             // EXIF が無い・壊れている画像は珍しくない。読めないだけで認識ごと落とさない。
             0
         }
-
     // SAF で選ばせる。返る content:// はパスにならないので、配下の入出力も全てここで行う。
     @Command
     fun pickFolder(invoke: Invoke) {
@@ -341,7 +338,6 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         }
         io(invoke) { invoke.resolveObject(Saf.openPicked(activity, uri)) }
     }
-
     // 破棄が選ばれたあとの終了。window.destroy() はウィンドウ本体を
     // 終わらせないので、こちらで畳む。webview から直に呼べる口は生やさない。
     @Command

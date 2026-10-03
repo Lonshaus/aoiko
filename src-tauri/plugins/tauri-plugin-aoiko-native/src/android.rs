@@ -77,7 +77,6 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(|e| Error::Io(format!("読み込んだ内容を解けません: {e}")))?;
         Ok(Some(bytes))
     }
-
     // 保存ダイアログ相当。取り消しは None。rid は backup_* と同じ台帳のもの。
     pub fn export_open(&self, file_name: &str) -> Result<Option<u32>> {
         self.0
@@ -151,7 +150,6 @@ impl<R: Runtime> AoikoNative<R> {
             .run_mobile_plugin("isTextRecognitionAvailable", ())
             .unwrap_or(false)
     }
-
     // カメラの無い端末で押せないボタンを生やさないための問い合わせ。
     pub fn is_camera_available(&self) -> bool {
         self.0
@@ -164,7 +162,6 @@ impl<R: Runtime> AoikoNative<R> {
             .run_mobile_plugin("nanoAvailability", ())
             .map_err(Into::into)
     }
-
     // 拒否されたときは code をそのまま返す。組み立て側（nano.rs）が code で分岐する。
     pub fn nano_generate(
         &self,

@@ -9,7 +9,6 @@ let target: HTMLElement | null = null;
 let component: Record<string, unknown> | null = null;
 
 type Bridged = { __aoikoNative?: { isCameraAvailable?: () => Promise<boolean> } };
-
 // ブリッジそのものを差し替える。カメラの有無は端末の事情で、部品の都合では決まらない。
 function withCamera(available: boolean | null): void {
   const w = window as unknown as Bridged;
@@ -34,7 +33,6 @@ function render(props: Record<string, unknown> = {}): HTMLInputElement {
   }
   return input;
 }
-
 // $effect の中の await が片付くまで待つ。flushSync だけでは足りない。
 async function settle(): Promise<void> {
   await Promise.resolve();
@@ -98,7 +96,6 @@ describe('FilePicker', () => {
     input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(stopped).toBe(true);
   });
-
   // 撮影の入口は足すだけで、選ぶ側の入口を置き換えない。片方に寄せると
   // 撮り溜めた画像が使えなくなるか、その場で撮れなくなるかのどちらかになる。
   test('camera を渡さなければ入口は 1 つのまま', async () => {
@@ -127,8 +124,7 @@ describe('FilePicker', () => {
     await settle();
     expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
   });
-
-  // ブリッジの無い環境（web 版・デスクトップ版）で撮影のボタンを生やさない。
+  // ブリッジの無い環境（web 版や、撮影のブリッジを持たない wrapper 版）で撮影のボタンを生やさない。
   test('ブリッジが無ければ入口は 1 つ', async () => {
     withCamera(null);
     render({ camera: true });

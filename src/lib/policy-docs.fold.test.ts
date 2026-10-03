@@ -92,7 +92,13 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'no no-external-request claim on android for OS recognition',
       pattern: /Nothing extra is downloaded and no external request is made/,
-      only: [...APPLE, 'windows'],
+      only: APPLE,
+    },
+    {
+      name: 'windows: aoiko downloads nothing; the Japanese OCR language feature must be present in Windows',
+      pattern:
+        /aoiko itself downloads nothing and makes no external request\. Reading Japanese requires the Japanese OCR language feature to be present in Windows/,
+      only: ['windows'],
     },
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
@@ -117,7 +123,13 @@ const RULES: Record<string, Rule[]> = {
     {
       name: '不對 android 寫成不會有對外連線',
       pattern: /不需額外下載，也不會有對外連線/,
-      only: [...APPLE, 'windows'],
+      only: APPLE,
+    },
+    {
+      name: 'windows：aoiko 本身不下載，Windows 中須有日文的 OCR 語言功能',
+      pattern:
+        /aoiko 本身不會下載任何資料，也不會有對外連線。要辨識日文，Windows 中必須有日文的 OCR 語言功能/,
+      only: ['windows'],
     },
     { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
@@ -224,7 +236,13 @@ const RULES: Record<string, Rule[]> = {
     {
       name: "'Nothing extra is downloaded either' not left dangling on android",
       pattern: /Nothing extra is downloaded either(?! However| ML Kit)/,
-      only: [...APPLE, 'windows'],
+      only: APPLE,
+    },
+    {
+      name: 'windows: aoiko downloads nothing; the Japanese OCR language feature must be present in Windows',
+      pattern:
+        /aoiko itself downloads nothing\. Reading Japanese requires the Japanese OCR language feature to be present in Windows/,
+      only: ['windows'],
     },
     {
       name: 'new-name table row has the ML Kit usage disclosure',
@@ -276,7 +294,12 @@ const RULES: Record<string, Rule[]> = {
     {
       name: '也不需額外下載任何資料，android 不獨立成句',
       pattern: /也不需額外下載任何資料(?!，但)/,
-      only: [...APPLE, 'windows'],
+      only: APPLE,
+    },
+    {
+      name: 'windows：aoiko 本身不下載，Windows 中須有日文的 OCR 語言功能',
+      pattern: /aoiko 本身不會下載任何資料。要辨識日文，Windows 中必須有日文的 OCR 語言功能/,
+      only: ['windows'],
     },
     {
       name: '新名稱的表格列有 ML Kit 使用狀況揭露',

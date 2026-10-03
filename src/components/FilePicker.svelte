@@ -12,7 +12,6 @@
   }
 
   let { accept, onchange, onclick, camera = false }: Props = $props();
-
   // カメラの無い端末で押せないボタンを生やさないため、プラットフォームだけでは決めない。
   let cameraReady = $state(false);
   $effect(() => {
