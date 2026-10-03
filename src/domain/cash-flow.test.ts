@@ -59,7 +59,7 @@ describe('addArApEntry / recordPayment', () => {
     expect(updated!.paidAmount).toBe('20000');
   });
 
-  test('残高を超える入金は throw', async () => {
+  test('残高を超える入金は例外を投げる', async () => {
     await addArApEntry({
       type: 'payable',
       description: 'B社',

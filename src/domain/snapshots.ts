@@ -2,8 +2,8 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import type { ConsumptionTaxSnapshotData, ReportSnapshot, ReportSnapshotData } from '../db/types';
 // 年度を「申告済み」としてロックする。
-// PL / BS / 月別売上の 3 種類のスナップショットを `status='filed'` で記録し、
-// 以降その年度の仕訳を訂正できなくする。
+// PL / BS / 月別売上（と課税事業者の年は消費税の確定額）のスナップショットを
+// `status='filed'` で記録する。以降その年度への書き込みは確認を経たものだけ通し（db/filed-year-guard）、請求書の発行・取消は確認があっても拒否する。
 export async function markYearFiled(
   year: number,
   payloads: {

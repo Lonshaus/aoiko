@@ -200,7 +200,7 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
 };
 // 措法28の2第3項明細（措置法通達28の2-3）の摘要。KOA210 AMF01790・KOA220 ANF01080 とも maxLength 15。
 const SMALL_ASSET_SUMMARY_NOTE = '措法28の2（明細は別途保管）';
-// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
+// 落選（要件外・上限超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
 function effectiveMethodLabel(
   asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },
   status: SmallAssetStatus | undefined,

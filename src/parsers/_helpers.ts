@@ -27,7 +27,7 @@ export function stripComma(s: string): string {
   return s.replace(/,/g, '');
 }
 // 返金・キャンセル行は負数金額で現れる（ParsedTransaction.amount は必ず非負の契約）。
-// 負数表記なら絶対値にして side を反転する（クレジットカードなら未払金の減少 = debit）。
+// 負数表記なら絶対値にして side を反転する（クレジットカードなら未払金の減少 = 借方）。
 // 対応表記：-1234 / −1234（全角マイナス）/ ▲1234 / △1234
 export function applySign(
   amount: string,

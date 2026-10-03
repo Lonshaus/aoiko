@@ -44,7 +44,7 @@ describe('createTesseractReceiptExtractor', () => {
     expect(extractor.external).toBe(false);
     expect(extractor.destinationHost).toBe('');
   });
-  // 外部オリジンを指すと wrapper 版の CSP（connect-src 'self'）で必ず失敗する。
+  // 外部オリジンを指すとラッパー版の CSP（connect-src 'self'）で必ず失敗する。
   test('worker とモデルは同一オリジンの自己ホストパスを使う', async () => {
     await extract();
     expect(constructed[0]?.workerURL).toBe('/tesseract/tesseract-worker.js');

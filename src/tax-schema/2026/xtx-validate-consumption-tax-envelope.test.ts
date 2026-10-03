@@ -78,9 +78,9 @@ function badDebtZeroExtras() {
   };
 }
 
-describe('消費税 .xtx エンベロープ全体の実 XSD validation（手続レベル、xmllint）', () => {
+describe('消費税 .xtx エンベロープ全体の実 XSD 検証（手続レベル、xmllint）', () => {
   if (!hasXmllint) {
-    test('xmllint 不在のため skip（CI は libxml2-utils 導入で強制）', () => {
+    test('xmllint が無いため省略（CI は libxml2-utils 導入で強制）', () => {
       expect(hasXmllint).toBe(false);
     });
   }

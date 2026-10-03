@@ -4,6 +4,8 @@ import { db } from '../db/db';
 import { setLocale } from '../paraglide/runtime';
 import type { OrderExtracted } from '../domain/order-extract';
 import { m } from '../paraglide/messages';
+import { ACCOUNTS_2026 } from '../tax-schema/2026';
+import { processYear } from '../domain/consumption-tax';
 
 const { defaultExtracted, state } = vi.hoisted(() => {
   const defaultExtracted = {
@@ -105,7 +107,7 @@ describe('OrderImport: 品目合計と総額の不一致', () => {
 
     await commit(c);
 
-    expect(c.textContent).toContain('品目合計と総額が一致しません');
+    expect(c.textContent).toContain('品目合計と合計金額が一致しません');
     // 借方が品目・貸方が総額なので、続行させても validateLines が unbalanced を投げる。
     // 英語の例外メッセージが画面に出ていないことも確かめる。
     expect(c.textContent).not.toContain('unbalanced');
@@ -124,7 +126,7 @@ describe('OrderImport: 品目合計と総額の不一致', () => {
 
     await commit(c);
 
-    expect(c.textContent).not.toContain('品目合計と総額が一致しません');
+    expect(c.textContent).not.toContain('品目合計と合計金額が一致しません');
     expect(await db.journalEntries.count()).toBe(1);
   });
 });
@@ -163,5 +165,123 @@ describe('OrderImport: キャンセル時の破棄確認', () => {
     flushSync();
 
     expect(c.querySelector('table')).toBeNull();
+  });
+});
+
+function rateSelects(c: HTMLElement): HTMLSelectElement[] {
+  return Array.from(
+    c.querySelectorAll<HTMLSelectElement>(`select[aria-label="${m.order_th_tax_rate()}"]`),
+  );
+}
+
+function pickRate(select: HTMLSelectElement, value: string): void {
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  flushSync();
+}
+
+function setTotal(c: HTMLElement, value: string): void {
+  const input = Array.from(c.querySelectorAll('label'))
+    .find((l) => (l.textContent ?? '').includes(m.order_label_total()))!
+    .querySelector('input')!;
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+}
+
+async function expenseLines() {
+  const lines = await db.journalLines.toArray();
+  return lines.filter((l) => l.accountCode !== '2120');
+}
+
+describe('OrderImport: 品目ごとの税率', () => {
+  test('既定は 10%、8% を選んだ品目は 8% で記録され、品名が各明細の memo に入る', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [
+        { description: '食品', amount: '5400' },
+        { description: '文具', amount: '3600' },
+      ],
+      totalAmount: '9000',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    const selects = rateSelects(c);
+    expect(selects.map((s) => s.value)).toEqual(['0.1', '0.1']);
+
+    pickRate(selects[0]!, '0.08');
+    await commit(c);
+
+    const lines = await expenseLines();
+    const food = lines.find((l) => l.memo === '食品')!;
+    const stationery = lines.find((l) => l.memo === '文具')!;
+    expect(food.taxRate).toBe(0.08);
+    expect(stationery.taxRate).toBe(0.1);
+  });
+
+  test('品目の税率が 1 種類なら、値引行はその品目と同じ税率になり、課税仕入が同率で減る', async () => {
+    await db.accounts.bulkPut(ACCOUNTS_2026.map((a) => ({ ...a, year: 2026 })));
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [
+        { description: '食品', amount: '10800' },
+        { description: 'クーポン', amount: '-1080' },
+      ],
+      totalAmount: '9720',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    pickRate(rateSelects(c)[0]!, '0.08');
+    expect(rateSelects(c)[1]!.value).toBe('0.08');
+    await commit(c);
+
+    const lines = await expenseLines();
+    const discount = lines.find((l) => l.memo === 'クーポン')!;
+    expect(discount.side).toBe('credit');
+    expect(discount.taxRate).toBe(0.08);
+    const processed = await processYear(2026);
+    // 値引後 9,720 円の 8% 分。適格請求書なしのため経過措置で 80%（値引が無ければ 499.2）
+    expect(processed.input8.toString()).toBe('449.28');
+    expect(processed.input10.toString()).toBe('0');
+  });
+
+  test('税率が混在するときは値引行ごとに選べる', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [
+        { description: '食品', amount: '5400' },
+        { description: '文具', amount: '3600' },
+        { description: 'クーポン', amount: '-500' },
+      ],
+      totalAmount: '8500',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    pickRate(rateSelects(c)[0]!, '0.08');
+    expect(rateSelects(c)[2]!.value).toBe('0.1');
+    pickRate(rateSelects(c)[2]!, '0.08');
+    await commit(c);
+
+    const discount = (await expenseLines()).find((l) => l.memo === 'クーポン')!;
+    expect(discount.taxRate).toBe(0.08);
+  });
+
+  test('総額の編集後も、行の税率はそのまま記録される', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [{ description: '食品', amount: '1000' }],
+      totalAmount: '900',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    pickRate(rateSelects(c)[0]!, '0.08');
+    setTotal(c, '1000');
+    await commit(c);
+
+    expect((await expenseLines())[0]!.taxRate).toBe(0.08);
   });
 });

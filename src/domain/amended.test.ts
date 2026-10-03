@@ -176,7 +176,7 @@ describe('getAmendmentDiff', () => {
     expect(r!.netIncomeDelta).toBe('-20000');
   });
 
-  test('bs baseline がない年度は bsChanges=null（旧仕様で申告済み）', async () => {
+  test('bs スナップショットがない年度は bsChanges=null（旧仕様で申告済み）', async () => {
     await addEntry({
       date: '2026-04-01',
       lines: [

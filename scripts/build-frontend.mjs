@@ -64,7 +64,7 @@ if (genResult.status !== 0) {
 
 // public/ から読む。dist/ は前回ビルドの出力そのものなので、そこを読むと
 // 毎回ネイティブ側の章が積み増しされてしまう。public/ は vite が素通しする
-// pristine な入力なので、何度ビルドしても結果は同じになる（冪等）。
+// 手の加わっていない元の入力なので、何度ビルドしても結果は同じになる（冪等）。
 const jsPart = readFileSync(resolve(root, 'public', 'THIRD_PARTY_LICENSES.txt'), 'utf8');
 const nativePart = readFileSync(
   resolve(root, 'src-tauri', 'THIRD_PARTY_LICENSES_NATIVE.txt'),

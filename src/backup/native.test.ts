@@ -47,7 +47,7 @@ describe('NativeFolderBackupAdapter.isAvailable', () => {
     vi.stubGlobal('window', {});
     expect(await adapterWith(null).adapter.isAvailable()).toBe(false);
   });
-  // saveFile だけを持つ旧 wrapper。__aoikoNative の有無だけで判定すると、
+  // saveFile だけを持つ旧ラッパー。__aoikoNative の有無だけで判定すると、
   // フォルダ選択を呼んだ時点で初めて壊れる。関数単位で見る。
   test('__aoikoNative はあるが backupChooseFolder が無ければ利用不可', async () => {
     vi.stubGlobal('window', { __aoikoNative: { saveFile: vi.fn() } });
@@ -67,7 +67,7 @@ describe('NativeFolderBackupAdapter.isReady', () => {
     expect(await adapterWith(CONFIGURED).adapter.isReady()).toBe(true);
     expect(api.backupIsReady).toHaveBeenCalledWith('tok');
   });
-  // ある環境 の bookmark が解決できなくなった / フォルダを削除された場合。
+  // ある環境の bookmark が解決できなくなった / フォルダを削除された場合。
   test('token が解決できなくなったら false', async () => {
     stubNative({ backupIsReady: vi.fn(async () => false) });
     expect(await adapterWith(CONFIGURED).adapter.isReady()).toBe(false);
@@ -133,8 +133,8 @@ describe('NativeFolderBackupAdapter.backup', () => {
     expect(api.backupWrite).not.toHaveBeenCalled();
   });
   // コンテンツアドレス方式のフォルダ構成では書き出し先が全部サブフォルダ付きになる。ここで弾くと
-  // wrapper 版のバックアップが 1 件も通らない（#430）。
-  test('サブフォルダ付きのパスをそのまま wrapper へ渡す', async () => {
+  // ラッパー版のバックアップが 1 件も通らない（#430）。
+  test('サブフォルダ付きのパスをそのままラッパーへ渡す', async () => {
     const api = stubNative();
     const path = 'attachments/' + 'a'.repeat(64);
     expect(await adapterWith(CONFIGURED).adapter.backup(streamOf([1]), path)).toEqual({
@@ -143,7 +143,7 @@ describe('NativeFolderBackupAdapter.backup', () => {
     expect(api.backupWrite).toHaveBeenCalledWith(CONFIGURED.token, path, expect.anything());
   });
 
-  test('組み立てられないパスは wrapper へ渡さない', async () => {
+  test('組み立てられないパスはラッパーへ渡さない', async () => {
     const api = stubNative();
     await expect(
       adapterWith(CONFIGURED).adapter.backup(streamOf([1]), 'snapshots/../escape.json'),
@@ -162,20 +162,20 @@ describe('NativeFolderBackupAdapter.read', () => {
     expect(api.backupRead).toHaveBeenCalledWith('tok', 'snapshots/2026-08-09T120000Z.json');
   });
 
-  test('未同期は wrapper が null を返す（そのまま素通しする）', async () => {
+  test('未同期はラッパーが null を返す（そのまま素通しする）', async () => {
     stubNative({ backupRead: vi.fn(async () => null) });
     expect(await adapterWith(CONFIGURED).adapter.read('attachments/x')).toBeNull();
   });
   // 能力が無いことを null で返すと「まだ同期されていない」と区別できず、
   // 読めるはずのスナップショットを黙って捨ててしまう。
-  test('backupRead が無い wrapper では null ではなく例外', async () => {
+  test('backupRead が無いラッパーでは null ではなく例外', async () => {
     stubNative();
     await expect(adapterWith(CONFIGURED).adapter.read('snapshots/a.json')).rejects.toThrow(
       'ネイティブ側の backupRead が未実装',
     );
   });
 
-  test('保存先の外を指すパスは wrapper へ渡さない', async () => {
+  test('保存先の外を指すパスはラッパーへ渡さない', async () => {
     const api = stubNative({ backupRead: vi.fn(async () => null) });
     await expect(adapterWith(CONFIGURED).adapter.read('../secrets')).rejects.toThrow(RangeError);
     expect(api.backupRead).not.toHaveBeenCalled();
@@ -214,7 +214,7 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(api.backupRemove).toHaveBeenCalledWith(CONFIGURED.token, path);
   });
 
-  test('remove も組み立てられないパスは wrapper へ渡さない', async () => {
+  test('remove も組み立てられないパスはラッパーへ渡さない', async () => {
     const api = stubNative();
     await expect(adapterWith(CONFIGURED).adapter.remove('../escape')).rejects.toThrow(RangeError);
     expect(api.backupRemove).not.toHaveBeenCalled();
@@ -229,7 +229,7 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(api.backupList).not.toHaveBeenCalled();
   });
   // 空配列で返すと「フォルダが空」と区別できず、古い世代の整理や GC が誤動作する。
-  test('backupListDir が無い wrapper では空配列ではなく例外', async () => {
+  test('backupListDir が無いラッパーでは空配列ではなく例外', async () => {
     stubNative();
     await expect(adapterWith(CONFIGURED).adapter.list('snapshots')).rejects.toThrow(
       'ネイティブ側の backupListDir が未実装',
@@ -242,7 +242,7 @@ describe('NativeFolderBackupAdapter.list / remove', () => {
     expect(api.backupListDir).not.toHaveBeenCalled();
   });
 
-  test('保存先の外を指す subdir は wrapper へ渡さない', async () => {
+  test('保存先の外を指す subdir はラッパーへ渡さない', async () => {
     const api = stubNative({ backupListDir: vi.fn(async () => []) });
     await expect(adapterWith(CONFIGURED).adapter.list('../..')).rejects.toThrow(RangeError);
     expect(api.backupListDir).not.toHaveBeenCalled();
@@ -254,7 +254,7 @@ describe('decideNativeState', () => {
       'idle',
     );
   });
-  // wrapper 実装へ移ってきた FSA 既存利用者。ここを unconfigured にすると
+  // ラッパー実装へ移ってきた FSA 既存利用者。ここを unconfigured にすると
   // scheduleBackup が即 return し、設定済みのつもりのまま自動バックアップが止まる。
   test('FSA の handle しか無ければ reconfigure-required（未設定と区別する）', () => {
     expect(decideNativeState({ hasFolder: false, hasLegacyHandle: true, ready: false })).toBe(
@@ -267,7 +267,7 @@ describe('decideNativeState', () => {
       'unconfigured',
     );
   });
-  // ある環境 の security-scoped bookmark 失効、フォルダの削除・移動。
+  // ある環境の security-scoped bookmark 失効、フォルダの削除・移動。
   test('フォルダはあるが解決できなければ reconfigure-required', () => {
     expect(decideNativeState({ hasFolder: true, hasLegacyHandle: false, ready: false })).toBe(
       'reconfigure-required',

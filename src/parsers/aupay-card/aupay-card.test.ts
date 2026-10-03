@@ -5,14 +5,14 @@ import { readSample } from '../fixtures/_read';
 const sample = readSample('src/parsers/aupay-card/aupay-card-sample.csv', auPayCardParser.encoding);
 
 describe('auPayCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(auPayCardParser.name).toBe('aupay-card');
     expect(auPayCardParser.displayName).toBe('au PAY カード');
     expect(auPayCardParser.accountCode).toBe('2120');
     expect(auPayCardParser.encoding).toBe('shift_jis');
   });
 
-  test('parses sample fixture; all rows credit', () => {
+  test('サンプルCSVを読み取る。全行が貸方', () => {
     const r = auPayCardParser.parse(sample);
     expect(r).toHaveLength(3);
     for (const tx of r) {
@@ -30,7 +30,7 @@ describe('auPayCardParser', () => {
     });
   });
 
-  test('throws on missing required column', () => {
+  test('必須列が欠けていれば例外を投げる', () => {
     const csv = '"利用日","利用金額"\n"2026/05/01","350"';
     expect(() => auPayCardParser.parse(csv)).toThrow(/CSV ヘッダー形式/);
   });

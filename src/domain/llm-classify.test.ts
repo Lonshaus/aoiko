@@ -49,7 +49,7 @@ function fakeAdapter(response: unknown): LlmAdapter {
 }
 
 describe('buildPrompt', () => {
-  test('includes candidate accounts with names', () => {
+  test('候補科目を名前付きで含める', () => {
     const p = buildPrompt([{ ref: 'r1', description: 'amazon', amount: '2500' }], {
       knownAccountCode: '1130',
       knownSide: 'credit',
@@ -59,7 +59,7 @@ describe('buildPrompt', () => {
     expect(p).toContain('4110 売上高');
   });
 
-  test('describes known side correctly', () => {
+  test('既知側の貸借を正しく記述する', () => {
     const p = buildPrompt([], {
       knownAccountCode: '1130',
       knownSide: 'credit',
@@ -69,7 +69,7 @@ describe('buildPrompt', () => {
     expect(p).toContain('求められる側：借方');
   });
 
-  test('escapes embedded quotes in descriptions', () => {
+  test('摘要内の引用符をエスケープする', () => {
     const p = buildPrompt([{ ref: 'r1', description: 'He said "hi"', amount: '100' }], {
       knownAccountCode: '1130',
       knownSide: 'debit',
@@ -86,7 +86,7 @@ describe('classifyWithLlm', () => {
     { ref: 'r3', description: '謎の文字列', amount: '500' },
   ];
 
-  test('maps response to inputs by ref', async () => {
+  test('応答を ref で入力に対応付ける', async () => {
     const adapter = fakeAdapter({
       classifications: [
         { ref: 'r1', accountCode: '5200', confidence: 'high', reason: 'EC' },
@@ -107,7 +107,7 @@ describe('classifyWithLlm', () => {
     expect(r[2]?.confidence).toBe('none');
   });
 
-  test('treats unknown accountCode in response as null', async () => {
+  test('応答内の不明な accountCode は null として扱う', async () => {
     const adapter = fakeAdapter({
       classifications: [{ ref: 'r1', accountCode: '9999', confidence: 'high' }],
     });
@@ -120,7 +120,7 @@ describe('classifyWithLlm', () => {
     expect(r[0]?.confidence).toBe('none');
   });
 
-  test('fills missing refs with none confidence', async () => {
+  test('欠けた ref は confidence none で埋める', async () => {
     const adapter = fakeAdapter({
       classifications: [{ ref: 'r1', accountCode: '5200', confidence: 'high' }],
     });
@@ -135,7 +135,7 @@ describe('classifyWithLlm', () => {
     expect(r[2]?.confidence).toBe('none');
   });
 
-  test('throws on malformed response', async () => {
+  test('不正な応答は例外を投げる', async () => {
     const adapter = fakeAdapter({ wrong: 'shape' });
     await expect(
       classifyWithLlm(adapter, inputs, {
@@ -146,7 +146,7 @@ describe('classifyWithLlm', () => {
     ).rejects.toThrow(/classifications/);
   });
 
-  test('returns empty array for empty input without calling adapter', async () => {
+  test('空の入力では adapter を呼ばずに空配列を返す', async () => {
     let called = false;
     const adapter: LlmAdapter = {
       external: false,
@@ -232,7 +232,7 @@ describe('classifyWithLlm（failed マーカーの伝播）', () => {
     expect(shouldFillSuggestion(r[0]!)).toBe(false);
   });
 
-  test('failed 行に accountCode/confidence high が同梱されていても none 扱いで auto-fill されない', async () => {
+  test('failed 行に accountCode/confidence high が同梱されていても none 扱いで自動入力されない', async () => {
     const adapter: LlmAdapter = {
       external: false,
       destinationHost: '',
@@ -277,7 +277,7 @@ describe('classifyWithLlm（failed マーカーの伝播）', () => {
 });
 
 describe('counterpartCandidates', () => {
-  test('liability known, credit side: expense/asset, no revenue, no realEstate', () => {
+  test('既知科目が負債・貸方：費用/資産、収益と不動産は含めない', () => {
     const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '2120', 'credit', true);
     const codes = r.map((a) => a.code);
     expect(codes).toContain('5200');
@@ -286,7 +286,7 @@ describe('counterpartCandidates', () => {
     expect(r.some((a) => a.category === 'revenue')).toBe(false);
   });
 
-  test('liability known, debit side (refund/repayment): expense/asset, no revenue, no realEstate', () => {
+  test('既知科目が負債・借方（返金・返済）：費用/資産、収益と不動産は含めない', () => {
     const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '2120', 'debit', true);
     const codes = r.map((a) => a.code);
     expect(codes).toContain('5200');
@@ -295,7 +295,7 @@ describe('counterpartCandidates', () => {
     expect(r.some((a) => a.incomeType === 'realEstate')).toBe(false);
   });
 
-  test('asset known, debit side (deposit): revenue/asset, excludes self, no expense', () => {
+  test('既知科目が資産・借方（入金）：収益/資産、自科目と費用は含めない', () => {
     const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '1130', 'debit', true);
     const codes = r.map((a) => a.code);
     expect(codes).not.toContain('1130');
@@ -304,7 +304,7 @@ describe('counterpartCandidates', () => {
     expect(r.some((a) => a.category === 'expense')).toBe(false);
   });
 
-  test('asset known, credit side (withdrawal): expense/asset, excludes self, no revenue', () => {
+  test('既知科目が資産・貸方（出金）：費用/資産、自科目と収益は含めない', () => {
     const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '1130', 'credit', true);
     const codes = r.map((a) => a.code);
     expect(codes).not.toContain('1130');
@@ -312,7 +312,7 @@ describe('counterpartCandidates', () => {
     expect(r.some((a) => a.category === 'revenue')).toBe(false);
   });
 
-  test('unknown known code, debit side: falls back to side-only rule', () => {
+  test('既知科目のコードが不明・借方：貸借だけのルールに切り替える', () => {
     const r = counterpartCandidates(CANDIDATE_ACCOUNTS, '9999', 'debit', true);
     const codes = r.map((a) => a.code);
     expect(r.length).toBeGreaterThan(0);

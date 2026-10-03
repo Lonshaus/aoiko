@@ -3,26 +3,26 @@
 **Language**: [日本語](SECURITY.md) | [English](SECURITY_en.md) | **繁體中文**
 <!-- only:browser -->
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR・訂單匯入時，以及在設定畫面按「取得模型清單」（Gemini 會同時儲存 API 金鑰）或「連線測試」時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
 <!-- /only -->
 <!-- only:apple -->
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR・訂單匯入時，以及在設定畫面按「取得模型清單」（Gemini 會同時儲存 API 金鑰）或「連線測試」時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
 <!-- /only -->
 <!-- only:windows -->
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR・訂單匯入時，以及在設定畫面按「取得模型清單」（Gemini 會同時儲存 API 金鑰）或「連線測試」時，內容與 API 金鑰都會送到所選的引擎（選擇在裝置內完成的引擎時根本不會送出）。本文件整理已知風險・支援方針・漏洞回報流程。
 <!-- /only -->
 <!-- only:android -->
 
-aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR 時，以及儲存 API 金鑰・取得模型清單・連線測試時，內容與 API 金鑰都會送到所選的引擎（選擇 Tesseract 時不會送出。選擇裝置內的文字辨識時不會送出圖片和文字，但使用狀況會送給 Google）。本文件整理已知風險・支援方針・漏洞回報流程。
+aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺服器，帳簿資料留在使用者的裝置上。使用者明確啟動生成式 AI 分類・OCR・訂單匯入時，以及在設定畫面按「取得模型清單」（Gemini 會同時儲存 API 金鑰）或「連線測試」時，內容與 API 金鑰都會送到所選的引擎（選擇 Tesseract 時不會送出。選擇裝置內的文字辨識時不會送出圖片和文字，但使用狀況會送給 Google）。本文件整理已知風險・支援方針・漏洞回報流程。
 <!-- /only -->
 
 ## 正規發布來源
 
 aoiko 只透過以下管道正式發布：
 
-- 線上試用版：<https://aoiko.pages.dev>
+- 線上版：<https://aoiko.pages.dev>
 <!-- only:apple -->
 - App Store（macOS 版・iOS 版）
 <!-- /only -->
@@ -34,7 +34,7 @@ aoiko 只透過以下管道正式發布：
 <!-- /only -->
 <!-- only:browser -->
 
-如果你是從其他地方（不熟悉的網站、包裝過的執行檔等）拿到的，**在輸入 API 金鑰或任何敏感資訊之前，請務必回到上述線上試用版核對內容**。
+如果你是從其他地方（來路不明的網站、執行檔等）拿到的，**在輸入 API 金鑰或任何敏感資訊之前，請務必回到上述線上版核對內容**。
 <!-- /only -->
 <!-- only:native -->
 
@@ -69,16 +69,16 @@ aoiko 只透過以下管道正式發布：
 ### BYOK 模式
 <!-- only:browser -->
 
-- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 瀏覽器內建的 AI）的 API 金鑰・端點設定**由使用者自己登錄・存在自己的瀏覽器 IndexedDB**（Tesseract 與瀏覽器內建的 AI 不需要金鑰也不需要設定）
+- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 瀏覽器內建的 AI）的 API 金鑰・端點設定**由使用者自己登錄・存在自己的瀏覽器 IndexedDB**（Tesseract 與瀏覽器內建的 AI 不需要 API 金鑰也不需要設定）
 <!-- /only -->
 <!-- only:apple -->
-- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識 ／ Apple Intelligence）的 API 金鑰・端點設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract、作業系統內建的文字辨識與 Apple Intelligence 不需要金鑰也不需要設定）
+- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識 ／ Apple Intelligence）的 API 金鑰・端點設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract、作業系統內建的文字辨識與 Apple Intelligence 不需要 API 金鑰也不需要設定）
 <!-- /only -->
 <!-- only:windows -->
-- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・端點設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與作業系統內建的文字辨識不需要金鑰也不需要設定）
+- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 作業系統內建的文字辨識）的 API 金鑰・端點設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與作業系統內建的文字辨識不需要 API 金鑰也不需要設定）
 <!-- /only -->
 <!-- only:android -->
-- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 裝置內的文字辨識）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與裝置內的文字辨識不需要金鑰也不需要設定）
+- 使用者選的 OCR/AI 引擎（Google Gemini API ／ OpenAI 相容 ／ Tesseract ／ 裝置內的文字辨識）的 API 金鑰・endpoint 設定**由使用者自己登錄・存在 App 的管理區域**（Tesseract 與裝置內的文字辨識不需要 API 金鑰也不需要設定）
 <!-- /only -->
 - 開發者・發布者**不取得・轉發・儲存**使用者的 API 金鑰・端點資訊
 <!-- only:browser -->
@@ -123,13 +123,19 @@ aoiko 只透過以下管道正式發布：
 <!-- /only -->
 - 個人資訊・交易紀錄・API 金鑰會被原樣讀走
 - 建議使用業務專用機、開啟磁碟加密
+- 開啟「備份時包含 API 金鑰」時，API 金鑰會以明文寫進備份檔；開啟「納入申報者資訊（利用者識別號碼・姓名・地址・稅務署）」時也一樣。備份的儲存位置若在同步資料夾內，這些資料也會原樣送到同步服務
 
 ### 3. AI API 送出內容的風險
 
-- CSV 各列・收據照片依使用者選的引擎送到以下處：
-  - **Gemini** → `generativelanguage.googleapis.com`（依 Google 的資料處理方針，是否用於學習要看合約而定）
+- CSV 匯入中未分類的列（摘要・金額）・收據照片・訂單匯入時貼上的完整文字（可能含收件人姓名・地址・電話）依使用者選的引擎送到以下處：
+  - **Gemini** → `generativelanguage.googleapis.com`（依 Google 的資料處理方針，是否用於訓練要看合約而定）
   - **OpenAI 相容**（Ollama 等）→ 使用者指定的 baseURL。localhost 時不離開本機
-  - **Tesseract** → 不送（WASM 在本機處理。語言資料也內附，不會產生對外通訊）
+<!-- only:browser -->
+  - **Tesseract** → 不送（WASM 在本機處理。程式與語言資料在第一次使用時從 aoiko 的發布來源取得並儲存，除此之外不會有連線）
+<!-- /only -->
+<!-- only:native -->
+  - **Tesseract** → 不送（WASM 在本機處理。語言資料內建在 App 中，不會有任何連線）
+<!-- /only -->
 <!-- only:browser -->
   - **瀏覽器內建的 AI** → aoiko 這邊不會送出（推論在哪裡執行，取決於瀏覽器的實作，不一定在本機）
 <!-- /only -->
@@ -145,8 +151,10 @@ aoiko 只透過以下管道正式發布：
 <!-- only:apple -->
   - **Apple Intelligence** → 不送（推論全程在本機完成）
 <!-- /only -->
-- 機密度高的資料送出前請確認（外部引擎使用時送出前會跳確認對話框，可透過設定跳過）
-- AI/OCR 功能與其 API 金鑰儲存・模型清單取得・連線測試，都是**由使用者操作觸發**（UI 按鈕），不會自動送出
+- 收據照片只有在長邊超過 2048px 時才會先縮小並轉成 JPEG 再送出（轉換後沒有變小時除外）；其餘照片以原檔送出，若含拍攝日期時間・位置等 Exif 資訊，也會一併送到送出對象
+- Gemini 的 API 金鑰依 Google API 的規格，以 URL 查詢參數送出。連線雖以 HTTPS 加密，但若職場網路或安全軟體會檢查 HTTPS 內容，整個網址（含 API 金鑰）可能會在那裡被記錄
+- 機密度高的資料送出前請確認（使用外部引擎時，送出前會跳出確認對話框；跳過確認的設定只有一個，會套用到三項功能，以及之後更換的引擎・送出對象，還原備份時也會一併帶入）
+- 生成式 AI 分類・OCR・訂單匯入，以及設定畫面的「取得模型清單」（Gemini 會同時儲存 API 金鑰）・「連線測試」，都是**由使用者操作觸發**（UI 按鈕）才會送出，不會自動送出（OpenAI 相容的「儲存」不會送出）
 <!-- only:browser -->
 
 ### 4. PWA 快取
@@ -162,7 +170,7 @@ aoiko 只透過以下管道正式發布：
 - 不安裝可疑的瀏覽器擴充功能
 <!-- /only -->
 - 定期備份
-- 不再需要的 API 金鑰請**務必到 Google 那邊讓它失效**
+- 不再需要的 API 金鑰請**務必到發行端（Google、OpenAI 相容服務等）讓它失效**
 
 ## 相依函式庫的漏洞
 

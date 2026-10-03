@@ -55,7 +55,8 @@ export async function chromeAiAvailability(): Promise<ChromeAiAvailability> {
 
 export async function createChromeAiSession(): Promise<ChromeAiSession> {
   const lm = languageModel();
-  if (!lm) {
+  // available 以外で create() を呼ぶとブラウザがモデルを取りに行くので、取得の契機をこの app が作らない。
+  if (!lm || (await chromeAiAvailability()) !== 'available') {
     throw new Error('chrome-ai is unavailable in this browser');
   }
   return lm.create(EXPECTED_INPUTS);

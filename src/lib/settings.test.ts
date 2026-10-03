@@ -8,7 +8,7 @@ import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
 import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
-const EXPECTED_VERSION = 9;
+const EXPECTED_VERSION = 10;
 
 // 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとのバージョンを守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
@@ -89,7 +89,7 @@ describe('messages/*.json の settings_aoiro_electronic', () => {
     expect(aoiroElectronicText('ja')).toContain('電磁的記録の備付け・保存');
   });
 
-  test('en：kept/preserved electronic records に触れている', () => {
+  test('en：「kept and preserved electronic records」に触れている', () => {
     expect(aoiroElectronicText('en')).toContain('kept and preserved electronic records');
   });
 

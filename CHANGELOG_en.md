@@ -32,7 +32,7 @@ Brings the Disclaimer, Privacy Policy, Security Policy and parts of the calculat
 
 ### Fixed
 
-- Employment income deduction not following Appended Table 5 of the Income Tax Act
+- Salary income deduction not following Appended Table 5 of the Income Tax Act
 - White return family employee deduction not being calculated or written on the return
 - Fixed-asset sales missing from taxable sales for consumption tax (4th category under simplified taxation, calculated as two categories when your configured category differs)
 - Interim-filing check ignoring the months in the preceding taxable period
@@ -51,7 +51,7 @@ Fixes for narrow screens and for canceling a change in Settings.
 
 ### Fixed
 
-- Canceling the confirmation for switching the filing method did not put the selection back
+- Canceling the confirmation for switching the filing type did not put the selection back
 
 ## [1.2.0] - 2026-09-13
 
@@ -116,10 +116,10 @@ Backups are now written as loose files inside a folder instead of one archive, a
 
 ### Added
 
-- **Folder backups**. Backups are now written as loose files inside a folder. Receipt photos are deduplicated by SHA-256, so a ledger with many photos writes out quickly and only the differences grow from one backup to the next. Receipts no longer referenced are cleaned up automatically
+- **Folder backups**. Backups are now written as loose files inside a folder. Receipt photos are deduplicated by SHA-256, so a ledger with many photos writes out quickly and only the differences grow from one backup to the next. Receipt photos no longer referenced can be deleted automatically after a number of days you set (off by default)
 - **Protection for filed years**. Any operation that would change a year already marked as filed is detected and warned about before it is written. The same safeguard now also covers paths that bypass the screen, so import and year-end processing can no longer rewrite a filed year silently
-- **Allowance for doubtful accounts**. Individual and lump-sum assessments are now handled separately, and the individually assessed portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
-- **Redo for Opening Setup**. Opening Setup can now be run again from the start even after it has already been run once. A second run no longer double-books opening costs or converted assets
+- **Allowance for doubtful accounts**. Individual and lump-sum valuations are now handled separately, and the individually valued portion can be deducted as a necessary expense on white returns too. The reversal entry at the start of the following period (the write-back method) is now generated as well
+- **Redo for Opening Setup**. Opening Setup can now be run again from the start even after it has already been run once. A second run no longer double-books pre-opening expenses or converted assets
 - **Editing invoice and quote drafts**. Drafts can now be edited after being created. Printouts now show the reduced-rate notice and the payment due date
 - The copyright notices of the third-party software we bundle can now be opened from within aoiko. Dependencies distributed only through CSS are now included as well
 
@@ -139,7 +139,7 @@ Backups are now written as loose files inside a folder instead of one archive, a
 - The ledger itself is now restored even when an attachment is corrupted. Orphaned line items are no longer imported, and a failed save of income deductions is no longer silently swallowed
 - On browsers that cannot observe when a save has completed, a canceled backup was treated as saved
 - The screen now reloads automatically after a backup is restored
-- Reading a receipt photo evicted from cloud storage could hang indefinitely
+- Reading a receipt photo that had been evicted from the device and remained only in cloud storage could hang indefinitely
 
 ### Fixed (tax filings and forms)
 
@@ -191,11 +191,11 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 
 ### Fixed (figures on tax filings)
 
-- Real-estate income was treated in full as the blue-return special deduction, and disappeared from the main form. Exporting `.xtx` now stops and prompts you when the real-estate section of the deductions screen has not been filled in
+- Real-estate income was treated in full as the blue-return special deduction, and disappeared from the main form. Exporting `.xtx` now stops and prompts you when the real-estate section of the Deductions screen has not been filled in
 - The balance sheet on the financial statement did not balance: accumulated depreciation was dropped (so fixed assets were reported at acquisition cost) and "income before the blue-return special deduction" was never written. A balance sheet is required for the ¥650,000 / ¥750,000 deduction
 - The basic deduction for tax year 2026 (Reiwa 8) is now the post-reform amount (¥620,000 plus the income-based addition). The dependent income threshold is updated from ¥580,000 to ¥620,000
 - The white-return family employee deduction was never subtracted anywhere. Family employee entry (name, relationship, age, months worked) has been added and now flows into both the income/expense breakdown statement and the main form. A spouse or relative registered as a family employee is automatically excluded from the spouse and dependent deductions
-- The declining-balance method wrote acquisition cost into the "base amount for depreciation" column (it should be the prior year-end book value, or the revised acquisition cost after the switch to the revised rate). On the general blue-return statement the column was left blank entirely
+- The declining-balance method wrote acquisition cost into the "base amount for depreciation" column (from the second year on it should be the prior year-end book value, or the revised acquisition cost after the switch to the revised rate). On the general blue-return statement the column was left blank entirely
 - Ending inventory was written as a negative number, overstating cost of sales by twice the ending inventory
 - Deductible consumption-tax input was computed separately on screen and in the `.xtx`, differing by up to ¥100. The per-rate breakdowns on Attachments 1-3 and 2-3 are also fixed
 - Rental properties appeared in the depreciation schedule of the general income/expense breakdown statement
@@ -208,7 +208,7 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 - **Fixed-asset disposal/sale and rental property details could not be saved.** Saving failed as soon as an amount was entered, with no error shown, so the input was lost on leaving the screen
 - **Backup snapshots were not atomic.** A backup taken while you were entering data could contain journal lines whose parent entry was missing, and restore accepted them
 - **A backup requested while another was being written was discarded and never retried.** Entries made while a backup was compressing could end up in no backup at all
-- Invoices dated 31 December received duplicate numbers (duplicate qualified-invoice numbers), and double-clicking Issue created duplicate journal entries and receivables
+- Invoices dated December 31 received duplicate numbers (duplicate qualified-invoice numbers), and double-clicking Issue created duplicate journal entries and receivables
 - A CSV decoded with the wrong character encoding did not raise an error; every description was imported as mojibake. The app now tells you the selected source is wrong
 - Cancellation and refund rows on SMBC card statements (`-1,110`, `▲732`) made the whole import fail
 - Receipt OCR could create a journal entry that appeared on no screen at all when the date could not be read
@@ -223,9 +223,9 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 
 ### What to check
 
-- **If you registered a fixed-asset disposal or rental property details**: it may not have been saved. Check the settings screen
+- **If you registered a fixed-asset disposal or rental property details**: it may not have been saved. Check the Settings screen
 - **If you use automatic backup**: take a fresh manual backup on this version
-- **If you issued invoices dated 31 December**: two or more on the same day share a number
+- **If you issued invoices dated December 31**: two or more on the same day share a number
 - **If you have already exported `.xtx`**: regenerating on this version may change the figures
 
 ## [1.0.2] - 2026-07-27
@@ -233,19 +233,22 @@ Fixes wrong figures on tax filings, plus a set of defects that lost ledger data 
 ### Fixed
 
 - Receipt OCR always failed when Tesseract was selected as the OCR engine. The worker and WASM core are now served from the same origin instead of an external CDN (first use still needs a connection to fetch the language data)
-- Automatic backup reported "OK" while never actually saving on some environments. The capability check now covers the API used for writing; where it is unavailable the status says so and points to manual download (Safari below 26 and iOS are affected). **If you used v1.0.1 or earlier on such an environment, not a single automatic backup was saved — please download one manually from the settings screen**
+- Automatic backup reported "OK" while never actually saving on some environments. The capability check now covers the API used for writing; where it is unavailable the status says so and points to manual download (Safari below 26 and iOS are affected). **If you used v1.0.1 or earlier on such an environment, not a single automatic backup was saved — please download one manually from the Settings screen**
 
 ## [1.0.1] - 2026-07-16
 
-### Fixed
+### Added
 
-- Mobile width (~400px) support: the header collapses into a hamburger menu on narrow screens, and the journal list, recent entries on Home, and import history tables scroll horizontally (the amount column used to be cut off). Also fixed the fixed-asset form select overflowing the screen and the monthly summary numbers being clipped on narrow widths
 - Added a revision history section to the disclaimer (mapping the version number shown in the consent status to its changes)
-- Updated manual pages, UI strings, and disclaimer statements that were left stale after the income-deduction and consumption-tax `.xtx` features landed (triggers a one-time disclaimer re-consent)
 
 ### Changed
 
 - Refreshed README screenshots; each language's README now shows the UI in that language
+
+### Fixed
+
+- Mobile width (~400px) support: the header collapses into a hamburger menu on narrow screens, and the journal list, recent entries on Home, and import history tables scroll horizontally (the amount column used to be cut off). Also fixed the fixed-asset form select overflowing the screen and the monthly summary numbers being clipped on narrow widths
+- Updated Guide pages, UI strings, and disclaimer statements that were left stale after the income-deduction and consumption-tax `.xtx` features landed (triggers a one-time disclaimer re-consent)
 
 ## [1.0.0] - 2026-07-13
 
@@ -254,11 +257,11 @@ Initial release.
 ### Added
 
 - Double-entry bookkeeping: journal entries, reversing entries, audit history that preserves the original entry, composite search by year / month / description / amount range / vendor
-- Both blue and white return support: blue-return financial statements (general / real estate) and income-and-expense breakdown statements (general / real estate)
+- Both blue and white return support: blue-return financial statements (general / real estate) and income/expense breakdown statements (general / real estate)
 - e-Tax `.xtx` export: tax return bundled with the financial statement, plus consumption tax returns (general taxation / simplified taxation / 20% special provision)
 - Bank and credit-card CSV import, import history, duplicate detection, batch-level reversal
 - Receipt OCR, order-page paste import, and AI account classification (Gemini / OpenAI-compatible incl. Ollama / Tesseract; the pre-send confirmation dialog is skippable via a setting)
-- Depreciation (straight-line, 200% declining-balance, small-asset special provision, lump-sum), home office allocation, prior-period carryover, Opening Setup
+- Depreciation (straight-line, 200% declining-balance, small-asset special provision, lump-sum), home-office allocation, prior-period carryover, Opening Setup
 - Consumption tax estimation with method comparison (general / simplified taxation, plus whichever special provision applies to that year — the 20% special provision through 2026, the 30% special provision for 2027–2028), transitional 80/70/50/30% input-tax credit applied automatically
 - Reports: monthly sales, P/L, balance sheet, monthly P/L, vendor / subaccount breakdowns
 - Invoice and quote creation (auto-generates the receivable journal entry on issue, corrections via reversing entries, quote-to-invoice conversion)
@@ -266,6 +269,15 @@ Initial release.
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
 - PWA: bookkeeping, reports, depreciation, consumption-tax calculation, `.xtx`, invoices/quotes, and backup restore work offline (Tesseract's first-time language data fetch, cloud engines, and the third-party license list require a connection); trilingual UI (Japanese / English / Traditional Chinese)
 
+[1.2.3]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.3
+[1.2.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.2
+[1.2.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.1
+[1.2.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.0
+[1.1.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.1.2
+[1.1.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.1.1
+[1.1.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.1.0
+[1.0.4]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.4
+[1.0.3]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.3
 [1.0.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Lonshaus/aoiko/releases/tag/v1.0.0

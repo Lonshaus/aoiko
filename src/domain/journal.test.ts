@@ -23,17 +23,17 @@ function line(
 }
 
 describe('validateLines', () => {
-  test('accepts a balanced two-line entry', () => {
+  test('貸借一致した 2 行の仕訳を受け付ける', () => {
     expect(() => validateLines([line('debit', '5000'), line('credit', '5000')])).not.toThrow();
   });
 
-  test('accepts a balanced multi-line entry', () => {
+  test('貸借一致した複数行の仕訳を受け付ける', () => {
     expect(() =>
       validateLines([line('debit', '4500'), line('debit', '500'), line('credit', '5000')]),
     ).not.toThrow();
   });
 
-  test('accepts cross-balance N debits to N credits', () => {
+  test('借方 N 行・貸方 N 行の貸借一致を受け付ける', () => {
     expect(() =>
       validateLines([
         line('debit', '3000'),
@@ -44,30 +44,30 @@ describe('validateLines', () => {
     ).not.toThrow();
   });
 
-  test('rejects empty', () => {
+  test('空の仕訳は拒否する', () => {
     const err = expectThrow(() => validateLines([]));
     expect(err.code).toBe('no-lines');
   });
 
-  test('rejects missing one side', () => {
+  test('片側が欠けた仕訳は拒否する', () => {
     const err = expectThrow(() => validateLines([line('debit', '5000'), line('debit', '5000')]));
     expect(err.code).toBe('one-sided');
   });
 
-  test('rejects unbalanced', () => {
+  test('貸借不一致は拒否する', () => {
     const err = expectThrow(() => validateLines([line('debit', '5000'), line('credit', '4000')]));
     expect(err.code).toBe('unbalanced');
     expect(err.message).toMatch(/5000.*4000/);
   });
 
-  test('rejects negative amount', () => {
+  test('負の金額は拒否する', () => {
     const err = expectThrow(() =>
       validateLines([{ ...line('debit', '5000'), amount: '-1000' }, line('credit', '5000')]),
     );
     expect(err.code).toBe('negative-amount');
   });
 
-  test('rejects all-zero entry', () => {
+  test('全行 0 円の仕訳は拒否する', () => {
     const err = expectThrow(() => validateLines([line('debit', '0'), line('credit', '0')]));
     expect(err.code).toBe('zero-amount');
   });
