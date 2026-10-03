@@ -59,8 +59,14 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 | 申報者資訊（利用者識別號碼・姓名・地址・稅務署）| IndexedDB | 不送（是否包含在備份中由「納入申報者資訊（利用者識別號碼・姓名・地址・稅務署）」決定，預設不包含。從不含此資訊的備份還原時，裝置上的申報者資訊會原樣保留）|
 | 備份資料夾的控制代碼 | IndexedDB | 不送 |
 | 匯入紀錄（檔案 hash）| IndexedDB | 不送 |
+<!-- only:browser -->
 
-此外，畫面的顯示語言存在 localStorage，備份還原後的結果提示等暫時性的資料存在 sessionStorage（關閉分頁或 App 後就會消失）。這些都不會送出。
+此外，畫面的顯示語言存在 localStorage，備份還原後的結果提示、畫面之間的移動目的地等暫時性的資料存在 sessionStorage。sessionStorage 的內容在關閉分頁後就會消失，但瀏覽器重新開啟已關閉的分頁或還原上次的工作階段時，內容可能會一併恢復。這些都不會送出。
+<!-- /only -->
+<!-- only:native -->
+
+此外，畫面的顯示語言存在 localStorage，備份還原後的結果提示、畫面之間的移動目的地等暫時性的資料存在 sessionStorage（關閉 App 後就會消失）。這些都不會送出。
+<!-- /only -->
 <!-- only:browser -->
 
 瀏覽器版還會把離線執行所需的 App 本身檔案，以及使用 Tesseract 時的文字辨識程式與語言資料存在 Cache Storage。全部只存在使用者的本機。**清除瀏覽器的網站資料會完全消失**。

@@ -59,8 +59,14 @@ The following is stored in the app's managed storage (database `aoiko`):
 | Filer info (user identification number, name, address, tax office) | IndexedDB | Not sent (whether backups include it is set by "Include filer info (user identification number, name, address, tax office)", off by default; restoring a backup without it keeps the filer info already on the device) |
 | Backup folder handle | IndexedDB | Not sent |
 | Import history (file hashes) | IndexedDB | Not sent |
+<!-- only:browser -->
 
-Besides these, the display language is kept in localStorage, and short-lived hand-offs such as the result notice right after a backup restore are kept in sessionStorage (cleared when the tab or app is closed). None of this is sent.
+Besides these, the display language is kept in localStorage, and short-lived hand-offs such as the result notice right after a backup restore and the destination when moving between screens are kept in sessionStorage. sessionStorage is cleared when the tab is closed, but if the browser restores a closed tab or a previous session, its contents may come back as well. None of this is sent.
+<!-- /only -->
+<!-- only:native -->
+
+Besides these, the display language is kept in localStorage, and short-lived hand-offs such as the result notice right after a backup restore and the destination when moving between screens are kept in sessionStorage (cleared when the app is closed). None of this is sent.
+<!-- /only -->
 <!-- only:browser -->
 
 The browser edition also keeps the app's own files (so it works offline) and, if you use Tesseract, its recognition program and language data in Cache Storage. All of the above exists only locally on your device. **Clearing browser site data wipes it completely**.
