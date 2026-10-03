@@ -21,7 +21,7 @@ let instance: Record<string, unknown> | undefined;
 
 function selectEl(): HTMLSelectElement {
   const heading = [...container!.querySelectorAll('h3')].find(
-    (h) => h.textContent === '開発用：文書のプレビュー対象',
+    (h) => h.textContent === '開発用：プレビュー対象',
   );
   const section = heading?.closest('section');
   const el = section?.querySelector('select');
@@ -66,10 +66,10 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('開発用：文書のプレビュー対象', () => {
+describe('開発用：プレビュー対象', () => {
   test('区画が出て、選択肢が 5 個ある', async () => {
     await renderSettings();
-    expect(container!.textContent).toContain('開発用：文書のプレビュー対象');
+    expect(container!.textContent).toContain('開発用：プレビュー対象');
     const options = selectEl().querySelectorAll('option');
     expect(options).toHaveLength(5);
   });
