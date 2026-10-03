@@ -223,7 +223,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 ### Built-in rule engine (the OS's built-in text recognition)
 
 - No AI engine needed, and no extra download
-- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the line printed largest at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
 - Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify and correct the total and date
@@ -233,7 +233,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 ### Built-in rule engine (the OS's built-in text recognition)
 
 - No AI engine needed, and aoiko itself downloads nothing extra
-- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the line printed largest at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
 - Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify and correct the total and date
