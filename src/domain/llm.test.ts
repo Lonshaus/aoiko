@@ -30,7 +30,7 @@ function mockFetch(impl: (url: string, init?: RequestInit) => unknown) {
 }
 
 describe('hostOf / isLocalHost', () => {
-  test('host 抽出', () => {
+  test('ホスト抽出', () => {
     expect(hostOf('http://localhost:11434/v1')).toBe('localhost:11434');
     expect(hostOf('https://api.openai.com/v1')).toBe('api.openai.com');
   });
@@ -147,7 +147,7 @@ describe('pickDefaultGeminiModel', () => {
     );
   });
 
-  test('flash が無ければ安定版の非 flash モデルに落ちる', () => {
+  test('flash が無ければ安定バージョンの非 flash モデルに落ちる', () => {
     expect(pickDefaultGeminiModel(['gemini-2.5-pro-preview', 'gemini-1.5-pro'])).toBe(
       'gemini-1.5-pro',
     );
@@ -250,7 +250,7 @@ describe('オフライン時の fetch 失敗', () => {
 });
 
 describe('接続失敗の理由の併記', () => {
-  // wrapper 版はネイティブ側の拒否理由をそのまま投げてくる。捨てると利用者は
+  // ラッパー版はネイティブ側の拒否理由をそのまま投げてくる。捨てると利用者は
   // 「サーバ起動・CORS を確認」という、この状況では解決しない助言だけを見る。
   test('下位のエラーメッセージを助言に併記する', async () => {
     vi.stubGlobal('navigator', { onLine: true });

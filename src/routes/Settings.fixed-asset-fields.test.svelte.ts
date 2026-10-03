@@ -297,7 +297,7 @@ describe('少額特例落選資産の画面での扱い', () => {
         break;
       }
     }
-    // 除却仕訳の 1520 debit（既存の年末償却仕訳は 1520 credit のため side で絞る）
+    // 除却仕訳の 1520 借方（既存の年末償却仕訳は 1520 貸方のため side で絞る）
     const accDepLine = lines.find((l) => l.accountCode === '1520' && l.side === 'debit');
     expect(accDepLine?.amount).toBe('65000');
   });

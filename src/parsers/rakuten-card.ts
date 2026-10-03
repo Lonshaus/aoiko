@@ -8,11 +8,11 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// 楽天カード 利用明細 CSV（e-NAVI ダウンロード、実データ確認済）。
+// 楽天カードの利用明細 CSV（e-NAVI ダウンロード、実データ確認済）。
 // エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）
 // ヘッダー：利用日, 利用店名・商品名, 利用者, 支払方法, 利用金額,
 //           手数料/利息, 支払総額, {N}月支払金額, {N}月繰越残高, 新規サイン
-// クレジットカードのため、すべての行は credit 側（未払金 増加）として扱う。
+// クレジットカードのため、すべての行は貸方側（未払金の増加）として扱う。
 // 後日銀行口座から引落し時、別途仕訳（未払金/普通預金）が必要。
 
 const DISPLAY = '楽天カード';
@@ -45,7 +45,7 @@ const rakutenCardParser: CsvParser = {
       if (!amountRaw) {
         continue;
       }
-      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      // 返金・キャンセル行は負数 → 絶対値 + 借方（未払金の減少）
       const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const memoParts: string[] = [];

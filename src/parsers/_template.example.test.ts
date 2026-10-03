@@ -11,13 +11,13 @@ const sample = readSample(
 );
 
 describe('myBankParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(myBankParser.name).toBe('my-bank');
     expect(myBankParser.accountCode).toBe('1130');
     expect(myBankParser.encoding).toBe('shift_jis');
   });
 
-  test('parses sample fixture', () => {
+  test('サンプルCSVを読み取る', () => {
     const r = myBankParser.parse(sample);
     expect(r).toHaveLength(2);
 
@@ -34,7 +34,7 @@ describe('myBankParser', () => {
     });
   });
 
-  test('throws on missing required column', () => {
+  test('必須列が欠けていれば例外を投げる', () => {
     const csv = '日付,摘要\n2026/05/01,test';
     expect(() => myBankParser.parse(csv)).toThrow(/CSV ヘッダー形式/);
   });

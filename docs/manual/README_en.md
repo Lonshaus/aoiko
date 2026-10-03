@@ -14,21 +14,21 @@ Step-by-step instructions for first-time aoiko users. Each chapter covers one fe
 
 ### A. Basics (read first)
 
-- [01. Initial setup](01-setup_en.md) — disclaimer, trade name, year, consumption tax method, sub-accounts, vendors, OCR/AI engine
-- [02. Creating journal entries](02-journal_en.md) — manual entry, correcting (reversing) entries, composite search on the journal list
+- [01. Initial setup](01-setup_en.md) — disclaimer, trade name, year, consumption tax method, subaccounts, vendors, OCR/AI engine
+- [02. Creating journal entries](02-journal_en.md) — manual entry, reversing entries, composite search on the journal list
 - [03. CSV import](03-csv-import_en.md) — bulk-create entries from bank/card statements, auto-classification rules, import history
 - [06. Reports](06-reports_en.md) — monthly sales, P/L, balance sheet, monthly P/L, vendor breakdown, consumption-tax method comparison
 
 ### B. Additional import paths (as needed)
 
 - [04. Receipt OCR](04-receipt-ocr_en.md) — paper receipt → journal candidate
-- [05. Order import](05-order-import_en.md) — paste Amazon / 楽天 etc. → AI extract
+- [05. Order import](05-order-import_en.md) — paste Amazon / Rakuten etc. → AI extract
 
 ### C. Advanced features (as needed)
 
 - [07. Consumption tax](07-consumption-tax_en.md) — choosing a method, transitional credit, input tax credit
-- [08. Depreciation](08-depreciation_en.md) — fixed assets, straight-line / declining balance, ¥400k small-asset rule
-- [09. Prior-period carryover](09-carryover_en.md) — fiscal year transition, opening journal
+- [08. Depreciation](08-depreciation_en.md) — fixed assets, straight-line / declining balance, ¥400,000 small-asset special provision
+- [09. Prior-period carryover](09-carryover_en.md) — tax year transition, carryover entry
 - [10. `.xtx` export](10-xtx-export_en.md) — e-Tax format generation and loading into e-Tax software
 <!-- only:browser -->
 - [11. Backup and restore](11-backup_en.md) — File System Access API, OPFS, zip export

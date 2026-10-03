@@ -5,13 +5,13 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/view-card-sample.csv', viewCardParser.encoding);
 
 describe('viewCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(viewCardParser.name).toBe('view-card');
     expect(viewCardParser.accountCode).toBe('2120');
     expect(viewCardParser.encoding).toBe('shift_jis');
   });
 
-  test('skips冒頭の情報行とカード会員行, parses明細', () => {
+  test('冒頭の情報行とカード会員行を飛ばして明細を読む', () => {
     const r = viewCardParser.parse(sample);
     expect(r).toHaveLength(4);
     expect(r[0]).toMatchObject({
@@ -23,12 +23,12 @@ describe('viewCardParser', () => {
     expect(r[0]?.memo).toBeUndefined();
   });
 
-  test('keeps非デフォルト支払区分 as memo', () => {
+  test('既定以外の支払区分をメモに残す', () => {
     const r = viewCardParser.parse(sample);
     expect(r[1]).toMatchObject({ amount: '3000', memo: '３回払' });
   });
 
-  test('払戻額のみの行は debit（未払金 減）', () => {
+  test('払戻額のみの行は借方（未払金の減）', () => {
     const r = viewCardParser.parse(sample);
     expect(r[2]).toMatchObject({
       date: '2026-04-20',
@@ -37,7 +37,7 @@ describe('viewCardParser', () => {
     });
   });
 
-  test('ご利用額がマイナス表記の行は符号を反転して debit にする', () => {
+  test('ご利用額がマイナス表記の行は符号を反転して借方にする', () => {
     const r = viewCardParser.parse(sample);
     expect(r[3]).toMatchObject({
       date: '2026-04-25',
@@ -46,7 +46,7 @@ describe('viewCardParser', () => {
     });
   });
 
-  test('throws when no header row is found', () => {
+  test('ヘッダー行が見つからなければ例外を投げる', () => {
     expect(() => viewCardParser.parse('foo,bar\n1,2')).toThrow(/CSV ヘッダー形式/);
   });
 });

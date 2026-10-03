@@ -2,23 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { getPolicyDoc, getLicenseText, stripLanguageNav, isExternalLink } from './policy-docs';
 
 describe('getPolicyDoc', () => {
-  it('日本語版を返す', () => {
+  it('日本語の文書を返す', () => {
     const content = getPolicyDoc('DISCLAIMER', 'ja');
     expect(content).toContain('免責事項');
   });
 
-  it('繁体中国語版を返す', () => {
+  it('繁体中国語の文書を返す', () => {
     const content = getPolicyDoc('DISCLAIMER', 'zh-TW');
     expect(content).toContain('免責事項');
     expect(content).not.toContain('本ツールは日本の');
   });
 
-  it('英語版を返す', () => {
+  it('英語の文書を返す', () => {
     const content = getPolicyDoc('DISCLAIMER', 'en');
     expect(content).toContain('Disclaimer');
   });
 
-  it('未知の locale は日本語版へフォールバックする', () => {
+  it('未知の locale は日本語の文書へフォールバックする', () => {
     // @ts-expect-error 実行時の防御を確認するため意図的に不正な値を渡す
     const content = getPolicyDoc('DISCLAIMER', 'fr');
     expect(content).toContain('免責事項');

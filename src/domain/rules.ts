@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import type { ParserRule } from '../db/types';
+import type { ParserRule, Vendor } from '../db/types';
 // priority 降順で全ルールを読み込む。行ごとに呼ばず、ファイル処理の開始時に一度だけ読む。
 export async function loadRules(): Promise<ParserRule[]> {
   return db.parserRules.orderBy('priority').reverse().toArray();
@@ -12,6 +12,23 @@ export function findMatchingRule(rules: ParserRule[], description: string): Pars
     }
   }
   return null;
+}
+// 取引内容に名前が含まれる取引先のうち、既定科目を持つものを返す。複数なら名前の長い方を優先する
+export function findVendorByDefaultAccount(vendors: Vendor[], description: string): Vendor | null {
+  let best: Vendor | null = null;
+  for (const v of vendors) {
+    if (
+      !v.defaultAccountCode ||
+      v.name === '' ||
+      !description.toLowerCase().includes(v.name.toLowerCase())
+    ) {
+      continue;
+    }
+    if (best === null || v.name.length > best.name.length) {
+      best = v;
+    }
+  }
+  return best;
 }
 
 export function matchRule(rule: ParserRule, text: string): boolean {

@@ -37,19 +37,19 @@ afterEach(async () => {
 });
 
 describe('computeFileHash', () => {
-  test('returns 64 hex chars', async () => {
+  test('16 進 64 文字を返す', async () => {
     const h = await computeFileHash('abc');
     expect(h).toHaveLength(64);
     expect(h).toMatch(/^[0-9a-f]{64}$/);
   });
 
-  test('same text → same hash', async () => {
+  test('同じテキスト → 同じハッシュ', async () => {
     const a = await computeFileHash('hello');
     const b = await computeFileHash('hello');
     expect(a).toBe(b);
   });
 
-  test('different text → different hash', async () => {
+  test('異なるテキスト → 異なるハッシュ', async () => {
     const a = await computeFileHash('hello');
     const b = await computeFileHash('world');
     expect(a).not.toBe(b);
@@ -57,7 +57,7 @@ describe('computeFileHash', () => {
 });
 
 describe('commitImport', () => {
-  test('creates one entry with two lines per valid row', async () => {
+  test('有効な行ごとに 2 行の仕訳を 1 件作る', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx({ description: '入金', amount: '5000', side: 'debit' }),
@@ -85,7 +85,7 @@ describe('commitImport', () => {
     expect(sourcedFromCsv).toBe(true);
   });
 
-  test('debit transaction creates known=debit + counterpart=credit', async () => {
+  test('借方の取引は known=debit + counterpart=credit を作る', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx({ amount: '5000', side: 'debit' }),
@@ -135,7 +135,7 @@ describe('commitImport', () => {
     expect(counter?.invoiceCompliant).toBe(false);
   });
 
-  test('credit transaction creates known=credit + counterpart=debit', async () => {
+  test('貸方の取引は known=credit + counterpart=debit を作る', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx({ amount: '5000', side: 'credit' }),
@@ -151,7 +151,7 @@ describe('commitImport', () => {
     expect(counter?.side).toBe('debit');
   });
 
-  test('skipped rows are excluded', async () => {
+  test('スキップした行は除外する', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx({ description: 'これは入れる' }),
@@ -170,7 +170,7 @@ describe('commitImport', () => {
     expect(entries[0]?.description).toBe('これは入れる');
   });
 
-  test('rows missing counterpart are excluded', async () => {
+  test('相手科目のない行は除外する', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx(),
@@ -182,7 +182,7 @@ describe('commitImport', () => {
     );
   });
 
-  test('rejects duplicate fileHash', async () => {
+  test('重複する fileHash は拒否する', async () => {
     const rows: ImportRow[] = [{ transaction: tx(), counterpartAccountCode: '4110' }];
     await commitImport({ ...KNOWN_INFO, fileHash: 'shared-hash' }, rows);
 
@@ -191,7 +191,7 @@ describe('commitImport', () => {
     ).rejects.toThrow(DuplicateImportError);
   });
 
-  test('description override takes precedence over parser description', async () => {
+  test('摘要の上書きはパーサーの摘要より優先される', async () => {
     const rows: ImportRow[] = [
       {
         transaction: tx({ description: 'パーサー由来' }),
@@ -204,7 +204,7 @@ describe('commitImport', () => {
     expect(e?.description).toBe('ユーザー上書き');
   });
 
-  test('records ImportBatch with correct rowCount', async () => {
+  test('ImportBatch を正しい rowCount で記録する', async () => {
     const rows: ImportRow[] = [
       { transaction: tx(), counterpartAccountCode: '4110' },
       { transaction: tx(), counterpartAccountCode: '4110', skip: true },
@@ -218,7 +218,7 @@ describe('commitImport', () => {
     expect(batches[0]?.parserName).toBe('sbi-hybrid');
   });
 
-  test('all entries link back to ImportBatch via sourceImportId', async () => {
+  test('すべての仕訳が sourceImportId で ImportBatch に紐づく', async () => {
     const rows: ImportRow[] = [
       { transaction: tx(), counterpartAccountCode: '4110' },
       { transaction: tx(), counterpartAccountCode: '5130' },

@@ -91,7 +91,7 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   };
 }
 
-describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', () => {
+describe('mapKoa130Values（収支内訳書・不動産所得用の第1頁）', () => {
   test('realEstatePl が無ければ空を返す', () => {
     expect(mapKoa130Values(ctx())).toEqual({});
   });
@@ -319,7 +319,7 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
         ]),
       }),
     );
-    // 専従者控除前所得金額は 100万（貸倒引当金繰入額は戻さない）→ 100万÷2=50万 と
+    // 専従者控除前所得金額は 100万（貸倒引当金繰入額は戻さない）→ 100万÷2=50万と
     // 配偶者定額86万のいずれか低い方＝50万（戻していれば140万÷2=70万になり不一致）
     expect(out.AKG00240).toBe('500000');
     expect(out.AKG00250).toBe('500000');
@@ -354,7 +354,7 @@ describe('mapKoa130Values（収支内訳書・不動産所得用 第1頁）', ()
         ]),
       }),
     );
-    // 専従者控除前所得金額400万→配偶者の定額86万 と 400万÷2=200万 のいずれか低い方＝86万
+    // 専従者控除前所得金額400万→配偶者の定額86万と 400万÷2=200万のいずれか低い方＝86万
     expect(out.AKG00240).toBe('860000');
     expect(out.AKG00250).toBe('3140000');
   });

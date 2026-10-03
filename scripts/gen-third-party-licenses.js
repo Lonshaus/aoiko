@@ -3,7 +3,7 @@
 // 添付を求めており、配布物そのものに載っていなければ満たせない。ストアの規約ではなく
 // 各ライセンス自身の要求なので、web 版・app 版のどちらにも等しく掛かる。
 //
-// 一覧の出所は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
+// 一覧の取得元は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
 // node_modules は本文を読むためだけに使う。--check は生成し直して差分を見る。
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -54,8 +54,7 @@ const SHIPPED_DEV_ONLY = [
   'tailwindcss', // src/app.css の @import。preflight・theme 層は tailwindcss 自身のコード
   'shadcn-svelte', // src/app.css が dist/tailwind.css を @import する
 ];
-
-// tesseract-ocr/tesseract の LICENSE 本文（2026-08 に upstream から取得）。
+// tesseract-ocr/tesseract の LICENSE 本文（2026-08 に配布元から取得）。
 // プロジェクト全体を束ねる単一の著作権表示は無く、末尾の Appendix も
 // [yyyy] [name of copyright owner] のプレースホルダのまま。実際の著作権表示は
 // ファイルごとのヘッダーに分散している（copyright フィールド側で代表例を示す）。
@@ -652,8 +651,7 @@ function licenseNameFromText(dir) {
   const first = readNamed(dir, LICENSE_FILE).split('\n')[0]?.trim() ?? '';
   return first !== '' && first.length <= 60 ? `${first}（本文から判定）` : '(不明)';
 }
-
-// MIT License の標準本文（SPDX の canonical text）。本文を同梱していないパッケージの
+// MIT License の標準本文（SPDX の正式本文）。本文を同梱していないパッケージの
 // ために持つ。著作権者の行は各パッケージの宣言を上に並べるため差し替えている。
 const MIT_TEXT = `MIT License
 
@@ -764,7 +762,7 @@ function render(packages) {
     lines.push(`対象：${labels.join(', ')}`, '');
     for (const a of entry.externals) {
       lines.push(
-        `── ${a.name} の著作権表示（upstream: ${a.upstream}） ──`,
+        `── ${a.name}${a.name.endsWith('）') ? '' : ' '}の著作権表示（upstream: ${a.upstream}） ──`,
         '',
         `  ${a.copyright}`,
         '',
@@ -807,7 +805,7 @@ function render(packages) {
   // BOM を付けるのは text/plain に charset が付かない配信環境があるため。
   // 付けないとブラウザが既定の旧エンコーディングで解釈し、日本語が全て文字化けする
   // （vite preview で実測）。_headers で charset を足せるのは web 版だけで、
-  // wrapper 版は独自プロトコル配信なので効かない。ファイル自身に持たせれば両方で直る。
+  // ラッパー版は独自プロトコル配信なので効かない。ファイル自身に持たせれば両方で直る。
   return `﻿${lines.join('\n').trimEnd()}\n`;
 }
 

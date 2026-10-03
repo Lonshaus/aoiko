@@ -64,7 +64,7 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
     expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
   });
 
-  test('定義側：値が入った項目だけ ID=定義名 付きで IT 部に出る', () => {
+  test('定義側：値が入った項目だけ ID=定義名付きで IT 部に出る', () => {
     const xml = buildXtxDocument(k210, { NOZEISHA_YAGO: '青井商店' });
     expect(xml).toContain('<NOZEISHA_YAGO ID="NOZEISHA_YAGO">青井商店</NOZEISHA_YAGO>');
     // 値の無い定義は出ない

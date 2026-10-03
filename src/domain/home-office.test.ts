@@ -21,20 +21,20 @@ function line(overrides: Partial<SplittableLine> = {}): SplittableLine {
 }
 
 describe('expandHomeOffice', () => {
-  test('pass-through when ratio is empty', () => {
+  test('按分率が空ならそのまま返す', () => {
     const r = expandHomeOffice([line({ amount: '5000' })]);
     expect(r).toHaveLength(1);
     expect(r[0]?.amount).toBe('5000');
   });
 
-  test('pass-through when ratio is 1', () => {
+  test('按分率が 1 ならそのまま返す', () => {
     const r = expandHomeOffice([line({ amount: '5000', homeOfficeRatio: '1' })]);
     expect(r).toHaveLength(1);
     expect(r[0]?.accountCode).toBe('5260');
     expect(r[0]?.amount).toBe('5000');
   });
 
-  test('splits 100,000 at 0.30 into 30,000 + 70,000', () => {
+  test('100,000 を 0.30 で 30,000 + 70,000 に分ける', () => {
     const r = expandHomeOffice([line({ amount: '100000', homeOfficeRatio: '0.30' })]);
     expect(r).toHaveLength(2);
     const business = r.find((x) => x.accountCode === '5260');
@@ -43,7 +43,7 @@ describe('expandHomeOffice', () => {
     expect(drawing?.amount).toBe('70000');
   });
 
-  test('consolidates multiple personal portions into single drawing line', () => {
+  test('複数の私用分を 1 行の事業主貸にまとめる', () => {
     const r = expandHomeOffice([
       line({ id: 'a', accountCode: '5260', amount: '100000', homeOfficeRatio: '0.30' }),
       line({ id: 'b', accountCode: '5150', amount: '5000', homeOfficeRatio: '0.40' }),
@@ -53,7 +53,7 @@ describe('expandHomeOffice', () => {
     expect(drawing?.amount).toBe('73000'); // 70000 + 3000
   });
 
-  test('preserves credit-side lines unchanged', () => {
+  test('貸方の行は変えない', () => {
     const r = expandHomeOffice([
       line({ side: 'credit', accountCode: '1130', amount: '100000', homeOfficeRatio: '0.30' }),
     ]);
@@ -62,7 +62,7 @@ describe('expandHomeOffice', () => {
     expect(r[0]?.amount).toBe('100000');
   });
 
-  test('rounding: 100,001 at 0.30 splits into 30,000 + 70,001 (no lost yen)', () => {
+  test('端数処理：100,001 を 0.30 で 30,000 + 70,001 に分ける（1 円も失わない）', () => {
     const r = expandHomeOffice([line({ amount: '100001', homeOfficeRatio: '0.30' })]);
     const business = r.find((x) => x.accountCode === '5260');
     const drawing = r.find((x) => x.accountCode === '1610');
@@ -70,7 +70,7 @@ describe('expandHomeOffice', () => {
     expect(drawing?.amount).toBe('70001');
   });
 
-  test('rejects ratio outside [0, 1]', () => {
+  test('[0, 1] の範囲外の按分率は拒否する', () => {
     expect(() => expandHomeOffice([line({ homeOfficeRatio: '1.5' })])).toThrow(
       HomeOfficeRatioError,
     );
@@ -79,23 +79,23 @@ describe('expandHomeOffice', () => {
     );
   });
 
-  test('rejects ratio of exactly 0', () => {
+  test('按分率がちょうど 0 なら拒否する', () => {
     expect(() => expandHomeOffice([line({ homeOfficeRatio: '0' })])).toThrow(/0% の行は意味がない/);
   });
 
-  test('rejects malformed ratio', () => {
+  test('形式の不正な按分率は拒否する', () => {
     expect(() => expandHomeOffice([line({ homeOfficeRatio: 'abc' })])).toThrow(
       HomeOfficeRatioError,
     );
   });
 
-  test('zero amount with ratio: pass-through', () => {
+  test('金額 0 で按分率ありならそのまま返す', () => {
     const r = expandHomeOffice([line({ amount: '0', homeOfficeRatio: '0.30' })]);
     expect(r).toHaveLength(1);
     expect(r[0]?.amount).toBe('0');
   });
 
-  test('preserves taxRate / taxIncluded on business portion', () => {
+  test('事業分は taxRate / taxIncluded を保つ', () => {
     const r = expandHomeOffice([
       line({
         amount: '10000',
@@ -109,7 +109,7 @@ describe('expandHomeOffice', () => {
     expect(business?.taxIncluded).toBe(false);
   });
 
-  test('drawing portion is tax-exempt (taxRate 0)', () => {
+  test('事業主貸の部分は不課税（taxRate 0）', () => {
     const r = expandHomeOffice([line({ amount: '10000', homeOfficeRatio: '0.50', taxRate: 0.1 })]);
     const drawing = r.find((x) => x.accountCode === '1610');
     expect(drawing?.taxRate).toBe(0);

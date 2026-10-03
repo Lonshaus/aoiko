@@ -1,5 +1,5 @@
 // aoiko 業務データ（不動産所得PL・FixedAsset・personalDeductions.realEstateIncome）
-// → KOA130（収支内訳書・不動産所得用・白色申告用）参照側 直接値 leaf への転記。
+// → KOA130（収支内訳書・不動産所得用・白色申告用）参照側の直接値の葉要素への転記。
 //
 // KOA110（事業所得・白色）と同じく、給料賃金の実額ではなく続柄で決まる定額の専従者控除
 // （AKG00240）を出力する。ただし不動産所得の専従者控除は事業的規模の場合のみ認められる
@@ -250,7 +250,7 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
   'old-declining-balance': '旧定率法',
   'lease-period-straight-line': 'リース期間定額法',
 };
-// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
+// 落選（要件外・上限超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
 function effectiveMethodLabel(
   asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },
   status: SmallAssetStatus | undefined,

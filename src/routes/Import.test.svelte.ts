@@ -384,6 +384,51 @@ describe('Import: 相手科目セレクトの幅はバッジの有無で変わ�
   });
 });
 
+describe('Import: 取引先の既定科目による分類', () => {
+  test('ルール不一致の行だけ取引先の既定科目が入り、バッジが出る。ルールが優先される', async () => {
+    await db.parserRules.add({
+      id: 'rule-1',
+      matchType: 'description-includes',
+      pattern: 'ルール一致店',
+      accountCode: '5200',
+      priority: 1,
+      hitCount: 0,
+    });
+    await db.vendors.bulkAdd([
+      { id: 'v1', name: 'ルール一致店', defaultAccountCode: '5300' },
+      { id: 'v2', name: '未分類の店', defaultAccountCode: '5910' },
+    ]);
+    const c = container as HTMLElement;
+    changeParser(c, parserC.name);
+    await loadFile(c);
+
+    expect(c.querySelectorAll(`[title="${m.import_badge_rule_title()}"]`)).toHaveLength(1);
+    expect(c.querySelectorAll(`[title="${m.import_badge_vendor_title()}"]`)).toHaveLength(1);
+    expect(c.textContent).not.toContain(m.import_unclassified_notice({ count: 1 }));
+
+    button(c, m.import_submit({ count: 2 })).click();
+    await waitFor(() => (c.textContent ?? '').includes(m.import_success({ count: 2 })));
+    const entries = await db.journalEntries.toArray();
+    const counterpartOf = async (description: string) => {
+      const entry = entries.find((e) => e.description === description)!;
+      const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
+      return lines.find((l) => l.accountCode !== '1130')?.accountCode;
+    };
+    expect(await counterpartOf('ルール一致店')).toBe('5200');
+    expect(await counterpartOf('未分類の店')).toBe('5910');
+  });
+
+  test('既定科目の無い取引先は分類に使わない', async () => {
+    await db.vendors.add({ id: 'v2', name: '未分類の店' });
+    const c = container as HTMLElement;
+    changeParser(c, parserC.name);
+    await loadFile(c);
+
+    expect(c.querySelectorAll(`[title="${m.import_badge_vendor_title()}"]`)).toHaveLength(0);
+    expect(c.textContent).toContain(m.import_unclassified_notice({ count: 2 }));
+  });
+});
+
 const INVENTORY_TEST_ACCOUNTS = [
   { code: '1340', year: 2026, name: '棚卸資産', category: 'asset' as const, displayOrder: 340 },
   { code: '5020', year: 2026, name: '仕入', category: 'expense' as const, displayOrder: 20 },

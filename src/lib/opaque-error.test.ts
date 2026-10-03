@@ -3,7 +3,7 @@ import { isOpaqueError } from './opaque-error';
 
 describe('isOpaqueError', () => {
   it('伏せられたクロスオリジン例外だけを外す', () => {
-    // ある環境 あるブラウザ が共有シートで投げる形（#459）。
+    // ある環境のブラウザが共有シートで投げる形（#459）。
     expect(isOpaqueError(new ErrorEvent('error', { message: 'Script error.', filename: '' }))).toBe(
       true,
     );

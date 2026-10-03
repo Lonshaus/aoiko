@@ -32,7 +32,7 @@ const OLD_METHOD_LIMIT_RATE = '0.95';
 // 耐用年数省令別表第十一：別表第一・第二・第五・第六（ソフトウエア除く）の残存割合。
 const OLD_TANGIBLE_RESIDUAL_RATE = '0.1';
 // 平成19年4月1日以後取得分の定額法償却率。償却費 = 取得価額 × 償却率。
-// 率は 1/耐用年数 を小数第3位未満で切り上げた値（国税庁「減価償却資産の償却率表」）。
+// 率は 1/耐用年数を小数第3位未満で切り上げた値（国税庁「減価償却資産の償却率表」）。
 // 例：3年→0.334、6年→0.167、7年→0.143、9年→0.112（単純な 1/N とは一致しない）。
 export function straightLineRate(usefulLifeYears: number): Decimal {
   if (usefulLifeYears < 1) {
@@ -242,7 +242,7 @@ function isSmallAssetSpecialCandidate(asset: FixedAsset, year: number): boolean 
   return Number(serviceStartDate(asset).slice(0, 4)) === year;
 }
 // 全資産・全年度分の少額特例の適用状況をまとめて判定する。年ごとに取得日昇順で年合計 300 万円
-// （開業・廃業年は月割）の cap を充当し、要件外（isSmallAssetEligible=false）または cap 超過は
+// （開業・廃業年は月割）の上限枠を充当し、要件外（isSmallAssetEligible=false）または上限超過は
 // 'ineligible' / 'cap-exceeded' として返す。落選判定の取得価額の閾値は原始取得価額（所令126条）を使う。
 // 結果は資産 id 単位で年度に関わらず一意（業務供用年に一度だけ判定される）。
 export function smallAssetSpecialStatuses(
@@ -392,7 +392,7 @@ export function computeDepreciation(
       if (isImmediateExpenseAsset(asset)) {
         return computeSmallAssetSpecial(year, acqYear, cost);
       }
-      // 落選（要件外・cap 超過）は所令125条2号イにより定額法／定率法へ切替。未判定（statuses 未指定）
+      // 落選（要件外・上限超過）は所令125条2号イにより定額法／定率法へ切替。未判定（statuses 未指定）
       // は既存データ互換のため常に適用扱い（従来どおり全額を業務供用年に費用化）。
       const status = smallAssetStatuses?.get(asset.id);
       if (status === 'ineligible' || status === 'cap-exceeded') {
@@ -778,7 +778,7 @@ interface YearEndDepreciationResult {
   created: number;
   /** 既存仕訳があり重複回避でスキップした件数 */
   skipped: number;
-  /** 少額特例だが年合計 300 万円 cap で適用不可となった件数（仕訳未作成） */
+  /** 少額特例だが年合計 300 万円の上限で適用不可となった件数（仕訳未作成） */
   smallAssetCapExceeded: number;
   /** 少額特例として設定されているが取得日・価額が要件外で適用不可の件数（仕訳未作成） */
   smallAssetIneligible: number;
@@ -793,7 +793,7 @@ async function earliestOpeningDate(): Promise<string | undefined> {
 }
 // 指定年度の全資産の償却仕訳をまとめて作成する。
 // 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
-// 少額減価償却資産の特例：年合計 300 万円 cap を超える資産・要件外の資産は、所令125条2号イにより
+// 少額減価償却資産の特例：年合計 300 万円の上限を超える資産・要件外の資産は、所令125条2号イにより
 // 定額法／定率法（decliningBalanceElected）に切り替えて通常償却を計上する（措法28の2のまとめ行からは外れる）。
 export async function generateYearEndDepreciation(
   year: number,

@@ -6,7 +6,7 @@ import type { CsvParser, ParsedTransaction } from './types';
 // 住信SBIネット銀行（sbi-hybrid）とは別行なので注意。
 // エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）
 // ヘッダー：取引日, 摘要, 出金金額, 入金金額, 残高, メモ
-// 数値：桁区切りのカンマあり、片側のみ取引（出金 or 入金）
+// 数値：桁区切りのカンマあり、片側のみ取引（出金か入金）
 // 日付：YYYY/MM/DD
 
 const DISPLAY = 'SBI新生銀行';

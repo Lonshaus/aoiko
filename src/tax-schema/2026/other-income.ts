@@ -79,7 +79,7 @@ export function salaryIncomeAmount(
   const amount = paidAmount.minus(salaryIncomeDeduction(year, paidAmount));
   return amount.lessThan(0) ? D(0) : amount;
 }
-// その他雑所得（副業収入等）＝収入−必要経費。マイナスは0円に floor。
+// その他雑所得（副業収入等）＝収入−必要経費。マイナスは0円とする。
 // 公的年金等は上記の理由により対象外（利用者が確定額を直接入力する）。
 export function otherMiscIncome(income: Decimal, expenses: Decimal): Decimal {
   const amount = income.minus(expenses);

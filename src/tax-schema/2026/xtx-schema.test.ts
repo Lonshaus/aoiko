@@ -7,7 +7,7 @@ const k020 = koa020 as XtxSchema;
 const k210 = koa210 as XtxSchema;
 
 describe('xtx-schema (e-tax19 XSD 由来)', () => {
-  test('KOA020 メタが令和8年版・正式名前空間 URI', () => {
+  test('KOA020 メタが令和8年分のスキーマと正式名前空間 URI を持つ', () => {
     expect(k020.meta.formId).toBe('KOA020');
     expect(k020.meta.version).toBe('23.0');
     expect(k020.meta.namespace).toBe('http://xml.e-tax.nta.go.jp/XSD/shotoku');
