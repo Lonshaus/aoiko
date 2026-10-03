@@ -96,10 +96,15 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- /only -->
 <!-- only:native -->
 - **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. The recognition program and the Japanese language data (`jpn.traineddata`) are built into the app, so no request is made
-- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
 <!-- /only -->
 <!-- only:apple -->
-- **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. Nothing extra is downloaded either
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded either
+<!-- /only -->
+<!-- only:windows -->
+- **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. aoiko itself downloads nothing. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it
+<!-- /only -->
+<!-- only:apple -->
+- **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. The model is downloaded by the operating system when Apple Intelligence is turned on; aoiko never fetches it or starts that download
 <!-- /only -->
 <!-- only:browser -->
 - **Your browser's built-in AI path (generative AI classification and OCR alike)**: aoiko itself sends nothing, but whether inference runs on the device or in an external service is decided by the browser's implementation (the API specification permits cloud-backed implementations, so aoiko cannot guarantee the content stays on the device). This engine can be used only when your browser already holds the AI model — aoiko never fetches that model itself

@@ -120,7 +120,7 @@ The OS's built-in text recognition shows no dialog either, and fetches nothing e
 <!-- /only -->
 <!-- only:windows -->
 
-The OS's built-in text recognition shows no dialog either, and fetches nothing extra at all — recognition runs entirely on-device using the OS's own engine.
+The OS's built-in text recognition shows no dialog either, and aoiko itself fetches nothing extra at all — recognition runs entirely on-device using the OS's own engine. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result
@@ -218,11 +218,21 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- only:native -->
 - The language data is bundled with the app itself, so there is no external communication, even on your first scan
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 
 ### Built-in rule engine (the OS's built-in text recognition)
 
 - No AI engine and no extra download
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the vendor name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
+- Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
+- Always verify the total and date
+<!-- /only -->
+<!-- only:windows -->
+
+### Built-in rule engine (the OS's built-in text recognition)
+
+- No AI engine, and aoiko itself downloads nothing extra
 - On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line in the header becomes the vendor name, and rows between the header and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
 - Phone numbers, register numbers and slip numbers also appear as "text on the left, digits on the right"; those rows, rows whose words contain separators, and rows whose left side is a date or digits only, are not treated as items
