@@ -158,6 +158,6 @@ Their business-focused portals may offer **"Order history report CSV"** for dire
 
 ## 6. Next steps
 
-- Confirm/edit imported entries → [02. Creating journal entries](02-journal_en.md)
+- Review and edit imported entries → [02. Creating journal entries](02-journal_en.md)
 - Aggregate / verify → [06. Reports](06-reports_en.md)
 - Month-end card statement reconciliation: import the card CSV in [03. CSV import](03-csv-import_en.md) and tick "Skip" on the rows for orders you already registered with order import (otherwise the same purchase is counted twice)
