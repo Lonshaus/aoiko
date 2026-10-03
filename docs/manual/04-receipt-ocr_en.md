@@ -225,7 +225,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - No AI engine needed, and no extra download
 - On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the line printed largest at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
-- Rows that look like "text on the left, digits on the right" but are actually phone numbers, cash register numbers or slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
+- Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify and correct the total and date
 <!-- /only -->
 <!-- only:windows -->
@@ -235,7 +235,7 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - No AI engine needed, and aoiko itself downloads nothing extra
 - On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the line printed largest at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
 - The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
-- Rows that look like "text on the left, digits on the right" but are actually phone numbers, cash register numbers or slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
+- Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify and correct the total and date
 <!-- /only -->
 <!-- only:apple -->
@@ -259,10 +259,10 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 
 ## 5. Privacy notes
 
-- If a receipt shows third-party personal information (customer names, addresses), check the image before sending it to the AI engine
+- If a receipt shows third-party personal information (customer names, addresses), check before sending it to the AI engine
 - See [PRIVACY_en.md](../../PRIVACY_en.md) for details
 
 ## 6. Next steps
 
-- For itemized imports from order pages (Amazon / Rakuten etc.) → [05. Order import](05-order-import_en.md)
+- For itemized imports from Amazon / Rakuten etc. → [05. Order import](05-order-import_en.md)
 - Review and edit imported entries → [02. Creating journal entries](02-journal_en.md)
