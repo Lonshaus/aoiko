@@ -6,7 +6,6 @@ import type { LlmAdapter } from '../../domain/llm';
 import { CLASSIFY_SCHEMA } from './classify-schema';
 import { ORDER_SCHEMA } from './order-schema';
 import { RECEIPT_SCHEMA } from './receipt-schema';
-
 // object schema のプロパティ集合を、fixture の全プロパティが含まれているか確かめる。
 // schema からプロパティが抜けると responseConstraint がその欄を返さなくなるため、
 // ここが赤くなる必要がある。

@@ -170,22 +170,20 @@ pub(crate) fn remove(base: &Path, rel_path: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::path::TempDir;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 
     static COUNTER: AtomicU32 = AtomicU32::new(0);
 
-    fn temp_dir(tag: &str) -> PathBuf {
+    fn temp_dir(tag: &str) -> TempDir {
         let unique = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!(
+        TempDir::new(format!(
             "aoiko-backup-{}-{}-{}",
             tag,
             std::process::id(),
             unique
-        ));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        dir
+        ))
     }
 
     fn split(framed: &[u8]) -> (Vec<u8>, Vec<u8>) {
@@ -215,7 +213,6 @@ mod tests {
         let (meta, body) = split(&read(&base, "aoiko-ledger.zip").unwrap());
         assert_eq!(meta, META_FOUND);
         assert_eq!(body, b"hello");
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -223,7 +220,6 @@ mod tests {
         let base = temp_dir("nested");
         write_file(&base, "snapshots/2026-08-09T120000Z.json", &[b"{}"]);
         assert!(base.join("snapshots/2026-08-09T120000Z.json").is_file());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -233,7 +229,6 @@ mod tests {
 
         let (_, body) = split(&read(&base, "a.bin").unwrap());
         assert_eq!(body, b"onetwothree");
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -244,7 +239,6 @@ mod tests {
 
         let (_, body) = split(&read(&base, "a.bin").unwrap());
         assert_eq!(body, b"ab");
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -258,7 +252,6 @@ mod tests {
         // 閉じたあとの書き込みが黙って捨てられると、壊れたバックアップが完成扱いになる。
         assert!(files.write_chunk(rid, b"x").is_err());
         assert!(files.close(rid).is_err());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -273,7 +266,6 @@ mod tests {
         // 閉じれば枠は戻る。
         files.close(rids[0]).unwrap();
         assert!(files.open(&base, "overflow.bin").is_ok());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -282,7 +274,6 @@ mod tests {
         let (meta, body) = split(&read(&base, "absent.zip").unwrap());
         assert_eq!(meta, META_NOT_FOUND);
         assert!(body.is_empty());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -293,7 +284,6 @@ mod tests {
         let (meta, body) = split(&read(&base, "empty.bin").unwrap());
         assert_eq!(meta, META_FOUND);
         assert!(body.is_empty());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -307,7 +297,6 @@ mod tests {
         assert_eq!(names, vec!["a.zip".to_string()]);
         assert_eq!(list(&base, Some("snapshots")).unwrap(), vec!["b.json"]);
         assert!(list(&base, Some("attachments")).unwrap().is_empty());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -324,7 +313,6 @@ mod tests {
             Err(Error::InvalidPath(_))
         ));
         assert!(base.join("snapshots").is_dir());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -337,7 +325,6 @@ mod tests {
             assert!(remove(&base, bad).is_err(), "remove が通した: {bad:?}");
             assert!(list(&base, Some(bad)).is_err(), "list が通した: {bad:?}");
         }
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -360,7 +347,6 @@ mod tests {
         // backup_open と同じ rid の枠。閉じたあとに書けると、途中で切れた zip が完成扱いになる。
         assert!(files.write_chunk(rid, b"x").is_err());
         assert!(files.close(rid).is_err());
-        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -385,7 +371,6 @@ mod tests {
             ))),
             Err(Error::TooManyOpenFiles)
         ));
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -404,7 +389,6 @@ mod tests {
             files.open(&base, "over.bin"),
             Err(Error::TooManyOpenFiles)
         ));
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -452,7 +436,6 @@ mod tests {
         files.write_chunk(rid, b"x").unwrap();
         files.close(rid).unwrap();
         assert_eq!(list(&documents, None).unwrap(), vec!["aoiko-ledger.zip"]);
-        let _ = fs::remove_dir_all(&documents);
     }
 
     #[test]

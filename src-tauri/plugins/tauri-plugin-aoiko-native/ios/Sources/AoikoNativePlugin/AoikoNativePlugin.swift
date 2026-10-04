@@ -4,7 +4,6 @@ import UIKit
 import UniformTypeIdentifiers
 import Vision
 import WebKit
-
 // モバイル専用。デスクトップに OS の API で用意されている操作のうち、web view や
 // OS の UI を直接触らないと届かないものをまとめる（フォルダ選択・印刷・外部リンク表示）。
 //
@@ -63,7 +62,6 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         pendingPickInvoke?.resolve()
         pendingPickInvoke = nil
     }
-
     // 解決できなければ ready=false。例外は投げない（JS 側が「選び直し」へ倒す）。
     @objc public func resolveBookmark(_ invoke: Invoke) throws {
         struct Args: Decodable {
@@ -156,7 +154,6 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
             invoke.resolve()
         }
     }
-
     // perform は同期。呼び元の (async) がすでにワーカースレッドなので、ここは
     // DispatchQueue.main へ乗せない（乗せると認識のあいだメインスレッドが止まる）。
     // 対応言語は認識レベルと revision の組で変わる。読み取りと同じ設定へ揃えてから
@@ -230,7 +227,6 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         }
         invoke.resolve(recognized)
     }
-
     // デスクトップ側の words_to_lines と同じ形。web 側は出どころを区別しない。
     struct RecognizedWord: Encodable {
         let text: String
@@ -257,7 +253,6 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
         let lines: [RecognizedLine]
         let text: String
     }
-
     // Vision は読む順を保証せず、左右のセルを別々に返す。閾値は行の高さの半分。
     private static func wordsToLines(_ words: [RecognizedWord], separator: String) -> RecognizedText {
         let sorted = words.sorted { ($0.y + $0.height / 2) < ($1.y + $1.height / 2) }

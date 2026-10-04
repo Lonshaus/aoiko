@@ -9,8 +9,8 @@
 // 本テストは Sub C/D の mapping 誤りが集中する参照側の構造・型・FormAttribute を
 // 公式 xsd で担保する。
 /// <reference types="node" />
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,6 +86,17 @@ function firstPageLeaf(s: XtxSchema): XtxLeafValues {
   return {};
 }
 
+function runXmllint(schemaPath: string, xml: string): SpawnSyncReturns<string> {
+  const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+  try {
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, xml, 'utf8');
+    return spawnSync('xmllint', ['--noout', '--schema', schemaPath, xmlPath], { encoding: 'utf8' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function validate(
   schema: XtxSchema,
   wrapper: string,
@@ -102,12 +113,7 @@ function validate(
   const doc =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-  const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-  const xmlPath = join(dir, 'doc.xml');
-  writeFileSync(xmlPath, doc, 'utf8');
-  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
-    encoding: 'utf8',
-  });
+  const r = runXmllint(join(SPEC_DIR, wrapper), doc);
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
@@ -185,14 +191,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA020.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA020.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -270,14 +269,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA020.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA020.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -438,14 +430,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       const doc =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-      const xmlPath = join(dir, 'doc.xml');
-      writeFileSync(xmlPath, doc, 'utf8');
-      const r = spawnSync(
-        'xmllint',
-        ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
-        { encoding: 'utf8' },
-      );
+      const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA210.xsd'), doc);
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       expect(out).not.toContain('Schemas parser error');
       expect(r.status, out).toBe(0);
@@ -524,14 +509,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA110.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA110.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -607,14 +585,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA110.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA110.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -690,14 +661,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA210.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -770,14 +734,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     const doc =
       `<?xml version="1.0" encoding="UTF-8"?>\n` +
       `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-    const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-    const xmlPath = join(dir, 'doc.xml');
-    writeFileSync(xmlPath, doc, 'utf8');
-    const r = spawnSync(
-      'xmllint',
-      ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA210.xsd'), xmlPath],
-      { encoding: 'utf8' },
-    );
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA210.xsd'), doc);
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
@@ -873,12 +830,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       const doc =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
-      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-      const xmlPath = join(dir, 'doc.xml');
-      writeFileSync(xmlPath, doc, 'utf8');
-      const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
-        encoding: 'utf8',
-      });
+      const r = runXmllint(join(SPEC_DIR, wrapper), doc);
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       expect(out).not.toContain('Schemas parser error');
       expect(r.status, `${tag}: ${out}`).toBe(0);
@@ -989,12 +941,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       const doc =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
-      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-      const xmlPath = join(dir, 'doc.xml');
-      writeFileSync(xmlPath, doc, 'utf8');
-      const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
-        encoding: 'utf8',
-      });
+      const r = runXmllint(join(SPEC_DIR, wrapper), doc);
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       expect(out).not.toContain('Schemas parser error');
       expect(r.status, `${tag}: ${out}`).toBe(0);
@@ -1138,14 +1085,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       const doc =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-      const xmlPath = join(dir, 'doc.xml');
-      writeFileSync(xmlPath, doc, 'utf8');
-      const r = spawnSync(
-        'xmllint',
-        ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA220.xsd'), xmlPath],
-        { encoding: 'utf8' },
-      );
+      const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA220.xsd'), doc);
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       expect(out).not.toContain('Schemas parser error');
       expect(r.status, out).toBe(0);
@@ -1256,14 +1196,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
       const doc =
         `<?xml version="1.0" encoding="UTF-8"?>\n` +
         `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
-      const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-      const xmlPath = join(dir, 'doc.xml');
-      writeFileSync(xmlPath, doc, 'utf8');
-      const r = spawnSync(
-        'xmllint',
-        ['--noout', '--schema', join(SPEC_DIR, '_valwrap-KOA130.xsd'), xmlPath],
-        { encoding: 'utf8' },
-      );
+      const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA130.xsd'), doc);
       const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
       expect(out).not.toContain('Schemas parser error');
       expect(r.status, out).toBe(0);
@@ -1397,12 +1330,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
         const doc =
           `<?xml version="1.0" encoding="UTF-8"?>\n` +
           `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
-        const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-        const xmlPath = join(dir, 'doc.xml');
-        writeFileSync(xmlPath, doc, 'utf8');
-        const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
-          encoding: 'utf8',
-        });
+        const r = runXmllint(join(SPEC_DIR, wrapper), doc);
         const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
         expect(out).not.toContain('Schemas parser error');
         expect(r.status, `${tag}: ${out}`).toBe(0);

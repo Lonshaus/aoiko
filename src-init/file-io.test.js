@@ -53,7 +53,6 @@ test('Uint8Array は CHUNK_SIZE ごとに割られ、繋ぎ直すと元に戻る
   }
   const { calls, invoke } = fakeInvoke({ 'plugin:aoiko-native|backup_open': 3 });
   await writeBackupFile(invoke, 'aoiko-ledger.zip', sent);
-
   // Rust の rel_path はシェルが camelCase へ寄せた relPath で届く。
   assert.deepEqual(calls[0].args, { relPath: 'aoiko-ledger.zip' });
   assert.deepEqual(names(calls), [
@@ -107,7 +106,6 @@ test('ReadableStream は溜めずに、1 チャンク埋まった時点から書
     },
   });
   await writeBackupFile(invoke, 'stream.zip', stream);
-
   // 全部読んでから書くと、最初の書き込みの時点で produced が total に達している。
   assert.ok(producedAtWrite[0] < total, `溜めてから書いている: ${producedAtWrite[0]}`);
   assert.deepEqual(
@@ -136,7 +134,6 @@ test('細切れのチャンクはまとめて送られ、繋ぎ直すと元に�
   });
   const { calls, invoke } = fakeInvoke({ 'plugin:aoiko-native|backup_open': 8 });
   await writeBackupFile(invoke, 'many.zip', stream);
-
   // 届いた幅のまま送ると 5000 往復になる。端数の 1 本も落とさない。
   assert.deepEqual(
     bodies(calls).map((chunk) => chunk.byteLength),

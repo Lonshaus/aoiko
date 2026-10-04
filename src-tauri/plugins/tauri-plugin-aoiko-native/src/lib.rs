@@ -108,7 +108,6 @@ impl ResolvedFolder {
         }
     }
 }
-
 /// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
 /// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -128,7 +127,6 @@ pub struct RecognizedWord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slope: Option<f64>,
 }
-
 /// 縦に重なる単語をまとめた 1 行。座標はそれらを囲む矩形。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,7 +138,6 @@ pub struct RecognizedLine {
     pub width: f64,
     pub height: f64,
 }
-
 /// 文字認識の結果一式。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

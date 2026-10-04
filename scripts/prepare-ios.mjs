@@ -12,14 +12,12 @@ const dest = join(genRoot, 'Assets.xcassets/AppIcon.appiconset/');
 const genName = existsSync(genRoot)
   ? (readdirSync(genRoot).find((d) => d.endsWith('.xcodeproj')) ?? '').replace('.xcodeproj', '')
   : '';
-
 // まだ init していない作業コピーでは見る先が無い。ここで落とすと ios:dev / ios:build が
 // 本来の「先に init しろ」という案内へ進めなくなるので、黙って通す（何もしないのが正しい）。
 if (!existsSync(dest)) {
   console.log('gen/apple がまだ無いので何もしない');
   process.exit(0);
 }
-
 // 1. 最低 OS バージョン。tauri ios init は既存の project.yml を上書きしないため、
 // tauri.conf.json だけ直しても古い値のままビルドされてしまう。黙って通すと、宣言より低い
 // 端末へ入るビルドが出来上がる。
@@ -55,7 +53,6 @@ if (want) {
     process.exit(1);
   }
 }
-
 // 2. Info.ios.plist の項目。tauri ios init はこのファイルを読まない（2026-08-22 実測。
 // init 直後の生成物には 1 項目も入っていなかった）。アイコンと同じで、こちらを出所として
 // 毎回入れ直す。カメラの利用目的が抜けたままビルドされたバージョンは、審査中に選択ボタンを押した瞬間
@@ -79,7 +76,6 @@ if (applied.length > 0) {
     input: JSON.stringify({ ...generated, ...wanted }),
   });
 }
-
 // 3. アイコン。tauri ios init は Assets.xcassets を既定のロゴで作り直す。
 // 新規 clone でも同じことが起きるので、icons/ios を出所として毎回上書きし直す。
 const icons = readdirSync(src).filter((f) => f.endsWith('.png'));
@@ -99,7 +95,6 @@ if (missing.length > 0) {
 for (const icon of icons) {
   copyFileSync(join(src, icon), join(dest, icon));
 }
-
 // 4. FoundationModels の weak link。build.rs が cargo へ渡す -weak_framework は
 // デスクトップでは cargo 自身がリンクするので効くが、iOS は Xcode が最終リンクを
 // 行うため cargo の link-arg は届かない。ビルド設定へ直接埋め込む必要がある。

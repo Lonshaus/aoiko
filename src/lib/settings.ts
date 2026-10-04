@@ -229,7 +229,6 @@ export async function loadInterimPriorPeriodMonths(year: number): Promise<number
   const map = await getSetting('interimPriorPeriodMonths');
   return map?.[year] ?? 12;
 }
-
 // 少額特例の年合計上限の月割に使う開業日・廃業日。未設定はそれぞれ呼出元の既定に委ねる。
 export async function loadBusinessDates(): Promise<{
   businessStartDate?: string;

@@ -20,7 +20,6 @@ type LanguageModelLike = {
   availability(options?: SessionOptions): Promise<string>;
   create(options?: SessionOptions): Promise<ChromeAiSession>;
 };
-
 // この app が要る入力の形。画像を受けない実装は領収書の経路が成り立たないので外す。
 const EXPECTED_INPUTS: SessionOptions = { expectedInputs: [{ type: 'text' }, { type: 'image' }] };
 

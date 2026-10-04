@@ -17,7 +17,6 @@
   <img src="docs/images/screenshot-reports-zh-TW.png" alt="報表：年度概況與月別銷貨" width="49%" />
 </p>
 
-
 ## 主要功能
 
 - **複式簿記**：傳票、沖銷傳票、保留原始傳票的稽核紀錄

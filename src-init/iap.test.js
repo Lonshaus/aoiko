@@ -149,7 +149,6 @@ test('取り消しと承認待ちでは consume しない', async () => {
     assert.equal(calls.length, 1);
   }
 });
-
 // 取りこぼすと、買わずに閉じただけの操作でエラーバナーが点く。
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');

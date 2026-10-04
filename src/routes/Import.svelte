@@ -395,7 +395,6 @@
     }
     await processFile(pending.file, pending.input);
   }
-
   // ダイアログ表示時点で select・input の DOM 値はもう新しい選択に変わっている。
   // value バインドは selectedParserName が変わらない限り再同期されないため、DOM を直接戻す。
   function cancelDiscard() {

@@ -37,7 +37,6 @@ export function kindFor(platform, productId) {
 export function purchaseResultOf(purchase) {
   return PURCHASE_STATE[purchase?.purchaseState] ?? 'cancelled';
 }
-
 // プラグインは取消と保留を戻り値ではなく例外で伝える。放置すると未捕捉の例外として
 // エラーバナーが点く。
 export function purchaseResultOfError(error) {
