@@ -10,7 +10,7 @@ import type { BackupAdapter } from './types';
 /**
  * どのスナップショットからも参照されなくなった証憑の実体を消す。
  *
- * 既定では呼ばれない（設定で日数を指定した場合のみ）。内容定址なので同じ写真は 1 つしか
+ * 既定では呼ばれない（設定で日数を指定した場合のみ）。コンテンツアドレス方式なので同じ写真は 1 つしか
  * 無く、増えるのは帳簿から消した証憑の分だけ。放置しても膨らみ方は緩いので、既定は
  * 「消さない」に倒してある。
  *
@@ -31,8 +31,8 @@ export async function sweepUnreferencedBlobs(
   for (const name of scan) {
     const bytes = await adapter.read(`${SNAPSHOT_DIR}/${name}`);
     const snapshot = bytes === null ? null : parseSnapshot(new TextDecoder().decode(bytes));
-    // 1 つでも読めない版があれば何も消さない。その版が参照していた実体を巻き添えにする。
-    // 同期が途中・端末外の版がまだ届いていない、はどちらも普通に起きる。
+    // 1 つでも読めないバージョンがあれば何も消さない。そのバージョンが参照していた実体を巻き添えにする。
+    // 同期が途中・端末外のバージョンがまだ届いていない、はどちらも普通に起きる。
     if (snapshot === null) {
       return [];
     }

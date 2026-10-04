@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 describe('remainingBalance', () => {
-  test('原始金額から既収/既払を引く', () => {
+  test('当初金額から入金済み・支払済みの額を引く', () => {
     const e: ArApEntry = {
       id: '1',
       type: 'receivable',
@@ -59,7 +59,7 @@ describe('addArApEntry / recordPayment', () => {
     expect(updated!.paidAmount).toBe('20000');
   });
 
-  test('残高を超える入金は throw', async () => {
+  test('残高を超える入金は例外を投げる', async () => {
     await addArApEntry({
       type: 'payable',
       description: 'B社',
@@ -84,7 +84,7 @@ describe('computeCashFlowForecast', () => {
     };
   }
 
-  test('到期月ごとに売掛/買掛の残高をバケットへ集計する', () => {
+  test('期日の月ごとに売掛/買掛の残高をバケットへ集計する', () => {
     const entries = [
       entry({ id: 'r1', type: 'receivable', dueDate: '2026-07-10', originalAmount: '100000' }),
       entry({ id: 'p1', type: 'payable', dueDate: '2026-07-20', originalAmount: '30000' }),
@@ -113,7 +113,7 @@ describe('computeCashFlowForecast', () => {
     expect(r.months[0]!.expectedInflow).toBe('0');
   });
 
-  test('予測期間より先の到期分は対象外', () => {
+  test('予測期間より先の期日分は対象外', () => {
     const entries = [entry({ dueDate: '2027-01-01', originalAmount: '10000' })];
     const r = computeCashFlowForecast(entries, '2026-07-01', 1);
     expect(r.months[0]!.expectedInflow).toBe('0');

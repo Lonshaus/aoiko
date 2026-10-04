@@ -6,7 +6,7 @@ import { markConfirmedWrite } from './year-lock';
 import { m } from '../paraglide/messages';
 // 訂正仕訳：原仕訳の借方/貸方を入れ替えた打消し仕訳を新規作成し、
 // 原仕訳を status='reversed' に変更する。元データは削除しない（電子帳簿保存法の要件）。
-// 集計は成対排除方式（countsTowardTotals 参照）：原仕訳・訂正仕訳とも集計から除外され、
+// 集計はペア除外方式（countsTowardTotals 参照）：原仕訳・訂正仕訳とも集計から除外され、
 // 正味の効果はゼロになる。訂正仕訳はあくまで訂正履歴の記録として帳簿に残る。
 // 戻り値は新しく作られた訂正仕訳の id。
 // 原仕訳の年度がロック済みの場合は既定で訂正不可。allowFiledYear は呼び出し側が警告を
@@ -25,15 +25,11 @@ export async function reverseEntry(
     throw new Error(m.error_journal_already_reversed());
   }
   if (orig.originalEntryId !== undefined) {
-    throw new Error(
-      '訂正仕訳そのものは訂正できません。必要なら正しい内容で新しい仕訳を入力してください。',
-    );
+    throw new Error(m.error_journal_reversal_not_reversible());
   }
 
   if (!options?.allowFiledYear && (await isYearLocked(orig.year))) {
-    throw new Error(
-      `${orig.year} 年は申告済みのためロックされています。訂正は新しい年度内の仕訳で対応してください。`,
-    );
+    throw new Error(m.error_journal_year_locked({ year: orig.year }));
   }
 
   const today = todayISO();
@@ -75,7 +71,7 @@ export async function reverseEntry(
         invoiceCompliant: line.invoiceCompliant,
         ...(line.homeOfficeRatio ? { homeOfficeRatio: line.homeOfficeRatio } : {}),
         ...(line.memo ? { memo: line.memo } : {}),
-        // 金額には影響しない（原仕訳と訂正仕訳は成対で集計から除外される）が、
+        // 金額には影響しない（原仕訳と訂正仕訳は対で集計から除外される）が、
         // 転記しないと帳簿上の訂正仕訳が原仕訳と違う税区分・数量に見える。
         ...(line.taxCategory ? { taxCategory: line.taxCategory } : {}),
         ...(line.inputUsageCategory ? { inputUsageCategory: line.inputUsageCategory } : {}),

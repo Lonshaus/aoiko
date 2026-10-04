@@ -97,7 +97,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<IT VR="1.5" id="IT">');
   });
 
-  test('封包に CATALOG(RDF)・送信票 SOFUSHO・名前空間が揃う（参照ファイル準拠）', () => {
+  test('エンベロープに CATALOG(RDF)・送信票 SOFUSHO・名前空間が揃う（参照ファイル準拠）', () => {
     const x = buildXtx2026(makeCtx());
     // DATA の 5 名前空間
     expect(x).toContain('xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general"');
@@ -110,11 +110,11 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<rdf:description about="#KOA020-1"/>');
     expect(x).toContain('<rdf:description about="#KOA210-1"/>');
     expect(x).toContain('<SOFUSHO_SEC><rdf:description about="#TEA060-1"/></SOFUSHO_SEC>');
-    // 送信票 SOFUSHO（kyotsu ns で自閉）
+    // 送信票 SOFUSHO（kyotsu ns で空要素タグ）
     expect(x).toMatch(
       /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
     );
-    // IT部 構造項目（手続・申告区分）
+    // IT部の構造項目（手続・申告区分）
     expect(x).toContain(
       '<TETSUZUKI ID="TETSUZUKI"><procedure_CD>RKO0010</procedure_CD><procedure_NM>所得税及び復興特別所得税申告</procedure_NM></TETSUZUKI>',
     );
@@ -125,7 +125,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/<KOA020 VR="23\.0"/);
     expect(x).toMatch(/<KOA210 VR="11\.0"/);
-    // CONTENTS / IT部 は 1 つだけ
+    // CONTENTS / IT部は 1 つだけ
     expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
     expect(x.match(/<IT VR="1\.5" id="IT">/g)).toHaveLength(1);
   });
@@ -237,13 +237,13 @@ describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否�
     };
   }
 
-  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（青色）', () => {
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ例外を投げる（青色）', () => {
     const ctx = makeCtx();
     ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
     expect(() => buildXtx2026(ctx)).toThrow(RealEstateIncomeInputMissingError);
   });
 
-  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ throw する（白色 KOA130）', () => {
+  test('realEstatePl はあるが personalDeductions.realEstateIncome が無ければ例外を投げる（白色 KOA130）', () => {
     const ctx = makeCtx();
     ctx.filingType = 'white';
     ctx.realEstatePl = realEstatePl({ netIncome: '2800000' });
@@ -283,13 +283,13 @@ describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否�
     expect(x).not.toContain('<ANF00260>2800000</ANF00260>');
   });
 
-  test('realEstatePl が無ければ従来どおり throw せず出力する', () => {
+  test('realEstatePl が無ければ従来どおり例外を投げず出力する', () => {
     const ctx = makeCtx();
     expect(() => buildXtx2026(ctx)).not.toThrow();
   });
 });
 
-describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が throw せず 0 扱い）', () => {
+describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が例外を投げず 0 扱い）', () => {
   function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
     return {
       socialInsurancePaid: '',
@@ -314,7 +314,7 @@ describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が thro
     };
   }
 
-  test('空文字・空白・全角数字を含む入力で throw せず 0 として扱われる', () => {
+  test('空文字・空白・全角数字を含む入力で例外を投げず 0 として扱われる', () => {
     const ctx = personalDeductionsToCtx(makeStored());
     expect(ctx.socialInsurancePaid.toString()).toBe('0');
     expect(ctx.smallBusinessMutualAidPaid.toString()).toBe('0');

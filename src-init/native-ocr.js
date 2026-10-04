@@ -7,11 +7,11 @@ export function createNativeOcr(invoke, platform) {
     return null;
   }
   return {
-    // 形式は認識側が中身から判定するため渡さない。版面は組み替えずそのまま渡す。
+    // 形式は認識側が中身から判定するため渡さない。レイアウトは組み替えずそのまま渡す。
     async recognizeText(base64) {
       return invoke('plugin:aoiko-native|recognize_text', { imageBase64: base64 });
     },
-    // 対応言語は OS の版や導入内容で変わる。設定画面が選択肢を出す前に毎回問う。
+    // 対応言語は OS のバージョンや導入内容で変わる。設定画面が選択肢を出す前に毎回問う。
     async isTextRecognitionAvailable() {
       return invoke('plugin:aoiko-native|is_text_recognition_available');
     },

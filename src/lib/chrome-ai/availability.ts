@@ -1,4 +1,4 @@
-// ブラウザ内蔵 AI（LanguageModel）が使えるかを問う。web の産物にだけ入る。
+// ブラウザ内蔵 AI（LanguageModel）が使えるかを問う。web のビルド成果物にだけ入る。
 //
 // LanguageModel が在ることは端末内で推論することの保証にならない。仕様はクラウドを使う実装を
 // 認めており、同じ名前で文字だけのモデルを載せている環境もある。この app が要る画像入力まで
@@ -20,7 +20,6 @@ type LanguageModelLike = {
   availability(options?: SessionOptions): Promise<string>;
   create(options?: SessionOptions): Promise<ChromeAiSession>;
 };
-
 // この app が要る入力の形。画像を受けない実装は領収書の経路が成り立たないので外す。
 const EXPECTED_INPUTS: SessionOptions = { expectedInputs: [{ type: 'text' }, { type: 'image' }] };
 
@@ -55,7 +54,8 @@ export async function chromeAiAvailability(): Promise<ChromeAiAvailability> {
 
 export async function createChromeAiSession(): Promise<ChromeAiSession> {
   const lm = languageModel();
-  if (!lm) {
+  // available 以外で create() を呼ぶとブラウザがモデルを取りに行くので、取得の契機をこの app が作らない。
+  if (!lm || (await chromeAiAvailability()) !== 'available') {
     throw new Error('chrome-ai is unavailable in this browser');
   }
   return lm.create(EXPECTED_INPUTS);

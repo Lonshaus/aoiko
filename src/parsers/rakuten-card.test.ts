@@ -8,13 +8,13 @@ const sample = readSample(
 );
 
 describe('rakutenCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(rakutenCardParser.name).toBe('rakuten-card');
     expect(rakutenCardParser.accountCode).toBe('2120');
     expect(rakutenCardParser.encoding).toBe('utf-8');
   });
 
-  test('parses sample fixture; 利用行は credit (未払金 増)', () => {
+  test('サンプルを読む。利用行は貸方（未払金の増）', () => {
     const r = rakutenCardParser.parse(sample);
     expect(r).toHaveLength(4);
     for (const tx of r.slice(0, 3)) {
@@ -25,7 +25,7 @@ describe('rakutenCardParser', () => {
     expect(r[1]?.amount).toBe('8800');
   });
 
-  test('返品行（負数）は絶対値 + debit（未払金の減少）', () => {
+  test('返品行（負数）は絶対値 + 借方（未払金の減少）', () => {
     const r = rakutenCardParser.parse(sample);
     const refund = r[3];
     expect(refund?.description).toBe('amazon.co.jp 返品');
@@ -33,12 +33,12 @@ describe('rakutenCardParser', () => {
     expect(refund?.side).toBe('debit');
   });
 
-  test('omits memo for default 本人 / 1回払い', () => {
+  test('既定の「本人 / 1回払い」ならメモを省く', () => {
     const r = rakutenCardParser.parse(sample);
     expect(r[0]?.memo).toBeUndefined();
   });
 
-  test('keeps memo for non-default user / payment method', () => {
+  test('既定以外の利用者・支払方法は memo に残す', () => {
     const r = rakutenCardParser.parse(sample);
     expect(r[2]?.memo).toBe('家族 / 3回払い');
   });

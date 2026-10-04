@@ -1,7 +1,7 @@
-# tauri-plugin-iap の macOS 実装は Swift で、11.0 向けに建てると並行実行ランタイムが
+# tauri-plugin-iap の macOS 実装は Swift で、11.0 向けにビルドすると並行実行ランタイムが
 # @rpath 参照（back-deployment）になり、cargo test の裸の実行ファイルが dyld で落ちる。
-# 出荷物は tauri.conf.json の minimumSystemVersion で 13.3 になるため起きない。
-# cargo だけ Rust 既定の 11.0 に落ちるので、ここで出荷物と同じ値へ揃える。
+# 配布物は tauri.conf.json の minimumSystemVersion で 13.3 になるため起きない。
+# cargo だけ Rust 既定の 11.0 に落ちるので、ここで配布物と同じ値へ揃える。
 #
 # src-tauri/ ではなく repo 直下に置く。cargo は --manifest-path ではなく実行時の
 # カレントディレクトリから上へ辿って config を探すため、`cargo test --manifest-path

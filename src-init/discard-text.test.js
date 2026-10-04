@@ -32,7 +32,6 @@ test('足りない分は既定のまま残る', () => {
   assert.equal(discard.get().closeOk, '捨棄並結束');
   assert.equal(discard.get().cancel, '編集を続ける');
 });
-
 // 空文字を採ると、文言の無いボタンが出る。
 test('空文字・非文字列・未知のキーは採らない', () => {
   const discard = createDiscardText();
@@ -49,7 +48,6 @@ test('渡されなかったとき（undefined）でも落ちない', () => {
   discard.set(undefined);
   assert.equal(discard.get().closeOk, '破棄して終了');
 });
-
 // get() が返したものを書き換えても、次の get() に影響しない。
 test('返した文言を書き換えても内部状態は動かない', () => {
   const discard = createDiscardText();

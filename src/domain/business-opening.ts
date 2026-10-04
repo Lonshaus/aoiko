@@ -276,7 +276,7 @@ function newEntry(date: string, description: string): JournalEntry {
     confirmedAt: now,
   };
 }
-// 開業精霊：開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
+// 開業設定：開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
 // 転用資産は本体（固定資産テーブルへの登録）のみ行い、以後の減価償却は既存の
 // 年末一括生成（generateYearEndDepreciation）に委ねる。ここでは開業時点の
 // 未償却残高を計上する開業仕訳のみを作る。
@@ -310,7 +310,7 @@ export async function generateOpeningEntries(
     // 開業費（繰延資産）
     const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
     if (!expenseTotal.isZero()) {
-      const entry = newEntry(date, '開業費計上（開業精霊）');
+      const entry = newEntry(date, '開業費計上（開業設定）');
       const lines = [
         newLine(entry.id, 'debit', KAIGYOHI_CODE, expenseTotal, '開業費'),
         newLine(entry.id, 'credit', CAPITAL_CODE, expenseTotal, '開業費（元入金）'),
@@ -326,7 +326,7 @@ export async function generateOpeningEntries(
         input.customAmortizationAmount,
       );
       if (!amortized.isZero()) {
-        const amortEntry = newEntry(date, '開業費償却（開業精霊）');
+        const amortEntry = newEntry(date, '開業費償却（開業設定）');
         const amortLines = [
           newLine(amortEntry.id, 'debit', DEPRECIATION_EXPENSE_CODE, amortized, '繰延資産償却'),
           newLine(amortEntry.id, 'credit', KAIGYOHI_CODE, amortized, '開業費償却'),
@@ -382,7 +382,7 @@ export async function generateOpeningEntries(
       assetLines.push({ side: item.side, accountCode: item.accountCode, amount, memo: item.name });
     }
     if (assetLines.length > 0) {
-      const entry = newEntry(date, '開業時資産計上（開業精霊）');
+      const entry = newEntry(date, '開業時資産計上（開業設定）');
       const netDebit = assetLines.reduce(
         (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
         D(0),
@@ -410,8 +410,8 @@ interface OpeningRemovalBlocked {
   reason: 'has-depreciation';
   assetNames: string[];
 }
-// 開業精霊のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
-// 保存法。removeCarryover と同じ方式）、精霊が登録した固定資産は取り除く。
+// 開業設定のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
+// 保存法。removeCarryover と同じ方式）、開業設定が登録した固定資産は取り除く。
 //
 // 固定資産は仕訳ではないので打ち消せず、削除するしかない。ところが減価償却・除却の仕訳は
 // description の資産タグ（#<id 先頭 8 文字>）でしか資産と結び付いておらず、外部キーが無い。

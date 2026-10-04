@@ -1,8 +1,8 @@
-// 消費税 .xtx の「封包全体」を実 W3C XSD で検証するテスト。
+// 消費税 .xtx の「エンベロープ全体」を実 W3C XSD で検証するテスト。
 //
 // xtx-validate-consumption-tax.test.ts は様式（SHA020/SHB070等）の参照側フラグメントを
 // 個別に検証するのみで、手続（RSH0010/RSH0030）の CONTENTS がその様式を実際に
-// 許可しているかは検証していなかった。2026-07-05、実機組み込みで
+// 許可しているかは検証していなかった。2026-07-05、実機での取込で
 // 「不明な要素 'SHA020'」エラーが発生し発覚：RSH0010（一般・個人）の CONTENTS 型は
 // SHA010 系統の xsd:group のみを許可し、SHA020 系統は許可しない
 // （SHA020 系統は RSH0030＝簡易課税・個人が正しい）。
@@ -11,8 +11,8 @@
 // 対して、buildTwoWariXtx 等が実際に組み立てた完全な .xtx 文字列をそのまま
 // xmllint 検証する。ValidationRoot ラッパは不要（DATA 自体が public element のため）。
 /// <reference types="node" />
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,13 +28,19 @@ function xmllintAvailable(): boolean {
   return r.error === undefined && r.status === 0;
 }
 
-function validateAgainstSchema(schemaFile: string, xml: string): { ok: boolean; out: string } {
+function runXmllint(schemaPath: string, xml: string): SpawnSyncReturns<string> {
   const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-envelope-'));
-  const xmlPath = join(dir, 'doc.xml');
-  writeFileSync(xmlPath, xml, 'utf8');
-  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, schemaFile), xmlPath], {
-    encoding: 'utf8',
-  });
+  try {
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, xml, 'utf8');
+    return spawnSync('xmllint', ['--noout', '--schema', schemaPath, xmlPath], { encoding: 'utf8' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function validateAgainstSchema(schemaFile: string, xml: string): { ok: boolean; out: string } {
+  const r = runXmllint(join(SPEC_DIR, schemaFile), xml);
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
@@ -78,14 +84,14 @@ function badDebtZeroExtras() {
   };
 }
 
-describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、xmllint）', () => {
+describe('消費税 .xtx エンベロープ全体の実 XSD 検証（手続レベル、xmllint）', () => {
   if (!hasXmllint) {
-    test('xmllint 不在のため skip（CI は libxml2-utils 導入で強制）', () => {
+    test('xmllint が無いため省略（CI は libxml2-utils 導入で強制）', () => {
       expect(hasXmllint).toBe(false);
     });
   }
 
-  maybe('buildTwoWariXtx（手続 RSH0030）の封包全体が公式 xsd に適合する', () => {
+  maybe('buildTwoWariXtx（手続 RSH0030）のエンベロープ全体が公式 xsd に適合する', () => {
     const xml = buildTwoWariXtx({
       year: 2026,
       businessName: 'aoikoウェブ事務所',
@@ -99,7 +105,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
     expect(ok, out).toBe(true);
   });
 
-  maybe('buildSimplifiedXtx（手続 RSH0030）の封包全体が公式 xsd に適合する', () => {
+  maybe('buildSimplifiedXtx（手続 RSH0030）のエンベロープ全体が公式 xsd に適合する', () => {
     const xml = buildSimplifiedXtx({
       year: 2026,
       businessName: 'aoikoウェブ事務所',
@@ -115,7 +121,7 @@ describe('消費税 .xtx 封包全体の実 XSD validation（手続レベル、x
     expect(ok, out).toBe(true);
   });
 
-  maybe('buildGeneralXtx（手続 RSH0010）の封包全体が公式 xsd に適合する', () => {
+  maybe('buildGeneralXtx（手続 RSH0010）のエンベロープ全体が公式 xsd に適合する', () => {
     const xml = buildGeneralXtx({
       year: 2026,
       businessName: 'aoikoウェブ事務所',

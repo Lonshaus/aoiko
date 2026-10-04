@@ -4,8 +4,8 @@ import { D, Decimal } from '../../lib/decimal';
 // 年間限度額は 300 万円据置、適用期限は令和11年3月31日（2029-03-31）まで 3 年延長。
 // 出典：措法 28 の 2 / 国税庁タックスアンサー No.5408 / 弥生 法令ニュース 2026-04-07。
 // 取得日に応じた取得価額の閾値（未満）を返す。
-// - 2026-03-31 以前 取得：300_000
-// - 2026-04-01 以降 取得：400_000
+// - 2026-03-31 以前取得：300_000
+// - 2026-04-01 以降取得：400_000
 export function smallAssetThreshold(acquisitionDate: string): number {
   return acquisitionDate >= '2026-04-01' ? 400_000 : 300_000;
 }
@@ -123,7 +123,7 @@ const LEASED_OUT_EXCLUSION_START = '2022-04-01';
 function appliesLeasedOutExclusion(acquisitionDate: string | undefined): boolean {
   return acquisitionDate === undefined || acquisitionDate >= LEASED_OUT_EXCLUSION_START;
 }
-// 所令138条1項の両支線（10 万円未満・使用可能期間 1 年未満）は「又は」の選択関係。
+// 所令138条1項の両要件（10 万円未満・使用可能期間 1 年未満）は「又は」の選択関係。
 export function isImmediateExpenseRequired(
   acquisitionCost: string,
   conditions: AssetUseConditions,

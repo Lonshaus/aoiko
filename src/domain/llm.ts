@@ -12,7 +12,6 @@ export interface LlmImageInput {
   /** image/jpeg / image/png / image/webp 等 */
   mimeType: string;
 }
-
 /** データだけを渡す端末内経路が対応するタスク。分類（CSV 相手科目）と注文取込。 */
 export type LlmDataTask = 'classify' | 'order';
 
@@ -66,7 +65,7 @@ export function describeLlmError(e: unknown): string {
 // キー設定ミスと誤認させて利用者に無駄なデバッグをさせないための一次判定。
 //
 // 理由の粒度は環境によって違う。ブラウザの fetch は `Load failed` 程度しか返さないので
-// 助言のほうが役に立つが、wrapper 版は「許可されていない URL です」のように原因そのものを
+// 助言のほうが役に立つが、ラッパー版は「許可されていない URL です」のように原因そのものを
 // 返す。捨てると、解決しない助言だけを見せて延々と調べさせることになるため併記する。
 function connectionErrorMessage(fallback: string, cause?: unknown): string {
   if (isOffline()) {
@@ -291,7 +290,7 @@ export async function listGeminiModels(apiKey: string): Promise<string[]> {
     .sort();
 }
 // 一覧から既定を 1 つ選ぶ。preview / exp は予告なく消えるので避け、OCR と分類には
-// pro の能力が要らないため flash を優先する。版番号は数値として比べる（10 と 9 の順序）。
+// pro の能力が要らないため flash を優先する。バージョン番号は数値として比べる（10 と 9 の順序）。
 export function pickDefaultGeminiModel(models: string[]): string | undefined {
   const stable = models.filter((id) => !/preview|exp/i.test(id));
   const version = (id: string): number => Number(/gemini-([\d.]+)/i.exec(id)?.[1] ?? 0);

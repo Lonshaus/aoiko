@@ -13,7 +13,7 @@
   let { open, onclose }: Props = $props();
   let dialog = $state<HTMLDialogElement | null>(null);
   let notice = $state('');
-  // 投げっぱなしにすると未捕捉の例外としてエラーバナーが点く。
+  // 投げっぱなしにすると未捕捉の例外としてエラーバナーが表示される。
   onMount(() => {
     void support.load().catch(() => {
       notice = m.support_purchase_failed();
@@ -626,7 +626,7 @@
     fill: rgb(38 42 78 / 52%);
     filter: drop-shadow(0 1px 0 rgb(255 255 255 / 78%));
   }
-  /* 1 行目は徽章と買うボタンで固定幅が埋まる。狭いとき見出しが 1 字ずつ折れるので、
+  /* 1 行目はバッジと買うボタンで固定幅が埋まる。狭いとき見出しが 1 字ずつ折れるので、
      ボタンを下の行へ逃がす。 */
   @media (max-width: 23.4375rem) {
     .badge-block {

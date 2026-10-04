@@ -5,7 +5,6 @@
 import { GeminiAdapter, OpenAICompatibleAdapter, type LlmAdapter } from '../domain/llm';
 import { getSetting, type AiEngine } from './settings';
 import { m } from '../paraglide/messages';
-
 // order は注文取込。openai-compatible では classify と同じモデルを使うが、
 // エンジンによっては渡す JSON Schema が違うため用途として分けて持つ。
 type LlmPurpose = 'ocr' | 'classify' | 'order';
@@ -56,14 +55,14 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       return new ChromeAiAdapter(purpose);
     }
     case 'apple-ai':
-      // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由で build 時に畳む。
-      // __NATIVE__ を持たない側の産物には包装層も文言も残らない。
+      // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由でビルド時に畳む。
+      // __NATIVE__ を持たない側のビルド成果物にはラッパーも文言も残らない。
       if (__NATIVE__) {
         const { AppleAiAdapter } = await import('./apple-ai-adapter');
         return new AppleAiAdapter();
       }
       // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
-      // 文言はカタログから引かない。引くと、この経路を持たない側の産物にも文字列が残る。
+      // 文言はカタログから引かない。引くと、この経路を持たない側のビルド成果物にも文字列が残る。
       throw new Error('apple-ai is unavailable in this build');
     default:
       // 設定はバックアップに乗って別の環境へ渡る。未知の値を黙って gemini に落とすと、

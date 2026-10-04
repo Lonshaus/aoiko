@@ -40,7 +40,7 @@ export class OpfsBackupAdapter implements BackupAdapter {
     // 当日分（複数回上書き可、無視で OK）
     const dailyHandle = await dir.getFileHandle(name, { create: true });
     await stream.pipeTo(await dailyHandle.createWritable());
-    // 「最新」固定名のコピーは単層の zip 運用のためのもの。内容定址の blob まで複製すると
+    // 「最新」固定名のコピーは単層の zip 運用のためのもの。コンテンツアドレス方式の blob まで複製すると
     // 中身が同じだけの重複が延々と増えるので、ネストしたパスでは作らない。
     if (name === path) {
       const ext = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';

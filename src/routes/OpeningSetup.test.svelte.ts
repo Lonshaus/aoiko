@@ -1,4 +1,4 @@
-// 開業精霊：転用資産の少額特例判定（原始取得価額基準、所令135条）・開業日／廃業日の設定書き込み。
+// 開業設定：転用資産の少額特例判定（原始取得価額基準、所令135条）・開業日／廃業日の設定書き込み。
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { mount, unmount } from 'svelte';
 import { db } from '../db/db';
@@ -79,6 +79,8 @@ function setValue(el: HTMLInputElement | HTMLSelectElement, value: string, event
 
 let container: HTMLElement | undefined;
 let instance: Record<string, unknown> | undefined;
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderOpeningSetup(): Promise<void> {
   container = document.createElement('div');
@@ -104,7 +106,7 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('開業精霊', () => {
+describe('開業設定', () => {
   test('転用資産は原始取得価額で少額特例の閾値を判定し、転用日価額を保存する', async () => {
     await db.settings.put({ key: 'filingType', value: 'blue', updatedAt: Date.now() });
     await renderOpeningSetup();
@@ -173,7 +175,6 @@ describe('開業精霊', () => {
     const lines = await db.journalLines.toArray();
     const expenseLine = lines.find((l) => l.accountCode === '5210');
     expect(expenseLine?.amount).toBe('25900');
-
     // 少額特例の年度上限累計は原始取得価額（250,000）で計る（所令126条・所令135条）。
     const statuses = smallAssetSpecialStatuses([asset!], '2026-05-01');
     expect(statuses.get(asset!.id)).toBe('applicable');
@@ -187,7 +188,6 @@ describe('開業精霊', () => {
     expect(summary?.AMF01750).toBe('25900');
     expect(summary?.AMF01770).toBe('25900');
     expect(summary?.AMF01780).toBe('0');
-
     // 資産科目（1510、転用日価額 25,900 相当）から 1520 の累計償却額を引いても負にならない。
     for (let y = 2026; y <= 2030; y++) {
       const result = computeDepreciation(asset!, y, undefined, statuses);
@@ -237,7 +237,7 @@ describe('開業精霊', () => {
     expect(await getSetting('businessCloseDate')).toBe('2026-09-30');
   });
 
-  test('開業精霊で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
+  test('開業設定で開業日 2026-07-01・開業費 100,000 → Settings で少額特例4件登録 → 2026・2027生成（開業日渡さず）で4件目が落選しつつ翌年も定額法で継続', async () => {
     await renderOpeningSetup();
     const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
     setValue(dateInputs[0]!, '2026-07-01', 'input');
@@ -280,6 +280,11 @@ describe('開業精霊', () => {
     container!.remove();
     container = undefined;
 
+    await db.settings.put({
+      key: 'homeOfficeAccountRatios',
+      value: { [MOUNT_SENTINEL]: '0.30' },
+      updatedAt: Date.now(),
+    });
     // Settings の固定資産登録フォームから、転用資産ではない通常の少額特例資産を4件登録する
     // （conversionBasis は付かない）。
     container = document.createElement('div');
@@ -290,7 +295,7 @@ describe('開業精霊', () => {
         container!.querySelector(`input[placeholder="${m.settings_asset_name_placeholder()}"]`) !==
         null,
     );
-    await tick();
+    await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 
     function assetForm(): HTMLFormElement {
       const nameInput = container!.querySelector<HTMLInputElement>(
@@ -333,7 +338,6 @@ describe('開業精霊', () => {
       await tick();
     }
     await waitFor(async () => (await db.fixedAssets.toArray()).length === 4);
-
     // 2026 → 2027 の順で、開業日を渡さずに年末償却を生成する（earliestOpeningDate のフォールバックに委ねる）。
     const r2026 = await generateYearEndDepreciation(2026);
     expect(r2026.smallAssetCapExceeded).toBe(1);

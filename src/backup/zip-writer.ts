@@ -59,7 +59,7 @@ export class ZipStoreWriter {
     const size = bytes.length;
     const crc = crc32(bytes);
     const needsSizeZip64 = size >= this.zip64Threshold;
-    // ローカルヘッダの zip64 拡張は、使うなら両サイズを必ず並べる（オフセットは目録側のみ）。
+    // ローカルヘッダの zip64 拡張は、使うなら両サイズを必ず並べる（オフセットはセントラルディレクトリ側のみ）。
     const extraSize = needsSizeZip64 ? 20 : 0;
     const header = new Uint8Array(LOCAL_FILE_HEADER_FIXED_SIZE + nameBytes.length + extraSize);
     const view = new DataView(header.buffer);

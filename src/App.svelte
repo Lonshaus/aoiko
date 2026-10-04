@@ -15,8 +15,8 @@
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
-  // 器の幅は画面が抱える表の実寸で決める。狭すぎると表がはみ出し、列が一文字ずつ折り返して
-  // 縦書きのようになる。器の内寸は max-w から左右 padding 64px を引いた値。
+  // コンテナの幅は画面が抱える表の実寸で決める。狭すぎると表がはみ出し、列が一文字ずつ折り返して
+  // 縦書きのようになる。コンテナの内寸は max-w から左右 padding 64px を引いた値。
   // - /reports：決算書の表が実測 1002px。カードの内側 48px も引くので max-w-6xl（内寸 1040px）
   // - /journal：仕訳一覧の表が min-w-[720px]。max-w-5xl（内寸 960px）
   // - /manual：長文なので広げると読みにくい。表は無いので max-w-5xl のまま
@@ -34,7 +34,7 @@
   onMount(async () => {
     const acceptedAt = await getSetting('disclaimerAcceptedAt');
     const acceptedVersion = await getSetting('disclaimerAcceptedVersion');
-    // 配布形態ごとに文面が進む速さが違い、こちらより新しい版に同意した記録が
+    // 配布形態ごとに文面が進む速さが違い、こちらより新しいバージョンに同意した記録が
     // バックアップ経由で入ってくる。厳密一致だと同意済みの利用者へ再同意を求めてしまう。
     if (
       acceptedAt &&
@@ -122,7 +122,7 @@
 
 <div class="min-h-screen flex flex-col">
   <!-- 警告帯と header は両方 top-0 に貼るので、重ならないよう一枚にまとめる。
-       安全域の上余白もここが一度だけ持つ（body 側に置くと捲った後に効かない）。 -->
+       セーフエリアの上余白もここが一度だけ持つ（body 側に置くとスクロールした後に効かない）。 -->
   <div
     class="print:hidden sticky top-0 z-20 bg-card text-card-foreground pt-[env(safe-area-inset-top)]"
   >

@@ -1,18 +1,18 @@
 import type { ReceiptExtracted, ReceiptItem } from './ocr';
-// Tesseract（純ローカル OCR）が吐く生テキストから領収書の構造化情報を
-// 確定性ベースで取り出す純関数。ブラウザ非依存・Vitest で網羅可能。
+// Tesseract（完全ローカル OCR）が吐く生テキストから領収書の構造化情報を
+// ルールベースで取り出す純関数。ブラウザ非依存・Vitest で網羅可能。
 //
 // 設計方針：
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
-//   （vision LLM 経路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
+//   （vision LLM 経路の `parseOcrResponse` が例外を投げる条件でも、本関数は投げない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
 // - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
 //   当てずっぽうになる
 //
 // 抽出対象：
-//   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、確定性高）
+//   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、精度が高い）
 //                   T が落ちた場合のみ、同じ行に「登録番号」等がある 13 桁を補う
-//   date          : 西暦 YYYY[/-.年]M[...]D / 和暦 令和N年M月D日 を最初に見つけた行
+//   date          : 西暦 YYYY[/-.年]M[...]D / 和暦（令和N年M月D日）を最初に見つけた行
 //   totalAmount   : 「合計 / お買上げ / 総額 / ご請求」を含み、
 //                   「小計 / お預り / お釣り / 釣銭 / 現金 / ポイント / 還元」
 //                   を含まない行から金額 token を抽出
@@ -24,7 +24,7 @@ const INVOICE_NUMBER_RE = /(?<!\d)T\d{13}(?!\d)/;
 const INVOICE_LABELS = ['登録番号', 'インボイス'];
 const BARE_INVOICE_NUMBER_RE = /(?<!\d)\d{13}(?!\d)/;
 // 年は 19xx / 20xx に限る。市外局番から始まる電話番号が「0499 年 99 月 99 日」のように
-// 先に命中し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
+// 先に一致し、日付を見つけられなくなる（実測。店の電話が日付より前にある領収書は多い）。
 // g を付けて最初の 1 件で諦めないのも同じ理由で、妥当な日付が出るまで後ろを見る。
 const WESTERN_DATE_RE = /((?:19|20)\d{2})\s*[/\-.年]\s*(\d{1,2})\s*[/\-.月]\s*(\d{1,2})\s*日?/g;
 const REIWA_DATE_RE =
@@ -38,7 +38,7 @@ const REIWA_DATE_RE =
 // 小数との取り違えは起きない。
 const AMOUNT_TOKEN_RE = /(?:[¥￥\\])?\s*(\d{1,3}(?:[,.]+\d{3})+|\d+)(?:\s*円)?/g;
 // OCR は字間に空白を挟むことがある（実測の `合 計 ¥460`）。潰してから見ないと見出しの
-// 一致が外れ、合計が後備へ落ちて番号を掴む。
+// 一致が外れ、合計がフォールバックへ落ちて番号を掴む。
 function includesAny(text: string, words: string[]): boolean {
   const flat = text.replace(/\s+/g, '');
   return words.some((w) => flat.includes(w));
@@ -131,8 +131,8 @@ export function extractFromOcrText(text: string): ReceiptExtracted {
   }
   return result;
 }
-// 先頭の `T` が落ちて返ることがある（実測。自信度は最大なので誤りと分からない）。
-// 候補を持たない素のテキスト経路だけの補い方で、版面経路は候補から選ぶ。
+// 先頭の `T` が落ちて返ることがある（実測。信頼度は最大なので誤りと分からない）。
+// 候補を持たない素のテキスト経路だけの補い方で、レイアウト経路は候補から選ぶ。
 function recoverInvoiceNumber(lines: string[]): string | undefined {
   for (const line of lines) {
     if (!includesAny(line, INVOICE_LABELS)) {
@@ -358,7 +358,7 @@ function pageSkew(words: OcrWord[]): number {
   const value = samples.length % 2 === 1 ? samples[mid]! : (samples[mid - 1]! + samples[mid]!) / 2;
   return Math.abs(value) < SKEW_DEAD_ZONE ? 0 : value;
 }
-// 語の接合符は環境で違う（1 語 = 1 文字で返す環境では空文字で繋がれている）。
+// 語の区切り文字は環境で違う（1 語 = 1 文字で返す環境では空文字で繋がれている）。
 // ネイティブが組んだ行と語を突き合わせれば判るので、橋渡しに欄を足さずに済む。
 // 1 語の行では区別が付かないため、2 語以上の行だけで多数決を取る。
 function detectSeparator(layout: OcrLayout): string {
@@ -394,7 +394,7 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
     result.totalAmount = total;
   }
   result.items = extractItems(rows, header, totalRow);
-  // 版面側が持ち切る。残すと、候補を見て「無し」と決めた後に古い誤りが生き残る。
+  // レイアウト側が持ち切る。残すと、候補を見て「無し」と決めた後に古い誤りが生き残る。
   const invoice = invoiceFromCandidates(rows);
   if (invoice) {
     result.invoiceNumber = invoice;
@@ -403,7 +403,7 @@ export function extractFromOcrLayout(input: OcrLayout): ReceiptExtracted {
   }
   return result;
 }
-// 頭でいちばん大きい行。位置の比率では決めない（近接で撮ると頭が紙面の 30% に来る）。
+// 上部でいちばん大きい行。位置の比率では決めない（近接で撮ると上部が紙面の 30% に来る）。
 function extractVendor(lines: OcrLine[], end: number): string {
   let best: OcrLine | undefined;
   for (const line of lines.slice(0, end)) {
@@ -418,7 +418,7 @@ function extractVendor(lines: OcrLine[], end: number): string {
       best = line;
       continue;
     }
-    // 自信度は実測で 3 段しか出ないため、高さが並んだときの決め手にだけ使う。
+    // 信頼度は実測で 3 段しか出ないため、高さが並んだときの決め手にだけ使う。
     if (line.height > best.height + 1e-9) {
       best = line;
     } else if (
@@ -445,7 +445,7 @@ function headerEnd(lines: OcrLine[]): number {
     if (includesAny(text, INVOICE_LABELS)) {
       return i;
     }
-    // 文中の数字では頭は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
+    // 文中の数字では上部は終わらない。店名や住所に数字が混じるだけで店名が取れなくなる
     // （実測。商標が `3` と読まれ `3セブン-イレブン` になった）。
     if (extractDate(text) !== '' || hasAmountOnTheRight(lines[i]!)) {
       return i;
@@ -543,7 +543,7 @@ const TRAILING_AMOUNT_RE =
 const TAX_RATE_MARK_TAIL = /[\s軽減※*＊#＃]+$/;
 // 印だけが独立した単語で返る環境がある（`¥162 軽`）。右端を見る前に落とす。
 const TAX_RATE_MARK_ONLY = /^[\s軽減※*＊#＃]+$/;
-// 頭より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
+// 上部より下・合計より上で、左に品名・右に金額。電話番号やレジ番号も同じ形で並ぶため、
 // 数字の直前に区切りがある物と、左が日付・数字だけの行は外す。取り違えるくらいなら拾わない。
 function extractItems(lines: OcrLine[], header: number, totalRow: number): ReceiptItem[] {
   const items: ReceiptItem[] = [];
@@ -600,13 +600,13 @@ function hasAmountOnTheRight(line: OcrLine): boolean {
   const last = ordered[ordered.length - 1]!;
   // 品名にスペースが入ると、文字と金額が 1 単語に同居する（実測の `玉 ¥150`）。
   // 単語全体を金額と求めると行ごと落ちるので、区切りに続く末尾だけを見る。区切りを
-  // 外して文中の数字まで拾うと、店名が頭から外れる（実測。商標が `3` と読まれ
+  // 外して文中の数字まで拾うと、店名が上部から外れる（実測。商標が `3` と読まれ
   // `3セブン-イレブン` になった）。
   return /(?:^|\s)[¥￥\\*＊]*\s*[-−－▲△]?\s*[\d,.]+$/.test(
     last.text.replace(TAX_RATE_MARK_TAIL, ''),
   );
 }
-// 先頭の候補が誤っていても次が正しいことがある（実測。しかも自信度は最大）。
+// 先頭の候補が誤っていても次が正しいことがある（実測。しかも信頼度は最大）。
 // 形式に合う候補が 1 つも無ければ空にする。桁数の違う番号を通すと利用者は気付けない。
 function invoiceFromCandidates(lines: OcrLine[]): string | undefined {
   for (const line of lines) {

@@ -12,13 +12,13 @@ import {
 import type { CsvParser, ParsedTransaction } from './types';
 // ライフカード（LIFE-Web Desk）の利用明細 CSV（実データ確認済）。
 // エンコーディング：Shift_JIS
-// 前言：支払日 / 会員氏名 / カード名、当月ご請求金額の内訳、ご契約内容など
-// 複数の小表が前後に並ぶ。明細表の表頭は次のとおり：
+// 冒頭の情報行：支払日 / 会員氏名 / カード名、当月ご請求金額の内訳、ご契約内容など
+// 複数の小さな表が前後に並ぶ。明細表のヘッダー行は次のとおり：
 //   明細No., 契約, 回数, 利用日, 利用先, 利用金額, ATM利用料, 手数料,
 //   支払総額, 支払回数/何回目, 当月支払金額, 支払残高
 // 明細表の後ろにも別の内訳表（回数指定払・リボ等）が続くため、
 // 利用日が日付らしくない行は読み飛ばす（後続表の見出し・データを除外）。
-// クレジットのため全行 credit 側（未払金 増加）。
+// クレジットのため全行貸方側（未払金の増加）。
 
 const DISPLAY = 'ライフカード';
 const REQUIRED = ['利用日', '利用先', '利用金額'] as const;
@@ -67,7 +67,7 @@ const lifeCardParser: CsvParser = {
         }
       }
       const memo = memoParts.length > 0 ? memoParts.join(' / ') : undefined;
-      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      // 返金・キャンセル行は負数 → 絶対値 + 借方（未払金の減少）
       const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const transaction: ParsedTransaction = {

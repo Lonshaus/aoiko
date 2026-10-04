@@ -85,7 +85,6 @@ function button(c: HTMLElement, label: string): HTMLButtonElement {
   }
   return found;
 }
-
 // ダイアログは AlertDialog の portal で document.body 直下に出る。
 function bodyButton(label: string): HTMLButtonElement {
   const found = Array.from(document.body.querySelectorAll('button')).find((b) =>
@@ -110,7 +109,6 @@ function dispatchImageFile(c: HTMLElement, name: string): HTMLInputElement {
   dispatchFileToInput(input, new File(['x'], name, { type: 'image/png' }));
   return input;
 }
-
 // happy-dom は file input の value 代入を常に '' に固定し呼び出し自体を記録しないため、プロトタイプの setter に委譲するインスタンス直下の accessor で呼び出しを記録する。
 function spyOnValueSetter(input: HTMLInputElement): string[] {
   const proto = Object.getPrototypeOf(input) as object;
@@ -129,7 +127,6 @@ function spyOnValueSetter(input: HTMLInputElement): string[] {
   });
   return calls;
 }
-
 // ダイアログが閉じている間は AlertDialog の中身がポータルに存在しない前提のヘルパー
 function dialogVisible(): boolean {
   return Array.from(document.body.querySelectorAll('button')).some((b) =>
@@ -166,7 +163,6 @@ describe('Receipt: 画像を選び直した時の破棄確認', () => {
 
     expect(setCalls).toContain('');
     expect(c.textContent).toContain('抽出結果');
-
     // input.value が本当にクリアされていなければ、同じファイルの再選択はここで無視される
     dispatchFileToInput(input, otherFile);
     expect(dialogVisible()).toBe(true);

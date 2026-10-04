@@ -37,7 +37,7 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('build 産物では開発用の文書プレビュー区画が出ない', () => {
+describe('ビルド成果物では開発用の文書プレビュー区画が出ない', () => {
   test('見出しが見付からない', async () => {
     await db.settings.put({
       key: 'homeOfficeAccountRatios',
@@ -49,6 +49,6 @@ describe('build 産物では開発用の文書プレビュー区画が出ない'
     instance = mount(Settings, { target: container, props: {} });
     await waitFor(() => container!.querySelector('select') !== null);
     await waitFor(() => container!.textContent!.includes(MOUNT_SENTINEL));
-    expect(container.textContent).not.toContain('開発用：文書のプレビュー対象');
+    expect(container.textContent).not.toContain('開発用：プレビュー対象');
   });
 });

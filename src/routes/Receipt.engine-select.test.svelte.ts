@@ -99,12 +99,12 @@ function button(c: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe('Receipt: エンジン選択', () => {
-  test('native 利用可：規則エンジン選択で select が現れ、2 択', async () => {
+  test('native 利用可：ルールベースエンジン選択で select が現れ、2 択', async () => {
     await setSetting('skipAttachmentConfirm', true);
     await setSetting('receiptMethod', 'rule');
     const c = renderReceipt();
     await selectFile(c);
-    button(c, '内蔵の規則エンジン').click();
+    button(c, '内蔵のルールベースエンジン').click();
     flushSync();
     await waitFor(() => c.querySelector('select') !== null);
     const options = c.querySelectorAll('select option');
@@ -164,7 +164,7 @@ describe('Receipt: エンジン選択', () => {
     await setSetting('skipAttachmentConfirm', true);
     const c = renderReceipt();
     await selectFile(c);
-    button(c, '内蔵の規則エンジン').click();
+    button(c, '内蔵のルールベースエンジン').click();
     await waitFor(async () => (await db.settings.get('receiptMethod'))?.value === 'rule');
     expect((await db.settings.get('receiptMethod'))?.value).toBe('rule');
 
@@ -174,5 +174,22 @@ describe('Receipt: エンジン選択', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(async () => (await db.settings.get('receiptRuleEngine'))?.value === 'tesseract');
     expect((await db.settings.get('receiptRuleEngine'))?.value).toBe('tesseract');
+  });
+
+  test('ルールベースの説明文：native は店名・品目の推測に触れ、tesseract は触れない', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('receiptMethod', 'rule');
+    await setSetting('receiptRuleEngine', 'native');
+    const c = renderReceipt();
+    await selectFile(c);
+    button(c, '内蔵のルールベースエンジン').click();
+    flushSync();
+    await waitFor(() => c.textContent?.includes('店名と品目も推測します') === true);
+
+    const select = c.querySelector('select') as HTMLSelectElement;
+    select.value = 'tesseract';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => c.textContent?.includes('決まった規則で') === true);
+    expect(c.textContent).not.toContain('店名と品目も推測します');
   });
 });

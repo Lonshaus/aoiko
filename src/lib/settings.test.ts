@@ -1,4 +1,4 @@
-// 同意を求め直す版が、本文の出し分けとずれていないかを見る。ずれると、内容が
+// 同意を求め直すバージョンが、本文の出し分けとずれていないかを見る。ずれると、内容が
 // 変わっていない側の利用者に同意を取り直させたり、逆に変わった側へ古い同意のまま
 // 通してしまう。コメントだけでは次に触る人（と私）が見落とす。
 import { describe, expect, test } from 'vitest';
@@ -8,9 +8,8 @@ import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
 import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
-const EXPECTED_VERSION = 9;
-
-// 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとの版を守れない。
+const EXPECTED_VERSION = 10;
+// 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとのバージョンを守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
 function versionsFromSource(): Record<Platform, number> {
   const source = readFileSync(resolve('src/lib/settings.ts'), 'utf-8');
@@ -23,18 +22,20 @@ function versionsFromSource(): Record<Platform, number> {
 }
 
 describe('DISCLAIMER_VERSION', () => {
-  test('走っている側の版が定数と一致する', () => {
+  test('走っている側のバージョンが定数と一致する', () => {
     expect(DISCLAIMER_VERSION).toBe(EXPECTED_VERSION);
   });
 
-  test('原文から読める版も同じ', () => {
+  test('原文から読めるバージョンも同じ', () => {
     for (const platform of PLATFORMS) {
-      expect(versionsFromSource()[platform], `${platform} の版が違う`).toBe(EXPECTED_VERSION);
+      expect(versionsFromSource()[platform], `${platform} のバージョンが違う`).toBe(
+        EXPECTED_VERSION,
+      );
     }
   });
   // 生の（出し分け前の）本文には全形態の行が混ざって載っているため、生の文字列を
   // 見るだけでは畳み忘れに気付けない。形態ごとに剥がしてから行番号を見る。
-  test('改訂履歴の最新行が、形態ごとの版と一致する', () => {
+  test('改訂履歴の最新行が、形態ごとのバージョンと一致する', () => {
     const expected = versionsFromSource();
     for (const doc of DOCS) {
       const src = readFileSync(resolve(doc), 'utf-8');
@@ -42,7 +43,7 @@ describe('DISCLAIMER_VERSION', () => {
         const rows = [...stripBuildOnly(src, platform).matchAll(/^\|\s*(\d+)\s*\|/gm)].map((m) =>
           Number(m[1]),
         );
-        expect(Math.max(...rows), `${doc} の ${platform} 側の最新行が版と違う`).toBe(
+        expect(Math.max(...rows), `${doc} の ${platform} 側の最新行がバージョンと違う`).toBe(
           expected[platform],
         );
         expect(new Set(rows).size, `${doc} の ${platform} 側に同じ番号の行が 2 つある`).toBe(
@@ -56,7 +57,6 @@ describe('DISCLAIMER_VERSION', () => {
     }
   });
 });
-
 // 判定はファクトリ側に一本化した。getSetting は素通しでないと、
 // ここで既定へ落としたつもりが実は素通しという食い違いに気付けない。
 describe('getSetting は加工しない', () => {
@@ -74,7 +74,6 @@ describe('getSetting は加工しない', () => {
     }
   });
 });
-
 // 令和9年分以後の75万円が電磁的記録の備付け・保存を要件とすることを、
 // 三語すべての settings_aoiro_electronic が書いていること（両方の呼出経路が共通で使う）。
 describe('messages/*.json の settings_aoiro_electronic', () => {
@@ -87,11 +86,11 @@ describe('messages/*.json の settings_aoiro_electronic', () => {
     expect(aoiroElectronicText('ja')).toContain('電磁的記録の備付け・保存');
   });
 
-  test('en：kept/preserved electronic records に触れている', () => {
+  test('en：「kept and preserved electronic records」に触れている', () => {
     expect(aoiroElectronicText('en')).toContain('kept and preserved electronic records');
   });
 
-  test('zh-TW：電磁記錄備置保存に触れている', () => {
-    expect(aoiroElectronicText('zh-TW')).toContain('電磁記錄備置保存');
+  test('zh-TW：電磁紀錄備置保存に触れている', () => {
+    expect(aoiroElectronicText('zh-TW')).toContain('電磁紀錄備置保存');
   });
 });

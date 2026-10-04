@@ -25,6 +25,7 @@
     markYearFiled,
     unlockYear,
   } from '../domain/snapshots';
+  import { arApDisplayDescription } from '../domain/ar-ap-description';
   import { interimFilingObligation, type InterimVoluntaryInputs } from '../domain/interim-filing';
   import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
   import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
@@ -72,7 +73,13 @@
     buildTwoWariXtx,
   } from '../tax-schema/2026/xtx-consumption-tax';
   import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
-  import type { ArApEntry, ArApType, TaxRegistration } from '../db/types';
+  import type {
+    ArApEntry,
+    ArApType,
+    ConsumptionTaxSnapshotData,
+    TaxRegistration,
+    Vendor,
+  } from '../db/types';
   import { db } from '../db/db';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
@@ -109,13 +116,13 @@
   }
 
   const now = new Date();
-  // 処理年度に追従（writable derived：セレクタ選択で override、Settings 変更で追従に戻る）。
+  // 処理年度に追従（writable derived：セレクタ選択で上書き、設定画面の変更で追従に戻る）。
   let year = $derived(ledger.currentYear);
 
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
   let bs = $state<BSReport | null>(null);
-  // 不動産所得等の科目が存在する年度のみ、PL(事業)とBS(全帳簿合算)の口径差を注記する
+  // 不動産所得等の科目が存在する年度のみ、PL(事業)とBS(全帳簿合算)の集計範囲の違いを注記する
   let hasRealEstate = $state(false);
   let inventoryValuation = $state<InventoryValuation | null>(null);
   let monthlyPL = $state<MonthlyPLReport | null>(null);
@@ -133,6 +140,8 @@
   let confirmingLock = $state(false);
   let confirmingUnlock = $state(false);
   let lockError = $state('');
+  let lockNotice = $state('');
+  let lockMethod = $state<ConsumptionTaxResult['method'] | ''>('');
   let reportsError = $state('');
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
@@ -222,8 +231,9 @@
       budgetSaving = false;
     }
   }
-  // 現金流予測。売掛金/買掛金子帳は年度非依存（全件）で持つため、専用の liveQuery で購読する。
+  // 資金繰り予測。売掛金・買掛金の補助簿は年度非依存（全件）で持つため、専用の liveQuery で購読する。
   let arApEntries = $state<ArApEntry[]>([]);
+  let arApVendorsById = $state<ReadonlyMap<string, Vendor>>(new Map());
   let newArApType = $state<ArApType>('receivable');
   let newArApDescription = $state('');
   let newArApDueDate = $state(todayISO());
@@ -235,9 +245,13 @@
   let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
 
   $effect(() => {
-    const sub = liveQuery(() => db.arApEntries.orderBy('dueDate').toArray()).subscribe({
+    const sub = liveQuery(async () => ({
+      entries: await db.arApEntries.orderBy('dueDate').toArray(),
+      vendors: await db.vendors.toArray(),
+    })).subscribe({
       next: (v) => {
-        arApEntries = v;
+        arApEntries = v.entries;
+        arApVendorsById = new Map(v.vendors.map((x) => [x.id, x]));
       },
       error: (e: unknown) => {
         arApError = describeStorageError(e);
@@ -376,24 +390,29 @@
     void saveWariBaseAdjustments();
   }
 
+  async function loadCompareContext(yr: number) {
+    const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
+    const attributionMethod =
+      (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
+    const simplifiedElectionFiledDate = (await getSetting('simplifiedElectionFiledDate')) ?? '';
+    const priorYearMethod = (await getConsumptionTaxSnapshot(yr - 1))?.method;
+    const compareOptions = {
+      eligibility: await loadWariEligibilityInputs(),
+      smallAmountSpecial: await loadSmallAmountSpecialInputs(),
+      wariAdjustments: await loadWariBaseAdjustments(yr),
+      ...(simplifiedElectionFiledDate !== '' ? { simplifiedElectionFiledDate } : {}),
+      ...(priorYearMethod !== undefined ? { priorYearMethod } : {}),
+    };
+    return { cat, attributionMethod, compareOptions };
+  }
+
   $effect(() => {
     const yr = year;
     const ax = breakdownAxis;
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
-      const cat = (await getSetting('simplifiedTaxCategory')) ?? 4;
       const filing = (await getSetting('filingType')) ?? 'blue';
-      const attributionMethod =
-        (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
-      const simplifiedElectionFiledDate = (await getSetting('simplifiedElectionFiledDate')) ?? '';
-      const priorYearMethod = (await getConsumptionTaxSnapshot(yr - 1))?.method;
-      const compareOptions = {
-        eligibility: await loadWariEligibilityInputs(),
-        smallAmountSpecial: await loadSmallAmountSpecialInputs(),
-        wariAdjustments: await loadWariBaseAdjustments(yr),
-        ...(simplifiedElectionFiledDate !== '' ? { simplifiedElectionFiledDate } : {}),
-        ...(priorYearMethod !== undefined ? { priorYearMethod } : {}),
-      };
+      const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
       const reports = await buildAll(yr, ax);
       const processed = await processYear(yr);
       const inventory = ledger.inventoryAutoValuationEnabled
@@ -511,9 +530,40 @@
     return best.method;
   }
 
+  const lockMethodOptions = $derived(taxRegistration === 'tax-free' ? [] : (consumptionTax ?? []));
+  function askLock() {
+    lockMethod = consumptionTax ? (bestMethod(consumptionTax) ?? '') : '';
+    confirmingLock = true;
+  }
+  // 計算できない場合は消費税の確定額だけ保存せず、所得税側のロックは続ける
+  async function buildConsumptionTaxPayload(
+    yr: number,
+    chosen: ConsumptionTaxResult['method'] | '',
+  ): Promise<{ type: 'consumption-tax'; data: ConsumptionTaxSnapshotData } | 'failed' | null> {
+    if (((await getSetting('taxRegistration')) ?? 'tax-free') === 'tax-free') {
+      return null;
+    }
+    try {
+      const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
+      const results = await compareAll(yr, cat, attributionMethod, compareOptions);
+      const method = chosen || bestMethod(results);
+      const picked = results.find((r) => r.method === method);
+      if (!picked) {
+        return 'failed';
+      }
+      return {
+        type: 'consumption-tax',
+        data: { method: picked.method, netTaxNational: picked.filingRounded.national },
+      };
+    } catch {
+      return 'failed';
+    }
+  }
+
   async function lockYear() {
     confirmingLock = false;
     lockError = '';
+    lockNotice = '';
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
     // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
     const lockYearTarget = year;
@@ -524,6 +574,7 @@
       lockError = m.reports_no_data_for_year({ year: lockYearTarget });
       return;
     }
+    const consumptionTaxPayload = await buildConsumptionTaxPayload(lockYearTarget, lockMethod);
     try {
       await markYearFiled(
         lockYearTarget,
@@ -570,9 +621,15 @@
                 },
               }
             : {}),
+          ...(consumptionTaxPayload !== null && consumptionTaxPayload !== 'failed'
+            ? { consumptionTax: consumptionTaxPayload }
+            : {}),
         },
         `${lockYearTarget}-12-31`,
       );
+      if (consumptionTaxPayload === 'failed') {
+        lockNotice = m.reports_lock_ct_not_saved();
+      }
     } catch (e) {
       lockError = describeStorageError(e);
     }
@@ -581,13 +638,14 @@
   async function unlock() {
     confirmingUnlock = false;
     lockError = '';
+    lockNotice = '';
     try {
       await unlockYear(year);
     } catch (e) {
       lockError = describeStorageError(e);
     }
   }
-  // 申告者情報を設定から読む。IT部 必須項目（税務署・利用者識別番号・氏名・住所）が
+  // 申告者情報を設定から読む。IT部の必須項目（税務署・利用者識別番号・氏名・住所）が
   // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
   async function loadFiler() {
     const filer = {
@@ -602,10 +660,10 @@
     return { filer, missing };
   }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
-  // 令和7年分（NENBUN=7）で行う。封包構造は年分非依存（同一コード生成）。
+  // 令和7年分（NENBUN=7）で行う。.xtx のファイル構造は年分に依存しない（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
-    // 対象年度をその場再計算して封包する（消費税側の processYear 方式と統一）
+    // 対象年度をその場再計算して .xtx を組み立てる（消費税側の processYear 方式と統一）
     const filingYear = year;
     const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
     if (!monthly || !pl || !bs) {
@@ -637,7 +695,7 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
-    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業精霊が書き込む）。
+    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業設定が書き込む）。
     const businessDates = await loadBusinessDates();
     const xtxCtx = {
       year: exportYear,
@@ -841,6 +899,12 @@
     </div>
   {/if}
 
+  {#if lockNotice}
+    <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {lockNotice}
+    </div>
+  {/if}
+
   {#if reportsError}
     <div
       class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
@@ -868,7 +932,7 @@
           {:else}
             <button
               type="button"
-              onclick={() => (confirmingLock = true)}
+              onclick={askLock}
               class="text-xs px-3 py-1 border rounded hover:bg-accent"
             >
               {m.reports_lock_button()}
@@ -1610,7 +1674,7 @@
                     ? m.reports_arap_type_receivable()
                     : m.reports_arap_type_payable()}
                 </td>
-                <td class="px-3 py-1">{e.description}</td>
+                <td class="px-3 py-1">{arApDisplayDescription(e, arApVendorsById)}</td>
                 <td class="px-3 py-1 tabular-nums whitespace-nowrap">{e.dueDate}</td>
                 <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
                 <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
@@ -2182,6 +2246,23 @@
         {m.reports_lock_confirm_desc({ year })}
       </AlertDialog.Description>
     </AlertDialog.Header>
+    {#if lockMethodOptions.length > 0}
+      <label class="block text-sm">
+        <span class="text-xs text-muted-foreground">{m.reports_lock_filed_method_label()}</span>
+        <select
+          bind:value={lockMethod}
+          data-testid="lock-method-select"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          {#each lockMethodOptions as r (r.method)}
+            <option value={r.method}>{consumptionTaxMethodLabel(r, simplifiedCategory)}</option>
+          {/each}
+        </select>
+        <span class="mt-1 block text-xs text-muted-foreground"
+          >{m.reports_lock_filed_method_hint()}</span
+        >
+      </label>
+    {/if}
     <AlertDialog.Footer>
       <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
       <AlertDialog.Action onclick={lockYear}>{m.reports_lock_confirm_action()}</AlertDialog.Action>

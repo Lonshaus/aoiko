@@ -35,8 +35,8 @@
   let file = $state<File | null>(null);
   let preview = $state<string | null>(null);
   let extracted = $state<ReceiptExtracted | null>(null);
-  let counterpartAccount = $state('5910'); // 雑費 デフォルト
-  let knownAccount = $state('1110'); // 現金 デフォルト
+  let counterpartAccount = $state('5910'); // 既定は雑費
+  let knownAccount = $state('1110'); // 既定は現金
   let processing = $state(false);
   let error = $state('');
   // 読み込んだ画像と OCR 結果は確定するまで DB に無い。撮り直し・再解析になる。
@@ -69,7 +69,7 @@
   const accountGroups = $derived(ledger.groupedAccounts());
   // この画面専用の選択（Settings の aiEngine とは別軸）。
   let receiptMethod = $state<ReceiptMethod>('ai');
-  // 保存値の型は AiEngine だが、実データは他環境の復元・旧版の残留等で
+  // 保存値の型は AiEngine だが、実データは他環境の復元・旧バージョンの残留等で
   // 未知の文字列になり得る（Settings.svelte の strandedAiEngine と同じ事情）。
   // 通知文言の分岐で使うだけなので生の string で控える。
   let aiEngineInUse = $state<string>('gemini');
@@ -96,7 +96,7 @@
     if (resolved !== stored) {
       await setSetting('receiptRuleEngine', resolved);
     }
-    // 解析ボタンの活殺はこの値で決まる。確定した engine を入れ終えてから公開する。
+    // 解析ボタンの有効／無効はこの値で決まる。確定した engine を入れ終えてから公開する。
     availableRuleEngines = engines;
   });
 
@@ -193,7 +193,7 @@
     error = '';
     try {
       const extractor = await createReceiptExtractor(receiptMethod, receiptRuleEngine);
-      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI は文脈窓が理由で、
+      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI はコンテキストウィンドウが理由で、
       // 端末内かどうかとは別の軸になる。
       const source = extractor.downscale ? await downscaleForUpload(file) : file;
       const image = await fileToBase64(source);
@@ -253,7 +253,7 @@
     if (committing) {
       return;
     }
-    const data = extracted; // 以降のクロージャ内でも narrowed 保証
+    const data = extracted; // 以降のクロージャ内でも絞り込み済みの保証
     error = '';
     success = '';
     // 日付が空・不正でも IndexedDB は受け付けてしまい、year が 0 の仕訳として
@@ -298,7 +298,7 @@
       validateLines(lines);
 
       const description = data.vendorName || m.receipt_default_description();
-      // OCR に使った原本画像を証憑として保存。分錄と同一 transaction で
+      // OCR に使った原本画像を証憑として保存。仕訳と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
       if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
@@ -385,7 +385,7 @@
   <header>
     <h2 class="text-2xl font-bold">{m.receipt_title()}</h2>
     <p class="text-xs text-muted-foreground">
-      <!-- OS 内蔵の文字認識は原生版にしか無いエンジンなので、説明も同じ旗で分ける。 -->
+      <!-- OS 内蔵の文字認識はネイティブ版にしか無いエンジンなので、説明も同じフラグで分ける。 -->
       {m.receipt_subtitle()}
     </p>
   </header>
@@ -470,12 +470,11 @@
         {:else if availableRuleEngines === null}
           {m.receipt_engine_checking()}
         {:else}
-          {m.receipt_rule_engine_notice({
-            engine:
-              receiptRuleEngine === 'tesseract'
-                ? m.receipt_rule_engine_name_tesseract()
-                : m.receipt_rule_engine_name_native(),
-          })}
+          {#if receiptRuleEngine === 'tesseract'}
+            {m.receipt_rule_engine_notice({ engine: m.receipt_rule_engine_name_tesseract() })}
+          {:else}
+            {m.receipt_rule_engine_notice_native({ engine: m.receipt_rule_engine_name_native() })}
+          {/if}
         {/if}
       </span>
     </div>

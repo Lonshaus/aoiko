@@ -48,8 +48,15 @@ function setValue(el: HTMLInputElement | HTMLSelectElement, value: string, event
 async function tick(): Promise<void> {
   await new Promise((r) => setTimeout(r, 20));
 }
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderSettings(): Promise<void> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
@@ -58,7 +65,7 @@ async function renderSettings(): Promise<void> {
       container!.querySelector(`input[placeholder="${m.settings_asset_name_placeholder()}"]`) !==
       null,
   );
-  await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 }
 
 beforeEach(async () => {
@@ -249,7 +256,7 @@ describe('少額特例落選資産の画面での扱い', () => {
     expect(stored[0]?.decliningBalanceElected).toBe(true);
   });
 
-  test('落選資産の処分は定額法の累計償却額で1520を借記する（修正前は390,000）', async () => {
+  test('落選資産の処分は定額法の累計償却額で1520を借方に計上する（修正前は390,000）', async () => {
     const { generateYearEndDepreciation } = await import('../domain/depreciation');
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     await db.fixedAssets.bulkAdd(
@@ -290,7 +297,7 @@ describe('少額特例落選資産の画面での扱い', () => {
         break;
       }
     }
-    // 除却仕訳の 1520 debit（既存の年末償却仕訳は 1520 credit のため side で絞る）
+    // 除却仕訳の 1520 借方（既存の年末償却仕訳は 1520 貸方のため side で絞る）
     const accDepLine = lines.find((l) => l.accountCode === '1520' && l.side === 'debit');
     expect(accDepLine?.amount).toBe('65000');
   });

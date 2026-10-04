@@ -20,7 +20,7 @@ export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
 export type ReceiptRuleEngine = 'native' | 'tesseract';
-// __NATIVE__ は build 時の define で、vitest 実行全体では true に畳まれる
+// __NATIVE__ はビルド時の define で、vitest 実行全体では true に畳まれる
 // （vitest.config.ts）。false 側を試験できるよう、判定を引数で渡す形にしておく。
 export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
   return isNative ? 'native' : 'tesseract';
@@ -29,7 +29,7 @@ export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版で選んだバックアップ先。token は端末固有の
+  // ラッパー版で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
@@ -56,8 +56,8 @@ export type SettingsMap = {
   aiEngine: AiEngine;
   // 領収書の読み取り方法。ai = 上の aiEngine、rule = 下の receiptRuleEngine（人手確認前提）。
   receiptMethod: ReceiptMethod;
-  // receiptMethod = rule のときに使う確定性抽出エンジン。
-  // - tesseract：WASM の純ローカル OCR（通信無し）
+  // receiptMethod = rule のときに使うルールベース抽出エンジン。
+  // - tesseract：WASM の完全ローカル OCR（通信無し）
   // - native：OS 内蔵の文字認識（対応環境のみ・通信無し）
   receiptRuleEngine: ReceiptRuleEngine;
   // OpenAI 互換エンドポイント（例：http://localhost:11434/v1）
@@ -134,7 +134,7 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
-  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業精霊が書き込む）。
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定が書き込む）。
   // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
   businessStartDate: string;
   businessCloseDate: string;
@@ -154,7 +154,8 @@ export type SettingsMap = {
 // 本文が変わっていないのでそのまま 6 に据え置く。
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
-export const DISCLAIMER_VERSION = 9;
+// v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
+export const DISCLAIMER_VERSION = 10;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,
@@ -229,7 +230,6 @@ export async function loadInterimPriorPeriodMonths(year: number): Promise<number
   const map = await getSetting('interimPriorPeriodMonths');
   return map?.[year] ?? 12;
 }
-
 // 少額特例の年合計上限の月割に使う開業日・廃業日。未設定はそれぞれ呼出元の既定に委ねる。
 export async function loadBusinessDates(): Promise<{
   businessStartDate?: string;

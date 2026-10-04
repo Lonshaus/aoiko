@@ -44,7 +44,7 @@ const LOCALE_STRATEGY: NonNullable<Parameters<typeof paraglideVitePlugin>[0]['st
   'baseLocale',
 ];
 // 出し分けの唯一の入口。未設定は web の build。不正な値は黙って browser に落とさない
-// （落とすとネイティブ版の産物に web 向けの文章が入る）。
+// （落とすとネイティブ版のビルド成果物に web 向けの文章が入る）。
 function buildPlatform(): Platform {
   const value = process.env.AOIKO_PLATFORM ?? 'browser';
   if (!isPlatform(value)) {
@@ -52,7 +52,7 @@ function buildPlatform(): Platform {
   }
   return value;
 }
-// PWA キャッシュ版の識別用。git の無いビルド環境（tarball 展開等）でも落ちないようフォールバック
+// PWA キャッシュのバージョンの識別用。git の無いビルド環境（tarball 展開等）でも落ちないようフォールバック
 function gitCommitShort(): string {
   try {
     return execSync('git rev-parse --short HEAD', { encoding: 'utf-8' }).trim();
@@ -60,13 +60,12 @@ function gitCommitShort(): string {
     return 'unknown';
   }
 }
-
 // tesseract-wasm の lib.js は worker とコアの既定位置を `new URL(..., import.meta.url)`
 // で書いており、vite はこれを静的に見つけて assets/ へ複製する。aoiko は OCRClient に
 // workerURL を明示で渡し、worker は自分の隣（/tesseract/）からコアを取るため、複製された
 // ほうは実行時に一度も使われない。しかも vite が書き出した worker の中では
 // tesseract-core-fallback.wasm の参照がハッシュ名へ書き換わっておらず、そもそも
-// 使えば壊れる。放置すると配布物に約 1.9MB の死重が乗り、worker は .js なので
+// 使えば壊れる。放置すると配布物に約 1.9MB の不要なファイルが乗り、worker は .js なので
 // precache にまで入る（OCR を使わない利用者まで取得してしまう）。
 // 参照そのものは engine chunk の到達不能な分岐に残るが、実行されない。
 function dropUnusedTesseractAssets() {
@@ -79,7 +78,7 @@ function dropUnusedTesseractAssets() {
       // 黙って何もしないと消したつもりのものが残り続けるので気付けるようにする。
       if (hit.length === 0) {
         throw new Error(
-          'tesseract-wasm の複製資産が見つからない。上流の変更でこの plugin が不要になった可能性がある。',
+          'tesseract-wasm の複製アセットが見つからない。上流の変更でこの plugin が不要になった可能性がある。',
         );
       }
       for (const file of hit) {
@@ -88,11 +87,10 @@ function dropUnusedTesseractAssets() {
     },
   };
 }
-
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
   // 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は
-  // `<!-- only:… -->` で囲み、build 時にここで取り除く。表示時に隠すのでは産物に文章が残り、
+  // `<!-- only:… -->` で囲み、ビルド時にここで取り除く。表示時に隠すのではビルド成果物に文章が残り、
   // console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
   // dev server では印の検査だけ行い、原文のまま返す（開発用プレビューが実行時に畳む）。
   function stripDocsForBuild(platform: Platform) {
@@ -122,10 +120,10 @@ export default defineConfig(({ command }) => {
       // 上書きできるようにする。未設定なら package.json の値。
       __APP_VERSION__: JSON.stringify(process.env.AOIKO_VERSION ?? pkg.version),
       __APP_COMMIT__: JSON.stringify(gitCommitShort()),
-      // ネイティブ版のビルドでだけ true。商店を持たない web に購入画面を含めないため、
+      // ネイティブ版のビルドでだけ true。ストアを持たない web に購入画面を含めないため、
       // 実行時の判定ではなくここで畳む。false になった側は import ごと落ちる。
       __NATIVE__: JSON.stringify(buildPlatform() !== 'browser'),
-      // dev server だけ true。文書プレビュー用の選択肢とその文字列を build 産物に含めない。
+      // dev server だけ true。文書プレビュー用の選択肢とその文字列をビルド成果物に含めない。
       __DOC_PREVIEW__: JSON.stringify(command === 'serve'),
       __DOC_PLATFORM__: JSON.stringify(buildPlatform()),
       // 旧キャッシュの掃除で比較に使う。runtimeCaching が書き込む名前と揃える。
@@ -199,7 +197,7 @@ export default defineConfig(({ command }) => {
           // 除外しないと navigation として index.html が返り、router が知らない経路として
           // 404 画面になる（SW 導入後のみ起きるため、開発中は気付けない）。
           navigateFallbackDenylist: [/^\/api\//, /^\/THIRD_PARTY_LICENSES\.txt$/],
-          // .html / .css / .js / 画像 / フォント を precache
+          // .html / .css / .js / 画像 / フォントを precache
           globPatterns: ['**/*.{html,css,js,svg,png,ico,webmanifest,woff,woff2}'],
           // tesseract-wasm の worker・コア・日本語モデルは合計 6MB 超。OCR エンジンに
           // Tesseract を選んだ利用者だけが必要とするため precache から除外する

@@ -10,7 +10,7 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install xmllint (XSD validation テスト用)
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils
@@ -35,7 +35,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
@@ -45,7 +45,7 @@ jobs:
       - run: npm ci
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
@@ -66,20 +66,18 @@ jobs:
           name: playwright-report
           path: ${{ runner.temp }}/aoiko-playwright/report/
           retention-days: 7
-
   # パッケージ（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
   # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
   # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
   native:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
-
       # cfg で分けている部分は、そのプラットフォーム向けに引かないと壊れていても気付けない。
       # cargo check はリンクしないので Xcode の設定は要らない。
       - uses: dtolnay/rust-toolchain@stable
@@ -91,27 +89,15 @@ jobs:
           workspaces: src-tauri -> target
 
       - run: npm ci
-
       # 依存の追加・更新でライセンス一覧が古くなったまま配られるのを防ぐ。
       # cargo metadata しか使わないので、対象プラットフォームの toolchain は要らない。
       - run: npm run licenses:native:check
-
       # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
       - run: npm run test:init
-
-      # prettier は .rs を読めず、cargo test は排版を見ない。入れるまで誰も見て
+      # prettier は .rs を読めず、cargo test は整形を見ない。入れるまで誰も見て
       # いなかったので、実際に 2 箇所ずれたまま既定の枝に入っていた。
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
-      # tauri-plugin-iap は Swift の静的ライブラリを target/ ではなく自分の
-      # 原始ディレクトリ（~/.cargo/registry/src/…/macos/.build/）へ置く。
-      # rust-cache は保存時に registry/src を消すため、キャッシュが前方一致でしか
-      # 当たらなかった回は、build script の fingerprint だけが生き残って
-      # swift build が飛ばされ、リンク先のライブラリが無い状態になる。
-      # 逃げ道は build script を必ず走らせること。Swift のビルドは 1 分弱。
-      - run: cargo clean -p tauri-plugin-iap --manifest-path src-tauri/Cargo.toml
-
       # mobile_entry_point のガードもここに入っている。
       - run: npm run test:rust
-
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios

@@ -238,7 +238,7 @@ describe('mapKoa210Values 貸借対照表（期末列への出力）', () => {
     expect(out.AMG00200).toBeUndefined(); // 工具器具備品（期首）
     expect(out.AMG00520).toBeUndefined(); // 買掛金（期首）
   });
-  test('元入金のみ期首・期末の両方に同額を出力（手引き 一般用の書き方 p.6）', () => {
+  test('元入金のみ期首・期末の両方に同額を出力（手引き「一般用の書き方」p.6）', () => {
     expect(out.AMG00740).toBe('700000'); // 元入金（期末）
     expect(out.AMG00600).toBe('700000'); // 元入金（期首）
   });
@@ -253,7 +253,7 @@ function bsRow(
 describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所得金額転記・貸借一致', () => {
   test('issue の数値：減価償却累計額（間接法）は資産の追加科目枠へマイナスで入り、AMG00750 に所得金額が入り、両側が一致する', () => {
     // issue #294 の元入金 500,000・工具器具備品 1,000,000・減価償却累計額 -400,000 はそのまま採用。
-    // 所得金額は issue 記載の 3,050,000 のままだと（事業主貸/借 抜きの）この最小構成では
+    // 所得金額は issue 記載の 3,050,000 のままだと（事業主貸/借抜きの）この最小構成では
     // 貸借が一致しないため、貸借一致の性質を検証できるよう 100,000 に変更している。
     const values = mapKoa210Values(
       ctx({
@@ -429,7 +429,7 @@ function asset(overrides: Partial<FixedAsset> & { id: string }): FixedAsset {
   };
 }
 
-describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁 明細）', () => {
+describe('mapKoa210RepeatedValues 減価償却費の計算（第3頁の明細）', () => {
   test('資産 1 件：名称・取得価額・償却方法・耐用年数・償却費・専用割合・必要経費算入額・未償却残高', () => {
     const out = mapKoa210RepeatedValues(
       ctx({ fixedAssets: [asset({ id: 'a1', name: 'ノートPC' })] }),
@@ -842,7 +842,7 @@ describe('措法28の2第3項明細（当年適用の少額特例資産を1行�
     expect(rows.filter((r) => r.AMF01610 === 'A' || r.AMF01610 === 'B')).toHaveLength(0);
   });
 
-  test('cap 超過で落選した資産はまとめ行に入らず、方法欄は定額法／定率法で表示する', () => {
+  test('上限超過で落選した資産はまとめ行に入らず、方法欄は定額法／定率法で表示する', () => {
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     const assets = dates.map((d, i) =>
       asset({

@@ -8,15 +8,15 @@ import {
   stripComma,
 } from './_helpers';
 import type { CsvParser, ParsedTransaction } from './types';
-// PayPayカード（旧 ヤフーカード）会員メニューの利用明細 CSV（実データ確認済）。
+// PayPayカード（旧ヤフーカード）会員メニューの利用明細 CSV（実データ確認済）。
 // QR 決済の取引履歴 CSV（paypay.ts）とは別物。本 parser はクレジットカードの会員明細 CSV。
 // どちらもクレジット運用前提で accountCode は 2120（未払金）。
 // エンコーディング：UTF-8（BOM 付き。parseCsv が BOM を除去する）
 // ヘッダー：利用日/キャンセル日, 利用店名・商品名, 利用者, 決済方法, 支払区分,
 //           利用金額, 手数料, 支払総額, 当月支払金額, 翌月以降繰越金額,
 //           調整額, 当月お支払日
-// 数値：千分位カンマあり。通常は支払（credit）だが、キャンセル日行は負数で現れるため
-// applySign で絶対値 + debit（未払金の減少）に変換する。
+// 数値：桁区切りのカンマあり。通常は支払（貸方）だが、キャンセル日行は負数で現れるため
+// applySign で絶対値 + 借方（未払金の減少）に変換する。
 
 const DISPLAY = 'PayPayカード';
 const REQUIRED = ['利用日/キャンセル日', '利用店名・商品名', '利用金額'] as const;

@@ -38,7 +38,7 @@ describe('restore-notice', () => {
     expect(takeRestoreNotice()).toBeNull();
     expect(sessionStorage.getItem(KEY)).toBeNull();
   });
-  // sessionStorage が使えない環境（あるブラウザ のプライベート閲覧等）でも復元自体は成立させる。
+  // sessionStorage が使えない環境（あるブラウザのプライベート閲覧等）でも復元自体は成立させる。
   test('sessionStorage が投げても復元処理を止めない', () => {
     vi.stubGlobal('sessionStorage', {
       setItem: () => {

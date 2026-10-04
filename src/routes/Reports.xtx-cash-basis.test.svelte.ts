@@ -154,12 +154,12 @@ describe('cashBasisElection・priorPriorBusinessRevenue が Reports の .xtx ctx
     const el = container;
 
     await waitFor(() =>
-      Array.from(el.querySelectorAll('button')).some((b) =>
-        (b.textContent ?? '').includes('.xtx を書き出す'),
+      Array.from(el.querySelectorAll('button')).some(
+        (b) => (b.textContent ?? '').trim() === '.xtx を書き出す',
       ),
     );
-    const button = Array.from(el.querySelectorAll('button')).find((b) =>
-      (b.textContent ?? '').includes('.xtx を書き出す'),
+    const button = Array.from(el.querySelectorAll('button')).find(
+      (b) => (b.textContent ?? '').trim() === '.xtx を書き出す',
     );
     if (button === undefined) {
       throw new Error('.xtx を書き出すボタンが見つからない');

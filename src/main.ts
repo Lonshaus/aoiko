@@ -1,3 +1,4 @@
+import './lib/preview-platform-init';
 import { mount } from 'svelte';
 import './app.css';
 import App from './App.svelte';
@@ -63,9 +64,9 @@ async function start(): Promise<void> {
     target: document.getElementById('app')!,
   });
 }
-// ハッシュ違いで残った旧い Tesseract 資産キャッシュを削除する。SW を使うのは web 版だけなので、
-// __NATIVE__ で畳んで native 版の産物には残さない。http（非セキュアコンテキスト）では caches
-// 自体が存在しないため、参照前に typeof で確かめる（bare 参照は ReferenceError になる）。
+// ハッシュ違いで残った旧い Tesseract アセットのキャッシュを削除する。SW を使うのは web 版だけなので、
+// __NATIVE__ で畳んで native 版のビルド成果物には残さない。http（非セキュアコンテキスト）では caches
+// 自体が存在しないため、参照前に typeof で確かめる（修飾なしの参照は ReferenceError になる）。
 if (!__NATIVE__) {
   void cleanupStaleTesseractCaches(
     typeof caches !== 'undefined' ? caches : undefined,

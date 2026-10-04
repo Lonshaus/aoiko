@@ -128,7 +128,7 @@ describe('load', () => {
   });
 });
 // at は日付までしか無く id は UUID v4 なので、この 2 つでは押した順に戻せない。
-// 順序が崩れると nextStampFace が見る「直前の何個」が狂い、7 種の輪ごと壊れる。
+// 順序が崩れると nextStampFace が見る「直前の何個」が狂い、7 種の一巡ごと壊れる。
 describe('押した順', () => {
   test('読み込み直しても並びが変わらない', async () => {
     installBridge('purchased');
@@ -142,7 +142,7 @@ describe('押した順', () => {
     expect(support.stamps.map((s) => `${s.shape}/${s.color}`)).toEqual(before);
   });
 
-  test('読み込みを挟んでも 7 種の輪が続く', async () => {
+  test('読み込みを挟んでも 7 種の一巡が続く', async () => {
     installBridge('purchased');
     for (let i = 0; i < 5; i++) {
       await support.purchase('tip');

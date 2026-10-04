@@ -146,7 +146,7 @@ export async function restoreFromJson(
 ): Promise<{ tableCount: number; rowCount: number; missingBlobCount: number }> {
   return restoreFromPayload(payload, new Map());
 }
-// JSON テキストをパース・検証する。形式不正時は throw。
+// JSON テキストをパース・検証する。形式不正時は例外を投げる。
 export function parseBackupJson(text: string): BackupPayload {
   let parsed: unknown;
   try {

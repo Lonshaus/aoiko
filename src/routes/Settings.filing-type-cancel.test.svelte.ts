@@ -39,13 +39,20 @@ function dialogButton(label: string): HTMLButtonElement {
   }
   return found;
 }
+// onMount の直列読み込みが終わる前に afterEach の db.delete() が走ると DatabaseClosedError が未処理で残るため、最後に読む設定に目印を仕込んで表示まで待つ。
+const MOUNT_SENTINEL = 'ZZZ9';
 
 async function renderSettings(): Promise<void> {
+  await db.settings.put({
+    key: 'homeOfficeAccountRatios',
+    value: { [MOUNT_SENTINEL]: '0.30' },
+    updatedAt: Date.now(),
+  });
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
   await waitFor(() => container!.querySelector('input[name="filingType"]') !== null);
-  await new Promise((r) => setTimeout(r, 50));
+  await waitFor(() => (container!.textContent ?? '').includes(MOUNT_SENTINEL));
 }
 
 async function chooseWhite(): Promise<void> {
@@ -65,9 +72,6 @@ afterEach(async () => {
     unmount(instance);
     instance = undefined;
   }
-  // 確認の対話は本文の scroll を止め、解除を 24ms 遅らせて予約する。環境が先に片付くと
-  // document が無い所でその予約が起き、試験は全て通ったまま実行が失敗する。
-  await new Promise((r) => setTimeout(r, 50));
   if (container !== undefined) {
     container.remove();
     container = undefined;
@@ -101,7 +105,7 @@ describe('確定申告方式の切り替え確認', () => {
     await waitFor(() => radio('blue').checked);
     const form = radio('blue').closest('form');
     if (!form) {
-      throw new Error('申報者資訊のフォームが見付からない');
+      throw new Error('申告者情報のフォームが見付からない');
     }
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await waitFor(() => container!.textContent?.includes('保存しました') === true);

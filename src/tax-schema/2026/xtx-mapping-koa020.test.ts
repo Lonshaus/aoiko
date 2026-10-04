@@ -58,7 +58,7 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   };
 }
 
-describe('mapKoa020Values（IT部 定義側）', () => {
+describe('mapKoa020Values（IT部の定義側）', () => {
   test('年分は令和年・屋号は businessName', () => {
     const v = mapKoa020Values(ctx({ year: 2026, businessName: '青井商店' }));
     expect(v.NENBUN).toBe('8');
@@ -71,7 +71,7 @@ describe('mapKoa020Values（IT部 定義側）', () => {
   });
 });
 
-describe('mapKoa020LeafValues（第一表 直接値）', () => {
+describe('mapKoa020LeafValues（第一表の直接値）', () => {
   // 収入500万・控除前所得500万・電子(65万控除) → 事業所得435万・所得金額435万
   const plBase = {
     year: 2026,
@@ -94,7 +94,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
 
   test('事業の3項目のみ。合計所得・所得控除・税額の欄は出力しない', () => {
     const out = mapKoa020LeafValues(ctx({ pl: { ...plBase }, aoiroDeductionKind: 'electronic' }));
-    // 営業収入・事業所得・青色控除額 の 3 件のみ（合計⑫は e-Tax 自動計算）
+    // 営業収入・事業所得・青色控除額の 3 件のみ（合計⑫は e-Tax 自動計算）
     expect(Object.keys(out)).toHaveLength(3);
   });
 
@@ -278,7 +278,7 @@ describe('mapKoa020LeafValues（第一表 直接値）', () => {
     expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - 35000);
   });
 
-  test('給与所得・雑所得は合計所得金額（基礎控除の級距判定）にも加算される', () => {
+  test('給与所得・雑所得は合計所得金額（基礎控除の区分判定）にも加算される', () => {
     // 事業所得: 収入500万-青色控除65万=435万。給与所得(収入100万)=26万を加えると461万→
     // 336万円超489万円以下の基礎控除68万円区分に該当する（335万円台なら88万円のはず）
     const out = mapKoa020LeafValues(
@@ -596,7 +596,7 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
         ],
       },
     });
-    // 専従者控除前所得金額は100万（貸倒引当金繰入額は戻さない）→100万÷2=50万 と
+    // 専従者控除前所得金額は100万（貸倒引当金繰入額は戻さない）→100万÷2=50万と
     // 配偶者定額86万のいずれか低い方＝50万（戻していれば140万÷2=70万になり不一致）
     expect(result.total.toString()).toBe('500000');
   });
@@ -664,7 +664,7 @@ describe('mapKoa020LeafValues / mapKoa020RepeatedValues（白色・事業専従�
   test('事業所得は専従者控除後の値、配偶者控除は専従者のため0になる', () => {
     const out = mapKoa020LeafValues(makeCtx());
     // 専従者控除前所得金額＝300万(pl.netIncome)＋100万(専従者給与を足し戻し)＝400万。
-    // 専従者控除＝配偶者の定額86万 と 400万÷(1+1)=200万 のいずれか低い方＝86万。
+    // 専従者控除＝配偶者の定額86万と 400万÷(1+1)=200万のいずれか低い方＝86万。
     // 事業所得＝400万−86万＝314万
     expect(out.ABB00300).toBe('3140000');
     expect(out.ABB00790).toBe('860000');

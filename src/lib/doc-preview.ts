@@ -1,7 +1,7 @@
 import { isPlatform, stripBuildOnly, type Platform } from './build-only';
 
 export const DOC_PREVIEW_STORAGE_KEY = 'aoiko.devDocPreviewPlatform';
-// localStorage が読めない環境（プライベートウィンドウ等）や不正値では fallback に倒す。
+// localStorage が読めない環境（プライベートウィンドウ等）や不正値では代替値に倒す。
 export function readPreviewPlatform(fallback: Platform): Platform {
   try {
     const value = localStorage.getItem(DOC_PREVIEW_STORAGE_KEY);
@@ -15,7 +15,7 @@ export function writePreviewPlatform(platform: Platform): void {
   try {
     localStorage.setItem(DOC_PREVIEW_STORAGE_KEY, platform);
   } catch {
-    // 書けない環境でも画面は動かし続ける（次回起動は fallback になるだけ）
+    // 書けない環境でも画面は動かし続ける（次回起動は代替値になるだけ）
   }
 }
 
@@ -29,7 +29,7 @@ export function foldModules(
   }
   return folded;
 }
-// build では __DOC_PREVIEW__ が false に畳まれ、この分岐ごと産物から落ちる。
+// build では __DOC_PREVIEW__ が false に畳まれ、この分岐ごとビルド成果物から落ちる。
 export function previewModules(modules: Record<string, string>): Record<string, string> {
   if (!__DOC_PREVIEW__) {
     return modules;

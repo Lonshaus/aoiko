@@ -89,7 +89,7 @@ function ctx(overrides: Partial<XtxContext> = {}): XtxContext {
   };
 }
 
-describe('mapKoa220Values（青色申告決算書・不動産所得用 第1頁）', () => {
+describe('mapKoa220Values（青色申告決算書・不動産所得用の第1頁）', () => {
   test('realEstatePl が無ければ空を返す', () => {
     expect(mapKoa220Values(ctx())).toEqual({});
   });

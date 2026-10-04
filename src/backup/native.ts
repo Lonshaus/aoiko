@@ -1,16 +1,16 @@
 import { splitBackupPath } from './content-store';
 import type { BackupAdapter } from './types';
 import { m } from '../paraglide/messages';
-// wrapper 版が注入するネイティブのフォルダ書き込み。
+// ラッパー版が注入するネイティブのフォルダ書き込み。
 //
 // showDirectoryPicker が無く、今後も入らない環境がある（実装側が反対の立場を表明して
 // 議論は終わっており、有効化する設定も無い）。web API に頼る限りそこでは同期フォルダへの
 // 自動書き出しに到達できないため、選択と書き込みをネイティブへ出す。
 //
-// ネイティブ層の SDK は import せず、wrapper 側が束ねて注入する window.__aoikoNative 経由で
+// ネイティブ層の SDK は import せず、ラッパー側が束ねて注入する window.__aoikoNative 経由で
 // 呼ぶ。公開 repo の依存を増やさないため（save-file の差し替えと同じ方針）。
 interface NativeBackupBridge {
-  // 取り消しは null。token は端末固有の不透明文字列で、中身は wrapper 側の都合で決まる。
+  // 取り消しは null。token は端末固有の不透明文字列で、中身はラッパー側の都合で決まる。
   // web 側は保管して渡し直すだけで、解釈しない。
   backupChooseFolder(): Promise<{ token: string; name: string } | null>;
   backupIsReady(token: string): Promise<boolean>;
@@ -19,9 +19,9 @@ interface NativeBackupBridge {
   backupWrite(token: string, fileName: string, data: ReadableStream<Uint8Array>): Promise<void>;
   backupList(token: string): Promise<string[]>;
   backupRemove(token: string, fileName: string): Promise<void>;
-  // 内容定址バックアップ用。wrapper 側が未実装のため optional にしてあり、
-  // 呼び出し側は関数の有無で能力を判定する（別スライスで wrapper へ追加する）。
-  // 見つからないファイルは wrapper 側で null にする。IO 失敗は例外のまま。
+  // コンテンツアドレス方式バックアップ用。ラッパー側が未実装のため optional にしてあり、
+  // 呼び出し側は関数の有無で能力を判定する（別スライスでラッパーへ追加する）。
+  // 見つからないファイルはラッパー側で null にする。IO 失敗は例外のまま。
   backupRead?(token: string, path: string): Promise<Uint8Array<ArrayBuffer> | null>;
   backupListDir?(token: string, subdir: string): Promise<string[]>;
 }
@@ -45,7 +45,7 @@ export function decideNativeState(input: {
   ready: boolean;
 }): NativeBackupState {
   if (!input.hasFolder) {
-    // FSA の handle しか無い ＝ wrapper 版へ移ってきた既存利用者。未設定と区別する。
+    // FSA の handle しか無い＝ラッパー実装へ移ってきた既存利用者。未設定と区別する。
     return input.hasLegacyHandle ? 'reconfigure-required' : 'unconfigured';
   }
   return input.ready ? 'idle' : 'reconfigure-required';

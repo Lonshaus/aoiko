@@ -41,7 +41,7 @@ type BackupStatus =
   | 'unsupported'
   | 'unconfigured'
   // 保存先が失われ、選び直す以外に回復手段が無い状態。FSA 時代の handle しか無い
-  // wrapper 版と、保存先への参照が失効した場合の両方で使う（回復動線が同じため）。
+  // ラッパー版と、保存先への参照が失効した場合の両方で使う（回復動線が同じため）。
   | 'reconfigure-required'
   | 'permission-required'
   | 'idle'
@@ -69,7 +69,7 @@ class BackupManager {
   private skipFirstAutoBackup = true;
   // writing 中に来た要求を1件だけ覚えておき、書込完了後に追い掛けて再実行する
   private backupPending = false;
-  // 時限切れの後も裏で走り続けている掃除がある間は次を重ねない
+  // タイムアウトの後も裏で走り続けている掃除がある間は次を重ねない
   private sweepInFlight = false;
   private sweepDeadlineMs = SWEEP_DEADLINE_MS;
 
@@ -128,7 +128,7 @@ class BackupManager {
 
   private async initAdapter(): Promise<void> {
     await this.requestPersistentStorage();
-    // showDirectoryPicker が無い環境があるため、wrapper 版はネイティブ層を先に見る。
+    // showDirectoryPicker が無い環境があるため、ラッパー版はネイティブ層を先に見る。
     // これが無いとそこでは opfs 止まりになり、同期フォルダへの
     // 自動書き出しに到達できない。
     const native = new NativeFolderBackupAdapter(
@@ -264,10 +264,10 @@ class BackupManager {
       void this.backup();
     }, DEBOUNCE_MS);
   }
-  // 古いスナップショットを保持件数まで減らす。証憑写真の実体は消さない（内容定址で、
-  // 消した版以外からも参照され得るため。参照されなくなった実体の掃除は別立て）。
+  // 古いスナップショットを保持件数まで減らす。証憑写真の実体は消さない（コンテンツアドレス方式で、
+  // 消したバージョン以外からも参照され得るため。参照されなくなった実体の掃除は別立て）。
   // 呼ばれる時点でバックアップ本体は成功しているため、設定の読み取り失敗も含めて
-  // 例外を外へ出さない。ここで throw すると成功した保存が失敗として表示されてしまう。
+  // 例外を外へ出さない。ここで例外を投げると成功した保存が失敗として表示されてしまう。
   private async pruneOldBackups(): Promise<void> {
     try {
       const keepCount = (await getSetting('backupRetentionCount')) ?? 0;
@@ -281,7 +281,7 @@ class BackupManager {
   }
   // 参照されなくなった証憑の実体を掃除する。既定では何もしない。
   //
-  // 判定に窓の中の全スナップショットを読む必要があるので、保存のたびには走らせない。
+  // 判定に保持期間内の全スナップショットを読む必要があるので、保存のたびには走らせない。
   // 実体が増えるのは「帳簿から消した証憑」の分だけで放置しても膨らみ方は緩いため、
   // 1 日 1 回で足りる。pruneOldBackups と同じく例外は外へ出さない。
   //
@@ -302,7 +302,7 @@ class BackupManager {
         return;
       }
       // 時限を過ぎても読み出し自体は止められない（中断する手段が無い）。裏で走り続けて
-      // いる間は次を重ねないよう、旗は元の処理が決着してから下ろす。
+      // いる間は次を重ねないよう、フラグは元の処理が決着してから下ろす。
       this.sweepInFlight = true;
       const running = sweepUnreferencedBlobs(this.adapter, retentionDays, now)
         .then(async () => {
@@ -316,14 +316,14 @@ class BackupManager {
         });
       await withDeadline(running, this.sweepDeadlineMs);
     } catch (e: unknown) {
-      // 時限切れは異常ではない。クラウドから中身が降りてくるのを待っているだけで、
+      // タイムアウトは異常ではない。クラウドから中身が降りてくるのを待っているだけで、
       // バックアップ本体は成功している。利用者に出さず次の機会へ持ち越す。
       if (!(e instanceof DeadlineExceededError)) {
         this.lastError = e instanceof Error ? e.message : String(e);
       }
     }
   }
-  // 復元画面から使う。保存先の握りは manager が持ったままにしたいのでアダプタは外へ出さない。
+  // 復元画面から使う。保存先のハンドルは manager が持ったままにしたいのでアダプタは外へ出さない。
   async readLatestSnapshot(options?: FolderRestoreOptions): Promise<FolderRestoreSource | null> {
     if (!this.adapter || !this.canRead) {
       return null;
@@ -352,7 +352,7 @@ class BackupManager {
         await this.adapter.remove(`${subdir}/${fileName}`);
       }
     }
-    // 直下には散ファイル以前に書いた zip が残っている。帳簿と証憑写真の完全な複製な
+    // 直下には個別のファイル以前に書いた zip が残っている。帳簿と証憑写真の完全な複製な
     // ので、これも消さないと「全データ削除」の意味が無くなる。
     for (const fileName of await this.adapter.list()) {
       await this.adapter.remove(fileName);
@@ -379,7 +379,7 @@ class BackupManager {
     }
     const prev = this.status;
     // ループで追い掛ける（再帰だと高速な保存の連打でスタックが伸びる）。
-    // 失敗時はループを抜ける ＝ 失敗中のアダプタへ再突入して空回りしない。
+    // 失敗時はループを抜ける＝失敗中のアダプタへ再突入して空回りしない。
     do {
       this.backupPending = false;
       this.status = 'writing';
@@ -393,7 +393,7 @@ class BackupManager {
         this.lastBackupAt = Date.now();
         await setSetting('lastBackupAt', this.lastBackupAt);
         this.lastError = '';
-        // 汰換が終わるまで status は 'writing' のままにする。先に 'idle' へ戻すと
+        // 古い世代の整理が終わるまで status は 'writing' のままにする。先に 'idle' へ戻すと
         // デバウンス経由の次のバックアップが再入ガードをすり抜けて並走する。
         await this.pruneOldBackups();
         await this.sweepBlobs();

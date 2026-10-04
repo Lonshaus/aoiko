@@ -3,14 +3,14 @@ import { applySign, buildRawRow, isDateLike, normalizeDate, stripComma } from '.
 import type { CsvParser, ParsedTransaction } from './types';
 import { m } from '../paraglide/messages';
 // 三井住友カード（NL / Olive 含む）Vpass の利用明細 CSV（実データ確認済）。
-// この CSV には表頭行が無く、1 行目はカード会員情報（氏名 / 番号 / 種別）。
+// この CSV にはヘッダー行が無く、1 行目はカード会員情報（氏名 / 番号 / 種別）。
 // 2 行目以降がデータで、列は位置で解釈する（1 サンプルからの推定。
-// 列構成が異なる個体が出たら要再確認）：
+// 列構成が異なるファイルが出たら要再確認）：
 //   [0]利用日 [1]ご利用店名・内容 [2]ご利用金額 [3]支払区分
 //   [4]何回目 [5]今回お支払額（確定額。キャッシュバックは負値）[6]備考
 // 末尾に日付の無い請求合計行が付くため、利用日が日付らしくない行は読み飛ばす。
-// クレジットのため通常は credit（未払金 増）。キャッシュバック等の負値は
-// debit（未払金 減）として扱う。
+// クレジットのため通常は貸方（未払金の増）。キャッシュバック等の負値は
+// 借方（未払金の減）として扱う。
 
 const DISPLAY = '三井住友カード';
 const COL = {
@@ -38,7 +38,7 @@ const smbcCardParser: CsvParser = {
   encoding: 'shift_jis',
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
-    // 表頭が無い形式のため、位置解釈の前に最低限の指紋を確認する（パーサー誤選択の検出）。
+    // ヘッダー行が無い形式のため、位置解釈の前に最低限の指紋を確認する（パーサー誤選択の検出）。
     // 1 行目はカード会員情報（日付ではない）。先頭が日付なら別形式とみなす。
     const firstNonEmpty = rows.find((r) => r.some((c) => c.trim() !== ''));
     if (firstNonEmpty && isDateLike((firstNonEmpty[COL.date] ?? '').trim())) {

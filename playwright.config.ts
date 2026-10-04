@@ -1,7 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
 // 出力先を repo の外へ置く。失敗時のスクリーンショット・動画・trace も HTML
 // レポートも、消して困るものではない。repo フォルダには無いと動かないものだけを置く。
 // CI では runner の一時領域を使う（TMPDIR が RUNNER_TEMP と一致する保証が無いため
@@ -50,7 +49,7 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      // Service Worker は本物の build 産物でしか検証できない（dev server は生成しない）。
+      // Service Worker は本物のビルド成果物でしか検証できない（dev server は生成しない）。
       command: 'npm run build && npm run preview -- --port 31527 --strictPort',
       url: 'http://localhost:31527',
       reuseExistingServer: !process.env.CI,

@@ -207,7 +207,7 @@ describe('FsaBackupAdapter.list', () => {
       '2026-08-09T120000Z.json',
     ]);
   });
-  // 内容定址バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
+  // コンテンツアドレス方式バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
   // ディレクトリを誤って数えないことを保証する。
   test('直下にディレクトリがあってもファイルだけを返す', async () => {
     const root = new FakeDirectoryHandle();

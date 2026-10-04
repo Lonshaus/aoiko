@@ -208,7 +208,7 @@ describe('OpfsBackupAdapter.backup', () => {
       9, 8,
     ]);
   });
-  // 内容定址の blob ごとに「最新」複製を作ると、中身が同じだけの重複が延々と増える。
+  // コンテンツアドレス方式の blob ごとに「最新」複製を作ると、中身が同じだけの重複が延々と増える。
   test('ネストしたパスでは aoiko-ledger-latest を作らない', async () => {
     const root = new FakeDirectoryHandle();
     vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
@@ -265,7 +265,7 @@ describe('OpfsBackupAdapter.list / remove', () => {
     expect(await adapter.list('snapshots')).toEqual(['2026-08-09T120000Z.json']);
     expect(await adapter.list()).toEqual([]);
   });
-  // 内容定址バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
+  // コンテンツアドレス方式バックアップでは snapshots/attachments が並ぶため、「何件あるか」が
   // ディレクトリを誤って数えないことを保証する。
   test('直下にディレクトリがあってもファイルだけを返す', async () => {
     const root = new FakeDirectoryHandle();

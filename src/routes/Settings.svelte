@@ -137,9 +137,9 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
-  // 開発用：手引き・条文を dev server でどの配布形態向けに畳んで表示するか。
+  // 開発用：手引き・条文と画面の出し分けを dev server でどの配布形態向けに見せるか。
   // __DOC_PLATFORM__ は dev server 起動時の AOIKO_PLATFORM で、未検証の生値なので isPlatform で確かめる。
-  // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、build 産物に doc-preview.ts が
+  // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、ビルド成果物に doc-preview.ts が
   // 混入する（tree-shaking は分岐の外側の参照までは削らない）。
   let devDocPreviewPlatform = $state<Platform>(
     __DOC_PREVIEW__
@@ -161,14 +161,14 @@
     windows: 'Windows',
   };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
-  // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
+  // __NATIVE__ はビルド時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応等）も
   // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
-  // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web の産物に
+  // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web のビルド成果物に
   // この経路の文言・問い合わせを残さないため。
   let appleAiAvailability = $state<number | null>(null);
   // 1（機種非対応）と 4（OS が古い）は利用者側でどうにもならないので選択肢ごと隠す。
@@ -187,7 +187,7 @@
   );
   // ブラウザ内蔵の AI。null は「まだ問えていない」。モデルの取得は aoiko の役目ではないので、
   // ブラウザが既に持っている（available）ときだけ選択肢を出す。__NATIVE__ で畳むのは、
-  // 原生の産物にこの経路の問い合わせを残さないため。
+  // ネイティブ版のビルド成果物にこの経路の問い合わせを残さないため。
   let chromeAiAvailability = $state<string | null>(null);
   const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
   const SupportDialog = __NATIVE__
@@ -306,7 +306,7 @@
   let geminiModels = $state<string[]>([]);
   let aiEngine = $state<AiEngine>('gemini');
   // 選択肢の無い値（他環境の復元・選べなくなった旧値等）が保存に残っている場合の生値。
-  // aiEngine は bind 先の狭い合併型なので、そちらへは書かず別枠に控える。
+  // aiEngine は bind 先の狭いユニオン型なので、そちらへは書かず別枠に控える。
   let strandedAiEngine = $state<string | null>(null);
   let openaiBaseUrl = $state('');
   let openaiOcrModel = $state('');
@@ -355,7 +355,7 @@
   // 確認を通るまで filingType は変えないため、選択の見た目は別に持つ。同じ値へ戻すと
   // 再描画が起きず、取り消しても押した側に選択が残る。
   let filingTypeChoice = $state<FilingType>('blue');
-  // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業精霊が書き込む）。
+  // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業設定が書き込む）。
   let businessDates = $state<{ businessStartDate?: string; businessCloseDate?: string }>({});
   let pendingFilingType = $state<FilingType | null>(null);
   let confirmingFilingType = $state(false);
@@ -376,6 +376,15 @@
       title: m.settings_disposal_clear_confirm_title(),
       desc: m.settings_disposal_clear_confirm_desc({ name }),
       action: m.settings_asset_disposal_clear(),
+      run,
+    };
+    confirmingDelete = true;
+  }
+  function askReverseCarryover(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_carryover_delete_confirm_title(),
+      desc: m.settings_carryover_delete_confirm_desc({ name }),
+      action: m.settings_carryover_delete_button(),
       run,
     };
     confirmingDelete = true;
@@ -491,7 +500,7 @@
       strandedAiEngine = null;
     } else {
       // 選択肢の無い値（他環境の復元・選べなくなった旧値等）。空欄に見せず、
-      // 生値のまま disabled で見せて理由を出す。bind 先は狭い合併型なので
+      // 生値のまま disabled で見せて理由を出す。bind 先は狭いユニオン型なので
       // 表示のためだけにキャストする。保存し直せば必ず上書きされる。
       strandedAiEngine = storedAiEngine;
       aiEngine = storedAiEngine as AiEngine;
@@ -954,7 +963,7 @@
     }),
   );
   const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
   const smallAssetStatuses = $derived(
     smallAssetSpecialStatuses(
       ledger.fixedAssets,
@@ -1376,9 +1385,9 @@
     restoreAttachmentBlobs = new Map();
     restoreAttachmentCount = 0;
   }
-  // 保存先フォルダから直接読む経路。同期フォルダには散ファイルで置かれていて、
+  // 保存先フォルダから直接読む経路。同期フォルダには個別のファイルで置かれていて、
   // 利用者が「どのファイルか」を選べる形になっていないため、選ばせずに一番新しい
-  // 復元可能な版をこちらで選ぶ。
+  // 復元可能なバージョンをこちらで選ぶ。
   async function handleRestoreFromFolder() {
     resetRestoreState();
     restoreFileName = '';
@@ -2080,7 +2089,9 @@
       </button>
       <button
         type="button"
-        onclick={() => askDelete(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
+        data-testid="carryover-reverse-button"
+        onclick={() =>
+          askReverseCarryover(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
         {m.settings_carryover_delete_button()}
@@ -3087,7 +3098,7 @@
         <option value="gemini">{m.settings_engine_gemini()}</option>
         <option value="openai-compatible">{m.settings_engine_openai()}</option>
         <!-- 1/4 は利用者側でどうにもならないので選択肢ごと隠す。2/3/5 は選び直せるので
-             disabled で残し、下に理由を出す。__NATIVE__ で畳むのは web の産物に
+             disabled で残し、下に理由を出す。__NATIVE__ で畳むのは web のビルド成果物に
              この経路の文言を残さないため。 -->
         {#if appleAiOptionShown}
           <option value="apple-ai" disabled={appleAiAvailability !== 0}>
@@ -3556,9 +3567,9 @@
   </section>
   {#if __DOC_PREVIEW__}
     <section class="space-y-4 border border-dashed rounded-lg p-6 bg-card text-card-foreground">
-      <h3 class="text-lg font-semibold">開発用：文書のプレビュー対象</h3>
+      <h3 class="text-lg font-semibold">開発用：プレビュー対象</h3>
       <p class="text-xs text-muted-foreground">
-        手引き・免責事項・プライバシーポリシー・セキュリティ方針をどの配布形態向けに畳んで表示するか。dev
+        手引き・免責事項・プライバシーポリシー・セキュリティ方針と、画面の文言・選択肢をどの配布形態向けに表示するか。見た目の確認用で、ネイティブ専用の機能は動かない。dev
         server でのみ表示される。
       </p>
       <select

@@ -14,8 +14,8 @@ export async function lockedYearsAmong(years: Iterable<number>): Promise<number[
     .toArray();
   return [...new Set(filed.map((s) => s.year))].sort((a, b) => a - b);
 }
-// 本体は db 層にある。db.ts が書き込みの門としてこれを投げるため、domain に置くと
-// db → guard → domain → db の輪ができる。既存の import 先を変えずに済むよう再輸出する。
+// 本体は db 層にある。db.ts が書き込みの門としてこれを投げるため、ドメイン層に置くと
+// `db → guard → domain → db` の循環参照になる。既存の import 先を変えずに済むよう再エクスポートする。
 export { FiledYearError } from '../db/filed-year-guard';
 /**
  * 申告済み年度への書き込みを止める。書き込む処理の入口で、トランザクションを

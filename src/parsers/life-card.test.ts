@@ -5,7 +5,7 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/life-card-sample.csv', lifeCardParser.encoding);
 
 describe('lifeCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(lifeCardParser.name).toBe('life-card');
     expect(lifeCardParser.accountCode).toBe('2120');
     expect(lifeCardParser.encoding).toBe('shift_jis');
@@ -31,7 +31,7 @@ describe('lifeCardParser', () => {
     expect(r[2]).toMatchObject({ amount: '50000', memo: 'キャッシング' });
   });
 
-  test('throws when no header row is found', () => {
+  test('ヘッダー行が見つからなければ例外を投げる', () => {
     expect(() => lifeCardParser.parse('foo,bar\n1,2')).toThrow(/CSV ヘッダー形式/);
   });
 });

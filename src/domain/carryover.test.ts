@@ -212,7 +212,7 @@ describe('computeCarryover', () => {
     expect(p.capitalAmount).toBe('0');
   });
 
-  test('reverseEntry による訂正は繰越に影響しない（成対排除）', async () => {
+  test('reverseEntry による訂正は繰越に影響しない（ペア除外）', async () => {
     await seedAccounts(2025);
     await seedEntry({
       date: '2025-01-01',
@@ -374,7 +374,7 @@ describe('removeCarryover', () => {
     expect(r.removed).toBe(false);
   });
 
-  test('やり直しても B/S は繰越 1 回分と同じ（成対排除が効く）', async () => {
+  test('やり直しても B/S は繰越 1 回分と同じ（ペア除外が効く）', async () => {
     await seedPriorYear();
     await applyCarryover(2026);
     const once = await buildBS(2026);

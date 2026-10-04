@@ -152,7 +152,6 @@ pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::Recogniz
 pub(crate) fn recognize_text(image_data: &[u8]) -> crate::Result<crate::RecognizedText> {
     windows_ocr::recognize_text(image_data)
 }
-
 // 左右に分かれたセルは別々に返るので、まとめないと「合計」と金額が離れて拾えない。
 // 行内の区切りだけは環境で違うため呼び元が決める（一文字ずつ返す側で空白は挟めない）。
 #[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -185,7 +184,7 @@ fn words_to_lines(mut words: Vec<crate::RecognizedWord>, separator: &str) -> cra
         .collect();
     crate::RecognizedText::from_lines(lines)
 }
-// 関数が生えていることと読めることは別。対応言語は OS の版や導入内容で変わる。
+// 関数が生えていることと読めることは別。対応言語は OS のバージョンや導入内容で変わる。
 #[cfg(target_os = "macos")]
 pub(crate) fn is_text_recognition_available() -> bool {
     macos::supports_japanese()
@@ -212,7 +211,6 @@ mod windows_ocr {
     };
 
     use crate::{RecognizedText, RecognizedWord};
-
     // 日本語の言語機能は既定で入っておらず、利用者が追加するまで読めない。
     // 追加の有無は実行時にしか分からないので毎回問う。
     pub(super) fn supports_japanese() -> bool {
@@ -278,7 +276,7 @@ mod windows_ocr {
                     y: f64::from(r.Y) / height,
                     width: f64::from(r.Width) / width,
                     height: f64::from(r.Height) / height,
-                    // このエンジンは語ごとの自信度も次の候補も返さない。
+                    // このエンジンは語ごとの信頼度も次の候補も返さない。
                     confidence: None,
                     alternates: Vec::new(),
                     // 向きは `OcrResult.TextAngle` に紙面で 1 つだけ乗る。語ごとには無い。
@@ -465,8 +463,7 @@ mod macos {
             assert!(!same_row(&cell(0.8500, 0.0100), &cell(0.8400, 0.0100)));
         }
     }
-
-    // 対応言語は認識の水準と revision の組で変わる。読み取りと同じ設定に揃えてから
+    // 対応言語は認識レベルと revision の組で変わる。読み取りと同じ設定に揃えてから
     // 問わないと、実際には使えない言語を「使える」と答えてしまう。
     pub(super) fn supports_japanese() -> bool {
         let request = VNRecognizeTextRequest::new();
@@ -483,7 +480,6 @@ mod macos {
         };
         langs.iter().any(|l| l.to_string() == "ja-JP")
     }
-
     // ja-JP は VNRecognizeTextRequestRevision3 の .accurate でしか使えない（.fast は非対応）。
     // 圧縮バイト列のまま渡す。ビットマップへ先に展開すると Vision 側の対応形式判定を素通りする。
     pub(super) fn recognize_text(image_data: &[u8]) -> crate::Result<RecognizedText> {

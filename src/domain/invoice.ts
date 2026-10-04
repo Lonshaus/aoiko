@@ -131,6 +131,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
   const total = groups.reduce((sum, g) => sum.plus(g.grossAmount), D(0));
   const arApEntryId = newId();
   const now = Date.now();
+  const vendorName = (await db.vendors.get(invoice.vendorId))?.name ?? '';
   // 採番と「まだ下書きか」の判定を書き込みと同じトランザクションに入れる。外に出すと
   // 発行ボタンの二度押しで、どちらの呼び出しも古い状態を見て同じ番号を採り、
   // 請求書1件に対して仕訳と売掛金が2件ずつ作られる（voidInvoice は片方しか打ち消せない）。
@@ -191,7 +192,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
       await db.arApEntries.add({
         id: arApEntryId,
         type: 'receivable',
-        description: `${number}（${invoice.vendorId}）`,
+        description: vendorName ? `${number}（${vendorName}）` : number,
         dueDate: invoice.dueDate ?? invoice.date,
         originalAmount: total.toString(),
         paidAmount: '0',
@@ -224,9 +225,7 @@ export async function voidInvoice(invoiceId: string): Promise<void> {
   if (invoice.arApEntryId) {
     const arApEntry = await db.arApEntries.get(invoice.arApEntryId);
     if (arApEntry && D(arApEntry.paidAmount).greaterThan(0)) {
-      throw new InvoiceError(
-        '入金記録がある請求書は取消できません。先に入金記録を取り消してください',
-      );
+      throw new InvoiceError(m.error_invoice_has_payment());
     }
   }
 

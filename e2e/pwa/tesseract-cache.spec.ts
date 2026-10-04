@@ -14,7 +14,7 @@ async function stageReceiptFile(page: Page): Promise<void> {
     buffer: TINY_RECEIPT_PNG,
   });
   await page.getByRole('button', { name: '添付する' }).click();
-  await page.getByRole('radio', { name: '内蔵の規則エンジン' }).click();
+  await page.getByRole('radio', { name: '内蔵のルールベースエンジン' }).click();
 }
 
 async function analyzeAndExpectSuccess(page: Page): Promise<void> {

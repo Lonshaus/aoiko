@@ -27,9 +27,9 @@ import { m } from '../paraglide/messages';
 //   - aoiko は既に事業主貸/事業主借を「事業と個人の境界を跨ぐ取引」の精算に
 //     使っており（家事按分・年末元入金振替）、資産売却も同じ性質の取引として
 //     構造的に一貫する
-//   - 通用（MF系）の「固定資産売却損益」科目方式は、損益表科目でありながら
+//   - 汎用（MF系）の「固定資産売却損益」科目方式は、損益計算書科目でありながら
 //     事業所得の集計からは除外する必要があり、その除外ロジックを新しい集計機能
-//     （報表・xtx出力）を追加するたびに書き漏らすリスクがある
+//     （帳票・xtx出力）を追加するたびに書き漏らすリスクがある
 // 譲渡所得の試算は資産単位の estimateTransferIncome() と年分集計の aggregateTransferIncome() で
 // 参考値として提供する（確定申告書第一表・第二表の総合譲渡欄へは利用者が転記する）。
 //
@@ -247,7 +247,7 @@ export async function generateDisposalEntry(
   if (existing) {
     return { created: false, reason: 'already-exists' };
   }
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日に依るので、ここで DB から読んで算出する。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日に依るので、ここで DB から読んで算出する。
   const [allAssets, businessDates] = await Promise.all([
     db.fixedAssets.toArray(),
     loadBusinessDates(),

@@ -78,7 +78,7 @@ class AoikoDB extends Dexie {
     this.version(4).stores({
       personalDeductions: 'year',
     });
-    // v5: 簡易在庫管理の商品主檔を追加。年度非依存（Vendor と同じく永続マスタ）。
+    // v5: 簡易在庫管理の商品マスタを追加。年度非依存（Vendor と同じく永続マスタ）。
     this.version(5).stores({
       inventoryItems: 'id, name',
     });
@@ -87,12 +87,12 @@ class AoikoDB extends Dexie {
       journalEntries:
         'id, date, year, status, originalEntryId, sourceImportId, department, [year+date], [date+status]',
     });
-    // v7: 証憑原本の保存。分錄と 1:N、entryId で紐付け。
+    // v7: 証憑原本の保存。仕訳と 1:N、entryId で紐付け。
     this.version(7).stores({
       attachments: 'id, entryId',
     });
-    // v8: 予算管理・現金流予測。budgets は年月複合キー、arApEntries は
-    // 独立子帳（JournalLine とは紐付けない、詳細は types.ts のコメント参照）。
+    // v8: 予算管理・資金繰り予測。budgets は年月複合キー、arApEntries は
+    // 独立の補助簿（JournalLine とは紐付けない、詳細は types.ts のコメント参照）。
     this.version(8).stores({
       budgets: '[year+month], year',
       arApEntries: 'id, type, dueDate',
@@ -101,7 +101,7 @@ class AoikoDB extends Dexie {
     this.version(9).stores({
       invoices: 'id, documentType, status, vendorId, date, [documentType+date]',
     });
-    // v10: 証憑写真の SHA-256（#397）。フォルダバックアップを内容定址にするため、
+    // v10: 証憑写真の SHA-256（#397）。フォルダバックアップをコンテンツアドレス方式にするため、
     // 「この中身は既に保存先にあるか」を索引で引けるようにする。
     this.version(10)
       .stores({

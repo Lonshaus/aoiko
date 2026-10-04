@@ -305,7 +305,7 @@ function buildShb033(
   put(shb033, 'DTE00240', total8);
   put(shb033, 'DTE00250', total10);
   put(shb033, 'DTE00260', total8.plus(total10));
-  // ⑯ 控除対象仕入税額の税率別内訳は domain 側で算定済みの deductible をそのまま使う
+  // ⑯ 控除対象仕入税額の税率別内訳はドメイン層側で算定済みの deductible をそのまま使う
   // （按分前と按分後の値が食い違うと、この付表自身の合計が申告書④と一致しなくなる）。
   if (fullDeduction) {
     put(shb033, 'DTF00010', deductible.rate624);

@@ -24,8 +24,8 @@ export async function addArApEntry(input: {
     createdAt: Date.now(),
   });
 }
-// 入金・支払の一部/全部消込。残高を超える額は throw（過収受・過払いは別の記帳で扱う想定、
-// ここでは単純な子帳の整合性のみ担保する）。
+// 入金・支払の一部/全部消込。残高を超える額は例外を投げる（過収受・過払いは別の記帳で扱う想定、
+// ここでは単純な補助簿の整合性のみ担保する）。
 export class OverpaymentError extends Error {
   constructor() {
     super('残高を超える金額です');
@@ -88,7 +88,7 @@ export function computeCashFlowForecast(
     const key = dueYearMonth < firstBucketKey ? firstBucketKey : dueYearMonth;
     const bucket = buckets.get(key);
     if (!bucket) {
-      continue; // 予測期間より先の到期分は対象外
+      continue; // 予測期間より先の期日分は対象外
     }
     if (e.type === 'receivable') {
       bucket.inflow = bucket.inflow.plus(remaining);

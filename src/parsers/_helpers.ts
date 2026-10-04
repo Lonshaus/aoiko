@@ -1,5 +1,5 @@
 // CSV パーサー間で共有される小さなユーティリティ。
-// YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日 を 'YYYY-MM-DD' に正規化。
+// YYYY/MM/DD・YYYY-MM-DD・YYYY.MM.DD・YYYY年M月D日を 'YYYY-MM-DD' に正規化。
 // 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
 // 月を m という名前で分解しているので、こちらは別名で受ける。
 import { m as msg } from '../paraglide/messages';
@@ -27,7 +27,7 @@ export function stripComma(s: string): string {
   return s.replace(/,/g, '');
 }
 // 返金・キャンセル行は負数金額で現れる（ParsedTransaction.amount は必ず非負の契約）。
-// 負数表記なら絶対値にして side を反転する（クレジットカードなら 未払金の減少 = debit）。
+// 負数表記なら絶対値にして side を反転する（クレジットカードなら未払金の減少 = 借方）。
 // 対応表記：-1234 / −1234（全角マイナス）/ ▲1234 / △1234
 export function applySign(
   amount: string,
@@ -78,8 +78,8 @@ export function requireColumns(
 export function optionalColumn(header: string[], name: string): number {
   return header.indexOf(name);
 }
-// カード明細 CSV はカード名・支払日等の前言行＋空行の後に表頭が来る形式が多い。
-// 必須列名をすべて含む最初の行を表頭とみなし、その行インデックスを返す。
+// カード明細 CSV はカード名・支払日等の冒頭の情報行＋空行の後にヘッダー行が来る形式が多い。
+// 必須列名をすべて含む最初の行をヘッダー行とみなし、その行インデックスを返す。
 // 見つからなければ -1。
 export function findHeaderRow(
   rows: string[][],

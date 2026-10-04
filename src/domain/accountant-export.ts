@@ -1,4 +1,4 @@
-// 税理士協業・引継ぎパック。仕訳データを弥生形式CSV／通用CSV／訂正履歴CSVとして出力する。
+// 税理士協業・引継ぎパック。仕訳データを弥生形式CSV／汎用CSV／訂正履歴CSVとして出力する。
 // PL/BS等の決算書は対象外（仕訳データのみ、C9-2）。
 import Encoding from 'encoding-japanese';
 import { D, Decimal } from '../lib/decimal';
@@ -63,7 +63,7 @@ function rateSuffix(taxRate: number): string {
 // 出典：弥生会計サポート情報「インポートデータの税区分」「課税方式別税区分・税計算区分一覧」
 // （2026-07 調査時点）。判定の優先順位は consumption-tax.ts の実際の計算ロジックに合わせている
 // （taxRate が実質的な判定基準で、taxCategory 未指定でも taxRate > 0 なら通常の課税区分として扱う）。
-// 「区分」後綴は弥生公式サポート（page_id=18111・27165）が100%/80%/70%/50%/30%/控不のみを規定。
+// 「区分」接尾辞は弥生公式サポート（page_id=18111・27165）が100%/80%/70%/50%/30%/控不のみを規定。
 function yayoiTaxInfo(
   line: JournalLine,
   account: Account,
@@ -143,7 +143,6 @@ function yayoiTaxInfo(
     taxAmount: computeTaxAmount(line),
   };
 }
-
 // taxableTransferConsideration の行の課税売上区分（簡易課税時は消基通13-2-9で第四種）。
 // 込／外・税率は行の taxIncluded・taxRate に従う（通常の売上行と同じ規約）
 function markedTransferTaxInfo(
@@ -176,8 +175,7 @@ function computeTaxAmount(line: JournalLine): string {
   const priceInclusive = line.taxIncluded ? amount : amount.times(1 + line.taxRate);
   return priceInclusive.minus(base).toDecimalPlaces(0, Decimal.ROUND_DOWN).toString();
 }
-
-// 超過部分を含む行は1行の中で按分できないため、行全体を不可控除の区分で出す
+// 超過部分を含む行は1行の中で按分できないため、行全体を控除不可の区分で出す
 function capExceededLineIds(
   entries: JournalEntry[],
   lines: JournalLine[],
@@ -258,7 +256,7 @@ export function buildYayoiCsvRows(
     const debitCells = debits.map(buildSide);
     const creditCells = credits.map(buildSide);
     // 課税資産の譲渡等の行単位の印：収入科目でない行は本来の貸借だけでは課税売上を表現
-    // できないため、帯印の付いた行自身の科目で対価分の合成ペア（貸方＝課税売上、借方＝対象外）
+    // できないため、印の付いた行自身の科目で対価分の合成ペア（貸方＝課税売上、借方＝対象外）
     // を追加する。両側とも同額のため元の仕訳の貸借バランスは変わらない
     for (const line of entryLines) {
       if (line.taxableTransferConsideration === undefined) {
@@ -353,7 +351,7 @@ const GENERIC_HEADER = [
   'インボイス適格',
   'メモ',
 ];
-// 通用CSV（UTF-8・JournalLine単位・弥生互換が使えない会計ソフト向けの予備、C9-1）。
+// 汎用CSV（UTF-8・JournalLine単位・弥生互換が使えない会計ソフト向けの予備、C9-1）。
 export function buildGenericCsvRows(
   entries: JournalEntry[],
   lines: JournalLine[],

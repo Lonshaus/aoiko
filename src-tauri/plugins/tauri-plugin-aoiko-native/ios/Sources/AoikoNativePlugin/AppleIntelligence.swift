@@ -2,7 +2,6 @@ import Foundation
 import FoundationModels
 import ImageIO
 import Vision
-
 // デプロイ対象は macOS 13.3 / iOS 16.4 だが、SystemLanguageModel は macOS 26 / iOS 26 から。
 // FoundationModels の型は #available の外でも名前解決できる（SDK にモジュールがあれば
 // コンパイルは通る）ので、参照はすべてこのガードの内側に置くだけでよい。
@@ -68,7 +67,6 @@ private let receiptInstructions = """
 - クレジット売上票・ポイント明細・会員番号・広告・返品案内は買い物の内訳ではない。
 - 明細行が無いレシート（金額だけの領収書）では品目を空配列にする。書かれていない品目を推測しない。
 """
-
 // EXIF の向きを読まないと、スマホで撮った写真は縦横が入れ替わったまま認識される。
 @available(macOS 26, iOS 26, *)
 private func exifOrientation(of data: Data) -> CGImagePropertyOrientation {
@@ -81,7 +79,6 @@ private func exifOrientation(of data: Data) -> CGImagePropertyOrientation {
     }
     return orientation
 }
-
 // Vision は読み取り順を保証しない。行の高さ方向で並べ、同じ行内は左から右へ。
 @available(macOS 26, iOS 26, *)
 private func readingOrder(
@@ -116,7 +113,6 @@ private func recognizeReceiptText(from data: Data) -> String? {
         .joined(separator: "\n")
     return text.isEmpty ? nil : text
 }
-
 // 実測値（このMac）: レシート抽出 3.32 秒。iOS は非力な端末もあり、もっと掛かる想定で
 // 見繕った判断値。ゲート確保・締め切り付きの待ち・見捨てる判断は Concurrency.swift の
 // runSingleFlight に集約されており、ここは body を組み立てて渡すだけ。
@@ -189,10 +185,8 @@ func aoiko_ai_extract(
     }
     return strdup(json)
 }
-
 // MARK: - 分類（CSV 相手科目）・注文取込
-
-// 配列出力（classifications: [Item]）はコンテキスト窓（4096 トークン）を埋めるまで
+// 配列出力（classifications: [Item]）はコンテキストウィンドウ（4096 トークン）を埋めるまで
 // 項目を吐き続ける暴走が実測で確認されたため、単一オブジェクト出力にする
 // （ClassifyLoop.swift がトランザクション 1 件ずつ回す）。ref はモデルに書かせない。
 @available(macOS 26, iOS 26, *)
@@ -205,7 +199,6 @@ struct ClassifyAnswer: Encodable {
     @Guide(description: "簡潔な日本語の判断理由。30 字以内")
     var reason: String
 }
-
 // runClassifyGeneration が internal なので、そのシグネチャに出てくるこれらも private にはできない。
 struct ClassifyCandidate: Decodable {
     var code: String
@@ -225,10 +218,8 @@ struct ClassifyRequest: Decodable {
     var candidates: [ClassifyCandidate]
     var transactions: [ClassifyTransaction]
 }
-
 // knownAccountCode はリクエストに含まれるが分類本体（ClassifyLoop.swift）は使わない。
 // knownSide だけが質問文言の選択に使われる。
-
 // ClassifyLoop.swift 側からは FoundationModels が見えないので、モデルを実際に叩く
 // closure はここに置く。差し替えられるよう private にしない
 // （このファイルの他の宣言は private で揃えているが、ここだけ例外）。
@@ -251,7 +242,6 @@ let classifyModelCall: ClassifyLoopCall = { instructions, content in
         throw ClassifyCallError(code: 3)
     }
 }
-
 // runSingleFlight で単一化・締め切り付きの待ちに載せてから ClassifyLoop.swift を回す、
 // 分類経路唯一の入口。外から直接呼べるよう private にしない。
 @available(macOS 26, iOS 26, *)

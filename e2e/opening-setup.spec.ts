@@ -1,13 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { acceptDisclaimer } from './helpers';
-// 開業精霊：開業費・転用資産を入力 → 確認 → 作成 → 仕訳一覧に反映されるまでのゴールデンパス。
+// 開業設定：開業費・転用資産を入力 → 確認 → 作成 → 仕訳一覧に反映されるまでのゴールデンパス。
 // 未償却残高の計算式そのものは Vitest（business-opening.test.ts）で網羅済み、ここは UI フロー中心。
 test('開業費・転用資産を登録 → 仕訳一覧に反映される', async ({ page }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
 
   await page.goto('/opening-setup');
-
   // 開業日を固定し、未償却残高の期待値（255,180）を実行時刻に依存させない。
   const dateInputs = page.locator('input[type=date]');
   await dateInputs.nth(0).fill('2022-01-01');
@@ -33,7 +32,7 @@ test('開業費・転用資産を登録 → 仕訳一覧に反映される', asy
   await page.goto('/journal');
   await page.locator('input[type=number]').first().fill('2022');
   await page.locator('select').first().selectOption({ label: '全月' });
-  await expect(page.getByText('開業費計上（開業精霊）')).toBeVisible();
-  await expect(page.getByText('開業時資産計上（開業精霊）')).toBeVisible();
+  await expect(page.getByText('開業費計上（開業設定）')).toBeVisible();
+  await expect(page.getByText('開業時資産計上（開業設定）')).toBeVisible();
   await expect(page.getByText('¥255,180').first()).toBeVisible();
 });
