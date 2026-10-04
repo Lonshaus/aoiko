@@ -10,7 +10,18 @@ Generate journal candidates from photos or images of paper receipts.
 > - Know which path sends data off the device and which does not
 > - Understand the pre-send confirmation dialog and the "Don't ask again" toggle
 >
+<!-- only:browser -->
 > **Prerequisites**: to use the AI engine, configure Gemini or an OpenAI-compatible endpoint (Apple Intelligence and the browser built-in AI need no setup and appear when available) in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) first. This is not required if you only use the built-in rule engine.
+<!-- /only -->
+<!-- only:apple -->
+> **Prerequisites**: to use the AI engine, configure Gemini or an OpenAI-compatible endpoint (Apple Intelligence and the browser built-in AI need no setup and appear when available) in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) first. This is not required if you only use the built-in rule engine.
+<!-- /only -->
+<!-- only:windows -->
+> **Prerequisites**: to use the AI engine, configure Gemini or an OpenAI-compatible endpoint in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) first. This is not required if you only use the built-in rule engine.
+<!-- /only -->
+<!-- only:android -->
+> **Prerequisites**: to use the AI engine, configure Gemini or an OpenAI-compatible endpoint (on-device Gemini Nano needs no setup and appears on supported devices) in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed) first. This is not required if you only use the built-in rule engine.
+<!-- /only -->
 
 ## 1. Picking a reading method (summary)
 
@@ -32,6 +43,10 @@ The reading method (AI engine or built-in rule engine) and which sub-engine the 
 <!-- /only -->
 <!-- only:windows -->
 | **Built-in rule engine** (the OS's built-in text recognition) | None | Supported devices only; re-checked automatically every time the Receipt OCR screen opens |
+<!-- /only -->
+<!-- only:android -->
+| **Built-in rule engine** (on-device text recognition) | No image or text sent (ML Kit sends usage information to Google) | Always available on this device; the text recognition ships with the app |
+| **AI engine** (on-device Gemini Nano) | No image or text sent (ML Kit sends usage information to Google) | Appears only on supported Android devices |
 <!-- /only -->
 
 > Detailed AI engine setup is in [01. § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed).
@@ -77,6 +92,9 @@ Below the preview, a two-way switch for the reading method appears: **"AI engine
 <!-- only:windows -->
   - The OS's built-in text recognition is offered only on supported devices. It is re-checked with the device every time the Receipt OCR screen opens, so after you add Japanese text recognition to the OS, it becomes selectable when you reopen the screen
 <!-- /only -->
+<!-- only:android -->
+  - On-device text recognition is always among the available options. The text recognition ships with the app, so nothing has to be added on the OS side
+<!-- /only -->
 
 Once chosen, click **"Analyze"** to send to the selected reading method.
 
@@ -93,6 +111,11 @@ Because data leaves the device, the **"Confirm send to external AI"** dialog app
 - Checking "Don't ask again" before "Send" skips this dialog for all future external sends (one flag shared by OCR, CSV, and order-import AI sends)
 
 > **If you've checked it**: if that was a mistake, undo it from **Settings > Basic info > "Restore hidden confirmations"**. **Settings > Data management > "Delete all data"** also clears it but wipes your books — last resort only.
+<!-- only:android -->
+#### AI engine (on-device Gemini Nano): no dialog
+
+Inference and the image both stay on this device. However, ML Kit sends API usage information to Google (the inference content itself is never sent). This engine is not selectable on any platform other than Android.
+<!-- /only -->
 <!-- only:browser -->
 
 #### AI engine (your browser's built-in AI): no dialog
@@ -103,8 +126,14 @@ aoiko itself sends nothing, so no confirmation dialog appears. Whether inference
 
 #### Built-in rule engine (Tesseract): no dialog
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 #### Built-in rule engine (Tesseract, the OS's built-in text recognition): no dialog
+<!-- /only -->
+<!-- only:windows -->
+#### Built-in rule engine (Tesseract, the OS's built-in text recognition): no dialog
+<!-- /only -->
+<!-- only:android -->
+#### Built-in rule engine (Tesseract, on-device text recognition): no dialog
 <!-- /only -->
 
 Tesseract processes on-device only, so no confirmation appears.
@@ -121,6 +150,10 @@ The OS's built-in text recognition shows no dialog either, and fetches nothing e
 <!-- only:windows -->
 
 The OS's built-in text recognition shows no dialog either, and aoiko itself fetches nothing extra at all — recognition runs entirely on-device using the OS's own engine. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it.
+<!-- /only -->
+<!-- only:android -->
+
+On-device text recognition shows no dialog either and fetches nothing extra, but ML Kit, which powers the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are never sent.
 <!-- /only -->
 
 ### 2-3. Review and edit the extracted result
@@ -140,11 +173,25 @@ When done, **"2. Extracted result (editable)"** expands below:
 > - The AI engine extracts vendor and total, and picks up line items
 > - The built-in rule engine (Tesseract) only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**. Raw OCR text is only held in memory as internal extraction data until you save the entry: it is not shown on any screen and not saved to the journal entry (description or memo)
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 > **AI engine path vs built-in rule engine path**:
 > - The AI engine extracts vendor and total, and picks up line items
 > - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
 > - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the line printed largest at the top of the receipt is taken as the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right are taken as items
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you save the entry: it is not shown on any screen and not saved to the journal entry (description or memo)
+<!-- /only -->
+<!-- only:windows -->
+> **AI engine path vs built-in rule engine path**:
+> - The AI engine extracts vendor and total, and picks up line items
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
+> - The OS's built-in text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the line printed largest at the top of the receipt is taken as the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right are taken as items
+> - For both paths, raw OCR text is only held in memory as internal extraction data until you save the entry: it is not shown on any screen and not saved to the journal entry (description or memo)
+<!-- /only -->
+<!-- only:android -->
+> **AI engine path vs built-in rule engine path**:
+> - The AI engine extracts vendor and total, and picks up line items
+> - Tesseract, one of the built-in rule engine's sub-engines, only extracts **date, total, and T+13 invoice number** by rule-based extraction. **Vendor and items are left blank**
+> - On-device text recognition, the other sub-engine, also extracts the **vendor** and **line items** on top of that. It returns the position and size of every word, so the line printed largest at the top of the receipt is taken as the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right are taken as items
 > - For both paths, raw OCR text is only held in memory as internal extraction data until you save the entry: it is not shown on any screen and not saved to the journal entry (description or memo)
 <!-- /only -->
 
@@ -153,11 +200,23 @@ When done, **"2. Extracted result (editable)"** expands below:
 For built-in rule engine output, a caution banner appears below the result header. For Tesseract:
 
 > Result from purely local OCR (Tesseract). Be sure to check and correct the total, date, and vendor. The full OCR text is neither shown on screen nor saved with the entry.
-<!-- only:native -->
+<!-- only:apple -->
 
 For the OS's built-in text recognition:
 
 > Result from the OS's built-in text recognition. Be sure to check and correct the total, date, and vendor. The full OCR text is neither shown on screen nor saved with the entry.
+<!-- /only -->
+<!-- only:windows -->
+
+For the OS's built-in text recognition:
+
+> Result from the OS's built-in text recognition. Be sure to check and correct the total, date, and vendor. The full OCR text is neither shown on screen nor saved with the entry.
+<!-- /only -->
+<!-- only:android -->
+
+For on-device text recognition:
+
+> Result from on-device text recognition (ML Kit). Be sure to check and correct the total, date, and vendor. The full OCR text is neither shown on screen nor saved with the entry.
 <!-- /only -->
 
 ### 2-4. Choose counterpart account and payment source
@@ -238,6 +297,16 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 - Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
 - Always verify and correct the total and date
 <!-- /only -->
+<!-- only:android -->
+
+### Built-in rule engine (on-device text recognition)
+
+- No AI engine needed, and no extra download
+- On top of date, total and invoice number it also extracts the **vendor** and **line items**. Position and size come back per word, so the largest line at the top of the receipt becomes the vendor name, and rows between the top of the receipt and the total with a name on the left and an amount on the right become items. Misreadings pass straight through, so still check them
+- The total is the rightmost amount on the line carrying the total keyword, so a layout that prints a quantity on the same line (`合計／ 1点 ¥159`) does not yield the quantity
+- Rows of the "text on the left, digits on the right" form such as phone numbers, cash register numbers and slip numbers, rows whose words contain separators, and rows whose left side is a date or digits only are not picked up as items
+- Always verify and correct the total and date
+<!-- /only -->
 <!-- only:apple -->
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns several candidates per word, so the candidates are searched in order for one matching `T` plus exactly 13 digits. If no candidate has the right digit count the field is left blank (a wrong number that happens to have the right format would go unnoticed even if you looked at it)
 - Whether this text recognition includes Japanese depends on the OS version, and it is already included in every macOS, iOS, and iPadOS version aoiko supports
@@ -245,6 +314,9 @@ Click **"Save entry"** to confirm. A two-line entry (debit = expense / credit = 
 <!-- only:windows -->
 - The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number that happens to have the right format would go unnoticed even if you looked at it)
 - **Not every device can use it.** It is offered only when Japanese text recognition is present in the OS. Availability is re-checked every time the Receipt OCR screen opens, so after you add Japanese text recognition to the OS, it becomes selectable when you reopen the screen
+<!-- /only -->
+<!-- only:android -->
+- The leading `T` of the invoice number is sometimes dropped. Text recognition returns only one result per word, with no second candidate to fall back on. If it does not match `T` plus exactly 13 digits, the field is left blank (a wrong number that happens to have the right format would go unnoticed even if you looked at it)
 <!-- /only -->
 
 ## 4. Troubleshooting

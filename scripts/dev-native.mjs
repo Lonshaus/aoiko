@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '..');
 
 const HOST_PLATFORM = { darwin: 'macos', win32: 'windows' };
-const PLATFORMS = ['browser', 'macos', 'ios', 'windows'];
+const PLATFORMS = ['browser', 'macos', 'ios', 'windows', 'android'];
 
 function devPlatform() {
   const given = process.env.AOIKO_PLATFORM;

@@ -17,6 +17,9 @@ Apple の説明
 <!-- only:windows -->
 Windows の説明
 <!-- /only -->
+<!-- only:android -->
+Android の説明
+<!-- /only -->
 
 末尾
 `;
@@ -34,8 +37,15 @@ describe('stripBuildOnly', () => {
       macos: ['そちらの説明', 'Apple の説明'],
       ios: ['そちらの説明', 'Apple の説明'],
       windows: ['そちらの説明', 'Windows の説明'],
+      android: ['そちらの説明', 'Android の説明'],
     };
-    const all = ['ブラウザの説明', 'そちらの説明', 'Apple の説明', 'Windows の説明'];
+    const all = [
+      'ブラウザの説明',
+      'そちらの説明',
+      'Apple の説明',
+      'Windows の説明',
+      'Android の説明',
+    ];
     for (const platform of PLATFORMS) {
       const out = stripBuildOnly(DOC, platform);
       for (const text of all) {
@@ -90,6 +100,51 @@ describe('stripBuildOnly', () => {
   test('例外にせず素通りしていないこと（反対側に文章が残らない）', () => {
     const doc = '> 本文\n> <!-- only:browser -->\n> ブラウザの話\n> <!-- /only -->\n';
     expect(() => stripBuildOnly(doc, 'macos')).toThrow();
+  });
+});
+// apple の中でさらに絞る macos / ios。取り違えると、片方にしか当てはまらない記述が
+// もう片方のビルド成果物にも出てしまう。
+describe('stripBuildOnly（macos / ios）', () => {
+  const DOC_APPLE_SPLIT = [
+    '<!-- only:apple -->',
+    'Apple 共通の説明',
+    '<!-- /only -->',
+    '<!-- only:macos -->',
+    'macOS だけの説明',
+    '<!-- /only -->',
+    '<!-- only:ios -->',
+    'iOS だけの説明',
+    '<!-- /only -->',
+    '',
+  ].join('\n');
+
+  test('macos は apple 共通と macos 限定だけ読み、ios 限定は読まない', () => {
+    const out = stripBuildOnly(DOC_APPLE_SPLIT, 'macos');
+    expect(out).toContain('Apple 共通の説明');
+    expect(out).toContain('macOS だけの説明');
+    expect(out).not.toContain('iOS だけの説明');
+  });
+
+  test('ios は apple 共通と ios 限定だけ読み、macos 限定は読まない', () => {
+    const out = stripBuildOnly(DOC_APPLE_SPLIT, 'ios');
+    expect(out).toContain('Apple 共通の説明');
+    expect(out).toContain('iOS だけの説明');
+    expect(out).not.toContain('macOS だけの説明');
+  });
+
+  test('apple 共通の説明は macos / ios の両方に届く（windows / android には届かない）', () => {
+    for (const platform of ['windows', 'android'] as const) {
+      const out = stripBuildOnly(DOC_APPLE_SPLIT, platform);
+      expect(out).not.toContain('Apple 共通の説明');
+      expect(out).not.toContain('macOS だけの説明');
+      expect(out).not.toContain('iOS だけの説明');
+    }
+  });
+
+  test('知らない種別 only:macios は例外', () => {
+    expect(() => stripBuildOnly('<!-- only:macios -->\nx\n<!-- /only -->\n', 'macos')).toThrow(
+      /only:macios/,
+    );
   });
 });
 // 剥がす側が外れると、web のビルド成果物へ反対側の文章がそのまま出る。実際に剥がれることは

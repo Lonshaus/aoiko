@@ -19,6 +19,8 @@ if (__DOC_PREVIEW__) {
         : 'browser';
     g['__NATIVE__'] = platform !== 'browser';
     g['__aoikoPreviewPlatform'] = platform;
+    // 実ブリッジが無いときだけ、他の参照元もプレビュー先の環境を向くようにする。
+    g['__DOC_PLATFORM__'] = platform;
     const bridge = previewBridge(platform);
     if (bridge) {
       g['__aoikoNative'] = bridge;

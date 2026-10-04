@@ -8,6 +8,7 @@ import {
 import type { LlmAdapter } from './llm';
 import type { Account } from '../db/types';
 import { AppleAiAdapter } from '../lib/apple-ai-adapter';
+import { NanoAdapter } from '../lib/nano-engine';
 import { shouldFillSuggestion } from '../routes/Import.svelte';
 
 const ACCOUNTS: Account[] = [
@@ -203,6 +204,31 @@ describe('classifyWithLlm（AppleAiAdapter 経由）', () => {
     expect(r).toHaveLength(1);
     expect(r[0]?.accountCode).toBe('5200');
     expect(r[0]?.confidence).toBe('high');
+  });
+});
+// nano.rs は 1130/2120 以外の科目をモデル呼び出し前に拒否する（run_task の
+// classify_prompt が None を返す経路）。ここでは runDataTask 自体が reject する形で再現する。
+describe('classifyWithLlm（NanoAdapter・非対応科目）', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test('unsupported-account は fetch を呼ばずに拒否し、候補は返さない', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const nanoRun = vi.fn(async () => {
+      throw 'unsupported-account';
+    });
+    vi.stubGlobal('window', { __aoikoNative: { nanoRun } });
+
+    await expect(
+      classifyWithLlm(new NanoAdapter(), [{ ref: 'r1', description: 'amazon', amount: '2500' }], {
+        knownAccountCode: '1110',
+        knownSide: 'credit',
+        candidateAccounts: ACCOUNTS,
+      }),
+    ).rejects.toThrow(/端末内 AI では分類できません/);
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 // 相方：scripts/swift/ClassifyLoopTests.swift の testUnmatchedAndFailedEnvelopesArePinned が

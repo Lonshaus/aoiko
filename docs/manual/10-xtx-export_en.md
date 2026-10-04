@@ -93,8 +93,17 @@ aoiko generates a file named `aoiko-{year}.xtx`.
 <!-- only:browser -->
 It's saved to your browser's Downloads folder.
 <!-- /only -->
-<!-- only:native -->
-On desktop, a save dialog opens to choose the destination; on iPad/iPhone it's saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- only:macos -->
+It opens a save dialog to choose the destination.
+<!-- /only -->
+<!-- only:ios -->
+It's saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- /only -->
+<!-- only:windows -->
+It opens a save dialog to choose the destination.
+<!-- /only -->
+<!-- only:android -->
+The system's save-location dialog opens, letting you choose the destination.
 <!-- /only -->
 
 > **About tax year 2026 (Reiwa 8)**: the income-tax e-Tax module for tax year 2026 (Reiwa 8) is not released until the filing period (2027).

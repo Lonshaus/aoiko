@@ -139,7 +139,9 @@
 
   {#if folderBased}
     <p class="text-xs text-muted-foreground">
-      {@html m.backup_panel_intro_folder_html()}
+      {@html __DOC_PLATFORM__ === 'android'
+        ? m.backup_panel_intro_folder_android()
+        : m.backup_panel_intro_folder_html()}
     </p>
   {:else if backup.adapterKind === 'opfs'}
     <p class="text-xs text-muted-foreground">

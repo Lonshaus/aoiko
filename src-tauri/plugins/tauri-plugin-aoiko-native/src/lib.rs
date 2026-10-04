@@ -12,18 +12,25 @@ use tauri::{
     Manager, Runtime,
 };
 
+#[cfg(target_os = "android")]
+mod android;
+#[cfg(target_os = "android")]
+pub use android::AoikoNativeExt;
 mod backup;
 mod commands;
-#[cfg(not(target_os = "ios"))]
+#[cfg(not(any(target_os = "ios", target_os = "android")))]
 mod desktop;
 #[cfg(target_os = "ios")]
 mod ios;
+// 呼ぶのはこの環境だけ。他の環境ではテストからしか使われない。
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+mod nano;
 mod path;
 mod store;
 
 #[derive(Debug)]
 pub enum Error {
-    #[cfg(target_os = "ios")]
+    #[cfg(any(target_os = "ios", target_os = "android"))]
     PluginInvoke(tauri::plugin::mobile::PluginInvokeError),
     UnsupportedPlatform,
     Store(String),
@@ -44,9 +51,9 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            #[cfg(target_os = "ios")]
+            #[cfg(any(target_os = "ios", target_os = "android"))]
             Error::PluginInvoke(e) => write!(f, "{e}"),
-            Error::UnsupportedPlatform => write!(f, "この機能は iOS/iPadOS でのみ利用できます"),
+            Error::UnsupportedPlatform => write!(f, "この機能はこの環境では利用できません"),
             Error::Store(e) => write!(f, "バックアップフォルダを記録できません: {e}"),
             Error::InvalidPath(e) => write!(f, "指定されたパスは使えません: {e}"),
             Error::Io(e) => write!(f, "ファイルを操作できません: {e}"),
@@ -66,7 +73,7 @@ impl std::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-#[cfg(target_os = "ios")]
+#[cfg(any(target_os = "ios", target_os = "android"))]
 impl From<tauri::plugin::mobile::PluginInvokeError> for Error {
     fn from(e: tauri::plugin::mobile::PluginInvokeError) -> Self {
         Error::PluginInvoke(e)
@@ -83,6 +90,25 @@ impl Serialize for Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+/// この環境だけが通る送信要求。検査は本体 crate 側で済んでいる前提で、ここは運ぶだけ。
+#[cfg(target_os = "android")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HttpRequest {
+    pub method: String,
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+    pub body: Vec<u8>,
+}
+
+#[cfg(target_os = "android")]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HttpResponse {
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: Vec<u8>,
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -107,6 +133,14 @@ impl ResolvedFolder {
             path: None,
         }
     }
+}
+/// 端末内の Gemini Nano の状態。status は端末側の値そのまま。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NanoAvailability {
+    pub status: i32,
+    /// 使えるときだけ入る。
+    pub token_limit: Option<i32>,
 }
 /// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
 /// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
@@ -195,6 +229,7 @@ impl RecognizedText {
 pub(crate) struct Resolved(Mutex<Option<(String, String)>>);
 
 impl Resolved {
+    #[cfg(not(target_os = "android"))]
     fn get(&self, handle: &str) -> Option<String> {
         let held = self.0.lock().ok()?;
         held.as_ref()
@@ -202,6 +237,7 @@ impl Resolved {
             .map(|(_, path)| path.clone())
     }
 
+    #[cfg(not(target_os = "android"))]
     fn set(&self, handle: &str, path: &str) {
         if let Ok(mut held) = self.0.lock() {
             *held = Some((handle.to_string(), path.to_string()));
@@ -232,9 +268,13 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::export_open,
             commands::recognize_text,
             commands::is_text_recognition_available,
+            commands::is_camera_available,
             commands::apple_ai_availability,
             commands::apple_ai_extract,
             commands::apple_ai_run,
+            commands::nano_availability,
+            commands::nano_extract_receipt,
+            commands::nano_run,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());
@@ -242,6 +282,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             #[cfg(target_os = "ios")]
             {
                 let handle = ios::init(app, _api)?;
+                app.manage(handle);
+            }
+            #[cfg(target_os = "android")]
+            {
+                let handle = android::init(app, _api)?;
                 app.manage(handle);
             }
             Ok(())

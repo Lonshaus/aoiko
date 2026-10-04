@@ -2,11 +2,11 @@
 // 文面を直しても印を付け忘れれば、その形態に偽の記述が出たままになる。ここは
 // 実物を形態ごとに剥がして、その形態で成り立たない語が残っていないかを見る。
 import { describe, expect, test } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
 
-const PACKAGED: Platform[] = ['macos', 'ios', 'windows'];
+const PACKAGED: Platform[] = ['macos', 'ios', 'windows', 'android'];
 const APPLE: Platform[] = ['macos', 'ios'];
 
 type Rule = { name: string; pattern: RegExp; only: Platform[] };
@@ -46,6 +46,13 @@ const RULES: Record<string, Rule[]> = {
       pattern: /ブラウザ内蔵の AI（完全ローカル推論）/,
       only: [],
     },
+    { name: 'ML Kit の利用状況開示', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'OS 内蔵の文字認識は android で外部通信なしと書かない',
+      pattern: /追加の読み込みも外部への通信もありません/,
+      only: [...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'DISCLAIMER_en.md': [
     {
@@ -80,6 +87,19 @@ const RULES: Record<string, Rule[]> = {
       pattern: /browser's built-in AI \(purely-local inference\)/,
       only: [],
     },
+    { name: 'ML Kit usage disclosure', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'no no-external-request claim on android for OS recognition',
+      pattern: /Nothing extra is downloaded and no external request is made/,
+      only: APPLE,
+    },
+    {
+      name: 'windows: aoiko downloads nothing; the Japanese OCR language feature must be present in Windows',
+      pattern:
+        /aoiko itself downloads nothing and makes no external request\. Reading Japanese requires the Japanese OCR language feature to be present in Windows/,
+      only: ['windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'DISCLAIMER_zh-TW.md': [
     {
@@ -98,6 +118,19 @@ const RULES: Record<string, Rule[]> = {
     { name: 'ITP', pattern: /追蹤防護機制/, only: ['browser', ...APPLE] },
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: '不對瀏覽器內建 AI 承諾本機', pattern: /瀏覽器內建的 AI（純本機推論）/, only: [] },
+    { name: 'ML Kit 使用狀況揭露', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: '不對 android 寫成不會有對外連線',
+      pattern: /不需額外下載，也不會有對外連線/,
+      only: APPLE,
+    },
+    {
+      name: 'windows：aoiko 本身不下載，Windows 中須有日文的 OCR 語言功能',
+      pattern:
+        /aoiko 本身不會下載任何資料，也不會有對外連線。要辨識日文，Windows 中必須有日文的 OCR 語言功能/,
+      only: ['windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY.md': [
     { name: 'Cache Storage', pattern: /Cache Storage/, only: ['browser'] },
@@ -125,6 +158,40 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     // ブラウザ内蔵 AI の推論先は約束できない。Apple の行（画像・テキストは端末外に出ない）とは別の文。
     { name: '推論内容は端末外に出ない', pattern: /推論内容は端末外に出ない/, only: [] },
+    { name: 'ML Kit の利用状況開示', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'OS 内蔵の文字認識の表: android で外部通信なしと書かない',
+      pattern: /OS 内蔵の文字認識 \| 画像は端末外に出ない \|/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: '追加データの取得も発生しない、を android では単独で終わらせない',
+      pattern: /追加データの取得も発生しない(?!が)/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: '新名称の表: ML Kit の利用状況開示がある行',
+      pattern:
+        /端末内の文字認識 \| 画像・テキストは端末外に出ない \| \*\*画像・テキストはなし\*\*（ML Kit の利用状況のみ Google へ送信）/,
+      only: ['android'],
+    },
+    {
+      name: '新名称の表で「外部への通信が発生しない」と書かない',
+      pattern: /端末内の文字認識[^\n]*外部への通信が発生しない/,
+      only: [],
+    },
+    {
+      name: 'android は Tesseract と端末内の文字認識それぞれの送信有無を書く',
+      pattern:
+        /Tesseract は送信が発生しません。端末内の文字認識は画像・テキストの送信は発生しませんが、利用状況は Google に送信されます/,
+      only: ['android'],
+    },
+    {
+      name: '端末内で完結するエンジンも同様に送信が発生しません、は android では書けない',
+      pattern: /端末内で完結するエンジンも同様に送信が発生しません/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY_en.md': [
     { name: 'Cache Storage', pattern: /Cache Storage/, only: ['browser'] },
@@ -159,6 +226,46 @@ const RULES: Record<string, Rule[]> = {
       pattern: /Inference content never leaves the device/,
       only: [],
     },
+    { name: 'ML Kit usage disclosure', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'OS recognition table row: no no-external-request claim on android',
+      pattern: /The OS's built-in text recognition \| The image never leaves the device \|/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: "'Nothing extra is downloaded either' not left dangling on android",
+      pattern: /Nothing extra is downloaded either(?! However| ML Kit)/,
+      only: APPLE,
+    },
+    {
+      name: 'windows: aoiko downloads nothing; the Japanese OCR language feature must be present in Windows',
+      pattern:
+        /aoiko itself downloads nothing\. Reading Japanese requires the Japanese OCR language feature to be present in Windows/,
+      only: ['windows'],
+    },
+    {
+      name: 'new-name table row has the ML Kit usage disclosure',
+      pattern:
+        /On-device text recognition \| The image and text never leave the device \| \*\*Image and text: none\*\* \(ML Kit's usage information alone is sent to Google\)/,
+      only: ['android'],
+    },
+    {
+      name: "no 'no external request is made' claim for the new name",
+      pattern: /On-device text recognition[^\n]*no external request is made/,
+      only: [],
+    },
+    {
+      name: 'android states Tesseract and on-device recognition separately',
+      pattern:
+        /Tesseract sends nothing\. On-device text recognition doesn't send images or text, but usage information is sent to Google/,
+      only: ['android'],
+    },
+    {
+      name: "'the engines that run entirely on the device send nothing either' cannot appear on android",
+      pattern: /The engines that run entirely on the device send nothing either/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'PRIVACY_zh-TW.md': [
     { name: 'Cache Storage', pattern: /Cache Storage/, only: ['browser'] },
@@ -177,6 +284,45 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Google Drive 同步', pattern: /Google Drive 同步/, only: [] },
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: '推論內容不離開本機', pattern: /推論內容不離開本機/, only: [] },
+    { name: 'ML Kit 使用狀況揭露', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: '作業系統內建的文字辨識表格列：android 不寫成不會有對外連線',
+      pattern: /作業系統內建的文字辨識 \| 照片不離開本機 \|/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: '也不需額外下載任何資料，android 不獨立成句',
+      pattern: /也不需額外下載任何資料(?!，但)/,
+      only: APPLE,
+    },
+    {
+      name: 'windows：aoiko 本身不下載，Windows 中須有日文的 OCR 語言功能',
+      pattern: /aoiko 本身不會下載任何資料。要辨識日文，Windows 中必須有日文的 OCR 語言功能/,
+      only: ['windows'],
+    },
+    {
+      name: '新名稱的表格列有 ML Kit 使用狀況揭露',
+      pattern:
+        /裝置內的文字辨識 \| 照片與文字都不離開本機 \| \*\*照片與文字都無\*\*（僅 ML Kit 的使用狀況會送給 Google）/,
+      only: ['android'],
+    },
+    {
+      name: '不對新名稱寫成不會有對外連線',
+      pattern: /裝置內的文字辨識[^\n]*不會有對外連線/,
+      only: [],
+    },
+    {
+      name: 'android 分開寫 Tesseract 和裝置內的文字辨識各自是否送出',
+      pattern:
+        /Tesseract 不會送出任何資料。裝置內的文字辨識不會送出照片和文字，但使用狀況會送給 Google/,
+      only: ['android'],
+    },
+    {
+      name: '在裝置內完成的引擎同樣不會送出資料，android 不能有',
+      pattern: /在裝置內完成的引擎同樣不會送出資料/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'SECURITY.md': [
     {
@@ -199,7 +345,37 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: 'App Store', pattern: /App Store/, only: APPLE },
     { name: 'Microsoft Store', pattern: /Microsoft Store/, only: ['windows'] },
+    { name: 'Google Play', pattern: /Google Play/, only: ['android'] },
     { name: 'ブラウザ内蔵 AI は送信なしと書かない', pattern: /AI\*\* → 送信なし（推論/, only: [] },
+    { name: 'ML Kit の利用状況開示', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'OS 内蔵の文字認識は android で送信なしと書かない',
+      pattern: /OS 内蔵の文字認識\*\* → 送信なし（端末内処理のみで完結）/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: '新名称の行に ML Kit 利用状況開示がある',
+      pattern:
+        /端末内の文字認識\*\* → 画像・テキストの送信なし（端末内処理。ただし文字認識を担う ML Kit の利用状況は Google へ送信）/,
+      only: ['android'],
+    },
+    {
+      name: '新名称で送信なし（端末内処理のみで完結）と書かない',
+      pattern: /端末内の文字認識\*\* → 送信なし（端末内処理のみで完結）/,
+      only: [],
+    },
+    {
+      name: '冒頭段落の android は Tesseract と端末内の文字認識・端末内 Gemini Nano を分けて書く',
+      pattern:
+        /Tesseract を選んだ場合は送信は発生しません。端末内の文字認識・端末内 Gemini Nano を選んだ場合は画像・テキストの送信は発生しませんが、利用状況は Google に送信されます/,
+      only: ['android'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
+    {
+      name: '冒頭段落の端末内で完結するエンジンを選んだ場合は送信も発生しません、は android では書けない',
+      pattern: /端末内で完結するエンジンを選んだ場合は送信も発生しません/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
   ],
   'SECURITY_en.md': [
     {
@@ -226,11 +402,41 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: 'App Store', pattern: /App Store/, only: APPLE },
     { name: 'Microsoft Store', pattern: /Microsoft Store/, only: ['windows'] },
+    { name: 'Google Play', pattern: /Google Play/, only: ['android'] },
     {
       name: "no no-transmission claim for the browser's AI",
       pattern: /built-in AI\*\* → no transmission \(inference/,
       only: [],
     },
+    { name: 'ML Kit usage disclosure', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: 'no no-transmission claim for OS recognition on android',
+      pattern: /text recognition\*\* → no transmission \(processed entirely on-device\)/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: 'new-name bullet has the ML Kit usage disclosure',
+      pattern:
+        /On-device text recognition\*\* → no image or text transmission \(processed on-device; ML Kit, which performs the recognition, sends usage information to Google\)/,
+      only: ['android'],
+    },
+    {
+      name: "no 'no transmission (processed entirely on-device)' claim for the new name",
+      pattern: /On-device text recognition\*\* → no transmission \(processed entirely on-device\)/,
+      only: [],
+    },
+    {
+      name: 'opening paragraph on android states Tesseract and on-device recognition/Nano separately',
+      pattern:
+        /\(nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google\)/,
+      only: ['android'],
+    },
+    {
+      name: "opening paragraph's 'nothing is sent if you chose an engine that runs entirely on the device' cannot appear on android",
+      pattern: /nothing is sent if you chose an engine that runs entirely on the device/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
   'SECURITY_zh-TW.md': [
     {
@@ -253,7 +459,37 @@ const RULES: Record<string, Rule[]> = {
     { name: 'Apple Intelligence', pattern: /Apple Intelligence/, only: APPLE },
     { name: 'App Store', pattern: /App Store/, only: APPLE },
     { name: 'Microsoft Store', pattern: /Microsoft Store/, only: ['windows'] },
+    { name: 'Google Play', pattern: /Google Play/, only: ['android'] },
     { name: '不對瀏覽器內建 AI 寫成不送', pattern: /AI\*\* → 不送（推論/, only: [] },
+    { name: 'ML Kit 使用狀況揭露', pattern: /ML Kit/, only: ['android'] },
+    {
+      name: '不對 android 的作業系統內建文字辨識寫成不送',
+      pattern: /作業系統內建的文字辨識\*\* → 不送（全程在本機處理）/,
+      only: [...APPLE, 'windows'],
+    },
+    {
+      name: '新名稱的條目有 ML Kit 使用狀況揭露',
+      pattern:
+        /裝置內的文字辨識\*\* → 照片與文字都不送（在本機處理；負責辨識的 ML Kit 會把使用狀況送給 Google）/,
+      only: ['android'],
+    },
+    {
+      name: '不對新名稱寫成不送（全程在本機處理）',
+      pattern: /裝置內的文字辨識\*\* → 不送（全程在本機處理）/,
+      only: [],
+    },
+    {
+      name: '開頭段落的 android 分開寫 Tesseract 和裝置內的文字辨識・裝置內 Gemini Nano',
+      pattern:
+        /選擇 Tesseract 時不會送出。選擇裝置內的文字辨識或裝置內 Gemini Nano 時不會送出照片和文字，但使用狀況會送給 Google/,
+      only: ['android'],
+    },
+    {
+      name: '開頭段落的選擇在裝置內完成的引擎時根本不會送出，android 不能有',
+      pattern: /選擇在裝置內完成的引擎時根本不會送出/,
+      only: ['browser', ...APPLE, 'windows'],
+    },
+    { name: 'Gemini Nano', pattern: /Gemini Nano/, only: ['android'] },
   ],
 };
 
@@ -268,6 +504,40 @@ describe('同意画面の 3 文書は形態ごとに真である', () => {
           expect(rule.pattern.test(folded)).toBe(allowed);
         });
       }
+    }
+  }
+});
+// android で読める全文書（同意 3 文書＋マニュアル）に、他プラットフォーム専用の語が
+// 残っていないかを機械的に見る。ここに載る語は android 環境の実装（HttpSend.kt / Saf.kt /
+// TextRecognition.kt）には現れない。
+describe('android で剥がした結果に他プラットフォーム専用の語が無い', () => {
+  const FORBIDDEN = [
+    'Security.framework',
+    'Schannel',
+    'WKWebView',
+    'WebView2',
+    'Finder',
+    'エクスプローラー',
+    'App Store',
+    'Microsoft Store',
+    'StoreKit',
+    'iCloud',
+  ];
+  const policyDocs = ['DISCLAIMER', 'PRIVACY', 'SECURITY'].flatMap((b) => [
+    `${b}.md`,
+    `${b}_en.md`,
+    `${b}_zh-TW.md`,
+  ]);
+  const manualDocs = readdirSync(resolve('docs/manual'))
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => `docs/manual/${f}`);
+  for (const doc of [...policyDocs, ...manualDocs]) {
+    const src = readFileSync(resolve(doc), 'utf-8');
+    const folded = stripBuildOnly(src, 'android', doc);
+    for (const term of FORBIDDEN) {
+      test(`${doc} / android に「${term}」が無い`, () => {
+        expect(folded).not.toContain(term);
+      });
     }
   }
 });

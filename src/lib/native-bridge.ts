@@ -40,6 +40,8 @@ export type NativeBridge = {
   // この端末が日本語を読めるか。関数が在ることと読めることは別で、対応言語は
   // OS のバージョンや導入内容で変わる。
   isTextRecognitionAvailable?(): Promise<boolean>;
+  // 撮影の入口を出してよいか。備えていない環境では生えない。
+  isCameraAvailable?(): Promise<boolean>;
   // OS 内蔵の AI が使えるか。0..5 の意味はネイティブ側のコメントに揃える
   // （0 が「使える」）。
   appleAiAvailability?(): Promise<number>;
@@ -51,6 +53,29 @@ export type NativeBridge = {
   // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 入力データが処理できない /
   // 3 その他 / 4 OS が古い）。権限不足・未知コマンド等は数値ではなく文字列で reject される。
   appleAiRun?(task: number, data: string): Promise<string>;
+  // 端末内の Gemini Nano の状態。status は端末側の値そのまま、tokenLimit は使えるときだけ数値。
+  nanoAvailability?(): Promise<NanoAvailability>;
+  // 端末内の Gemini Nano でレシート画像を読み、JSON テキストを返す。失敗は NanoRejectCode で reject する。
+  nanoExtractReceipt?(base64: string): Promise<string>;
+  // 端末内の Gemini Nano で分類・注文取込を行い、JSON テキストを返す。data は JSON テキスト。
+  // 指示は環境側に固定で、data は処理対象のデータ。失敗は NanoRejectCode で reject する。
+  nanoRun?(task: 'classify' | 'order', data: string): Promise<string>;
+};
+
+export type NanoRejectCode =
+  | 'unavailable'
+  | 'too-long'
+  | 'busy'
+  | 'background'
+  | 'quota'
+  | 'bad-input'
+  | 'unsupported-account'
+  | 'unsupported'
+  | 'failed';
+
+export type NanoAvailability = {
+  status: number;
+  tokenLimit: number | null;
 };
 
 export type IapProductKind = 'tip' | 'supporter-badge';

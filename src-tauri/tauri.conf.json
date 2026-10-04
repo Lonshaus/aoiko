@@ -40,6 +40,9 @@
       "webviewInstallMode": {
         "type": "embedBootstrapper"
       }
+    },
+    "android": {
+      "minSdkVersion": 26
     }
   }
 }

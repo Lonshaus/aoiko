@@ -25,7 +25,7 @@
     ? (globalThis as unknown as Record<string, unknown>)['__aoikoPreviewPlatform']
     : undefined;
   const modKey =
-    previewPlatform === 'windows'
+    previewPlatform === 'windows' || previewPlatform === 'android'
       ? 'Ctrl'
       : previewPlatform === 'macos' || previewPlatform === 'ios'
         ? 'Cmd'

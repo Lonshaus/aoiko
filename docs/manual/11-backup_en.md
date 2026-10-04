@@ -31,7 +31,7 @@ aoiko's data lives in **the app's own storage area** (device-local). This means:
 - ❌ Browser site-data clear → **complete loss**
 <!-- /only -->
 <!-- only:native -->
-- ❌ Removing the app → whether it's lost depends on the platform (Windows and iOS delete it right along with the app; macOS keeps the storage area even across a reinstall)
+- ❌ Removing the app → whether it's lost depends on the platform (Windows, iOS and Android delete it right along with the app; macOS keeps the storage area even across a reinstall)
 <!-- /only -->
 - ❌ Device failure → unrecoverable
 <!-- only:browser -->
@@ -90,8 +90,14 @@ From then on, on every entry add/edit, the ledger data is written automatically.
 4. On success, the **"Folder"** field in Settings shows the folder you chose and **"Status"** reads **"✓ OK"**
 
 From then on, on every entry add/edit, the ledger data is written automatically. Instead of a zip, it's written as loose files: one snapshot (JSON) per backup under `snapshots/`, and receipt photos ([02. § 1-7](02-journal_en.md#1-7-attaching-a-receipt-photo)) under `attachments/`, each named by the SHA-256 of its content. A photo stored once is reused wherever it's attached, so pasting the same photo into several entries doesn't duplicate it, and a photo that hasn't changed is never rewritten by a later backup.
+<!-- /only -->
+<!-- only:apple -->
 
 > **Cloud-sync folder tip**: if the folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: choose `iCloud Drive/aoiko-backup/` → the written JSON auto-syncs to iCloud.
+<!-- /only -->
+<!-- only:windows -->
+
+> **Cloud-sync folder tip**: if the folder you chose is on a cloud-synced path, this effectively gives you cloud backup. Example: choose `OneDrive/aoiko-backup/` → the written JSON auto-syncs to OneDrive.
 <!-- /only -->
 <!-- only:browser -->
 
@@ -148,8 +154,17 @@ The **"Last backup"** field in **Settings > Backup** shows the date and time of 
 <!-- only:browser -->
 - Saved to your browser's "Downloads" folder
 <!-- /only -->
-<!-- only:native -->
-- On desktop, a save dialog lets you choose the destination. On iPad/iPhone, it's saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- only:macos -->
+- A save dialog lets you choose the destination
+<!-- /only -->
+<!-- only:ios -->
+- Saved inside the app's own storage area, retrievable from the Files app etc.
+<!-- /only -->
+<!-- only:windows -->
+- A save dialog lets you choose the destination
+<!-- /only -->
+<!-- only:android -->
+- The system's save-location dialog opens, letting you choose the destination
 <!-- /only -->
 - File name like `aoiko-ledger-{date}.zip` (no time component, so repeated exports on the same day all share one name)
 

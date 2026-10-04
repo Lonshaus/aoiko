@@ -121,6 +121,9 @@ If you set up a Gemini API key, an OpenAI-compatible endpoint, or Apple Intellig
 <!-- only:windows -->
 If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then pressing **"Fill missing accounts with AI"** on the CSV import screen:
 <!-- /only -->
+<!-- only:android -->
+If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial setup § 7](01-setup_en.md#7-prepare-ocr--ai-if-needed), then pressing **"Fill missing accounts with AI"** on the CSV import screen:
+<!-- /only -->
 
 - Rows whose **counterpart account is still empty** (skipped rows excluded) are sent to the AI, which proposes a counterpart account
 - Badges **"AI↑"** / **"AI↓"** indicate confidence
@@ -128,6 +131,9 @@ If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial 
 > - **What's sent**: CSV row text (amount, description) + list of accounts
 > - **Where it goes**: the selected engine (`generativelanguage.googleapis.com` for Gemini, your baseURL for local)
 > - **Confirmation**: a pre-send dialog is shown for cloud engines (with a "Don't ask again" option)
+<!-- only:android -->
+> - **If you've selected on-device Gemini Nano (Android)**: no API key is needed, and no confirmation dialog appears (the inference content never leaves the device; however, ML Kit sends API usage to Google). It only supports counterpart accounts **1130 普通預金 (Ordinary deposit) and 2120 未払金 (Accounts payable)**, debit or credit side; any other account is refused before the model is even called, with the message "This account isn't supported for on-device classification."
+<!-- /only -->
 
 Leaving AI off is fine — you just see more "no badge" rows that you fill in by hand.
 

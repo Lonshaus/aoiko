@@ -1,8 +1,22 @@
 # Security Policy
 
 **Language**: [日本語](SECURITY.md) | **English** | [繁體中文](SECURITY_zh-TW.md)
+<!-- only:browser -->
 
 aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+<!-- /only -->
+<!-- only:apple -->
+
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+<!-- /only -->
+<!-- only:windows -->
+
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you chose an engine that runs entirely on the device). This document outlines known risks, the support stance, and vulnerability reporting.
+<!-- /only -->
+<!-- only:android -->
+
+aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server, and your bookkeeping data stays on your device. Content and API keys are sent to the engine you selected when you explicitly start generative AI classification, OCR, or order import, and also when you press "Fetch model list" (for Gemini this also saves the API key) or "Test connection" in Settings (nothing is sent if you choose Tesseract; with on-device text recognition or on-device Gemini Nano, images and text are not sent, but usage information is sent to Google). This document outlines known risks, the support stance, and vulnerability reporting.
+<!-- /only -->
 
 ## Official distribution sources
 
@@ -14,6 +28,9 @@ aoiko is officially distributed only from:
 <!-- /only -->
 <!-- only:windows -->
 - The Microsoft Store (Windows edition)
+<!-- /only -->
+<!-- only:android -->
+- Google Play (Android edition)
 <!-- /only -->
 <!-- only:browser -->
 
@@ -60,12 +77,21 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- only:windows -->
 - The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / the OS's built-in text recognition) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract and the OS's built-in text recognition need neither an API key nor any setting)
 <!-- /only -->
+<!-- only:android -->
+- The API keys / endpoint settings of the OCR/AI engine (Google Gemini API / OpenAI-compatible / Tesseract / on-device text recognition / on-device Gemini Nano) chosen by the user are **registered by the user and kept in the app's managed storage** (Tesseract, on-device text recognition, and on-device Gemini Nano need neither an API key nor any setting)
+<!-- /only -->
 - The developer / distributor **does not obtain, transmit, or retain** the user's API keys or endpoint information
 <!-- only:browser -->
 - External API requests are sent **directly from the user's browser to the chosen endpoint** (no proxy). Engines that run on the device make no AI API requests
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
 - External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that run on the device make no AI API requests
+<!-- /only -->
+<!-- only:windows -->
+- External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that run on the device make no AI API requests
+<!-- /only -->
+<!-- only:android -->
+- External API requests are sent **by the app directly to the chosen endpoint** (there is no aoiko relay server). Engines that run on the device make no AI API (Gemini / OpenAI-compatible) requests. When you use on-device text recognition or on-device Gemini Nano, however, ML Kit sends usage information to Google in each case (never the image or text content)
 <!-- /only -->
 
 ### Storage
@@ -77,7 +103,18 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- only:native -->
 - Backup: a sync folder (the app remembers one) / manual export
 <!-- /only -->
+<!-- only:browser -->
 - **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
+<!-- /only -->
+<!-- only:apple -->
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
+<!-- /only -->
+<!-- only:windows -->
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.)
+<!-- /only -->
+<!-- only:android -->
+- **No transmission to any aoiko management server** (aoiko has no such server). When using AI/OCR APIs, requests go only to the external endpoint configured by the user (Gemini, OpenAI-compatible, etc.). When you use on-device text recognition or on-device Gemini Nano, ML Kit separately sends usage information to Google
+<!-- /only -->
 
 ## Known risks
 
@@ -113,8 +150,15 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- only:browser -->
   - **The browser's built-in AI** → nothing sent by aoiko (where inference runs is decided by the browser's implementation, not necessarily on the device)
 <!-- /only -->
-<!-- only:native -->
+<!-- only:apple -->
   - **The OS's built-in text recognition** → no transmission (processed entirely on-device)
+<!-- /only -->
+<!-- only:windows -->
+  - **The OS's built-in text recognition** → no transmission (processed entirely on-device)
+<!-- /only -->
+<!-- only:android -->
+  - **On-device text recognition** → no image or text transmission (processed on-device; ML Kit, which performs the recognition, sends usage information to Google)
+  - **On-device Gemini Nano** → no image or text transmission (processed on-device; ML Kit sends usage information to Google)
 <!-- /only -->
 <!-- only:apple -->
   - **Apple Intelligence** → no transmission (inference runs entirely on-device)

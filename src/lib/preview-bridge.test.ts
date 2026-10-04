@@ -30,8 +30,39 @@ describe('preview-bridge', () => {
     expect(b?.appleAiRun).toBeUndefined();
   });
 
-  it('原生側の共通関数が揃い、価格は ¥999 の仮値', async () => {
+  it('android は appleAi を持たず、カメラが使える', async () => {
+    const b = previewBridge('android');
+    expect(b).not.toBeNull();
+    expect(b?.appleAiAvailability).toBeUndefined();
+    expect(b?.appleAiExtract).toBeUndefined();
+    expect(b?.appleAiRun).toBeUndefined();
+    expect(await (b?.isCameraAvailable as () => Promise<boolean>)()).toBe(true);
+  });
+
+  it('android は nano を持ち availability は 3、実行は failed で reject する', async () => {
+    const b = previewBridge('android');
+    expect(await b?.nanoAvailability?.()).toEqual({ status: 3, tokenLimit: 4000 });
+    await expect(b?.nanoExtractReceipt?.('')).rejects.toBe('failed');
+    await expect(b?.nanoRun?.('classify', '')).rejects.toBe('failed');
+  });
+
+  it('android 以外は nano を持たない', () => {
     for (const p of ['macos', 'ios', 'windows'] as const) {
+      const b = previewBridge(p);
+      expect(b?.nanoAvailability).toBeUndefined();
+      expect(b?.nanoExtractReceipt).toBeUndefined();
+      expect(b?.nanoRun).toBeUndefined();
+    }
+  });
+
+  it('android 以外のネイティブは isCameraAvailable を持たない', () => {
+    for (const p of ['macos', 'ios', 'windows'] as const) {
+      expect(previewBridge(p)?.isCameraAvailable).toBeUndefined();
+    }
+  });
+
+  it('原生側の共通関数が揃い、価格は ¥999 の仮値', async () => {
+    for (const p of ['macos', 'ios', 'windows', 'android'] as const) {
       const b = previewBridge(p);
       expect(b?.saveFile).toBeTypeOf('function');
       expect(b?.backupChooseFolder).toBeTypeOf('function');

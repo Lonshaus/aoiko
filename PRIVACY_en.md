@@ -14,13 +14,19 @@ The developer / distributor **collects none of the following** from users:
 - Device information, IP address
 - Usage analytics (telemetry, analytics)
 - Cookies, local-storage trackers
-<!-- only:native -->
+<!-- only:apple -->
+
+In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is one stamp per purchase (its design, the purchase date, and a purchase time used for ordering) and the supporter-badge purchase date; none of it identifies you personally.
+
+The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
+<!-- /only -->
+<!-- only:windows -->
 
 In-app purchases (the supporter feature) are processed by the store (App Store / Microsoft Store etc.) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is one stamp per purchase (its design, the purchase date, and a purchase time used for ordering) and the supporter-badge purchase date; none of it identifies you personally.
 <!-- /only -->
-<!-- only:apple -->
+<!-- only:android -->
 
-The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) as false and lists no collected data types. The only required-reason API it declares is file-timestamp access (C617.1).
+In-app purchases (the supporter feature) are processed by the store (Google Play) itself — payment details such as card numbers never reach aoiko. All that is stored on your device is one stamp per purchase (its design, the purchase date, and a purchase time used for ordering) and the supporter-badge purchase date; none of it identifies you personally.
 <!-- /only -->
 <!-- only:browser -->
 
@@ -83,6 +89,10 @@ Uninstalling the app deletes the data too.
 
 On iPhone and iPad, deleting the app deletes the data too. On a Mac, the storage area remains after you delete the app.
 <!-- /only -->
+<!-- only:android -->
+
+On Android, uninstalling the app deletes the data too.
+<!-- /only -->
 
 ## Data sent off-device
 
@@ -103,6 +113,10 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- only:windows -->
 - **The OS's built-in text recognition path (OCR only)**: no generative AI. The image is processed on-device by the recognition your operating system provides; aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. aoiko itself downloads nothing. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it
 <!-- /only -->
+<!-- only:android -->
+- **On-device text recognition path (OCR only)**: no generative AI. ML Kit, bundled with the app, reads the text on-device. aoiko guesses the vendor from the text and writes it to the description field. Item names are guessed too, but shown on screen only — never written to the journal entry. Nothing extra is downloaded, but ML Kit, which performs the recognition, sends usage information (device model, app version, a per-install identifier, timing, and error codes) to Google. The receipt image and the recognized text are not sent
+- **On-device Gemini Nano path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. It needs neither an API key nor any endpoint setting, and appears as an option only when this device supports it. The model's distribution and updates are managed by AICore, a system component, and its downloads go through the system's Private Compute Services; aoiko never requests a model download. ML Kit sends usage information to Google
+<!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence path (generative AI classification and OCR alike)**: inference runs entirely on the device and neither images nor text are sent externally. The model is downloaded by the operating system when Apple Intelligence is turned on; aoiko never fetches it or starts that download
 <!-- /only -->
@@ -120,7 +134,16 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- /only -->
 <!-- only:native -->
 | Tesseract (purely local WASM OCR) | The image never leaves the device. `jpn.traineddata` is built into the app | **None** (no request is made) |
+<!-- /only -->
+<!-- only:apple -->
 | The OS's built-in text recognition | The image never leaves the device | **None** (no external request is made) |
+<!-- /only -->
+<!-- only:windows -->
+| The OS's built-in text recognition | The image never leaves the device | **None** (no external request is made) |
+<!-- /only -->
+<!-- only:android -->
+| On-device text recognition | The image and text never leave the device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
+| On-device Gemini Nano | The image and text never leave the device | **Image and text: none** (ML Kit's usage information alone is sent to Google) |
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | Images and text never leave the device | **None** (no external request is made) |
@@ -137,10 +160,28 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- /only -->
 - For **cloud (external) engines, a pre-send confirmation dialog** is shown. You can turn it off with the setting's checkbox or "Don't ask again" in each dialog, but this is a single setting: it applies to generative AI classification, receipt OCR, and order import alike, and also to sending after you later change the engine or destination. The setting is included in backups and carried over on restore. "Restore hidden confirmations" in Settings turns the dialog back on
 - Gemini: data handling follows Google's privacy policy and your API plan contract; whether data is used for training depends on your plan (free vs. paid)
+<!-- only:browser -->
 - When using a local engine (e.g. Ollama on localhost), data stays on the device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:apple -->
+- When using a local engine (e.g. Ollama on localhost), data stays on the device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:windows -->
+- When using a local engine (e.g. Ollama on localhost), data stays on the device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
+<!-- /only -->
+<!-- only:android -->
+- When using a local engine (e.g. Ollama on localhost), data stays on the device (vision-capable model required for OCR). Tesseract sends nothing. On-device text recognition doesn't send images or text, but usage information is sent to Google. On-device Gemini Nano works the same way
+<!-- /only -->
 - Tesseract: no generative AI is used. Extraction from WASM OCR text is rule-based (T+13-digit registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
-<!-- only:native -->
+<!-- only:apple -->
 - The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is rule-based (T+13-digit registration number, date, total). In addition, aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+<!-- /only -->
+<!-- only:windows -->
+- The OS's built-in text recognition: no generative AI is used. Extraction from the OS recognition text is rule-based (T+13-digit registration number, date, total). In addition, aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required
+<!-- /only -->
+<!-- only:android -->
+- On-device text recognition: no generative AI is used. Extraction from the text recognized by ML Kit, which is bundled with the app, is rule-based (T+13-digit registration number, date, total). In addition, aoiko guesses the vendor and writes it to the description field; item names are guessed too but shown on screen only, never written to the journal entry. Manual verification by the user is required. ML Kit, which performs the recognition, sends usage information to Google, but the image and the recognized text are not sent
+- On-device Gemini Nano: inference runs on the device and neither images, text, nor inference content are sent externally. It appears as an option only when this device supports it. ML Kit does, however, send usage information to Google
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence: inference runs on the device and none of your data is sent externally. It appears as an option only when this device supports Apple Intelligence
@@ -167,8 +208,25 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- only:apple -->
 | Manual export | On a Mac, the location you choose. On iPhone and iPad there is no location picker; the file is saved to this app's Documents folder (you can get it from the Files app) |
 <!-- /only -->
+<!-- only:android -->
+| Manual export | The location you choose |
+<!-- /only -->
+<!-- only:browser -->
 
 **Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
+<!-- /only -->
+<!-- only:apple -->
+
+**Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
+<!-- /only -->
+<!-- only:windows -->
+
+**Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
+<!-- /only -->
+<!-- only:android -->
+
+**Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by a cloud service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
+<!-- /only -->
 
 ## Cookies and trackers
 

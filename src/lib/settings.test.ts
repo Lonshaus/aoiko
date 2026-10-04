@@ -8,17 +8,34 @@ import { PLATFORMS, stripBuildOnly, type Platform } from './build-only';
 import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
+// vitest の 3 project はいずれも __DOC_PLATFORM__ を 'browser' に固定しているため、
+// 実行時の定数はこの値になる（android だけ 11 になる分岐は versionsFromSource() 側で見る）。
 const EXPECTED_VERSION = 10;
 // 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとのバージョンを守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
 function versionsFromSource(): Record<Platform, number> {
   const source = readFileSync(resolve('src/lib/settings.ts'), 'utf-8');
   const flat = /export const DISCLAIMER_VERSION = (\d+);/.exec(source);
-  if (flat === null) {
+  if (flat !== null) {
+    const value = Number(flat[1]);
+    return { browser: value, macos: value, ios: value, windows: value, android: value };
+  }
+  const ternary =
+    /export const DISCLAIMER_VERSION = __DOC_PLATFORM__ === 'android' \? (\d+) : (\d+);/.exec(
+      source,
+    );
+  if (ternary === null) {
     throw new Error('settings.ts から DISCLAIMER_VERSION を読めない（分岐の形が変わった？）');
   }
-  const value = Number(flat[1]);
-  return { browser: value, macos: value, ios: value, windows: value };
+  const androidValue = Number(ternary[1]);
+  const otherValue = Number(ternary[2]);
+  return {
+    browser: otherValue,
+    macos: otherValue,
+    ios: otherValue,
+    windows: otherValue,
+    android: androidValue,
+  };
 }
 
 describe('DISCLAIMER_VERSION', () => {
@@ -26,11 +43,11 @@ describe('DISCLAIMER_VERSION', () => {
     expect(DISCLAIMER_VERSION).toBe(EXPECTED_VERSION);
   });
 
-  test('原文から読めるバージョンも同じ', () => {
+  test('原文から読めるバージョンも同じ（android だけ 11、他は 10）', () => {
+    const versions = versionsFromSource();
     for (const platform of PLATFORMS) {
-      expect(versionsFromSource()[platform], `${platform} のバージョンが違う`).toBe(
-        EXPECTED_VERSION,
-      );
+      const expected = platform === 'android' ? 11 : EXPECTED_VERSION;
+      expect(versions[platform], `${platform} のバージョンが違う`).toBe(expected);
     }
   });
   // 生の（出し分け前の）本文には全形態の行が混ざって載っているため、生の文字列を

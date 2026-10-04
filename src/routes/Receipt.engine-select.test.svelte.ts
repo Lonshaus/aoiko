@@ -147,6 +147,17 @@ describe('Receipt: エンジン選択', () => {
     expect(c.textContent).toContain('Apple Intelligence');
   });
 
+  test('AI 行は aiEngine を反映する（nano）', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('aiEngine', 'nano');
+    await setSetting('receiptMethod', 'ai');
+    const c = renderReceipt();
+    await selectFile(c);
+    await waitFor(() => c.textContent?.includes('Gemini Nano') === true);
+    expect(c.textContent).toContain('Gemini Nano');
+    expect(c.textContent).not.toContain('選べません');
+  });
+
   test('AI 行は未知の保存値を Apple Intelligence と偽らない', async () => {
     await setSetting('skipAttachmentConfirm', true);
     await setSetting('aiEngine', 'tesseract' as never);

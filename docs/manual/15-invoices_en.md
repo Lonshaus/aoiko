@@ -58,8 +58,17 @@ For an issued document, click **"Print"** in the list to open the print dialog.
 <!-- only:browser -->
 To save as a PDF, choose "Save as PDF" as the destination in the print dialog.
 <!-- /only -->
-<!-- only:native -->
+<!-- only:macos -->
+Save as PDF from the print panel (the "PDF" menu at the bottom-left).
+<!-- /only -->
+<!-- only:ios -->
 On desktop, save as PDF from the print panel (on macOS, for example, that's the "PDF" menu at the bottom-left). On iPad/iPhone, save via the share sheet.
+<!-- /only -->
+<!-- only:windows -->
+Save as PDF from the print panel (choose "Save as PDF" from the destination list).
+<!-- /only -->
+<!-- only:android -->
+Save as PDF from the system print dialog.
 <!-- /only -->
 
 The printed layout automatically includes the fields required under the qualified invoice retention system:

@@ -12,16 +12,18 @@ const BLOCK =
 const OPEN = /^[ \t]*<!--[ \t]*only:([a-z]+)[ \t]*-->/gm;
 const CLOSE = /^[ \t]*<!--[ \t]*\/only[ \t]*-->/gm;
 const ANY = /<!--[ \t]*\/?only[^>]*-->/g;
-const KINDS = ['browser', 'native', 'apple', 'windows'];
+export const KINDS = ['browser', 'native', 'apple', 'windows', 'android', 'macos', 'ios'];
 // 配布形態ごとに、その形態が読む種別の集合。native はネイティブ版すべてに当てはまる記述で、
-// apple / windows はそこから更に絞る（入れ子は扱わないので、絞る側は兄弟の区画で書く）。
-const PLATFORM_KINDS: Record<Platform, readonly string[]> = {
+// apple / windows / android はそこから更に絞る（入れ子は扱わないので、絞る側は兄弟の区画で書く）。
+// macos / ios は apple の中でさらに絞る側（apple の 2 つの環境で記述が異なるとき用）。同じ理由で兄弟の区画で書く。
+export const PLATFORM_KINDS: Record<Platform, readonly string[]> = {
   browser: ['browser'],
-  macos: ['native', 'apple'],
-  ios: ['native', 'apple'],
+  macos: ['native', 'apple', 'macos'],
+  ios: ['native', 'apple', 'ios'],
   windows: ['native', 'windows'],
+  android: ['native', 'android'],
 };
-export const PLATFORMS = ['browser', 'macos', 'ios', 'windows'] as const;
+export const PLATFORMS = ['browser', 'macos', 'ios', 'windows', 'android'] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export function isPlatform(value: string): value is Platform {
@@ -61,4 +63,15 @@ export function stripBuildOnly(markdown: string, platform: Platform, label = 'ma
   return markdown.replace(BLOCK, (_all, kind: string, body: string) =>
     keep.includes(kind) ? body : '',
   );
+}
+
+export type OnlyBlock = { kind: string; start: number; end: number };
+// テストが「同じ family に属する区画」を機械的に見つけるための位置付き一覧。
+// BLOCK 本体を流用し、判定ロジックを二重に持たない。
+export function findOnlyBlocks(markdown: string): OnlyBlock[] {
+  return [...markdown.matchAll(BLOCK)].map((m) => ({
+    kind: m[1]!,
+    start: m.index!,
+    end: m.index! + m[0].length,
+  }));
 }

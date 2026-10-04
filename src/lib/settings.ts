@@ -15,7 +15,8 @@ import { D, type Decimal } from './decimal';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
 // chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
-export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai';
+// nano は対応環境の端末内 Gemini Nano（推論は端末内で完結）。
+export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai' | 'nano';
 export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
@@ -155,7 +156,8 @@ export type SettingsMap = {
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
 // v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
-export const DISCLAIMER_VERSION = 10;
+// v11: 端末内 Gemini Nano を持つ環境だけの改訂で、他の環境は本文が変わらないので 10 に据え置く。
+export const DISCLAIMER_VERSION = __DOC_PLATFORM__ === 'android' ? 11 : 10;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

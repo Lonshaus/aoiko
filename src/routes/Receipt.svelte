@@ -394,7 +394,7 @@
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
       <span class="mt-1 block">
-        <FilePicker accept="image/*" onchange={handleFile} />
+        <FilePicker accept="image/*" onchange={handleFile} camera />
       </span>
     </label>
 
@@ -446,14 +446,16 @@
             <option value={eng}>
               {eng === 'tesseract'
                 ? m.receipt_rule_engine_tesseract()
-                : m.receipt_rule_engine_native()}
+                : __DOC_PLATFORM__ === 'android'
+                  ? m.receipt_rule_engine_android()
+                  : m.receipt_rule_engine_native()}
             </option>
           {/each}
         </select>
       {/if}
       <span class="text-xs text-muted-foreground basis-full">
         {#if receiptMethod === 'ai'}
-          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai'}
+          {#if aiEngineInUse === 'gemini' || aiEngineInUse === 'openai-compatible' || aiEngineInUse === 'apple-ai' || aiEngineInUse === 'chrome-ai' || aiEngineInUse === 'nano'}
             {m.receipt_ai_engine_current({
               engine:
                 aiEngineInUse === 'gemini'
@@ -462,7 +464,9 @@
                     ? m.receipt_ai_engine_name_openai()
                     : aiEngineInUse === 'apple-ai'
                       ? m.receipt_ai_engine_name_apple_ai()
-                      : m.receipt_ai_engine_name_chrome_ai(),
+                      : aiEngineInUse === 'chrome-ai'
+                        ? m.receipt_ai_engine_name_chrome_ai()
+                        : m.receipt_ai_engine_name_nano(),
             })}
           {:else}
             {m.settings_engine_stranded({ value: aiEngineInUse })}
@@ -473,7 +477,12 @@
           {#if receiptRuleEngine === 'tesseract'}
             {m.receipt_rule_engine_notice({ engine: m.receipt_rule_engine_name_tesseract() })}
           {:else}
-            {m.receipt_rule_engine_notice_native({ engine: m.receipt_rule_engine_name_native() })}
+            {m.receipt_rule_engine_notice_native({
+              engine:
+                __DOC_PLATFORM__ === 'android'
+                  ? m.receipt_rule_engine_name_android()
+                  : m.receipt_rule_engine_name_native(),
+            })}
           {/if}
         {/if}
       </span>
@@ -512,7 +521,9 @@
           class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
         >
           {__NATIVE__ && lastEngine === 'native'
-            ? m.receipt_native_engine_notice()
+            ? __DOC_PLATFORM__ === 'android'
+              ? m.receipt_native_engine_notice_android()
+              : m.receipt_native_engine_notice()
             : m.receipt_local_engine_notice()}
         </div>
       {/if}

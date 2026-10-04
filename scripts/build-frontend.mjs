@@ -14,7 +14,7 @@ const tauriConf = JSON.parse(readFileSync(resolve(root, 'src-tauri', 'tauri.conf
 // 出し分けの対象となる配布形態。引数か環境変数が明示されていればそれを使い、
 // 無いときだけ build ホストから決める（tauri build は macOS と Windows で同じ入口）。
 const HOST_PLATFORM = { darwin: 'macos', win32: 'windows' };
-const PLATFORMS = ['browser', 'macos', 'ios', 'windows'];
+const PLATFORMS = ['browser', 'macos', 'ios', 'windows', 'android'];
 
 function targetPlatform() {
   const given = process.argv[2] ?? process.env.AOIKO_PLATFORM;

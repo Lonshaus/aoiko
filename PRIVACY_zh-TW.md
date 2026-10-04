@@ -14,13 +14,19 @@ aoiko 是**沒有後端伺服器**的純前端 App。原則上使用者資料**�
 - 裝置資訊、IP 位址
 - 使用狀況分析（遙測・分析）
 - cookie、本機儲存的追蹤器
-<!-- only:native -->
+<!-- only:apple -->
+
+支援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存每次購買的集章（圖案・購買日期・排序用的購買時間）與支援者徽章的購買日期，不含任何可識別個人的資訊。
+
+iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用到的必要理由 API 只有存取檔案時間戳記（C617.1）。
+<!-- /only -->
+<!-- only:windows -->
 
 支援功能（App 內購買）的付款本身由商店（App Store／Microsoft Store 等）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存每次購買的集章（圖案・購買日期・排序用的購買時間）與支援者徽章的購買日期，不含任何可識別個人的資訊。
 <!-- /only -->
-<!-- only:apple -->
+<!-- only:android -->
 
-iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 false，收集項目也是空的。使用到的必要理由 API 只有存取檔案時間戳記（C617.1）。
+支援功能（App 內購買）的付款本身由商店（Google Play）處理，卡號等付款資訊不會到 aoiko 這邊。裝置上只存每次購買的集章（圖案・購買日期・排序用的購買時間）與支援者徽章的購買日期，不含任何可識別個人的資訊。
 <!-- /only -->
 <!-- only:browser -->
 
@@ -83,6 +89,10 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 
 在 iPhone・iPad 上刪除 App 時資料也會一起消失。在 Mac 上刪除 App 後，儲存區域仍會保留。
 <!-- /only -->
+<!-- only:android -->
+
+在 Android 上解除安裝 App 會一併刪除資料。
+<!-- /only -->
 
 ## 會送出到本機以外的資料
 
@@ -103,6 +113,10 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 <!-- only:windows -->
 - **作業系統內建的文字辨識路徑（OCR 限定）**：不用生成式 AI。照片由作業系統提供的文字辨識在本機處理、不送出，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。aoiko 本身不會下載任何資料。要辨識日文，Windows 中必須有日文的 OCR 語言功能（Windows 預先安裝，或在 Windows 設定中加入）；aoiko 不會下載或安裝這項功能
 <!-- /only -->
+<!-- only:android -->
+- **裝置內的文字辨識路徑（OCR 限定）**：不用生成式 AI。照片由隨 App 附帶的 ML Kit 在本機處理，照片本身不會送出，會推測店名並寫入摘要。品項也會推測，但只顯示於畫面、不會寫入傳票。不需額外下載任何資料，但負責辨識的 ML Kit 會把使用狀況（機型、App 版本、每次安裝的識別碼、處理耗時、錯誤代碼）送給 Google。收據照片與辨識出的文字內容不會被送出
+- **裝置內 Gemini Nano 路徑（生成式 AI 分類・OCR 共用）**：推論全程在裝置內完成，照片與文字都不會送出。不需要 API 金鑰也不需要端點設定，只有在這台裝置支援時才會出現在選項中。模型的發布與更新由系統元件 AICore 管理，模型下載等連線經由系統的 Private Compute Services 進行；aoiko 不會要求下載模型。ML Kit 會把使用狀況送給 Google
+<!-- /only -->
 <!-- only:apple -->
 - **Apple Intelligence 路徑（生成式 AI 分類・OCR 共用）**：推論全程在裝置內完成，照片與文字都不會送出。模型是在開啟 Apple Intelligence 時由作業系統下載，aoiko 不會取得模型，也不會觸發下載
 <!-- /only -->
@@ -120,7 +134,16 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 <!-- /only -->
 <!-- only:native -->
 | Tesseract（純本機 WASM OCR） | 照片不離開本機。`jpn.traineddata` 內建在 App 中 | **無**（不會有任何連線）|
+<!-- /only -->
+<!-- only:apple -->
 | 作業系統內建的文字辨識 | 照片不離開本機 | **無**（不會有對外連線）|
+<!-- /only -->
+<!-- only:windows -->
+| 作業系統內建的文字辨識 | 照片不離開本機 | **無**（不會有對外連線）|
+<!-- /only -->
+<!-- only:android -->
+| 裝置內的文字辨識 | 照片與文字都不離開本機 | **照片與文字都無**（僅 ML Kit 的使用狀況會送給 Google）|
+| 裝置內 Gemini Nano | 照片與文字都不離開本機 | **照片與文字都無**（僅 ML Kit 的使用狀況會送給 Google）|
 <!-- /only -->
 <!-- only:apple -->
 | Apple Intelligence | 照片與文字都不離開本機 | **無**（不會有對外連線）|
@@ -137,10 +160,28 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 <!-- /only -->
 - **使用會對外（雲端）送出資料的引擎時，送出前會跳出確認對話框**。可以用設定的勾選框或各對話框的「下次不再確認」關閉，但這個設定只有一個，會同時套用到生成式 AI 分類・收據 OCR・訂單匯入，以及之後更換引擎或送出對象後的送出。這個設定包含在備份中，還原時會一併帶入。可在設定畫面按「還原已隱藏的確認」恢復
 - Gemini：送出內容依 Google 隱私政策與使用者 API 方案合約處理，是否用於訓練要看合約類型（免費或付費）
+<!-- only:browser -->
 - 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用支援影像輸入的模型）。在裝置內完成的引擎同樣不會送出資料
+<!-- /only -->
+<!-- only:apple -->
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用支援影像輸入的模型）。在裝置內完成的引擎同樣不會送出資料
+<!-- /only -->
+<!-- only:windows -->
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用支援影像輸入的模型）。在裝置內完成的引擎同樣不會送出資料
+<!-- /only -->
+<!-- only:android -->
+- 本機（Ollama 等以 localhost）使用時資料不離開本機（OCR 必須選用支援影像輸入的模型）。Tesseract 不會送出任何資料。裝置內的文字辨識不會送出照片和文字，但使用狀況會送給 Google。裝置內 Gemini Nano 也是同樣情況
+<!-- /only -->
 - Tesseract：不用生成式 AI，從 WASM OCR 文字以確定性規則抽取（只抽取 T+13 位登錄號碼・日期・合計）。店名與品項不推測。使用者務必人工確認
-<!-- only:native -->
+<!-- only:apple -->
 - 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（抽取 T+13 位登錄號碼・日期・合計）。此外也會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認
+<!-- /only -->
+<!-- only:windows -->
+- 作業系統內建的文字辨識：不用生成式 AI，從作業系統辨識出的文字以確定性規則抽取（抽取 T+13 位登錄號碼・日期・合計）。此外也會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認
+<!-- /only -->
+<!-- only:android -->
+- 裝置內的文字辨識：不用生成式 AI，從隨 App 附帶的 ML Kit 辨識出的文字以確定性規則抽取（抽取 T+13 位登錄號碼・日期・合計）。此外也會推測店名並寫入摘要，品項也會推測但只顯示於畫面、不會寫入傳票。使用者務必人工確認。負責辨識的 ML Kit 會把使用狀況送給 Google，但照片與辨識出的文字內容不會被送出
+- 裝置內 Gemini Nano：推論在裝置內完成，照片、文字和推論內容都不會送出。只有在這台裝置支援時才會出現在選項中。不過 ML Kit 會把使用狀況送給 Google
 <!-- /only -->
 <!-- only:apple -->
 - Apple Intelligence：推論在裝置內完成，使用者的資料不會送出。只有在這台裝置支援 Apple Intelligence 時才會出現在選項中
@@ -167,8 +208,25 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 <!-- only:apple -->
 | 手動匯出 | 在 Mac 上是使用者指定的儲存位置。在 iPhone・iPad 上沒有選擇儲存位置的畫面，會存到這個 App 的文件資料夾（可從「檔案」App 取出）|
 <!-- /only -->
+<!-- only:android -->
+| 手動匯出 | 使用者指定的儲存位置 |
+<!-- /only -->
+<!-- only:browser -->
 
 aoiko 這邊的伺服器**完全不會**收到任何東西。不過，備份的儲存位置若在 Google 雲端硬碟・iCloud Drive・Dropbox・OneDrive 等同步資料夾內，該服務的同步程式會把備份上傳到該服務。備份含有憑證照片，若選擇包含，也會含有 API 金鑰（明文）與申報者資訊。
+<!-- /only -->
+<!-- only:apple -->
+
+aoiko 這邊的伺服器**完全不會**收到任何東西。不過，備份的儲存位置若在 Google 雲端硬碟・iCloud Drive・Dropbox・OneDrive 等同步資料夾內，該服務的同步程式會把備份上傳到該服務。備份含有憑證照片，若選擇包含，也會含有 API 金鑰（明文）與申報者資訊。
+<!-- /only -->
+<!-- only:windows -->
+
+aoiko 這邊的伺服器**完全不會**收到任何東西。不過，備份的儲存位置若在 Google 雲端硬碟・iCloud Drive・Dropbox・OneDrive 等同步資料夾內，該服務的同步程式會把備份上傳到該服務。備份含有憑證照片，若選擇包含，也會含有 API 金鑰（明文）與申報者資訊。
+<!-- /only -->
+<!-- only:android -->
+
+aoiko 這邊的伺服器**完全不會**收到任何東西。不過，備份的儲存位置若在雲端服務的同步資料夾內，該服務的同步程式會把備份上傳到該服務。備份含有憑證照片，若選擇包含，也會含有 API 金鑰（明文）與申報者資訊。
+<!-- /only -->
 
 ## cookie・追蹤
 

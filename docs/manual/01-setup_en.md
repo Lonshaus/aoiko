@@ -211,6 +211,14 @@ No API key or endpoint setup needed. **"The browser's built-in AI"** appears in 
 
 > aoiko itself sends nothing, but whether inference runs on your device or in an external service is decided by the browser's implementation. Just like with the other engines, manual verification and correction of the results is required. See [PRIVACY_en.md](../../PRIVACY_en.md).
 <!-- /only -->
+<!-- only:android -->
+
+### 7-C. On-device Gemini Nano (Android only)
+
+No API key or endpoint setup needed. On a supported Android device, "**On-device Gemini Nano (Android, free)**" appears in the engine picker in Settings. If it doesn't appear, or can't be selected, this device can't use this engine (yet).
+
+> Inference and data both stay on-device. However, ML Kit sends API usage (device model, app version, per-install identifier, processing time, errors, etc.) to Google — the inference content itself is never sent.
+<!-- /only -->
 
 ### If you don't want AI: the built-in rule engine
 <!-- only:browser -->
@@ -222,6 +230,9 @@ None of the setup above is needed for receipt OCR alone. The built-in rule engin
 <!-- /only -->
 <!-- only:windows -->
 None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or on supported devices the OS's built-in text recognition) is always available, and images never leave your device. Tesseract does not extract vendor or items (those fields stay empty). The OS's built-in recognition also attempts to extract vendor and items. Both need manual verification.
+<!-- /only -->
+<!-- only:android -->
+None of the setup above is needed for receipt OCR alone. The built-in rule engine (Tesseract, or on-device text recognition) is always available, and images never leave your device. Tesseract does not extract vendor or items (those fields stay empty). On-device text recognition also attempts to extract vendor and items. Both need manual verification.
 <!-- /only -->
 
 The reading method (AI engine or built-in rule engine) and the rule engine's sub-engine are chosen on the Receipt OCR screen, not in Settings; Settings only chooses which AI engine is used. See [04. Receipt OCR](04-receipt-ocr_en.md) for details.
