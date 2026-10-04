@@ -15,12 +15,13 @@ import { D, type Decimal } from './decimal';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
 // chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
-export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai';
+// nano は対応環境の端末内 Gemini Nano（推論は端末内で完結）。
+export type AiEngine = 'gemini' | 'openai-compatible' | 'apple-ai' | 'chrome-ai' | 'nano';
 export type ReceiptMethod = 'ai' | 'rule';
 // native は環境ごとに実装が違うが、web 側から見た振る舞い（端末外へ出さない・生テキストを
 // 返す）は同じなので値を分けない。表示名だけ実行時に選ぶ。
 export type ReceiptRuleEngine = 'native' | 'tesseract';
-// __NATIVE__ は build 時の define で、vitest 実行全体では true に畳まれる
+// __NATIVE__ はビルド時の define で、vitest 実行全体では true に畳まれる
 // （vitest.config.ts）。false 側を試験できるよう、判定を引数で渡す形にしておく。
 export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
   return isNative ? 'native' : 'tesseract';
@@ -29,7 +30,7 @@ export function defaultRuleEngine(isNative: boolean): ReceiptRuleEngine {
 export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
-  // wrapper 版で選んだバックアップ先。token は端末固有の
+  // ラッパー版で選んだバックアップ先。token は端末固有の
   // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
@@ -154,7 +155,9 @@ export type SettingsMap = {
 // 本文が変わっていないのでそのまま 6 に据え置く。
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
-export const DISCLAIMER_VERSION = 9;
+// v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
+// v11: 端末内 Gemini Nano を持つ環境だけの改訂で、他の環境は本文が変わらないので 10 に据え置く。
+export const DISCLAIMER_VERSION = __DOC_PLATFORM__ === 'android' ? 11 : 10;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,
@@ -229,7 +232,6 @@ export async function loadInterimPriorPeriodMonths(year: number): Promise<number
   const map = await getSetting('interimPriorPeriodMonths');
   return map?.[year] ?? 12;
 }
-
 // 少額特例の年合計上限の月割に使う開業日・廃業日。未設定はそれぞれ呼出元の既定に委ねる。
 export async function loadBusinessDates(): Promise<{
   businessStartDate?: string;

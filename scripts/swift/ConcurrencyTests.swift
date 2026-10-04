@@ -1,11 +1,9 @@
 import Foundation
-
 // Concurrency.swift の runSingleFlight を直接駆動するテスト。AppleIntelligence.swift
 // （FoundationModels 依存）は使わず、body はテスト側で作った偽物だけを渡す。
 // runSingleFlight のゲートはプロセス全体で単一なので、各テストは自分の後始末として
 // ゲートが空くのを待ってから次のテストへ進む（さもないと次のテストの最初の呼び出しが
 // 前のテストの残骸で busy 判定を受けてしまう）。
-
 // テスト自体は常にメインスレッドから呼ぶが、strict concurrency は呼び出し元まで
 // 追ってくれないので、素の global var ではなくロック付きの箱にする。
 final class FailureCounter: @unchecked Sendable {
@@ -35,7 +33,6 @@ func check(_ condition: @autoclosure () -> Bool, _ name: String) {
         failures.increment()
     }
 }
-
 // body を外から遅らせるための待ち合わせ。release() が呼ばれるまで wait() は戻らない。
 actor Latch {
     private var released = false
@@ -54,7 +51,6 @@ actor Latch {
         continuation = nil
     }
 }
-
 // ゲートが空くまで、無関係な軽いリクエストを送って観測する（内部のロックへは触れない）。
 // 空いていれば即座に受理されて即返る一手なので、ポーリングの負荷は無視できる。
 func waitForGateFree(timeoutSeconds: Double = 3) {
@@ -68,12 +64,10 @@ func waitForGateFree(timeoutSeconds: Double = 3) {
     }
     check(false, "waitForGateFree: timed out waiting for the gate to free")
 }
-
 // スレッド跨ぎで結果を受け取るための単純な箱（テスト自身のもので、Concurrency.swift とは無関係）。
 final class ThreadResult: @unchecked Sendable {
     var value: AppleAIOutcome?
 }
-
 // 1) body が終わらなくても、締め切り内で戻り、コードは 5。
 func testBoundedWaitTimesOut() {
     let latch = Latch()
@@ -89,7 +83,6 @@ func testBoundedWaitTimesOut() {
     Task { await latch.release() }
     waitForGateFree()
 }
-
 // 2) 見捨てた後の遅い書き込みは、次の呼び出しへ漏れない。
 func testLateWriteAfterAbandonmentIsIgnored() {
     let latch = Latch()
@@ -103,7 +96,6 @@ func testLateWriteAfterAbandonmentIsIgnored() {
     let next = runSingleFlight(deadline: 1) { AppleAIOutcome(json: "fresh", err: 0) }
     check(next.err == 0 && next.json == "fresh", "late write ignored: the next call gets a fresh result, not the leaked one")
 }
-
 // 4) 片方が生成中のあいだ、もう片方（同じ入口でも別の入口でも）はコード 6 で弾かれる。
 func testSecondEntryWhileBusyIsRejected() {
     let latch = Latch()
@@ -131,7 +123,6 @@ func testSecondEntryWhileBusyIsRejected() {
     )
     waitForGateFree()
 }
-
 // 5) 締め切りで見捨てた後も、その body が実際に終わるまではゲートが閉じたまま。
 // gate.release() を締め切りの分岐へ移すと、この直後の呼び出しが誤って通ってしまう
 // （見捨てたはずの body の横で次の生成が始まる、ゲートが本来防ぐ積み上がり）。

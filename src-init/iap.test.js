@@ -156,8 +156,7 @@ test('取り消しと承認待ちでは consume しない', async () => {
     assert.equal(calls.length, 1);
   }
 });
-
-// 取りこぼすと、買わずに閉じただけの操作でエラーバナーが点く。
+// 取りこぼすと、買わずに閉じただけの操作でエラーバナーが表示される。
 test('例外で来る取消・承認待ちも語彙へ移す', () => {
   assert.equal(purchaseResultOfError(new Error('Purchase cancelled by user')), 'cancelled');
   assert.equal(purchaseResultOfError(new Error('Purchase is pending')), 'pending');
@@ -222,7 +221,6 @@ test('復元で戻すのは非消耗型だけ', async () => {
   const iap = createIap(invoke, 'macos');
   assert.deepEqual(await iap.restoreIapPurchases(), ['supporter-badge']);
 });
-
 // Play は非消耗型を 3 日以内に acknowledge しないと自動で返金する。実機でも 3 日待たないと
 // 気付けないので、呼び出しの有無をここで固定する。
 const PLAY_DEPS = { sleep: async () => {}, backFromStore: async () => {} };
@@ -230,7 +228,7 @@ const PLAY_DEPS = { sleep: async () => {}, backFromStore: async () => {} };
 test('acknowledge の要否は isAcknowledged で決まる', () => {
   assert.equal(needsAcknowledge({ isAcknowledged: false, purchaseToken: 'tok' }), true);
   assert.equal(needsAcknowledge({ isAcknowledged: true, purchaseToken: 'tok' }), false);
-  // ストア は isAcknowledged を返さない。undefined を「未承認」と読むと毎回呼んでしまう。
+  // isAcknowledged が返らない場合がある。undefined を「未承認」と読むと毎回呼んでしまう。
   assert.equal(needsAcknowledge({ purchaseToken: 'tok' }), false);
   assert.equal(needsAcknowledge({ isAcknowledged: false }), false);
 });
@@ -262,8 +260,7 @@ test('承認済みなら acknowledge を呼ばない', async () => {
   assert.equal(await iap.purchaseIap('supporter-badge'), 'purchased');
   assert.equal(calls.length, 1);
 });
-
-// ストア と ストア に acknowledge は無く、プラグインは no-op か拒否を返す。
+// App Store と Microsoft Store に acknowledge は無く、プラグインは no-op か拒否を返す。
 test('Play 以外では acknowledge を呼ばない', async () => {
   for (const platform of ['macos', 'ios', 'windows']) {
     const { invoke, calls } = fakeInvoke({
@@ -293,7 +290,6 @@ test('Play の消耗型は consume だけで acknowledge を重ねない', async
   assert.equal(calls.length, 2);
   assert.equal(calls[1].cmd, 'plugin:iap|consume_purchase');
 });
-
 // プラグインの handlePurchase は PURCHASED のときしか応じない。保留のままだと
 // purchase の約束が解決も拒否もされず、支援画面が押したまま戻らなくなる。
 test('保留は purchase が決着しなくても pending になる', async () => {
@@ -339,8 +335,7 @@ test('isPendingStatus は保有していない品目を保留と読まない', (
   assert.equal(isPendingStatus({ isOwned: false, purchaseState: 2 }), false);
   assert.equal(isPendingStatus(undefined), false);
 });
-
-// 支払い前にバッジが点くと、返金された後も点いたままになる。
+// 支払い前にバッジが表示されると、返金された後も表示されたままになる。
 test('復元は保留の購入を持ち物に数えない', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|restore_purchases': () => ({
@@ -350,7 +345,6 @@ test('復元は保留の購入を持ち物に数えない', async () => {
   const iap = createIap(invoke, 'android', PLAY_DEPS);
   assert.deepEqual(await iap.restoreIapPurchases(), []);
 });
-
 // 購入の途中でアプリが落ちると購入直後の acknowledge が飛ぶ。ここが最後の受け皿。
 test('復元で未承認の非消耗型を見つけたら acknowledge する', async () => {
   const { invoke, calls } = fakeInvoke({

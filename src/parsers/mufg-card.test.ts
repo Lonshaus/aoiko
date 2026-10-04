@@ -5,7 +5,7 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/mufg-card-sample.csv', mufgCardParser.encoding);
 
 describe('mufgCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(mufgCardParser.name).toBe('mufg-card');
     expect(mufgCardParser.displayName).toBe('三菱UFJカード');
     expect(mufgCardParser.accountCode).toBe('2120');
@@ -35,7 +35,7 @@ describe('mufgCardParser', () => {
     });
   });
 
-  test('throws on missing required column', () => {
+  test('必須列が欠けていれば例外を投げる', () => {
     const csv = '"確定情報","お支払日"\n"確定","2025年4月10日"';
     expect(() => mufgCardParser.parse(csv)).toThrow(/CSV ヘッダー形式/);
   });

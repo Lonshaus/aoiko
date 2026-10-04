@@ -56,7 +56,6 @@ describe('AppleAiAdapter', () => {
     const adapter = new AppleAiAdapter();
     await expect(adapter.runDataTask('classify', {})).rejects.toThrow(expected);
   });
-
   // 権限不足・未知コマンドは tauri が文字列で reject する。モデルの不調（数値コード）と
   // 混ぜると、配線ミスがモデルの限界に見えてしまう。
   test('文字列での拒否（権限不足・未知コマンド）は配線ミスと分かる文言になる', async () => {

@@ -1,35 +1,26 @@
 # Dependencies
 node_modules/
-
 # Build output
 dist/
 dist-ssr/
 dev-dist/
-
 # Vite / Vitest cache & coverage
 .vite/
 coverage/
-
 # Paraglide compiled output（messages/ から自動生成）
 src/paraglide/
-
 # tesseract.js の worker / コア（node_modules から自動複製）
 public/tesseract/
-
 # 環境変数
 .env
 .env.*
 !.env.example
-
 # TypeScript
 *.tsbuildinfo
-
 # Vite/Vitest ローカル上書き
 *.local
-
 # Playwright（Phase 4）
 playwright/.cache/
-
 # Editor
 .vscode/*
 !.vscode/extensions.json
@@ -40,11 +31,9 @@ playwright/.cache/
 *.ntvs*
 *.njsproj
 *.sln
-
 # OS
 .DS_Store
 Thumbs.db
-
 # Logs
 logs/
 *.log
@@ -52,7 +41,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
 # ネイティブ側（Tauri）のビルド生成物
 src-tauri/target/
 # 入れ子のクレートで cargo を走らせた時の置き土産も拾う
@@ -64,12 +52,11 @@ src-tauri/gen/
 src-tauri/init.js
 # tauri ios build がプラグインへ複製する Tauri の Swift API。
 src-tauri/plugins/*/.tauri/
-# 署名鍵と商店の資格情報。テンプレートの .gitignore は keystore.properties しか
+# 署名鍵とストアの資格情報。テンプレートの .gitignore は keystore.properties しか
 # 除外せず、鍵の実体は素通しになる。
 *.jks
 *.keystore
 play-service-account*.json
-
 # aoiko 手動 export（誤コミット防止）
 aoiko-ledger-*.json
 aoiko-*.xtx

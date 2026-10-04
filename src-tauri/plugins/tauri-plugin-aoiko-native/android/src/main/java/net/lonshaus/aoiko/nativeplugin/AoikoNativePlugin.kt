@@ -45,6 +45,13 @@ class RecognizeTextArgs {
 }
 
 @InvokeArg
+class NanoGenerateArgs {
+    var promptId: String = ""
+    var text: String = ""
+    var imageBase64: String? = null
+}
+
+@InvokeArg
 class ConfirmDiscardArgs {
     var message: String = ""
     var okLabel: String = ""
@@ -89,7 +96,6 @@ class BackupChunkArgs {
 class BackupRidArgs {
     var rid: Int = 0
 }
-
 // デスクトップの CLOSE_SCRIPT と同じ入口。呼べたかどうかを返す。
 private const val REQUEST_CLOSE =
     "(function () {" +
@@ -199,15 +205,50 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
     fun isTextRecognitionAvailable(invoke: Invoke) {
         invoke.resolveObject(true)
     }
-
-    // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでも相機を
-    // 起こせなければファイル選択へ退避するため、こちらも同じ resolveActivity で揃える。
+    // 撮影の入口を出してよいか。wry の onShowFileChooser は capture 付きでもカメラを
+    // 起こせなければファイル選択に切り替えるため、こちらも同じ resolveActivity で揃える。
     @Command
     fun isCameraAvailable(invoke: Invoke) {
         val pm = activity.packageManager
         val hasFeature = pm.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
         val canTake = Intent(MediaStore.ACTION_IMAGE_CAPTURE).resolveActivity(pm) != null
         invoke.resolveObject(hasFeature && canTake)
+    }
+    // tokenLimit は使えるときだけ入る。
+    @Command
+    fun nanoAvailability(invoke: Invoke) {
+        GeminiNano.availability(
+            onResult = { status, tokenLimit ->
+                val result = JSObject().put("status", status)
+                if (tokenLimit != null) {
+                    result.put("tokenLimit", tokenLimit)
+                }
+                invoke.resolve(result)
+            },
+            onFailure = { e -> invoke.reject("端末内モデルの状態を取得できません: ${e.javaClass.simpleName}") },
+        )
+    }
+    // 推論 1 回分。チャンクへの分割と結合は Rust 側が持つ。失敗は固定のコードで返す。
+    @Command
+    fun nanoGenerate(invoke: Invoke) {
+        val args = invoke.parseArgs(NanoGenerateArgs::class.java)
+        val image =
+            args.imageBase64?.let {
+                try {
+                    Base64.decode(it, Base64.DEFAULT)
+                } catch (e: IllegalArgumentException) {
+                    invoke.reject("bad-input", "bad-input")
+                    return
+                }
+            }
+        GeminiNano.generate(
+            args.promptId,
+            args.text,
+            image,
+            if (image == null) 0 else exifRotation(image),
+            onReply = { reply -> invoke.resolve(JSObject().put("reply", reply)) },
+            onFailure = { code -> invoke.reject(code, code) },
+        )
     }
 
     @Command
@@ -232,8 +273,8 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             onFailure = { message -> invoke.reject(message) },
         )
     }
-    // BitmapFactory は EXIF を見ないので、相機で撮った画像は寝たまま解ける。角度を
-    // 別に取り出して認識へ渡す（回さないと版面の行と列が入れ替わる。実機で踏んだ）。
+    // BitmapFactory は EXIF を見ないので、カメラで撮った画像は横倒しのまま復号される。角度を
+    // 別に取り出して認識へ渡す（回さないとレイアウトの行と列が入れ替わる。実機で踏んだ）。
     private fun exifRotation(bytes: ByteArray): Int =
         try {
             when (
@@ -249,7 +290,6 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             // EXIF が無い・壊れている画像は珍しくない。読めないだけで認識ごと落とさない。
             0
         }
-
     // SAF で選ばせる。返る content:// はパスにならないので、配下の入出力も全てここで行う。
     @Command
     fun pickFolder(invoke: Invoke) {
@@ -298,8 +338,7 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
         }
         io(invoke) { invoke.resolveObject(Saf.openPicked(activity, uri)) }
     }
-
-    // 破棄が選ばれたあとの終了。window.destroy() は画面の器を
+    // 破棄が選ばれたあとの終了。window.destroy() はウィンドウ本体を
     // 終わらせないので、こちらで畳む。webview から直に呼べる口は生やさない。
     @Command
     fun closeApp(invoke: Invoke) {

@@ -17,8 +17,8 @@ const KNOWN_NAMES = [
   'view-card',
 ];
 
-describe('parser auto-discovery', () => {
-  test('フラット配置・フォルダ配置の両方の parser を収集する', () => {
+describe('パーサーの自動検出', () => {
+  test('フラット配置・フォルダ配置の両方のパーサーを収集する', () => {
     const names = PARSERS.map((p) => p.name);
     for (const name of KNOWN_NAMES) {
       expect(names).toContain(name);
@@ -26,7 +26,7 @@ describe('parser auto-discovery', () => {
     expect(names.length).toBe(new Set(names).size);
   });
 
-  test('フォルダ配置（src/parsers/aupay-card/aupay-card.ts）の parser も再帰的に発見される', () => {
+  test('フォルダ配置（src/parsers/aupay-card/aupay-card.ts）のパーサーも再帰的に発見される', () => {
     const parser = findParser('aupay-card');
     expect(parser).toBeDefined();
     expect(parser?.displayName).toBe('au PAY カード');

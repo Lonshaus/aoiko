@@ -137,7 +137,7 @@
   let basicSaved = $state(false);
   let confirmingClear = $state(false);
   let supportOpen = $state(false);
-  // 開発用：手引き・条文を dev server でどの配布形態向けに畳んで表示するか。
+  // 開発用：手引き・条文と画面の出し分けを dev server でどの配布形態向けに見せるか。
   // __DOC_PLATFORM__ は dev server 起動時の AOIKO_PLATFORM で、未検証の生値なので isPlatform で確かめる。
   // __DOC_PREVIEW__ で分岐ごと畳んでおかないと、ビルド成果物に doc-preview.ts が
   // 混入する（tree-shaking は分岐の外側の参照までは削らない）。
@@ -162,12 +162,12 @@
     android: 'Android',
   };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
-  // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
+  // __NATIVE__ はビルド時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応等）も
   // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
   // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web のビルド成果物に
   // この経路の文言・問い合わせを残さないため。
@@ -191,6 +191,17 @@
   // ネイティブ版のビルド成果物にこの経路の問い合わせを残さないため。
   let chromeAiAvailability = $state<string | null>(null);
   const chromeAiOptionShown = $derived(!__NATIVE__ && chromeAiAvailability === 'available');
+  // 端末内の Gemini Nano。status は端末側の判定状態そのまま
+  // （0 UNAVAILABLE / 1 DOWNLOADABLE / 2 DOWNLOADING / 3 AVAILABLE）。0 とその他の未知値は
+  // 利用者側でどうにもならないので選択肢ごと隠す。1/2 は選べないが理由は出す。
+  let nanoAvailability = $state<number | null>(null);
+  const NANO_UNAVAILABLE_MESSAGES: Record<number, () => string> = {
+    1: m.settings_nano_unavailable_1,
+    2: m.settings_nano_unavailable_2,
+  };
+  const nanoOptionShown = $derived(
+    __NATIVE__ && (nanoAvailability === 1 || nanoAvailability === 2 || nanoAvailability === 3),
+  );
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
@@ -381,6 +392,15 @@
     };
     confirmingDelete = true;
   }
+  function askReverseCarryover(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_carryover_delete_confirm_title(),
+      desc: m.settings_carryover_delete_confirm_desc({ name }),
+      action: m.settings_carryover_delete_button(),
+      run,
+    };
+    confirmingDelete = true;
+  }
   async function runPendingConfirm() {
     confirmingDelete = false;
     await pendingConfirm?.run();
@@ -478,12 +498,17 @@
       const { chromeAiAvailability: ask } = await import('../lib/chrome-ai/availability');
       chromeAiAvailability = await ask();
     }
+    // 理由コードは環境が返すまで分からない。関数が無い側／問い合わせ失敗は 0 と同じ「隠す」扱いにする。
+    const askNano = __NATIVE__ ? nativeBridge()?.nanoAvailability : undefined;
+    nanoAvailability =
+      typeof askNano === 'function' ? ((await askNano().catch(() => null))?.status ?? null) : null;
     const storedAiEngine = await getSetting('aiEngine');
     if (
       storedAiEngine === 'gemini' ||
       storedAiEngine === 'openai-compatible' ||
       (storedAiEngine === 'apple-ai' && appleAiOptionShown) ||
-      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown)
+      (storedAiEngine === 'chrome-ai' && chromeAiOptionShown) ||
+      (storedAiEngine === 'nano' && nanoOptionShown)
     ) {
       aiEngine = storedAiEngine;
       strandedAiEngine = null;
@@ -955,7 +980,7 @@
     }),
   );
   const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
   const smallAssetStatuses = $derived(
     smallAssetSpecialStatuses(
       ledger.fixedAssets,
@@ -1319,7 +1344,8 @@
       aiEngine === 'gemini' ||
       aiEngine === 'openai-compatible' ||
       (aiEngine === 'apple-ai' && appleAiOptionShown) ||
-      (aiEngine === 'chrome-ai' && chromeAiOptionShown)
+      (aiEngine === 'chrome-ai' && chromeAiOptionShown) ||
+      (aiEngine === 'nano' && nanoOptionShown)
     ) {
       strandedAiEngine = null;
     }
@@ -2081,7 +2107,9 @@
       </button>
       <button
         type="button"
-        onclick={() => askDelete(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
+        data-testid="carryover-reverse-button"
+        onclick={() =>
+          askReverseCarryover(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
         {m.settings_carryover_delete_button()}
@@ -3098,6 +3126,13 @@
         {#if chromeAiOptionShown}
           <option value="chrome-ai">{m.settings_engine_chrome_ai()}</option>
         {/if}
+        <!-- 0（使えない）とその他の未知値は選択肢ごと隠す。1/2 は選び直せるので disabled で残し、
+             下に理由を出す。__NATIVE__ で畳むのは web のビルド成果物にこの経路の文言を残さないため。 -->
+        {#if nanoOptionShown}
+          <option value="nano" disabled={nanoAvailability !== 3}>
+            {m.settings_engine_nano()}
+          </option>
+        {/if}
         {#if strandedAiEngine}
           <!-- 選択肢の無い値が保存に残っている（他環境の復元・選べなくなった旧値等）。
                空欄に見せず、生値のまま disabled で見せて理由を出す。 -->
@@ -3112,6 +3147,11 @@
       {#if __NATIVE__ && appleAiAvailability !== null && appleAiAvailability in APPLE_AI_UNAVAILABLE_MESSAGES}
         <p class="text-xs text-destructive">
           {APPLE_AI_UNAVAILABLE_MESSAGES[appleAiAvailability]?.()}
+        </p>
+      {/if}
+      {#if __NATIVE__ && nanoAvailability !== null && nanoAvailability in NANO_UNAVAILABLE_MESSAGES}
+        <p class="text-xs text-destructive">
+          {NANO_UNAVAILABLE_MESSAGES[nanoAvailability]?.()}
         </p>
       {/if}
 
@@ -3557,9 +3597,9 @@
   </section>
   {#if __DOC_PREVIEW__}
     <section class="space-y-4 border border-dashed rounded-lg p-6 bg-card text-card-foreground">
-      <h3 class="text-lg font-semibold">開発用：文書のプレビュー対象</h3>
+      <h3 class="text-lg font-semibold">開発用：プレビュー対象</h3>
       <p class="text-xs text-muted-foreground">
-        手引き・免責事項・プライバシーポリシー・セキュリティ方針をどの配布形態向けに畳んで表示するか。dev
+        手引き・免責事項・プライバシーポリシー・セキュリティ方針と、画面の文言・選択肢をどの配布形態向けに表示するか。見た目の確認用で、ネイティブ専用の機能は動かない。dev
         server でのみ表示される。
       </p>
       <select

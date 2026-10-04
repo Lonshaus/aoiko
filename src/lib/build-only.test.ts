@@ -103,7 +103,7 @@ describe('stripBuildOnly', () => {
   });
 });
 // apple の中でさらに絞る macos / ios。取り違えると、片方にしか当てはまらない記述が
-// もう片方の産物にも出てしまう。
+// もう片方のビルド成果物にも出てしまう。
 describe('stripBuildOnly（macos / ios）', () => {
   const DOC_APPLE_SPLIT = [
     '<!-- only:apple -->',

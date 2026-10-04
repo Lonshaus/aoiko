@@ -147,6 +147,17 @@ describe('Receipt: エンジン選択', () => {
     expect(c.textContent).toContain('Apple Intelligence');
   });
 
+  test('AI 行は aiEngine を反映する（nano）', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('aiEngine', 'nano');
+    await setSetting('receiptMethod', 'ai');
+    const c = renderReceipt();
+    await selectFile(c);
+    await waitFor(() => c.textContent?.includes('Gemini Nano') === true);
+    expect(c.textContent).toContain('Gemini Nano');
+    expect(c.textContent).not.toContain('選べません');
+  });
+
   test('AI 行は未知の保存値を Apple Intelligence と偽らない', async () => {
     await setSetting('skipAttachmentConfirm', true);
     await setSetting('aiEngine', 'tesseract' as never);
@@ -174,5 +185,22 @@ describe('Receipt: エンジン選択', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(async () => (await db.settings.get('receiptRuleEngine'))?.value === 'tesseract');
     expect((await db.settings.get('receiptRuleEngine'))?.value).toBe('tesseract');
+  });
+
+  test('ルールベースの説明文：native は店名・品目の推測に触れ、tesseract は触れない', async () => {
+    await setSetting('skipAttachmentConfirm', true);
+    await setSetting('receiptMethod', 'rule');
+    await setSetting('receiptRuleEngine', 'native');
+    const c = renderReceipt();
+    await selectFile(c);
+    button(c, '内蔵のルールベースエンジン').click();
+    flushSync();
+    await waitFor(() => c.textContent?.includes('店名と品目も推測します') === true);
+
+    const select = c.querySelector('select') as HTMLSelectElement;
+    select.value = 'tesseract';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await waitFor(() => c.textContent?.includes('決まった規則で') === true);
+    expect(c.textContent).not.toContain('店名と品目も推測します');
   });
 });

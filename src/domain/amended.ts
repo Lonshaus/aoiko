@@ -20,7 +20,7 @@ export interface AmendmentDiff {
   filedTotalExpense: string;
   currentTotalExpense: string;
   // null = 当該年度の filed 時点で bs スナップショットが保存されていない（旧仕様で申告した年度）。
-  // 空配列 = baseline はあるが差分なし。
+  // 空配列 = 基準スナップショットはあるが差分なし。
   bsChanges: AmendmentBSAccountChange[] | null;
   hasChange: boolean;
 }

@@ -24,6 +24,9 @@
 - `allow-apple-ai-availability`
 - `allow-apple-ai-extract`
 - `allow-apple-ai-run`
+- `allow-nano-availability`
+- `allow-nano-extract-receipt`
+- `allow-nano-run`
 
 ## Permission Table
 
@@ -368,6 +371,84 @@ Enables the is_text_recognition_available command without any pre-configured sco
 <td>
 
 Denies the is_text_recognition_available command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-availability`
+
+</td>
+<td>
+
+Enables the nano_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-availability`
+
+</td>
+<td>
+
+Denies the nano_availability command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-extract-receipt`
+
+</td>
+<td>
+
+Enables the nano_extract_receipt command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-extract-receipt`
+
+</td>
+<td>
+
+Denies the nano_extract_receipt command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-nano-run`
+
+</td>
+<td>
+
+Enables the nano_run command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-nano-run`
+
+</td>
+<td>
+
+Denies the nano_run command without any pre-configured scope.
 
 </td>
 </tr>

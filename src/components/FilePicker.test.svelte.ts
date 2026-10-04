@@ -1,5 +1,5 @@
 // ボタンの見た目を自前にしても、選ばせる仕組みは input 側のまま——という前提を固定する。
-// input を消すと、キーボード操作も読み上げも ある環境 の選択シートも一緒に消える。
+// input を消すと、キーボード操作も読み上げも、ある環境の選択シートも一緒に消える。
 
 import { describe, expect, test, afterEach } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
@@ -9,8 +9,7 @@ let target: HTMLElement | null = null;
 let component: Record<string, unknown> | null = null;
 
 type Bridged = { __aoikoNative?: { isCameraAvailable?: () => Promise<boolean> } };
-
-// 橋そのものを差し替える。相機の有無は端末の事情で、部品の都合では決まらない。
+// ブリッジそのものを差し替える。カメラの有無は端末の事情で、部品の都合では決まらない。
 function withCamera(available: boolean | null): void {
   const w = window as unknown as Bridged;
   if (available === null) {
@@ -34,7 +33,6 @@ function render(props: Record<string, unknown> = {}): HTMLInputElement {
   }
   return input;
 }
-
 // $effect の中の await が片付くまで待つ。flushSync だけでは足りない。
 async function settle(): Promise<void> {
   await Promise.resolve();
@@ -98,7 +96,6 @@ describe('FilePicker', () => {
     input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(stopped).toBe(true);
   });
-
   // 撮影の入口は足すだけで、選ぶ側の入口を置き換えない。片方に寄せると
   // 撮り溜めた画像が使えなくなるか、その場で撮れなくなるかのどちらかになる。
   test('camera を渡さなければ入口は 1 つのまま', async () => {
@@ -109,7 +106,7 @@ describe('FilePicker', () => {
     expect(target?.querySelector('input[capture]')).toBeNull();
   });
 
-  test('camera かつ相機が在れば入口が 2 つになる', async () => {
+  test('camera かつカメラが在れば入口が 2 つになる', async () => {
     withCamera(true);
     render({ camera: true, accept: 'image/*' });
     await settle();
@@ -121,15 +118,14 @@ describe('FilePicker', () => {
     expect(shot?.getAttribute('accept')).toBe('image/*');
   });
 
-  test('camera でも相機が無ければ入口は 1 つ', async () => {
+  test('camera でもカメラが無ければ入口は 1 つ', async () => {
     withCamera(false);
     render({ camera: true });
     await settle();
     expect(target?.querySelectorAll('input[type=file]').length).toBe(1);
   });
-
-  // 橋の無い環境（web 版・桌面版）で撮影のボタンを生やさない。
-  test('橋が無ければ入口は 1 つ', async () => {
+  // ブリッジの無い環境（web 版や、撮影のブリッジを持たない wrapper 版）で撮影のボタンを生やさない。
+  test('ブリッジが無ければ入口は 1 つ', async () => {
     withCamera(null);
     render({ camera: true });
     await settle();

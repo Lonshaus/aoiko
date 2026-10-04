@@ -25,15 +25,11 @@ export async function reverseEntry(
     throw new Error(m.error_journal_already_reversed());
   }
   if (orig.originalEntryId !== undefined) {
-    throw new Error(
-      '訂正仕訳そのものは訂正できません。必要なら正しい内容で新しい仕訳を入力してください。',
-    );
+    throw new Error(m.error_journal_reversal_not_reversible());
   }
 
   if (!options?.allowFiledYear && (await isYearLocked(orig.year))) {
-    throw new Error(
-      `${orig.year} 年は申告済みのためロックされています。訂正は新しい年度内の仕訳で対応してください。`,
-    );
+    throw new Error(m.error_journal_year_locked({ year: orig.year }));
   }
 
   const today = todayISO();

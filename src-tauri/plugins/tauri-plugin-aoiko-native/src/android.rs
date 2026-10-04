@@ -54,7 +54,7 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(Into::into)
     }
     // 以下は選ばれたフォルダ配下の入出力。パスで触れないのでネイティブ側で完結させる。
-    // 見つからないのは正常な分岐なので None。frame の found に translate するのは呼出側。
+    // 見つからないのは正常な分岐なので None。frame の found に変換するのは呼出側。
     pub fn backup_read(&self, token: &str, rel_path: &str) -> Result<Option<Vec<u8>>> {
         #[derive(serde::Deserialize)]
         struct Body {
@@ -77,8 +77,7 @@ impl<R: Runtime> AoikoNative<R> {
             .map_err(|e| Error::Io(format!("読み込んだ内容を解けません: {e}")))?;
         Ok(Some(bytes))
     }
-
-    // 保存ダイアログ相当。取り消しは None。rid は backup_* と同じ登記簿のもの。
+    // 保存ダイアログ相当。取り消しは None。rid は backup_* と同じ台帳のもの。
     pub fn export_open(&self, file_name: &str) -> Result<Option<u32>> {
         self.0
             .run_mobile_plugin("exportOpen", serde_json::json!({ "fileName": file_name }))
@@ -151,12 +150,45 @@ impl<R: Runtime> AoikoNative<R> {
             .run_mobile_plugin("isTextRecognitionAvailable", ())
             .unwrap_or(false)
     }
-
-    // 相機の無い端末で押せないボタンを生やさないための問い合わせ。
+    // カメラの無い端末で押せないボタンを生やさないための問い合わせ。
     pub fn is_camera_available(&self) -> bool {
         self.0
             .run_mobile_plugin("isCameraAvailable", ())
             .unwrap_or(false)
+    }
+
+    pub fn nano_availability(&self) -> Result<crate::NanoAvailability> {
+        self.0
+            .run_mobile_plugin("nanoAvailability", ())
+            .map_err(Into::into)
+    }
+    // 拒否されたときは code をそのまま返す。組み立て側（nano.rs）が code で分岐する。
+    pub fn nano_generate(
+        &self,
+        prompt_id: &str,
+        text: &str,
+        image_base64: Option<&str>,
+    ) -> std::result::Result<String, String> {
+        #[derive(serde::Deserialize)]
+        struct Body {
+            reply: String,
+        }
+        self.0
+            .run_mobile_plugin::<Body>(
+                "nanoGenerate",
+                serde_json::json!({
+                    "promptId": prompt_id,
+                    "text": text,
+                    "imageBase64": image_base64,
+                }),
+            )
+            .map(|body| body.reply)
+            .map_err(|e| match e {
+                tauri::plugin::mobile::PluginInvokeError::InvokeRejected(response) => {
+                    response.code.unwrap_or_else(|| "failed".to_string())
+                }
+                _ => "failed".to_string(),
+            })
     }
 
     pub fn recognize_text(&self, image_base64: String) -> Result<crate::RecognizedText> {
@@ -167,7 +199,7 @@ impl<R: Runtime> AoikoNative<R> {
             )
             .map_err(Into::into)
     }
-    // この環境には Rust から借りられる system TLS が無い。送信だけネイティブへ渡し、
+    // この環境には Rust から借りられる OS 標準の TLS が無い。送信だけネイティブへ渡し、
     // 宛先の検査もリダイレクトの判断も本体 crate 側に残す。
     pub fn http_send(&self, request: HttpRequest) -> Result<HttpResponse> {
         self.0

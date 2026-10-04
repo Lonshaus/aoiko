@@ -3,9 +3,9 @@ import type { CsvParser } from './types';
 export type { CsvParser, ParsedTransaction, ParserEncoding } from './types';
 // Auto-discovery：./xxx.ts または ./xxx/xxx.ts に default export された CsvParser を全件収集する。
 // 新しい parser を追加するには：
-//   1. src/parsers/my-bank.ts（フラット）または src/parsers/my-bank/my-bank.ts（フォルダ、fixture 同梱）を作成、
+//   1. src/parsers/my-bank.ts（フラット）または src/parsers/my-bank/my-bank.ts（フォルダ、サンプルCSV同梱）を作成、
 //      `export default { ... satisfies CsvParser }` する
-//   2. テスト + fixture を追加
+//   2. テスト + サンプルCSVを追加
 //   3. PR を投げる
 // _ で始まるファイル・フォルダ（_template など）は除外される。
 const modules = import.meta.glob<{ default: CsvParser }>(
@@ -47,7 +47,7 @@ for (const [path, mod] of Object.entries(modules)) {
     }
   }
 }
-// 銀行 → カード → 電子マネー の順で並べる。同種は displayName 50 音順
+// 銀行 → カード → 電子マネーの順で並べる。同種は displayName 50 音順
 const KIND_ORDER: Record<string, number> = {
   '1110': 0,
   '1120': 0,

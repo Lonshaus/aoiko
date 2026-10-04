@@ -12,13 +12,13 @@ describe('messages/*.json の reports_wari_sales_return_tax_hint', () => {
     expect(text).toContain('国税');
   });
 
-  test('English contains both "offset" and "national" limitations', () => {
+  test('英語は「offset」と「national」の2つの限定を含む', () => {
     const text = en.reports_wari_sales_return_tax_hint;
     expect(text.toLowerCase()).toContain('offset');
     expect(text.toLowerCase()).toContain('national');
   });
 
-  test('正體中文包含「沖銷」與「國稅」兩項限定', () => {
+  test('正體中文は「沖銷」と「國稅」の2つの限定を含む', () => {
     const text = zhTW.reports_wari_sales_return_tax_hint;
     expect(text).toContain('沖銷');
     expect(text).toContain('國稅');

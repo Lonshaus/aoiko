@@ -19,6 +19,9 @@ const COMMANDS: &[&str] = &[
     "apple_ai_availability",
     "apple_ai_extract",
     "apple_ai_run",
+    "nano_availability",
+    "nano_extract_receipt",
+    "nano_run",
 ];
 // これらの Swift ファイルは iOS 側では SwiftPM（ios/Package.swift）がビルドする。
 // macOS にはその仕組みが無く、ここで静的ライブラリへ手動でコンパイルする。

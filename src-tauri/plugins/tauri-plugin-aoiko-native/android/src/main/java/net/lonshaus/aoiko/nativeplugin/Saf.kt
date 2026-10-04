@@ -5,7 +5,6 @@ import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.ByteArrayOutputStream
-
 // SAF は content:// しか返さず、ファイルパスにならない。Rust 側の入出力はパス前提なので、
 // この環境のバックアップ入出力はここで完結させる。
 object Saf {
@@ -89,8 +88,7 @@ object Saf {
             return rid
         }
     }
-
-    // 保存ダイアログが返した書き出し先。backup と同じ登記簿に入れるので、rid の扱いは
+    // 保存ダイアログが返した書き出し先。backup と同じ台帳に入れるので、rid の扱いは
     // 呼び出し側から見て 1 種類で済む。
     fun openPicked(context: Context, target: Uri): Int {
         synchronized(open) {
@@ -109,12 +107,11 @@ object Saf {
         val stream = synchronized(open) { open[rid] } ?: throw IllegalStateException("対象のファイルは開かれていません")
         stream.write(bytes)
     }
-
     // 閉じたあとの close を黙って通すと、途中で切れた台帳が完成扱いになる。
     fun close(rid: Int) {
         val stream = synchronized(open) { open.remove(rid) }
             ?: throw IllegalStateException("対象のファイルは開かれていません")
-        // flush が投げても close はする。登記簿からは既に外してあるので、ここで漏らすと
+        // flush が投げても close はする。台帳からは既に外してあるので、ここで漏らすと
         // ストリームを閉じる手段が無くなる。
         stream.use { it.flush() }
     }
@@ -133,7 +130,6 @@ object Saf {
             ?: throw IllegalStateException("ファイルを作れません")
         return resolver.openOutputStream(file, "wt") ?: throw IllegalStateException("書き込めません")
     }
-
     // 見つからないのは正常な分岐（まだ同期していない）。null で返し、エラーにしない。
     fun read(context: Context, tree: Uri, relPath: String): ByteArray? {
         val segments = relPath.split('/').filter { it.isNotEmpty() }

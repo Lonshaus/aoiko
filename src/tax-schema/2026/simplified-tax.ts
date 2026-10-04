@@ -1,3 +1,4 @@
+import { m } from '../../paraglide/messages';
 // 簡易課税制度のみなし仕入率（事業区分別）。
 // 出典：消費税法第 37 条、消費税法施行令第 57 条。
 // 第 1 種：卸売業（仕入れた商品をその性質・形状を変更しないで他の事業者に販売）
@@ -25,16 +26,16 @@ export function deemedInputRate(category: SimplifiedTaxCategory): number {
 export function simplifiedTaxCategoryLabel(category: SimplifiedTaxCategory): string {
   switch (category) {
     case 1:
-      return '第 1 種（卸売業、90%）';
+      return m.settings_consumption_tax_simplified_category_1();
     case 2:
-      return '第 2 種（小売業・農林漁業の飲食料品譲渡、80%）';
+      return m.settings_consumption_tax_simplified_category_2();
     case 3:
-      return '第 3 種（製造・建設・農林漁業の他、70%）';
+      return m.settings_consumption_tax_simplified_category_3();
     case 4:
-      return '第 4 種（その他・飲食店業、60%）';
+      return m.settings_consumption_tax_simplified_category_4();
     case 5:
-      return '第 5 種（運輸通信・金融保険・サービス業、50%）';
+      return m.settings_consumption_tax_simplified_category_5();
     case 6:
-      return '第 6 種（不動産業、40%）';
+      return m.settings_consumption_tax_simplified_category_6();
   }
 }

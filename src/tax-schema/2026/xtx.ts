@@ -6,7 +6,7 @@
 // 青色申告決算書一般用（KOA210）、白色申告は収支内訳書一般用（KOA110）を同梱する。
 //
 // ⚠ aoiko は事業の損益のみを扱う。確定申告書 KOA020 の「事業」部分
-// （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部 必須）は
+// （営業等収入・事業所得・（青色申告のみ）青色申告特別控除）と申告者情報（IT部で必須）は
 // 必ず載る。所得控除・税額計算は、利用者が personalDeductions を入力した場合のみ載せ、
 // 未入力の場合は従来どおり利用者が e-Tax 上で補完する。
 // 決算書・収支内訳書側は PL/BS/月別を記載する。実申告可否は e-Taxソフト(DL版) での
@@ -68,7 +68,7 @@ export class RealEstateIncomeInputMissingError extends Error {
     this.name = 'RealEstateIncomeInputMissingError';
   }
 }
-// 申告者情報（e-Tax 提出用）。IT部 定義側の必須・任意項目に対応する。
+// 申告者情報（e-Tax 提出用）。IT部の定義側の必須・任意項目に対応する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
   name: string; // 氏名・名称
@@ -94,7 +94,7 @@ export interface XtxContext {
   aoiroDeductionKind: AoiroDeductionKind;
   /** 所得税法67条1項（小規模事業者の現金主義）の適用を受けるか（措法25条の2の各項に影響） */
   cashBasis?: boolean;
-  /** 白色申告の収支内訳書 第2頁（減価償却資産の明細）用。青色申告時は未使用 */
+  /** 白色申告の収支内訳書第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
   /** 少額特例の年合計上限の月割に使う開業日。未指定は最も古い開業仕訳の日付 */
   businessStartDate?: string;
@@ -122,7 +122,7 @@ const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
-// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、throw させず 0 扱いにする。
+// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、例外を投げず 0 扱いにする。
 function toDec(s: string): Decimal {
   const trimmed = s.trim();
   if (trimmed === '') {

@@ -29,8 +29,8 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '表：対応端末のみ は windows',
-      pattern: /対応端末のみ。`Receipt` 画面を開くたびに自動判定/,
+      name: '表：対応端末のみは windows',
+      pattern: /対応端末のみ。領収書 OCR 画面を開くたびに自動判定/,
       only: ['windows'],
     },
     {
@@ -70,7 +70,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '本文：使えない端末もある は windows のみ',
+      name: '本文：使えない端末もあるは windows のみ',
       pattern: /\*\*使えない端末もある\*\*。OS 側に日本語の文字認識が入っていないと選択肢に出ない/,
       only: ['windows'],
     },
@@ -80,7 +80,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：1 つしか無いときはセレクトが出ない は windows のみ',
+      name: '本文：1 つしか無いときはセレクトが出ないは windows のみ',
       pattern: /使えるサブエンジンが 1 つしか無いとき（多くの端末）はセレクト自体が出ず/,
       only: ['windows'],
     },
@@ -95,7 +95,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['browser'],
     },
     {
-      name: '本文：登録番号の複数候補を順に探す は apple のみ',
+      name: '本文：登録番号の複数候補を順に探すは apple のみ',
       pattern: /文字認識は 1 単語につき複数の候補を返すので、`T` ＋ 13 桁の形に合う候補を順に探す/,
       only: APPLE,
     },
@@ -112,8 +112,8 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '表：僅限支援的裝置 只限 windows',
-      pattern: /僅限支援的裝置。每次開啟 `Receipt` 畫面都會自動判定/,
+      name: '表：僅限支援的裝置只限 windows',
+      pattern: /僅限支援的裝置。每次開啟收據 OCR 畫面都會自動判定/,
       only: ['windows'],
     },
     {
@@ -122,8 +122,8 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：windows 在作業系統加裝日文文字辨識後就能選到',
-      pattern: /在作業系統那邊加裝日文的文字辨識後重新開啟就能選到/,
+      name: '本文：windows 在作業系統中加裝日文文字辨識後就能選擇',
+      pattern: /在作業系統中加裝日文的文字辨識後，重新開啟就能選擇/,
       only: ['windows'],
     },
     {
@@ -148,13 +148,13 @@ const RULES: Record<string, Rule[]> = {
       only: ['android'],
     },
     {
-      name: '本文：android 也不會送出圖片與文字內容',
-      pattern: /收據圖片與辨識出的文字內容不會被送出/,
+      name: '本文：android 也不會送出照片與文字內容',
+      pattern: /收據照片與辨識出的文字內容不會被送出/,
       only: ['android'],
     },
     {
-      name: '本文：不是每台裝置都能用 只限 windows',
-      pattern: /\*\*不是每台裝置都能用\*\*。作業系統那邊沒裝日文的文字辨識就不會進選項/,
+      name: '本文：不是每台裝置都能用只限 windows',
+      pattern: /\*\*不是每台裝置都能用\*\*。作業系統中沒有安裝日文的文字辨識時，不會列入選項/,
       only: ['windows'],
     },
     {
@@ -163,7 +163,7 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE,
     },
     {
-      name: '本文：只有 1 個能用時不出下拉 只限 windows',
+      name: '本文：只有 1 個能用時不出下拉只限 windows',
       pattern: /只有 1 個能用時（大多數裝置）不會出現下拉/,
       only: ['windows'],
     },
@@ -178,7 +178,7 @@ const RULES: Record<string, Rule[]> = {
       only: ['browser'],
     },
     {
-      name: '本文：登錄號碼多候選依序尋找 只限 apple',
+      name: '本文：登錄號碼多候選依序尋找只限 apple',
       pattern: /文字辨識每個字詞會回傳多個候選，所以會依序尋找符合 `T` 加上剛好 13 位數字的候選/,
       only: APPLE,
     },
@@ -207,7 +207,7 @@ const RULES: Record<string, Rule[]> = {
     {
       name: 'prose: windows adding optical character recognition makes it selectable',
       pattern:
-        /It is re-checked with the device every time the `Receipt` page opens, so adding Japanese text recognition on the OS side/,
+        /It is re-checked with the device every time the Receipt OCR screen opens, so after you add Japanese text recognition to the OS/,
       only: ['windows'],
     },
     {
@@ -217,7 +217,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'prose: android always in the option set',
-      pattern: /text recognition is always in the option set/,
+      pattern: /text recognition is always among the available options/,
       only: ['android'],
     },
     {
@@ -226,9 +226,9 @@ const RULES: Record<string, Rule[]> = {
       only: APPLE_WINDOWS,
     },
     {
-      name: 'prose: android reports ML Kit usage to Google',
+      name: 'prose: android sends ML Kit usage to Google',
       pattern:
-        /ML Kit, which powers the recognition, reports usage information \(device model, app version, a per-install identifier, timing, and error codes\) to Google/,
+        /ML Kit, which powers the recognition, sends usage information \(device model, app version, a per-install identifier, timing, and error codes\) to Google/,
       only: ['android'],
     },
     {
@@ -238,7 +238,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'prose: not every device can use it is windows only',
-      pattern: /\*\*Not every device can use it\.\*\* It only enters the option set/,
+      pattern: /\*\*Not every device can use it\.\*\* It is offered only when/,
       only: ['windows'],
     },
     {
@@ -275,7 +275,7 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/01-setup.md': [
     {
-      name: '本文：OS 内蔵の文字認識は対応端末のみ は windows',
+      name: '本文：OS 内蔵の文字認識は対応端末のみは windows',
       pattern: /Tesseract、対応端末では OS 内蔵の文字認識も選択可/,
       only: ['windows'],
     },
@@ -297,7 +297,7 @@ const RULES: Record<string, Rule[]> = {
   ],
   'docs/manual/01-setup_zh-TW.md': [
     {
-      name: '本文：OS 內建文字辨識限支援的裝置 只限 windows',
+      name: '本文：OS 內建文字辨識限支援的裝置只限 windows',
       pattern: /Tesseract，支援的裝置還能選作業系統內建的文字辨識/,
       only: ['windows'],
     },
@@ -375,7 +375,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'android 的系統儲存對話框',
-      pattern: /系統的儲存位置選擇對話框會開啟，讓你選擇存放位置/,
+      pattern: /會開啟系統的儲存位置選擇對話框/,
       only: ['android'],
     },
     { name: 'iCloud 的例子只給 apple', pattern: /iCloud Drive\/aoiko-backup\//, only: APPLE },
@@ -438,7 +438,7 @@ const RULES: Record<string, Rule[]> = {
     },
     {
       name: 'android 的系統儲存對話框',
-      pattern: /系統的儲存位置選擇對話框會開啟，讓你選擇保存位置/,
+      pattern: /會開啟系統的儲存位置選擇對話框/,
       only: ['android'],
     },
   ],
@@ -512,10 +512,10 @@ const RULES: Record<string, Rule[]> = {
   ],
 };
 // RULES の 1 件が「その family の唯一の宣言」になるよう、真偽値の一致ではなく出現回数で見る。
-// 例えば only:windows の変種が only:native に化けると、apple/windows 両方の文が macos の産物にも並んで出る
+// 例えば only:windows の変種が only:native に化けると、apple/windows 両方の文が macos のビルド成果物にも並んで出る
 // ため、対象文が「ある/ない」の 2 値では素通りする。1 つの platform には家族内で高々 1 個という
 // 前提を数で確かめれば、変種が丸ごと消えるケースも、印が化けて隣の platform に漏れるケースも同じ
-// チェックで拾える。ここでは 2 つ目の hand-kept list を別に持たず、RULES だけを唯一の宣言源にする。
+// チェックで拾える。ここでは 2 つ目の手書きの一覧を別に持たず、RULES だけを唯一の宣言源にする。
 function countMatches(folded: string, pattern: RegExp): number {
   const flags = pattern.flags.includes('g') ? pattern.flags : `${pattern.flags}g`;
   return [...folded.matchAll(new RegExp(pattern.source, flags))].length;
@@ -537,8 +537,8 @@ describe('配布形態ごとに、その形態で成り立つ文だけが、ち�
 });
 // RULES は言語ごとに手書きの配列を並べているだけなので、1 件消えてもそのテストが
 // ただ消えるだけで green のまま通ってしまう（FAMILY_EXCEPTIONS の劣化防止と違い、
-// RULES 自体にはこの手の歯止めが無かった）。ja/en/zh-TW の 3 版は同じ話題を出し分けている
-// はずなので、件数と only の並びが揃うことを確かめ、どれか 1 版だけの削除を拾う。
+// RULES 自体にはこの手の歯止めが無かった）。ja/en/zh-TW の 3 言語は同じ話題を出し分けている
+// はずなので、件数と only の並びが揃うことを確かめ、どれか 1 言語だけの削除を拾う。
 function baseAndLangOf(doc: string): { base: string; lang: 'ja' | 'en' | 'zh-TW' } {
   if (doc.endsWith('_en.md')) {
     return { base: doc.slice(0, -'_en.md'.length), lang: 'en' };
@@ -549,7 +549,7 @@ function baseAndLangOf(doc: string): { base: string; lang: 'ja' | 'en' | 'zh-TW'
   return { base: doc.slice(0, -'.md'.length), lang: 'ja' };
 }
 
-describe('RULES は ja/en/zh-TW の 3 版で件数と only の並びが揃う（削除の検出漏れを防ぐ）', () => {
+describe('RULES は ja/en/zh-TW の 3 言語で件数と only の並びが揃う（削除の検出漏れを防ぐ）', () => {
   const byBase = new Map<string, Partial<Record<'ja' | 'en' | 'zh-TW', Rule[]>>>();
   for (const [doc, rules] of Object.entries(RULES)) {
     const { base, lang } = baseAndLangOf(doc);
@@ -608,12 +608,12 @@ const NARROWER_THAN_NATIVE = new Set<OnlyKind>(['apple', 'windows', 'android', '
 //     その直後に機種限定の話題が始まっても地続きに見えてしまう。実例：04-receipt-ocr.md:119 の
 //     「言語データのキャッシュ先（browser/native）」→「OS 内蔵文字認識の説明（apple/windows/
 //     android）」、11-backup.md:69 の「フォルダの選び方（browser/native）」→「クラウド同期の
-//     Tip（apple/windows）」。native 側の reach（apple・windows・android を含む）をそのまま
+//     ヒント（apple/windows）」。native 側の reach（apple・windows・android を含む）をそのまま
 //     持ち込むと、機種限定の話題が実際には届いていない機種にも届いたことになってしまう）。
 // (3) 直前が apple/windows/android で今回が browser（(2) の逆向き。機種限定の話題の直後に
 //     browser 専用の別節が地続きで始まる場合も、話題が変わっている。実例：11-backup.md の
-//     「クラウド同期の Tip（apple/windows）」→「### 3-2. Firefox / Safari（OPFS のみ）」。
-//     見出し自体は browser 専用の別節であって、直前の Tip の続きではない）。
+//     「クラウド同期のヒント（apple/windows）」→「### 3-2. Firefox / Safari（OPFS のみ）」。
+//     見出し自体は browser 専用の別節であって、直前のヒントの続きではない）。
 function deriveFamilies(markdown: string): Family[] {
   const blocks = findOnlyBlocks(markdown);
   const families: Family[] = [];
@@ -648,7 +648,7 @@ function deriveFamilies(markdown: string): Family[] {
 }
 // FAMILY_EXCEPTIONS の照合キーに使う見出し slug。GitHub 互換の厳密さは不要（内部の
 // 照合用キーであってリンクの anchor には使わない）ので、manual.ts の slugifyHeading とは
-// 独立した簡易版を持つ。
+// 独立した簡易的な実装を持つ。
 function slugifyHeading(text: string): string {
   return text
     .replace(/`([^`]+)`/g, '$1')
@@ -687,12 +687,12 @@ function reachOf(family: Family): Set<Platform> {
   }
   return reach;
 }
-// reach（family 全体の集合）だけを見ると、家族内の 1 区画がその time点で既に他の兄弟に
+// reach（family 全体の集合）だけを見ると、家族内の 1 区画がその時点で既に他の兄弟に
 // 覆われている platform しか足していなくても検出できない（余分な区画が紛れ込んでも
 // 集合としては変わらないため）。ここでは block を先頭から見て、各区画が「まだ誰も
 // 覆っていない platform」を 1 つ以上足しているかを確かめる。足していない区画があれば
-// その index を返す。これは reach が偶然 5 形態ぴったりに揃う「本物の merge」と
-// 「余計な区画が紛れ込んだ merge」を区別する唯一の手がかりだが、後者のうち
+// その index を返す。これは reach が偶然 5 形態ぴったりに揃う「本物の結合」と
+// 「余計な区画が紛れ込んだ結合」を区別する唯一の手がかりだが、後者のうち
 // 元から欠けていた区画分がちょうど埋め合わされて reach が 5 になるケース
 // （例：browser と native の 2 区画がたまたま隣接し、本来は無関係な別々の話題なのに
 // 合わせて 5 形態に届いてしまう）は、どの区画も新しい platform を足しているので
@@ -722,12 +722,12 @@ type FamilyException = {
   reason: string;
   reach: Platform[];
 };
-// 全 5 形態に届かないことが意図通りの family。旧版は日本語版の行番号で照合していたが、
+// 全 5 形態に届かないことが意図通りの family。以前の方式は日本語の行番号で照合していたが、
 // 対象より前の block 数が変わるだけで無関係な例外まで巻き添えで失敗し、失敗の指す先が
 // 編集箇所からずれていた。ここでは行番号の代わりに、family 自身が持つ内容だけで決まる
-// キー（見出し slug ＋ block の kind 列 ＋ 同じ kind 列がその見出し内で何番目に出たか）で
+// キー（見出し slug ＋ block の kind 列＋同じ kind 列がその見出し内で何番目に出たか）で
 // 照合する。kind の並びは only:xxx マーカーそのものなので言語間で翻訳されない。照合キー自体は
-// kind 列 ＋ occurrence（ファイル内での通し番号）で言語共通にしつつ、見出し slug は ja/en/zh-TW
+// kind 列＋ occurrence（ファイル内での通し番号）で言語共通にしつつ、見出し slug は ja/en/zh-TW
 // それぞれの言語で機械的に算出した値を別々に記録し、3 言語すべてで実際の見出しと突き合わせる
 // （headingSlug 系のフィールド）。occurrence は「kind 列が一致する家族が家族の中身と無関係に
 // マッチしてしまう」弱い照合キーだが、見出し slug を言語ごとに厳密照合することで、family が
@@ -738,7 +738,7 @@ type FamilyException = {
 // headingSlug も occurrence も本文の中身を見ずに算出するため、この種の swap には無反応
 //（docs/manual/04-receipt-ocr_zh-TW.md の `## 1` 表の行と `### 2-2` の箇条書きで実測済み）。
 // reach は「その family が実際に届くべき形態」の厳密な一覧。<5 かどうかの緩い判定にすると、
-// deriveFamilies が地続きの別 family を誤って 1 つに merge したとき（例：browser 単独の
+// deriveFamilies が地続きの別 family を誤って 1 つに結合したとき（例：browser 単独の
 // 話題の直後に、本来は別話題である apple/windows のみ・android 抜け、のような不完全な話題が
 // 空行だけ挟んで続く場合）、混入後の reach もたまたま 5 未満のままなら、この例外の記録に
 // 一致するというだけで通ってしまい、android 抜けという本物の欠落を見逃す。reach を厳密一致に
@@ -760,10 +760,11 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlug: '7-c-ブラウザ内蔵-ai対応ブラウザのみ',
     headingSlugEn: '7-c-your-browsers-built-in-ai-supported-browsers-only',
     headingSlugZhTw: '7-c-瀏覽器內建-ai僅限支援的瀏覽器',
-    kinds: ['browser'],
+    kinds: ['browser', 'android'],
     occurrence: 0,
-    reason: '7-C節「ブラウザ内蔵 AI」。native にはブラウザ内蔵 AI という選択肢自体が無い',
-    reach: ['browser'],
+    reason:
+      '7-C節。browser は「ブラウザ内蔵 AI」、android は「端末内 Gemini Nano」で、どちらも 7-C の兄弟区画（apple 版と同じ枠）。native にはどちらの選択肢も無い',
+    reach: ['android', 'browser'],
   },
   {
     base: '04-receipt-ocr',
@@ -793,7 +794,8 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlugZhTw: '1-引擎挑選速查',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 0,
-    reason: '表の「内蔵の規則エンジン（OS 内蔵の文字認識）」行。browser に OS 内蔵の文字認識は無い',
+    reason:
+      '表の「内蔵のルールベースエンジン（OS 内蔵の文字認識）」行。browser に OS 内蔵の文字認識は無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
@@ -821,7 +823,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     base: '04-receipt-ocr',
     headingSlug: 'ai-エンジンブラウザ内蔵-aiの場合送信ダイアログ無し',
     headingSlugEn: 'ai-engine-your-browsers-built-in-ai-no-dialog',
-    headingSlugZhTw: 'ai-引擎瀏覽器內建-ai不跳對話框',
+    headingSlugZhTw: 'ai-引擎瀏覽器內建-ai不會跳出對話框',
     kinds: ['browser'],
     occurrence: 1,
     reason: '見出し「AI エンジン（ブラウザ内蔵 AI）の場合」。native 側に対応する経路が無い',
@@ -829,9 +831,9 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジンtesseract端末内の文字認識の場合送信ダイアログ無し',
+    headingSlug: '内蔵のルールベースエンジンtesseract端末内の文字認識の場合送信ダイアログ無し',
     headingSlugEn: 'built-in-rule-engine-tesseract-on-device-text-recognition-no-dialog',
-    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不跳對話框',
+    headingSlugZhTw: '內建規則引擎tesseract裝置內的文字辨識不會跳出對話框',
     kinds: ['apple', 'windows', 'android'],
     occurrence: 2,
     reason:
@@ -846,7 +848,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows', 'android'],
     occurrence: 3,
     reason:
-      '内蔵の規則エンジンの警告バナーのうち、OS 内蔵の文字認識向けに足した追加文。browser に OS 内蔵の文字認識は無い',
+      '内蔵のルールベースエンジンの警告バナーのうち、OS 内蔵の文字認識向けに足した追加文。browser に OS 内蔵の文字認識は無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
@@ -857,7 +859,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple'],
     occurrence: 1,
     reason:
-      '見出し「AI エンジン（Apple Intelligence）」の tips 節。他の platform に Apple Intelligence という選択肢自体が無い',
+      '見出し「AI エンジン（Apple Intelligence）」のヒント節。他の platform に Apple Intelligence という選択肢自体が無い',
     reach: ['ios', 'macos'],
   },
   {
@@ -867,7 +869,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     headingSlugZhTw: 'ai-引擎瀏覽器內建-ai',
     kinds: ['browser'],
     occurrence: 2,
-    reason: '見出し「AI エンジン（ブラウザ内蔵 AI）」の tips 節。native 側に対応する経路が無い',
+    reason: '見出し「AI エンジン（ブラウザ内蔵 AI）」のヒント節。native 側に対応する経路が無い',
     reach: ['browser'],
   },
   {
@@ -878,12 +880,12 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows', 'android'],
     occurrence: 4,
     reason:
-      '見出し「内蔵の規則エンジン（OS 内蔵の文字認識）」の tips 節。browser に該当エンジンは無い',
+      '見出し「内蔵のルールベースエンジン（OS 内蔵の文字認識）」のヒント節。browser に該当エンジンは無い',
     reach: ['android', 'ios', 'macos', 'windows'],
   },
   {
     base: '04-receipt-ocr',
-    headingSlug: '内蔵の規則エンジン端末内の文字認識',
+    headingSlug: '内蔵のルールベースエンジン端末内の文字認識',
     headingSlugEn: 'built-in-rule-engine-on-device-text-recognition',
     headingSlugZhTw: '內建規則引擎裝置內的文字辨識',
     kinds: ['apple', 'windows', 'android'],
@@ -900,7 +902,7 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
     kinds: ['apple', 'windows'],
     occurrence: 0,
     reason:
-      '「クラウド同期の Tip」。browser には同じ内容が「3-1. Chromium 系」の説明に既に含まれている。android はフォルダ選択でクラウドの保存先を選べるか確かめていないので置かない',
+      '「クラウド同期のヒント」。browser には同じ内容が「3-1. Chromium 系」の説明に既に含まれている。android はフォルダ選択でクラウドの保存先を選べるか確かめていないので置かない',
     reach: ['ios', 'macos', 'windows'],
   },
   {
@@ -914,6 +916,37 @@ const FAMILY_EXCEPTIONS: FamilyException[] = [
       'Firefox/Safari の OPFS フォールバックと iOS 手動運用の節。OPFS はブラウザ専用ストレージで native には無い',
     reach: ['browser'],
   },
+  {
+    base: '03-csv-import',
+    headingSlug: '4-ai-分類任意',
+    headingSlugEn: '4-ai-classification-optional',
+    headingSlugZhTw: '4-ai-分類選用',
+    kinds: ['android'],
+    occurrence: 0,
+    reason:
+      '「端末内 Gemini Nano（Android）を選んでいる場合」の説明。他の platform にこの選択肢は無い',
+    reach: ['android'],
+  },
+  {
+    base: '04-receipt-ocr',
+    headingSlug: 'ai-エンジン端末内-gemini-nanoの場合送信ダイアログ無し',
+    headingSlugEn: 'ai-engine-on-device-gemini-nano-no-dialog',
+    headingSlugZhTw: 'ai-引擎裝置內-gemini-nano不會跳出對話框',
+    kinds: ['android'],
+    occurrence: 0,
+    reason: '見出し「AI エンジン（端末内 Gemini Nano）の場合」。他の platform に対応する経路が無い',
+    reach: ['android'],
+  },
+  {
+    base: '05-order-import',
+    headingSlug: '端末内-gemini-nanoandroid使用時',
+    headingSlugEn: 'when-using-on-device-gemini-nano-android',
+    headingSlugZhTw: '使用裝置內-gemini-nanoandroid時',
+    kinds: ['android'],
+    occurrence: 0,
+    reason: '見出し「端末内 Gemini Nano（Android）使用時」。他の platform にこの選択肢は無い',
+    reach: ['android'],
+  },
 ];
 
 const MANUAL_DIR = resolve('docs/manual');
@@ -921,7 +954,7 @@ const manualFiles = readdirSync(MANUAL_DIR)
   .filter((file) => file.endsWith('.md'))
   .sort();
 const usedExceptions = new Set<number>();
-// 「形態ごとに変種は高々 1 つ」は独立の test にしない：deriveFamilies 自身が同じ kind の
+// 「形態ごとに変種は高々 1 つ」は独立のテストにしない：deriveFamilies 自身が同じ kind の
 // 重複を family 内で弾き（seenKinds）、native → apple/windows/android の遷移でも family を
 // 割る（上の nativeToNarrower）ため、1 つの platform を読む kind が family 内で 2 つ以上
 // 揃うことは derivation の作りそのものが防いでいる。ここで同じ判定をもう一度 family ごとに
@@ -933,7 +966,7 @@ describe('family は例外を除き全形態に届く', () => {
     const src = readFileSync(resolve(MANUAL_DIR, file), 'utf-8');
     const { base, lang } = baseAndLangOf(file);
     // kind 列の出現順は only:xxx マーカーそのもの（翻訳されない）なので、ja/en/zh-TW の
-    // どの版で数えても揃う。この出現回数を照合キーの一部にする：headingSlug だけでは
+    // どの言語で数えても揃う。この出現回数を照合キーの一部にする：headingSlug だけでは
     // 同じ見出しの下に同じ kind 列を持つ family が複数あるケースを区別できない
     // （現状は無いが、将来増えても静かに誤爆しないようにする）。
     const occurrenceByKinds = new Map<string, number>();
@@ -1102,14 +1135,14 @@ describe('android の剥がした結果に旧エンジン名の表記が残っ�
     });
   }
 });
-// 04-receipt-ocr の「内蔵の規則エンジンのときの警告バナー」節にある引用文は、実際に画面へ
-// 出す receipt_native_engine_notice（_android）と文字ズレしていると使用者に嘘の画面を
+// 04-receipt-ocr の「内蔵のルールベースエンジンのときの警告バナー」節にある引用文は、実際に画面へ
+// 出す receipt_native_engine_notice（_android）と文言がずれていると利用者に嘘の画面を
 // 見せたまま説明することになる。マニュアルと messages を両方読んで一致を機械的に確かめる。
 const RECEIPT_OCR_DOC = {
   ja: { file: 'docs/manual/04-receipt-ocr.md', quoteRe: /^> (.*文字認識.*の結果です。.*)$/m },
   en: {
     file: 'docs/manual/04-receipt-ocr_en.md',
-    quoteRe: /^> (.*recognition.*Please check and correct.*)$/m,
+    quoteRe: /^> (.*recognition.*Be sure to check and correct.*)$/m,
   },
   'zh-TW': {
     file: 'docs/manual/04-receipt-ocr_zh-TW.md',

@@ -1,7 +1,7 @@
 import { LlmError } from './llm';
 import { m } from '../paraglide/messages';
 // EC サイト（Amazon、楽天等）の注文ページの貼り付けテキストから、
-// LLM で品目内訳を抽出する純ロジック。DOM scraping を使わないため
+// LLM で品目内訳を抽出する純ロジック。DOM スクレイピングを使わないため
 // サイト改修に強い。Phase 3：ブラウザ拡張案を本方式に置き換え。
 
 export interface OrderItem {
@@ -26,7 +26,7 @@ export interface OrderExtracted {
 
 export function buildOrderPrompt(): string {
   return [
-    'あなたは EC サイト（Amazon、楽天市場、Yahoo!ショッピング 等）の注文ページの',
+    'あなたは EC サイト（Amazon、楽天市場、Yahoo!ショッピング等）の注文ページの',
     '貼り付けテキストから注文情報を抽出する AI です。',
     '画面のヘッダ・ナビ・レコメンド等の不要部分は無視し、',
     '注文サマリ（日付・店舗名・品目内訳・合計）のみ拾います。',

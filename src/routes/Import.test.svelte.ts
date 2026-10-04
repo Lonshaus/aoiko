@@ -144,7 +144,6 @@ function button(c: HTMLElement, label: string): HTMLButtonElement {
   }
   return found;
 }
-
 // ダイアログは AlertDialog の portal で document.body 直下に出る。
 function bodyButton(label: string): HTMLButtonElement {
   const found = Array.from(document.body.querySelectorAll('button')).find((b) =>
@@ -155,7 +154,6 @@ function bodyButton(label: string): HTMLButtonElement {
   }
   return found;
 }
-
 // ダイアログが閉じている間は AlertDialog の中身がポータルに存在しない前提のヘルパー
 function dialogVisible(): boolean {
   return Array.from(document.body.querySelectorAll('button')).some((b) =>
@@ -174,7 +172,6 @@ function dispatchCsvFile(c: HTMLElement, name: string): HTMLInputElement {
   dispatchFileToInput(fileInput, new File(['dummy'], name, { type: 'text/csv' }));
   return fileInput;
 }
-
 // happy-dom は file input の value 代入を常に '' に固定し呼び出し自体を記録しないため、プロトタイプの setter に委譲するインスタンス直下の accessor で呼び出しを記録する。
 function spyOnValueSetter(input: HTMLInputElement): string[] {
   const proto = Object.getPrototypeOf(input) as object;
@@ -281,7 +278,6 @@ describe('Import: ファイルを選び直した時の破棄確認', () => {
     expect(setCalls).toContain('');
     expect(rowDates(c)).toEqual(['2026-01-10']);
     expect(c.textContent).toContain('選択中：a.csv');
-
     // input.value が本当にクリアされていなければ、同じファイルの再選択はここで無視される
     dispatchFileToInput(fileInput, fileB);
     expect(dialogVisible()).toBe(true);
@@ -381,6 +377,51 @@ describe('Import: 相手科目セレクトの幅はバッジの有無で変わ�
     expect(withBadge?.className).toBe(withoutBadge?.className);
     expect(withBadge?.className).toMatch(/\bw-\d+\b/);
     expect(withBadge?.className).not.toContain('flex-1');
+  });
+});
+
+describe('Import: 取引先の既定科目による分類', () => {
+  test('ルール不一致の行だけ取引先の既定科目が入り、バッジが出る。ルールが優先される', async () => {
+    await db.parserRules.add({
+      id: 'rule-1',
+      matchType: 'description-includes',
+      pattern: 'ルール一致店',
+      accountCode: '5200',
+      priority: 1,
+      hitCount: 0,
+    });
+    await db.vendors.bulkAdd([
+      { id: 'v1', name: 'ルール一致店', defaultAccountCode: '5300' },
+      { id: 'v2', name: '未分類の店', defaultAccountCode: '5910' },
+    ]);
+    const c = container as HTMLElement;
+    changeParser(c, parserC.name);
+    await loadFile(c);
+
+    expect(c.querySelectorAll(`[title="${m.import_badge_rule_title()}"]`)).toHaveLength(1);
+    expect(c.querySelectorAll(`[title="${m.import_badge_vendor_title()}"]`)).toHaveLength(1);
+    expect(c.textContent).not.toContain(m.import_unclassified_notice({ count: 1 }));
+
+    button(c, m.import_submit({ count: 2 })).click();
+    await waitFor(() => (c.textContent ?? '').includes(m.import_success({ count: 2 })));
+    const entries = await db.journalEntries.toArray();
+    const counterpartOf = async (description: string) => {
+      const entry = entries.find((e) => e.description === description)!;
+      const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
+      return lines.find((l) => l.accountCode !== '1130')?.accountCode;
+    };
+    expect(await counterpartOf('ルール一致店')).toBe('5200');
+    expect(await counterpartOf('未分類の店')).toBe('5910');
+  });
+
+  test('既定科目の無い取引先は分類に使わない', async () => {
+    await db.vendors.add({ id: 'v2', name: '未分類の店' });
+    const c = container as HTMLElement;
+    changeParser(c, parserC.name);
+    await loadFile(c);
+
+    expect(c.querySelectorAll(`[title="${m.import_badge_vendor_title()}"]`)).toHaveLength(0);
+    expect(c.textContent).toContain(m.import_unclassified_notice({ count: 2 }));
   });
 });
 

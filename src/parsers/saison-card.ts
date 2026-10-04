@@ -11,10 +11,10 @@ import {
 import type { CsvParser, ParsedTransaction } from './types';
 // セゾンカード（Net Answer）の利用明細 CSV（実データ確認済）。
 // エンコーディング：Shift_JIS
-// 冒頭の情報行：カード名称 / お支払日 / 今回ご請求額 の 3 行 ＋ 空行の後にヘッダー行が来る。
+// 冒頭の情報行：カード名称 / お支払日 / 今回ご請求額の 3 行＋空行の後にヘッダー行が来る。
 // ヘッダー行：利用日, ご利用店名及び商品名, 本人・家族区分, 支払区分名称,
 //       締前入金区分, 利用金額, 備考
-// クレジットカードのため、全行 credit 側（未払金 増加）。
+// クレジットカードのため、全行貸方側（未払金の増加）。
 
 const DISPLAY = 'セゾンカード';
 const REQUIRED = ['利用日', 'ご利用店名及び商品名', '利用金額'] as const;
@@ -70,7 +70,7 @@ const saisonCardParser: CsvParser = {
         }
       }
       const memo = memoParts.length > 0 ? memoParts.join(' / ') : undefined;
-      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      // 返金・キャンセル行は負数 → 絶対値 + 借方（未払金の減少）
       const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const transaction: ParsedTransaction = {

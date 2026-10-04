@@ -61,7 +61,7 @@
         </li>
         <li>
           <!-- 文言カタログは条件を問わず全部がモジュールへ組まれる。実行時だけの判定にすると、
-               選ばれない側の文字列までビルド成果物に残る（購入画面と同じ理由で build 時に畳む）。 -->
+               選ばれない側の文字列までビルド成果物に残る（購入画面と同じ理由でビルド時に畳む）。 -->
           {@html __NATIVE__ && nativeBridge()
             ? m.disclaimer_bullet_storage_html_native()
             : m.disclaimer_bullet_storage_html()}

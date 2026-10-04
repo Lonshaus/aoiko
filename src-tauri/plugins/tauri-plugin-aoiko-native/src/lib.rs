@@ -22,6 +22,9 @@ mod commands;
 mod desktop;
 #[cfg(target_os = "ios")]
 mod ios;
+// 呼ぶのはこの環境だけ。他の環境ではテストからしか使われない。
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+mod nano;
 mod path;
 mod store;
 
@@ -131,7 +134,14 @@ impl ResolvedFolder {
         }
     }
 }
-
+/// 端末内の Gemini Nano の状態。status は端末側の値そのまま。
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NanoAvailability {
+    pub status: i32,
+    /// 使えるときだけ入る。
+    pub token_limit: Option<i32>,
+}
 /// 文字認識が返す 1 単語。座標は 0..1 の正規化・左上原点・y 下向き。
 /// 環境ごとの座標系の違いはここで吸収する。web 側に分岐を持たせない。
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -151,7 +161,6 @@ pub struct RecognizedWord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slope: Option<f64>,
 }
-
 /// 縦に重なる単語をまとめた 1 行。座標はそれらを囲む矩形。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -163,7 +172,6 @@ pub struct RecognizedLine {
     pub width: f64,
     pub height: f64,
 }
-
 /// 文字認識の結果一式。
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -264,6 +272,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::apple_ai_availability,
             commands::apple_ai_extract,
             commands::apple_ai_run,
+            commands::nano_availability,
+            commands::nano_extract_receipt,
+            commands::nano_run,
         ])
         .setup(|app, _api| {
             app.manage(Resolved::default());

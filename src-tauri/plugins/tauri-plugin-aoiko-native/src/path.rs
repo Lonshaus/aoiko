@@ -120,17 +120,50 @@ pub(crate) fn resolve_within(base: &Path, rel: &str) -> Result<SafeTarget> {
     }
     Ok(SafeTarget(joined))
 }
+// assert が panic しても一時ディレクトリが残らないよう、後始末は Drop に任せる。
+#[cfg(test)]
+pub(crate) struct TempDir(PathBuf);
+
+#[cfg(test)]
+impl TempDir {
+    pub(crate) fn new(name: String) -> Self {
+        let dir = std::env::temp_dir().join(name);
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        TempDir(dir)
+    }
+}
+
+#[cfg(test)]
+impl std::ops::Deref for TempDir {
+    type Target = Path;
+
+    fn deref(&self) -> &Path {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+impl AsRef<Path> for TempDir {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+#[cfg(test)]
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
 
-    fn temp_dir(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("aoiko-path-{}-{}", tag, std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(&dir).unwrap();
-        dir
+    fn temp_dir(tag: &str) -> TempDir {
+        TempDir::new(format!("aoiko-path-{}-{}", tag, std::process::id()))
     }
 
     #[test]
@@ -189,7 +222,6 @@ mod tests {
         let resolved = resolve_within(&base, "snapshots/x.json").unwrap();
         assert!(resolved.as_path().starts_with(base.canonicalize().unwrap()));
         assert!(resolved.as_path().ends_with("snapshots/x.json"));
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
@@ -197,7 +229,6 @@ mod tests {
         // 書き込みは常にこの形。対象も途中のディレクトリもまだ無い。
         let base = temp_dir("absent");
         assert!(resolve_within(&base, "attachments/deadbeef").is_ok());
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[cfg(unix)]
@@ -213,9 +244,6 @@ mod tests {
             err.is_err(),
             "シンボリックリンク経由で外へ出られてはいけない"
         );
-
-        let _ = fs::remove_dir_all(&base);
-        let _ = fs::remove_dir_all(&outside);
     }
 
     #[test]
@@ -231,7 +259,6 @@ mod tests {
             SafeTarget::from_os_chosen(outside.clone()).as_path(),
             outside
         );
-        let _ = fs::remove_dir_all(&base);
     }
 
     #[test]

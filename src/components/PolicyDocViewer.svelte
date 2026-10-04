@@ -15,9 +15,9 @@
   let plainText = $state<string | null>(null);
   let error = $state('');
   let loading = $state(false);
-  // 第三者ライセンス表示だけは実行時に取得する。wrapper 版はビルド後にネイティブ側
+  // 第三者ライセンス表示だけは実行時に取得する。ラッパー版はビルド後にネイティブ側
   // （Rust クレート）の一覧を同じファイルへ連結するため、ビルド時に埋め込むと web 側の
-  // 分しか出せなくなる。配られている実体を読むことで、web 版・wrapper 版のどちらでも
+  // 分しか出せなくなる。配られている実体を読むことで、web 版・ラッパー版のどちらでも
   // その環境に入っているものがそのまま出る。
   const THIRD_PARTY_PATH = '/THIRD_PARTY_LICENSES.txt';
   // オフライン時も自己完結で全文を読めるようにする（旧: GitHub への外部リンクのみ）。

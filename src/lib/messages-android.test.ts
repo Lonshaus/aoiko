@@ -1,6 +1,6 @@
 // android 環境専用の *_android キーが三語すべてに存在し、文字認識の利用状況開示を含むこと、
 // エンジン名が新名称（端末内の文字認識／on-device text recognition／裝置內的文字辨識）を
-// 使い旧名称（OS 内蔵の文字認識 等）の表記を含まないこと、共用キー（*_native・_html 無印）の
+// 使い旧名称（OS 内蔵の文字認識等）の表記を含まないこと、共用キー（*_native・_html 無印）の
 // 文字列は変えていないことを確認する。
 import { describe, expect, test } from 'vitest';
 import ja from '../../messages/ja.json';
@@ -100,7 +100,7 @@ describe('messages/*.json の *_android キー', () => {
       sep: '。',
       name: NEW_ENGINE_NAME.zhTW,
       hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('使用狀況'),
-      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何東西/,
+      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何(東西|資料)/,
     },
   ];
 
@@ -124,6 +124,59 @@ describe('messages/*.json の *_android キー', () => {
       expect(sentence).not.toMatch(noTransmissionPattern);
     });
   }
+  // Nano の一句も「完全に送信されない」と読めてはいけないので、既存と同じく句単位で開示を確かめる。
+  const NANO_NAME = {
+    ja: '端末内 Gemini Nano',
+    en: 'on-device gemini nano',
+    zhTW: '裝置內 Gemini Nano',
+  };
+  const NANO_SENTENCE_CASES = [
+    {
+      label: 'ja' as const,
+      text: ja.disclaimer_bullet_llm_html_android,
+      sep: '。',
+      name: NANO_NAME.ja,
+      hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('利用状況'),
+      noTransmissionPattern: /送信(そのもの)?が発生しません|一切送信されません/,
+    },
+    {
+      label: 'en' as const,
+      text: en.disclaimer_bullet_llm_html_android,
+      sep: '. ',
+      name: NANO_NAME.en,
+      hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('usage information'),
+      noTransmissionPattern: /sends nothing|no transmission/,
+    },
+    {
+      label: 'zh' as const,
+      text: zhTW.disclaimer_bullet_llm_html_android,
+      sep: '。',
+      name: NANO_NAME.zhTW,
+      hasUsageDisclosure: (s: string) => s.includes('Google') && s.includes('使用狀況'),
+      noTransmissionPattern: /不會產生(任何)?(傳送|送出)|不會送出任何(東西|資料)/,
+    },
+  ];
+
+  for (const {
+    label,
+    text,
+    sep,
+    name,
+    hasUsageDisclosure,
+    noTransmissionPattern,
+  } of NANO_SENTENCE_CASES) {
+    test(`disclaimer_bullet_llm_html_android(${label}): Gemini Nano に触れる文は利用状況開示があり、不送信とは書かない`, () => {
+      const lowerName = name.toLowerCase();
+      const sentences = text
+        .split(sep)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0 && s.toLowerCase().includes(lowerName));
+      expect(sentences).toHaveLength(1);
+      const sentence = sentences[0]!;
+      expect(hasUsageDisclosure(sentence)).toBe(true);
+      expect(sentence).not.toMatch(noTransmissionPattern);
+    });
+  }
 
   test('backup_panel_intro_folder_android は iCloud に言及しない', () => {
     expect(ja.backup_panel_intro_folder_android).not.toContain('iCloud');
@@ -136,7 +189,7 @@ describe('messages/*.json の *_android キー', () => {
       'Tesseract や OS 内蔵の文字認識など、端末内で完結するエンジンでは送信そのものが発生しません',
     );
     expect(ja.backup_panel_intro_folder_html).toContain(
-      'iCloud Drive・Google Drive Desktop・Dropbox',
+      'iCloud Drive・パソコン版 Google ドライブ・Dropbox',
     );
   });
 });

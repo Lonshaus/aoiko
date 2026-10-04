@@ -143,7 +143,6 @@ function yayoiTaxInfo(
     taxAmount: computeTaxAmount(line),
   };
 }
-
 // taxableTransferConsideration の行の課税売上区分（簡易課税時は消基通13-2-9で第四種）。
 // 込／外・税率は行の taxIncluded・taxRate に従う（通常の売上行と同じ規約）
 function markedTransferTaxInfo(
@@ -176,7 +175,6 @@ function computeTaxAmount(line: JournalLine): string {
   const priceInclusive = line.taxIncluded ? amount : amount.times(1 + line.taxRate);
   return priceInclusive.minus(base).toDecimalPlaces(0, Decimal.ROUND_DOWN).toString();
 }
-
 // 超過部分を含む行は1行の中で按分できないため、行全体を控除不可の区分で出す
 function capExceededLineIds(
   entries: JournalEntry[],

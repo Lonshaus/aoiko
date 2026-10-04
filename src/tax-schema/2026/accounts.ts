@@ -8,7 +8,7 @@ import type { Account, AssetCategory } from '$lib/../db/types';
 // 設計方針：
 // - 一般用 PL の 18 経費科目（租税公課〜雑費）はすべて収録、順序も form 通り
 // - 売上原価（仕入・棚卸高）、専従者給与、貸倒引当金繰入額・引当金、
-//   標準的な BS 固定資産（建物・車両運搬具・土地等）、借入金 等の
+//   標準的な BS 固定資産（建物・車両運搬具・土地等）、借入金等の
 //   form 上の主要科目を網羅
 // - aoiko には Account を UI から追加する画面が無いため、本 seed が
 //   利用者がアクセスできる勘定科目の総体となる
@@ -82,7 +82,7 @@ export const ACCOUNTS_2026: Account[] = [
   },
   // 収益（4xxx）— 不動産所得用（B7 part2、freee/MF と同じく科目を複製）。
   // 賃貸料・礼金等は住宅家賃なら非課税が多いため既定は 'exempt'、店舗等の課税賃貸は
-  // 仕訳行の taxCategory 上書きで対応（既存の taxCategory override と同じ運用）。
+  // 仕訳行の taxCategory 上書きで対応（既存の taxCategory 上書きと同じ運用）。
   {
     code: '4210',
     year: 2026,
@@ -282,8 +282,8 @@ export const ACCOUNTS_2026: Account[] = [
     displayOrder: 270,
   },
   // 固定資産の除却損（B6）。青色申告決算書一般用の18経費科目には対応欄が無いため
-  // KOA210/KOA110 の個別明細行には出力されない（tagByJa 不一致で silently 出力スキップ）が、
-  // pl.netIncome は通常の経費として正しく反映される（専従者控除前の所得金額 等の合計値は正しい）。
+  // KOA210/KOA110 の個別明細行には出力されない（tagByJa 不一致のため警告なしで出力を省く）が、
+  // pl.netIncome は通常の経費として正しく反映される（専従者控除前の所得金額等の合計値は正しい）。
   {
     code: '5280',
     year: 2026,

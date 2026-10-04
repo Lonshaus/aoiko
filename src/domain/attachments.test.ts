@@ -26,8 +26,8 @@ describe('buildAttachmentRecord', () => {
     expect(r.id).toBeTruthy();
   });
 
-  test('type が空でも実体が画像なら application/octet-stream にフォールバック', async () => {
-    // ある環境 あるブラウザ の HEIC 等、File.type が空になる実機挙動を想定
+  test('type が空でも実体が画像なら application/octet-stream に切り替える', async () => {
+    // ある環境のブラウザの HEIC 等、File.type が空になる実機挙動を想定
     const file = makeFile('scan.jpg', JPEG_HEADER.length, '', JPEG_HEADER);
     const r = await buildAttachmentRecord('entry1', file, 1);
     expect(r.mimeType).toBe('application/octet-stream');

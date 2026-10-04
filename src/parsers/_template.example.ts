@@ -21,7 +21,7 @@ const REQUIRED = ['日付', '摘要', '出金額', '入金額'] as const;
 const myBankParser: CsvParser = {
   name: 'my-bank',
   displayName: DISPLAY,
-  accountCode: '1130', // 1110 現金 / 1130 普通預金 / 2120 未払金（カード） から選ぶ
+  accountCode: '1130', // 1110 現金 / 1130 普通預金 / 2120 未払金（カード）から選ぶ
   encoding: 'shift_jis', // 'utf-8' or 'shift_jis'
   parse(text: string): ParsedTransaction[] {
     const rows = parseCsv(text);
