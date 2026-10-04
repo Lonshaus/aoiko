@@ -4,6 +4,28 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.4] - 2026-10-04
+
+Brings the Disclaimer, Privacy Policy, Security Policy, and the wording on screen and in the Guide in line with how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on the next launch.
+
+### Changed
+
+- Corrected the Disclaimer, Privacy Policy and Security Policy to match what is actually sent (order import and CSV), backups, and where files are saved
+- The confirmation shown before sending data to an external AI now says exactly what is sent (receipt images, the description and amount of unclassified CSV-import rows, and the full text of a pasted order page)
+- In the order-import review table, you can now choose the tax rate (10% or 8%) per item. A discount line takes the tax rate of the item it reduces
+- When you mark a year as filed, you can now choose the consumption tax method. The tax payable under that method (national portion) is used as the prior-year amount for next year's interim filing
+- Reversing a carryover entry now asks for confirmation, and the button name matches what it does (it cancels with a reversing entry)
+- Unified the Japanese and Traditional Chinese terminology. "開業精霊" is now "開業設定" (Opening Setup), and journal entries created by Opening Setup carry that name in their description
+- Fixed mistranslations and omissions in the English Guide, and corrected the Traditional Chinese Guide
+- Updated the Guide and on-screen descriptions to match the changes above and the actual behavior
+
+### Fixed
+
+- The default counterpart account set on a vendor was not used in CSV import. Rows whose description contains the vendor name and that match no auto-classification rule now get that account (marked "Vendor")
+- Order import registered every item at a 10% tax rate
+- The receivable entry created when issuing an invoice showed an internal ID instead of the vendor name. Entries created earlier are also shown with the vendor name
+- A "Reverse" button was shown on reversing entries themselves
+
 ## [1.2.3] - 2026-09-27
 
 Receipt scanning with the built-in rule engine (Tesseract) now works offline.
@@ -269,6 +291,7 @@ Initial release.
 - JSON backup and restore (File System Access API with OPFS automatic fallback)
 - PWA: bookkeeping, reports, depreciation, consumption-tax calculation, `.xtx`, invoices/quotes, and backup restore work offline (Tesseract's first-time language data fetch, cloud engines, and the third-party license list require a connection); trilingual UI (Japanese / English / Traditional Chinese)
 
+[1.2.4]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.3
 [1.2.2]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.2
 [1.2.1]: https://github.com/Lonshaus/aoiko/releases/tag/v1.2.1
