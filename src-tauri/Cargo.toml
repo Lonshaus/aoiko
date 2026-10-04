@@ -69,3 +69,6 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+# Xcode 27 の strip を通した proc-macro の dylib は dyld が読み込めず、依存 crate のコンパイルが止まる
+[profile.release.build-override]
+strip = false
