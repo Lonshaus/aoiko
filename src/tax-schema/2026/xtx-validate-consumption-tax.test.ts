@@ -2,8 +2,8 @@
 // xtx-validate.test.ts と同じ手法（非公式 include ラッパ経由の xmllint）を、
 // docs/xtx-spec/shohi/ 配下の消費税様式に対して行う。
 /// <reference types="node" />
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,16 +59,22 @@ function xmllintAvailable(): boolean {
   return r.error === undefined && r.status === 0;
 }
 
+function runXmllint(schemaPath: string, xml: string): SpawnSyncReturns<string> {
+  const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
+  try {
+    const xmlPath = join(dir, 'doc.xml');
+    writeFileSync(xmlPath, xml, 'utf8');
+    return spawnSync('xmllint', ['--noout', '--schema', schemaPath, xmlPath], { encoding: 'utf8' });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function validate(wrapper: string, frag: string): { ok: boolean; out: string } {
   const doc =
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<ValidationRoot xmlns="${NS}" xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general">\n${frag}\n</ValidationRoot>\n`;
-  const dir = mkdtempSync(join(tmpdir(), 'aoiko-xtx-'));
-  const xmlPath = join(dir, 'doc.xml');
-  writeFileSync(xmlPath, doc, 'utf8');
-  const r = spawnSync('xmllint', ['--noout', '--schema', join(SPEC_DIR, wrapper), xmlPath], {
-    encoding: 'utf8',
-  });
+  const r = runXmllint(join(SPEC_DIR, wrapper), doc);
   return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
@@ -258,7 +264,6 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       expect(ok, `${label}: ${out}`).toBe(true);
     }
   });
-
   // 2割特例の売上対価の返還等（税率別）を含む mapTwoWari が公式 xsd に適合する
   maybe('mapTwoWari（売上対価の返還等あり）の実 mapping 経路が公式 xsd に適合する', () => {
     const mapping = mapTwoWari({
@@ -285,7 +290,6 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       expect(ok, `${label}: ${out}`).toBe(true);
     }
   });
-
   // 簡易課税の兼業（設定区分＋印の付いた行の第四種）が公式 xsd に適合する。
   // 付表5-3 (1)〜(3) 全欄と、原則が採用される場合（ABL00210 は立たない）を検証する
   maybe(
@@ -320,7 +324,6 @@ describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
       }
     },
   );
-
   // 同じ兼業だが特例（75%ルール）が採用される場合：ABL00210（特例計算適用）を含めて検証する
   maybe(
     'mapSimplified（兼業、印の付いた行あり・特例採用・ABL00210含む）の実 mapping 経路が公式 xsd に適合する',

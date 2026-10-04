@@ -1,7 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { fileURLToPath, URL } from 'node:url';
-
 // 既定の Node 解決条件だと svelte が index-server.js（SSR 版）に解決され、
 // コンポーネントテストの mount() が lifecycle_function_unavailable で落ちる。
 const resolve = {

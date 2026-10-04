@@ -20,7 +20,6 @@ const outPath = join(root, 'public', 'THIRD_PARTY_LICENSES.txt');
 // ライセンス本文のファイル名は統一されていない。大文字小文字も揺れるので総当たりで探す。
 const LICENSE_FILE = /^(licen[cs]e|copying)(\.(md|txt|markdown))?$/i;
 const NOTICE_FILE = /^notice(\.(md|txt))?$/i;
-
 // npm の dev フラグは「インストール時に要るか」であって「配布物へ入るか」ではない。
 // 次の 2 つは devDependencies に置かれているがコードやアセットがそのまま配られるもので、
 // 判定根拠は src からの import か、dist に出る成果物そのもの。
@@ -54,7 +53,6 @@ const SHIPPED_DEV_ONLY = [
   'tailwindcss', // src/app.css の @import。preflight・theme 層は tailwindcss 自身のコード
   'shadcn-svelte', // src/app.css が dist/tailwind.css を @import する
 ];
-
 // tesseract-ocr/tesseract の LICENSE 本文（2026-08 に upstream から取得）。
 // プロジェクト全体を束ねる単一の著作権表示は無く、末尾の Appendix も
 // [yyyy] [name of copyright owner] のプレースホルダのまま。実際の著作権表示は
@@ -261,7 +259,6 @@ const TESSERACT_APACHE_TEXT = `
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.`.trim();
-
 // tesseract-ocr/tessdata_best の LICENSE 本文。tesseract 本体と同じ Apache-2.0 だが
 // Appendix を含まず、本文が完全には一致しないため別テキストとして持つ。
 const TESSDATA_APACHE_TEXT = `                                 Apache License
@@ -440,7 +437,6 @@ const TESSDATA_APACHE_TEXT = `                                 Apache License
       of your accepting any such warranty or additional liability.
 
    END OF TERMS AND CONDITIONS`;
-
 // DanBloomberg/leptonica の leptonica-license.txt。BSD-2-Clause の一般形と違い、
 // 独自の文面（``AS IS'' の引用符表記や見出し罫線）を持つため、汎用テンプレートで
 // 代替せずそのまま採録する。
@@ -469,7 +465,6 @@ const LEPTONICA_LICENSE_TEXT = `/*==============================================
  -  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  -  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *====================================================================*/`;
-
 // huntabyte/shadcn-svelte の LICENSE.md。著作権者は同ファイルの宣言をそのまま使う。
 const SHADCN_SVELTE_LICENSE_TEXT = `MIT License
 
@@ -494,7 +489,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.`;
-
 // npm パッケージではないが配布物へ入る成果物。package-lock.json は npm の依存グラフ
 // しか表現しないため、これらは自動収集の対象外になる。ビルド構成を変えたら
 // 手で見直すこと（下の assertTesseractAssetsCovered が WASM・モデルの取りこぼしだけは検知する）。
@@ -554,7 +548,6 @@ const EXTERNAL_ARTIFACTS = [
     distFiles: [],
   },
 ];
-
 // copy-tesseract-assets.js が実際に複製する WASM・モデルのファイル名と、上の
 // EXTERNAL_ARTIFACTS が「対象」と称しているファイル名が一致するかを確認する。
 // worker.js は tesseract-wasm 自身の npm ライセンスで別途カバーされるため対象外。
@@ -573,7 +566,6 @@ function assertTesseractAssetsCovered() {
     );
   }
 }
-
 // package-lock は入れ子の node_modules も表現する。npm と同じく、要求元から
 // 上へ辿って最初に見つかったものを採る。
 function resolveEntry(packages, fromPath, name) {
@@ -590,7 +582,6 @@ function resolveEntry(packages, fromPath, name) {
     base = cut < 0 ? '' : base.slice(0, cut);
   }
 }
-
 // 配布物へ入る依存を集める。dependencies は丸ごと、SHIPPED_DEV_ROOTS は
 // そこから辿れる推移的依存まで（bits-ui のように自身も依存を持つため）。
 function shippedPackages() {
@@ -645,14 +636,12 @@ function shippedPackages() {
   }
   return found.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version));
 }
-
 // package.json に license を書いていないパッケージがある（svelte-toolbelt 等）。
 // 本文の 1 行目はほぼ必ずライセンス名なので、そこから拾って「(不明)」を減らす。
 function licenseNameFromText(dir) {
   const first = readNamed(dir, LICENSE_FILE).split('\n')[0]?.trim() ?? '';
   return first !== '' && first.length <= 60 ? `${first}（本文から判定）` : '(不明)';
 }
-
 // MIT License の標準本文（SPDX の canonical text）。本文を同梱していないパッケージの
 // ために持つ。著作権者の行は各パッケージの宣言を上に並べるため差し替えている。
 const MIT_TEXT = `MIT License
@@ -675,7 +664,6 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR OTHER DEALINGS IN THE SOFTWARE.`;
-
 // author は文字列（"Rich Harris"）とオブジェクト（{ name, email }）の両形式がある。
 // 推測はせず、宣言されたものだけを返す。
 function declaredAuthor(dir) {

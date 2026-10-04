@@ -17,7 +17,6 @@
   <img src="docs/images/screenshot-reports-ja.png" alt="レポート画面：年間概況と月別売上" width="49%" />
 </p>
 
-
 ## 主な機能
 
 - **複式簿記**：仕訳・訂正仕訳（修正仕訳）・元の仕訳を保持する監査履歴

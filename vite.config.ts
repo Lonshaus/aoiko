@@ -60,7 +60,6 @@ function gitCommitShort(): string {
     return 'unknown';
   }
 }
-
 // tesseract-wasm の lib.js は worker とコアの既定位置を `new URL(..., import.meta.url)`
 // で書いており、vite はこれを静的に見つけて assets/ へ複製する。aoiko は OCRClient に
 // workerURL を明示で渡し、worker は自分の隣（/tesseract/）からコアを取るため、複製された
@@ -88,7 +87,6 @@ function dropUnusedTesseractAssets() {
     },
   };
 }
-
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
   // 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は

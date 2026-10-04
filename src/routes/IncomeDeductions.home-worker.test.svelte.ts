@@ -258,7 +258,6 @@ describe('homeWorker・前々年分収入の保存・再読込', () => {
       () => (checkboxByLabelText(reloaded, '最後の給与等の支払日')?.checked ?? false) === true,
     );
     expect(checkboxByLabelText(reloaded, '最後の給与等の支払日')?.checked).toBe(true);
-
     // 令和9年分では表示されない（附則13条2項の対象外）ことも合わせて見る。
     setYear(reloaded, 2027);
     await waitFor(

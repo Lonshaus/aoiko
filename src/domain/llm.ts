@@ -12,7 +12,6 @@ export interface LlmImageInput {
   /** image/jpeg / image/png / image/webp 等 */
   mimeType: string;
 }
-
 /** データだけを渡す端末内経路が対応するタスク。分類（CSV 相手科目）と注文取込。 */
 export type LlmDataTask = 'classify' | 'order';
 

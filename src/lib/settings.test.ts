@@ -9,7 +9,6 @@ import { DISCLAIMER_VERSION, getSetting, setSetting } from './settings';
 
 const DOCS = ['DISCLAIMER.md', 'DISCLAIMER_en.md', 'DISCLAIMER_zh-TW.md'];
 const EXPECTED_VERSION = 9;
-
 // 定数は実行時に片側へ畳まれるため、値を見るだけでは形態ごとのバージョンを守れない。
 // 原文から読み、形態ごとの期待値を取り出す（分岐へ戻したときもここが追随する）。
 function versionsFromSource(): Record<Platform, number> {
@@ -58,7 +57,6 @@ describe('DISCLAIMER_VERSION', () => {
     }
   });
 });
-
 // 判定はファクトリ側に一本化した。getSetting は素通しでないと、
 // ここで既定へ落としたつもりが実は素通しという食い違いに気付けない。
 describe('getSetting は加工しない', () => {
@@ -76,7 +74,6 @@ describe('getSetting は加工しない', () => {
     }
   });
 });
-
 // 令和9年分以後の75万円が電磁的記録の備付け・保存を要件とすることを、
 // 三語すべての settings_aoiro_electronic が書いていること（両方の呼出経路が共通で使う）。
 describe('messages/*.json の settings_aoiro_electronic', () => {
