@@ -8,6 +8,7 @@ use serde_json::Value;
 pub(crate) const CLASSIFY_CHUNK: usize = 24;
 pub(crate) const RECEIPT_USER_TEXT: &str = "このレシートを読み取ってください。";
 /// 端末内モデルを載せていない環境の拒否コード。
+#[cfg(not(target_os = "android"))]
 pub(crate) const UNSUPPORTED: &str = "unsupported";
 // これらはどのチャンクで起きても残りを流す意味が無い。呼び出し全体を同じ理由で断る。
 const WHOLE_CALL_CODES: [&str; 4] = ["background", "quota", "unavailable", "too-long"];
