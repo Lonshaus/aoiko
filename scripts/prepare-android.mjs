@@ -43,45 +43,6 @@ for (const file of files) {
   mkdirSync(dirname(to), { recursive: true });
   copyFileSync(file, to);
 }
-// 署名設定は Tauri の公式手順が生成物 build.gradle.kts の直接編集を指示しており、置き場所が
-// gen/ の中しか無い。消えると戻らないのでここから足す。テンプレートの中身には触れず末尾へ追記する
-// だけにして、Tauri がテンプレートを変えても壊れないようにしてある。
-const MARKER = '// aoiko: 署名設定';
-const SIGNING_BLOCK = `${MARKER}。gen/ は生成物なので prepare-android.mjs が毎回ここへ足す。
-// 鍵は repo 外の ~/.playconsole、パスワードは macOS のキーチェーンから取る。
-val aoikoKeystore = file("\${System.getProperty("user.home")}/.playconsole/aoiko-upload.jks")
-    .takeIf { it.exists() }
-
-fun aoikoKeychain(account: String): String? = try {
-    val p = ProcessBuilder(
-        "security", "find-generic-password", "-s", "aoiko-upload", "-a", account, "-w"
-    ).start()
-    val out = p.inputStream.bufferedReader().readText().trim()
-    if (p.waitFor() == 0 && out.isNotEmpty()) out else null
-} catch (e: Exception) {
-    null
-}
-
-android {
-    signingConfigs {
-        create("aoiko-release") {
-            if (aoikoKeystore != null) {
-                storeFile = aoikoKeystore
-                storePassword = aoikoKeychain("store")
-                keyAlias = "upload"
-                keyPassword = aoikoKeychain("key")
-            }
-        }
-    }
-    buildTypes {
-        getByName("release") {
-            if (aoikoKeystore != null) {
-                signingConfig = signingConfigs.getByName("aoiko-release")
-            }
-        }
-    }
-}
-`;
 if (!existsSync(gradleFile)) {
   console.error(`${gradleFile} が無い。gen/android が壊れている`);
   process.exit(1);
@@ -107,12 +68,6 @@ if (gradleWithMinSdk !== gradle) {
   minSdk = `を ${minSdkVersion} にした`;
 }
 
-let signing = '追記済み';
-if (!gradle.includes(MARKER)) {
-  gradle = `${gradle.replace(/\n*$/, '\n')}\n${SIGNING_BLOCK}`;
-  signing = '追記した';
-}
-
 writeFileSync(gradleFile, gradle);
 // genai-prompt が載せる kotlin-stdlib 2.3 のメタデータはテンプレートの 1.9.25 では読めない。
 const KOTLIN_GRADLE_PLUGIN = '2.2.21';
@@ -129,5 +84,5 @@ writeFileSync(
   rootGradle.replace(kgpPattern, `kotlin-gradle-plugin:${KOTLIN_GRADLE_PLUGIN}`),
 );
 console.log(
-  `アイコン ${files.length} 件を同期した。minSdk ${minSdk}。署名設定は${signing}。Kotlin Gradle プラグインは ${KOTLIN_GRADLE_PLUGIN}`,
+  `アイコン ${files.length} 件を同期した。minSdk ${minSdk}。Kotlin Gradle プラグインは ${KOTLIN_GRADLE_PLUGIN}`,
 );
