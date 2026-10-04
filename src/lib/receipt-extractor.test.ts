@@ -38,7 +38,7 @@ describe('createReceiptExtractor', () => {
     expect(ex.destinationHost).toBe('');
   });
   // chrome-ai は web 側のみの経路。__NATIVE__（テスト全体で true）ではここへ来る前に
-  // build 時の分岐で畳まれるため、Gemini キー設定済みでも黙って gemini に落ちない。
+  // ビルド時の分岐で畳まれるため、Gemini キー設定済みでも黙って gemini に落ちない。
   test('ai・chrome-ai：__NATIVE__ では拒否する（Gemini キー設定済みでも gemini に落ちない）', async () => {
     await setSetting('aiEngine', 'chrome-ai');
     await setSetting('geminiApiKey', 'sk-test');

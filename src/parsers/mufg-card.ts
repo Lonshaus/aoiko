@@ -17,7 +17,7 @@ import type { CsvParser, ParsedTransaction } from './types';
 //           現地通貨額・通貨名称・換算レート
 // ヘッダー行直後に「,,【氏名 様】,,,,,」のカード会員行が挟まる（ご利用日が空）。
 // 日付は和式「YYYY年M月D日」。ご利用日が日付らしくない行は読み飛ばす。
-// クレジットのため全行 credit 側（未払金 増加）。
+// クレジットのため全行貸方側（未払金の増加）。
 
 const DISPLAY = '三菱UFJカード';
 const REQUIRED = [
@@ -60,7 +60,7 @@ const mufgCardParser: CsvParser = {
           memo = `${c}回払い`;
         }
       }
-      // 返金・キャンセル行は負数 → 絶対値 + debit（未払金の減少）
+      // 返金・キャンセル行は負数 → 絶対値 + 借方（未払金の減少）
       const { amount, side } = applySign(stripComma(amountRaw), 'credit');
 
       const transaction: ParsedTransaction = {

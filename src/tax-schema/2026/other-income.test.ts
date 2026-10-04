@@ -131,7 +131,7 @@ describe('otherMiscIncome（その他雑所得＝収入−必要経費）', () =
     expect(otherMiscIncome(D(300_000), D(100_000)).toString()).toBe('200000');
   });
 
-  test('マイナスは0円に floor', () => {
+  test('マイナスは0円に切り上げる', () => {
     expect(otherMiscIncome(D(100_000), D(150_000)).toString()).toBe('0');
   });
 });
@@ -190,7 +190,7 @@ describe('totalWithholdingTax（源泉徴収税額の合計）', () => {
 });
 
 describe('otherIncomeAmount：miscExpensesOverride（措法27条の特例後経費を優先）', () => {
-  test('指定時は misc.otherExpenses ではなく override を使う', () => {
+  test('指定時は misc.otherExpenses ではなく上書き値を使う', () => {
     const r = otherIncomeAmount(
       2026,
       { miscIncome: { otherIncome: D(200_000), otherExpenses: D(50_000) } },

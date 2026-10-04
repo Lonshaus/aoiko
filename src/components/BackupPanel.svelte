@@ -113,7 +113,7 @@
                   ? m.backup_panel_status_error()
                   : m.backup_panel_status_ok(),
   );
-  // fsa（ブラウザの File System Access）と native（wrapper のネイティブ層）は
+  // fsa（ブラウザの File System Access）と native（ラッパーのネイティブ層）は
   // 利用者から見て同じ機能。表示も操作も分けない。
   const folderBased = $derived(backup.adapterKind === 'fsa' || backup.adapterKind === 'native');
   // 退避の注意書きを黙らせてよいのは、フォルダへの書き出しが現に動いているときだけ。

@@ -4,9 +4,9 @@
 // 経過措置：適格請求書なしの仕入は取引日に応じた控除率（80/70/50/30/0%）を適用。
 //
 // 仕訳分類：
-//   売上税額 = revenue category、taxRate > 0。credit がプラス、debit（売上値引・返品）はマイナス
-//   仕入税額 = expense category（debit プラス / credit＝返金はマイナス）
-//            + asset category の debit 側（事業主貸 1610 を除外）、taxRate > 0
+//   売上税額 = revenue category、taxRate > 0。貸方がプラス、借方（売上値引・返品）はマイナス
+//   仕入税額 = expense category（借方プラス / 貸方＝返金はマイナス）
+//            + asset category の借方側（事業主貸 1610 を除外）、taxRate > 0
 //
 // 各 ConsumptionTaxResult は 2 系統の数値を持つ：
 //   円単位（outputTax/inputTax/netTax 等）：方式比較用の概算。円未満切捨てのみ
@@ -21,7 +21,7 @@ import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/
 import type { Account, JournalLine, TaxFilingMethod } from '../db/types';
 
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
-// 国税分の率（消費税法 第 29 条 + 第 72 条）
+// 国税分の率（消費税法第 29 条・第 72 条）
 // 10% 標準：国税 7.8% + 地方 2.2%（地方は国税 × 22/78）
 // 8% 軽減：国税 6.24% + 地方 1.76%（地方は国税 × 22/78）
 
@@ -41,7 +41,7 @@ export interface ConsumptionTaxResult {
   outputTax: ConsumptionTaxBreakdown;
   /** 控除対象仕入税額（経過措置適用後） */
   inputTax: ConsumptionTaxBreakdown;
-  /** 経過措置適用前の総仕入税額（本則のみ参考、簡易・特例では output × みなし or 80/70% と同じ値） */
+  /** 経過措置適用前の総仕入税額（本則のみ参考、簡易・特例では output × みなし仕入率または 80/70% と同じ値） */
   inputTaxRaw: ConsumptionTaxBreakdown;
   /** 納付税額（負なら還付、本則のみありうる） */
   netTax: ConsumptionTaxBreakdown;
@@ -50,7 +50,7 @@ export interface ConsumptionTaxResult {
   /** 申告書相当額（課税標準額の千円未満切捨て・税額の1円未満切捨て・差引/地方税額の百円未満切捨てを模した概算） */
   filingRounded: ConsumptionTaxBreakdown;
 }
-// 取引金額（税込 or 税抜）から税抜金額（課税標準額の基礎）を計算。
+// 取引金額（税込または税抜）から税抜金額（課税標準額の基礎）を計算。
 export function taxExcludedPortion(
   amount: Decimal,
   taxRate: number,
@@ -499,7 +499,7 @@ export async function processYear(
       }
       continue;
     }
-    // 売上：revenue は両建てネット（debit ＝ 売上値引・返品は課税標準から控除）
+    // 売上：revenue は両建てネット（借方＝売上値引・返品は課税標準から控除）
     if (acc.category === 'revenue') {
       if (line.taxRate === 0) {
         // 免税・非課税売上は税額こそ無いが、課税売上割合の算定基礎として集計する
@@ -577,8 +577,8 @@ export async function processYear(
     if (line.taxRate === 0) {
       continue;
     }
-    // 仕入：expense は両建てネット（credit ＝ 返金は仕入対価の返還）、
-    // asset は debit 側のみ（事業主貸を除外。credit 側は通常 決済行や資産譲渡で、仕入控除の対象外）
+    // 仕入：expense は両建てネット（貸方＝返金は仕入対価の返還）、
+    // asset は借方側のみ（事業主貸を除外。貸方側は通常は決済行や資産譲渡で、仕入控除の対象外）
     const isInput =
       acc.category === 'expense' ||
       (acc.category === 'asset' && line.side === 'debit' && acc.code !== OWNER_WITHDRAW_CODE);

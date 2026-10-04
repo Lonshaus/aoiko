@@ -1,4 +1,4 @@
-// aoiko 業務データ（PL）→ KOA110（収支内訳書 一般用・白色申告用）参照側
+// aoiko 業務データ（PL）→ KOA110（収支内訳書・一般用・白色申告用）の参照側
 // 直接値 leaf（gen:kingaku 等）への転記。
 //
 // KOA110 は KOA210 と同じく決算書の金額を要素テキストで直接保持する（leaf.idref 無し）。
@@ -73,7 +73,7 @@ const PAGE1 = PAGES.get('KOA110-1') ?? []; // 収入・経費
 function tagByJa(leaves: Leaf[], ja: string): string | undefined {
   return leaves.find((l) => l.ja === ja)?.tag;
 }
-// aoiko 勘定科目名 → KOA110 収支内訳書 行名 の差異吸収
+// aoiko 勘定科目名 → KOA110 収支内訳書の行名の差異吸収
 const EXPENSE_ALIAS: Record<string, string> = {
   期首商品棚卸高: '期首商品（製品）棚卸高',
   仕入: '仕入金額（製品製造原価）',
@@ -199,7 +199,7 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
   'old-declining-balance': '旧定率法',
   'lease-period-straight-line': 'リース期間定額法',
 };
-// 落選（要件外・cap 超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
+// 落選（要件外・上限超過）した少額特例資産は定額法／定率法に切替済みなので、決算書の方法欄は実際の方法を出す。
 function effectiveMethodLabel(
   asset: { depreciationMethod: DepreciationMethod; decliningBalanceElected?: boolean },
   status: SmallAssetStatus | undefined,

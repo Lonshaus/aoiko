@@ -5,13 +5,13 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/paypay-sample.csv', paypayParser.encoding);
 
 describe('paypayParser', () => {
-  test('metadata: クレジット運用前提で未払金(2120)', () => {
+  test('メタデータ：クレジット運用前提で未払金(2120)', () => {
     expect(paypayParser.name).toBe('paypay');
     expect(paypayParser.accountCode).toBe('2120');
     expect(paypayParser.encoding).toBe('utf-8');
   });
 
-  test('ポイント獲得入金は除外、支払いは credit、返金入金は debit で取込', () => {
+  test('ポイント獲得入金は除外、支払いは貸方、返金入金は借方で取込', () => {
     const r = paypayParser.parse(sample);
     expect(r).toHaveLength(3);
     expect(r[0]).toMatchObject({
@@ -27,7 +27,7 @@ describe('paypayParser', () => {
       description: 'コンビニ店',
       side: 'credit',
     });
-    // 返金入金は未払金の減少（debit）
+    // 返金入金は未払金の減少（借方）
     expect(r[2]).toMatchObject({
       date: '2026-03-31',
       amount: '3000',
@@ -43,7 +43,7 @@ describe('paypayParser', () => {
     expect(paypayParser.parse(csv)).toEqual([]);
   });
 
-  test('throws on unrecognized header', () => {
+  test('認識できないヘッダーは例外を投げる', () => {
     const csv = '"DATE","OUT","DEST"\n"2026/05/01","100","x"';
     expect(() => paypayParser.parse(csv)).toThrow(/CSV ヘッダー形式/);
   });

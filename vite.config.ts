@@ -90,7 +90,7 @@ function dropUnusedTesseractAssets() {
 // https://vite.dev/config/
 export default defineConfig(({ command }) => {
   // 手引きは 1 つの markdown を両方の配布形態で読む。片方にしか当てはまらない節は
-  // `<!-- only:… -->` で囲み、build 時にここで取り除く。表示時に隠すのではビルド成果物に文章が残り、
+  // `<!-- only:… -->` で囲み、ビルド時にここで取り除く。表示時に隠すのではビルド成果物に文章が残り、
   // console から呼び出せてしまう（購入画面を __NATIVE__ で畳んでいるのと同じ理由）。
   // dev server では印の検査だけ行い、原文のまま返す（開発用プレビューが実行時に畳む）。
   function stripDocsForBuild(platform: Platform) {
@@ -197,7 +197,7 @@ export default defineConfig(({ command }) => {
           // 除外しないと navigation として index.html が返り、router が知らない経路として
           // 404 画面になる（SW 導入後のみ起きるため、開発中は気付けない）。
           navigateFallbackDenylist: [/^\/api\//, /^\/THIRD_PARTY_LICENSES\.txt$/],
-          // .html / .css / .js / 画像 / フォント を precache
+          // .html / .css / .js / 画像 / フォントを precache
           globPatterns: ['**/*.{html,css,js,svg,png,ico,webmanifest,woff,woff2}'],
           // tesseract-wasm の worker・コア・日本語モデルは合計 6MB 超。OCR エンジンに
           // Tesseract を選んだ利用者だけが必要とするため precache から除外する

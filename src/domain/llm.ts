@@ -65,7 +65,7 @@ export function describeLlmError(e: unknown): string {
 // キー設定ミスと誤認させて利用者に無駄なデバッグをさせないための一次判定。
 //
 // 理由の粒度は環境によって違う。ブラウザの fetch は `Load failed` 程度しか返さないので
-// 助言のほうが役に立つが、wrapper 版は「許可されていない URL です」のように原因そのものを
+// 助言のほうが役に立つが、ラッパー版は「許可されていない URL です」のように原因そのものを
 // 返す。捨てると、解決しない助言だけを見せて延々と調べさせることになるため併記する。
 function connectionErrorMessage(fallback: string, cause?: unknown): string {
   if (isOffline()) {

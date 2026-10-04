@@ -43,7 +43,7 @@ afterEach(async () => {
 });
 
 describe('reverseImportBatch', () => {
-  test('reverses all entries from a batch', async () => {
+  test('バッチの仕訳をすべて訂正する', async () => {
     const result = await commitImport(KNOWN, [
       { transaction: tx({ description: 'a' }), counterpartAccountCode: '4110' },
       { transaction: tx({ description: 'b' }), counterpartAccountCode: '4110' },
@@ -58,7 +58,7 @@ describe('reverseImportBatch', () => {
     expect(reversedEntries).toHaveLength(3);
   });
 
-  test('counts already-reversed entries separately', async () => {
+  test('訂正済みの仕訳は別に数える', async () => {
     const result = await commitImport(KNOWN, [
       { transaction: tx(), counterpartAccountCode: '4110' },
       { transaction: tx(), counterpartAccountCode: '4110' },

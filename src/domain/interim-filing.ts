@@ -69,7 +69,7 @@ function exceeds(
 ): boolean {
   return priorYearNationalTax.times(months).greaterThan(D(limit).times(priorPeriodMonths));
 }
-// 消法42条1項・4項・6項：確定消費税額 ÷ 直前の課税期間の月数 の×1 が400万円超で年11回、×3 が100万円超で年3回、×6 が24万円超で年1回
+// 消法42条1項・4項・6項：確定消費税額 ÷ 直前の課税期間の月数の×1 が400万円超で年11回、×3 が100万円超で年3回、×6 が24万円超で年1回
 export function interimFilingObligation(
   year: number,
   priorYearNationalTax: Decimal,

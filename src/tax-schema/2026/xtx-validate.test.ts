@@ -1,11 +1,11 @@
-// 実 W3C XSD validation テスト。
+// 実 W3C XSD 検証テスト。
 // 生成した参照側（帳票個別部分）サブツリーを、国税庁公式 xsd
 // （docs/xtx-spec/shotoku/KOA0NN-0NN.xsd）へ非公式 include ラッパ経由で
 // xmllint --schema により検証する。
 //
-// xmllint（libxml2）が無い環境では skip（CI は libxml2-utils を導入し強制）。
+// xmllint（libxml2）が無い環境では省略（CI は libxml2-utils を導入し強制）。
 // 注：IT部 + 参照側を結合した IDREF 整合まで含む完全検証は ITdefinition.xsd の
-// 名前空間/型解決が intricate なため Sub E（実エンベロープ・e-Tax 実機）で扱う。
+// 名前空間/型解決が複雑なため Sub E（実エンベロープ・e-Tax 実機）で扱う。
 // 本テストは Sub C/D の mapping 誤りが集中する参照側の構造・型・FormAttribute を
 // 公式 xsd で担保する。
 /// <reference types="node" />
@@ -120,9 +120,9 @@ function validate(
 const hasXmllint = xmllintAvailable();
 const maybe = hasXmllint ? test : test.skip;
 
-describe('実 XSD validation（公式 xsd / xmllint）', () => {
+describe('実 XSD 検証（公式 xsd / xmllint）', () => {
   if (!hasXmllint) {
-    test('xmllint 不在のため skip（CI は libxml2-utils 導入で強制）', () => {
+    test('xmllint が無いため省略（CI は libxml2-utils 導入で強制）', () => {
       expect(hasXmllint).toBe(false);
     });
   }
@@ -515,7 +515,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('KOA110 第2頁 減価償却資産の明細（繰り返しブロック）が公式 xsd に適合する', () => {
+  maybe('KOA110 第2頁の減価償却資産の明細（繰り返しブロック）が公式 xsd に適合する', () => {
     const fixedAssets: FixedAsset[] = [
       {
         id: 'a1',
@@ -591,7 +591,7 @@ describe('実 XSD validation（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
-  maybe('KOA210 第3頁 減価償却費の計算（繰り返しブロック）が公式 xsd に適合する', () => {
+  maybe('KOA210 第3頁の減価償却費の計算（繰り返しブロック）が公式 xsd に適合する', () => {
     const fixedAssets: FixedAsset[] = [
       {
         id: 'a1',

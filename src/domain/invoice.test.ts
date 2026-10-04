@@ -13,6 +13,7 @@ import {
   voidInvoice,
 } from './invoice';
 import type { Invoice, InvoiceLineItem, Vendor } from '../db/types';
+import { setLocale } from '../paraglide/runtime';
 
 beforeEach(async () => {
   await db.delete();
@@ -121,6 +122,28 @@ describe('issueInvoice', () => {
     expect(arApEntry?.dueDate).toBe('2026-08-08');
   });
 
+  test('ArApEntry の摘要には取引先 ID ではなく取引先名を保存する', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({})];
+
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+
+    const arApEntry = await db.arApEntries.get(issued.arApEntryId!);
+    expect(arApEntry?.description).toBe(`${DEFAULT_INVOICE_PREFIX}-2026-0001（取引先A）`);
+    expect(arApEntry?.description).not.toContain(vendorId);
+  });
+
+  test('取引先が見つからなければ摘要は番号だけにする', async () => {
+    const draft = createDraftInvoice('invoice', 'missing-vendor', '2026-07-08');
+    draft.lineItems = [lineItem({})];
+
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+
+    const arApEntry = await db.arApEntries.get(issued.arApEntryId!);
+    expect(arApEntry?.description).toBe(`${DEFAULT_INVOICE_PREFIX}-2026-0001`);
+  });
+
   test('見積書発行は仕訳・ArApEntryを生成しない', async () => {
     const vendorId = await seedVendor();
     const draft = createDraftInvoice('quote', vendorId, '2026-07-08');
@@ -225,6 +248,21 @@ describe('voidInvoice', () => {
     await db.arApEntries.update(issued.arApEntryId!, { paidAmount: '500' });
 
     await expect(voidInvoice(issued.id)).rejects.toThrow(/入金記録/);
+  });
+
+  test('入金記録ありの拒否理由は表示言語に従う', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: '1', unitPrice: '1000', taxRate: 0.1 })];
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+    await db.arApEntries.update(issued.arApEntryId!, { paidAmount: '500' });
+
+    setLocale('en', { reload: false });
+    try {
+      await expect(voidInvoice(issued.id)).rejects.toThrow(/recorded payment/);
+    } finally {
+      setLocale('ja', { reload: false });
+    }
   });
 
   test('下書きは取消できない', async () => {

@@ -12,7 +12,7 @@ function fakeAdapter(response: unknown): LlmAdapter {
 }
 
 describe('buildOcrPrompt', () => {
-  test('requires JSON output with specific fields', () => {
+  test('特定の項目を持つ JSON 出力を求める', () => {
     const p = buildOcrPrompt();
     expect(p).toContain('date');
     expect(p).toContain('vendorName');
@@ -22,7 +22,7 @@ describe('buildOcrPrompt', () => {
 });
 
 describe('extractReceipt', () => {
-  test('parses well-formed response', async () => {
+  test('正しい形式の応答を解析する', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',
       vendorName: 'ローソン',
@@ -43,7 +43,7 @@ describe('extractReceipt', () => {
     expect(r.taxRate).toBe(0.1);
   });
 
-  test('sanitizes amounts with commas and yen marks', async () => {
+  test('カンマと円記号の付いた金額を整える', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',
       vendorName: '紀伊國屋',
@@ -54,7 +54,7 @@ describe('extractReceipt', () => {
     expect(r.totalAmount).toBe('2200');
   });
 
-  test('uses today when date is missing', async () => {
+  test('日付が無ければ今日を使う', async () => {
     const adapter = fakeAdapter({
       date: '',
       vendorName: 'X',
@@ -65,7 +65,7 @@ describe('extractReceipt', () => {
     expect(r.date).toBe(todayISO());
   });
 
-  test('uses today when date is not YYYY-MM-DD', async () => {
+  test('日付が YYYY-MM-DD でなければ今日を使う', async () => {
     const adapter = fakeAdapter({
       date: '2026年5月8日',
       vendorName: 'X',
@@ -76,7 +76,7 @@ describe('extractReceipt', () => {
     expect(r.date).toBe(todayISO());
   });
 
-  test('skips items with invalid amounts', async () => {
+  test('金額が不正な品目は飛ばす', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',
       vendorName: 'X',
@@ -92,7 +92,7 @@ describe('extractReceipt', () => {
     expect(r.items[0]?.description).toBe('正常');
   });
 
-  test('validates invoice number format', async () => {
+  test('登録番号の形式を検証する', async () => {
     const valid = fakeAdapter({
       date: '2026-05-08',
       vendorName: 'X',
@@ -114,7 +114,7 @@ describe('extractReceipt', () => {
     expect(r2.invoiceNumber).toBeUndefined();
   });
 
-  test('throws when totalAmount cannot be parsed', async () => {
+  test('totalAmount を解析できなければ例外を投げる', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',
       vendorName: 'X',
@@ -126,7 +126,7 @@ describe('extractReceipt', () => {
     );
   });
 
-  test('clamps taxRate to valid range', async () => {
+  test('taxRate を有効範囲に収める', async () => {
     const adapter = fakeAdapter({
       date: '2026-05-08',
       vendorName: 'X',

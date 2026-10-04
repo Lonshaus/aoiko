@@ -1,7 +1,7 @@
 # 11. Backup and restore
 <!-- only:browser -->
 
-File System Access API, OPFS, manual zip download / restore.
+File System Access API, OPFS, manual zip export / restore.
 <!-- /only -->
 <!-- only:native -->
 Pick a folder once, and it's written automatically from then on — plus how to do a manual export and restore.
@@ -50,11 +50,11 @@ Regular backup is **the user's responsibility**. "I'll back up when I remember" 
 |---|---|---|
 | **File System Access API (FSA)** | `showDirectoryPicker` | Chrome / Edge / Brave (Chromium) |
 | **OPFS (Origin Private File System)** | `navigator.storage.getDirectory` + `createWritable` | Firefox / Safari 26 and later |
-| **Manual zip download** | `<a download>` | All browsers |
+| **Manual zip export** | `<a download>` | All browsers |
 
-aoiko auto-falls back: FSA when available, otherwise OPFS, otherwise manual download only.
+aoiko auto-falls back: FSA when available, otherwise OPFS, otherwise manual export only.
 
-> **Safari below 26 and iOS do not support automatic backup.** They lack `createWritable`, the API required to write into OPFS, so the backup **"Status"** in Settings reads **"⚠ Not supported"**. Rely on manual zip download instead.
+> **Safari below 26 and iOS do not support automatic backup.** They lack `createWritable`, the API required to write into OPFS, so the backup **"Status"** in Settings reads **"⚠ Not supported"**. Rely on manual zip export instead.
 <!-- /only -->
 <!-- only:native -->
 ## 2. How backups work
@@ -64,7 +64,7 @@ There's no method to choose between. Pick a destination folder once, and everyth
 
 ## 3. Configure automatic backup (recommended)
 
-Settings → **"Backup"** section.
+**Settings > Backup** section.
 <!-- only:browser -->
 
 ### 3-1. Chromium (FSA supported)
@@ -97,20 +97,20 @@ From then on, on every entry add/edit, the ledger data is written automatically.
 
 ### 3-2. Firefox / Safari 26 and later (OPFS only)
 
-On non-FSA browsers, the only option is **OPFS**. OPFS is **a private storage managed internally by the browser** — you cannot inspect it from Finder or Explorer.
+On non-FSA browsers, the only option is **OPFS**. OPFS is **a private storage area managed internally by the browser** — you cannot inspect it from Finder or Explorer.
 
 OPFS backup:
 - Written automatically (same trigger as FSA — every entry update)
 - Browser site-data clear **wipes OPFS** along with IndexedDB
-- The "device/browser-independent" purpose of a backup is **not fulfilled**
+- It **does not protect against device or browser loss**, which is a backup's real purpose
 
-> OPFS users: strongly combine with **manual zip download**.
+> OPFS users: strongly combine with **manual zip export**.
 
 ### 3-3. Safari below 26 and iOS (manual only)
 
-Automatic backup does not run. The **"Status"** under Settings → "Backup" reads **"⚠ Not supported"** and offers no folder picker. Run [§ 4 Manual export](#4-manual-export) on a regular schedule.
+Automatic backup does not run. The **"Status"** under **Settings > Backup** reads **"⚠ Not supported"** and offers no folder picker. Run [§ 4 Manual export](#4-manual-export) on a regular schedule.
 
-If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, quarterly — and download manually every time.
+If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, quarterly — and export manually every time.
 <!-- /only -->
 <!-- only:browser -->
 
@@ -120,7 +120,7 @@ If you keep books on an iPhone / iPad, decide up front on a rhythm — monthly, 
 ### 3-2. Confirming last backup time
 <!-- /only -->
 
-The **"Last backup"** field in Settings → "Backup" shows the date and time of the most recent backup. If it's stale for long, supplement with a manual export.
+The **"Last backup"** field in **Settings > Backup** shows the date and time of the most recent backup. If it's stale for long, supplement with a manual export.
 <!-- only:browser -->
 
 ### 3-5. Deleting old backups and unused receipt photos
@@ -129,7 +129,7 @@ The **"Last backup"** field in Settings → "Backup" shows the date and time of 
 ### 3-3. Deleting old backups and unused receipt photos
 <!-- /only -->
 
-Settings → "Backup" section has two independent deletion settings with different targets.
+**Settings > Backup** section has two independent deletion settings with different targets.
 
 | Setting | What it deletes | Default |
 |---|---|---|
@@ -142,28 +142,26 @@ Settings → "Backup" section has two independent deletion settings with differe
 
 ## 4. Manual export
 
-Settings → **"Backup"** section → **"Export backup"**:
+**Settings > Backup > "Export backup"**:
 
-- All data (entries, sub-accounts, vendors, fixed assets, settings, receipt photos, etc.) bundled into one zip file
+- All data (entries, subaccounts, vendors, fixed assets, settings, receipt photos, etc.) bundled into one zip file
 <!-- only:browser -->
 - Saved to your browser's "Downloads" folder
 <!-- /only -->
 <!-- only:native -->
 - On desktop, a save dialog lets you choose the destination. On iPad/iPhone, it's saved inside the app's own storage area, retrievable from the Files app etc.
 <!-- /only -->
-- Filename like `aoiko-ledger-{date}.zip` (no time component, so repeated exports on the same day all share one name)
+- File name like `aoiko-ledger-{date}.zip` (no time component, so repeated exports on the same day all share one name)
 
-> **API keys and filer info are excluded by default**. Unless you turn on "Include API keys in backups" and "Include filer info", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
+> **API keys and filer info are excluded by default**. Unless you check "Include API keys in backups" and "Include filer info (user identification number, name, address, tax office)", no plaintext API key or personal info gets written out to a cloud-synced folder. Only enable these if you're deliberately carrying that data along too, e.g. when migrating to another device.
 
-Then:
+Keep this file in **several places** to be safe, for example by:
 
-- Copy to a separate physical storage (external SSD, USB)
-- Email it to yourself
-- Save in cloud storage
+- Copying it to a separate physical storage (external SSD, USB)
+- Emailing it to yourself
+- Saving it in cloud storage
 
-…to **diversify** storage locations is robust.
-
-> Manual download at **milestones** (month-end, quarter-end, year-end) on top of automatic backup gives extra safety.
+> Manual export at **milestones** (month-end, quarter-end, year-end) on top of automatic backup gives extra safety.
 
 ## 5. Restore from a backup
 
@@ -193,7 +191,7 @@ If a backup folder is already configured, click **"Restore from backup folder"**
 
 ### 5-3. Restore from a file
 
-1. Settings → **"Restore from backup"** section
+1. **Settings > Restore from backup** section
 2. **"Choose file"** to pick a zip (new format) or JSON (legacy format) — the format is auto-detected from the extension/content, so there's only one button
 3. A summary is shown:
    > version 1 · 12 tables · 5,432 rows
@@ -205,7 +203,7 @@ If a backup folder is already configured, click **"Restore from backup folder"**
    >
    > All current data will be deleted and fully replaced with the contents of the selected backup. This cannot be undone.
 6. **"Replace and restore"** to execute
-7. Success message → **"Reload"** to reload the app
+7. On success the app reloads itself automatically, and the Settings screen then shows the result, such as "Restored 12 tables / 5,432 rows." (plus a warning if any receipt photos had no image data). You do not need to reload manually
 
 ### 5-4. Cautions
 
@@ -216,7 +214,7 @@ If a backup folder is already configured, click **"Restore from backup folder"**
 
 ## 6. Delete all data (careful)
 
-Settings → "Data management" → **"Delete all data"**:
+**Settings > Data management > "Delete all data"**:
 
 - Physically deletes all IndexedDB data
 <!-- only:browser -->
@@ -254,13 +252,13 @@ Three layers:
 
 ## 8. Handing data off to your accountant
 
-Settings → **"Export for your accountant"** lets you export journal entries as CSV for handing off to your tax accountant (this is separate from the backup zip — the backup is for restoring aoiko itself; this is for importing into other accounting software).
+**Settings > Export for your accountant** lets you export journal entries as CSV for handing off to your tax accountant (this is separate from the backup zip — the backup is for restoring aoiko itself; this is for importing into other accounting software).
 
 | File | Format | Purpose |
 |---|---|---|
 | Yayoi-format CSV | Shift-JIS, CRLF, 25 columns | Readable by most Japanese accounting software (Yayoi, freee, Money Forward, etc.) via their "Yayoi format import" option |
 | Generic CSV | UTF-8, one row per journal line | Fallback for accounting software that doesn't support Yayoi format |
-| Correction (cancellation) history CSV | UTF-8 | List of correcting entries (original + reversal). The two main CSVs exclude correction pairs from totals, so use this if you need to see what was cancelled |
+| Reversal (cancellation) history CSV | UTF-8 | List of reversing entries (original + reversal). The two main CSVs exclude correction pairs from totals, so use this if you need to see what was canceled |
 
 The target year is whichever year is currently selected under "Basic info" in Settings.
 

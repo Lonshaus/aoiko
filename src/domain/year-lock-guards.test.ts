@@ -2,7 +2,7 @@
 //
 // 画面側には filedYearGuard の確認ダイアログがあるが、それは案内であって防壁ではない。
 // 画面を経ない経路（復元後の再実行、将来増える入口）から申告済み年度が書き換わると、
-// 電子帳簿保存法上まずいうえに気付く手段が無い。ここで守るのは domain 側の門。
+// 電子帳簿保存法上まずいうえに気付く手段が無い。ここで守るのはドメイン層側の門。
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { generateDisposalEntry } from './asset-disposal';
@@ -67,7 +67,7 @@ async function seedDisposedAsset(disposedDate: string): Promise<string> {
   return id;
 }
 
-describe('申告済み年度への書き込みは domain 側で止まる', () => {
+describe('申告済み年度への書き込みはドメイン層で止まる', () => {
   test('commitImport', async () => {
     const date = `${LOCKED}-05-01`;
     await expect(commitImport(importInfo(date), [importRow(date)])).rejects.toThrow(FiledYearError);

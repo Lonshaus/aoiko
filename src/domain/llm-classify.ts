@@ -11,7 +11,7 @@ export interface ClassifyInput {
 
 interface ClassifySuggestion {
   ref: string;
-  /** 提案された相手科目 code、信頼度が低い or 適合なしのとき null */
+  /** 提案された相手科目 code、信頼度が低いか適合なしのとき null */
   accountCode: string | null;
   confidence: 'high' | 'low' | 'none';
   reason?: string;

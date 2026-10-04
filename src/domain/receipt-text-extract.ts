@@ -4,7 +4,7 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 //
 // 設計方針：
 // - 自動入力は確実なものだけ。怪しい時は欄を空にして利用者に委ねる
-//   （vision LLM 経路の `parseOcrResponse` が throw する条件でも、本関数は throw しない）
+//   （vision LLM 経路の `parseOcrResponse` が例外を投げる条件でも、本関数は投げない）
 // - 全文は notes に詰めてプレフィル。利用者が眼で見て補正できる
 // - 店名・品目は座標がある経路（extractFromOcrLayout）だけで取る。素のテキストでは
 //   当てずっぽうになる
@@ -12,7 +12,7 @@ import type { ReceiptExtracted, ReceiptItem } from './ocr';
 // 抽出対象：
 //   invoiceNumber : /T\d{13}/（適格請求書発行事業者登録番号、精度が高い）
 //                   T が落ちた場合のみ、同じ行に「登録番号」等がある 13 桁を補う
-//   date          : 西暦 YYYY[/-.年]M[...]D / 和暦 令和N年M月D日 を最初に見つけた行
+//   date          : 西暦 YYYY[/-.年]M[...]D / 和暦（令和N年M月D日）を最初に見つけた行
 //   totalAmount   : 「合計 / お買上げ / 総額 / ご請求」を含み、
 //                   「小計 / お預り / お釣り / 釣銭 / 現金 / ポイント / 還元」
 //                   を含まない行から金額 token を抽出

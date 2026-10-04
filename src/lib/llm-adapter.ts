@@ -55,7 +55,7 @@ export async function createLlmAdapter(purpose: LlmPurpose): Promise<LlmAdapter>
       return new ChromeAiAdapter(purpose);
     }
     case 'apple-ai':
-      // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由で build 時に畳む。
+      // receipt-extractor.ts の apple-ai OCR 分岐と同じ理由でビルド時に畳む。
       // __NATIVE__ を持たない側のビルド成果物にはラッパーも文言も残らない。
       if (__NATIVE__) {
         const { AppleAiAdapter } = await import('./apple-ai-adapter');

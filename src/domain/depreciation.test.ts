@@ -54,7 +54,7 @@ describe('straightLineRate（定額法償却率＝1/N の小数第3位未満切�
   });
 });
 
-describe('computeDepreciation - straight-line', () => {
+describe('computeDepreciation - 定額法', () => {
   test('全期間取得：年額 = 取得価額 × 定額法償却率', () => {
     // 300,000 円、4 年、1 月取得 → 300000 × 0.25 = 75,000
     const r = computeDepreciation(asset({ acquisitionDate: '2026-01-01' }), 2026);
@@ -154,7 +154,7 @@ describe('computeDepreciation - straight-line', () => {
   });
 });
 
-describe('computeDepreciation - declining-balance (200%)', () => {
+describe('computeDepreciation - 定率法（200%）', () => {
   test('耐用年数 5 年・1月取得・初年度', () => {
     const a = asset({
       acquisitionDate: '2026-01-01',
@@ -222,7 +222,7 @@ describe('computeDepreciation - declining-balance (200%)', () => {
     expect(r.amount).toBe('200000');
   });
 
-  test('未登録の耐用年数で throw', () => {
+  test('未登録の耐用年数で例外を投げる', () => {
     expect(() =>
       computeDepreciation(
         asset({ usefulLifeYears: 25, depreciationMethod: 'declining-balance' }),
@@ -338,7 +338,7 @@ describe('generateYearEndDepreciation', () => {
   });
 });
 
-describe('computeDepreciation - small-asset-special', () => {
+describe('computeDepreciation - 少額特例', () => {
   test('取得年度に全額損金、簿価 0', () => {
     const a = asset({
       acquisitionDate: '2026-04-01',
@@ -388,7 +388,7 @@ describe('computeDepreciation - small-asset-special', () => {
   });
 });
 
-describe('computeDepreciation - lump-sum（一括償却資産）', () => {
+describe('computeDepreciation - 一括償却資産', () => {
   test('3年均等償却・取得月按分なし', () => {
     const a = asset({
       acquisitionDate: '2026-12-15',
@@ -445,7 +445,7 @@ describe('computeDepreciation - lump-sum（一括償却資産）', () => {
   });
 });
 
-describe('generateYearEndDepreciation - small-asset-special', () => {
+describe('generateYearEndDepreciation - 少額特例', () => {
   test('適用要件外（取得価額が閾値以上）は smallAssetIneligible でカウント', async () => {
     // 2026-04-01 取得で 40 万以上 → 要件外
     await db.fixedAssets.add(
@@ -494,8 +494,8 @@ describe('generateYearEndDepreciation - small-asset-special', () => {
     expect(expense?.amount).toBe('250000');
   });
 
-  test('年合計 300 万円 cap：取得日昇順で打ち切り', async () => {
-    // 40 万 × 8 個 = 320 万、上限 300 万なので 7 個目までで 280 万、8 個目は cap 超過
+  test('年合計 300 万円の上限：取得日昇順で打ち切り', async () => {
+    // 40 万 × 8 個 = 320 万、上限 300 万なので 7 個目までで 280 万、8 個目は上限超過
     const acqs = [
       { id: 'a1', date: '2026-04-01', cost: '400000' },
       { id: 'a2', date: '2026-05-01', cost: '400000' },
@@ -507,7 +507,7 @@ describe('generateYearEndDepreciation - small-asset-special', () => {
       { id: 'a8', date: '2026-11-01', cost: '400000' },
     ];
     // 注意：40 万「未満」が閾値なので、400000 そのものは要件外。
-    // この test では「cap」の挙動を確認するため、閾値未満（399999）を使う。
+    // このテストでは上限の挙動を確認するため、閾値未満（399999）を使う。
     for (const a of acqs) {
       await db.fixedAssets.add(
         asset({
@@ -521,7 +521,7 @@ describe('generateYearEndDepreciation - small-asset-special', () => {
     }
     const r = await generateYearEndDepreciation(2026);
     // 399999 × 7 = 2,799,993（300 万以下）、+ 8 個目 → 3,199,992（300 万超）
-    // なので 7 個 created、1 個 cap 超過
+    // なので 7 個作成、1 個上限超過
     expect(r.created).toBe(8);
     expect(r.smallAssetCapExceeded).toBe(1);
   });
@@ -1101,7 +1101,7 @@ describe('リース期間定額法（所令120条の2第1項6号）', () => {
 });
 
 describe('少額特例の落選資産は通常償却へ切替', () => {
-  test('cap 超過資産は定額法で当年償却し、翌年も継続する', async () => {
+  test('上限超過資産は定額法で当年償却し、翌年も継続する', async () => {
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];
     for (const d of dates) {
       await db.fixedAssets.add(

@@ -5,7 +5,7 @@ import { readSample } from './fixtures/_read';
 const sample = readSample('src/parsers/fixtures/smbc-card-sample.csv', smbcCardParser.encoding);
 
 describe('smbcCardParser', () => {
-  test('metadata', () => {
+  test('メタデータ', () => {
     expect(smbcCardParser.name).toBe('smbc-card');
     expect(smbcCardParser.accountCode).toBe('2120');
     expect(smbcCardParser.encoding).toBe('shift_jis');
@@ -24,7 +24,7 @@ describe('smbcCardParser', () => {
     expect(r[1]).toMatchObject({ amount: '48000', memo: '３' });
   });
 
-  test('キャッシュバック等の負値は debit（未払金 減）', () => {
+  test('キャッシュバック等の負値は借方（未払金の減）', () => {
     const r = smbcCardParser.parse(sample);
     expect(r[2]).toMatchObject({
       description: 'キャッシュバック（ポイント交換）',
@@ -33,7 +33,7 @@ describe('smbcCardParser', () => {
     });
   });
 
-  test('利用金額欄のマイナス（取消行）は debit・絶対値', () => {
+  test('利用金額欄のマイナス（取消行）は借方・絶対値', () => {
     // 取消行は「ご利用金額」側に -1,110 で現れる。従来は符号を処理せず
     // amount が '-1110' のまま渡り、取込全体がロールバックしていた。
     const csv = '山田太郎,****-1234,一般\n2026/04/05,コンビニ店,"-1,110",1,,\n';
@@ -42,7 +42,7 @@ describe('smbcCardParser', () => {
     expect(r[0]).toMatchObject({ amount: '1110', side: 'debit' });
   });
 
-  test('▲ 表記のマイナスも debit・絶対値', () => {
+  test('▲ 表記のマイナスも借方・絶対値', () => {
     const csv = '山田太郎,****-1234,一般\n2026/04/06,ポイント充当,▲732,1,,\n';
     const r = smbcCardParser.parse(csv);
     expect(r[0]).toMatchObject({ amount: '732', side: 'debit' });
@@ -52,13 +52,13 @@ describe('smbcCardParser', () => {
     expect(smbcCardParser.parse(',,,,,100,\n,,,,,200,')).toEqual([]);
   });
 
-  test('先頭が日付の CSV（別形式・誤選択）は throw', () => {
+  test('先頭が日付の CSV（別形式・誤選択）は例外を投げる', () => {
     // 他行・他カードの「ヘッダー行ありで 1 行目から日付」形式を誤って選択した場合
     const wrong = '2026/04/01,スーパー,1000,1\n2026/04/02,カフェ,500,1';
     expect(() => smbcCardParser.parse(wrong)).toThrow(/CSV 形式と一致しません/);
   });
 
-  test('列数が不足するデータ行は throw', () => {
+  test('列数が不足するデータ行は例外を投げる', () => {
     // カード会員行のあと、4 列しかないデータ行（位置解釈不能）
     const tooFew = '山田太郎,****-1234,一般\n2026/04/01,店,1000,1';
     expect(() => smbcCardParser.parse(tooFew)).toThrow(/列数が不足/);

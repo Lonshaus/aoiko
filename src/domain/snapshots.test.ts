@@ -22,7 +22,7 @@ afterEach(async () => {
 });
 
 describe('markYearFiled', () => {
-  test('writes monthly-sales + pl snapshots', async () => {
+  test('monthly-sales と pl のスナップショットを書き込む', async () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
     const all = await db.reportSnapshots.toArray();
     expect(all).toHaveLength(2);
@@ -30,7 +30,7 @@ describe('markYearFiled', () => {
     expect(all.every((s) => s.year === 2026)).toBe(true);
   });
 
-  test('includes BS when provided', async () => {
+  test('渡されたときは BS も含める', async () => {
     const bs: ReportSnapshotData & { type: 'bs' } = {
       type: 'bs',
       data: { assets: [], liabilities: [], equity: [] },
@@ -41,7 +41,7 @@ describe('markYearFiled', () => {
   });
 });
 
-describe('consumption-tax snapshot（中間申告義務判定の基準）', () => {
+describe('consumption-tax スナップショット（中間申告義務判定の基準）', () => {
   test('markYearFiled に consumptionTax を渡すと記録され、getConsumptionTaxSnapshot で取得できる', async () => {
     const consumptionTax: ReportSnapshotData & { type: 'consumption-tax' } = {
       type: 'consumption-tax',
@@ -60,11 +60,11 @@ describe('consumption-tax snapshot（中間申告義務判定の基準）', () =
 });
 
 describe('isYearLocked', () => {
-  test('returns false when no snapshot filed', async () => {
+  test('申告済みのスナップショットが無ければ false を返す', async () => {
     expect(await isYearLocked(2026)).toBe(false);
   });
 
-  test('returns true after markYearFiled', async () => {
+  test('markYearFiled の後は true を返す', async () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
     expect(await isYearLocked(2026)).toBe(true);
     expect(await isYearLocked(2025)).toBe(false);

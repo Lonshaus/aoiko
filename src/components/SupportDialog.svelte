@@ -13,7 +13,7 @@
   let { open, onclose }: Props = $props();
   let dialog = $state<HTMLDialogElement | null>(null);
   let notice = $state('');
-  // 投げっぱなしにすると未捕捉の例外としてエラーバナーが点く。
+  // 投げっぱなしにすると未捕捉の例外としてエラーバナーが表示される。
   onMount(() => {
     void support.load().catch(() => {
       notice = m.support_purchase_failed();

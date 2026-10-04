@@ -24,7 +24,7 @@ describe('needsOffsiteBackupWarning', () => {
     expect(needsOffsiteBackupWarning('fsa', 'idle', null)).toBe(false);
     expect(needsOffsiteBackupWarning('fsa', 'writing', 999)).toBe(false);
   });
-  // ネイティブ層でフォルダを選ぶ wrapper 版。利用者から見て fsa と同じ機能なので、
+  // ネイティブ層でフォルダを選ぶラッパー版。利用者から見て fsa と同じ機能なので、
   // 同じ扱いにしないと 4 プラットフォームすべてで警告が出たままになる。
   test('ネイティブのフォルダ保存も警告しない', () => {
     expect(needsOffsiteBackupWarning('native', 'idle', null)).toBe(false);

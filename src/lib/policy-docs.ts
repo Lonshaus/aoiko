@@ -29,7 +29,7 @@ function parseFilename(path: string): { slug: string; locale: Locale } {
   }
   return { slug: base, locale: baseLocale };
 }
-// import.meta.glob の結果を slug → locale → 本文 のレジストリへ組み立てる。
+// import.meta.glob の結果を slug → locale → 本文のレジストリへ組み立てる。
 export function buildLocaleRegistry<K extends string = string>(
   modules: Record<string, string>,
 ): Map<K, Map<Locale, string>> {

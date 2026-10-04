@@ -32,7 +32,7 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
 }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
-  // 申告者情報（IT部 必須）が欠けると downloadXtx は lockError を出して中断する。ここは
+  // 申告者情報（IT部で必須）が欠けると downloadXtx は lockError を出して中断する。ここは
   // 検証対象（仕訳→数字）ではない前提設定なので、UI を通さず設定テーブルへ直接入れる。
   await page.evaluate(async () => {
     await new Promise<void>((resolve, reject) => {
@@ -58,7 +58,7 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
       req.onerror = () => reject(req.error);
     });
   });
-  // 売上 550,000（借方 現金／貸方 売上高）と 経費 消耗品費 11,000（借方 消耗品費／貸方 現金）。
+  // 売上 550,000（借方現金／貸方売上高）と経費の消耗品費 11,000（借方消耗品費／貸方現金）。
   // aoiko は税込経理で PL は仕訳金額をそのまま集計するため、.xtx 出力後の leaf は税抜換算されず
   // この金額がそのまま入る（xtx-mapping-koa020/210 の toKingaku は整数化のみ）。
   const today = new Date().toISOString().slice(0, 10);
@@ -96,9 +96,9 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
     return doc.getElementsByTagName('parsererror').length;
   }, xml);
   expect(parseErrorCount).toBe(0);
-  // 売上 550,000 が第一表（営業等 金額）と決算書 KOA210（売上（収入）金額）の leaf に入る。
+  // 売上 550,000 が第一表（営業等の金額）と決算書 KOA210（売上（収入）金額）の leaf に入る。
   expect(xml).toContain('>550000<');
-  // 経費 消耗品費 11,000 が KOA210 損益計算書の消耗品費 行に入る。
+  // 経費の消耗品費 11,000 が KOA210 損益計算書の消耗品費の行に入る。
   expect(xml).toContain('>11000<');
   // 文書構造の要：手続 RKO0010・申告書 KOA020 と青色決算書 KOA210 の併載。
   expect(xml).toContain('<procedure_CD>RKO0010</procedure_CD>');

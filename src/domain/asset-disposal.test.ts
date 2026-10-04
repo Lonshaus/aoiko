@@ -525,7 +525,7 @@ describe('売却資産の消費税（消令2条3項・消法28条1項）', () =>
     expect(lines.every((l) => l.taxableTransferConsideration === undefined)).toBe(true);
   });
 
-  test('非essentialな一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
+  test('essentialToBusiness でない一括償却資産の売却は雑収入行に課税対価（簡易課税で第四種）が付く', async () => {
     const { ACCOUNTS_2026 } = await import('../tax-schema/2026');
     const { buildYayoiCsvRows } = await import('./accountant-export');
     const { processYear } = await import('./consumption-tax');
@@ -556,8 +556,8 @@ describe('売却資産の消費税（消令2条3項・消法28条1項）', () =>
   });
 });
 
-describe('落選資産（8番目の資産）を2027年に売却する（domain レベル）', () => {
-  test('1520 debit は定額法の2026＋2027累計、estimateTransferIncome().acquisitionExpense も同じ帳簿価額', async () => {
+describe('落選資産（8番目の資産）を2027年に売却する（ドメイン層）', () => {
+  test('1520 の借方は定額法の2026＋2027累計、estimateTransferIncome().acquisitionExpense も同じ帳簿価額', async () => {
     const { generateYearEndDepreciation, smallAssetSpecialStatuses } =
       await import('./depreciation');
     const dates = ['04-01', '05-01', '06-01', '07-01', '08-01', '09-01', '10-01', '11-01'];

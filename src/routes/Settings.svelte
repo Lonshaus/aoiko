@@ -161,12 +161,12 @@
     windows: 'Windows',
   };
   // ストアを持つのはネイティブ版だけ。web には購入画面そのものを含めない。
-  // __NATIVE__ は build 時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
+  // __NATIVE__ はビルド時に畳まれる定数なので、web のビルドではこの分岐ごと消え、
   // 下の import も出力に入らない。実行時の判定だけだと、ブラウザの console で
   // window.__aoikoNative を生やせば画面を出せてしまう。
   // 橋渡しがあることと購入の実装があることは別なので、関数の有無まで見る。
   const canSupport = __NATIVE__ && typeof nativeBridge()?.purchaseIap === 'function';
-  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応 等）も
+  // OS 内蔵の AI が使えるかは端末ごとに違い、理由（オフ・DL 中・機種非対応等）も
   // onMount で実際に問うまで分からない。null は「まだ問えていない／理由を認識できない」で、
   // 選択肢そのものを畳んで隠す側に倒す。__NATIVE__ で畳むのは、web のビルド成果物に
   // この経路の文言・問い合わせを残さないため。
@@ -376,6 +376,15 @@
       title: m.settings_disposal_clear_confirm_title(),
       desc: m.settings_disposal_clear_confirm_desc({ name }),
       action: m.settings_asset_disposal_clear(),
+      run,
+    };
+    confirmingDelete = true;
+  }
+  function askReverseCarryover(name: string, run: () => Promise<void>) {
+    pendingConfirm = {
+      title: m.settings_carryover_delete_confirm_title(),
+      desc: m.settings_carryover_delete_confirm_desc({ name }),
+      action: m.settings_carryover_delete_button(),
       run,
     };
     confirmingDelete = true;
@@ -954,7 +963,7 @@
     }),
   );
   const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
-  // 少額特例の落選判定（cap 超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
+  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
   const smallAssetStatuses = $derived(
     smallAssetSpecialStatuses(
       ledger.fixedAssets,
@@ -2080,7 +2089,9 @@
       </button>
       <button
         type="button"
-        onclick={() => askDelete(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
+        data-testid="carryover-reverse-button"
+        onclick={() =>
+          askReverseCarryover(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
         class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
       >
         {m.settings_carryover_delete_button()}

@@ -1,4 +1,4 @@
-// 消費税 .xtx（SHA020・SHB070）の実 W3C XSD validation テスト。
+// 消費税 .xtx（SHA020・SHB070）の実 W3C XSD 検証テスト。
 // xtx-validate.test.ts と同じ手法（非公式 include ラッパ経由の xmllint）を、
 // docs/xtx-spec/shohi/ 配下の消費税様式に対して行う。
 /// <reference types="node" />
@@ -81,9 +81,9 @@ function validate(wrapper: string, frag: string): { ok: boolean; out: string } {
 const hasXmllint = xmllintAvailable();
 const maybe = hasXmllint ? test : test.skip;
 
-describe('消費税 .xtx 実 XSD validation（公式 xsd / xmllint）', () => {
+describe('消費税 .xtx 実 XSD 検証（公式 xsd / xmllint）', () => {
   if (!hasXmllint) {
-    test('xmllint 不在のため skip（CI は libxml2-utils 導入で強制）', () => {
+    test('xmllint が無いため省略（CI は libxml2-utils 導入で強制）', () => {
       expect(hasXmllint).toBe(false);
     });
   }

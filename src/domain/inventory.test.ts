@@ -102,7 +102,7 @@ describe('computeInventoryValuation', () => {
     expect(result.totalValue.toString()).toBe('7000');
   });
 
-  test('売上返品（借方 売上高）は在庫を戻す', async () => {
+  test('売上返品（借方売上高）は在庫を戻す', async () => {
     await addEntry({
       date: '2026-03-01',
       lines: [
@@ -130,7 +130,7 @@ describe('computeInventoryValuation', () => {
     expect(result.totalValue.toString()).toBe('8000');
   });
 
-  test('仕入返品（貸方 仕入）は在庫を減らし、直近仕入単価を上書きしない', async () => {
+  test('仕入返品（貸方仕入）は在庫を減らし、直近仕入単価を上書きしない', async () => {
     await addEntry({
       date: '2026-03-01',
       lines: [

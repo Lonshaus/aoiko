@@ -8,14 +8,14 @@ const sampleCsv = readSample(
 );
 
 describe('paypayCardParser', () => {
-  test('parser metadata', () => {
+  test('パーサーのメタデータ', () => {
     expect(paypayCardParser.name).toBe('paypay-card');
     expect(paypayCardParser.displayName).toBe('PayPayカード');
     expect(paypayCardParser.accountCode).toBe('2120');
     expect(paypayCardParser.encoding).toBe('utf-8');
   });
 
-  test('sample fixture parses to expected transactions', () => {
+  test('サンプルCSVが期待どおりの取引に変換される', () => {
     const result = paypayCardParser.parse(sampleCsv);
     expect(result).toHaveLength(4);
 
@@ -36,12 +36,12 @@ describe('paypayCardParser', () => {
     });
   });
 
-  test('1回 / 本人* alone are not surfaced as memo', () => {
+  test('「1回」「本人*」だけならメモに出さない', () => {
     const result = paypayCardParser.parse(sampleCsv);
     expect(result[2]?.memo).toBeUndefined();
   });
 
-  test('キャンセル行（負数）は絶対値 + debit（未払金の減少）', () => {
+  test('キャンセル行（負数）は絶対値 + 借方（未払金の減少）', () => {
     const result = paypayCardParser.parse(sampleCsv);
     expect(result[3]).toMatchObject({
       date: '2026-02-12',
@@ -51,20 +51,20 @@ describe('paypayCardParser', () => {
     });
   });
 
-  test('handles CRLF line endings', () => {
+  test('CRLF の改行を扱える', () => {
     const withCrlf = sampleCsv.replace(/\n/g, '\r\n');
     const result = paypayCardParser.parse(withCrlf);
     expect(result).toHaveLength(4);
   });
 
-  test('strips thousand-separator commas from amounts', () => {
+  test('金額の桁区切りカンマを取り除く', () => {
     const csv =
       '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' + '"2026/05/01","テスト","1,234,567"';
     const result = paypayCardParser.parse(csv);
     expect(result[0]?.amount).toBe('1234567');
   });
 
-  test('skips rows with empty amount', () => {
+  test('金額が空の行は飛ばす', () => {
     const csv =
       '"利用日/キャンセル日","利用店名・商品名","利用金額"\n' +
       '"2026/05/01","空",""\n' +
@@ -74,17 +74,17 @@ describe('paypayCardParser', () => {
     expect(result[0]?.description).toBe('正常');
   });
 
-  test('throws on unrecognized header', () => {
+  test('認識できないヘッダーは例外を投げる', () => {
     const csv = '"DATE","SHOP","AMOUNT"\n"2026/05/01","x","100"';
     expect(() => paypayCardParser.parse(csv)).toThrow(/CSV ヘッダー形式と一致しません/);
   });
 
-  test('returns empty for header-only CSV', () => {
+  test('ヘッダーだけの CSV は空を返す', () => {
     const csv = '"利用日/キャンセル日","利用店名・商品名","利用金額"';
     expect(paypayCardParser.parse(csv)).toEqual([]);
   });
 
-  test('rawRow contains original header-keyed values', () => {
+  test('rawRow は元のヘッダー名をキーにした値を持つ', () => {
     const result = paypayCardParser.parse(sampleCsv);
     expect(result[0]?.rawRow['利用日/キャンセル日']).toBe('2026/1/31');
     expect(result[0]?.rawRow['利用店名・商品名']).toBe('ネットフリックス');

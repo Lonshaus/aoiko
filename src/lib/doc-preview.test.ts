@@ -9,11 +9,11 @@ afterEach(() => {
 });
 
 describe('readPreviewPlatform', () => {
-  test('未設定なら fallback を返す', () => {
+  test('未設定なら代替値を返す', () => {
     expect(readPreviewPlatform('browser')).toBe('browser');
   });
 
-  test('無効な値なら fallback を返す', () => {
+  test('無効な値なら代替値を返す', () => {
     localStorage.setItem('aoiko.devDocPreviewPlatform', 'not-a-platform');
     expect(readPreviewPlatform('browser')).toBe('browser');
   });
