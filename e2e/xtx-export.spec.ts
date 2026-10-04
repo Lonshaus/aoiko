@@ -5,7 +5,6 @@ import { acceptDisclaimer } from './helpers';
 // BS 欄の取り違え・リバースチャージの配線漏れ）は「unit は各自緑・繋ぐと壊れる」結合部分だったため、
 // 出力フロー全体を通して .xtx 出力後の値・ファイル名・文書構造を確かめる。
 // ドメイン計算そのものは Vitest（xtx.test.ts 等）で網羅済み。ここは統合のみ。
-
 // JournalEntryForm へ 1 仕訳を UI 操作で投入する（journal.spec.ts と同じ操作パターン）。
 async function addEntry(
   page: import('@playwright/test').Page,
@@ -33,7 +32,6 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
 }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
-
   // 申告者情報（IT部で必須）が欠けると downloadXtx は lockError を出して中断する。ここは
   // 検証対象（仕訳→数字）ではない前提設定なので、UI を通さず設定テーブルへ直接入れる。
   await page.evaluate(async () => {
@@ -60,7 +58,6 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
       req.onerror = () => reject(req.error);
     });
   });
-
   // 売上 550,000（借方現金／貸方売上高）と経費の消耗品費 11,000（借方消耗品費／貸方現金）。
   // aoiko は税込経理で PL は仕訳金額をそのまま集計するため、.xtx 出力後の leaf は税抜換算されず
   // この金額がそのまま入る（xtx-mapping-koa020/210 の toKingaku は整数化のみ）。
@@ -87,26 +84,22 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
   const downloadPromise = page.waitForEvent('download');
   await downloadButton.click();
   const download = await downloadPromise;
-
   // ファイル名の年は処理年度（既定＝今年 2026）と一致する（#169 exportYear のずれの回帰防止）。
   const processYear = new Date().getFullYear();
   expect(download.suggestedFilename()).toBe(`aoiko-${processYear}.xtx`);
 
   const path = await download.path();
   const xml = readFileSync(path, 'utf-8');
-
   // 整形式 XML（ブラウザの DOMParser で parsererror が出ない）。xtx.test.ts と同じ判定。
   const parseErrorCount = await page.evaluate((content) => {
     const doc = new DOMParser().parseFromString(content, 'text/xml');
     return doc.getElementsByTagName('parsererror').length;
   }, xml);
   expect(parseErrorCount).toBe(0);
-
   // 売上 550,000 が第一表（営業等の金額）と決算書 KOA210（売上（収入）金額）の leaf に入る。
   expect(xml).toContain('>550000<');
   // 経費の消耗品費 11,000 が KOA210 損益計算書の消耗品費の行に入る。
   expect(xml).toContain('>11000<');
-
   // 文書構造の要：手続 RKO0010・申告書 KOA020 と青色決算書 KOA210 の併載。
   expect(xml).toContain('<procedure_CD>RKO0010</procedure_CD>');
   expect(xml).toMatch(/<KOA020 VR="23\.0"/);

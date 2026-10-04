@@ -60,7 +60,6 @@ function specialSalaryIncomeAmount(paidAmount: Decimal): Decimal | undefined {
   }
   return D(1_456_000);
 }
-
 // lastPaymentBeforeDecember：令和8年分のみ意味を持つ（附則13条2項）。最後の給与等の
 // 支払日が2026-12-01より前なら旧表、それ以外（未指定含む）は新表。
 export function salaryIncomeAmount(
@@ -106,7 +105,6 @@ export interface OtherIncomeInput {
   /** 事業所得側の源泉徴収税額（確定額を直接入力、取引単位の追跡は対象外） */
   otherWithholdingTax?: Decimal;
 }
-
 // miscExpensesOverride：措法27条（家内労働者等の特例）適用時の特例後の必要経費
 // （home-worker-expense.ts、呼出元は xtx-mapping-koa020.ts）。未指定なら通常どおり
 // misc.otherExpenses を使う。

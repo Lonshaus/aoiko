@@ -49,6 +49,6 @@ describe('ビルド成果物では開発用の文書プレビュー区画が出�
     instance = mount(Settings, { target: container, props: {} });
     await waitFor(() => container!.querySelector('select') !== null);
     await waitFor(() => container!.textContent!.includes(MOUNT_SENTINEL));
-    expect(container.textContent).not.toContain('開発用：文書のプレビュー対象');
+    expect(container.textContent).not.toContain('開発用：プレビュー対象');
   });
 });

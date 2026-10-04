@@ -1,0 +1,16 @@
+#!/bin/sh
+# Xcode 27 の SwiftPM 既定（swiftbuild）は成果物を別の場所へ置き、tauri-plugin-iap の build.rs が決め打ちしたリンク先が空になる
+self_dir=$(dirname "$0")
+PATH=$(printf '%s\n' "$PATH" | tr ':' '\n' | grep -Fvx "$self_dir" | paste -sd: -)
+export PATH
+if [ "$1" = build ]; then
+  case $(pwd -P) in
+    */tauri-plugin-iap*/macos)
+      if swift build --help 2>/dev/null | grep -Eq '^ +native +- '; then
+        shift
+        exec swift build --build-system native "$@"
+      fi
+      ;;
+  esac
+fi
+exec swift "$@"

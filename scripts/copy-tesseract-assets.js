@@ -51,7 +51,6 @@ function main() {
   // tesseract-wasm の loadModel は生の traineddata を読むためビルド時に展開しておく。
   writeFileSync(join(outDir, MODEL_FILE), gunzipSync(readFileSync(MODEL_GZ)));
 }
-
 // gen-third-party-licenses.js は ASSETS/MODEL_FILE だけを import で使いたいので、
 // 複製処理（node_modules 前提・書き込みを伴う）は直接起動されたときだけ走らせる。
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

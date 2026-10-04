@@ -20,7 +20,16 @@
   import { m } from '../paraglide/messages';
   import ScrollX from '../components/ScrollX.svelte';
   // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
-  const modKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
+  const uaModKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
+  const previewPlatform = __DOC_PREVIEW__
+    ? (globalThis as unknown as Record<string, unknown>)['__aoikoPreviewPlatform']
+    : undefined;
+  const modKey =
+    previewPlatform === 'windows'
+      ? 'Ctrl'
+      : previewPlatform === 'macos' || previewPlatform === 'ios'
+        ? 'Cmd'
+        : uaModKey;
 
   type ReviewItem = OrderItem & { accountCode: string; taxRate: number; rateTouched: boolean };
   const TAX_RATES = [0.1, 0.08];
