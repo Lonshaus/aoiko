@@ -447,5 +447,4 @@ class AoikoNativePlugin(private val activity: Activity) : Plugin(activity) {
             }
         }
     }
-
 }
