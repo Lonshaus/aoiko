@@ -256,7 +256,7 @@ aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参�
   synstructure@0.13.2  —  MIT
   system-configuration@0.7.0  —  MIT OR Apache-2.0
   system-configuration-sys@0.6.0  —  MIT OR Apache-2.0
-  tao@0.35.3  —  Apache-2.0
+  tao@0.35.3  —  Apache-2.0（aoiko 用に修正：src-tauri/patches/tao/MODIFICATIONS.md）
   tauri@2.11.5  —  Apache-2.0 OR MIT
   tauri-codegen@2.6.3  —  Apache-2.0 OR MIT
   tauri-macros@2.6.3  —  Apache-2.0 OR MIT
@@ -22006,6 +22006,7 @@ DEALINGS IN THE SOFTWARE.
 ──────────────────────────────────────────────────────────────────────────────
 
 対象：tao@0.35.3
+aoiko 用に修正したものを同梱しています。変更点は aoiko リポジトリの src-tauri/patches/tao/MODIFICATIONS.md を参照してください。
 
 Apache License
                            Version 2.0, January 2004

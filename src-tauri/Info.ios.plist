@@ -41,5 +41,23 @@
     <string>zh-Hant</string>
     <string>en</string>
   </array>
+  <!-- iOS 27 からシーン対応が必須。複数ウインドウは 2 枚目の中身が作られず真っ黒になるため無効にする。 -->
+  <key>UIApplicationSceneManifest</key>
+  <dict>
+    <key>UIApplicationSupportsMultipleScenes</key>
+    <false/>
+    <key>UISceneConfigurations</key>
+    <dict>
+      <key>UIWindowSceneSessionRoleApplication</key>
+      <array>
+        <dict>
+          <key>UISceneConfigurationName</key>
+          <string>Default</string>
+          <key>UISceneDelegateClassName</key>
+          <string>TaoSceneDelegate</string>
+        </dict>
+      </array>
+    </dict>
+  </dict>
 </dict>
 </plist>
