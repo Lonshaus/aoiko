@@ -6,12 +6,13 @@
 // 取得して和集合を取る。1 枚だけでは載せ漏れが出る。
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = join(root, 'src-tauri', 'Cargo.toml');
 const outPath = join(root, 'src-tauri', 'THIRD_PARTY_LICENSES_NATIVE.txt');
+const patchesDir = join(root, 'src-tauri', 'patches') + sep;
 
 const TARGETS = [
   'aarch64-apple-darwin',
@@ -162,6 +163,10 @@ function normalDepIds(metadata) {
   return included;
 }
 
+function isPatched(pkg) {
+  return pkg.source === null && pkg.manifest_path.startsWith(patchesDir);
+}
+
 function collectPackages() {
   const byId = new Map();
   for (const target of TARGETS) {
@@ -171,7 +176,8 @@ function collectPackages() {
     for (const id of included) {
       const pkg = pkgById.get(id);
       // ワークスペース内クレート（aoiko-desktop 自身・tauri-plugin-aoiko-native）は source が無い。
-      if (pkg === undefined || pkg.source === null) {
+      // patches/ 配下は第三者クレートの修正版で、配布物に入るので載せる。
+      if (pkg === undefined || (pkg.source === null && !isPatched(pkg))) {
         continue;
       }
       byId.set(id, pkg);
@@ -217,7 +223,10 @@ function render(packages) {
   ];
   lines.push('■ 一覧', '');
   for (const p of packages) {
-    lines.push(`  ${p.name}@${p.version}  —  ${p.license ?? '(不明)'}`);
+    const note = isPatched(p)
+      ? `（aoiko 用に修正：src-tauri/patches/${p.name}/MODIFICATIONS.md）`
+      : '';
+    lines.push(`  ${p.name}@${p.version}  —  ${p.license ?? '(不明)'}${note}`);
   }
   lines.push('');
 
@@ -231,8 +240,11 @@ function render(packages) {
     const texts = readLicenseTexts(p);
     if (texts.length > 0) {
       const key = texts.join('\n\0\n');
-      const entry = byText.get(key) ?? { packages: [], texts };
+      const entry = byText.get(key) ?? { packages: [], texts, patched: [] };
       entry.packages.push(`${p.name}@${p.version}`);
+      if (isPatched(p)) {
+        entry.patched.push(p.name);
+      }
       byText.set(key, entry);
       continue;
     }
@@ -247,7 +259,13 @@ function render(packages) {
   }
   for (const entry of byText.values()) {
     lines.push('─'.repeat(78), '');
-    lines.push(`対象：${entry.packages.join(', ')}`, '');
+    lines.push(`対象：${entry.packages.join(', ')}`);
+    for (const name of entry.patched) {
+      lines.push(
+        `aoiko 用に修正したものを同梱しています。変更点は aoiko リポジトリの src-tauri/patches/${name}/MODIFICATIONS.md を参照してください。`,
+      );
+    }
+    lines.push('');
     for (const text of entry.texts) {
       lines.push(text, '');
     }
