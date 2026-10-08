@@ -1798,7 +1798,7 @@
             type="date"
             bind:value={ctRegistrationStartDate}
             onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <div class="block">
@@ -1830,7 +1830,7 @@
             type="date"
             bind:value={ctInheritanceDate}
             onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <label class="block">
@@ -1841,7 +1841,7 @@
             type="date"
             bind:value={ctAdjustedFixedAssetDate}
             onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <div class="block">
@@ -1851,14 +1851,14 @@
               type="date"
               bind:value={ctShortenedFrom}
               onchange={saveConsumptionTax}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+              class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
             <span class="text-muted-foreground">〜</span>
             <input
               type="date"
               bind:value={ctShortenedTo}
               onchange={saveConsumptionTax}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+              class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
           </div>
         </div>
@@ -1891,7 +1891,7 @@
             type="date"
             bind:value={ctSimplifiedElectionFiledDate}
             onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
@@ -2425,7 +2425,7 @@
           bind:value={newAssetDate}
           required
           title={m.settings_asset_date_title()}
-          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
         <input
           type="number"
@@ -2543,7 +2543,7 @@
           <input
             type="date"
             bind:value={newAssetLeaseContractDate}
-            class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+            class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <input
@@ -2711,13 +2711,13 @@
                           type="date"
                           bind:value={propertyRentalStart}
                           title={m.settings_asset_property_rental_start_title()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                         />
                         <input
                           type="date"
                           bind:value={propertyRentalEnd}
                           title={m.settings_asset_property_rental_end_title()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                         />
                         <input
                           type="number"
@@ -2796,7 +2796,7 @@
                         <input
                           type="date"
                           bind:value={disposeDate}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
                         />
                         <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="scrap" />

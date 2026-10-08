@@ -363,7 +363,7 @@
           <input
             type="date"
             bind:value={editing.date}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         {#if editing.documentType === 'invoice'}
@@ -372,7 +372,7 @@
             <input
               type="date"
               bind:value={editing.dueDate}
-              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
           </label>
         {/if}
