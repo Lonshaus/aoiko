@@ -1621,7 +1621,7 @@
           type="date"
           bind:value={newArApDueDate}
           required
-          class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
+          class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
       </label>
       <label class="block">
@@ -1722,7 +1722,7 @@
           <input
             type="date"
             bind:value={cashFlowAsOfDate}
-            class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
+            class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <label class="block">
@@ -2016,12 +2016,14 @@
               {m.reports_wari_specified_small_asset_transfers_hint()}
             </p>
             {#each wariSpecifiedSmallAssetTransfers as transfer, i}
-              <div class="grid grid-cols-4 gap-1 items-end">
+              <div
+                class="grid grid-cols-[minmax(8.5rem,1fr)_auto_minmax(0,1fr)_auto] gap-1 items-end"
+              >
                 <input
                   type="date"
                   bind:value={transfer.date}
                   onchange={saveWariBaseAdjustments}
-                  class="border rounded px-2 py-1 text-sm"
+                  class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                 />
                 <select
                   bind:value={transfer.rate}

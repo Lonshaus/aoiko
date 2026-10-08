@@ -278,14 +278,14 @@
       <input
         type="date"
         bind:value={businessStartDate}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
       />
       <label class="block text-sm font-medium mt-4">
         {m.opening_business_close_date()}
         <input
           type="date"
           bind:value={businessCloseDate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
       </label>
     </section>
@@ -391,7 +391,7 @@
             type="date"
             bind:value={newAssetAcqDate}
             title={m.opening_converted_acq_date_title()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
           <input
             type="number"

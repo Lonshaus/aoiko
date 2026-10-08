@@ -410,7 +410,7 @@
         type="date"
         bind:value={date}
         required
-        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
       />
     </label>
     <label class="block sm:col-span-2">
