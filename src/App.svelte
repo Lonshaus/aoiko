@@ -147,7 +147,7 @@
         <a href="/" use:link class="shrink-0 hover:opacity-80">
           <img src={logoWordmark} alt={m.app_name()} class="h-9 w-auto" />
         </a>
-        <nav class="hidden md:flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
+        <nav class="hidden lg:flex flex-wrap justify-end gap-x-4 gap-y-1 text-sm">
           {#each NAV_ITEMS as item (item.href)}
             <a
               href={item.href}
@@ -159,7 +159,7 @@
         </nav>
         <button
           type="button"
-          class="md:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
+          class="lg:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
           aria-label={m.nav_menu()}
           aria-expanded={mobileNavOpen}
           onclick={() => (mobileNavOpen = !mobileNavOpen)}
@@ -183,7 +183,7 @@
         </button>
       </div>
       {#if mobileNavOpen}
-        <nav class="md:hidden border-t px-4 py-2 flex flex-col text-sm">
+        <nav class="lg:hidden border-t px-4 py-2 flex flex-col text-sm">
           {#each NAV_ITEMS as item (item.href)}
             <a
               href={item.href}
@@ -202,7 +202,7 @@
       type="button"
       tabindex="-1"
       aria-hidden="true"
-      class="md:hidden fixed inset-0 z-10"
+      class="lg:hidden fixed inset-0 z-10"
       onclick={() => (mobileNavOpen = false)}
     ></button>
   {/if}
