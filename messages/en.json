@@ -172,6 +172,7 @@
   "journal_usage_category_taxable_only": "Taxable-sales only",
   "journal_usage_category_common": "Common use",
   "journal_usage_category_non_taxable_only": "Non-taxable-sales only",
+  "journal_form_usage_category_label": "Usage category",
   "journal_form_add_debit": "+ Add debit",
   "journal_form_add_credit": "+ Add credit",
   "journal_form_diff": "Difference",

@@ -881,6 +881,8 @@
       <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
       <input
         type="number"
+        name="reportNen"
+        autocomplete="off"
         value={year}
         oninput={assignInputNumber((v) => (year = v))}
         min="2020"
@@ -1359,6 +1361,8 @@
           <span class="text-muted-foreground">{m.reports_trend_from()}</span>
           <input
             type="number"
+            name="trendStartNen"
+            autocomplete="off"
             value={trendStartYear}
             oninput={assignInputNumber((v) => (trendStartYear = v))}
             min="2020"
@@ -1371,6 +1375,8 @@
           <span class="text-muted-foreground">{m.reports_trend_to()}</span>
           <input
             type="number"
+            name="trendEndNen"
+            autocomplete="off"
             value={trendEndYear}
             oninput={assignInputNumber((v) => (trendEndYear = v))}
             min="2020"
@@ -1540,6 +1546,11 @@
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
+                  name="budget-revenue-{d.month}"
+                  autocomplete="off"
+                  aria-label="{m.journal_list_filter_month_label({
+                    m: d.month,
+                  })} {m.reports_budget_revenue_budget()}"
                   value={d.revenueBudget}
                   oninput={assignInputString((v) => (d.revenueBudget = v))}
                   min="0"
@@ -1559,6 +1570,11 @@
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
+                  name="budget-keihi-{d.month}"
+                  autocomplete="off"
+                  aria-label="{m.journal_list_filter_month_label({
+                    m: d.month,
+                  })} {m.reports_budget_expense_budget()}"
                   value={d.expenseBudget}
                   oninput={assignInputString((v) => (d.expenseBudget = v))}
                   min="0"
@@ -1599,6 +1615,7 @@
       <label class="block">
         <span class="text-muted-foreground">{m.reports_arap_type()}</span>
         <select
+          name="arapType"
           bind:value={newArApType}
           class="mt-1 h-8 px-2 bg-background border rounded text-foreground"
         >
@@ -1610,6 +1627,8 @@
         <span class="text-muted-foreground">{m.reports_arap_description()}</span>
         <input
           type="text"
+          name="arapDescription"
+          autocomplete="off"
           bind:value={newArApDescription}
           required
           class="mt-1 w-full h-8 px-2 bg-background border rounded text-foreground"
@@ -1619,6 +1638,8 @@
         <span class="text-muted-foreground">{m.reports_arap_due_date()}</span>
         <input
           type="date"
+          name="arapDueDate"
+          autocomplete="off"
           bind:value={newArApDueDate}
           required
           class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
@@ -1628,6 +1649,8 @@
         <span class="text-muted-foreground">{m.reports_arap_amount()}</span>
         <input
           type="number"
+          name="arapAmount"
+          autocomplete="off"
           value={newArApAmount}
           oninput={assignInputString((v) => (newArApAmount = v))}
           min="0"
@@ -1683,6 +1706,9 @@
                     <div class="flex gap-1 print:hidden">
                       <input
                         type="number"
+                        name="arap-payment-{e.id}"
+                        autocomplete="off"
+                        aria-label={m.reports_arap_payment_placeholder()}
                         value={paymentDrafts[e.id] ?? ''}
                         oninput={(ev) => {
                           paymentDrafts = {
@@ -1721,6 +1747,8 @@
           <span class="text-muted-foreground">{m.reports_cashflow_asof()}</span>
           <input
             type="date"
+            name="cashFlowAsOfDate"
+            autocomplete="off"
             bind:value={cashFlowAsOfDate}
             class="mt-1 h-8 px-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
@@ -1729,6 +1757,8 @@
           <span class="text-muted-foreground">{m.reports_cashflow_horizon()}</span>
           <input
             type="number"
+            name="cashFlowHorizon"
+            autocomplete="off"
             value={cashFlowHorizon}
             oninput={assignInputNumber((v) => (cashFlowHorizon = v))}
             min="1"
@@ -1964,6 +1994,8 @@
             {m.reports_interim_paid_national_label()}
             <input
               type="text"
+              name="interimPaidNational"
+              autocomplete="off"
               inputmode="numeric"
               bind:value={interimPaidNationalInput}
               placeholder="0"
@@ -1974,6 +2006,8 @@
             {m.reports_interim_paid_local_label()}
             <input
               type="text"
+              name="interimPaidLocal"
+              autocomplete="off"
               inputmode="numeric"
               bind:value={interimPaidLocalInput}
               placeholder="0"
@@ -1988,6 +2022,8 @@
               {m.reports_wari_sales_return_tax_78()}
               <input
                 type="text"
+                name="wariSalesReturnTax78"
+                autocomplete="off"
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax78Input}
                 onchange={saveWariBaseAdjustments}
@@ -1999,6 +2035,8 @@
               {m.reports_wari_sales_return_tax_624()}
               <input
                 type="text"
+                name="wariSalesReturnTax624"
+                autocomplete="off"
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax624Input}
                 onchange={saveWariBaseAdjustments}
@@ -2021,11 +2059,16 @@
               >
                 <input
                   type="date"
+                  name="wariTransfer-date-{i}"
+                  autocomplete="off"
+                  aria-label={m.reports_wari_specified_small_asset_transfers()}
                   bind:value={transfer.date}
                   onchange={saveWariBaseAdjustments}
                   class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                 />
                 <select
+                  name="wariTransfer-rate-{i}"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.order_th_tax_rate()}"
                   bind:value={transfer.rate}
                   onchange={saveWariBaseAdjustments}
                   class="border rounded px-2 py-1 text-sm"
@@ -2035,6 +2078,9 @@
                 </select>
                 <input
                   type="text"
+                  name="wariTransfer-netTax-{i}"
+                  autocomplete="off"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_arap_amount()}"
                   inputmode="numeric"
                   bind:value={transfer.netTax}
                   onchange={saveWariBaseAdjustments}
@@ -2110,6 +2156,8 @@
         {m.reports_interim_prior_year_label({ year: year - 1 })}
         <input
           type="text"
+          name="interimPriorNenAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={priorYearAmountInput}
           placeholder="0"
@@ -2120,6 +2168,8 @@
         {m.reports_interim_prior_period_months()}
         <input
           type="text"
+          name="interimPriorPeriodMonths"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={interimPriorPeriodMonthsInput}
           onchange={saveInterimPriorPeriodMonths}
@@ -2158,6 +2208,7 @@
           <label class="block text-xs text-muted-foreground">
             {m.reports_interim_period_select_label()}
             <select
+              name="interimInstallment"
               bind:value={selectedInstallmentIndex}
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             >
@@ -2252,6 +2303,7 @@
       <label class="block text-sm">
         <span class="text-xs text-muted-foreground">{m.reports_lock_filed_method_label()}</span>
         <select
+          name="lockMethod"
           bind:value={lockMethod}
           data-testid="lock-method-select"
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"

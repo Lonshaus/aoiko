@@ -172,6 +172,7 @@
   "journal_usage_category_taxable_only": "課稅銷售對應",
   "journal_usage_category_common": "共通對應",
   "journal_usage_category_non_taxable_only": "非課稅銷售對應",
+  "journal_form_usage_category_label": "用途區分",
   "journal_form_add_debit": "＋ 新增借方",
   "journal_form_add_credit": "＋ 新增貸方",
   "journal_form_diff": "差額",

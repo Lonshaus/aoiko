@@ -171,6 +171,7 @@
   "journal_usage_category_taxable_only": "課税売上対応",
   "journal_usage_category_common": "共通対応",
   "journal_usage_category_non_taxable_only": "非課税売上対応",
+  "journal_form_usage_category_label": "用途区分",
   "journal_form_add_debit": "＋ 借方を追加",
   "journal_form_add_credit": "＋ 貸方を追加",
   "journal_form_diff": "差額",

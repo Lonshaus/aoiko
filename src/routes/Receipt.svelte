@@ -437,6 +437,7 @@
       {#if receiptMethod === 'rule' && availableRuleEngines !== null && availableRuleEngines.length > 1}
         <select
           value={receiptRuleEngine}
+          name="receiptRuleEngine"
           onchange={(e) =>
             onRuleEngineChange((e.target as HTMLSelectElement).value as ReceiptRuleEngine)}
           aria-label={m.receipt_rule_engine_label()}
@@ -522,6 +523,8 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_date()}</span>
           <input
             type="date"
+            name="receiptDate"
+            autocomplete="off"
             bind:value={extracted.date}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
@@ -530,6 +533,8 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_vendor()}</span>
           <input
             type="text"
+            name="receiptVendorTitle"
+            autocomplete="off"
             bind:value={extracted.vendorName}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -538,6 +543,8 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_amount()}</span>
           <input
             type="number"
+            name="receiptTotalAmount"
+            autocomplete="off"
             value={extracted.totalAmount}
             oninput={(e) => {
               if (extracted) {
@@ -580,6 +587,7 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_counterpart()}</span>
           <select
             bind:value={counterpartAccount}
+            name="receiptCounterpartAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             {#each accountGroups as group (group.category)}
@@ -595,6 +603,7 @@
           <span class="text-xs text-muted-foreground">{m.receipt_label_known_account()}</span>
           <select
             bind:value={knownAccount}
+            name="receiptKnownAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             {#each accountGroups as group (group.category)}
