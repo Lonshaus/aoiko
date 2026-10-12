@@ -277,6 +277,9 @@
       <h3 class="text-lg font-semibold">{m.opening_start_date_title()}</h3>
       <input
         type="date"
+        name="jigyoStartDate"
+        autocomplete="off"
+        aria-label={m.opening_start_date_title()}
         bind:value={businessStartDate}
         class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
       />
@@ -284,6 +287,8 @@
         {m.opening_business_close_date()}
         <input
           type="date"
+          name="jigyoCloseDate"
+          autocomplete="off"
           bind:value={businessCloseDate}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
@@ -302,12 +307,18 @@
       >
         <input
           type="text"
+          name="openingKeihiTitle"
+          aria-label={m.opening_expense_name_placeholder()}
+          autocomplete="off"
           bind:value={expenseName}
           placeholder={m.opening_expense_name_placeholder()}
           class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground text-sm"
         />
         <input
           type="number"
+          name="openingKeihiAmount"
+          autocomplete="off"
+          aria-label={m.opening_amount_placeholder()}
           value={expenseAmount}
           oninput={assignInputString((v) => (expenseAmount = v))}
           min="0"
@@ -360,6 +371,9 @@
         {#if expenseAmortization === 'custom'}
           <input
             type="text"
+            name="openingKeihiCustomAmortization"
+            autocomplete="off"
+            aria-label={m.opening_expense_custom_amount()}
             inputmode="numeric"
             value={customAmortizationAmount}
             oninput={assignInputString((v) => (customAmortizationAmount = v))}
@@ -382,6 +396,9 @@
       >
         <input
           type="text"
+          name="convertedAssetTitle"
+          aria-label={m.settings_asset_name_placeholder()}
+          autocomplete="off"
           bind:value={newAssetName}
           placeholder={m.settings_asset_name_placeholder()}
           class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
@@ -389,12 +406,18 @@
         <div class="flex flex-wrap gap-2 items-center">
           <input
             type="date"
+            name="convertedAssetAcquisitionDate"
+            autocomplete="off"
+            aria-label={m.opening_converted_acq_date_title()}
             bind:value={newAssetAcqDate}
             title={m.opening_converted_acq_date_title()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
           <input
             type="number"
+            name="convertedAssetAcquisitionCost"
+            autocomplete="off"
+            aria-label={m.settings_asset_cost_placeholder()}
             value={newAssetCost}
             oninput={assignInputString((v) => (newAssetCost = v))}
             min="0"
@@ -404,6 +427,9 @@
           />
           <input
             type="number"
+            name="convertedAssetUsefulLife"
+            autocomplete="off"
+            aria-label={m.settings_asset_life_title()}
             value={newAssetLife}
             oninput={assignInputNumber((v) => (newAssetLife = v))}
             min="1"
@@ -414,6 +440,8 @@
           />
           <select
             bind:value={newAssetAccount}
+            name="convertedAssetAccount"
+            aria-label={m.settings_asset_account_title()}
             title={m.settings_asset_account_title()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           >
@@ -517,12 +545,17 @@
       >
         <input
           type="text"
+          name="customItemTitle"
+          aria-label={m.opening_custom_name_placeholder()}
+          autocomplete="off"
           bind:value={customName}
           placeholder={m.opening_custom_name_placeholder()}
           class="flex-1 min-w-32 px-3 py-2 bg-background border rounded text-foreground text-sm"
         />
         <select
           bind:value={customAccount}
+          name="customItemAccount"
+          aria-label={m.opening_custom_account_placeholder()}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="">{m.opening_custom_account_placeholder()}</option>
@@ -532,6 +565,8 @@
         </select>
         <select
           bind:value={customSide}
+          name="customItemSide"
+          aria-label={m.opening_custom_title()}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="debit">{m.opening_custom_side_debit()}</option>
@@ -539,6 +574,9 @@
         </select>
         <input
           type="number"
+          name="customItemAmount"
+          autocomplete="off"
+          aria-label={m.opening_amount_placeholder()}
           value={customAmount}
           oninput={assignInputString((v) => (customAmount = v))}
           min="0"

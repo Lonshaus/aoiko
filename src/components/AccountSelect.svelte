@@ -6,6 +6,8 @@
     value: string;
     groups: AccountGroup[];
     placeholder?: string;
+    name?: string;
+    ariaLabel?: string;
     disabled?: boolean;
     class?: string;
     onchange?: () => void;
@@ -15,6 +17,8 @@
     value = $bindable(),
     groups,
     placeholder,
+    name,
+    ariaLabel,
     disabled = false,
     class: className = '',
     onchange,
@@ -38,7 +42,16 @@
   }
 </script>
 
-<select bind:value {disabled} {onchange} onpointerdown={expand} onfocus={expand} class={className}>
+<select
+  bind:value
+  {name}
+  aria-label={ariaLabel}
+  {disabled}
+  {onchange}
+  onpointerdown={expand}
+  onfocus={expand}
+  class={className}
+>
   {#if expanded}
     {#if placeholder !== undefined}
       <option value="">{placeholder}</option>

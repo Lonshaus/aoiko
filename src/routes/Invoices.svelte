@@ -351,6 +351,7 @@
           <span class="text-xs text-muted-foreground">{m.invoices_form_vendor()}</span>
           <select
             bind:value={editing.vendorId}
+            name="invoiceVendor"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             {#each ledger.vendors as v (v.id)}
@@ -362,6 +363,8 @@
           <span class="text-xs text-muted-foreground">{m.invoices_form_date()}</span>
           <input
             type="date"
+            name="invoiceDate"
+            autocomplete="off"
             bind:value={editing.date}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
@@ -371,6 +374,8 @@
             <span class="text-xs text-muted-foreground">{m.invoices_form_due_date()}</span>
             <input
               type="date"
+              name="invoiceDueDate"
+              autocomplete="off"
               bind:value={editing.dueDate}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
@@ -384,12 +389,18 @@
           <div class="flex flex-wrap gap-2 items-center">
             <input
               type="text"
+              name="invoice-item-{item.id}-title"
+              aria-label={m.invoices_form_item_name()}
+              autocomplete="off"
               bind:value={item.name}
               placeholder={m.invoices_form_item_name()}
               class="flex-1 min-w-32 px-3 py-2 bg-background border rounded text-foreground"
             />
             <input
               type="text"
+              name="invoice-item-{item.id}-quantity"
+              autocomplete="off"
+              aria-label={m.invoices_form_item_quantity()}
               inputmode="decimal"
               bind:value={item.quantity}
               placeholder={m.invoices_form_item_quantity()}
@@ -397,6 +408,9 @@
             />
             <input
               type="text"
+              name="invoice-item-{item.id}-tanka"
+              autocomplete="off"
+              aria-label={m.invoices_form_item_unit_price()}
               inputmode="decimal"
               bind:value={item.unitPrice}
               placeholder={m.invoices_form_item_unit_price()}
@@ -404,6 +418,8 @@
             />
             <select
               bind:value={item.taxRate}
+              name="invoice-item-{item.id}-tax-rate"
+              aria-label={m.invoices_print_rate()}
               class="px-3 py-2 bg-background border rounded text-foreground"
             >
               <option value={0.1}>10%</option>
@@ -431,6 +447,8 @@
         <span class="text-xs text-muted-foreground">{m.invoices_form_memo()}</span>
         <textarea
           bind:value={editing.memo}
+          name="invoiceMemo"
+          autocomplete="off"
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           rows="2"></textarea>
       </label>
