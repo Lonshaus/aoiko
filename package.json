@@ -60,7 +60,7 @@
     "esbuild": "^0.28.1",
     "fake-indexeddb": "^6.2.5",
     "fast-xml-parser": "^5.11.2",
-    "happy-dom": "^20.14.5",
+    "happy-dom": "^21.0.0",
     "prettier": "^3.9.9",
     "prettier-plugin-svelte": "^4.1.1",
     "shadcn-svelte": "^1.7.0",
