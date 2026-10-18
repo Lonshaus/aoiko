@@ -63,6 +63,6 @@ windows = { version = "0.61", features = [
 rfd = { version = "0.16", features = ["common-controls-v6"], default-features = false }
 # Linux 向けには配らない。CI のテストを ubuntu で走らせるためだけの指定で、rfd の build script は
 # mac と Windows 以外だと backend 未選択で panic する（#90）。第三者ライセンス一覧は
-# cargo metadata --filter-platform を配布対象ごとに回して作るので、ここは載らない。
+# 配布対象ごとにリリースビルドと同じ feature で cargo tree を回して作るので、ここは載らない。
 [target.'cfg(target_os = "linux")'.dependencies]
 rfd = { version = "0.16", features = ["xdg-portal", "async-std"], default-features = false }
