@@ -13,6 +13,7 @@ import {
   tesseractCacheName,
   tesseractRuntimeCaching,
 } from './scripts/tesseract-cache';
+import { preloadDynamicMain } from './scripts/preload-dynamic-main.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
   version: string;
@@ -132,6 +133,7 @@ export default defineConfig(({ command }) => {
     plugins: [
       stripDocsForBuild(buildPlatform()),
       dropUnusedTesseractAssets(),
+      preloadDynamicMain(),
       tailwindcss(),
       paraglideVitePlugin({
         project: './project.inlang',
