@@ -12,9 +12,8 @@ use objc2::{
   runtime::{AnyClass as Class, AnyObject as Object, ClassBuilder as ClassDecl, Sel},
   ClassType, MainThreadMarker,
 };
-use objc2_foundation::NSString;
 use objc2_ui_kit::{
-  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration,
+  UIApplication, UISceneActivationRequestOptions, UISceneConfiguration, UISceneSession,
   UISceneSessionActivationRequest,
 };
 
@@ -630,16 +629,16 @@ pub fn create_delegate_class() {
     _: &Object,
     _: Sel,
     _application: id,
-    _connecting_scene_session: id,
+    connecting_scene_session: id,
     _options: id,
   ) -> id {
     unsafe {
       let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
-      let config = UISceneConfiguration::configurationWithName_sessionRole(
-        Some(&NSString::from_str("TaoScene")),
-        &NSString::from_str("UIWindowSceneSessionRoleApplication"),
-        mtm,
-      );
+      // Modified by Lonshaus for aoiko (2026-10-12): use the connecting session's role and no name, so UIKit
+      // picks the Info.plist configuration for that role instead of a missing "TaoScene" (tauri-apps/tao a3ff3f035).
+      let session: &UISceneSession = &*connecting_scene_session.cast();
+      let config =
+        UISceneConfiguration::configurationWithName_sessionRole(None, &session.role(), mtm);
 
       // Dynamically set the delegate class name
       config.setDelegateClass(Some(super::scene::TaoSceneDelegate::class()));
@@ -744,6 +743,10 @@ pub fn create_delegate_class() {
   .expect("Failed to declare class `AppDelegate`");
 
   unsafe {
+    // Modified by Lonshaus for aoiko (2026-10-12): register the scene delegate class before UIKit reads the
+    // scene manifest, which names it in UISceneDelegateClassName (tauri-apps/tao a3ff3f035).
+    let _ = super::scene::TaoSceneDelegate::class();
+
     decl.add_method(
       sel!(application:didFinishLaunchingWithOptions:),
       did_finish_launching as extern "C" fn(_, _, _, _) -> _,
