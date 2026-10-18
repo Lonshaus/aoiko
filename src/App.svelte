@@ -261,9 +261,10 @@
       {/snippet}
     </svelte:boundary>
   </main>
+  <!-- 余白を min-h-screen の内側に置き、画面より短いページにはスクロールを生まない -->
+  <UpdatePrompt />
 </div>
 
-<UpdatePrompt />
 <UnsavedChangesDialog />
 <FiledYearWarningDialog />
 
