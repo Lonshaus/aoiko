@@ -395,6 +395,8 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_year()}</span>
         <input
           type="number"
+          name="filterNen"
+          autocomplete="off"
           value={year}
           oninput={assignInputNumber((v) => (year = v))}
           onchange={onYearChange}
@@ -407,6 +409,7 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_month()}</span>
         <select
+          name="filterMonth"
           bind:value={month}
           onchange={onMonthChange}
           class="mt-1 px-3 h-11 bg-background border rounded text-foreground"
@@ -421,6 +424,8 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_description()}</span>
         <input
           type="text"
+          name="filterDescription"
+          autocomplete="off"
           bind:value={descInput}
           onkeydown={(e) => {
             if (e.key === 'Enter') {
@@ -437,6 +442,8 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_min()}</span>
         <input
           type="number"
+          name="filterAmountMin"
+          autocomplete="off"
           value={amountMinInput}
           oninput={(e) => {
             amountMinInput = (e.target as HTMLInputElement).value;
@@ -458,6 +465,8 @@
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_amount_max()}</span>
         <input
           type="number"
+          name="filterAmountMax"
+          autocomplete="off"
           value={amountMaxInput}
           oninput={(e) => {
             amountMaxInput = (e.target as HTMLInputElement).value;
@@ -478,6 +487,7 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.journal_list_filter_vendor()}</span>
         <select
+          name="filterVendor"
           bind:value={vendorIdQuery}
           onchange={onVendorChange}
           class="mt-1 px-3 h-11 bg-background border rounded text-foreground max-w-56"

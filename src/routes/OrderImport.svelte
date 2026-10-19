@@ -321,6 +321,8 @@
       <span class="text-xs text-muted-foreground">{m.order_step_paste()}</span>
       <textarea
         bind:value={pastedText}
+        name="orderPastedHonbun"
+        autocomplete="off"
         placeholder={m.order_paste_placeholder({ mod: modKey })}
         rows="10"
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono"
@@ -361,6 +363,8 @@
           <span class="text-xs text-muted-foreground">{m.order_label_date()}</span>
           <input
             type="date"
+            name="orderDate"
+            autocomplete="off"
             bind:value={extracted.date}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
@@ -369,6 +373,8 @@
           <span class="text-xs text-muted-foreground">{m.order_label_vendor()}</span>
           <input
             type="text"
+            name="orderVendorTitle"
+            autocomplete="off"
             bind:value={extracted.vendor}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -377,6 +383,8 @@
           <span class="text-xs text-muted-foreground">{m.order_label_order_number()}</span>
           <input
             type="text"
+            name="orderNumber"
+            autocomplete="off"
             bind:value={extracted.orderNumber}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
           />
@@ -385,6 +393,8 @@
           <span class="text-xs text-muted-foreground">{m.order_label_total()}</span>
           <input
             type="number"
+            name="orderTotalAmount"
+            autocomplete="off"
             value={extracted.totalAmount}
             oninput={(e) => {
               if (extracted) {
@@ -415,6 +425,9 @@
                 <td class="px-2 py-2">
                   <input
                     type="text"
+                    name="order-item-{i}-description"
+                    autocomplete="off"
+                    aria-label={m.order_th_description()}
                     bind:value={item.description}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground"
                   />
@@ -422,6 +435,9 @@
                 <td class="px-2 py-2">
                   <input
                     type="number"
+                    name="order-item-{i}-amount"
+                    autocomplete="off"
+                    aria-label={m.order_th_amount()}
                     value={item.amount}
                     oninput={(e) => {
                       item.amount = (e.target as HTMLInputElement).value;
@@ -433,6 +449,7 @@
                 <td class="px-2 py-2">
                   <select
                     value={effectiveRate(item)}
+                    name="order-item-{i}-tax-rate"
                     onchange={(e) => setRate(item, (e.target as HTMLSelectElement).value)}
                     aria-label={m.order_th_tax_rate()}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs"
@@ -446,6 +463,8 @@
                   <AccountSelect
                     bind:value={item.accountCode}
                     groups={accountGroups}
+                    name="order-item-{i}-account"
+                    ariaLabel={m.order_th_account()}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs"
                   />
                 </td>
@@ -478,6 +497,7 @@
           <span class="text-xs text-muted-foreground">{m.order_label_payment_account()}</span>
           <select
             bind:value={paymentAccount}
+            name="orderPaymentAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             {#each accountGroups as group (group.category)}
