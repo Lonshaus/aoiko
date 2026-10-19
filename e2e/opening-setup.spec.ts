@@ -31,6 +31,7 @@ test('開業費・転用資産を登録 → 仕訳一覧に反映される', asy
 
   await page.goto('/journal');
   await page.locator('input[type=number]').first().fill('2022');
+  await page.locator('input[type=number]').first().press('Tab');
   await page.locator('select').first().selectOption({ label: '全月' });
   await expect(page.getByText('開業費計上（開業設定）')).toBeVisible();
   await expect(page.getByText('開業時資産計上（開業設定）')).toBeVisible();
