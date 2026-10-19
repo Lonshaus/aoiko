@@ -539,6 +539,8 @@
       <span class="text-xs text-muted-foreground">{m.income_deductions_year_label()}</span>
       <input
         type="number"
+        name="deductionNen"
+        autocomplete="off"
         value={year}
         oninput={assignInputNumber((v) => (year = v))}
         min="2020"
@@ -581,6 +583,8 @@
           >
           <input
             type="text"
+            name="salaryPaidAmount"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={salaryPaidAmount}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -592,6 +596,8 @@
           >
           <input
             type="text"
+            name="salaryWithholdingTax"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={salaryWithholdingTax}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -612,6 +618,8 @@
         >
         <input
           type="text"
+          name="publicPensionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={publicPensionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -624,6 +632,8 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_income()}</span>
         <input
           type="text"
+          name="otherMiscIncomeAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherMiscIncomeAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -635,6 +645,8 @@
         >
         <input
           type="text"
+          name="otherMiscKeihi"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherMiscExpenses}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -646,6 +658,8 @@
         >
         <input
           type="text"
+          name="otherWithholdingTaxPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherWithholdingTaxPaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -657,6 +671,8 @@
         <span class="text-xs text-muted-foreground">{m.income_prior_prior_business_revenue()}</span>
         <input
           type="text"
+          name="priorPriorJigyoRevenue"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={priorPriorBusinessRevenue}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -668,6 +684,8 @@
         >
         <input
           type="text"
+          name="priorPriorFudosanRevenue"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={priorPriorRealEstateRevenue}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -699,6 +717,8 @@
         >
         <input
           type="text"
+          name="landLoanInterest"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={realEstateLandLoanInterest}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -722,24 +742,36 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanRent-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanRent-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanRent-{r.id}-property"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_rent_property()}
             bind:value={r.property}
             placeholder={m.income_deductions_real_estate_rent_property()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanRent-{r.id}-amount"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_amount()}
             inputmode="numeric"
             bind:value={r.amount}
             placeholder={m.income_deductions_real_estate_amount()}
@@ -748,6 +780,9 @@
           <div class="flex gap-2 items-center">
             <input
               type="text"
+              name="fudosanRent-{r.id}-deductibleAmount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_deductible_amount()}
               inputmode="numeric"
               bind:value={r.deductibleAmount}
               placeholder={m.income_deductions_real_estate_deductible_amount()}
@@ -780,18 +815,27 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-nenEndBalance"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_year_end_balance()}
             inputmode="numeric"
             bind:value={r.yearEndBalance}
             placeholder={m.income_deductions_real_estate_year_end_balance()}
@@ -799,6 +843,9 @@
           />
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-amount"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_amount()}
             inputmode="numeric"
             bind:value={r.amount}
             placeholder={m.income_deductions_real_estate_amount()}
@@ -807,6 +854,9 @@
           <div class="flex gap-2 items-center">
             <input
               type="text"
+              name="fudosanInterestPaid-{r.id}-deductibleAmount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_deductible_amount()}
               inputmode="numeric"
               bind:value={r.deductibleAmount}
               placeholder={m.income_deductions_real_estate_deductible_amount()}
@@ -839,18 +889,27 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanFee-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanFee-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanFee-{r.id}-amount"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_amount()}
             inputmode="numeric"
             bind:value={r.amount}
             placeholder={m.income_deductions_real_estate_amount()}
@@ -858,6 +917,9 @@
           />
           <input
             type="text"
+            name="fudosanFee-{r.id}-withholdingTax"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_withholding_tax()}
             inputmode="numeric"
             bind:value={r.withholdingTax}
             placeholder={m.income_deductions_real_estate_withholding_tax()}
@@ -866,6 +928,9 @@
           <div class="flex gap-2 items-center">
             <input
               type="text"
+              name="fudosanFee-{r.id}-deductibleAmount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_deductible_amount()}
               inputmode="numeric"
               bind:value={r.deductibleAmount}
               placeholder={m.income_deductions_real_estate_deductible_amount()}
@@ -896,6 +961,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_income()}</span>
           <input
             type="text"
+            name="spouseIncome"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={spouseIncome}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -905,6 +972,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_age()}</span>
           <input
             type="number"
+            name="spouseAge"
+            autocomplete="off"
             value={spouseAge}
             oninput={assignInputNumber((v) => (spouseAge = v))}
             min="0"
@@ -936,6 +1005,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_name()}</span>
           <input
             type="text"
+            name="dependent-{dep.id}-shimei"
+            autocomplete="off"
             bind:value={dep.name}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -944,6 +1015,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_age()}</span>
           <input
             type="number"
+            name="dependent-{dep.id}-age"
+            autocomplete="off"
             value={dep.age}
             oninput={assignInputNumber((v) => (dep.age = v))}
             min="0"
@@ -956,6 +1029,8 @@
           >
           <input
             type="text"
+            name="dependent-{dep.id}-totalIncome"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={dep.totalIncome}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1000,6 +1075,8 @@
           >
           <input
             type="text"
+            name="familyEmployee-{employee.id}-shimei"
+            autocomplete="off"
             bind:value={employee.name}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -1010,6 +1087,7 @@
           >
           <select
             bind:value={employee.relation}
+            name="familyEmployee-{employee.id}-relation"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             <option value="spouse">{m.income_deductions_family_employee_relation_spouse()}</option>
@@ -1022,6 +1100,8 @@
           >
           <input
             type="number"
+            name="familyEmployee-{employee.id}-age"
+            autocomplete="off"
             value={employee.age}
             oninput={assignInputNumber((v) => (employee.age = v))}
             min="0"
@@ -1035,6 +1115,8 @@
           >
           <input
             type="number"
+            name="familyEmployee-{employee.id}-monthsWorked"
+            autocomplete="off"
             value={employee.monthsWorked}
             oninput={assignInputNumber((v) => (employee.monthsWorked = v))}
             min="0"
@@ -1049,6 +1131,7 @@
             >
             <select
               bind:value={employee.incomeType}
+              name="familyEmployee-{employee.id}-incomeType"
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
               <option value="business"
@@ -1080,6 +1163,8 @@
         >
         <input
           type="text"
+          name="socialInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={socialInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1091,6 +1176,8 @@
         >
         <input
           type="text"
+          name="smallJigyoMutualAidPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={smallBusinessMutualAidPaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1102,6 +1189,8 @@
         >
         <input
           type="text"
+          name="lifeNewGeneral"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewGeneral}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1113,6 +1202,8 @@
         >
         <input
           type="text"
+          name="lifeOldGeneral"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeOldGeneral}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1124,6 +1215,8 @@
         >
         <input
           type="text"
+          name="lifeNewMedical"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewMedical}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1135,6 +1228,8 @@
         >
         <input
           type="text"
+          name="lifeNewPension"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewPension}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1146,6 +1241,8 @@
         >
         <input
           type="text"
+          name="lifeOldPension"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeOldPension}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1157,6 +1254,8 @@
         >
         <input
           type="text"
+          name="earthquakeInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={earthquakeInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1168,6 +1267,8 @@
         >
         <input
           type="text"
+          name="oldLongTermInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={oldLongTermInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1185,6 +1286,8 @@
         >
         <input
           type="text"
+          name="medicalKeihiPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={medicalExpensePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1196,6 +1299,8 @@
         >
         <input
           type="text"
+          name="medicalInsuranceReimbursement"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={medicalInsuranceReimbursement}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1205,6 +1310,8 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_donation_amount()}</span>
         <input
           type="text"
+          name="donationAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={donationAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1216,6 +1323,8 @@
         >
         <input
           type="text"
+          name="casualtyLossDeduction"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={casualtyLossDeduction}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1261,6 +1370,8 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_dividend_credit()}</span>
         <input
           type="text"
+          name="dividendDeductionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={dividendDeductionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1270,6 +1381,8 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_mortgage_credit()}</span>
         <input
           type="text"
+          name="mortgageDeductionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={mortgageDeductionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1281,6 +1394,8 @@
         >
         <input
           type="text"
+          name="politicalDonationCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={politicalDonationCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1292,6 +1407,8 @@
         >
         <input
           type="text"
+          name="housingRenovationCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={housingRenovationCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1302,6 +1419,8 @@
         >
         <input
           type="text"
+          name="foreignTaxCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={foreignTaxCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1311,6 +1430,8 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_tax_credit()}</span>
         <input
           type="text"
+          name="otherTaxCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherTaxCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1321,6 +1442,8 @@
         >
         <input
           type="text"
+          name="disasterExemptionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={disasterExemptionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"

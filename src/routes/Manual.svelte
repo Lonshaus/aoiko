@@ -110,6 +110,9 @@
     <div class="sticky top-8 space-y-3">
       <input
         type="search"
+        name="manualSearch"
+        autocomplete="off"
+        aria-label={m.manual_search()}
         bind:value={query}
         placeholder={m.manual_search()}
         class="w-full rounded-md border bg-background px-3 py-1.5 text-sm"
