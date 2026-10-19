@@ -90,7 +90,7 @@ jobs:
 
       - run: npm ci
       # 依存の追加・更新でライセンス一覧が古くなったまま配られるのを防ぐ。
-      # cargo metadata しか使わないので、対象プラットフォームの toolchain は要らない。
+      # cargo tree と cargo metadata しか使わない（ビルドはしない）ので、対象プラットフォームの toolchain は要らない。
       - run: npm run licenses:native:check
       # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
       - run: npm run test:init

@@ -60,8 +60,12 @@ describe('chromeAiAvailability', () => {
     });
     await chromeAiAvailability();
     expect(availability).toHaveBeenCalledTimes(1);
-    const options = availability.mock.calls[0]?.[0] as { expectedInputs?: { type: string }[] };
+    const options = availability.mock.calls[0]?.[0] as {
+      expectedInputs?: { type: string }[];
+      expectedOutputs?: { type: string; languages: string[] }[];
+    };
     expect(options.expectedInputs).toContainEqual({ type: 'image' });
+    expect(options.expectedOutputs).toEqual([{ type: 'text', languages: ['ja'] }]);
   });
 });
 
@@ -82,8 +86,12 @@ describe('createChromeAiSession', () => {
       create,
     });
     await createChromeAiSession();
-    const options = create.mock.calls[0]?.[0] as { expectedInputs?: { type: string }[] };
+    const options = create.mock.calls[0]?.[0] as {
+      expectedInputs?: { type: string }[];
+      expectedOutputs?: { type: string; languages: string[] }[];
+    };
     expect(options.expectedInputs).toContainEqual({ type: 'image' });
+    expect(options.expectedOutputs).toEqual([{ type: 'text', languages: ['ja'] }]);
   });
 
   test('available なら create() を1回呼ぶ', async () => {

@@ -56,17 +56,24 @@ function typeInto(el: HTMLInputElement, value: string) {
 function printedCells(c: HTMLElement): string[] {
   return Array.from(c.querySelectorAll('tbody td')).map((td) => td.textContent?.trim() ?? '');
 }
-// happy-dom には印刷が無く、印刷を押すと requestAnimationFrame の中で例外になる
-function stubPrint(): () => void {
+// happy-dom には印刷が無く、印刷を押すと requestAnimationFrame の中で例外になる。
+// 印刷画面が出た時点ではまだ呼ばれていないことがあり、先に戻すとテストの後で例外になるため、呼ばれたことを確かめてから戻す。
+function stubPrint(): { printed: () => boolean; restore: () => void } {
   const w = window as unknown as { print?: () => void };
   const original = w.print;
-  w.print = () => {};
-  return () => {
-    if (original === undefined) {
-      delete w.print;
-    } else {
-      w.print = original;
-    }
+  let printed = false;
+  w.print = () => {
+    printed = true;
+  };
+  return {
+    printed: () => printed,
+    restore: () => {
+      if (original === undefined) {
+        delete w.print;
+      } else {
+        w.print = original;
+      }
+    },
   };
 }
 
@@ -190,7 +197,7 @@ describe('Invoices: 数量・単価の入力', () => {
   });
 
   test('全角の単価で発行した請求書は、印刷画面で例外を投げず半角の値と ¥5,000 を出す', async () => {
-    const restorePrint = stubPrint();
+    const print = stubPrint();
     try {
       const c = container as HTMLElement;
       await openDraftEditor(c, { ...draft(), vendorId: 'v-1' });
@@ -206,13 +213,14 @@ describe('Invoices: 数量・単価の入力', () => {
       await waitFor(() => printedCells(c).length > 0);
       expect(printedCells(c)).toEqual(['保守作業', '1', '¥5,000', '10%']);
       expect(c.textContent).toContain('¥5,500');
+      await waitFor(print.printed);
     } finally {
-      restorePrint();
+      print.restore();
     }
   });
 
   test('以前のバージョンや復元したバックアップに全角のまま残る発行済みの明細も、一覧と印刷画面で値どおりに出る', async () => {
-    const restorePrint = stubPrint();
+    const print = stubPrint();
     try {
       const c = container as HTMLElement;
       await db.invoices.add({
@@ -232,8 +240,9 @@ describe('Invoices: 数量・単価の入力', () => {
 
       await waitFor(() => printedCells(c).length > 0);
       expect(printedCells(c)).toEqual(['保守作業', '１', '¥5,000', '10%']);
+      await waitFor(print.printed);
     } finally {
-      restorePrint();
+      print.restore();
     }
   });
 

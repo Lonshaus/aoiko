@@ -193,6 +193,7 @@
   "journal_list_filter_vendor_all": "すべて",
   "journal_list_filter_reset": "リセット",
   "journal_list_loading": "読み込み中…",
+  "journal_list_vendor_load_error": "取引先一覧の読み込みに失敗しました（{message}）",
   "journal_list_pagination": "{total} 件 — {current} / {pages} ページ",
   "journal_list_pagination_prev": "← 前",
   "journal_list_pagination_next": "次 →",

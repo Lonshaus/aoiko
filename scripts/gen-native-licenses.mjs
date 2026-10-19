@@ -1,7 +1,8 @@
 // 同梱している Rust クレートの著作権表示を 1 ファイルへ集める。理由・出力形式は
 // aoiko 本体の scripts/gen-third-party-licenses.js（JS 側の第三者ライセンス一覧）に揃えている。
 //
-// 一覧の取得元は `cargo metadata`。対象ごと（x64/arm64 を含む）にクレート集合が
+// 一覧は `cargo tree`（リリースビルドと同じ feature）で実際にコンパイルされるクレートを求め、
+// ライセンス・著作者などの情報は `cargo metadata` から引く。対象ごと（x64/arm64 を含む）にクレート集合が
 // 変わる（windows-sys 等がプラットフォーム限定依存のため）ので、配布対象の全プラットフォームで
 // 取得して和集合を取る。1 枚だけでは載せ漏れが出る。
 import { execFileSync } from 'node:child_process';
@@ -21,6 +22,9 @@ const TARGETS = [
   'x86_64-pc-windows-msvc',
   'aarch64-pc-windows-msvc',
 ];
+// macOS と iOS のリリースビルドのログで、cargo に実際に渡されていたパッケージと feature。
+const BUILD_PACKAGE = 'aoiko-desktop';
+const BUILD_FEATURES = 'tauri/custom-protocol';
 // ファイル名の揺れ（LICENSE / LICENSE-MIT / license-apache-2.0 / LICENSE_MIT / *.txt 等）を総当たりで拾う。
 const LICENSE_FILE = /^(licen[cs]e|copying)([-_.].*)?$/i;
 // MPL-2.0 は改変ファイルの再配布時のみソース開示義務を負う（§3.3）。crates.io からそのまま
@@ -139,28 +143,38 @@ function cargoMetadata(target) {
   );
   return JSON.parse(out.toString('utf8'));
 }
-// resolve.nodes を root から辿り、kind === null（通常依存）の辺だけを踏む。
-// dev は配布物に入らず、build はコンパイル時にしか動かず自身のコードはリンクされない。
-function normalDepIds(metadata) {
-  const nodes = new Map(metadata.resolve.nodes.map((n) => [n.id, n]));
-  const included = new Set();
-  const queue = [metadata.resolve.root];
-  while (queue.length > 0) {
-    const id = queue.pop();
-    const node = nodes.get(id);
-    if (node === undefined) {
-      continue;
-    }
-    for (const dep of node.deps) {
-      const isNormal = dep.dep_kinds.some((k) => k.kind === null);
-      if (!isNormal || included.has(dep.pkg)) {
-        continue;
-      }
-      included.add(dep.pkg);
-      queue.push(dep.pkg);
+// 実際にコンパイルされるクレートは cargo tree が決める（metadata の resolve は feature で
+// 絞られず、使われない optional 依存まで含む）。リリースビルドと同じ -p / --features で引く。
+function compiledCrates(target) {
+  const out = execFileSync(
+    'cargo',
+    [
+      'tree',
+      '--manifest-path',
+      manifestPath,
+      '-p',
+      BUILD_PACKAGE,
+      '--features',
+      BUILD_FEATURES,
+      '--target',
+      target,
+      '-e',
+      'normal',
+      '--prefix',
+      'none',
+      '--format',
+      '{p}',
+    ],
+    { maxBuffer: 1024 * 1024 * 256 },
+  );
+  const keys = new Set();
+  for (const line of out.toString('utf8').split('\n')) {
+    const m = line.match(/^(\S+) v(\S+)/);
+    if (m !== null) {
+      keys.add(`${m[1]}@${m[2]}`);
     }
   }
-  return included;
+  return keys;
 }
 
 function isPatched(pkg) {
@@ -171,16 +185,17 @@ function collectPackages() {
   const byId = new Map();
   for (const target of TARGETS) {
     const metadata = cargoMetadata(target);
-    const included = normalDepIds(metadata);
-    const pkgById = new Map(metadata.packages.map((p) => [p.id, p]));
-    for (const id of included) {
-      const pkg = pkgById.get(id);
-      // ワークスペース内クレート（aoiko-desktop 自身・tauri-plugin-aoiko-native）は source が無い。
-      // patches/ 配下は第三者クレートの修正版で、配布物に入るので載せる。
-      if (pkg === undefined || (pkg.source === null && !isPatched(pkg))) {
+    const compiled = compiledCrates(target);
+    for (const pkg of metadata.packages) {
+      if (!compiled.has(`${pkg.name}@${pkg.version}`)) {
         continue;
       }
-      byId.set(id, pkg);
+      // ワークスペース内クレート（aoiko-desktop 自身・tauri-plugin-aoiko-native）は source が無い。
+      // patches/ 配下は第三者クレートの修正版で、配布物に入るので載せる。
+      if (pkg.source === null && !isPatched(pkg)) {
+        continue;
+      }
+      byId.set(pkg.id, pkg);
     }
   }
   return [...byId.values()].sort(
@@ -212,13 +227,13 @@ function render(packages) {
   const lines = [
     'aoiko のネイティブ版（Windows / macOS / iPadOS / iOS）が配布物に含む第三者 Rust クレートと、その著作権表示',
     '',
-    'このファイルは scripts/gen-native-licenses.mjs が cargo metadata から生成しています。',
+    'このファイルは scripts/gen-native-licenses.mjs が cargo tree と cargo metadata から生成しています。',
     '直接編集せず、依存を変えたら再生成してください。',
     '',
-    `対象：配布物へリンクされる依存 ${packages.length} 件（macOS / iOS / Windows の通常依存の和集合）。`,
-    'dev-dependencies（テスト専用）と build-dependencies（ビルド時にしか動かず自身のコードは',
-    'リンクされない proc macro 等）は除く。',
-    'aoiko デスクトップ版自身のライセンスは同梱の LICENSE を参照してください。',
+    `対象：通常依存 ${packages.length} 件（リリースビルドの feature で、macOS / iOS / Windows ごとに求めた和集合）。`,
+    'proc macro とその依存のように、ビルド時にだけ動いて配布物には入らないものも含む。',
+    'dev-dependencies（テスト専用）と build-dependencies（build script だけが使う依存）は除く。',
+    'aoiko 自身のライセンスは同梱の LICENSE を参照してください。',
     '',
   ];
   lines.push('■ 一覧', '');
