@@ -212,6 +212,7 @@
   let restoreProgressTotal = $state(0);
   // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
   let restoreSection = $state<HTMLElement | null>(null);
+  let restoreApplyButton = $state<HTMLButtonElement | null>(null);
   let backupSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
@@ -1589,6 +1590,9 @@
           count: parsed.corruptAttachmentNames.length,
         });
       }
+      // 選択直後は確定ボタンが画面の下に隠れたままになるため、下端の safe area や下に重なるカードを避けて中央へ寄せる。
+      await tick();
+      restoreApplyButton?.scrollIntoView({ block: 'center' });
     } catch (err) {
       if (err instanceof BackupTooLargeError) {
         restoreError = m.common_file_too_large({
@@ -3815,6 +3819,7 @@
         </div>
       {/if}
       <button
+        bind:this={restoreApplyButton}
         type="button"
         onclick={() => (confirmingRestore = true)}
         class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"

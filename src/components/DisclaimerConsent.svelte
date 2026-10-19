@@ -25,7 +25,7 @@
 
 <!-- viewport-fit=cover なので inset-0 はセーフエリアまで覆う。避けないと端末のステータスバーに隠れる（#457） -->
 <div
-  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))]"
+  class="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 pt-[calc(1rem+env(safe-area-inset-top))] pr-[calc(1rem+env(safe-area-inset-right))] pb-[calc(1rem+env(safe-area-inset-bottom))] pl-[calc(1rem+env(safe-area-inset-left))]"
   role="dialog"
   aria-modal="true"
   aria-labelledby="disclaimer-title"
