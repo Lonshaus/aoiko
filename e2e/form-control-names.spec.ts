@@ -269,7 +269,7 @@ test('名前の無かった部品がアクセシブルネームを持つ', async
   await expect(page.getByRole('spinbutton', { name: '取得価額', exact: true })).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: '耐用年数', exact: true })).toBeVisible();
   await expect(page.getByRole('combobox', { name: '償却方法', exact: true })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: '自動分類ルール', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '照合方法', exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: '例：amazon', exact: true })).toBeVisible();
   await expect(page.getByRole('spinbutton', { name: '優先度', exact: true })).toBeVisible();
   await expect(
@@ -279,7 +279,7 @@ test('名前の無かった部品がアクセシブルネームを持つ', async
   await page.goto('/opening-setup');
   await expect(page.getByRole('textbox', { name: /^項目名（例：名刺作成）/ })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^名前（例：MacBook Pro）/ })).toBeVisible();
-  await expect(page.getByRole('combobox', { name: '自由項目', exact: true })).toBeVisible();
+  await expect(page.getByRole('combobox', { name: '借方・貸方の別', exact: true })).toBeVisible();
 
   await page.goto('/manual');
   await expect(page.getByRole('searchbox', { name: '検索…', exact: true })).toBeVisible();

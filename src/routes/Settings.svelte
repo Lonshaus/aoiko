@@ -2928,7 +2928,7 @@
                           type="date"
                           name="disposeDate"
                           autocomplete="off"
-                          aria-label={m.settings_asset_disposal_button()}
+                          aria-label={m.settings_asset_disposal_date()}
                           bind:value={disposeDate}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
                         />
@@ -3111,7 +3111,7 @@
       <select
         bind:value={newRuleMatchType}
         name="ruleMatchType"
-        aria-label={m.settings_rule_title()}
+        aria-label={m.settings_rule_match_type()}
         class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="description-includes">{m.settings_rule_match_includes()}</option>

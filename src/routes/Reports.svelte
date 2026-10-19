@@ -2061,7 +2061,7 @@
                   type="date"
                   name="wariTransfer-date-{i}"
                   autocomplete="off"
-                  aria-label={m.reports_wari_specified_small_asset_transfers()}
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.journal_th_date()}"
                   bind:value={transfer.date}
                   onchange={saveWariBaseAdjustments}
                   class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
@@ -2080,7 +2080,7 @@
                   type="text"
                   name="wariTransfer-netTax-{i}"
                   autocomplete="off"
-                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_arap_amount()}"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_consumption_tax_breakdown_national()}"
                   inputmode="numeric"
                   bind:value={transfer.netTax}
                   onchange={saveWariBaseAdjustments}

@@ -566,7 +566,7 @@
         <select
           bind:value={customSide}
           name="customItemSide"
-          aria-label={m.opening_custom_title()}
+          aria-label={m.opening_custom_side_label()}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="debit">{m.opening_custom_side_debit()}</option>
