@@ -6,6 +6,11 @@
   import { toISODateLocal, todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import {
+    isAmountInputInvalid,
+    normalizeAmountInput,
+    parseAmountInput,
+  } from '../lib/amount-input';
+  import {
     buildAll,
     buildMultiYearBS,
     buildMultiYearPL,
@@ -199,9 +204,16 @@
   // 予算管理。実績・予算差異は年度切替の $effect（下記）で読み込み、
   // 編集欄（budgetDrafts）はその結果が変わるたびに同期する。
   let budgetVsActual = $state<BudgetVsActualReport | null>(null);
-  let budgetDrafts = $state<Array<{ month: number; revenueBudget: string; expenseBudget: string }>>(
-    [],
-  );
+  // type="number" は読めない入力を value '' として渡すため（Firefox のカンマ等）、空欄と区別して誤りを示せるようにする
+  let budgetDrafts = $state<
+    Array<{
+      month: number;
+      revenueBudget: string;
+      expenseBudget: string;
+      revenueBadInput: boolean;
+      expenseBadInput: boolean;
+    }>
+  >([]);
   let budgetSaving = $state(false);
   let budgetSaved = $state(false);
   let lastBudgetDraftYear: number | null = null;
@@ -211,18 +223,35 @@
       month: m.month,
       revenueBudget: m.revenueBudget,
       expenseBudget: m.expenseBudget,
+      revenueBadInput: false,
+      expenseBadInput: false,
     }));
   }
 
+  function isNumberInputInvalid(value: string, badInput: boolean): boolean {
+    return badInput || isAmountInputInvalid(value);
+  }
+
   async function saveBudgets() {
+    // 一部の月だけ保存すると、どの月が保存されたか画面から分からなくなるため全体を止める
+    if (
+      budgetDrafts.some(
+        (d) =>
+          isNumberInputInvalid(d.revenueBudget, d.revenueBadInput) ||
+          isNumberInputInvalid(d.expenseBudget, d.expenseBadInput),
+      )
+    ) {
+      budgetSaved = false;
+      return;
+    }
     budgetSaving = true;
     try {
       for (const d of budgetDrafts) {
         await setBudget({
           year,
           month: d.month,
-          revenueBudget: d.revenueBudget || '0',
-          expenseBudget: d.expenseBudget || '0',
+          revenueBudget: normalizeAmountInput(d.revenueBudget) || '0',
+          expenseBudget: normalizeAmountInput(d.expenseBudget) || '0',
         });
       }
       budgetSaved = true;
@@ -242,6 +271,7 @@
   let newArApAmount = $state('');
   let arApError = $state('');
   let paymentDrafts = $state<Record<string, string>>({});
+  let paymentBadInput = $state<Record<string, boolean>>({});
   let cashFlowAsOfDate = $state(todayISO());
   let cashFlowHorizon = $state(6);
   let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
@@ -282,10 +312,14 @@
     }
   }
 
+  function isPaymentInvalid(id: string): boolean {
+    return isNumberInputInvalid(paymentDrafts[id] ?? '', paymentBadInput[id] === true);
+  }
+
   async function submitPayment(id: string) {
     arApError = '';
     const amount = paymentDrafts[id];
-    if (!amount) {
+    if (isPaymentInvalid(id) || !amount) {
       return;
     }
     try {
@@ -301,16 +335,24 @@
   }
 
   function safeDecimal(s: string) {
-    try {
-      return D(s || '0');
-    } catch {
-      return D(0);
-    }
+    return parseAmountInput(s) ?? D(0);
+  }
+  const interimPaidInvalid = $derived(
+    isAmountInputInvalid(interimPaidNationalInput) || isAmountInputInvalid(interimPaidLocalInput),
+  );
+
+  function parseMonths(s: string): number | undefined {
+    const t = s.normalize('NFKC').trim();
+    const n = Number(t);
+    return /^\d+$/.test(t) && n >= 1 && n <= 12 ? n : undefined;
   }
 
   function safeMonths(s: string): number {
-    const n = Number(s);
-    return Number.isInteger(n) && n >= 1 && n <= 12 ? n : 12;
+    return parseMonths(s) ?? 12;
+  }
+
+  function isMonthsInputInvalid(s: string): boolean {
+    return s.normalize('NFKC').trim() !== '' && parseMonths(s) === undefined;
   }
   const interimObligation = $derived(
     interimFilingObligation(
@@ -323,25 +365,56 @@
   // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
   const pending = new SvelteSet<string>();
   const focusValues = new Map<string, string>();
+  // 印が属する年分。年度が変わると欄は別の年分の値に置き換わるため、前の年分の印で離脱を止めない
+  let pendingYear: number | undefined;
   const unsavedToken = {};
   $effect(() => {
-    setUnsavedGuard(unsavedToken, pending.size > 0);
+    setUnsavedGuard(unsavedToken, pending.size > 0 && pendingYear === year);
     return () => clearUnsavedGuard(unsavedToken);
   });
+  function syncPendingYear() {
+    if (pendingYear !== year) {
+      pending.clear();
+      pendingYear = year;
+    }
+  }
   function trackFocus(key: string, el: HTMLInputElement) {
+    syncPendingYear();
     focusValues.set(key, el.value);
   }
   function trackInput(key: string, el: HTMLInputElement) {
+    syncPendingYear();
     if (focusValues.get(key) === el.value) {
       pending.delete(key);
     } else {
       pending.add(key);
     }
   }
+  function trackCheckedInput(key: string, el: HTMLInputElement, isInvalid: (s: string) => boolean) {
+    syncPendingYear();
+    // 読めない値はフォーカス時の文字列もまだ保存されていないため、その文字列に戻っても未保存のまま
+    if (isInvalid(el.value)) {
+      pending.add(key);
+    } else {
+      trackInput(key, el);
+    }
+  }
+  function trackAmountInput(key: string, el: HTMLInputElement) {
+    trackCheckedInput(key, el, isAmountInputInvalid);
+  }
   function commitPending(key: string, el: HTMLInputElement, save: () => Promise<void>) {
+    syncPendingYear();
     pending.delete(key);
     focusValues.set(key, el.value);
     return save();
+  }
+  function commitAmount(key: string, el: HTMLInputElement) {
+    const done = commitPending(key, el, saveWariBaseAdjustments);
+    // 読めない金額は0や未入力として扱われるため、保存済みにせず離脱時の確認を残す
+    if (isAmountInputInvalid(el.value)) {
+      pending.add(key);
+    }
+    return done;
   }
   function shiftRowKey(key: string, index: number): string | null {
     const hit = /^(date|netTax)-(\d+)$/.exec(key);
@@ -353,6 +426,22 @@
       return key;
     }
     return n === index ? null : `${hit[1]}-${n - 1}`;
+  }
+  function commitMonths(el: HTMLInputElement) {
+    syncPendingYear();
+    // 読めない月数は12として保存されてしまうため、保存せず離脱時の確認を残す
+    if (isMonthsInputInvalid(el.value)) {
+      pending.add('months');
+      return;
+    }
+    const done = commitPending('months', el, saveInterimPriorPeriodMonths);
+    const months = parseMonths(el.value);
+    if (months !== undefined) {
+      interimPriorPeriodMonthsInput = String(months);
+      // 欄は書き戻した半角の値になるため、入力した全角の文字列ではなくこの値を比較の基準にする
+      focusValues.set('months', interimPriorPeriodMonthsInput);
+    }
+    return done;
   }
   async function saveInterimPriorPeriodMonths() {
     const map = (await getSetting('interimPriorPeriodMonths')) ?? {};
@@ -377,13 +466,20 @@
       if (yr !== year) {
         return;
       }
-      priorYearAmountInput = snap?.netTaxNational ?? '';
+      const prior = snap?.netTaxNational;
+      // 還付の年分は確定消費税額が無く、中間申告の基準額は0になる
+      priorYearAmountInput = typeof prior === 'string' ? prior.replace(/^-\d+$/, '0') : '';
     });
     loadInterimPriorPeriodMonths(yr).then((months) => {
       if (yr !== year) {
         return;
       }
       interimPriorPeriodMonthsInput = String(months);
+      // 読込の値で欄を置き換えるため、印は捨て、フォーカス中の欄は読込値と比べる
+      pending.delete('months');
+      if (focusValues.has('months')) {
+        focusValues.set('months', interimPriorPeriodMonthsInput);
+      }
     });
     loadWariBaseAdjustments(yr).then((adj) => {
       if (yr !== year) {
@@ -396,21 +492,62 @@
         rate: t.rate,
         netTax: t.netTax.toString(),
       }));
+      const loaded = new Map([
+        ['wariSalesReturnTax78', wariSalesReturnTax78Input],
+        ['wariSalesReturnTax624', wariSalesReturnTax624Input],
+        ...wariSpecifiedSmallAssetTransfers.flatMap((t, i) => [
+          [`date-${i}`, t.date],
+          [`netTax-${i}`, t.netTax],
+        ]),
+      ] as [string, string][]);
+      for (const k of [...pending, ...focusValues.keys()]) {
+        if (k === 'months') {
+          continue;
+        }
+        pending.delete(k);
+        const v = loaded.get(k);
+        if (focusValues.has(k) && v !== undefined) {
+          focusValues.set(k, v);
+        } else {
+          focusValues.delete(k);
+        }
+      }
       wariAdjustments = adj;
     });
   });
   async function saveWariBaseAdjustments() {
+    wariSalesReturnTax78Input = normalizeAmountInput(wariSalesReturnTax78Input);
+    wariSalesReturnTax624Input = normalizeAmountInput(wariSalesReturnTax624Input);
+    for (const t of wariSpecifiedSmallAssetTransfers) {
+      t.netTax = normalizeAmountInput(t.netTax);
+    }
+    const input78 = wariSalesReturnTax78Input;
+    const input624 = wariSalesReturnTax624Input;
     // IndexedDB は $state の Proxy を複製できないため snapshot で素の値にして保存する
-    const stored: StoredWariBaseAdjustments = {
-      ...(wariSalesReturnTax78Input !== '' ? { salesReturnTax78: wariSalesReturnTax78Input } : {}),
-      ...(wariSalesReturnTax624Input !== ''
-        ? { salesReturnTax624: wariSalesReturnTax624Input }
-        : {}),
-      ...(wariSpecifiedSmallAssetTransfers.length > 0
-        ? { specifiedSmallAssetTransfers: $state.snapshot(wariSpecifiedSmallAssetTransfers) }
-        : {}),
-    };
+    const transfers = $state.snapshot(wariSpecifiedSmallAssetTransfers);
     const map = (await getSetting('wariBaseAdjustments')) ?? {};
+    const saved = map[year];
+    // 読めない値を書くと保存済みの値が消え、読込時も未設定か0になるため、読めない欄は保存済みの値を残す
+    const sales78 = isAmountInputInvalid(input78)
+      ? saved?.salesReturnTax78
+      : input78 !== ''
+        ? input78
+        : undefined;
+    const sales624 = isAmountInputInvalid(input624)
+      ? saved?.salesReturnTax624
+      : input624 !== ''
+        ? input624
+        : undefined;
+    const rows = transfers.some((t) => isAmountInputInvalid(t.netTax))
+      ? saved?.specifiedSmallAssetTransfers
+      : transfers.length > 0
+        ? transfers
+        : undefined;
+    const stored: StoredWariBaseAdjustments = {
+      ...(sales78 !== undefined ? { salesReturnTax78: sales78 } : {}),
+      ...(sales624 !== undefined ? { salesReturnTax624: sales624 } : {}),
+      ...(rows !== undefined ? { specifiedSmallAssetTransfers: rows } : {}),
+    };
     await setSetting('wariBaseAdjustments', { ...map, [year]: stored });
     wariAdjustments = await loadWariBaseAdjustments(year);
   }
@@ -424,6 +561,7 @@
     wariSpecifiedSmallAssetTransfers = wariSpecifiedSmallAssetTransfers.filter(
       (_, i) => i !== index,
     );
+    syncPendingYear();
     const keptPending = [...pending].map((k) => shiftRowKey(k, index));
     const keptFocus = [...focusValues].map(([k, v]) => [shiftRowKey(k, index), v] as const);
     pending.clear();
@@ -700,7 +838,7 @@
   // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
   async function loadFiler() {
     const filer = {
-      riyoshaId: (await getSetting('userRiyoshaId')) ?? '',
+      riyoshaId: ((await getSetting('userRiyoshaId')) ?? '').normalize('NFKC').trim(),
       name: (await getSetting('userFilerName')) ?? '',
       zip: (await getSetting('userFilerZip')) ?? '',
       address: (await getSetting('userFilerAddress')) ?? '',
@@ -795,6 +933,10 @@
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
     }
+    if (interimPaidInvalid) {
+      consumptionTaxXtxError = m.common_amount_invalid();
+      return;
+    }
     const { filer, missing } = await loadFiler();
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
@@ -825,6 +967,10 @@
   }
   // 簡易課税（単一事業区分。印の付いた行があれば+第四種の兼業）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
+    if (period === undefined && interimPaidInvalid) {
+      consumptionTaxXtxError = m.common_amount_invalid();
+      return;
+    }
     const { filer, missing } = await loadFiler();
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
@@ -858,6 +1004,10 @@
   }
   // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
   async function downloadGeneralXtx(period?: { start: string; end: string }) {
+    if (period === undefined && interimPaidInvalid) {
+      consumptionTaxXtxError = m.common_amount_invalid();
+      return;
+    }
     const { filer, missing } = await loadFiler();
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
@@ -1603,11 +1753,17 @@
                     m: d.month,
                   })} {m.reports_budget_revenue_budget()}"
                   value={d.revenueBudget}
-                  oninput={assignInputString((v) => (d.revenueBudget = v))}
+                  oninput={(ev) => {
+                    d.revenueBudget = ev.currentTarget.value;
+                    d.revenueBadInput = ev.currentTarget.validity.badInput;
+                  }}
                   min="0"
                   step="1"
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
                 />
+                {#if isNumberInputInvalid(d.revenueBudget, d.revenueBadInput)}
+                  <p class="text-xs text-destructive text-left">{m.common_amount_invalid()}</p>
+                {/if}
               </td>
               <td class="px-3 py-1 text-right tabular-nums"
                 >{formatJPY(actual?.revenueActual ?? '0')}</td
@@ -1627,11 +1783,17 @@
                     m: d.month,
                   })} {m.reports_budget_expense_budget()}"
                   value={d.expenseBudget}
-                  oninput={assignInputString((v) => (d.expenseBudget = v))}
+                  oninput={(ev) => {
+                    d.expenseBudget = ev.currentTarget.value;
+                    d.expenseBadInput = ev.currentTarget.validity.badInput;
+                  }}
                   min="0"
                   step="1"
                   class="w-28 px-2 py-1 bg-background border rounded text-foreground text-right tabular-nums"
                 />
+                {#if isNumberInputInvalid(d.expenseBudget, d.expenseBadInput)}
+                  <p class="text-xs text-destructive text-left">{m.common_amount_invalid()}</p>
+                {/if}
               </td>
               <td class="px-3 py-1 text-right tabular-nums"
                 >{formatJPY(actual?.expenseActual ?? '0')}</td
@@ -1764,7 +1926,11 @@
                         oninput={(ev) => {
                           paymentDrafts = {
                             ...paymentDrafts,
-                            [e.id]: (ev.target as HTMLInputElement).value,
+                            [e.id]: ev.currentTarget.value,
+                          };
+                          paymentBadInput = {
+                            ...paymentBadInput,
+                            [e.id]: ev.currentTarget.validity.badInput,
                           };
                         }}
                         min="0"
@@ -1780,6 +1946,9 @@
                         {m.reports_arap_record_payment()}
                       </button>
                     </div>
+                    {#if isPaymentInvalid(e.id)}
+                      <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
+                    {/if}
                   {/if}
                 </td>
               </tr>
@@ -2052,6 +2221,9 @@
               placeholder="0"
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             />
+            {#if isAmountInputInvalid(interimPaidNationalInput)}
+              <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+            {/if}
           </label>
           <label class="text-xs text-muted-foreground">
             {m.reports_interim_paid_local_label()}
@@ -2064,6 +2236,9 @@
               placeholder="0"
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             />
+            {#if isAmountInputInvalid(interimPaidLocalInput)}
+              <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+            {/if}
           </label>
         </div>
         <p class="text-xs text-muted-foreground">{m.reports_interim_paid_hint()}</p>
@@ -2078,12 +2253,14 @@
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax78Input}
                 onfocus={(e) => trackFocus('wariSalesReturnTax78', e.currentTarget)}
-                oninput={(e) => trackInput('wariSalesReturnTax78', e.currentTarget)}
-                onchange={(e) =>
-                  commitPending('wariSalesReturnTax78', e.currentTarget, saveWariBaseAdjustments)}
+                oninput={(e) => trackAmountInput('wariSalesReturnTax78', e.currentTarget)}
+                onchange={(e) => commitAmount('wariSalesReturnTax78', e.currentTarget)}
                 placeholder="0"
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
+              {#if isAmountInputInvalid(wariSalesReturnTax78Input)}
+                <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+              {/if}
             </label>
             <label class="text-xs text-muted-foreground">
               {m.reports_wari_sales_return_tax_624()}
@@ -2094,12 +2271,14 @@
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax624Input}
                 onfocus={(e) => trackFocus('wariSalesReturnTax624', e.currentTarget)}
-                oninput={(e) => trackInput('wariSalesReturnTax624', e.currentTarget)}
-                onchange={(e) =>
-                  commitPending('wariSalesReturnTax624', e.currentTarget, saveWariBaseAdjustments)}
+                oninput={(e) => trackAmountInput('wariSalesReturnTax624', e.currentTarget)}
+                onchange={(e) => commitAmount('wariSalesReturnTax624', e.currentTarget)}
                 placeholder="0"
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
+              {#if isAmountInputInvalid(wariSalesReturnTax624Input)}
+                <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+              {/if}
             </label>
           </div>
           <p class="text-xs text-muted-foreground">{m.reports_wari_sales_return_tax_hint()}</p>
@@ -2144,9 +2323,8 @@
                   inputmode="numeric"
                   bind:value={transfer.netTax}
                   onfocus={(e) => trackFocus(`netTax-${i}`, e.currentTarget)}
-                  oninput={(e) => trackInput(`netTax-${i}`, e.currentTarget)}
-                  onchange={(e) =>
-                    commitPending(`netTax-${i}`, e.currentTarget, saveWariBaseAdjustments)}
+                  oninput={(e) => trackAmountInput(`netTax-${i}`, e.currentTarget)}
+                  onchange={(e) => commitAmount(`netTax-${i}`, e.currentTarget)}
                   placeholder="0"
                   class="border rounded px-2 py-1 text-sm"
                 />
@@ -2157,6 +2335,9 @@
                 >
                   {m.income_deductions_dependent_remove()}
                 </button>
+                {#if isAmountInputInvalid(transfer.netTax)}
+                  <p class="col-span-full text-xs text-destructive">{m.common_amount_invalid()}</p>
+                {/if}
               </div>
             {/each}
             <button
@@ -2226,6 +2407,9 @@
           placeholder="0"
           class="mt-1 w-full border rounded px-2 py-1 text-sm"
         />
+        {#if isAmountInputInvalid(priorYearAmountInput)}
+          <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+        {/if}
       </label>
       <label class="block text-xs text-muted-foreground">
         {m.reports_interim_prior_period_months()}
@@ -2236,11 +2420,16 @@
           inputmode="numeric"
           bind:value={interimPriorPeriodMonthsInput}
           onfocus={(e) => trackFocus('months', e.currentTarget)}
-          oninput={(e) => trackInput('months', e.currentTarget)}
-          onchange={(e) => commitPending('months', e.currentTarget, saveInterimPriorPeriodMonths)}
+          oninput={(e) => trackCheckedInput('months', e.currentTarget, isMonthsInputInvalid)}
+          onchange={(e) => commitMonths(e.currentTarget)}
           placeholder="12"
           class="mt-1 w-full border rounded px-2 py-1 text-sm"
         />
+        {#if isMonthsInputInvalid(interimPriorPeriodMonthsInput)}
+          <span class="block text-xs text-destructive">
+            {m.reports_interim_prior_period_months_invalid()}
+          </span>
+        {/if}
       </label>
       {#if interimObligation.installmentCount === 0}
         <p class="text-sm text-muted-foreground">{m.reports_interim_no_obligation()}</p>

@@ -289,7 +289,7 @@ describe('buildXtx2026（issue #292: 不動産所得の入力欠落時の拒否�
   });
 });
 
-describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が例外を投げず 0 扱い）', () => {
+describe('personalDeductionsToCtx（issue #183: 空文字・空白は例外を投げず 0 扱い、全角数字は値として読む）', () => {
   function makeStored(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
     return {
       socialInsurancePaid: '',
@@ -314,11 +314,11 @@ describe('personalDeductionsToCtx（issue #183: 空文字・全角数字が例�
     };
   }
 
-  test('空文字・空白・全角数字を含む入力で例外を投げず 0 として扱われる', () => {
+  test('空文字・空白は例外を投げず 0 として扱われ、全角数字は値として読まれる', () => {
     const ctx = personalDeductionsToCtx(makeStored());
     expect(ctx.socialInsurancePaid.toString()).toBe('0');
     expect(ctx.smallBusinessMutualAidPaid.toString()).toBe('0');
-    expect(ctx.lifeInsurance.newGeneral?.toString()).toBe('0');
+    expect(ctx.lifeInsurance.newGeneral?.toString()).toBe('1234');
     expect(ctx.spouse?.totalIncome.toString()).toBe('0');
     expect(ctx.dependents[0]?.totalIncome.toString()).toBe('0');
     expect(ctx.salaryIncome?.paidAmount.toString()).toBe('0');
@@ -451,5 +451,200 @@ describe('personalDeductionsToCtx（前々年分収入・家内労働者等の�
     expect(ctx.priorPriorRealEstateRevenue).toBeUndefined();
     expect(ctx.homeWorker).toBeUndefined();
     expect(ctx.salaryIncome?.lastPaymentBeforeDecember).toBeUndefined();
+  });
+});
+
+describe('所得控除画面の金額（全角・カンマ・負の値）', () => {
+  function storedWith(
+    overrides: Partial<Omit<PersonalDeductionInput, 'year' | 'updatedAt'>>,
+  ): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
+    return {
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      ...overrides,
+    };
+  }
+
+  function realEstateRows(): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
+    return storedWith({
+      realEstateIncome: {
+        businessScale: true,
+        landLoanInterestAmount: '-5000',
+        rentPaid: [{ payeeName: '地主', amount: '５，０００', deductibleAmount: '-5000' }],
+        loanInterestPaid: [
+          {
+            payeeName: '銀行',
+            amount: '-5000',
+            deductibleAmount: '',
+            yearEndBalance: '１２３，４５６',
+          },
+        ],
+        professionalFeesPaid: [
+          {
+            payeeName: '税理士',
+            amount: ' 3,000 ',
+            withholdingTax: '－306',
+            deductibleAmount: 'abc',
+          },
+        ],
+      },
+    });
+  }
+
+  function realEstateCtx(filingType: 'blue' | 'white'): XtxContext {
+    const ctx = makeCtx();
+    ctx.filingType = filingType;
+    ctx.realEstatePl = {
+      year: 2026,
+      revenue: [
+        {
+          accountCode: '4210',
+          accountName: '賃貸料（不動産）',
+          category: 'revenue',
+          amount: '1000000',
+          displayOrder: 210,
+        },
+      ],
+      expense: [],
+      totalRevenue: '1000000',
+      totalExpense: '0',
+      netIncome: '1000000',
+      entryCount: 1,
+    };
+    ctx.personalDeductions = personalDeductionsToCtx(realEstateRows());
+    return ctx;
+  }
+
+  test('全角・カンマ付き・前後の空白付きの金額は値どおりに試算へ渡る', () => {
+    const ctx = personalDeductionsToCtx(
+      storedWith({
+        socialInsurancePaid: '５，０００',
+        spouse: { totalIncome: '　２０００　', age: 40 },
+        dependents: [{ id: '1', name: 'テスト 子', age: 20, totalIncome: '1,000' }],
+        miscIncome: { publicPensionAmount: '５，０００' },
+        realEstateIncome: { businessScale: false, landLoanInterestAmount: '１２，０００' },
+      }),
+    );
+    expect(ctx.socialInsurancePaid.toString()).toBe('5000');
+    expect(ctx.spouse?.totalIncome.toString()).toBe('2000');
+    expect(ctx.dependents[0]?.totalIncome.toString()).toBe('1000');
+    expect(ctx.miscIncome?.publicPensionAmount?.toString()).toBe('5000');
+    expect(ctx.realEstateIncome?.landLoanInterestAmount?.toString()).toBe('12000');
+  });
+
+  test('負の金額は 0 として試算へ渡る', () => {
+    const ctx = personalDeductionsToCtx(
+      storedWith({
+        smallBusinessMutualAidPaid: '-5000',
+        medicalExpensePaid: '－5000',
+        miscIncome: { otherIncome: '-1', otherExpenses: '0' },
+        realEstateIncome: { businessScale: false, landLoanInterestAmount: '-5000' },
+      }),
+    );
+    expect(ctx.smallBusinessMutualAidPaid.toString()).toBe('0');
+    expect(ctx.medicalExpensePaid.toString()).toBe('0');
+    expect(ctx.miscIncome?.otherIncome?.toString()).toBe('0');
+    expect(ctx.realEstateIncome?.landLoanInterestAmount?.toString()).toBe('0');
+  });
+
+  test('申告書 KOA020 に全角の金額が値どおりに載る', () => {
+    const ctx = makeCtx();
+    ctx.personalDeductions = personalDeductionsToCtx(
+      storedWith({ socialInsurancePaid: '５，０００' }),
+    );
+    expect(buildXtx2026(ctx)).toContain('<ABB00450>5000</ABB00450>');
+  });
+
+  test('申告書 KOA020 に負の金額は負のまま載らない', () => {
+    const ctx = makeCtx();
+    ctx.personalDeductions = personalDeductionsToCtx(storedWith({ socialInsurancePaid: '-5000' }));
+    expect(buildXtx2026(ctx)).not.toMatch(/<ABB00450>-/);
+  });
+
+  test('不動産所得の支払先明細は半角にそろい、負・読めない値は 0、空欄は空欄のまま渡る', () => {
+    const re = personalDeductionsToCtx(realEstateRows()).realEstateIncome;
+    expect(re?.rentPaid?.[0]).toEqual({ payeeName: '地主', amount: '5000', deductibleAmount: '0' });
+    expect(re?.loanInterestPaid?.[0]).toEqual({
+      payeeName: '銀行',
+      amount: '0',
+      deductibleAmount: '',
+      yearEndBalance: '123456',
+    });
+    expect(re?.professionalFeesPaid?.[0]).toEqual({
+      payeeName: '税理士',
+      amount: '3000',
+      withholdingTax: '0',
+      deductibleAmount: '0',
+    });
+  });
+
+  test('青色の不動産所得用 KOA220 に全角・カンマ付きの明細の金額が値どおりに載る', () => {
+    const x = buildXtx2026(realEstateCtx('blue'));
+    expect(x).toContain('<ANF01240>5000</ANF01240>');
+    expect(x).toContain('<ANF01300>123456</ANF01300>');
+    expect(x).toContain('<ANF01370>3000</ANF01370>');
+  });
+
+  test('青色の不動産所得用 KOA220 に負・読めない明細の金額は 0 で載り、負の値は載らない', () => {
+    const x = buildXtx2026(realEstateCtx('blue'));
+    expect(x).not.toMatch(/<ANF0\d{4}>-/);
+    expect(x).toContain('<ANF01250>0</ANF01250>');
+    expect(x).toContain('<ANF01310>0</ANF01310>');
+    expect(x).toContain('<ANF01390>0</ANF01390>');
+  });
+
+  test('白色の不動産所得用 KOA130 に全角・カンマ付きの明細の金額が値どおりに載る', () => {
+    const x = buildXtx2026(realEstateCtx('white'));
+    expect(x).toContain('<AKO00080>5000</AKO00080>');
+    expect(x).toContain('<AKL00040>123456</AKL00040>');
+    expect(x).toContain('<AKP00040>3000</AKP00040>');
+  });
+
+  test('白色の不動産所得用 KOA130 に負・読めない明細の金額は 0 で載り、負の値は載らない', () => {
+    const x = buildXtx2026(realEstateCtx('white'));
+    expect(x).not.toMatch(/<AK[A-Z]\d{5}>-/);
+    expect(x).toContain('<AKO00090>0</AKO00090>');
+    expect(x).toContain('<AKL00050>0</AKL00050>');
+    expect(x).toContain('<AKP00060>0</AKP00060>');
+  });
+
+  test('公的年金等が負・読めない値なら、未記入と同じ .xtx になり ABB01060 は出ない', () => {
+    const build = (miscIncome: PersonalDeductionInput['miscIncome']) => {
+      const ctx = makeCtx();
+      ctx.personalDeductions = personalDeductionsToCtx(
+        storedWith({ miscIncome: { ...miscIncome, otherIncome: '0', otherExpenses: '0' } }),
+      );
+      return buildXtx2026(ctx);
+    };
+    const blank = build({});
+    expect(blank).not.toContain('ABB01060');
+    for (const bad of ['-5000', 'abc', '5,000円']) {
+      expect(build({ publicPensionAmount: bad })).toBe(blank);
+    }
+    expect(build({ publicPensionAmount: '5,000' })).toContain('<ABB01060>5000</ABB01060>');
+  });
+
+  test('文字列以外の支払先明細の金額が保存されていても、試算用の変換は例外を投げない', () => {
+    const rentPaid = [{ payeeName: '地主', amount: 600000 as unknown as string }];
+    expect(() =>
+      personalDeductionsToCtx(
+        storedWith({
+          realEstateIncome: { businessScale: false, landLoanInterestAmount: '0', rentPaid },
+        }),
+      ),
+    ).not.toThrow();
   });
 });

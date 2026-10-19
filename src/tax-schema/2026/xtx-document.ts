@@ -238,12 +238,11 @@ function buildItPart(
       }
       continue;
     }
+    // 設定には全角のまま保存された番号も残っているため、出力の時点で半角に揃える
     if (name === 'NOZEISHA_ID') {
-      if (filer.riyoshaId) {
-        push(
-          'NOZEISHA_ID',
-          `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(filer.riyoshaId)}</NOZEISHA_ID>`,
-        );
+      const riyoshaId = (filer.riyoshaId ?? '').normalize('NFKC').trim();
+      if (riyoshaId) {
+        push('NOZEISHA_ID', `<NOZEISHA_ID ID="NOZEISHA_ID">${escapeXml(riyoshaId)}</NOZEISHA_ID>`);
       }
       continue;
     }
@@ -254,7 +253,7 @@ function buildItPart(
       continue;
     }
     if (name === 'NOZEISHA_ZIP') {
-      const zip = (filer.zip ?? '').replace(/[^0-9]/g, '');
+      const zip = (filer.zip ?? '').normalize('NFKC').replace(/[^0-9]/g, '');
       if (zip.length === 7) {
         push(
           'NOZEISHA_ZIP',

@@ -20,6 +20,11 @@ import type {
 } from '../../db/types';
 import { familyEmployeeExclusion } from './family-employee-deduction';
 import { D, type Decimal } from '../../lib/decimal';
+import {
+  isAmountInputInvalid,
+  normalizeAmountInput,
+  parseAmountInput,
+} from '../../lib/amount-input';
 import koa020 from './xtx-schema-koa020.generated.json';
 import koa210 from './xtx-schema-koa210.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -122,17 +127,31 @@ const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
-// フォーム入力の生文字列（空・空白・全角数字など）が流入するため、例外を投げず 0 扱いにする。
+// フォーム入力の生文字列がそのまま保存されているため、読めない値・負の値は例外を投げず 0 扱いにする。
 function toDec(s: string): Decimal {
-  const trimmed = s.trim();
-  if (trimmed === '') {
-    return D(0);
+  return parseAmountInput(s) ?? D(0);
+}
+// 支払先明細の金額は文字列のまま様式へ転記されるため、ここで toDec と同じ読み方にそろえる。
+function toRowAmount(s: string): string {
+  // 手編集されたバックアップに文字列以外が入っていても、画面の試算を落とさないためそのまま通す
+  if (typeof s !== 'string') {
+    return s;
   }
-  try {
-    return D(trimmed);
-  } catch {
-    return D(0);
+  const normalized = normalizeAmountInput(s);
+  if (normalized === '') {
+    return '';
   }
+  return parseAmountInput(normalized) === undefined ? '0' : normalized;
+}
+
+function toRowAmounts<T extends { amount: string; deductibleAmount?: string }>(row: T): T {
+  return {
+    ...row,
+    amount: toRowAmount(row.amount),
+    ...(row.deductibleAmount !== undefined
+      ? { deductibleAmount: toRowAmount(row.deductibleAmount) }
+      : {}),
+  };
 }
 // db.personalDeductions（年度ごとに保存された確定額、文字列）を XtxContext.personalDeductions
 // （計算用の Decimal 形状）へ変換する。IncomeDeductions.svelte の試算プレビューと
@@ -221,7 +240,9 @@ export function personalDeductionsToCtx(
     ...(stored.miscIncome
       ? {
           miscIncome: {
-            ...(stored.miscIncome.publicPensionAmount !== undefined
+            // 読めない値も入力のまま保存しているため、ここで未記入に戻さないと ABB01060 に 0 が出る
+            ...(stored.miscIncome.publicPensionAmount !== undefined &&
+            !isAmountInputInvalid(stored.miscIncome.publicPensionAmount)
               ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
               : {}),
             ...(stored.miscIncome.otherIncome !== undefined
@@ -244,13 +265,27 @@ export function personalDeductionsToCtx(
               ? { landLoanInterestAmount: toDec(stored.realEstateIncome.landLoanInterestAmount) }
               : {}),
             ...(stored.realEstateIncome.rentPaid
-              ? { rentPaid: stored.realEstateIncome.rentPaid }
+              ? { rentPaid: stored.realEstateIncome.rentPaid.map(toRowAmounts) }
               : {}),
             ...(stored.realEstateIncome.loanInterestPaid
-              ? { loanInterestPaid: stored.realEstateIncome.loanInterestPaid }
+              ? {
+                  loanInterestPaid: stored.realEstateIncome.loanInterestPaid.map((r) => ({
+                    ...toRowAmounts(r),
+                    ...(r.yearEndBalance !== undefined
+                      ? { yearEndBalance: toRowAmount(r.yearEndBalance) }
+                      : {}),
+                  })),
+                }
               : {}),
             ...(stored.realEstateIncome.professionalFeesPaid
-              ? { professionalFeesPaid: stored.realEstateIncome.professionalFeesPaid }
+              ? {
+                  professionalFeesPaid: stored.realEstateIncome.professionalFeesPaid.map((r) => ({
+                    ...toRowAmounts(r),
+                    ...(r.withholdingTax !== undefined
+                      ? { withholdingTax: toRowAmount(r.withholdingTax) }
+                      : {}),
+                  })),
+                }
               : {}),
           },
         }

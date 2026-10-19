@@ -1,10 +1,10 @@
 // Reports.svelte の2割／3割特例の基礎調整欄（売上対価の返還等）が
 // 設定へ保存され、再マウント（＝再読込相当）後も保持されることを見る。
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi, type MockInstance } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
-import { getSetting, setSetting } from '../lib/settings';
+import { getSetting, setSetting, type StoredWariBaseAdjustments } from '../lib/settings';
 import { m } from '../paraglide/messages';
 import { hasUnsavedChanges } from '../router.svelte';
 import type { Account } from '../db/types';
@@ -379,6 +379,46 @@ describe('特定少額資産の譲渡行は入力して change すると保存�
   async function storedTransfers() {
     return (await getSetting('wariBaseAdjustments'))?.[2026]?.specifiedSmallAssetTransfers;
   }
+  // 値が変わらない保存でも終わりを待てるよう、put の完了を直接待つ
+  let putSpy: MockInstance<typeof db.settings.put> | undefined;
+  beforeEach(() => {
+    putSpy = vi.spyOn(db.settings, 'put');
+  });
+  afterEach(() => {
+    putSpy?.mockRestore();
+    putSpy = undefined;
+  });
+  async function settled(action: () => void): Promise<void> {
+    const spy = putSpy!;
+    const before = spy.mock.calls.length;
+    action();
+    await waitFor(() => spy.mock.calls.length > before);
+    await Promise.all(spy.mock.results.slice(before).map((r) => r.value));
+    await db.settings.toArray();
+  }
+  async function commitSettled(name: string, value: string): Promise<void> {
+    await settled(() => commit(name, value));
+  }
+  async function addEmptyRow(index: number): Promise<void> {
+    addButton().click();
+    flushSync();
+    await waitFor(
+      () => container!.querySelector(`input[name="wariTransfer-netTax-${index}"]`) !== null,
+    );
+  }
+  async function storedNetTaxes() {
+    return (await storedTransfers())?.map((t) => t.netTax);
+  }
+  async function mountWithStored(
+    stored: StoredWariBaseAdjustments,
+    readyName: string,
+    readyValue: string,
+  ): Promise<void> {
+    await setSetting('wariBaseAdjustments', { 2026: stored });
+    await mountReports();
+    await waitFor(() => container!.querySelector(`input[name="${readyName}"]`) !== null);
+    await waitFor(() => named(readyName).value === readyValue);
+  }
 
   test('追加した行を入力して change すると保存され、再マウント後も同じ日付と金額が表示される', async () => {
     await mountReports();
@@ -407,22 +447,181 @@ describe('特定少額資産の譲渡行は入力して change すると保存�
     await db.settings.toArray();
   });
 
-  test('カンマ付き・数値でない金額は入力のまま保存され、再マウントで正規化して表示され、次の保存で正規化値になる', async () => {
+  test('カンマ付きの金額は半角に揃えて保存され、読めない金額は保存されず保存済みの値が残る', async () => {
     await mountReports();
-    await addRow(0, '2026-03-01', '5,000');
-    await addRow(1, '2026-04-01', 'abc');
-    await waitFor(async () => (await storedTransfers())?.[1]?.netTax === 'abc');
-    expect((await storedTransfers())?.map((t) => t.netTax)).toEqual(['5,000', 'abc']);
+    await addEmptyRow(0);
+    await commitSettled('wariTransfer-date-0', '2026-03-01');
+    await commitSettled('wariTransfer-netTax-0', '5,000');
+    expect(await storedNetTaxes()).toEqual(['5000']);
+    await addEmptyRow(1);
+    await commitSettled('wariTransfer-date-1', '2026-04-01');
+    expect(await storedNetTaxes()).toEqual(['5000', '']);
+
+    await commitSettled('wariTransfer-netTax-1', 'abc');
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    expect(await storedNetTaxes()).toEqual(['5000', '']);
 
     await remount();
     await waitFor(() => container!.querySelector('input[name="wariTransfer-netTax-1"]') !== null);
-    expect(named('wariTransfer-netTax-0').value).toBe('5000');
+    await waitFor(() => named('wariTransfer-netTax-0').value === '5000');
     expect(named('wariTransfer-netTax-1').value).toBe('0');
-    expect(container!.querySelector('input[name="wariSalesReturnTax78"]')).not.toBeNull();
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
 
-    commit('wariSalesReturnTax78', '100');
+    await commitSettled('wariSalesReturnTax78', '100');
+    expect(await storedNetTaxes()).toEqual(['5000', '0']);
+  });
+
+  test('全角で入力した金額は半角に揃えて保存され、欄にも半角で表示され、再マウント後も同じ値が残る', async () => {
+    await mountReports();
+    await addRow(0, '2026-03-01', '５，０００');
     await waitFor(async () => (await storedTransfers())?.[0]?.netTax === '5000');
-    expect((await storedTransfers())?.map((t) => t.netTax)).toEqual(['5000', '0']);
+    expect(named('wariTransfer-netTax-0').value).toBe('5000');
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(false);
+
+    await remount();
+    await waitFor(() => container!.querySelector('input[name="wariTransfer-netTax-0"]') !== null);
+    await waitFor(() => named('wariTransfer-netTax-0').value === '5000');
+    expect(named('wariTransfer-netTax-0').value).toBe('5000');
     await db.settings.toArray();
+  });
+
+  test('読めない金額は欄の下に入力の誤りを表示し、未保存の確認を残す', async () => {
+    await mountReports();
+    await addEmptyRow(0);
+    await commitSettled('wariTransfer-date-0', '2026-03-01');
+    await commitSettled('wariTransfer-netTax-0', '-5000');
+    expect(await storedNetTaxes()).toEqual(['']);
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(true);
+
+    await commitSettled('wariTransfer-netTax-0', '5000');
+    expect(await storedNetTaxes()).toEqual(['5000']);
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test('全角で入力した返還等の税額は半角に揃えて保存される', async () => {
+    await mountReports();
+    commit('wariSalesReturnTax78', '５０００');
+    await waitFor(
+      async () => (await getSetting('wariBaseAdjustments'))?.[2026]?.salesReturnTax78 === '5000',
+    );
+    expect(named('wariSalesReturnTax78').value).toBe('5000');
+    await db.settings.toArray();
+  });
+
+  function retypeWithoutChange(name: string): void {
+    const el = named(name);
+    el.dispatchEvent(new FocusEvent('focus'));
+    const before = el.value;
+    el.value = `${before}1`;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.value = before;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new FocusEvent('blur'));
+    flushSync();
+  }
+
+  test('読めない返還等の税額は、入力し直して同じ文字列に戻しても未保存の確認が残り、読める値を保存すると消える', async () => {
+    await mountReports();
+    await commitSettled('wariSalesReturnTax78', '-5000');
+    expect((await getSetting('wariBaseAdjustments'))?.[2026]).not.toHaveProperty(
+      'salesReturnTax78',
+    );
+    expect(hasUnsavedChanges()).toBe(true);
+
+    retypeWithoutChange('wariSalesReturnTax78');
+    expect(named('wariSalesReturnTax78').value).toBe('-5000');
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(true);
+
+    await commitSettled('wariSalesReturnTax78', '5000');
+    expect((await getSetting('wariBaseAdjustments'))?.[2026]?.salesReturnTax78).toBe('5000');
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test('読めない特定少額資産の税額は、入力し直して同じ文字列に戻しても未保存の確認が残り、読める値を保存すると消える', async () => {
+    await mountReports();
+    await addEmptyRow(0);
+    await commitSettled('wariTransfer-date-0', '2026-03-01');
+    await commitSettled('wariTransfer-netTax-0', '-5000');
+    expect(await storedNetTaxes()).toEqual(['']);
+    expect(hasUnsavedChanges()).toBe(true);
+
+    retypeWithoutChange('wariTransfer-netTax-0');
+    expect(named('wariTransfer-netTax-0').value).toBe('-5000');
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(true);
+
+    await commitSettled('wariTransfer-netTax-0', '5000');
+    expect(await storedNetTaxes()).toEqual(['5000']);
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test.each([
+    ['wariSalesReturnTax78', '5000円'],
+    ['wariSalesReturnTax624', '-5000'],
+  ] as const)(
+    '%s：保存済みの値の上に読めない値を change しても上書きされず、読める値を保存すると未保存が解除される',
+    async (name, invalid) => {
+      const key = name === 'wariSalesReturnTax78' ? 'salesReturnTax78' : 'salesReturnTax624';
+      await mountWithStored({ [key]: '5000' }, name, '5000');
+
+      await commitSettled(name, invalid);
+      expect((await getSetting('wariBaseAdjustments'))?.[2026]?.[key]).toBe('5000');
+      expect(container!.textContent).toContain(m.common_amount_invalid());
+      expect(hasUnsavedChanges()).toBe(true);
+
+      await commitSettled(name, '6000');
+      expect((await getSetting('wariBaseAdjustments'))?.[2026]?.[key]).toBe('6000');
+      expect(container!.textContent).not.toContain(m.common_amount_invalid());
+      expect(hasUnsavedChanges()).toBe(false);
+    },
+  );
+
+  test('保存済みの行の金額を読めない値に変えても行は上書きされず、他の欄の読める変更は保存される', async () => {
+    await mountWithStored(
+      { specifiedSmallAssetTransfers: [{ date: '2026-03-01', rate: 0.1, netTax: '7000' }] },
+      'wariTransfer-netTax-0',
+      '7000',
+    );
+
+    await commitSettled('wariTransfer-netTax-0', 'abc');
+    expect(await storedTransfers()).toEqual([{ date: '2026-03-01', rate: 0.1, netTax: '7000' }]);
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    expect(hasUnsavedChanges()).toBe(true);
+
+    await commitSettled('wariSalesReturnTax78', '100');
+    const stored = (await getSetting('wariBaseAdjustments'))?.[2026];
+    expect(stored?.salesReturnTax78).toBe('100');
+    expect(stored?.specifiedSmallAssetTransfers).toEqual([
+      { date: '2026-03-01', rate: 0.1, netTax: '7000' },
+    ]);
+    expect(hasUnsavedChanges()).toBe(true);
+  });
+
+  test('読めない金額の行を消すと、保存済みの配列には他の行だけが残る', async () => {
+    await mountWithStored(
+      {
+        specifiedSmallAssetTransfers: [
+          { date: '2026-03-01', rate: 0.1, netTax: '7000' },
+          { date: '2026-04-01', rate: 0.08, netTax: '8000' },
+        ],
+      },
+      'wariTransfer-netTax-1',
+      '8000',
+    );
+
+    await commitSettled('wariTransfer-netTax-1', 'abc');
+    expect(await storedNetTaxes()).toEqual(['7000', '8000']);
+    expect(hasUnsavedChanges()).toBe(true);
+
+    await settled(() => {
+      removeButtons()[1]!.click();
+      flushSync();
+    });
+    expect(await storedTransfers()).toEqual([{ date: '2026-03-01', rate: 0.1, netTax: '7000' }]);
+    expect(hasUnsavedChanges()).toBe(false);
   });
 });

@@ -10,11 +10,13 @@ import { db } from '../db/db';
 import { setSetting } from '../lib/settings';
 import { newId } from '../lib/id';
 import { toIndexable } from '../lib/decimal';
+import { saveTextFile } from '../lib/save-file';
 import type { Account, JournalLine } from '../db/types';
 import type { XtxContext } from '../tax-schema/2026/xtx';
 import { mapKoa020LeafValues } from '../tax-schema/2026/xtx-mapping-koa020';
 import { mapKoa210Values } from '../tax-schema/2026/xtx-mapping-koa210';
 import { mapKoa220Values } from '../tax-schema/2026/xtx-mapping-koa220';
+import { m } from '../paraglide/messages';
 
 const captured: { ctx: XtxContext | undefined } = { ctx: undefined };
 
@@ -177,5 +179,40 @@ describe('cashBasisElection・priorPriorBusinessRevenue が Reports の .xtx ctx
     const koa210Deduction = Number(mapKoa210Values(ctx).AMF00510 ?? '0');
     const koa220Deduction = Number(mapKoa220Values(ctx).ANF00260 ?? '0');
     expect(koa210Deduction + koa220Deduction).toBe(100000);
+  });
+
+  test('空白だけの利用者識別番号は未入力と同じく書き出しを止める', async () => {
+    await db.accounts.bulkAdd(TEST_ACCOUNTS);
+    await addEntry();
+    await setSetting('userRiyoshaId', '   ');
+    await setSetting('userFilerName', '青井 太郎');
+    await setSetting('userFilerZip', '1800001');
+    await setSetting('userFilerAddress', '東京都武蔵野市〇〇1-2-3');
+    await setSetting('userZeimushoCode', '01101');
+    await setSetting('userZeimushoName', '麹町');
+    await setSetting('filingType', 'blue');
+    await setSetting('aoiroDeductionKind', 'electronic');
+
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    const el = container;
+
+    await waitFor(() =>
+      Array.from(el.querySelectorAll('button')).some(
+        (b) => (b.textContent ?? '').trim() === '.xtx を書き出す',
+      ),
+    );
+    const button = Array.from(el.querySelectorAll('button')).find(
+      (b) => (b.textContent ?? '').trim() === '.xtx を書き出す',
+    );
+    if (button === undefined) {
+      throw new Error('.xtx を書き出すボタンが見つからない');
+    }
+    button.click();
+    await waitFor(() => (el.textContent ?? '').includes(m.reports_xtx_filer_incomplete()));
+
+    expect(captured.ctx).toBeUndefined();
+    expect(saveTextFile).not.toHaveBeenCalled();
   });
 });

@@ -4,6 +4,11 @@
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
+  import {
+    isAmountInputInvalid,
+    normalizeAmountInput,
+    parseAmountInput,
+  } from '../lib/amount-input';
   import { todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
@@ -176,8 +181,28 @@
     setUnsavedGuard(unsavedToken, isDirty);
     return () => clearUnsavedGuard(unsavedToken);
   });
+  // 読めない額のまま作成に進むと内部のエラー文が出るか、償却 0 として作られてしまう。
+  // 開業費の合計が 0 ならドメインは償却額を読まない
+  function customAmortizationInvalid(): boolean {
+    if (
+      expenseAmortization !== 'custom' ||
+      parseAmountInput(customAmortizationAmount) !== undefined
+    ) {
+      return false;
+    }
+    try {
+      return !expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0)).isZero();
+    } catch {
+      // 読めない開業費の額はドメインが作成時にエラーとして示す
+      return false;
+    }
+  }
 
   async function handleGenerate() {
+    if (customAmortizationInvalid()) {
+      error = m.common_amount_invalid();
+      return;
+    }
     generating = true;
     error = '';
     try {
@@ -201,7 +226,9 @@
           businessStartDate,
           expenses,
           expenseAmortization,
-          ...(expenseAmortization === 'custom' ? { customAmortizationAmount } : {}),
+          ...(expenseAmortization === 'custom'
+            ? { customAmortizationAmount: normalizeAmountInput(customAmortizationAmount) }
+            : {}),
           convertedAssets: convertedAssets.map((a) => ({
             name: a.name,
             acquisitionDate: a.acquisitionDate,
@@ -239,6 +266,11 @@
   // 作り直しへ進まない（打ち消せていない状態で generate すると二重計上になる）。
   async function handleRedo() {
     redoConfirmOpen = false;
+    // 打ち消した後で作り直しが止まると、開業仕訳が無いまま残る
+    if (customAmortizationInvalid()) {
+      error = m.common_amount_invalid();
+      return;
+    }
     generating = true;
     error = '';
     try {
@@ -380,6 +412,9 @@
             placeholder={m.opening_expense_custom_amount()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums w-40"
           />
+          {#if isAmountInputInvalid(customAmortizationAmount)}
+            <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
+          {/if}
         {/if}
       {/if}
     </section>

@@ -8,6 +8,7 @@ import { db } from '../db/db';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
 import { getSetting, setSetting } from '../lib/settings';
 import { hasUnsavedChanges } from '../router.svelte';
+import { m } from '../paraglide/messages';
 import type { Account } from '../db/types';
 
 vi.mock('../lib/save-file', () => ({
@@ -171,5 +172,120 @@ describe('直前課税期間の月数は change まで未保存として登録�
     unmount(instance);
     instance = undefined;
     expect(hasUnsavedChanges()).toBe(false);
+  });
+});
+
+describe('直前課税期間の月数の全角入力と読めない入力', () => {
+  async function mountMonths(initial = '12'): Promise<HTMLInputElement> {
+    await setSetting('currentYear', 2027);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(
+      () => container!.querySelector('input[name="interimPriorPeriodMonths"]') !== null,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      'input[name="interimPriorPeriodMonths"]',
+    )!;
+    await waitFor(() => input.value === initial);
+    return input;
+  }
+
+  function commit(input: HTMLInputElement, value: string): void {
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+  }
+
+  test('全角の「６」は6か月として保存され、欄も半角で表示される', async () => {
+    const input = await mountMonths();
+    commit(input, '６');
+    let saved = await getSetting('interimPriorPeriodMonths');
+    for (let i = 0; i < 200 && saved?.[2027] !== 6; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      saved = await getSetting('interimPriorPeriodMonths');
+    }
+    expect(saved?.[2027]).toBe(6);
+    expect(input.value).toBe('6');
+    expect(hasUnsavedChanges()).toBe(false);
+    expect(container!.textContent).not.toContain(m.reports_interim_prior_period_months_invalid());
+  });
+
+  test('1〜12の整数でない月数は保存せず、欄の下に入力の誤りを示して未保存の確認を残す', async () => {
+    await setSetting('interimPriorPeriodMonths', { 2027: 6 });
+    const input = await mountMonths('6');
+    for (const v of ['13', 'abc', '0', '6.5']) {
+      commit(input, v);
+      await new Promise((r) => setTimeout(r, 30));
+      expect(container!.textContent).toContain(m.reports_interim_prior_period_months_invalid());
+      expect(hasUnsavedChanges()).toBe(true);
+      expect((await getSetting('interimPriorPeriodMonths'))?.[2027]).toBe(6);
+    }
+    commit(input, '３');
+    let saved = await getSetting('interimPriorPeriodMonths');
+    for (let i = 0; i < 200 && saved?.[2027] !== 3; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      saved = await getSetting('interimPriorPeriodMonths');
+    }
+    expect(saved?.[2027]).toBe(3);
+    expect(hasUnsavedChanges()).toBe(false);
+    expect(container!.textContent).not.toContain(m.reports_interim_prior_period_months_invalid());
+  });
+
+  test('読めない月数は、入力し直して同じ文字列に戻しても未保存の確認が残り、読める値を保存すると消える', async () => {
+    await setSetting('interimPriorPeriodMonths', { 2027: 6 });
+    const input = await mountMonths('6');
+    commit(input, '13');
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await getSetting('interimPriorPeriodMonths'))?.[2027]).toBe(6);
+    expect(hasUnsavedChanges()).toBe(true);
+
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = '131';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.value = '13';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new FocusEvent('blur'));
+    flushSync();
+    expect(input.value).toBe('13');
+    expect(container!.textContent).toContain(m.reports_interim_prior_period_months_invalid());
+    expect(hasUnsavedChanges()).toBe(true);
+
+    commit(input, '3');
+    let saved = await getSetting('interimPriorPeriodMonths');
+    for (let i = 0; i < 200 && saved?.[2027] !== 3; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      saved = await getSetting('interimPriorPeriodMonths');
+    }
+    expect(saved?.[2027]).toBe(3);
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test('全角で保存した直後、欄が半角に書き戻された値へ入力し直すと、blur なしで未保存の確認が消える', async () => {
+    const input = await mountMonths();
+    commit(input, '７');
+    let saved = await getSetting('interimPriorPeriodMonths');
+    for (let i = 0; i < 200 && saved?.[2027] !== 7; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      saved = await getSetting('interimPriorPeriodMonths');
+    }
+    expect(saved?.[2027]).toBe(7);
+    expect(input.value).toBe('7');
+    expect(hasUnsavedChanges()).toBe(false);
+
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+    input.value = '7';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    input.dispatchEvent(new FocusEvent('blur'));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    expect((await getSetting('interimPriorPeriodMonths'))?.[2027]).toBe(7);
   });
 });

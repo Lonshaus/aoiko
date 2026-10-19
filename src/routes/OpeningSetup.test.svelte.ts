@@ -372,3 +372,234 @@ describe('開業設定', () => {
     expect(koa210Row2027?.AMF01730).toBe('97500');
   });
 });
+
+describe('開業費の任意償却額の入力', () => {
+  function buttonByText(root: ParentNode, text: string): HTMLButtonElement | undefined {
+    return [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+      (b) => b.textContent?.trim() === text,
+    );
+  }
+
+  async function fillCustomAmortization(amount: string): Promise<void> {
+    const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
+    setValue(dateInputs[0]!, '2026-07-01', 'input');
+    setValue(
+      container!.querySelector<HTMLInputElement>(
+        `input[placeholder="${m.opening_expense_name_placeholder()}"]`,
+      )!,
+      '名刺',
+      'input',
+    );
+    const expenseAmountInput = container!.querySelector<HTMLInputElement>(
+      `input[placeholder="${m.opening_amount_placeholder()}"]`,
+    )!;
+    setValue(expenseAmountInput, '100000', 'input');
+    expenseAmountInput
+      .closest('form')!
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click();
+    await tick();
+    container!.querySelector<HTMLInputElement>('input[type="radio"][value="custom"]')!.click();
+    await tick();
+    setValue(
+      container!.querySelector<HTMLInputElement>('input[name="openingKeihiCustomAmortization"]')!,
+      amount,
+      'input',
+    );
+    await tick();
+  }
+
+  async function previewAndConfirm(): Promise<void> {
+    buttonByText(container!, m.opening_action_preview())!.click();
+    await tick();
+    buttonByText(container!, m.opening_action_confirm())!.click();
+  }
+
+  test('全角で入力した償却額は値どおりに償却仕訳になる', async () => {
+    await renderOpeningSetup();
+    await fillCustomAmortization('５０００');
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+    await previewAndConfirm();
+
+    await waitFor(async () => (await db.journalEntries.count()) === 2);
+    const lines = await db.journalLines.toArray();
+    expect(lines.find((l) => l.side === 'debit' && l.accountCode === '5210')?.amount).toBe('5000');
+    expect(container!.textContent).not.toContain('DecimalError');
+  });
+
+  test.each(['', '-5000', 'abc'])(
+    '償却額 %j は入力の誤りを表示し、仕訳も設定も作らない',
+    async (amount) => {
+      await renderOpeningSetup();
+      await fillCustomAmortization(amount);
+      if (amount !== '') {
+        expect(container!.textContent).toContain(m.common_amount_invalid());
+      }
+      await previewAndConfirm();
+
+      await waitFor(() => (container!.textContent ?? '').includes(m.common_amount_invalid()));
+      await new Promise((r) => setTimeout(r, 100));
+      expect(container!.textContent).not.toContain('DecimalError');
+      expect(await db.journalEntries.count()).toBe(0);
+      expect(await getSetting('businessStartDate')).toBeUndefined();
+    },
+  );
+
+  test('作り直しでも償却額が読めなければ既存の開業仕訳を打ち消さない', async () => {
+    await renderOpeningSetup();
+    await fillCustomAmortization('5000');
+    await previewAndConfirm();
+    await waitFor(async () => (await db.journalEntries.count()) === 2);
+
+    unmount(instance!);
+    instance = undefined;
+    container!.remove();
+    container = undefined;
+    await renderOpeningSetup();
+    await fillCustomAmortization('5000');
+    await previewAndConfirm();
+    await waitFor(() => buttonByText(container!, m.opening_redo_button()) !== undefined);
+
+    buttonByText(container!, m.opening_action_back())!.click();
+    await tick();
+    setValue(
+      container!.querySelector<HTMLInputElement>('input[name="openingKeihiCustomAmortization"]')!,
+      '-5000',
+      'input',
+    );
+    await tick();
+    buttonByText(container!, m.opening_action_preview())!.click();
+    await tick();
+    buttonByText(container!, m.opening_redo_button())!.click();
+    await waitFor(() => buttonByText(document.body, m.opening_redo_confirm_action()) !== undefined);
+    buttonByText(document.body, m.opening_redo_confirm_action())!.click();
+
+    await waitFor(() => (container!.textContent ?? '').includes(m.common_amount_invalid()));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(await db.journalEntries.count()).toBe(2);
+  });
+
+  async function setStartDateAndAddExpense(amount: string): Promise<void> {
+    const dateInputs = [...container!.querySelectorAll<HTMLInputElement>('input[type="date"]')];
+    setValue(dateInputs[0]!, '2026-07-01', 'input');
+    setValue(
+      container!.querySelector<HTMLInputElement>(
+        `input[placeholder="${m.opening_expense_name_placeholder()}"]`,
+      )!,
+      '名刺',
+      'input',
+    );
+    const expenseAmountInput = container!.querySelector<HTMLInputElement>(
+      `input[placeholder="${m.opening_amount_placeholder()}"]`,
+    )!;
+    setValue(expenseAmountInput, amount, 'input');
+    expenseAmountInput
+      .closest('form')!
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click();
+    await tick();
+  }
+
+  async function addConvertedPc(): Promise<void> {
+    setValue(
+      container!.querySelector<HTMLInputElement>(
+        `input[placeholder="${m.settings_asset_name_placeholder()}"]`,
+      )!,
+      'パソコン',
+      'input',
+    );
+    const acqDateInput = container!.querySelector<HTMLInputElement>(
+      `input[title="${m.opening_converted_acq_date_title()}"]`,
+    )!;
+    setValue(acqDateInput, '2025-11-01', 'input');
+    setValue(
+      container!.querySelector<HTMLInputElement>(
+        `input[placeholder="${m.settings_asset_cost_placeholder()}"]`,
+      )!,
+      '300000',
+      'input',
+    );
+    setValue(
+      container!.querySelector<HTMLInputElement>(
+        `input[title="${m.settings_asset_life_title()}"]`,
+      )!,
+      '4',
+      'input',
+    );
+    acqDateInput
+      .closest('form')!
+      .querySelector<HTMLButtonElement>('button[type="submit"]')!
+      .click();
+    await tick();
+  }
+
+  async function selectCustomLeftEmpty(): Promise<void> {
+    container!.querySelector<HTMLInputElement>('input[type="radio"][value="custom"]')!.click();
+    await tick();
+  }
+
+  async function deleteExpenseRow(): Promise<void> {
+    const row = [...container!.querySelectorAll('li')].find((li) =>
+      (li.textContent ?? '').includes('名刺'),
+    )!;
+    buttonByText(row, m.settings_action_delete())!.click();
+    await tick();
+    expect(container!.querySelector('input[name="openingKeihiCustomAmortization"]')).toBeNull();
+  }
+
+  async function fillCustomEmptyThenDeleteExpense(): Promise<void> {
+    await setStartDateAndAddExpense('100000');
+    await selectCustomLeftEmpty();
+    await addConvertedPc();
+    await deleteExpenseRow();
+  }
+
+  test('償却額が空の任意償却を選んだ後に開業費を消しても、転用資産は作成できる', async () => {
+    await renderOpeningSetup();
+    await fillCustomEmptyThenDeleteExpense();
+    await previewAndConfirm();
+
+    await waitFor(async () => (await db.fixedAssets.count()) === 1);
+    expect(await db.journalEntries.count()).toBe(1);
+    expect(await getSetting('businessStartDate')).toBe('2026-07-01');
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+  });
+
+  test('開業費の合計が 0 のときは、償却額が空の任意償却でも作成を止めない', async () => {
+    await renderOpeningSetup();
+    await setStartDateAndAddExpense('0');
+    await selectCustomLeftEmpty();
+    await addConvertedPc();
+    await previewAndConfirm();
+
+    await waitFor(async () => (await db.fixedAssets.count()) === 1);
+    expect(await db.journalEntries.count()).toBe(1);
+    expect(await getSetting('businessStartDate')).toBe('2026-07-01');
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+  });
+
+  test('開業費を消した状態の作り直しは、償却額が空でも止めない', async () => {
+    await renderOpeningSetup();
+    await fillCustomEmptyThenDeleteExpense();
+    await previewAndConfirm();
+    await waitFor(async () => (await db.fixedAssets.count()) === 1);
+
+    unmount(instance!);
+    instance = undefined;
+    container!.remove();
+    container = undefined;
+    await renderOpeningSetup();
+    await fillCustomEmptyThenDeleteExpense();
+    await previewAndConfirm();
+    await waitFor(() => buttonByText(container!, m.opening_redo_button()) !== undefined);
+
+    buttonByText(container!, m.opening_redo_button())!.click();
+    await waitFor(() => buttonByText(document.body, m.opening_redo_confirm_action()) !== undefined);
+    buttonByText(document.body, m.opening_redo_confirm_action())!.click();
+
+    await waitFor(async () => (await db.journalEntries.count()) > 1);
+    await new Promise((r) => setTimeout(r, 100));
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+    expect(await db.journalEntries.count()).toBe(3);
+  });
+});
