@@ -38,19 +38,19 @@ describe('モバイルメニュー', () => {
   test('外側の暗幕を押すと閉じる', () => {
     render();
     openMenu();
-    expect(target?.querySelector('header nav.md\\:hidden')).not.toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).not.toBeNull();
     const dismiss = target?.querySelector<HTMLButtonElement>('button.fixed.inset-0');
     dismiss?.click();
     flushSync();
-    expect(target?.querySelector('header nav.md\\:hidden')).toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).toBeNull();
   });
 
   test('Escape を押すと閉じる', () => {
     render();
     openMenu();
-    expect(target?.querySelector('header nav.md\\:hidden')).not.toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).not.toBeNull();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     flushSync();
-    expect(target?.querySelector('header nav.md\\:hidden')).toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).toBeNull();
   });
 });
