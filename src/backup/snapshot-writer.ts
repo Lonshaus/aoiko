@@ -9,9 +9,6 @@ import {
 } from './content-store';
 import type { BackupAdapter, BackupPayload } from './types';
 // 同期フォルダへ「個別のファイル」で書き出す側。zip を作り直さず、変わった分だけ書く。
-//
-// まだ backup.svelte.ts からは呼んでいない。書き出しだけ先に切り替えると、
-// 書けたものを読み戻す経路が無い状態（S6 未着手）になるため、切替は復元と同時に行う。
 
 export interface AttachmentSource {
   id: string;

@@ -364,13 +364,14 @@
     });
   });
   async function saveWariBaseAdjustments() {
+    // IndexedDB は $state の Proxy を複製できないため snapshot で素の値にして保存する
     const stored: StoredWariBaseAdjustments = {
       ...(wariSalesReturnTax78Input !== '' ? { salesReturnTax78: wariSalesReturnTax78Input } : {}),
       ...(wariSalesReturnTax624Input !== ''
         ? { salesReturnTax624: wariSalesReturnTax624Input }
         : {}),
       ...(wariSpecifiedSmallAssetTransfers.length > 0
-        ? { specifiedSmallAssetTransfers: wariSpecifiedSmallAssetTransfers }
+        ? { specifiedSmallAssetTransfers: $state.snapshot(wariSpecifiedSmallAssetTransfers) }
         : {}),
     };
     const map = (await getSetting('wariBaseAdjustments')) ?? {};
