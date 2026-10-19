@@ -489,6 +489,7 @@
         <span class="text-xs text-muted-foreground">{m.import_step_parser()}</span>
         <select
           bind:this={parserSelectEl}
+          name="importParser"
           value={selectedParserName}
           onchange={(e) => handleParserChange((e.target as HTMLSelectElement).value)}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -509,6 +510,7 @@
           <span class="text-xs text-muted-foreground">{m.import_known_subaccount()}</span>
           <select
             bind:value={knownSubAccountId}
+            name="importKnownSubAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             <option value="">{m.import_known_subaccount_none()}</option>
@@ -607,6 +609,9 @@
                 <td class="px-3 py-2">
                   <input
                     type="text"
+                    name="import-{index}-description"
+                    autocomplete="off"
+                    aria-label={m.journal_th_description()}
                     bind:value={row.description}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-sm"
                   />
@@ -624,6 +629,8 @@
                       bind:value={row.counterpartAccountCode}
                       groups={accountGroups}
                       placeholder={m.journal_form_account_select()}
+                      name="import-{index}-counterpart"
+                      ariaLabel={m.import_th_counterpart()}
                       onchange={() => onCounterpartAccountChange(row)}
                       disabled={row.skip}
                       class="w-48 shrink-0 px-2 py-1 bg-background border rounded text-foreground text-sm disabled:opacity-50"
@@ -653,6 +660,8 @@
                   {#if subs.length > 0}
                     <select
                       bind:value={row.counterpartSubAccountId}
+                      name="import-{index}-subaccount"
+                      aria-label={m.journal_form_subaccount_select()}
                       disabled={row.skip}
                       class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs disabled:opacity-50"
                     >
@@ -666,6 +675,8 @@
                 <td class="px-3 py-2 space-y-1 whitespace-nowrap">
                   <select
                     bind:value={row.taxRate}
+                    name="import-{index}-tax-rate"
+                    aria-label={m.import_th_tax()}
                     disabled={row.skip}
                     class="w-full px-2 py-1 bg-background border rounded text-foreground text-xs disabled:opacity-50"
                   >

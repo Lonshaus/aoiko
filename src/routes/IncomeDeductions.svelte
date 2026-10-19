@@ -3,6 +3,7 @@
   import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
+  import { isAmountInputInvalid, parseAmountInput } from '../lib/amount-input';
   import { newId } from '../lib/id';
   import { assignInputNumber } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
@@ -38,14 +39,6 @@
 
   const now = new Date();
   let year = $state(now.getFullYear());
-
-  function safeDecimal(s: string) {
-    try {
-      return D(s || '0');
-    } catch {
-      return D(0);
-    }
-  }
 
   let socialInsurancePaid = $state('0');
   let smallBusinessMutualAidPaid = $state('0');
@@ -402,7 +395,10 @@
         }
       : {}),
     miscIncome: {
-      ...(safeDecimal(publicPensionAmount).greaterThan(0) ? { publicPensionAmount } : {}),
+      ...(isAmountInputInvalid(publicPensionAmount) ||
+      parseAmountInput(publicPensionAmount)?.greaterThan(0)
+        ? { publicPensionAmount }
+        : {}),
       otherIncome: otherMiscIncomeAmount,
       otherExpenses: otherMiscExpenses,
     },
@@ -530,6 +526,12 @@
   }
 </script>
 
+{#snippet amountError(value: string | undefined)}
+  {#if typeof value === 'string' && isAmountInputInvalid(value)}
+    <span class="block mt-1 text-xs text-destructive">{m.common_amount_invalid()}</span>
+  {/if}
+{/snippet}
+
 <div class="space-y-8">
   <h2 class="text-2xl font-bold">{m.income_deductions_title()}</h2>
   <p class="text-xs text-muted-foreground">{m.income_deductions_intro()}</p>
@@ -539,6 +541,8 @@
       <span class="text-xs text-muted-foreground">{m.income_deductions_year_label()}</span>
       <input
         type="number"
+        name="deductionNen"
+        autocomplete="off"
         value={year}
         oninput={assignInputNumber((v) => (year = v))}
         min="2020"
@@ -581,10 +585,13 @@
           >
           <input
             type="text"
+            name="salaryPaidAmount"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={salaryPaidAmount}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
           />
+          {@render amountError(salaryPaidAmount)}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -592,10 +599,13 @@
           >
           <input
             type="text"
+            name="salaryWithholdingTax"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={salaryWithholdingTax}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
           />
+          {@render amountError(salaryWithholdingTax)}
         </label>
         {#if year === 2026}
           <label class="flex items-center gap-2 py-2 sm:col-span-2">
@@ -612,10 +622,13 @@
         >
         <input
           type="text"
+          name="publicPensionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={publicPensionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(publicPensionAmount)}
         <span class="block mt-1 text-xs text-muted-foreground"
           >{m.income_deductions_public_pension_hint()}</span
         >
@@ -624,10 +637,13 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_income()}</span>
         <input
           type="text"
+          name="otherMiscIncomeAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherMiscIncomeAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(otherMiscIncomeAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -635,10 +651,13 @@
         >
         <input
           type="text"
+          name="otherMiscKeihi"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherMiscExpenses}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(otherMiscExpenses)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -646,10 +665,13 @@
         >
         <input
           type="text"
+          name="otherWithholdingTaxPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherWithholdingTaxPaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(otherWithholdingTaxPaid)}
       </label>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -657,10 +679,13 @@
         <span class="text-xs text-muted-foreground">{m.income_prior_prior_business_revenue()}</span>
         <input
           type="text"
+          name="priorPriorJigyoRevenue"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={priorPriorBusinessRevenue}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(priorPriorBusinessRevenue)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -668,10 +693,13 @@
         >
         <input
           type="text"
+          name="priorPriorFudosanRevenue"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={priorPriorRealEstateRevenue}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(priorPriorRealEstateRevenue)}
       </label>
     </div>
     <label class="flex items-center gap-2 py-2">
@@ -699,10 +727,13 @@
         >
         <input
           type="text"
+          name="landLoanInterest"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={realEstateLandLoanInterest}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(realEstateLandLoanInterest)}
         <span class="block mt-1 text-xs text-muted-foreground"
           >{m.income_deductions_real_estate_land_loan_interest_hint()}</span
         >
@@ -722,37 +753,58 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanRent-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanRent-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanRent-{r.id}-property"
+            autocomplete="off"
+            aria-label={m.income_deductions_real_estate_rent_property()}
             bind:value={r.property}
             placeholder={m.income_deductions_real_estate_rent_property()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
-          <input
-            type="text"
-            inputmode="numeric"
-            bind:value={r.amount}
-            placeholder={m.income_deductions_real_estate_amount()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
-          />
-          <div class="flex gap-2 items-center">
+          <div>
             <input
               type="text"
+              name="fudosanRent-{r.id}-amount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_amount()}
               inputmode="numeric"
-              bind:value={r.deductibleAmount}
-              placeholder={m.income_deductions_real_estate_deductible_amount()}
-              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              bind:value={r.amount}
+              placeholder={m.income_deductions_real_estate_amount()}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
             />
+            {@render amountError(r.amount)}
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="flex-1">
+              <input
+                type="text"
+                name="fudosanRent-{r.id}-deductibleAmount"
+                autocomplete="off"
+                aria-label={m.income_deductions_real_estate_deductible_amount()}
+                inputmode="numeric"
+                bind:value={r.deductibleAmount}
+                placeholder={m.income_deductions_real_estate_deductible_amount()}
+                class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              />
+              {@render amountError(r.deductibleAmount)}
+            </div>
             <button
               type="button"
               onclick={() => removeRealEstateRentPaid(r.id)}
@@ -780,38 +832,62 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanInterestPaid-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
-          <input
-            type="text"
-            inputmode="numeric"
-            bind:value={r.yearEndBalance}
-            placeholder={m.income_deductions_real_estate_year_end_balance()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
-          />
-          <input
-            type="text"
-            inputmode="numeric"
-            bind:value={r.amount}
-            placeholder={m.income_deductions_real_estate_amount()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
-          />
-          <div class="flex gap-2 items-center">
+          <div>
             <input
               type="text"
+              name="fudosanInterestPaid-{r.id}-nenEndBalance"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_year_end_balance()}
               inputmode="numeric"
-              bind:value={r.deductibleAmount}
-              placeholder={m.income_deductions_real_estate_deductible_amount()}
-              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              bind:value={r.yearEndBalance}
+              placeholder={m.income_deductions_real_estate_year_end_balance()}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
             />
+            {@render amountError(r.yearEndBalance)}
+          </div>
+          <div>
+            <input
+              type="text"
+              name="fudosanInterestPaid-{r.id}-amount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_amount()}
+              inputmode="numeric"
+              bind:value={r.amount}
+              placeholder={m.income_deductions_real_estate_amount()}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+            />
+            {@render amountError(r.amount)}
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="flex-1">
+              <input
+                type="text"
+                name="fudosanInterestPaid-{r.id}-deductibleAmount"
+                autocomplete="off"
+                aria-label={m.income_deductions_real_estate_deductible_amount()}
+                inputmode="numeric"
+                bind:value={r.deductibleAmount}
+                placeholder={m.income_deductions_real_estate_deductible_amount()}
+                class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              />
+              {@render amountError(r.deductibleAmount)}
+            </div>
             <button
               type="button"
               onclick={() => removeRealEstateLoanInterestPaid(r.id)}
@@ -839,38 +915,62 @@
         <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end border-t pt-2">
           <input
             type="text"
+            name="fudosanFee-{r.id}-payeeShimei"
+            aria-label={m.income_deductions_real_estate_payee_name()}
+            autocomplete="off"
             bind:value={r.payeeName}
             placeholder={m.income_deductions_real_estate_payee_name()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
           <input
             type="text"
+            name="fudosanFee-{r.id}-payeeJusho"
+            aria-label={m.income_deductions_real_estate_payee_address()}
+            autocomplete="off"
             bind:value={r.payeeAddress}
             placeholder={m.income_deductions_real_estate_payee_address()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           />
-          <input
-            type="text"
-            inputmode="numeric"
-            bind:value={r.amount}
-            placeholder={m.income_deductions_real_estate_amount()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
-          />
-          <input
-            type="text"
-            inputmode="numeric"
-            bind:value={r.withholdingTax}
-            placeholder={m.income_deductions_real_estate_withholding_tax()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
-          />
-          <div class="flex gap-2 items-center">
+          <div>
             <input
               type="text"
+              name="fudosanFee-{r.id}-amount"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_amount()}
               inputmode="numeric"
-              bind:value={r.deductibleAmount}
-              placeholder={m.income_deductions_real_estate_deductible_amount()}
-              class="flex-1 px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              bind:value={r.amount}
+              placeholder={m.income_deductions_real_estate_amount()}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
             />
+            {@render amountError(r.amount)}
+          </div>
+          <div>
+            <input
+              type="text"
+              name="fudosanFee-{r.id}-withholdingTax"
+              autocomplete="off"
+              aria-label={m.income_deductions_real_estate_withholding_tax()}
+              inputmode="numeric"
+              bind:value={r.withholdingTax}
+              placeholder={m.income_deductions_real_estate_withholding_tax()}
+              class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+            />
+            {@render amountError(r.withholdingTax)}
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="flex-1">
+              <input
+                type="text"
+                name="fudosanFee-{r.id}-deductibleAmount"
+                autocomplete="off"
+                aria-label={m.income_deductions_real_estate_deductible_amount()}
+                inputmode="numeric"
+                bind:value={r.deductibleAmount}
+                placeholder={m.income_deductions_real_estate_deductible_amount()}
+                class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm font-mono text-right"
+              />
+              {@render amountError(r.deductibleAmount)}
+            </div>
             <button
               type="button"
               onclick={() => removeRealEstateProfessionalFeesPaid(r.id)}
@@ -896,15 +996,20 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_income()}</span>
           <input
             type="text"
+            name="spouseIncome"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={spouseIncome}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
           />
+          {@render amountError(spouseIncome)}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.income_deductions_spouse_age()}</span>
           <input
             type="number"
+            name="spouseAge"
+            autocomplete="off"
             value={spouseAge}
             oninput={assignInputNumber((v) => (spouseAge = v))}
             min="0"
@@ -936,6 +1041,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_name()}</span>
           <input
             type="text"
+            name="dependent-{dep.id}-shimei"
+            autocomplete="off"
             bind:value={dep.name}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -944,6 +1051,8 @@
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_age()}</span>
           <input
             type="number"
+            name="dependent-{dep.id}-age"
+            autocomplete="off"
             value={dep.age}
             oninput={assignInputNumber((v) => (dep.age = v))}
             min="0"
@@ -956,10 +1065,13 @@
           >
           <input
             type="text"
+            name="dependent-{dep.id}-totalIncome"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={dep.totalIncome}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
           />
+          {@render amountError(dep.totalIncome)}
         </label>
         <div class="flex items-center gap-3">
           <label class="flex items-center gap-1 text-xs py-2">
@@ -1000,6 +1112,8 @@
           >
           <input
             type="text"
+            name="familyEmployee-{employee.id}-shimei"
+            autocomplete="off"
             bind:value={employee.name}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
@@ -1010,6 +1124,7 @@
           >
           <select
             bind:value={employee.relation}
+            name="familyEmployee-{employee.id}-relation"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             <option value="spouse">{m.income_deductions_family_employee_relation_spouse()}</option>
@@ -1022,6 +1137,8 @@
           >
           <input
             type="number"
+            name="familyEmployee-{employee.id}-age"
+            autocomplete="off"
             value={employee.age}
             oninput={assignInputNumber((v) => (employee.age = v))}
             min="0"
@@ -1035,6 +1152,8 @@
           >
           <input
             type="number"
+            name="familyEmployee-{employee.id}-monthsWorked"
+            autocomplete="off"
             value={employee.monthsWorked}
             oninput={assignInputNumber((v) => (employee.monthsWorked = v))}
             min="0"
@@ -1049,6 +1168,7 @@
             >
             <select
               bind:value={employee.incomeType}
+              name="familyEmployee-{employee.id}-incomeType"
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
               <option value="business"
@@ -1080,10 +1200,13 @@
         >
         <input
           type="text"
+          name="socialInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={socialInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(socialInsurancePaid)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1091,10 +1214,13 @@
         >
         <input
           type="text"
+          name="smallJigyoMutualAidPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={smallBusinessMutualAidPaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(smallBusinessMutualAidPaid)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1102,10 +1228,13 @@
         >
         <input
           type="text"
+          name="lifeNewGeneral"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewGeneral}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(lifeNewGeneral)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1113,10 +1242,13 @@
         >
         <input
           type="text"
+          name="lifeOldGeneral"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeOldGeneral}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(lifeOldGeneral)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1124,10 +1256,13 @@
         >
         <input
           type="text"
+          name="lifeNewMedical"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewMedical}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(lifeNewMedical)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1135,10 +1270,13 @@
         >
         <input
           type="text"
+          name="lifeNewPension"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeNewPension}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(lifeNewPension)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1146,10 +1284,13 @@
         >
         <input
           type="text"
+          name="lifeOldPension"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={lifeOldPension}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(lifeOldPension)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1157,10 +1298,13 @@
         >
         <input
           type="text"
+          name="earthquakeInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={earthquakeInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(earthquakeInsurancePaid)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1168,10 +1312,13 @@
         >
         <input
           type="text"
+          name="oldLongTermInsurancePaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={oldLongTermInsurancePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(oldLongTermInsurancePaid)}
       </label>
     </div>
   </section>
@@ -1185,10 +1332,13 @@
         >
         <input
           type="text"
+          name="medicalKeihiPaid"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={medicalExpensePaid}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(medicalExpensePaid)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1196,19 +1346,25 @@
         >
         <input
           type="text"
+          name="medicalInsuranceReimbursement"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={medicalInsuranceReimbursement}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(medicalInsuranceReimbursement)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_donation_amount()}</span>
         <input
           type="text"
+          name="donationAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={donationAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(donationAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1216,10 +1372,13 @@
         >
         <input
           type="text"
+          name="casualtyLossDeduction"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={casualtyLossDeduction}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(casualtyLossDeduction)}
         <span class="block mt-1 text-xs text-muted-foreground"
           >{m.income_deductions_casualty_loss_hint()}</span
         >
@@ -1261,19 +1420,25 @@
         <span class="text-xs text-muted-foreground">{m.income_deductions_dividend_credit()}</span>
         <input
           type="text"
+          name="dividendDeductionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={dividendDeductionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(dividendDeductionAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_mortgage_credit()}</span>
         <input
           type="text"
+          name="mortgageDeductionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={mortgageDeductionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(mortgageDeductionAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1281,10 +1446,13 @@
         >
         <input
           type="text"
+          name="politicalDonationCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={politicalDonationCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(politicalDonationCreditAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground"
@@ -1292,39 +1460,51 @@
         >
         <input
           type="text"
+          name="housingRenovationCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={housingRenovationCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(housingRenovationCreditAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span
         >
         <input
           type="text"
+          name="foreignTaxCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={foreignTaxCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(foreignTaxCreditAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_tax_credit()}</span>
         <input
           type="text"
+          name="otherTaxCreditAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={otherTaxCreditAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(otherTaxCreditAmount)}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_disaster_exemption()}</span
         >
         <input
           type="text"
+          name="disasterExemptionAmount"
+          autocomplete="off"
           inputmode="numeric"
           bind:value={disasterExemptionAmount}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {@render amountError(disasterExemptionAmount)}
       </label>
     </div>
   </section>

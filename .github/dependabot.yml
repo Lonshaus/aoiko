@@ -3,12 +3,17 @@ updates:
   - package-ecosystem: npm
     directory: '/'
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: '0 9 1,15 * *'
+      timezone: Asia/Tokyo
     open-pull-requests-limit: 5
     ignore:
       # TypeScript 7（ネイティブ実装）は svelte-check 非対応のため major を止める（language-tools 対応後に解除）
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+      # Rust 側（iap の都合で 2.11 のまま）と minor をそろえる必要がある
+      - dependency-name: '@tauri-apps/*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
     groups:
       dev-dependencies:
         dependency-type: development
@@ -23,4 +28,6 @@ updates:
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
-      interval: weekly
+      interval: cron
+      cronjob: '0 9 1,15 * *'
+      timezone: Asia/Tokyo

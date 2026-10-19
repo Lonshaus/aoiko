@@ -408,15 +408,19 @@
       <span class="text-xs text-muted-foreground">{m.journal_form_label_date()}</span>
       <input
         type="date"
+        name="entryDate"
+        autocomplete="off"
         bind:value={date}
         required
-        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
       />
     </label>
     <label class="block sm:col-span-2">
       <span class="text-xs text-muted-foreground">{m.journal_form_label_description()}</span>
       <input
         type="text"
+        name="entryDescription"
+        autocomplete="off"
         bind:value={description}
         required
         placeholder={m.journal_form_placeholder_description()}
@@ -427,6 +431,8 @@
       <span class="text-xs text-muted-foreground">{m.journal_form_label_department()}</span>
       <input
         type="text"
+        name="entryDepartment"
+        autocomplete="off"
         list="department-options"
         bind:value={department}
         placeholder={m.journal_form_placeholder_department()}
@@ -484,6 +490,8 @@
       >
         <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
+            name="debit-account-{i}"
+            aria-label="{m.journal_side_debit()} {m.journal_form_account_select()}"
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'debit')}
             required
@@ -500,6 +508,8 @@
           </select>
           {#if subs.length > 0}
             <select
+              name="debit-subaccount-{i}"
+              aria-label={m.journal_form_subaccount_select()}
               bind:value={line.subAccountId}
               class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
@@ -512,6 +522,9 @@
         </div>
         <input
           type="number"
+          name="debit-amount-{i}"
+          autocomplete="off"
+          aria-label="{m.journal_side_debit()} {m.journal_form_amount_placeholder()}"
           value={line.amount}
           oninput={(e) => onDebitAmountInput(line, (e.target as HTMLInputElement).value)}
           required
@@ -521,6 +534,8 @@
           class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
+          name="debit-tax-rate-{i}"
+          aria-label="{m.journal_side_debit()} {m.order_th_tax_rate()}"
           bind:value={line.taxRate}
           class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
@@ -548,6 +563,8 @@
             {m.journal_form_home_office()}
             <input
               type="number"
+              name="debit-home-office-ratio-{i}"
+              autocomplete="off"
               value={line.homeOfficeRatio}
               oninput={(e) => {
                 line.homeOfficeRatio = (e.target as HTMLInputElement).value;
@@ -561,6 +578,8 @@
           </label>
           {#if line.taxRate === 0}
             <select
+              name="debit-tax-category-{i}"
+              aria-label={m.import_th_tax()}
               bind:value={line.taxCategory}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -570,6 +589,8 @@
             </select>
           {:else}
             <select
+              name="debit-tax-category-{i}"
+              aria-label={m.import_th_tax()}
               bind:value={line.taxCategory}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -579,6 +600,8 @@
             </select>
           {/if}
           <select
+            name="debit-usage-category-{i}"
+            aria-label={m.journal_form_usage_category_label()}
             bind:value={line.inputUsageCategory}
             class="px-2 py-0.5 bg-background border rounded text-foreground"
           >
@@ -588,6 +611,8 @@
           </select>
           {#if ledger.inventoryAutoValuationEnabled && INVENTORY_TRACKED_ACCOUNTS.has(line.accountCode)}
             <select
+              name="debit-item-{i}"
+              aria-label={m.journal_form_inventory_item_select()}
               bind:value={line.itemId}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -599,6 +624,8 @@
             {#if line.itemId}
               <input
                 type="number"
+                name="debit-quantity-{i}"
+                autocomplete="off"
                 value={line.quantity}
                 oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"
@@ -634,6 +661,8 @@
       >
         <div class="col-span-3 space-y-2 sm:col-span-1">
           <select
+            name="credit-account-{i}"
+            aria-label="{m.journal_side_credit()} {m.journal_form_account_select()}"
             bind:value={line.accountCode}
             onchange={() => onAccountChange(line, 'credit')}
             required
@@ -650,6 +679,8 @@
           </select>
           {#if subs.length > 0}
             <select
+              name="credit-subaccount-{i}"
+              aria-label={m.journal_form_subaccount_select()}
               bind:value={line.subAccountId}
               class="h-10 w-full px-3 bg-background border rounded text-foreground text-sm"
             >
@@ -662,6 +693,9 @@
         </div>
         <input
           type="number"
+          name="credit-amount-{i}"
+          autocomplete="off"
+          aria-label="{m.journal_side_credit()} {m.journal_form_amount_placeholder()}"
           value={line.amount}
           oninput={(e) => {
             line.amount = (e.target as HTMLInputElement).value;
@@ -673,6 +707,8 @@
           class="h-10 w-full px-3 bg-background border rounded text-right text-foreground tabular-nums sm:w-32"
         />
         <select
+          name="credit-tax-rate-{i}"
+          aria-label="{m.journal_side_credit()} {m.order_th_tax_rate()}"
           bind:value={line.taxRate}
           class="h-10 px-3 bg-background border rounded text-foreground text-sm"
         >
@@ -700,6 +736,8 @@
             {m.journal_form_home_office()}
             <input
               type="number"
+              name="credit-home-office-ratio-{i}"
+              autocomplete="off"
               value={line.homeOfficeRatio}
               oninput={(e) => {
                 line.homeOfficeRatio = (e.target as HTMLInputElement).value;
@@ -713,6 +751,8 @@
           </label>
           {#if line.taxRate === 0}
             <select
+              name="credit-tax-category-{i}"
+              aria-label={m.import_th_tax()}
               bind:value={line.taxCategory}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -722,6 +762,8 @@
             </select>
           {:else}
             <select
+              name="credit-tax-category-{i}"
+              aria-label={m.import_th_tax()}
               bind:value={line.taxCategory}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -731,6 +773,8 @@
             </select>
           {/if}
           <select
+            name="credit-usage-category-{i}"
+            aria-label={m.journal_form_usage_category_label()}
             bind:value={line.inputUsageCategory}
             class="px-2 py-0.5 bg-background border rounded text-foreground"
           >
@@ -740,6 +784,8 @@
           </select>
           {#if ledger.inventoryAutoValuationEnabled && INVENTORY_TRACKED_ACCOUNTS.has(line.accountCode)}
             <select
+              name="credit-item-{i}"
+              aria-label={m.journal_form_inventory_item_select()}
               bind:value={line.itemId}
               class="px-2 py-0.5 bg-background border rounded text-foreground"
             >
@@ -751,6 +797,8 @@
             {#if line.itemId}
               <input
                 type="number"
+                name="credit-quantity-{i}"
+                autocomplete="off"
                 value={line.quantity}
                 oninput={assignInputString((v) => (line.quantity = v))}
                 min="0"

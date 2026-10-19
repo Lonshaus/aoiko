@@ -1,4 +1,5 @@
-import { D, Decimal, toIndexable } from '../lib/decimal';
+import { D, Decimal, formatJPY, toIndexable } from '../lib/decimal';
+import { normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { isYearLocked } from './snapshots';
@@ -54,11 +55,51 @@ export const REDUCED_TAX_RATE = 0.08;
 export function hasReducedRateItems(lineItems: InvoiceLineItem[]): boolean {
   return lineItems.some((item) => item.taxRate === REDUCED_TAX_RATE);
 }
+// 保存済みの明細の合計を変えないよう、D() が読める値は D() のまま読む。
+// 読めない値だけ全角・桁区切り・前後の空白を除き、符号付きの数として読む
+export function readLineValue(raw: string): Decimal | undefined {
+  try {
+    return D(raw);
+  } catch {
+    return parseAmountInput(raw, { allowNegative: true });
+  }
+}
+
+export function isLineItemInvalid(item: InvoiceLineItem): boolean {
+  return [item.quantity, item.unitPrice].some((v) => !(readLineValue(v)?.isFinite() ?? false));
+}
+// D() が読める値には 1e3 や 0x10 のように揃えると読めなくなる形もあるため、読めない値だけを揃える
+export function normalizeLineItems(lineItems: InvoiceLineItem[]): InvoiceLineItem[] {
+  return lineItems.map((item) => ({
+    ...item,
+    quantity: normalizeLineValue(item.quantity),
+    unitPrice: normalizeLineValue(item.unitPrice),
+  }));
+}
+
+function normalizeLineValue(raw: string): string {
+  try {
+    D(raw);
+    return raw;
+  } catch {
+    return parseAmountInput(raw, { allowNegative: true }) === undefined
+      ? raw
+      : normalizeAmountInput(raw);
+  }
+}
+
+export function formatUnitPrice(raw: string): string {
+  const value = readLineValue(raw);
+  return value === undefined ? raw : formatJPY(value);
+}
 
 export function groupLineItemsByTaxRate(lineItems: InvoiceLineItem[]): InvoiceTaxGroup[] {
   const groups = new Map<0.1 | 0.08, Decimal>();
   for (const item of lineItems) {
-    const amount = D(item.quantity).times(item.unitPrice);
+    // 編集中の空欄・読めない値で画面全体が落ちないよう 0 として数える（発行は isLineItemInvalid で止める）
+    const amount = (readLineValue(item.quantity) ?? D(0)).times(
+      readLineValue(item.unitPrice) ?? D(0),
+    );
     groups.set(item.taxRate, (groups.get(item.taxRate) ?? D(0)).plus(amount));
   }
   return [...groups.entries()]
@@ -122,12 +163,16 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
   if (invoice.lineItems.length === 0) {
     throw new InvoiceError(m.error_invoice_no_lines());
   }
+  const lineItems = normalizeLineItems(invoice.lineItems);
+  if (lineItems.some(isLineItemInvalid)) {
+    throw new InvoiceError(m.invoices_line_invalid());
+  }
   const year = Number(invoice.date.slice(0, 4));
   if (await isYearLocked(year)) {
     throw new InvoiceError(m.error_invoice_year_filed({ year }));
   }
 
-  const groups = groupLineItemsByTaxRate(invoice.lineItems);
+  const groups = groupLineItemsByTaxRate(lineItems);
   const total = groups.reduce((sum, g) => sum.plus(g.grossAmount), D(0));
   const arApEntryId = newId();
   const now = Date.now();
@@ -151,7 +196,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
       }
       const number = await nextDocumentNumber(invoice.documentType, year, prefix);
       if (invoice.documentType === 'quote') {
-        await db.invoices.put({ ...invoice, status: 'issued', number, issuedAt: now });
+        await db.invoices.put({ ...invoice, lineItems, status: 'issued', number, issuedAt: now });
         return;
       }
       const entryId = newId();
@@ -200,6 +245,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
       });
       await db.invoices.put({
         ...invoice,
+        lineItems,
         status: 'issued',
         number,
         issuedAt: now,

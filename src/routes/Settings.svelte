@@ -1,9 +1,15 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { link } from '../router.svelte';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+  import { clearUnsavedGuard, link, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
+  import {
+    isAmountInputInvalid,
+    normalizeAmountInput,
+    parseAmountInput,
+  } from '../lib/amount-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
   import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
@@ -206,6 +212,7 @@
   let restoreProgressTotal = $state(0);
   // 復元後の自動再読み込みで結果表示までスクロールし直すために掴む（issue#387）。
   let restoreSection = $state<HTMLElement | null>(null);
+  let restoreApplyButton = $state<HTMLButtonElement | null>(null);
   let backupSection = $state<HTMLElement | null>(null);
 
   let accountantExportError = $state('');
@@ -591,7 +598,10 @@
   type CtAmountKey = 'basePeriodTaxableSales' | 'specifiedPeriodTaxableSales';
   type CtFlagKey = 'foreignWithoutDomesticPe' | 'interimVoluntaryFiled' | 'interimVoluntaryLapsed';
   // 空欄・未チェックは未設定として消し、判定を従来どおりにする
-  async function saveCtText(key: CtTextKey, value: string) {
+  async function saveCtText(key: CtTextKey, name: string, value: string) {
+    if (ctErrors.has(name)) {
+      return;
+    }
     if (value.trim() === '') {
       await deleteSetting(key);
     } else {
@@ -599,10 +609,10 @@
     }
   }
   async function saveCtAmount(key: CtAmountKey, value: string) {
-    const normalized = value.replace(/,/g, '').trim();
+    const normalized = normalizeAmountInput(value);
     if (normalized === '') {
       await deleteSetting(key);
-    } else if (/^\d+$/.test(normalized)) {
+    } else if (parseAmountInput(normalized) !== undefined) {
       await setSetting(key, normalized);
     }
   }
@@ -614,45 +624,178 @@
     }
   }
   function parseYear(value: string): number | undefined {
-    const trimmed = value.trim();
-    return /^\d{4}$/.test(trimmed) ? Number(trimmed) : undefined;
+    const normalized = value.normalize('NFKC').trim();
+    return /^\d{4}$/.test(normalized) ? Number(normalized) : undefined;
   }
+  // 期間は開始と終了を 1 つの値で持つ。片方が読めないまま保存すると、もう片方の保存済みの値まで消える
   async function saveCtPeriods() {
     const fromYear = parseYear(ctTaxableElectionFrom);
     const toYear = parseYear(ctTaxableElectionTo);
-    if (ctTaxableElectionFrom.trim() === '') {
-      await deleteSetting('taxableElectionPeriod');
-    } else if (fromYear !== undefined) {
-      await setSetting('taxableElectionPeriod', {
-        fromYear,
-        ...(toYear !== undefined ? { toYear } : {}),
-      });
+    if (!ctErrors.has('ctTaxableElectionFrom') && !ctErrors.has('ctTaxableElectionTo')) {
+      if (fromYear === undefined) {
+        await deleteSetting('taxableElectionPeriod');
+      } else {
+        await setSetting('taxableElectionPeriod', {
+          fromYear,
+          ...(toYear !== undefined ? { toYear } : {}),
+        });
+      }
     }
-    if (ctShortenedFrom === '') {
-      await deleteSetting('shortenedTaxPeriod');
+    if (!ctErrors.has('ctShortenedFrom') && !ctErrors.has('ctShortenedTo')) {
+      if (ctShortenedFrom === '') {
+        await deleteSetting('shortenedTaxPeriod');
+      } else {
+        await setSetting('shortenedTaxPeriod', {
+          from: ctShortenedFrom,
+          ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
+        });
+      }
+    }
+  }
+  // 読めない値を書き込むと保存済みの値が消えたり別の値になったりするため、その欄は書き込まず、保存したとも表示しない
+  const ctErrors = new SvelteMap<string, () => string>();
+  let ctSection = $state<HTMLElement | null>(null);
+  function collectCtErrors(): Map<string, () => string> {
+    const errors = new Map<string, () => string>();
+    // 日付欄は途中まで入力すると value が空になり、空欄として消してしまうため badInput で見分ける
+    const dateInputs = [
+      ...(ctSection?.querySelectorAll<HTMLInputElement>('input[type="date"]') ?? []),
+    ];
+    for (const el of dateInputs) {
+      if (el.validity.badInput) {
+        errors.set(el.name, m.settings_ct_date_incomplete);
+      }
+    }
+    // 描画し直した欄は空に見えるため、日付の誤りは利用者が入れ直すか空にするまで引き継ぐ
+    for (const [name, message] of ctErrors) {
+      if (message === m.settings_ct_date_incomplete) {
+        errors.set(name, message);
+      }
+    }
+    if (!errors.has('ctShortenedFrom') && ctShortenedFrom === '' && ctShortenedTo !== '') {
+      errors.set('ctShortenedFrom', m.settings_ct_period_start_required);
+    }
+    for (const [name, value] of [
+      ['ctTaxableElectionFrom', ctTaxableElectionFrom],
+      ['ctTaxableElectionTo', ctTaxableElectionTo],
+    ] as const) {
+      if (value.trim() !== '' && parseYear(value) === undefined) {
+        errors.set(name, m.settings_ct_year_invalid);
+      }
+    }
+    if (ctTaxableElectionFrom.trim() === '' && ctTaxableElectionTo.trim() !== '') {
+      errors.set('ctTaxableElectionFrom', m.settings_ct_period_start_required);
+    }
+    for (const [name, value] of [
+      ['ctBasePeriodSales', ctBasePeriodSales],
+      ['ctSpecifiedPeriodSales', ctSpecifiedPeriodSales],
+    ] as const) {
+      if (isAmountInputInvalid(value)) {
+        errors.set(name, m.common_amount_invalid);
+      }
+    }
+    return errors;
+  }
+  function ctErrorMessages(...names: string[]): string[] {
+    return [...new Set(names.flatMap((name) => ctErrors.get(name) ?? []))].map((message) =>
+      message(),
+    );
+  }
+  // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
+  const ctPending = new SvelteSet<string>();
+  const ctFocusValues = new Map<string, string>();
+  const ctFocusBadInput = new Map<string, boolean>();
+  const ctUnsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(ctUnsavedToken, ctPending.size > 0);
+    return () => clearUnsavedGuard(ctUnsavedToken);
+  });
+  function trackCtFocus(name: string, el: HTMLInputElement) {
+    ctFocusValues.set(name, el.value);
+    ctFocusBadInput.set(name, el.validity.badInput);
+  }
+  function trackCtInput(name: string, el: HTMLInputElement) {
+    // 誤りを示している欄はフォーカス時の文字列もまだ保存されていないため、その文字列に戻っても未保存のまま
+    if (!ctErrors.has(name) && ctFocusValues.get(name) === el.value) {
+      ctPending.delete(name);
     } else {
-      await setSetting('shortenedTaxPeriod', {
-        from: ctShortenedFrom,
-        ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
-      });
+      ctPending.add(name);
+    }
+  }
+  function commitConsumptionTax(name: string, el: HTMLInputElement) {
+    ctPending.delete(name);
+    ctFocusValues.set(name, el.value);
+    ctFocusBadInput.set(name, el.validity.badInput);
+    if (el.type === 'date' && !el.validity.badInput) {
+      ctErrors.delete(name);
+    }
+    return saveConsumptionTax();
+  }
+  // 日付を区画ごとに消すと最初の区画でしか change が出ない環境があるため、フォーカスを外す時に確定する
+  // 描画し直しただけの欄は記録した状態から変わらないので、触っていなければ確定しない
+  function blurCtDate(name: string, el: HTMLInputElement) {
+    if (
+      ctErrors.get(name) === m.settings_ct_date_incomplete &&
+      !el.validity.badInput &&
+      (el.value !== ctFocusValues.get(name) || ctFocusBadInput.get(name) !== false)
+    ) {
+      return commitConsumptionTax(name, el);
     }
   }
 
   async function saveConsumptionTax() {
+    const errors = collectCtErrors();
+    for (const name of ctErrors.keys()) {
+      if (!errors.has(name)) {
+        ctPending.delete(name);
+      }
+    }
+    ctErrors.clear();
+    for (const [name, message] of errors) {
+      ctErrors.set(name, message);
+      ctPending.add(name);
+    }
+    // 全角で入れた値も半角で保存されるため、欄も保存した値の表記に揃える
+    if (!errors.has('ctBasePeriodSales')) {
+      ctBasePeriodSales = normalizeAmountInput(ctBasePeriodSales);
+    }
+    if (!errors.has('ctSpecifiedPeriodSales')) {
+      ctSpecifiedPeriodSales = normalizeAmountInput(ctSpecifiedPeriodSales);
+    }
+    if (!errors.has('ctTaxableElectionFrom') && !errors.has('ctTaxableElectionTo')) {
+      ctTaxableElectionFrom = String(parseYear(ctTaxableElectionFrom) ?? '');
+      ctTaxableElectionTo = String(parseYear(ctTaxableElectionTo) ?? '');
+    }
     await setSetting('taxRegistration', taxRegistration);
     await setSetting('taxFilingMethod', taxFilingMethod);
     await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
     await setSetting('consumptionTaxAttributionMethod', consumptionTaxAttributionMethod);
-    await saveCtText('invoiceRegistrationStartDate', ctRegistrationStartDate);
-    await saveCtText('inheritanceSpecialDate', ctInheritanceDate);
-    await saveCtText('adjustedFixedAssetDate', ctAdjustedFixedAssetDate);
-    await saveCtText('simplifiedElectionFiledDate', ctSimplifiedElectionFiledDate);
+    await saveCtText(
+      'invoiceRegistrationStartDate',
+      'ctRegistrationStartDate',
+      ctRegistrationStartDate,
+    );
+    await saveCtText('inheritanceSpecialDate', 'ctInheritanceDate', ctInheritanceDate);
+    await saveCtText(
+      'adjustedFixedAssetDate',
+      'ctAdjustedFixedAssetDate',
+      ctAdjustedFixedAssetDate,
+    );
+    await saveCtText(
+      'simplifiedElectionFiledDate',
+      'ctSimplifiedElectionFiledDate',
+      ctSimplifiedElectionFiledDate,
+    );
     await saveCtAmount('basePeriodTaxableSales', ctBasePeriodSales);
     await saveCtAmount('specifiedPeriodTaxableSales', ctSpecifiedPeriodSales);
     await saveCtFlag('foreignWithoutDomesticPe', ctForeignWithoutDomesticPe);
     await saveCtFlag('interimVoluntaryFiled', ctInterimVoluntaryFiled);
     await saveCtFlag('interimVoluntaryLapsed', ctInterimVoluntaryLapsed);
     await saveCtPeriods();
+    if (ctErrors.size > 0) {
+      consumptionTaxSaved = false;
+      return;
+    }
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
@@ -689,9 +832,10 @@
     if (zeimushoCodeInvalid || zeimushoUnresolved) {
       return;
     }
-    await setSetting('userRiyoshaId', userRiyoshaId.trim());
+    await setSetting('userRiyoshaId', userRiyoshaId.normalize('NFKC').trim());
     await setSetting('userFilerName', userFilerName.trim());
-    await setSetting('userFilerZip', userFilerZip.replace(/[^0-9]/g, ''));
+    // 郵便番号は全角の数字まで消さないよう、揃えてから数字以外を除く
+    await setSetting('userFilerZip', userFilerZip.normalize('NFKC').replace(/[^0-9]/g, ''));
     await setSetting('userFilerAddress', userFilerAddress.trim());
     await setSetting('userZeimushoCode', userZeimushoCode.trim());
     await setSetting('userZeimushoName', userZeimushoName.trim());
@@ -1446,6 +1590,9 @@
           count: parsed.corruptAttachmentNames.length,
         });
       }
+      // 選択直後は確定ボタンが画面の下に隠れたままになるため、下端の safe area や下に重なるカードを避けて中央へ寄せる。
+      await tick();
+      restoreApplyButton?.scrollIntoView({ block: 'center' });
     } catch (err) {
       if (err instanceof BackupTooLargeError) {
         restoreError = m.common_file_too_large({
@@ -1572,6 +1719,8 @@
     <label class="block sm:max-w-xs">
       <select
         value={currentLocale}
+        name="uiLocale"
+        aria-label={m.language_label()}
         onchange={onLocaleChange}
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       >
@@ -1592,6 +1741,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_basic_business_name()}</span>
         <input
           type="text"
+          name="jigyoYago"
+          autocomplete="off"
           bind:value={userBusinessName}
           placeholder={m.settings_basic_business_name_placeholder()}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
@@ -1601,6 +1752,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_basic_invoice_number()}</span>
         <input
           type="text"
+          name="invoiceRegistrationNumber"
+          autocomplete="off"
           bind:value={userInvoiceNumber}
           placeholder="T1234567890123"
           pattern={INVOICE_NUMBER_PATTERN}
@@ -1611,6 +1764,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_basic_year()}</span>
         <input
           type="number"
+          name="currentTaxNen"
+          autocomplete="off"
           value={currentYear}
           oninput={assignInputNumber((v) => (currentYear = v))}
           min="2020"
@@ -1623,6 +1778,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_invoice_number_prefix()}</span>
         <input
           type="text"
+          name="invoiceNumberSettoji"
+          autocomplete="off"
           bind:value={invoiceNumberPrefix}
           placeholder={DEFAULT_INVOICE_PREFIX}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1632,6 +1789,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_quote_number_prefix()}</span>
         <input
           type="text"
+          name="quoteNumberSettoji"
+          autocomplete="off"
           bind:value={quoteNumberPrefix}
           placeholder={DEFAULT_QUOTE_PREFIX}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
@@ -1717,7 +1876,10 @@
     </a>
   </div>
 
-  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <section
+    bind:this={ctSection}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_consumption_tax_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {m.settings_consumption_tax_intro()}
@@ -1729,6 +1891,7 @@
         >
         <select
           bind:value={taxRegistration}
+          name="taxRegistration"
           onchange={saveConsumptionTax}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         >
@@ -1741,6 +1904,7 @@
           <span class="text-xs text-muted-foreground">{m.settings_consumption_tax_method()}</span>
           <select
             bind:value={taxFilingMethod}
+            name="taxFilingMethod"
             onchange={saveConsumptionTax}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
@@ -1757,6 +1921,7 @@
             >
             <select
               bind:value={simplifiedTaxCategory}
+              name="simplifiedTaxCategory"
               onchange={saveConsumptionTax}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
@@ -1775,6 +1940,7 @@
             >
             <select
               bind:value={consumptionTaxAttributionMethod}
+              name="consumptionTaxAttributionMethod"
               onchange={saveConsumptionTax}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
@@ -1796,10 +1962,18 @@
           >
           <input
             type="date"
+            name="ctRegistrationStartDate"
+            autocomplete="off"
             bind:value={ctRegistrationStartDate}
-            onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            onfocus={(e) => trackCtFocus('ctRegistrationStartDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctRegistrationStartDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctRegistrationStartDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctRegistrationStartDate', e.currentTarget)}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctRegistrationStartDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <div class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_taxable_election_filed()}</span
@@ -1807,31 +1981,50 @@
           <div class="mt-1 flex items-center gap-2">
             <input
               type="text"
+              name="ctTaxableElectionFrom"
+              autocomplete="off"
               inputmode="numeric"
               maxlength="4"
               bind:value={ctTaxableElectionFrom}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctTaxableElectionFrom', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctTaxableElectionFrom', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctTaxableElectionFrom', e.currentTarget)}
               class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
             />
             <span class="text-muted-foreground">〜</span>
             <input
               type="text"
+              name="ctTaxableElectionTo"
+              autocomplete="off"
               inputmode="numeric"
               maxlength="4"
               bind:value={ctTaxableElectionTo}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctTaxableElectionTo', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctTaxableElectionTo', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctTaxableElectionTo', e.currentTarget)}
               class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
             />
           </div>
+          {#each ctErrorMessages('ctTaxableElectionFrom', 'ctTaxableElectionTo') as message (message)}
+            <span class="block mt-1 text-xs text-destructive">{message}</span>
+          {/each}
         </div>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_inheritance_special()}</span>
           <input
             type="date"
+            name="ctInheritanceDate"
+            autocomplete="off"
             bind:value={ctInheritanceDate}
-            onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            onfocus={(e) => trackCtFocus('ctInheritanceDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctInheritanceDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctInheritanceDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctInheritanceDate', e.currentTarget)}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctInheritanceDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1839,49 +2032,84 @@
           >
           <input
             type="date"
+            name="ctAdjustedFixedAssetDate"
+            autocomplete="off"
             bind:value={ctAdjustedFixedAssetDate}
-            onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            onfocus={(e) => trackCtFocus('ctAdjustedFixedAssetDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctAdjustedFixedAssetDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctAdjustedFixedAssetDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctAdjustedFixedAssetDate', e.currentTarget)}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctAdjustedFixedAssetDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <div class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_shortened_period()}</span>
           <div class="mt-1 flex items-center gap-2">
             <input
               type="date"
+              name="ctShortenedFrom"
+              autocomplete="off"
               bind:value={ctShortenedFrom}
-              onchange={saveConsumptionTax}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+              onfocus={(e) => trackCtFocus('ctShortenedFrom', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctShortenedFrom', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctShortenedFrom', e.currentTarget)}
+              onblur={(e) => blurCtDate('ctShortenedFrom', e.currentTarget)}
+              class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
             <span class="text-muted-foreground">〜</span>
             <input
               type="date"
+              name="ctShortenedTo"
+              autocomplete="off"
               bind:value={ctShortenedTo}
-              onchange={saveConsumptionTax}
-              class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+              onfocus={(e) => trackCtFocus('ctShortenedTo', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctShortenedTo', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctShortenedTo', e.currentTarget)}
+              onblur={(e) => blurCtDate('ctShortenedTo', e.currentTarget)}
+              class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
           </div>
+          {#each ctErrorMessages('ctShortenedFrom', 'ctShortenedTo') as message (message)}
+            <span class="block mt-1 text-xs text-destructive">{message}</span>
+          {/each}
         </div>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_base_period_sales()}</span>
           <input
             type="text"
+            name="ctBasePeriodSales"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={ctBasePeriodSales}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctBasePeriodSales', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctBasePeriodSales', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctBasePeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
+          {#each ctErrorMessages('ctBasePeriodSales') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_specified_period_sales()}</span
           >
           <input
             type="text"
+            name="ctSpecifiedPeriodSales"
+            autocomplete="off"
             inputmode="numeric"
             bind:value={ctSpecifiedPeriodSales}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctSpecifiedPeriodSales', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctSpecifiedPeriodSales', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctSpecifiedPeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
+          {#each ctErrorMessages('ctSpecifiedPeriodSales') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1889,10 +2117,18 @@
           >
           <input
             type="date"
+            name="ctSimplifiedElectionFiledDate"
+            autocomplete="off"
             bind:value={ctSimplifiedElectionFiledDate}
-            onchange={saveConsumptionTax}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
+            onfocus={(e) => trackCtFocus('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctSimplifiedElectionFiledDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
           <input
@@ -1935,6 +2171,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_filer_riyosha_id()}</span>
         <input
           type="text"
+          name="etaxRiyoshaId"
+          autocomplete="off"
           bind:value={userRiyoshaId}
           inputmode="numeric"
           maxlength="16"
@@ -1945,6 +2183,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_filer_name()}</span>
         <input
           type="text"
+          name="filerShimei"
+          autocomplete="off"
           bind:value={userFilerName}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
@@ -1953,6 +2193,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_filer_zip()}</span>
         <input
           type="text"
+          name="filerYubinBango"
+          autocomplete="off"
           bind:value={userFilerZip}
           inputmode="numeric"
           maxlength="8"
@@ -1963,6 +2205,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_filer_address()}</span>
         <input
           type="text"
+          name="filerJusho"
+          autocomplete="off"
           bind:value={userFilerAddress}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
@@ -1971,6 +2215,7 @@
         <span class="text-xs text-muted-foreground">{m.settings_filer_zeimusho()}</span>
         <input
           type="text"
+          name="zeimushoSearch"
           value={zeimushoQuery}
           oninput={(e) => onZeimushoInput((e.target as HTMLInputElement).value)}
           onfocus={() => (zeimushoOpen = true)}
@@ -2038,6 +2283,7 @@
           <span class="text-xs text-muted-foreground">{m.settings_aoiro_label()}</span>
           <select
             bind:value={aoiroDeductionKind}
+            name="aoiroDeductionKind"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
             <option value="electronic">{m.settings_aoiro_electronic()}</option>
@@ -2190,6 +2436,8 @@
     <form onsubmit={addSubAccount} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newSubParent}
+        name="subAccountParent"
+        aria-label={m.settings_subaccount_parent_select()}
         required
         class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
@@ -2204,6 +2452,9 @@
       </select>
       <input
         type="text"
+        name="subAccountTitle"
+        aria-label={m.settings_subaccount_name_placeholder()}
+        autocomplete="off"
         bind:value={newSubName}
         required
         placeholder={m.settings_subaccount_name_placeholder()}
@@ -2259,6 +2510,9 @@
     <form onsubmit={addVendor} class="flex flex-wrap gap-3 items-center">
       <input
         type="text"
+        name="vendorTorihikisaki"
+        aria-label={m.settings_vendor_name_placeholder()}
+        autocomplete="off"
         bind:value={newVendorName}
         required
         placeholder={m.settings_vendor_name_placeholder()}
@@ -2266,6 +2520,8 @@
       />
       <select
         bind:value={newVendorEntityType}
+        name="vendorEntityType"
+        aria-label={m.settings_vendor_entity_label()}
         class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="unknown">{m.settings_vendor_entity_label()}</option>
@@ -2276,6 +2532,9 @@
       </select>
       <input
         type="text"
+        name="vendorInvoiceNumber"
+        autocomplete="off"
+        aria-label={m.settings_vendor_invoice_placeholder()}
         bind:value={newVendorInvoice}
         placeholder={m.settings_vendor_invoice_placeholder()}
         pattern={INVOICE_NUMBER_PATTERN}
@@ -2283,6 +2542,8 @@
       />
       <select
         bind:value={newVendorAccountCode}
+        name="vendorDefaultAccount"
+        aria-label={m.settings_vendor_default_account()}
         class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="">{m.settings_vendor_default_account()}</option>
@@ -2296,6 +2557,9 @@
       </select>
       <input
         type="text"
+        name="vendorSofusaki"
+        aria-label={m.settings_vendor_address_placeholder()}
+        autocomplete="off"
         bind:value={newVendorAddress}
         placeholder={m.settings_vendor_address_placeholder()}
         class="flex-1 min-w-48 px-3 h-11 bg-background border rounded text-foreground"
@@ -2367,6 +2631,9 @@
       <form onsubmit={addInventoryItem} class="flex flex-wrap gap-3 items-center">
         <input
           type="text"
+          name="inventoryItemTitle"
+          aria-label={m.settings_inventory_item_name_placeholder()}
+          autocomplete="off"
           bind:value={newInventoryItemName}
           required
           placeholder={m.settings_inventory_item_name_placeholder()}
@@ -2414,6 +2681,9 @@
     <form onsubmit={addAsset} class="space-y-2">
       <input
         type="text"
+        name="assetTitle"
+        aria-label={m.settings_asset_name_placeholder()}
+        autocomplete="off"
         bind:value={newAssetName}
         required
         placeholder={m.settings_asset_name_placeholder()}
@@ -2422,13 +2692,19 @@
       <div class="flex flex-wrap gap-2 items-center">
         <input
           type="date"
+          name="assetAcquisitionDate"
+          autocomplete="off"
+          aria-label={m.settings_asset_date_title()}
           bind:value={newAssetDate}
           required
           title={m.settings_asset_date_title()}
-          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
         <input
           type="number"
+          name="assetAcquisitionCost"
+          autocomplete="off"
+          aria-label={m.settings_asset_cost_placeholder()}
           value={newAssetCost}
           oninput={assignInputString((v) => (newAssetCost = v))}
           required
@@ -2439,6 +2715,9 @@
         />
         <input
           type="number"
+          name="assetUsefulLife"
+          autocomplete="off"
+          aria-label={m.settings_asset_life_title()}
           value={newAssetLife}
           oninput={assignInputNumber((v) => (newAssetLife = v))}
           required
@@ -2450,6 +2729,8 @@
         />
         <select
           value={newAssetAccount}
+          name="assetAccount"
+          aria-label={m.settings_asset_account_title()}
           onchange={(e) => selectNewAssetAccount(e.currentTarget.value)}
           title={m.settings_asset_account_title()}
           class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
@@ -2460,6 +2741,8 @@
         </select>
         <select
           value={newAssetMethod}
+          name="assetMethod"
+          aria-label={m.settings_asset_method_title()}
           onchange={(e) => (newAssetMethod = e.currentTarget.value as DepreciationMethod)}
           title={m.settings_asset_method_title()}
           class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
@@ -2481,6 +2764,8 @@
         {#if ledger.realEstateIncomeEnabled}
           <select
             bind:value={newAssetIncomeType}
+            name="assetIncomeType"
+            aria-label={m.journal_form_income_type_label()}
             title={m.journal_form_income_type_label()}
             class="max-w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
           >
@@ -2498,6 +2783,8 @@
       <div class="flex flex-wrap gap-2 items-center">
         <select
           bind:value={newAssetCategory}
+          name="assetCategory"
+          aria-label={m.settings_asset_category()}
           title={m.settings_asset_category()}
           class="max-w-full px-3 h-10 bg-background border rounded text-foreground text-sm"
         >
@@ -2509,6 +2796,9 @@
         {#if newAssetMethod === 'small-asset-special'}
           <input
             type="number"
+            name="assetEmployeeCount"
+            autocomplete="off"
+            aria-label={m.settings_asset_employee_count()}
             value={newAssetEmployeeCount}
             oninput={assignInputString((v) => (newAssetEmployeeCount = v))}
             min="0"
@@ -2542,12 +2832,17 @@
           {m.settings_asset_lease_contract_date()}
           <input
             type="date"
+            name="assetLeaseContractDate"
+            autocomplete="off"
             bind:value={newAssetLeaseContractDate}
-            class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+            class="px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
         <input
           type="number"
+          name="assetResidualGuarantee"
+          autocomplete="off"
+          aria-label={m.settings_asset_residual_guarantee()}
           value={newAssetResidualGuarantee}
           oninput={assignInputString((v) => (newAssetResidualGuarantee = v))}
           min="0"
@@ -2559,6 +2854,9 @@
         {#if newAssetMethod === 'lease-period-straight-line'}
           <input
             type="number"
+            name="assetLeaseTermMonths"
+            autocomplete="off"
+            aria-label={m.settings_asset_lease_term_months()}
             value={newAssetLeaseTermMonths}
             oninput={assignInputString((v) => (newAssetLeaseTermMonths = v))}
             min="1"
@@ -2681,12 +2979,18 @@
                       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <input
                           type="text"
+                          name="propertyType"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_type_placeholder()}
                           bind:value={propertyType}
                           placeholder={m.settings_asset_property_type_placeholder()}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
                         />
                         <input
                           type="text"
+                          name="propertyJusho"
+                          aria-label={m.settings_asset_property_address_placeholder()}
+                          autocomplete="off"
                           bind:value={propertyAddress}
                           placeholder={m.settings_asset_property_address_placeholder()}
                           class="sm:col-span-2 px-3 py-2 bg-background border rounded text-foreground text-sm"
@@ -2697,30 +3001,45 @@
                         </label>
                         <input
                           type="text"
+                          name="propertyTenantShimei"
+                          aria-label={m.settings_asset_property_tenant_name_placeholder()}
+                          autocomplete="off"
                           bind:value={propertyTenantName}
                           placeholder={m.settings_asset_property_tenant_name_placeholder()}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
                         />
                         <input
                           type="text"
+                          name="propertyTenantJusho"
+                          aria-label={m.settings_asset_property_tenant_address_placeholder()}
+                          autocomplete="off"
                           bind:value={propertyTenantAddress}
                           placeholder={m.settings_asset_property_tenant_address_placeholder()}
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
                         />
                         <input
                           type="date"
+                          name="propertyRentalStart"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_rental_start_title()}
                           bind:value={propertyRentalStart}
                           title={m.settings_asset_property_rental_start_title()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                         />
                         <input
                           type="date"
+                          name="propertyRentalEnd"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_rental_end_title()}
                           bind:value={propertyRentalEnd}
                           title={m.settings_asset_property_rental_end_title()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                         />
                         <input
                           type="number"
+                          name="propertyMensekiSqm"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_area_placeholder()}
                           value={propertyAreaSqm}
                           oninput={assignInputString((v) => (propertyAreaSqm = v))}
                           min="0"
@@ -2729,6 +3048,9 @@
                         />
                         <input
                           type="number"
+                          name="propertyAnnualRent"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_annual_rent_placeholder()}
                           value={propertyAnnualRent}
                           oninput={assignInputString((v) => (propertyAnnualRent = v))}
                           min="0"
@@ -2739,6 +3061,9 @@
                         />
                         <input
                           type="number"
+                          name="propertyKeyMoneyEtc"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_key_money_placeholder()}
                           value={propertyKeyMoneyEtc}
                           oninput={assignInputString((v) => (propertyKeyMoneyEtc = v))}
                           min="0"
@@ -2748,6 +3073,9 @@
                         />
                         <input
                           type="number"
+                          name="propertyOtherIncome"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_other_income_placeholder()}
                           value={propertyOtherIncome}
                           oninput={assignInputString((v) => (propertyOtherIncome = v))}
                           min="0"
@@ -2757,6 +3085,9 @@
                         />
                         <input
                           type="number"
+                          name="propertyDepositBalance"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_property_deposit_placeholder()}
                           value={propertyDepositBalance}
                           oninput={assignInputString((v) => (propertyDepositBalance = v))}
                           min="0"
@@ -2795,8 +3126,11 @@
                       <div class="flex flex-wrap items-center gap-2">
                         <input
                           type="date"
+                          name="disposeDate"
+                          autocomplete="off"
+                          aria-label={m.settings_asset_disposal_date()}
                           bind:value={disposeDate}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
                         />
                         <label class="flex items-center gap-1 text-sm py-2">
                           <input type="radio" bind:group={disposeType} value="scrap" />
@@ -2809,6 +3143,9 @@
                         {#if disposeType === 'sale'}
                           <input
                             type="number"
+                            name="disposeSalePrice"
+                            autocomplete="off"
+                            aria-label={m.settings_asset_disposal_sale_price_placeholder()}
                             value={disposeSalePrice}
                             oninput={assignInputString((v) => (disposeSalePrice = v))}
                             min="0"
@@ -2818,6 +3155,9 @@
                           />
                           <input
                             type="number"
+                            name="disposeSaleKeihi"
+                            autocomplete="off"
+                            aria-label={m.settings_asset_disposal_sale_expenses_placeholder()}
                             value={disposeSaleExpenses}
                             oninput={assignInputString((v) => (disposeSaleExpenses = v))}
                             min="0"
@@ -2827,6 +3167,8 @@
                           />
                           <select
                             bind:value={disposeCashAccount}
+                            name="disposeCashAccount"
+                            aria-label={m.settings_asset_disposal_cash_account_title()}
                             title={m.settings_asset_disposal_cash_account_title()}
                             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
                           >
@@ -2911,6 +3253,8 @@
           {m.settings_transfer_income_occasional()}
           <input
             type="number"
+            name="transferOccasionalIncome"
+            autocomplete="off"
             value={transferOccasionalIncome}
             oninput={assignInputString((v) => (transferOccasionalIncome = v))}
             step="1"
@@ -2934,6 +3278,8 @@
         <span class="text-xs text-muted-foreground">{m.settings_asset_target_year()}</span>
         <input
           type="number"
+          name="depreciationTargetNen"
+          autocomplete="off"
           value={depreciationYear}
           oninput={assignInputNumber((v) => (depreciationYear = v))}
           min="2020"
@@ -2964,6 +3310,8 @@
     <form onsubmit={addRule} class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newRuleMatchType}
+        name="ruleMatchType"
+        aria-label={m.settings_rule_match_type()}
         class="px-3 h-11 bg-background border rounded text-foreground"
       >
         <option value="description-includes">{m.settings_rule_match_includes()}</option>
@@ -2972,6 +3320,9 @@
       </select>
       <input
         type="text"
+        name="rulePattern"
+        autocomplete="off"
+        aria-label={m.settings_rule_pattern_placeholder()}
         bind:value={newRulePattern}
         required
         placeholder={m.settings_rule_pattern_placeholder()}
@@ -2979,6 +3330,8 @@
       />
       <select
         bind:value={newRuleAccountCode}
+        name="ruleAccount"
+        aria-label={m.settings_rule_account_select()}
         required
         class="flex-1 min-w-40 px-3 h-11 bg-background border rounded text-foreground"
       >
@@ -2993,6 +3346,9 @@
       </select>
       <input
         type="number"
+        name="rulePriority"
+        autocomplete="off"
+        aria-label={m.settings_rule_priority_title()}
         value={newRulePriority}
         oninput={assignInputNumber((v) => (newRulePriority = v))}
         min="0"
@@ -3093,6 +3449,7 @@
       <span class="text-xs text-muted-foreground">{m.settings_engine_label()}</span>
       <select
         bind:value={aiEngine}
+        name="aiEngine"
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
       >
         <option value="gemini">{m.settings_engine_gemini()}</option>
@@ -3134,6 +3491,8 @@
             <span class="text-xs text-muted-foreground">{m.settings_llm_key_label()}</span>
             <input
               type="password"
+              name="geminiApiKey"
+              autocomplete="off"
               bind:value={geminiKey}
               placeholder="AIza..."
               class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground font-mono text-sm"
@@ -3176,6 +3535,7 @@
           {#if geminiModels.length > 0}
             <select
               bind:value={geminiModel}
+              name="geminiModelSelect"
               onchange={saveGeminiModel}
               class="mt-1 w-full px-3 h-11 bg-background border rounded text-foreground text-sm"
             >
@@ -3186,6 +3546,8 @@
           {:else}
             <input
               type="text"
+              name="geminiModelMei"
+              autocomplete="off"
               readonly
               bind:value={geminiModel}
               placeholder={m.settings_llm_model_fetch_hint()}
@@ -3210,6 +3572,8 @@
           <span class="text-xs text-muted-foreground">{m.settings_openai_baseurl_label()}</span>
           <input
             type="text"
+            name="openaiBaseUrl"
+            autocomplete="off"
             bind:value={openaiBaseUrl}
             placeholder="http://localhost:11434/v1"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
@@ -3219,6 +3583,8 @@
           <span class="text-xs text-muted-foreground">{m.settings_openai_apikey_label()}</span>
           <input
             type="password"
+            name="openaiApiKey"
+            autocomplete="off"
             bind:value={openaiApiKey}
             placeholder={m.settings_openai_apikey_placeholder()}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
@@ -3247,6 +3613,7 @@
           {#if openaiModels.length > 0}
             <select
               bind:value={openaiOcrModel}
+              name="openaiOcrModelSelect"
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
             >
               <option value="">—</option>
@@ -3257,6 +3624,8 @@
           {:else}
             <input
               type="text"
+              name="openaiOcrModelMei"
+              autocomplete="off"
               readonly
               bind:value={openaiOcrModel}
               placeholder={m.settings_llm_model_fetch_hint()}
@@ -3271,6 +3640,7 @@
           {#if openaiModels.length > 0}
             <select
               bind:value={openaiClassifyModel}
+              name="openaiClassifyModelSelect"
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
             >
               <option value="">—</option>
@@ -3281,6 +3651,8 @@
           {:else}
             <input
               type="text"
+              name="openaiClassifyModelMei"
+              autocomplete="off"
               readonly
               bind:value={openaiClassifyModel}
               placeholder={m.settings_llm_model_fetch_hint()}
@@ -3447,6 +3819,7 @@
         </div>
       {/if}
       <button
+        bind:this={restoreApplyButton}
         type="button"
         onclick={() => (confirmingRestore = true)}
         class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"
@@ -3519,6 +3892,8 @@
     >
       <select
         bind:value={hoRatioAccount}
+        name="homeOfficeAccount"
+        aria-label={m.journal_form_account_select()}
         class="px-3 h-9 bg-background border rounded text-foreground text-sm"
       >
         <option value="">{m.journal_form_account_select()}</option>
@@ -3528,6 +3903,9 @@
       </select>
       <input
         type="number"
+        name="homeOfficeRatio"
+        autocomplete="off"
+        aria-label={m.settings_home_office_title()}
         value={hoRatioValue}
         oninput={(e) => {
           hoRatioValue = (e.target as HTMLInputElement).value;
@@ -3574,6 +3952,8 @@
       </p>
       <select
         value={devDocPreviewPlatform}
+        name="docPreviewPlatform"
+        aria-label="プレビュー対象"
         onchange={onDocPreviewPlatformChange}
         class="px-3 h-9 bg-background border rounded text-foreground text-sm"
       >

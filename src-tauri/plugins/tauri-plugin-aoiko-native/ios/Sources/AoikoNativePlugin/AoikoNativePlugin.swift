@@ -15,6 +15,10 @@ class AoikoNativePlugin: Plugin, UIDocumentPickerDelegate {
     // start は stop と対で呼ばないとリソースを漏らす。読み書きは Rust 側で起きるため
     // 「いつ終わったか」を知れず、token ごとに一度だけ取得して選び直しまで保持する。
     private var scopedFolders: [String: URL] = [:]
+    // WKWebView が safe area 分だけビューポートを縮めると、起動直後は狭い幅で描画されて後から再配置される。safe area は CSS の env() に任せる。
+    @objc public override func load(webview: WKWebView) {
+        webview.scrollView.contentInsetAdjustmentBehavior = .never
+    }
 
     @objc public func pickFolder(_ invoke: Invoke) {
         pendingPickInvoke = invoke

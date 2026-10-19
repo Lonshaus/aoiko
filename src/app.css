@@ -209,3 +209,9 @@
     text-wrap: balance;
   }
 }
+/* fixed 中央寄せの AlertDialog が右端などの safe area へはみ出すため、中心と幅を safe area 内へ寄せる。vendor ファイルは触れず layer 外の規則で上書きする。 */
+[data-slot='alert-dialog-content'] {
+  left: calc(50% + (env(safe-area-inset-left) - env(safe-area-inset-right)) / 2);
+  top: calc(50% + (env(safe-area-inset-top) - env(safe-area-inset-bottom)) / 2);
+  width: calc(100% - env(safe-area-inset-left) - env(safe-area-inset-right));
+}

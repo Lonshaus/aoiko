@@ -4,6 +4,11 @@
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
   import { D, formatJPY } from '../lib/decimal';
+  import {
+    isAmountInputInvalid,
+    normalizeAmountInput,
+    parseAmountInput,
+  } from '../lib/amount-input';
   import { todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import { isSmallAssetEligible, smallAssetThreshold } from '../tax-schema/2026/limits';
@@ -176,8 +181,28 @@
     setUnsavedGuard(unsavedToken, isDirty);
     return () => clearUnsavedGuard(unsavedToken);
   });
+  // 読めない額のまま作成に進むと内部のエラー文が出るか、償却 0 として作られてしまう。
+  // 開業費の合計が 0 ならドメインは償却額を読まない
+  function customAmortizationInvalid(): boolean {
+    if (
+      expenseAmortization !== 'custom' ||
+      parseAmountInput(customAmortizationAmount) !== undefined
+    ) {
+      return false;
+    }
+    try {
+      return !expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0)).isZero();
+    } catch {
+      // 読めない開業費の額はドメインが作成時にエラーとして示す
+      return false;
+    }
+  }
 
   async function handleGenerate() {
+    if (customAmortizationInvalid()) {
+      error = m.common_amount_invalid();
+      return;
+    }
     generating = true;
     error = '';
     try {
@@ -201,7 +226,9 @@
           businessStartDate,
           expenses,
           expenseAmortization,
-          ...(expenseAmortization === 'custom' ? { customAmortizationAmount } : {}),
+          ...(expenseAmortization === 'custom'
+            ? { customAmortizationAmount: normalizeAmountInput(customAmortizationAmount) }
+            : {}),
           convertedAssets: convertedAssets.map((a) => ({
             name: a.name,
             acquisitionDate: a.acquisitionDate,
@@ -239,6 +266,11 @@
   // 作り直しへ進まない（打ち消せていない状態で generate すると二重計上になる）。
   async function handleRedo() {
     redoConfirmOpen = false;
+    // 打ち消した後で作り直しが止まると、開業仕訳が無いまま残る
+    if (customAmortizationInvalid()) {
+      error = m.common_amount_invalid();
+      return;
+    }
     generating = true;
     error = '';
     try {
@@ -277,15 +309,20 @@
       <h3 class="text-lg font-semibold">{m.opening_start_date_title()}</h3>
       <input
         type="date"
+        name="jigyoStartDate"
+        autocomplete="off"
+        aria-label={m.opening_start_date_title()}
         bind:value={businessStartDate}
-        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+        class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
       />
       <label class="block text-sm font-medium mt-4">
         {m.opening_business_close_date()}
         <input
           type="date"
+          name="jigyoCloseDate"
+          autocomplete="off"
           bind:value={businessCloseDate}
-          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
         />
       </label>
     </section>
@@ -302,12 +339,18 @@
       >
         <input
           type="text"
+          name="openingKeihiTitle"
+          aria-label={m.opening_expense_name_placeholder()}
+          autocomplete="off"
           bind:value={expenseName}
           placeholder={m.opening_expense_name_placeholder()}
           class="flex-1 min-w-40 px-3 py-2 bg-background border rounded text-foreground text-sm"
         />
         <input
           type="number"
+          name="openingKeihiAmount"
+          autocomplete="off"
+          aria-label={m.opening_amount_placeholder()}
           value={expenseAmount}
           oninput={assignInputString((v) => (expenseAmount = v))}
           min="0"
@@ -360,12 +403,18 @@
         {#if expenseAmortization === 'custom'}
           <input
             type="text"
+            name="openingKeihiCustomAmortization"
+            autocomplete="off"
+            aria-label={m.opening_expense_custom_amount()}
             inputmode="numeric"
             value={customAmortizationAmount}
             oninput={assignInputString((v) => (customAmortizationAmount = v))}
             placeholder={m.opening_expense_custom_amount()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums w-40"
           />
+          {#if isAmountInputInvalid(customAmortizationAmount)}
+            <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
+          {/if}
         {/if}
       {/if}
     </section>
@@ -382,6 +431,9 @@
       >
         <input
           type="text"
+          name="convertedAssetTitle"
+          aria-label={m.settings_asset_name_placeholder()}
+          autocomplete="off"
           bind:value={newAssetName}
           placeholder={m.settings_asset_name_placeholder()}
           class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm"
@@ -389,12 +441,18 @@
         <div class="flex flex-wrap gap-2 items-center">
           <input
             type="date"
+            name="convertedAssetAcquisitionDate"
+            autocomplete="off"
+            aria-label={m.opening_converted_acq_date_title()}
             bind:value={newAssetAcqDate}
             title={m.opening_converted_acq_date_title()}
-            class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
+            class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
           />
           <input
             type="number"
+            name="convertedAssetAcquisitionCost"
+            autocomplete="off"
+            aria-label={m.settings_asset_cost_placeholder()}
             value={newAssetCost}
             oninput={assignInputString((v) => (newAssetCost = v))}
             min="0"
@@ -404,6 +462,9 @@
           />
           <input
             type="number"
+            name="convertedAssetUsefulLife"
+            autocomplete="off"
+            aria-label={m.settings_asset_life_title()}
             value={newAssetLife}
             oninput={assignInputNumber((v) => (newAssetLife = v))}
             min="1"
@@ -414,6 +475,8 @@
           />
           <select
             bind:value={newAssetAccount}
+            name="convertedAssetAccount"
+            aria-label={m.settings_asset_account_title()}
             title={m.settings_asset_account_title()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm"
           >
@@ -517,12 +580,17 @@
       >
         <input
           type="text"
+          name="customItemTitle"
+          aria-label={m.opening_custom_name_placeholder()}
+          autocomplete="off"
           bind:value={customName}
           placeholder={m.opening_custom_name_placeholder()}
           class="flex-1 min-w-32 px-3 py-2 bg-background border rounded text-foreground text-sm"
         />
         <select
           bind:value={customAccount}
+          name="customItemAccount"
+          aria-label={m.opening_custom_account_placeholder()}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="">{m.opening_custom_account_placeholder()}</option>
@@ -532,6 +600,8 @@
         </select>
         <select
           bind:value={customSide}
+          name="customItemSide"
+          aria-label={m.opening_custom_side_label()}
           class="px-3 py-2 bg-background border rounded text-foreground text-sm"
         >
           <option value="debit">{m.opening_custom_side_debit()}</option>
@@ -539,6 +609,9 @@
         </select>
         <input
           type="number"
+          name="customItemAmount"
+          autocomplete="off"
+          aria-label={m.opening_amount_placeholder()}
           value={customAmount}
           oninput={assignInputString((v) => (customAmount = v))}
           min="0"
