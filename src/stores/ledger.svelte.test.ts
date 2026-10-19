@@ -43,6 +43,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   ledger.switchYear(2026);
   await db.delete();
 });
