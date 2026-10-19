@@ -4,6 +4,26 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.5] - 2026-10-19
+
+Fixes for input fields, Journal entries and Reports, and display fixes.
+
+### Changed
+
+- Below 1024px wide, the header navigation now opens from the menu button. It no longer wraps onto two lines at 768–1023px
+- Input fields now have names and labels. The browser no longer keeps input history for them, and address or name autofill no longer fills bookkeeping fields
+- In Settings (consumption tax) and Reports (20%/30% special rule), closing or reloading the page while an edited field still has focus now asks for confirmation
+- After you choose a backup file, the page now scrolls to the "Replace all data and restore" button
+- When added to the Home Screen, the disclaimer, confirmation dialogs and the update notice no longer overlap the edges of the screen
+
+### Fixed
+
+- Journal entries could stay on "Loading…". When loading fails, it now shows the error and a reload button
+- Amounts, numbers and IDs with full-width digits or commas could fail to save, be treated as 0, or crash the screen. Values that can't be read are now flagged under the field
+- Reports: rows for transfers of specified small-amount assets were not saved
+- The update notice appeared by mistake on the first visit in some browsers. The notice card also covered the last button on the page and appeared in printouts
+- In browsers on some devices, date fields overflowed their width
+
 ## [1.2.4] - 2026-10-04
 
 Brings the Disclaimer, Privacy Policy, Security Policy, and the wording on screen and in the Guide in line with how the app actually behaves. Because the consent documents changed, you'll be asked to agree again on the next launch.
