@@ -1,10 +1,12 @@
 [package]
 name = "tauri-plugin-aoiko-native"
 version = "1.0.0"
-description = "aoiko デスクトップ版のバックアップフォルダ選択と、iOS/iPadOS の印刷・アプリ内ブラウザ表示"
+description = "aoiko ネイティブ版のバックアップフォルダ選択と、iOS/iPadOS の印刷・アプリ内ブラウザ表示"
 edition = "2021"
 rust-version = "1.77.2"
 links = "tauri-plugin-aoiko-native"
+# Dependabot は path 依存の Cargo.toml しか取得せず、build.rs が無いと links の検査で落ちるので明示する。
+build = "build.rs"
 
 [lib]
 name = "tauri_plugin_aoiko_native"
