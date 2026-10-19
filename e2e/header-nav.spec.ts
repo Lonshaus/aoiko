@@ -13,10 +13,7 @@ async function openApp(page: Page, locale: string, width: number): Promise<void>
   await acceptDisclaimer(page);
   await page.evaluate((l) => localStorage.setItem('PARAGLIDE_LOCALE', l), locale);
   await page.reload();
-  const accept = page.getByTestId('disclaimer-accept');
-  if (await accept.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await acceptDisclaimer(page);
-  }
+  await expect(page.locator('html')).toHaveAttribute('lang', locale);
 }
 
 for (const locale of LOCALES) {
