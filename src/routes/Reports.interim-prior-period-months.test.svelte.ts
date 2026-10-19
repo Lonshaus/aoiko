@@ -3,10 +3,11 @@
 // 2027年分に月数3を記録し前年確定税額150,000を入力すると年1回の義務、
 // 記録の無い2028年分は同額でも月数12のまま判定され義務が無いことを確認する。
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { mount, unmount } from 'svelte';
+import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
-import { setSetting } from '../lib/settings';
+import { getSetting, setSetting } from '../lib/settings';
+import { hasUnsavedChanges } from '../router.svelte';
 import type { Account } from '../db/types';
 
 vi.mock('../lib/save-file', () => ({
@@ -103,5 +104,72 @@ describe('設定経由の直前課税期間月数が中間申告義務判定に�
     await waitFor(() =>
       containsText(container!, '前年確定消費税額が48万円以下のため、中間申告義務はありません。'),
     );
+  });
+});
+
+describe('直前課税期間の月数は change まで未保存として登録される', () => {
+  test('input だけでは未保存・保存値は不変、change で解除され従来どおり保存される', async () => {
+    await setSetting('currentYear', 2027);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(
+      () => container!.querySelector('input[name="interimPriorPeriodMonths"]') !== null,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      'input[name="interimPriorPeriodMonths"]',
+    )!;
+    await waitFor(() => input.value === '12');
+    expect(hasUnsavedChanges()).toBe(false);
+
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = '7';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+    expect(await getSetting('interimPriorPeriodMonths')).toBeUndefined();
+
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    let saved = await getSetting('interimPriorPeriodMonths');
+    for (let i = 0; i < 200 && saved?.[2027] !== 7; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      saved = await getSetting('interimPriorPeriodMonths');
+    }
+    expect(saved?.[2027]).toBe(7);
+  });
+
+  test('元の値へ戻すと（blur なしで）解除され、blur だけでは解除されず、アンマウントで登録は残らない', async () => {
+    await setSetting('currentYear', 2027);
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(
+      () => container!.querySelector('input[name="interimPriorPeriodMonths"]') !== null,
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      'input[name="interimPriorPeriodMonths"]',
+    )!;
+    await waitFor(() => input.value === '12');
+    input.dispatchEvent(new FocusEvent('focus'));
+    input.value = '5';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+    input.value = '12';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    input.value = '6';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+    input.dispatchEvent(new FocusEvent('blur'));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+    unmount(instance);
+    instance = undefined;
+    expect(hasUnsavedChanges()).toBe(false);
   });
 });

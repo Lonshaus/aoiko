@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { link } from '../router.svelte';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { clearUnsavedGuard, link, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
@@ -636,6 +637,29 @@
         ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
       });
     }
+  }
+  // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
+  const ctPending = new SvelteSet<string>();
+  const ctFocusValues = new Map<string, string>();
+  const ctUnsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(ctUnsavedToken, ctPending.size > 0);
+    return () => clearUnsavedGuard(ctUnsavedToken);
+  });
+  function trackCtFocus(name: string, el: HTMLInputElement) {
+    ctFocusValues.set(name, el.value);
+  }
+  function trackCtInput(name: string, el: HTMLInputElement) {
+    if (ctFocusValues.get(name) === el.value) {
+      ctPending.delete(name);
+    } else {
+      ctPending.add(name);
+    }
+  }
+  function commitConsumptionTax(name: string, el: HTMLInputElement) {
+    ctPending.delete(name);
+    ctFocusValues.set(name, el.value);
+    return saveConsumptionTax();
   }
 
   async function saveConsumptionTax() {
@@ -1815,7 +1839,9 @@
             name="ctRegistrationStartDate"
             autocomplete="off"
             bind:value={ctRegistrationStartDate}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctRegistrationStartDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctRegistrationStartDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctRegistrationStartDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
@@ -1830,7 +1856,9 @@
               inputmode="numeric"
               maxlength="4"
               bind:value={ctTaxableElectionFrom}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctTaxableElectionFrom', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctTaxableElectionFrom', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctTaxableElectionFrom', e.currentTarget)}
               class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
             />
             <span class="text-muted-foreground">〜</span>
@@ -1841,7 +1869,9 @@
               inputmode="numeric"
               maxlength="4"
               bind:value={ctTaxableElectionTo}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctTaxableElectionTo', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctTaxableElectionTo', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctTaxableElectionTo', e.currentTarget)}
               class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
             />
           </div>
@@ -1853,7 +1883,9 @@
             name="ctInheritanceDate"
             autocomplete="off"
             bind:value={ctInheritanceDate}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctInheritanceDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctInheritanceDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctInheritanceDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
@@ -1866,7 +1898,9 @@
             name="ctAdjustedFixedAssetDate"
             autocomplete="off"
             bind:value={ctAdjustedFixedAssetDate}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctAdjustedFixedAssetDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctAdjustedFixedAssetDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctAdjustedFixedAssetDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
@@ -1878,7 +1912,9 @@
               name="ctShortenedFrom"
               autocomplete="off"
               bind:value={ctShortenedFrom}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctShortenedFrom', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctShortenedFrom', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctShortenedFrom', e.currentTarget)}
               class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
             <span class="text-muted-foreground">〜</span>
@@ -1887,7 +1923,9 @@
               name="ctShortenedTo"
               autocomplete="off"
               bind:value={ctShortenedTo}
-              onchange={saveConsumptionTax}
+              onfocus={(e) => trackCtFocus('ctShortenedTo', e.currentTarget)}
+              oninput={(e) => trackCtInput('ctShortenedTo', e.currentTarget)}
+              onchange={(e) => commitConsumptionTax('ctShortenedTo', e.currentTarget)}
               class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
           </div>
@@ -1900,7 +1938,9 @@
             autocomplete="off"
             inputmode="numeric"
             bind:value={ctBasePeriodSales}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctBasePeriodSales', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctBasePeriodSales', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctBasePeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
         </label>
@@ -1913,7 +1953,9 @@
             autocomplete="off"
             inputmode="numeric"
             bind:value={ctSpecifiedPeriodSales}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctSpecifiedPeriodSales', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctSpecifiedPeriodSales', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctSpecifiedPeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
         </label>
@@ -1926,7 +1968,9 @@
             name="ctSimplifiedElectionFiledDate"
             autocomplete="off"
             bind:value={ctSimplifiedElectionFiledDate}
-            onchange={saveConsumptionTax}
+            onfocus={(e) => trackCtFocus('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            oninput={(e) => trackCtInput('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            onchange={(e) => commitConsumptionTax('ctSimplifiedElectionFiledDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
