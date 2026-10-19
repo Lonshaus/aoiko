@@ -1,5 +1,7 @@
 <script lang="ts">
   import { liveQuery } from 'dexie';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { D, formatJPY } from '../lib/decimal';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
@@ -318,6 +320,40 @@
       interimVoluntary,
     ),
   );
+  // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
+  const pending = new SvelteSet<string>();
+  const focusValues = new Map<string, string>();
+  const unsavedToken = {};
+  $effect(() => {
+    setUnsavedGuard(unsavedToken, pending.size > 0);
+    return () => clearUnsavedGuard(unsavedToken);
+  });
+  function trackFocus(key: string, el: HTMLInputElement) {
+    focusValues.set(key, el.value);
+  }
+  function trackInput(key: string, el: HTMLInputElement) {
+    if (focusValues.get(key) === el.value) {
+      pending.delete(key);
+    } else {
+      pending.add(key);
+    }
+  }
+  function commitPending(key: string, el: HTMLInputElement, save: () => Promise<void>) {
+    pending.delete(key);
+    focusValues.set(key, el.value);
+    return save();
+  }
+  function shiftRowKey(key: string, index: number): string | null {
+    const hit = /^(date|netTax)-(\d+)$/.exec(key);
+    if (hit === null) {
+      return key;
+    }
+    const n = Number(hit[2]);
+    if (n < index) {
+      return key;
+    }
+    return n === index ? null : `${hit[1]}-${n - 1}`;
+  }
   async function saveInterimPriorPeriodMonths() {
     const map = (await getSetting('interimPriorPeriodMonths')) ?? {};
     await setSetting('interimPriorPeriodMonths', {
@@ -388,6 +424,20 @@
     wariSpecifiedSmallAssetTransfers = wariSpecifiedSmallAssetTransfers.filter(
       (_, i) => i !== index,
     );
+    const keptPending = [...pending].map((k) => shiftRowKey(k, index));
+    const keptFocus = [...focusValues].map(([k, v]) => [shiftRowKey(k, index), v] as const);
+    pending.clear();
+    focusValues.clear();
+    for (const k of keptPending) {
+      if (k !== null) {
+        pending.add(k);
+      }
+    }
+    for (const [k, v] of keptFocus) {
+      if (k !== null) {
+        focusValues.set(k, v);
+      }
+    }
     void saveWariBaseAdjustments();
   }
 
@@ -2027,7 +2077,10 @@
                 autocomplete="off"
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax78Input}
-                onchange={saveWariBaseAdjustments}
+                onfocus={(e) => trackFocus('wariSalesReturnTax78', e.currentTarget)}
+                oninput={(e) => trackInput('wariSalesReturnTax78', e.currentTarget)}
+                onchange={(e) =>
+                  commitPending('wariSalesReturnTax78', e.currentTarget, saveWariBaseAdjustments)}
                 placeholder="0"
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
@@ -2040,7 +2093,10 @@
                 autocomplete="off"
                 inputmode="numeric"
                 bind:value={wariSalesReturnTax624Input}
-                onchange={saveWariBaseAdjustments}
+                onfocus={(e) => trackFocus('wariSalesReturnTax624', e.currentTarget)}
+                oninput={(e) => trackInput('wariSalesReturnTax624', e.currentTarget)}
+                onchange={(e) =>
+                  commitPending('wariSalesReturnTax624', e.currentTarget, saveWariBaseAdjustments)}
                 placeholder="0"
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
@@ -2064,7 +2120,10 @@
                   autocomplete="off"
                   aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.journal_th_date()}"
                   bind:value={transfer.date}
-                  onchange={saveWariBaseAdjustments}
+                  onfocus={(e) => trackFocus(`date-${i}`, e.currentTarget)}
+                  oninput={(e) => trackInput(`date-${i}`, e.currentTarget)}
+                  onchange={(e) =>
+                    commitPending(`date-${i}`, e.currentTarget, saveWariBaseAdjustments)}
                   class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                 />
                 <select
@@ -2084,7 +2143,10 @@
                   aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_consumption_tax_breakdown_national()}"
                   inputmode="numeric"
                   bind:value={transfer.netTax}
-                  onchange={saveWariBaseAdjustments}
+                  onfocus={(e) => trackFocus(`netTax-${i}`, e.currentTarget)}
+                  oninput={(e) => trackInput(`netTax-${i}`, e.currentTarget)}
+                  onchange={(e) =>
+                    commitPending(`netTax-${i}`, e.currentTarget, saveWariBaseAdjustments)}
                   placeholder="0"
                   class="border rounded px-2 py-1 text-sm"
                 />
@@ -2173,7 +2235,9 @@
           autocomplete="off"
           inputmode="numeric"
           bind:value={interimPriorPeriodMonthsInput}
-          onchange={saveInterimPriorPeriodMonths}
+          onfocus={(e) => trackFocus('months', e.currentTarget)}
+          oninput={(e) => trackInput('months', e.currentTarget)}
+          onchange={(e) => commitPending('months', e.currentTarget, saveInterimPriorPeriodMonths)}
           placeholder="12"
           class="mt-1 w-full border rounded px-2 py-1 text-sm"
         />

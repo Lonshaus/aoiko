@@ -4,8 +4,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
-import { getSetting } from '../lib/settings';
+import { getSetting, setSetting } from '../lib/settings';
 import { m } from '../paraglide/messages';
+import { hasUnsavedChanges } from '../router.svelte';
 import type { Account } from '../db/types';
 
 vi.mock('../lib/save-file', () => ({
@@ -172,6 +173,152 @@ describe('interimPriorPeriodMonths の設定保存と再読込後の保持', () 
     });
     const reloaded = findInputByLabelText(container, '直前の課税期間の月数');
     expect(reloaded.value).toBe('3');
+  });
+});
+
+describe('2割／3割特例の基礎調整欄は change まで未保存として登録される', () => {
+  function named(name: string): HTMLInputElement {
+    const el = container!.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+    if (el === null) {
+      throw new Error(`${name} が見付からない`);
+    }
+    return el;
+  }
+  function focusOn(name: string): void {
+    named(name).dispatchEvent(new FocusEvent('focus'));
+  }
+  function typeInto(name: string, value: string): void {
+    const el = named(name);
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+  }
+  // 保存関数末尾の再読込（getSetting）は put 完了直後に発行されるため、その後に読めば終わりが保証される
+  async function drainSettings(): Promise<void> {
+    await db.settings.toArray();
+  }
+  async function mountWithRows(count: number): Promise<void> {
+    await setSetting('wariBaseAdjustments', {
+      2026: {
+        specifiedSmallAssetTransfers: Array.from({ length: count }, (_, i) => ({
+          date: `2026-01-0${i + 1}`,
+          rate: 0.1,
+          netTax: `${(i + 1) * 100}`,
+        })),
+      },
+    });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(
+      () => container!.querySelector(`input[name="wariTransfer-netTax-${count - 1}"]`) !== null,
+    );
+  }
+  function removeButtons(): HTMLButtonElement[] {
+    return Array.from(container!.querySelectorAll('button')).filter(
+      (b) => (b.textContent ?? '').trim() === m.income_deductions_dependent_remove(),
+    );
+  }
+
+  test.each([
+    ['wariSalesReturnTax78', '10000'],
+    ['wariSalesReturnTax624', '20000'],
+  ])('%s：input だけでは未保存・保存されず、change で解除され保存される', async (name, value) => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(() => container!.querySelector(`input[name="${name}"]`) !== null);
+    expect(hasUnsavedChanges()).toBe(false);
+    focusOn(name);
+    typeInto(name, value);
+    expect(hasUnsavedChanges()).toBe(true);
+    expect(await getSetting('wariBaseAdjustments')).toBeUndefined();
+
+    named(name).dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    await waitFor(async () =>
+      (JSON.stringify(await getSetting('wariBaseAdjustments')) ?? '').includes(value),
+    );
+    await drainSettings();
+  });
+
+  test.each([
+    ['wariTransfer-date-0', '2026-03-01'],
+    ['wariTransfer-netTax-0', '30000'],
+  ])('%s：input で未保存として登録され、blur だけでは解除されない', async (name, value) => {
+    await mountWithRows(1);
+    expect(hasUnsavedChanges()).toBe(false);
+    focusOn(name);
+    typeInto(name, value);
+    expect(hasUnsavedChanges()).toBe(true);
+    named(name).dispatchEvent(new FocusEvent('blur'));
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(true);
+  });
+
+  test.each([
+    ['wariTransfer-date-0', '2026-03-01'],
+    ['wariTransfer-netTax-0', '30000'],
+    ['wariSalesReturnTax78', '5'],
+  ])('%s：元の値へ戻すと（blur なしで）未保存は解除される', async (name, value) => {
+    await mountWithRows(1);
+    focusOn(name);
+    const original = named(name).value;
+    typeInto(name, value);
+    expect(hasUnsavedChanges()).toBe(true);
+    typeInto(name, original);
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test('行を消すとその行の未確定入力の登録も消える', async () => {
+    await mountWithRows(1);
+    focusOn('wariTransfer-netTax-0');
+    typeInto('wariTransfer-netTax-0', '2');
+    expect(hasUnsavedChanges()).toBe(true);
+    removeButtons()[0]!.click();
+    flushSync();
+    expect(hasUnsavedChanges()).toBe(false);
+    await waitFor(async () => (await getSetting('wariBaseAdjustments'))?.[2026] !== undefined);
+    await drainSettings();
+  });
+  test('複数行の途中の行を消すと、後ろの行の登録は1つ前へ詰まり、消した行の登録は無くなる', async () => {
+    await mountWithRows(3);
+    for (const [name, value] of [
+      ['wariTransfer-netTax-0', '11'],
+      ['wariTransfer-netTax-1', '22'],
+      ['wariTransfer-netTax-2', '33'],
+    ] as const) {
+      focusOn(name);
+      typeInto(name, value);
+    }
+    expect(hasUnsavedChanges()).toBe(true);
+
+    removeButtons()[1]!.click();
+    flushSync();
+    await waitFor(
+      async () =>
+        (await getSetting('wariBaseAdjustments'))?.[2026]?.specifiedSmallAssetTransfers?.length ===
+        2,
+    );
+    await drainSettings();
+    expect(container!.querySelector('input[name="wariTransfer-netTax-2"]')).toBeNull();
+    expect(hasUnsavedChanges()).toBe(true);
+
+    typeInto('wariTransfer-netTax-0', '100');
+    expect(hasUnsavedChanges()).toBe(true);
+    typeInto('wariTransfer-netTax-1', '300');
+    expect(hasUnsavedChanges()).toBe(false);
+  });
+
+  test('未確定の入力を残したままアンマウントすると登録は残らない', async () => {
+    await mountWithRows(1);
+    focusOn('wariSalesReturnTax78');
+    typeInto('wariSalesReturnTax78', '1');
+    expect(hasUnsavedChanges()).toBe(true);
+    unmount(instance!);
+    instance = undefined;
+    expect(hasUnsavedChanges()).toBe(false);
   });
 });
 
