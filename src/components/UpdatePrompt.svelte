@@ -78,7 +78,7 @@
 {#if updateAvailable}
   <div
     bind:offsetHeight={cardHeight}
-    class="print:hidden fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-lg p-4 max-w-sm"
+    class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-lg p-4 max-w-sm"
   >
     <p class="text-sm font-medium mb-1">{m.update_available_title()}</p>
     <p class="text-xs text-muted-foreground mb-3">
@@ -104,7 +104,7 @@
 {:else if offlineReady && !dismissOffline}
   <div
     bind:offsetHeight={cardHeight}
-    class="print:hidden fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
+    class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
   >
     <span class="text-xs text-muted-foreground">
       {m.update_offline_ready()}
@@ -121,7 +121,7 @@
 {:else if registerFailed && !dismissRegisterFailed}
   <div
     bind:offsetHeight={cardHeight}
-    class="print:hidden fixed bottom-4 right-4 z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
+    class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
   >
     <span class="text-xs text-muted-foreground">
       {m.update_register_error()}
@@ -137,6 +137,10 @@
   </div>
 {/if}
 {#if cardShown}
-  <!-- 固定カードが文書末尾の操作部品に被らないよう、カードの高さ＋上下の余白（bottom-4 = 1rem）ぶんだけスクロール領域を延ばす。 -->
-  <div aria-hidden="true" class="print:hidden" style:height="calc({cardHeight}px + 2rem)"></div>
+  <!-- 固定カードが文書末尾の操作部品に被らないよう、カードの高さ＋上下の余白（1rem）＋下端の safe area ぶんだけスクロール領域を延ばす。 -->
+  <div
+    aria-hidden="true"
+    class="print:hidden"
+    style:height="calc({cardHeight}px + 2rem + env(safe-area-inset-bottom))"
+  ></div>
 {/if}
