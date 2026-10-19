@@ -11,7 +11,8 @@ import type {
   WariEligibilityInputs,
 } from '../domain/consumption-tax';
 import type { InterimVoluntaryInputs } from '../domain/interim-filing';
-import { D, type Decimal } from './decimal';
+import { D } from './decimal';
+import { parseAmountInput } from './amount-input';
 // 綴りは設定・ファクトリ・設定画面の 3 か所で要る。1 か所に置いて食い違いを防ぐ。
 // apple-ai は OS 内蔵の AI（対応環境のみ・通信無し。構造化まで端末内で完結）。
 // chrome-ai はブラウザ内蔵の AI（web 側のみ・推論時の通信無し）。
@@ -175,20 +176,41 @@ export async function deleteSetting<K extends keyof SettingsMap>(key: K): Promis
   await db.settings.delete(key);
 }
 // 壊れた値は未設定と同じに扱い、判定を不適用側へ倒さない
-function parseAmount(value: string | undefined): Decimal | undefined {
-  if (value === undefined || value.trim() === '') {
-    return undefined;
-  }
-  try {
-    const d = D(value.replace(/,/g, '').trim());
-    return d.isFinite() && !d.isNegative() ? d : undefined;
-  } catch {
-    return undefined;
-  }
+const parseAmount = parseAmountInput;
+// 復元したバックアップの settings は値の型を検証しないため、想定外の形も未設定として読む
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function nonEmpty(value: string | undefined): string | undefined {
-  return value === undefined || value === '' ? undefined : value;
+function nonEmpty(value: unknown): string | undefined {
+  return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+function isInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value);
+}
+
+function readTaxableElection(value: unknown): WariEligibilityInputs['taxableElection'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const { fromYear, toYear } = value;
+  if (!isInteger(fromYear) || (toYear !== undefined && !isInteger(toYear))) {
+    return undefined;
+  }
+  return { fromYear, ...(isInteger(toYear) ? { toYear } : {}) };
+}
+
+function readShortenedPeriod(value: unknown): WariEligibilityInputs['shortenedPeriod'] {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const from = nonEmpty(value.from);
+  const { to } = value;
+  if (from === undefined || (to !== undefined && typeof to !== 'string')) {
+    return undefined;
+  }
+  return { from, ...(typeof to === 'string' ? { to } : {}) };
 }
 
 export async function loadSmallAmountSpecialInputs(): Promise<SmallAmountSpecialInputs> {
@@ -202,10 +224,10 @@ export async function loadSmallAmountSpecialInputs(): Promise<SmallAmountSpecial
 
 export async function loadWariEligibilityInputs(): Promise<WariEligibilityInputs> {
   const registrationStartDate = nonEmpty(await getSetting('invoiceRegistrationStartDate'));
-  const taxableElection = await getSetting('taxableElectionPeriod');
+  const taxableElection = readTaxableElection(await getSetting('taxableElectionPeriod'));
   const inheritanceDate = nonEmpty(await getSetting('inheritanceSpecialDate'));
   const adjustedFixedAssetDate = nonEmpty(await getSetting('adjustedFixedAssetDate'));
-  const shortenedPeriod = await getSetting('shortenedTaxPeriod');
+  const shortenedPeriod = readShortenedPeriod(await getSetting('shortenedTaxPeriod'));
   const foreignWithoutDomesticPe = await getSetting('foreignWithoutDomesticPe');
   const basePeriodSales = parseAmount(await getSetting('basePeriodTaxableSales'));
   return {
@@ -213,7 +235,7 @@ export async function loadWariEligibilityInputs(): Promise<WariEligibilityInputs
     ...(taxableElection !== undefined ? { taxableElection } : {}),
     ...(inheritanceDate !== undefined ? { inheritanceDate } : {}),
     ...(adjustedFixedAssetDate !== undefined ? { adjustedFixedAssetDate } : {}),
-    ...(shortenedPeriod !== undefined && shortenedPeriod.from !== '' ? { shortenedPeriod } : {}),
+    ...(shortenedPeriod !== undefined ? { shortenedPeriod } : {}),
     ...(foreignWithoutDomesticPe === true ? { foreignWithoutDomesticPe } : {}),
     ...(basePeriodSales !== undefined ? { basePeriodSales } : {}),
   };
@@ -221,14 +243,15 @@ export async function loadWariEligibilityInputs(): Promise<WariEligibilityInputs
 
 export async function loadInterimVoluntaryInputs(): Promise<InterimVoluntaryInputs> {
   return {
-    interimVoluntaryFiled: (await getSetting('interimVoluntaryFiled')) ?? false,
-    interimVoluntaryLapsed: (await getSetting('interimVoluntaryLapsed')) ?? false,
+    interimVoluntaryFiled: (await getSetting('interimVoluntaryFiled')) === true,
+    interimVoluntaryLapsed: (await getSetting('interimVoluntaryLapsed')) === true,
   };
 }
 // 記録が無い年分は12（既定、従来どおり）
 export async function loadInterimPriorPeriodMonths(year: number): Promise<number> {
-  const map = await getSetting('interimPriorPeriodMonths');
-  return map?.[year] ?? 12;
+  const map: unknown = await getSetting('interimPriorPeriodMonths');
+  const months = isRecord(map) ? map[year] : undefined;
+  return isInteger(months) && months >= 1 && months <= 12 ? months : 12;
 }
 // 少額特例の年合計上限の月割に使う開業日・廃業日。未設定はそれぞれ呼出元の既定に委ねる。
 export async function loadBusinessDates(): Promise<{
@@ -253,24 +276,33 @@ export interface StoredWariBaseAdjustments {
   salesReturnTax624?: string;
   specifiedSmallAssetTransfers?: StoredSpecifiedSmallAssetTransfer[];
 }
+
+function isTransferRate(value: unknown): value is 0.1 | 0.08 {
+  return value === 0.1 || value === 0.08;
+}
 // 記録が無い年分は空（除外事由なし、従来どおり）
 export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdjustments> {
-  const map = await getSetting('wariBaseAdjustments');
-  const stored = map?.[year];
-  if (stored === undefined) {
+  const map: unknown = await getSetting('wariBaseAdjustments');
+  const stored = isRecord(map) ? map[year] : undefined;
+  if (!isRecord(stored)) {
     return {};
   }
   const salesReturnTax78 = parseAmount(stored.salesReturnTax78);
   const salesReturnTax624 = parseAmount(stored.salesReturnTax624);
-  // 金額欄は未検証の文字列で保存されるため、壊れた値は0として読み例外にしない
-  const transfers = stored.specifiedSmallAssetTransfers
-    ?.filter((t) => t.date !== '')
-    .map((t) => ({ date: t.date, rate: t.rate, netTax: parseAmount(t.netTax) ?? D(0) }));
+  const rows: unknown[] = Array.isArray(stored.specifiedSmallAssetTransfers)
+    ? stored.specifiedSmallAssetTransfers
+    : [];
+  const transfers = rows.flatMap((t) => {
+    const date = isRecord(t) ? nonEmpty(t.date) : undefined;
+    if (!isRecord(t) || date === undefined || !isTransferRate(t.rate)) {
+      return [];
+    }
+    // 金額欄は未検証の文字列で保存されるため、壊れた値は0として読み例外にしない
+    return [{ date, rate: t.rate, netTax: parseAmount(t.netTax) ?? D(0) }];
+  });
   return {
     ...(salesReturnTax78 !== undefined ? { salesReturnTax78 } : {}),
     ...(salesReturnTax624 !== undefined ? { salesReturnTax624 } : {}),
-    ...(transfers !== undefined && transfers.length > 0
-      ? { specifiedSmallAssetTransfers: transfers }
-      : {}),
+    ...(transfers.length > 0 ? { specifiedSmallAssetTransfers: transfers } : {}),
   };
 }

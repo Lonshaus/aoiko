@@ -1,18 +1,23 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
+import { D, Decimal } from '../lib/decimal';
 import {
   convertQuoteToInvoiceDraft,
   createDraftInvoice,
   DEFAULT_INVOICE_PREFIX,
   DEFAULT_QUOTE_PREFIX,
+  formatUnitPrice,
   groupLineItemsByTaxRate,
   hasReducedRateItems,
   invoiceTotal,
+  isLineItemInvalid,
   issueInvoice,
+  normalizeLineItems,
   voidInvoice,
 } from './invoice';
 import type { Invoice, InvoiceLineItem, Vendor } from '../db/types';
+import { m } from '../paraglide/messages';
 import { setLocale } from '../paraglide/runtime';
 
 beforeEach(async () => {
@@ -68,6 +73,149 @@ describe('groupLineItemsByTaxRate / invoiceTotal', () => {
     const groups = groupLineItemsByTaxRate(items);
     expect(groups).toHaveLength(1);
     expect(groups[0]!.subtotalExcl.toString()).toBe('2000');
+  });
+});
+
+describe('明細の数量・単価の読み取り', () => {
+  // D() だけで合計した値を基準にして、D() が読める値の合計が変わらないことを確かめる
+  function legacyGroups(items: InvoiceLineItem[]): string[][] {
+    const groups = new Map<0.1 | 0.08, Decimal>();
+    for (const item of items) {
+      const amount = D(item.quantity).times(item.unitPrice);
+      groups.set(item.taxRate, (groups.get(item.taxRate) ?? D(0)).plus(amount));
+    }
+    return [...groups.entries()]
+      .sort(([a], [b]) => b - a)
+      .map(([taxRate, subtotalExcl]) => {
+        const taxAmount = subtotalExcl.times(taxRate).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+        return [String(taxRate), subtotalExcl, taxAmount, subtotalExcl.plus(taxAmount)].map(String);
+      });
+  }
+
+  function groupsOf(items: InvoiceLineItem[]): string[][] {
+    return groupLineItemsByTaxRate(items).map((g) =>
+      [String(g.taxRate), g.subtotalExcl, g.taxAmount, g.grossAmount].map(String),
+    );
+  }
+
+  const D_ACCEPTED = [
+    '1',
+    '-1',
+    '2.5',
+    '+5',
+    '1e3',
+    '1E3',
+    '1e-1',
+    '-1.5e2',
+    '0x10',
+    '0X1F',
+    '0b101',
+    '0o17',
+    '0x1.8p1',
+    '5000.',
+    '.5',
+    '-0',
+    'Infinity',
+    '-Infinity',
+    'NaN',
+    5 as never,
+    -2.5 as never,
+  ];
+
+  test('D() が読める数量・単価の組はすべて、変更前と同じ小計・税額・合計になる', () => {
+    for (const quantity of D_ACCEPTED) {
+      for (const unitPrice of D_ACCEPTED) {
+        const items = [
+          lineItem({ quantity, unitPrice, taxRate: 0.1 }),
+          lineItem({ quantity: '3', unitPrice: '333', taxRate: 0.08 }),
+        ];
+        expect(groupsOf(items), `${String(quantity)} × ${String(unitPrice)}`).toEqual(
+          legacyGroups(items),
+        );
+      }
+    }
+  });
+
+  test('負の数量の行（値引き）は変更前と同じく差し引いて合計する', () => {
+    const items = [
+      lineItem({ quantity: '2', unitPrice: '1000' }),
+      lineItem({ quantity: '-1', unitPrice: '500' }),
+    ];
+    expect(groupsOf(items)).toEqual(legacyGroups(items));
+    expect(invoiceTotal(items).toString()).toBe('1650');
+    expect(items.some(isLineItemInvalid)).toBe(false);
+  });
+
+  test('全角・桁区切り・前後の空白の数量・単価は値として読み、例外を投げない', () => {
+    const items = [
+      lineItem({ quantity: '２', unitPrice: '５，０００' }),
+      lineItem({ quantity: ' 1 ', unitPrice: '－500' }),
+      lineItem({ quantity: '1', unitPrice: '1,000', taxRate: 0.08 }),
+    ];
+    const groups = groupLineItemsByTaxRate(items);
+    expect(groups.map((g) => g.subtotalExcl.toString())).toEqual(['9500', '1000']);
+    expect(invoiceTotal(items).toString()).toBe('11530');
+    expect(items.some(isLineItemInvalid)).toBe(false);
+  });
+
+  test('空欄の数量の行は 0 として数え、隣の行の全角の単価は値どおりに合計する', () => {
+    const items = [
+      lineItem({ quantity: '', unitPrice: '1000' }),
+      lineItem({ quantity: '1', unitPrice: '５０００' }),
+    ];
+    expect(invoiceTotal(items).toString()).toBe('5500');
+    expect(isLineItemInvalid(items[0]!)).toBe(true);
+    expect(isLineItemInvalid(items[1]!)).toBe(false);
+  });
+
+  test.each([
+    ['', '1000'],
+    ['1', ''],
+    ['   ', '1000'],
+    ['1', '　'],
+    ['abc', '1000'],
+    ['1', '5,000円'],
+    ['1/2', '1000'],
+    ['1', '--5'],
+    ['NaN', '1000'],
+    ['1', 'Infinity'],
+    [null as never, '1000'],
+    ['1', undefined as never],
+  ])('数量 %j・単価 %j の行は読めない行として扱い、合計では 0 として数える', (q, p) => {
+    const item = lineItem({ quantity: q, unitPrice: p });
+    expect(isLineItemInvalid(item)).toBe(true);
+    expect(() => invoiceTotal([item])).not.toThrow();
+  });
+
+  test.each(['1', '-1', '1e3', '0x10', '5000.', '.5', '+5', '５', '5,000', ' 5 ', '－1', '1.5'])(
+    '数量 %j の行は読める行として扱う',
+    (q) => {
+      expect(isLineItemInvalid(lineItem({ quantity: q, unitPrice: q }))).toBe(false);
+    },
+  );
+
+  test('保存する明細は D() が読めない値だけを半角に揃え、読める値と読めない値はそのまま残す', () => {
+    const items = [
+      lineItem({ quantity: '１', unitPrice: '５，０００' }),
+      lineItem({ quantity: ' 2 ', unitPrice: '－500' }),
+      lineItem({ quantity: '1e1', unitPrice: '5000.' }),
+      lineItem({ quantity: '', unitPrice: 'abc' }),
+    ];
+    expect(normalizeLineItems(items).map((i) => [i.quantity, i.unitPrice])).toEqual([
+      ['1', '5000'],
+      ['2', '-500'],
+      ['1e1', '5000.'],
+      ['', 'abc'],
+    ]);
+    expect(normalizeLineItems(items).map((i) => i.id)).toEqual(items.map((i) => i.id));
+  });
+
+  test('印刷する単価は読める値なら円表示にし、読めない値は例外を投げずそのまま出す', () => {
+    expect(formatUnitPrice('５０００')).toBe('¥5,000');
+    expect(formatUnitPrice('-500')).toBe('-¥500');
+    expect(formatUnitPrice('1e3')).toBe('¥1,000');
+    expect(formatUnitPrice('abc')).toBe('abc');
+    expect(formatUnitPrice('')).toBe('');
   });
 });
 
@@ -214,6 +362,64 @@ describe('issueInvoice', () => {
     const reloaded = await db.invoices.get(issued.id);
 
     await expect(issueInvoice(reloaded!, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(/下書き/);
+  });
+
+  test('全角の単価・数量で発行すると、明細は半角の数字で保存され、仕訳と売掛金は値どおりになる', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: '１', unitPrice: '５０００' })];
+
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+
+    expect(issued.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([['1', '5000']]);
+    const lines = await db.journalLines.where('entryId').equals(issued.journalEntryId!).toArray();
+    expect(lines.map((l) => l.amount)).toEqual(['5500', '5500']);
+    expect((await db.arApEntries.get(issued.arApEntryId!))?.originalAmount).toBe('5500');
+  });
+
+  test('見積書も明細を半角の数字に揃えて保存する', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('quote', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: '２', unitPrice: '1,000' })];
+
+    const issued = await issueInvoice(draft, DEFAULT_QUOTE_PREFIX);
+
+    expect(issued.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([['2', '1000']]);
+  });
+
+  test('D() が読める値の明細は、そのままの形で保存され変更前と同じ金額で発行される', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [
+      lineItem({ quantity: '1e1', unitPrice: '5000.' }),
+      lineItem({ quantity: '-1', unitPrice: '500' }),
+    ];
+
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+
+    expect(issued.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([
+      ['1e1', '5000.'],
+      ['-1', '500'],
+    ]);
+    expect((await db.arApEntries.get(issued.arApEntryId!))?.originalAmount).toBe('54450');
+  });
+
+  test.each([
+    ['', '1000'],
+    ['abc', '1000'],
+    ['1', '5,000円'],
+    ['NaN', '1000'],
+  ])('数量 %j・単価 %j の明細があると発行できず、何も書き込まない', async (q, p) => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({}), lineItem({ quantity: q, unitPrice: p })];
+
+    await expect(issueInvoice(draft, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(
+      m.invoices_line_invalid(),
+    );
+    expect(await db.invoices.count()).toBe(0);
+    expect(await db.journalEntries.count()).toBe(0);
+    expect(await db.arApEntries.count()).toBe(0);
   });
 
   test('取引先未選択（vendorId空）は発行できない', async () => {

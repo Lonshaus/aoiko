@@ -13,11 +13,14 @@
     createDraftInvoice,
     DEFAULT_INVOICE_PREFIX,
     DEFAULT_QUOTE_PREFIX,
+    formatUnitPrice,
     groupLineItemsByTaxRate,
     hasReducedRateItems,
     invoiceTotal,
+    isLineItemInvalid,
     issueInvoice,
     newLineItem,
+    normalizeLineItems,
     REDUCED_TAX_RATE,
     voidInvoice,
   } from '../domain/invoice';
@@ -155,6 +158,7 @@
     submitting = true;
     try {
       const snapshot = $state.snapshot(editing);
+      snapshot.lineItems = normalizeLineItems(snapshot.lineItems);
       await db.invoices.put(snapshot);
       if (convertingFromQuoteId) {
         await db.invoices.update(convertingFromQuoteId, { convertedToInvoiceId: snapshot.id });
@@ -432,6 +436,9 @@
             >
               {m.settings_action_delete()}
             </button>
+            {#if isLineItemInvalid(item)}
+              <p class="basis-full text-xs text-destructive">{m.invoices_line_invalid()}</p>
+            {/if}
           </div>
         {/each}
         <button
@@ -547,7 +554,7 @@
           <tr class="border-b">
             <td class="py-1">{item.name}{item.taxRate === REDUCED_TAX_RATE ? ' ※' : ''}</td>
             <td class="text-right py-1">{item.quantity}</td>
-            <td class="text-right py-1 font-mono">{formatJPY(item.unitPrice)}</td>
+            <td class="text-right py-1 font-mono">{formatUnitPrice(item.unitPrice)}</td>
             <td class="text-right py-1">{item.taxRate * 100}%</td>
           </tr>
         {/each}

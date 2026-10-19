@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { newId } from '../lib/id';
+import { parseAmountInput } from '../lib/amount-input';
 import type { ArApEntry, ArApType } from '../db/types';
 import { m } from '../paraglide/messages';
 
@@ -32,13 +33,24 @@ export class OverpaymentError extends Error {
     this.name = 'OverpaymentError';
   }
 }
+// 負の額は消込ではなく残高を増やす操作になり、補助簿の整合性が崩れる
+export class InvalidPaymentAmountError extends Error {
+  constructor() {
+    super(m.common_amount_invalid());
+    this.name = 'InvalidPaymentAmountError';
+  }
+}
 
 export async function recordPayment(id: string, amount: string): Promise<void> {
+  const paid = parseAmountInput(amount);
+  if (paid === undefined) {
+    throw new InvalidPaymentAmountError();
+  }
   const entry = await db.arApEntries.get(id);
   if (!entry) {
     throw new Error(m.error_receivable_not_found());
   }
-  const newPaid = D(entry.paidAmount).plus(amount);
+  const newPaid = D(entry.paidAmount).plus(paid);
   if (newPaid.greaterThan(entry.originalAmount)) {
     throw new OverpaymentError();
   }

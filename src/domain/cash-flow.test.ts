@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import {
   addArApEntry,
   computeCashFlowForecast,
+  InvalidPaymentAmountError,
   OverpaymentError,
   recordPayment,
   remainingBalance,
@@ -68,6 +69,33 @@ describe('addArApEntry / recordPayment', () => {
     });
     const row = (await db.arApEntries.toArray())[0]!;
     await expect(recordPayment(row.id, '20000')).rejects.toThrow(OverpaymentError);
+  });
+
+  test('負の額・数値として読めない額は例外を投げ、paidAmount を変えない', async () => {
+    await addArApEntry({
+      type: 'receivable',
+      description: 'C社',
+      dueDate: '2026-08-01',
+      originalAmount: '10000',
+    });
+    const row = (await db.arApEntries.toArray())[0]!;
+    await recordPayment(row.id, '3000');
+    for (const amount of ['-5000', '－5000', 'abc', '1e3', '5,000円']) {
+      await expect(recordPayment(row.id, amount)).rejects.toThrow(InvalidPaymentAmountError);
+    }
+    expect((await db.arApEntries.get(row.id))!.paidAmount).toBe('3000');
+  });
+
+  test('全角・カンマ付きの額は値として消し込む', async () => {
+    await addArApEntry({
+      type: 'payable',
+      description: 'D社',
+      dueDate: '2026-08-01',
+      originalAmount: '10000',
+    });
+    const row = (await db.arApEntries.toArray())[0]!;
+    await recordPayment(row.id, '５，０００');
+    expect((await db.arApEntries.get(row.id))!.paidAmount).toBe('5000');
   });
 });
 

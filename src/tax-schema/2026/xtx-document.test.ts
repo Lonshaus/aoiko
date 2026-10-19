@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildFormFragment,
+  buildXtxBundle,
   buildXtxDocument,
   toYymmdd,
   type XtxLeafValues,
@@ -95,6 +96,26 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
       '<NOZEISHA_ZIP ID="NOZEISHA_ZIP"><gen:zip1>180</gen:zip1><gen:zip2>0001</gen:zip2></NOZEISHA_ZIP>',
     );
     expect(xml).toContain('<NOZEISHA_ADR ID="NOZEISHA_ADR">東京都武蔵野市〇〇1-2-3</NOZEISHA_ADR>');
+  });
+
+  test('全角で保存された利用者識別番号・郵便番号も半角で IT部に出る', () => {
+    const filer = { riyoshaId: '１２３４', zip: '〒１８０－０００１' };
+    const zip =
+      '<NOZEISHA_ZIP ID="NOZEISHA_ZIP"><gen:zip1>180</gen:zip1><gen:zip2>0001</gen:zip2></NOZEISHA_ZIP>';
+    for (const xml of [
+      buildXtxDocument(k210, {}, { filer }),
+      buildXtxBundle([{ schema: s020, values: {} }], { filer, includeSofusho: false }),
+    ]) {
+      expect(xml).toContain('<NOZEISHA_ID ID="NOZEISHA_ID">1234</NOZEISHA_ID>');
+      expect(xml).toContain(zip);
+    }
+    const spaced = buildXtxDocument(k210, {}, { filer: { riyoshaId: '　１２３４　' } });
+    expect(spaced).toContain('<NOZEISHA_ID ID="NOZEISHA_ID">1234</NOZEISHA_ID>');
+  });
+
+  test('空白だけの利用者識別番号は NOZEISHA_ID を出さない', () => {
+    const xml = buildXtxDocument(k210, {}, { filer: { riyoshaId: '　' } });
+    expect(xml).not.toContain('<NOZEISHA_ID');
   });
 
   test('NENBUN は IT部で複合型 <gen:era>5</gen:era><gen:yy> として出る', () => {

@@ -1,10 +1,15 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { clearUnsavedGuard, link, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
+  import {
+    isAmountInputInvalid,
+    normalizeAmountInput,
+    parseAmountInput,
+  } from '../lib/amount-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
   import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
@@ -592,7 +597,10 @@
   type CtAmountKey = 'basePeriodTaxableSales' | 'specifiedPeriodTaxableSales';
   type CtFlagKey = 'foreignWithoutDomesticPe' | 'interimVoluntaryFiled' | 'interimVoluntaryLapsed';
   // 空欄・未チェックは未設定として消し、判定を従来どおりにする
-  async function saveCtText(key: CtTextKey, value: string) {
+  async function saveCtText(key: CtTextKey, name: string, value: string) {
+    if (ctErrors.has(name)) {
+      return;
+    }
     if (value.trim() === '') {
       await deleteSetting(key);
     } else {
@@ -600,10 +608,10 @@
     }
   }
   async function saveCtAmount(key: CtAmountKey, value: string) {
-    const normalized = value.replace(/,/g, '').trim();
+    const normalized = normalizeAmountInput(value);
     if (normalized === '') {
       await deleteSetting(key);
-    } else if (/^\d+$/.test(normalized)) {
+    } else if (parseAmountInput(normalized) !== undefined) {
       await setSetting(key, normalized);
     }
   }
@@ -615,32 +623,87 @@
     }
   }
   function parseYear(value: string): number | undefined {
-    const trimmed = value.trim();
-    return /^\d{4}$/.test(trimmed) ? Number(trimmed) : undefined;
+    const normalized = value.normalize('NFKC').trim();
+    return /^\d{4}$/.test(normalized) ? Number(normalized) : undefined;
   }
+  // 期間は開始と終了を 1 つの値で持つ。片方が読めないまま保存すると、もう片方の保存済みの値まで消える
   async function saveCtPeriods() {
     const fromYear = parseYear(ctTaxableElectionFrom);
     const toYear = parseYear(ctTaxableElectionTo);
-    if (ctTaxableElectionFrom.trim() === '') {
-      await deleteSetting('taxableElectionPeriod');
-    } else if (fromYear !== undefined) {
-      await setSetting('taxableElectionPeriod', {
-        fromYear,
-        ...(toYear !== undefined ? { toYear } : {}),
-      });
+    if (!ctErrors.has('ctTaxableElectionFrom') && !ctErrors.has('ctTaxableElectionTo')) {
+      if (fromYear === undefined) {
+        await deleteSetting('taxableElectionPeriod');
+      } else {
+        await setSetting('taxableElectionPeriod', {
+          fromYear,
+          ...(toYear !== undefined ? { toYear } : {}),
+        });
+      }
     }
-    if (ctShortenedFrom === '') {
-      await deleteSetting('shortenedTaxPeriod');
-    } else {
-      await setSetting('shortenedTaxPeriod', {
-        from: ctShortenedFrom,
-        ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
-      });
+    if (!ctErrors.has('ctShortenedFrom') && !ctErrors.has('ctShortenedTo')) {
+      if (ctShortenedFrom === '') {
+        await deleteSetting('shortenedTaxPeriod');
+      } else {
+        await setSetting('shortenedTaxPeriod', {
+          from: ctShortenedFrom,
+          ...(ctShortenedTo !== '' ? { to: ctShortenedTo } : {}),
+        });
+      }
     }
+  }
+  // 読めない値を書き込むと保存済みの値が消えたり別の値になったりするため、その欄は書き込まず、保存したとも表示しない
+  const ctErrors = new SvelteMap<string, () => string>();
+  let ctSection = $state<HTMLElement | null>(null);
+  function collectCtErrors(): Map<string, () => string> {
+    const errors = new Map<string, () => string>();
+    // 日付欄は途中まで入力すると value が空になり、空欄として消してしまうため badInput で見分ける
+    const dateInputs = [
+      ...(ctSection?.querySelectorAll<HTMLInputElement>('input[type="date"]') ?? []),
+    ];
+    for (const el of dateInputs) {
+      if (el.validity.badInput) {
+        errors.set(el.name, m.settings_ct_date_incomplete);
+      }
+    }
+    // 描画し直した欄は空に見えるため、日付の誤りは利用者が入れ直すか空にするまで引き継ぐ
+    for (const [name, message] of ctErrors) {
+      if (message === m.settings_ct_date_incomplete) {
+        errors.set(name, message);
+      }
+    }
+    if (!errors.has('ctShortenedFrom') && ctShortenedFrom === '' && ctShortenedTo !== '') {
+      errors.set('ctShortenedFrom', m.settings_ct_period_start_required);
+    }
+    for (const [name, value] of [
+      ['ctTaxableElectionFrom', ctTaxableElectionFrom],
+      ['ctTaxableElectionTo', ctTaxableElectionTo],
+    ] as const) {
+      if (value.trim() !== '' && parseYear(value) === undefined) {
+        errors.set(name, m.settings_ct_year_invalid);
+      }
+    }
+    if (ctTaxableElectionFrom.trim() === '' && ctTaxableElectionTo.trim() !== '') {
+      errors.set('ctTaxableElectionFrom', m.settings_ct_period_start_required);
+    }
+    for (const [name, value] of [
+      ['ctBasePeriodSales', ctBasePeriodSales],
+      ['ctSpecifiedPeriodSales', ctSpecifiedPeriodSales],
+    ] as const) {
+      if (isAmountInputInvalid(value)) {
+        errors.set(name, m.common_amount_invalid);
+      }
+    }
+    return errors;
+  }
+  function ctErrorMessages(...names: string[]): string[] {
+    return [...new Set(names.flatMap((name) => ctErrors.get(name) ?? []))].map((message) =>
+      message(),
+    );
   }
   // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
   const ctPending = new SvelteSet<string>();
   const ctFocusValues = new Map<string, string>();
+  const ctFocusBadInput = new Map<string, boolean>();
   const ctUnsavedToken = {};
   $effect(() => {
     setUnsavedGuard(ctUnsavedToken, ctPending.size > 0);
@@ -648,9 +711,11 @@
   });
   function trackCtFocus(name: string, el: HTMLInputElement) {
     ctFocusValues.set(name, el.value);
+    ctFocusBadInput.set(name, el.validity.badInput);
   }
   function trackCtInput(name: string, el: HTMLInputElement) {
-    if (ctFocusValues.get(name) === el.value) {
+    // 誤りを示している欄はフォーカス時の文字列もまだ保存されていないため、その文字列に戻っても未保存のまま
+    if (!ctErrors.has(name) && ctFocusValues.get(name) === el.value) {
       ctPending.delete(name);
     } else {
       ctPending.add(name);
@@ -659,24 +724,77 @@
   function commitConsumptionTax(name: string, el: HTMLInputElement) {
     ctPending.delete(name);
     ctFocusValues.set(name, el.value);
+    ctFocusBadInput.set(name, el.validity.badInput);
+    if (el.type === 'date' && !el.validity.badInput) {
+      ctErrors.delete(name);
+    }
     return saveConsumptionTax();
+  }
+  // 日付を区画ごとに消すと最初の区画でしか change が出ない環境があるため、フォーカスを外す時に確定する
+  // 描画し直しただけの欄は記録した状態から変わらないので、触っていなければ確定しない
+  function blurCtDate(name: string, el: HTMLInputElement) {
+    if (
+      ctErrors.get(name) === m.settings_ct_date_incomplete &&
+      !el.validity.badInput &&
+      (el.value !== ctFocusValues.get(name) || ctFocusBadInput.get(name) !== false)
+    ) {
+      return commitConsumptionTax(name, el);
+    }
   }
 
   async function saveConsumptionTax() {
+    const errors = collectCtErrors();
+    for (const name of ctErrors.keys()) {
+      if (!errors.has(name)) {
+        ctPending.delete(name);
+      }
+    }
+    ctErrors.clear();
+    for (const [name, message] of errors) {
+      ctErrors.set(name, message);
+      ctPending.add(name);
+    }
+    // 全角で入れた値も半角で保存されるため、欄も保存した値の表記に揃える
+    if (!errors.has('ctBasePeriodSales')) {
+      ctBasePeriodSales = normalizeAmountInput(ctBasePeriodSales);
+    }
+    if (!errors.has('ctSpecifiedPeriodSales')) {
+      ctSpecifiedPeriodSales = normalizeAmountInput(ctSpecifiedPeriodSales);
+    }
+    if (!errors.has('ctTaxableElectionFrom') && !errors.has('ctTaxableElectionTo')) {
+      ctTaxableElectionFrom = String(parseYear(ctTaxableElectionFrom) ?? '');
+      ctTaxableElectionTo = String(parseYear(ctTaxableElectionTo) ?? '');
+    }
     await setSetting('taxRegistration', taxRegistration);
     await setSetting('taxFilingMethod', taxFilingMethod);
     await setSetting('simplifiedTaxCategory', simplifiedTaxCategory);
     await setSetting('consumptionTaxAttributionMethod', consumptionTaxAttributionMethod);
-    await saveCtText('invoiceRegistrationStartDate', ctRegistrationStartDate);
-    await saveCtText('inheritanceSpecialDate', ctInheritanceDate);
-    await saveCtText('adjustedFixedAssetDate', ctAdjustedFixedAssetDate);
-    await saveCtText('simplifiedElectionFiledDate', ctSimplifiedElectionFiledDate);
+    await saveCtText(
+      'invoiceRegistrationStartDate',
+      'ctRegistrationStartDate',
+      ctRegistrationStartDate,
+    );
+    await saveCtText('inheritanceSpecialDate', 'ctInheritanceDate', ctInheritanceDate);
+    await saveCtText(
+      'adjustedFixedAssetDate',
+      'ctAdjustedFixedAssetDate',
+      ctAdjustedFixedAssetDate,
+    );
+    await saveCtText(
+      'simplifiedElectionFiledDate',
+      'ctSimplifiedElectionFiledDate',
+      ctSimplifiedElectionFiledDate,
+    );
     await saveCtAmount('basePeriodTaxableSales', ctBasePeriodSales);
     await saveCtAmount('specifiedPeriodTaxableSales', ctSpecifiedPeriodSales);
     await saveCtFlag('foreignWithoutDomesticPe', ctForeignWithoutDomesticPe);
     await saveCtFlag('interimVoluntaryFiled', ctInterimVoluntaryFiled);
     await saveCtFlag('interimVoluntaryLapsed', ctInterimVoluntaryLapsed);
     await saveCtPeriods();
+    if (ctErrors.size > 0) {
+      consumptionTaxSaved = false;
+      return;
+    }
     consumptionTaxSaved = true;
     setTimeout(() => {
       consumptionTaxSaved = false;
@@ -713,9 +831,10 @@
     if (zeimushoCodeInvalid || zeimushoUnresolved) {
       return;
     }
-    await setSetting('userRiyoshaId', userRiyoshaId.trim());
+    await setSetting('userRiyoshaId', userRiyoshaId.normalize('NFKC').trim());
     await setSetting('userFilerName', userFilerName.trim());
-    await setSetting('userFilerZip', userFilerZip.replace(/[^0-9]/g, ''));
+    // 郵便番号は全角の数字まで消さないよう、揃えてから数字以外を除く
+    await setSetting('userFilerZip', userFilerZip.normalize('NFKC').replace(/[^0-9]/g, ''));
     await setSetting('userFilerAddress', userFilerAddress.trim());
     await setSetting('userZeimushoCode', userZeimushoCode.trim());
     await setSetting('userZeimushoName', userZeimushoName.trim());
@@ -1753,7 +1872,10 @@
     </a>
   </div>
 
-  <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <section
+    bind:this={ctSection}
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_consumption_tax_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {m.settings_consumption_tax_intro()}
@@ -1842,8 +1964,12 @@
             onfocus={(e) => trackCtFocus('ctRegistrationStartDate', e.currentTarget)}
             oninput={(e) => trackCtInput('ctRegistrationStartDate', e.currentTarget)}
             onchange={(e) => commitConsumptionTax('ctRegistrationStartDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctRegistrationStartDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctRegistrationStartDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <div class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_taxable_election_filed()}</span
@@ -1875,6 +2001,9 @@
               class="w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums"
             />
           </div>
+          {#each ctErrorMessages('ctTaxableElectionFrom', 'ctTaxableElectionTo') as message (message)}
+            <span class="block mt-1 text-xs text-destructive">{message}</span>
+          {/each}
         </div>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_inheritance_special()}</span>
@@ -1886,8 +2015,12 @@
             onfocus={(e) => trackCtFocus('ctInheritanceDate', e.currentTarget)}
             oninput={(e) => trackCtInput('ctInheritanceDate', e.currentTarget)}
             onchange={(e) => commitConsumptionTax('ctInheritanceDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctInheritanceDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctInheritanceDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1901,8 +2034,12 @@
             onfocus={(e) => trackCtFocus('ctAdjustedFixedAssetDate', e.currentTarget)}
             oninput={(e) => trackCtInput('ctAdjustedFixedAssetDate', e.currentTarget)}
             onchange={(e) => commitConsumptionTax('ctAdjustedFixedAssetDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctAdjustedFixedAssetDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctAdjustedFixedAssetDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <div class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_shortened_period()}</span>
@@ -1915,6 +2052,7 @@
               onfocus={(e) => trackCtFocus('ctShortenedFrom', e.currentTarget)}
               oninput={(e) => trackCtInput('ctShortenedFrom', e.currentTarget)}
               onchange={(e) => commitConsumptionTax('ctShortenedFrom', e.currentTarget)}
+              onblur={(e) => blurCtDate('ctShortenedFrom', e.currentTarget)}
               class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
             <span class="text-muted-foreground">〜</span>
@@ -1926,9 +2064,13 @@
               onfocus={(e) => trackCtFocus('ctShortenedTo', e.currentTarget)}
               oninput={(e) => trackCtInput('ctShortenedTo', e.currentTarget)}
               onchange={(e) => commitConsumptionTax('ctShortenedTo', e.currentTarget)}
+              onblur={(e) => blurCtDate('ctShortenedTo', e.currentTarget)}
               class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
             />
           </div>
+          {#each ctErrorMessages('ctShortenedFrom', 'ctShortenedTo') as message (message)}
+            <span class="block mt-1 text-xs text-destructive">{message}</span>
+          {/each}
         </div>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_base_period_sales()}</span>
@@ -1943,6 +2085,9 @@
             onchange={(e) => commitConsumptionTax('ctBasePeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
+          {#each ctErrorMessages('ctBasePeriodSales') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.settings_ct_specified_period_sales()}</span
@@ -1958,6 +2103,9 @@
             onchange={(e) => commitConsumptionTax('ctSpecifiedPeriodSales', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground text-right tabular-nums"
           />
+          {#each ctErrorMessages('ctSpecifiedPeriodSales') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1971,8 +2119,12 @@
             onfocus={(e) => trackCtFocus('ctSimplifiedElectionFiledDate', e.currentTarget)}
             oninput={(e) => trackCtInput('ctSimplifiedElectionFiledDate', e.currentTarget)}
             onchange={(e) => commitConsumptionTax('ctSimplifiedElectionFiledDate', e.currentTarget)}
+            onblur={(e) => blurCtDate('ctSimplifiedElectionFiledDate', e.currentTarget)}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
+          {#each ctErrorMessages('ctSimplifiedElectionFiledDate') as message (message)}
+            <span class="block text-xs text-destructive">{message}</span>
+          {/each}
         </label>
         <label class="flex items-center gap-2 text-sm cursor-pointer sm:col-span-2">
           <input
