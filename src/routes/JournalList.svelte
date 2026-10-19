@@ -37,12 +37,15 @@
 
   let rows = $state<LedgerRow[]>([]);
   let totalCount = $state(0);
-  let loading = $state(true);
+  let loadedKey = $state<string | null>(null);
+  // 一度も読み取りを終えていない liveQuery が失敗すると以後の変更でも再実行されないため、条件キーを変えて購読し直す
+  let retryCount = $state(0);
 
   let expandedId = $state<string | null>(null);
   let confirmingReverseId = $state<string | null>(null);
   let reverseError = $state('');
   let filterError = $state('');
+  let vendorError = $state('');
   // 証憑写真。展開中の仕訳の添付一覧と、事後添付の確認フロー。
   let expandedAttachments = $state<Attachment[]>([]);
   let attachmentUrls = $state<Map<string, string>>(new Map());
@@ -164,18 +167,36 @@
   }
 
   $effect(() => {
+    // 再読み込みで取引先一覧も購読し直す
+    void retryCount;
     const sub = liveQuery(() => db.vendors.orderBy('name').toArray()).subscribe({
       next: (v) => {
         vendors = v;
+        vendorError = '';
       },
       error: (e: unknown) => {
-        filterError = describeStorageError(e);
+        vendorError = describeStorageError(e);
       },
     });
     return () => sub.unsubscribe();
   });
+  // 条件が変わらない操作では effect が再実行されないため、読み込み中は表示中の結果と現在の条件キーの不一致で判定する。
+  const queryKey = $derived(
+    JSON.stringify([
+      year,
+      month,
+      descQuery,
+      amountMinQuery,
+      amountMaxQuery,
+      vendorIdQuery,
+      pageOffset,
+      retryCount,
+    ]),
+  );
+  const loading = $derived(loadedKey !== queryKey);
 
   $effect(() => {
+    const key = queryKey;
     const yr = year;
     const mo = month;
     const q = descQuery;
@@ -188,56 +209,48 @@
         filterError = '';
         rows = result.rows;
         totalCount = result.total;
-        loading = false;
+        loadedKey = key;
       },
       error: (e: unknown) => {
         filterError = describeStorageError(e);
-        loading = false;
+        // 前の条件の行と件数を新しい条件の結果として見せない
+        rows = [];
+        totalCount = 0;
+        loadedKey = key;
       },
     });
     return () => sub.unsubscribe();
   });
 
-  function markLoading() {
-    loading = true;
-  }
-
   function applyDescQuery() {
     descQuery = descInput.trim();
     pageOffset = 0;
-    markLoading();
   }
 
   function applyAmountQuery() {
     amountMinQuery = amountMinInput.trim();
     amountMaxQuery = amountMaxInput.trim();
     pageOffset = 0;
-    markLoading();
   }
 
   function onVendorChange() {
     pageOffset = 0;
-    markLoading();
   }
 
   function onYearChange() {
     pageOffset = 0;
-    markLoading();
   }
 
   function onMonthChange() {
     pageOffset = 0;
-    markLoading();
   }
 
   function gotoPrev() {
     pageOffset = Math.max(0, pageOffset - PAGE_SIZE);
-    markLoading();
   }
 
   function gotoNext() {
     pageOffset = pageOffset + PAGE_SIZE;
-    markLoading();
   }
 
   function resetFilters() {
@@ -251,7 +264,6 @@
     amountMaxQuery = '';
     vendorIdQuery = '';
     pageOffset = 0;
-    markLoading();
   }
 
   function toggleExpand(id: string) {
@@ -499,7 +511,7 @@
       <span class="tabular-nums">
         {#if loading}
           {m.journal_list_loading()}
-        {:else}
+        {:else if !filterError}
           {m.journal_list_pagination({
             total: totalCount,
             current: currentPage,
@@ -536,11 +548,25 @@
     </div>
   {/if}
 
-  {#if filterError}
+  {#if filterError || vendorError}
     <div
-      class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+      class="flex items-center justify-between gap-4 border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
-      {filterError}
+      <div class="flex flex-col gap-1">
+        {#if filterError}
+          <span>{filterError}</span>
+        {/if}
+        {#if vendorError}
+          <span>{m.journal_list_vendor_load_error({ message: vendorError })}</span>
+        {/if}
+      </div>
+      <button
+        type="button"
+        class="shrink-0 rounded px-2 py-1 hover:bg-destructive/20"
+        onclick={() => retryCount++}
+      >
+        {m.error_reload()}
+      </button>
     </div>
   {/if}
 
@@ -728,7 +754,7 @@
         </tbody>
       </table>
     </ScrollX>
-  {:else if !loading}
+  {:else if !loading && !filterError}
     <div class="bg-card text-card-foreground rounded-xl p-12 text-center shadow-sm">
       <p class="text-sm text-muted-foreground">
         {m.journal_list_empty()}

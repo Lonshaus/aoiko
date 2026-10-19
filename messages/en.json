@@ -194,6 +194,7 @@
   "journal_list_filter_vendor_all": "All",
   "journal_list_filter_reset": "Reset",
   "journal_list_loading": "Loading…",
+  "journal_list_vendor_load_error": "Failed to load the vendor list ({message})",
   "journal_list_pagination": "{total} entries — page {current} / {pages}",
   "journal_list_pagination_prev": "← Prev",
   "journal_list_pagination_next": "Next →",

@@ -9,6 +9,13 @@ const resolve = {
     $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
   },
 };
+// virtual:pwa-register は build 時だけの仮想モジュールでテストからは解決できないため、空の実体を返す（中身は各テストの vi.mock が差し替える）。
+const stubPwaRegister = {
+  name: 'stub-virtual-pwa-register',
+  resolveId: (id: string) => (id === 'virtual:pwa-register' ? '\0virtual:pwa-register' : null),
+  load: (id: string) =>
+    id === '\0virtual:pwa-register' ? 'export const registerSW = () => async () => {};' : null,
+};
 
 const sharedTest = {
   environment: 'happy-dom',
@@ -24,7 +31,7 @@ export default defineConfig({
     // __NATIVE__ が false へ畳まれ、native 側のテストではそこが死んだ分岐になる。
     projects: [
       {
-        plugins: [svelte()],
+        plugins: [svelte(), stubPwaRegister],
         resolve,
         define: {
           __APP_VERSION__: JSON.stringify('test'),

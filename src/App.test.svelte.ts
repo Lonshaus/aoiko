@@ -3,9 +3,15 @@
 
 import { describe, expect, test, afterEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
-// UpdatePrompt.svelte は VitePWA の virtual module を読むが、vitest.config.ts には
-// その plugin を積んでいないため解決できない。この試験の対象外なのでまるごと差し替える。
-vi.mock('./components/UpdatePrompt.svelte', () => ({ default: () => {} }));
+
+const registered: { onOfflineReady?: () => void }[] = [];
+
+vi.mock('virtual:pwa-register', () => ({
+  registerSW: (options: { onOfflineReady?: () => void }) => {
+    registered.push(options);
+    return async () => {};
+  },
+}));
 
 const { default: App } = await import('./App.svelte');
 
@@ -26,6 +32,7 @@ function openMenu(): void {
 }
 
 afterEach(() => {
+  registered.length = 0;
   if (component !== null) {
     unmount(component);
     component = null;
@@ -38,19 +45,30 @@ describe('モバイルメニュー', () => {
   test('外側の暗幕を押すと閉じる', () => {
     render();
     openMenu();
-    expect(target?.querySelector('header nav.md\\:hidden')).not.toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).not.toBeNull();
     const dismiss = target?.querySelector<HTMLButtonElement>('button.fixed.inset-0');
     dismiss?.click();
     flushSync();
-    expect(target?.querySelector('header nav.md\\:hidden')).toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).toBeNull();
   });
 
   test('Escape を押すと閉じる', () => {
     render();
     openMenu();
-    expect(target?.querySelector('header nav.md\\:hidden')).not.toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).not.toBeNull();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     flushSync();
-    expect(target?.querySelector('header nav.md\\:hidden')).toBeNull();
+    expect(target?.querySelector('header nav.lg\\:hidden')).toBeNull();
+  });
+});
+
+describe('更新・オフラインのカード', () => {
+  test('カード用の余白は 1 画面分の高さの枠の内側に置く', () => {
+    render();
+    registered[0]?.onOfflineReady?.();
+    flushSync();
+    const spacer = target?.querySelector('[aria-hidden="true"].print\\:hidden');
+    expect(spacer).not.toBeNull();
+    expect(target?.querySelector('.min-h-screen')?.contains(spacer!)).toBe(true);
   });
 });

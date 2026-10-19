@@ -194,6 +194,7 @@
   "journal_list_filter_vendor_all": "全部",
   "journal_list_filter_reset": "重設",
   "journal_list_loading": "載入中…",
+  "journal_list_vendor_load_error": "交易對象清單讀取失敗（{message}）",
   "journal_list_pagination": "{total} 筆 — 第 {current} / {pages} 頁",
   "journal_list_pagination_prev": "← 上一頁",
   "journal_list_pagination_next": "下一頁 →",
