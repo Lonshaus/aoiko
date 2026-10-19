@@ -38,7 +38,7 @@
   let rows = $state<LedgerRow[]>([]);
   let totalCount = $state(0);
   let loadedKey = $state<string | null>(null);
-  // liveQuery は一度失敗すると以後の変更でも再実行されないため、条件キーを変えて購読し直す
+  // 一度も読み取りを終えていない liveQuery が失敗すると以後の変更でも再実行されないため、条件キーを変えて購読し直す
   let retryCount = $state(0);
 
   let expandedId = $state<string | null>(null);
@@ -180,8 +180,7 @@
     });
     return () => sub.unsubscribe();
   });
-
-  // 条件が変わらないハンドラでは effect が再実行されないため、フラグではなく条件キーの一致で読み込み中を判定する。
+  // 条件が変わらない操作では effect が再実行されないため、読み込み中は表示中の結果と現在の条件キーの不一致で判定する。
   const queryKey = $derived(
     JSON.stringify([
       year,
@@ -543,7 +542,14 @@
     <div
       class="flex items-center justify-between gap-4 border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
-      <span>{filterError || vendorError}</span>
+      <div class="flex flex-col gap-1">
+        {#if filterError}
+          <span>{filterError}</span>
+        {/if}
+        {#if vendorError}
+          <span>{m.journal_list_vendor_load_error({ message: vendorError })}</span>
+        {/if}
+      </div>
       <button
         type="button"
         class="shrink-0 rounded px-2 py-1 hover:bg-destructive/20"

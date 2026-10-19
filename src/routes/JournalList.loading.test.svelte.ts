@@ -1,4 +1,3 @@
-// 条件が変わらないフィルタ操作の後も「読み込み中…」に固定されないことを見る。
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount } from 'svelte';
 import { db } from '../db/db';
@@ -60,6 +59,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   if (instance !== undefined) {
     unmount(instance);
     instance = undefined;
@@ -243,5 +243,28 @@ describe('JournalList: 読み込み状態', () => {
     expect(text()).not.toContain(describeStorageError(failure));
     await db.vendors.add({ id: 'v3', name: '取引先C' } as never);
     await waitFor(() => text().includes('取引先C'));
+  });
+
+  test('仕訳と取引先一覧の両方が読み込みに失敗したら両方の失敗を出す', async () => {
+    await seed({ id: 'a', description: '文房具' });
+    await mountLoaded(1);
+    const entryFailure = new Error('仕訳の読み込み失敗');
+    const vendorFailure = new Error('取引先の読み込み失敗');
+    vi.spyOn(db.vendors, 'orderBy').mockImplementation(
+      () => ({ toArray: () => Promise.reject(vendorFailure) }) as never,
+    );
+    await db.vendors.add({ id: 'v1', name: '取引先A' } as never);
+    await waitFor(() => text().includes(describeStorageError(vendorFailure)));
+    vi.spyOn(db.journalEntries, 'where').mockImplementation(() => {
+      throw entryFailure;
+    });
+    const desc = container!.querySelector<HTMLInputElement>(
+      `input[placeholder="${m.journal_list_filter_description_placeholder()}"]`,
+    )!;
+    desc.value = '文房具';
+    desc.dispatchEvent(new Event('input', { bubbles: true }));
+    desc.dispatchEvent(new Event('blur'));
+    await waitFor(() => text().includes(describeStorageError(entryFailure)));
+    expect(text()).toContain(describeStorageError(vendorFailure));
   });
 });
