@@ -66,3 +66,27 @@ describe('消費税の特例判定に使う設定の読み込み', () => {
     expect(await loadSmallAmountSpecialInputs()).toEqual({});
   });
 });
+
+describe('特定少額資産の譲渡行の金額の読み込み', () => {
+  test('カンマ付きは値として読み、空・全角・数値でない文字列は0として読み、例外を投げない', async () => {
+    await setSetting('wariBaseAdjustments', {
+      2026: {
+        specifiedSmallAssetTransfers: [
+          { date: '2026-01-01', rate: 0.1, netTax: '5,000' },
+          { date: '2026-01-02', rate: 0.1, netTax: 'abc' },
+          { date: '2026-01-03', rate: 0.08, netTax: '' },
+          { date: '2026-01-04', rate: 0.1, netTax: '５０００' },
+          { date: '2026-01-05', rate: 0.1, netTax: '5000円' },
+        ],
+      },
+    });
+    const adj = await loadWariBaseAdjustments(2026);
+    expect(adj.specifiedSmallAssetTransfers?.map((t) => t.netTax.toString())).toEqual([
+      '5000',
+      '0',
+      '0',
+      '0',
+      '0',
+    ]);
+  });
+});

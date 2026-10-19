@@ -1,10 +1,11 @@
 // Reports.svelte の2割／3割特例の基礎調整欄（売上対価の返還等）が
 // 設定へ保存され、再マウント（＝再読込相当）後も保持されることを見る。
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { mount, unmount } from 'svelte';
+import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
 import { getSetting } from '../lib/settings';
+import { m } from '../paraglide/messages';
 import type { Account } from '../db/types';
 
 vi.mock('../lib/save-file', () => ({
@@ -13,9 +14,12 @@ vi.mock('../lib/save-file', () => ({
 
 const { default: Reports } = await import('./Reports.svelte');
 
-async function waitFor(predicate: () => boolean, timeoutMs = 4000): Promise<void> {
+async function waitFor(
+  predicate: () => boolean | Promise<boolean>,
+  timeoutMs = 4000,
+): Promise<void> {
   const start = Date.now();
-  while (!predicate()) {
+  while (!(await predicate())) {
     if (Date.now() - start > timeoutMs) {
       throw new Error('waitFor タイムアウト');
     }
@@ -168,5 +172,110 @@ describe('interimPriorPeriodMonths の設定保存と再読込後の保持', () 
     });
     const reloaded = findInputByLabelText(container, '直前の課税期間の月数');
     expect(reloaded.value).toBe('3');
+  });
+});
+
+describe('特定少額資産の譲渡行は入力して change すると保存され、再マウント後も保持される', () => {
+  function named(name: string): HTMLInputElement {
+    const el = container!.querySelector<HTMLInputElement>(`[name="${name}"]`);
+    if (el === null) {
+      throw new Error(`${name} が見付からない`);
+    }
+    return el;
+  }
+  function commit(name: string, value: string): void {
+    const el = named(name);
+    el.dispatchEvent(new FocusEvent('focus'));
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+  }
+  async function mountReports(): Promise<void> {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Reports, { target: container, props: {} });
+    await waitFor(() => container!.querySelector('input[name="wariSalesReturnTax78"]') !== null);
+  }
+  async function remount(): Promise<void> {
+    unmount(instance!);
+    instance = undefined;
+    container!.remove();
+    await mountReports();
+  }
+  function addButton(): HTMLButtonElement {
+    const hint = Array.from(container!.querySelectorAll('p')).find(
+      (p) => (p.textContent ?? '').trim() === m.reports_wari_specified_small_asset_transfers_hint(),
+    );
+    const b = Array.from(hint?.parentElement?.querySelectorAll('button') ?? []).find(
+      (x) => (x.textContent ?? '').trim() === m.settings_action_add(),
+    );
+    if (b === undefined) {
+      throw new Error('追加ボタンが見付からない');
+    }
+    return b;
+  }
+  function removeButtons(): HTMLButtonElement[] {
+    return Array.from(container!.querySelectorAll('button')).filter(
+      (b) => (b.textContent ?? '').trim() === m.income_deductions_dependent_remove(),
+    );
+  }
+  async function addRow(index: number, date: string, netTax: string): Promise<void> {
+    addButton().click();
+    flushSync();
+    await waitFor(
+      () => container!.querySelector(`input[name="wariTransfer-netTax-${index}"]`) !== null,
+    );
+    commit(`wariTransfer-date-${index}`, date);
+    commit(`wariTransfer-netTax-${index}`, netTax);
+  }
+  async function storedTransfers() {
+    return (await getSetting('wariBaseAdjustments'))?.[2026]?.specifiedSmallAssetTransfers;
+  }
+
+  test('追加した行を入力して change すると保存され、再マウント後も同じ日付と金額が表示される', async () => {
+    await mountReports();
+    await addRow(0, '2026-03-01', '5000');
+    await waitFor(async () => (await storedTransfers())?.[0]?.netTax === '5000');
+    expect(await storedTransfers()).toEqual([{ date: '2026-03-01', rate: 0.1, netTax: '5000' }]);
+
+    await remount();
+    await waitFor(() => container!.querySelector('input[name="wariTransfer-netTax-0"]') !== null);
+    await waitFor(() => named('wariTransfer-netTax-0').value === '5000');
+    expect(named('wariTransfer-date-0').value).toBe('2026-03-01');
+    expect(named('wariTransfer-netTax-0').value).toBe('5000');
+    await db.settings.toArray();
+  });
+
+  test('2行を保存した状態で先頭の行を消すと、保存済みの配列には後ろの行だけが残る', async () => {
+    await mountReports();
+    await addRow(0, '2026-03-01', '5000');
+    await addRow(1, '2026-04-01', '7000');
+    await waitFor(async () => (await storedTransfers())?.length === 2);
+
+    removeButtons()[0]!.click();
+    flushSync();
+    await waitFor(async () => (await storedTransfers())?.length === 1);
+    expect(await storedTransfers()).toEqual([{ date: '2026-04-01', rate: 0.1, netTax: '7000' }]);
+    await db.settings.toArray();
+  });
+
+  test('カンマ付き・数値でない金額は入力のまま保存され、再マウントで正規化して表示され、次の保存で正規化値になる', async () => {
+    await mountReports();
+    await addRow(0, '2026-03-01', '5,000');
+    await addRow(1, '2026-04-01', 'abc');
+    await waitFor(async () => (await storedTransfers())?.[1]?.netTax === 'abc');
+    expect((await storedTransfers())?.map((t) => t.netTax)).toEqual(['5,000', 'abc']);
+
+    await remount();
+    await waitFor(() => container!.querySelector('input[name="wariTransfer-netTax-1"]') !== null);
+    expect(named('wariTransfer-netTax-0').value).toBe('5000');
+    expect(named('wariTransfer-netTax-1').value).toBe('0');
+    expect(container!.querySelector('input[name="wariSalesReturnTax78"]')).not.toBeNull();
+
+    commit('wariSalesReturnTax78', '100');
+    await waitFor(async () => (await storedTransfers())?.[0]?.netTax === '5000');
+    expect((await storedTransfers())?.map((t) => t.netTax)).toEqual(['5000', '0']);
+    await db.settings.toArray();
   });
 });

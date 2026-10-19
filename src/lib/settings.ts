@@ -262,9 +262,10 @@ export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdj
   }
   const salesReturnTax78 = parseAmount(stored.salesReturnTax78);
   const salesReturnTax624 = parseAmount(stored.salesReturnTax624);
+  // 金額欄は未検証の文字列で保存されるため、壊れた値は0として読み例外にしない
   const transfers = stored.specifiedSmallAssetTransfers
     ?.filter((t) => t.date !== '')
-    .map((t) => ({ date: t.date, rate: t.rate, netTax: D(t.netTax || '0') }));
+    .map((t) => ({ date: t.date, rate: t.rate, netTax: parseAmount(t.netTax) ?? D(0) }));
   return {
     ...(salesReturnTax78 !== undefined ? { salesReturnTax78 } : {}),
     ...(salesReturnTax624 !== undefined ? { salesReturnTax624 } : {}),

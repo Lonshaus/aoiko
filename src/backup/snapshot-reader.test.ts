@@ -266,7 +266,7 @@ describe('readLatestSnapshot', () => {
     expect(reads.filter((p) => p === `${ATTACHMENT_DIR}/${redSha}`)).toHaveLength(1);
   });
 });
-// S6 の要。書いたものが読み戻せなければ、バックアップは無いのと同じ。
+// 書いたものが読み戻せなければ、バックアップは無いのと同じ。
 describe('writeLooseBackup → readLatestSnapshot', () => {
   test('書き出した帳簿と写真がそのまま戻る', async () => {
     const { adapter } = fakeAdapter();
