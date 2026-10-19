@@ -6,13 +6,13 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js';
 import { fileURLToPath, URL } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { isPlatform, PLATFORMS, stripBuildOnly, type Platform } from './src/lib/build-only';
+import { isPlatform, PLATFORMS, stripBuildOnly, type Platform } from './src/lib/build-only.ts';
 import { execSync } from 'node:child_process';
 import {
   tesseractCacheHash,
   tesseractCacheName,
   tesseractRuntimeCaching,
-} from './scripts/tesseract-cache';
+} from './scripts/tesseract-cache.ts';
 
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as {
   version: string;
