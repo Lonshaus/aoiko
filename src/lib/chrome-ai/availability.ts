@@ -7,6 +7,7 @@ export type ChromeAiAvailability = 'unavailable' | 'downloadable' | 'downloading
 
 type SessionOptions = {
   expectedInputs: { type: string }[];
+  expectedOutputs: { type: string; languages: string[] }[];
 };
 
 export type ChromeAiSession = {
@@ -21,7 +22,11 @@ type LanguageModelLike = {
   create(options?: SessionOptions): Promise<ChromeAiSession>;
 };
 // この app が要る入力の形。画像を受けない実装は領収書の経路が成り立たないので外す。
-const EXPECTED_INPUTS: SessionOptions = { expectedInputs: [{ type: 'text' }, { type: 'image' }] };
+// 応答は日本語の文字列で受けるため、出力の言語も伝える（伝えないと Chrome が警告を出す）。
+const SESSION_OPTIONS: SessionOptions = {
+  expectedInputs: [{ type: 'text' }, { type: 'image' }],
+  expectedOutputs: [{ type: 'text', languages: ['ja'] }],
+};
 
 export function languageModel(): LanguageModelLike | undefined {
   const candidate = (globalThis as { LanguageModel?: unknown }).LanguageModel;
@@ -41,7 +46,7 @@ export async function chromeAiAvailability(): Promise<ChromeAiAvailability> {
     return 'unavailable';
   }
   try {
-    const state = await lm.availability(EXPECTED_INPUTS);
+    const state = await lm.availability(SESSION_OPTIONS);
     return state === 'available' || state === 'downloadable' || state === 'downloading'
       ? state
       : 'unavailable';
@@ -58,5 +63,5 @@ export async function createChromeAiSession(): Promise<ChromeAiSession> {
   if (!lm || (await chromeAiAvailability()) !== 'available') {
     throw new Error('chrome-ai is unavailable in this browser');
   }
-  return lm.create(EXPECTED_INPUTS);
+  return lm.create(SESSION_OPTIONS);
 }
