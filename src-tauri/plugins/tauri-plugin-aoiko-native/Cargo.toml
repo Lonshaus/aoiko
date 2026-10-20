@@ -10,7 +10,7 @@ build = "build.rs"
 
 [lib]
 name = "tauri_plugin_aoiko_native"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-plugin = { version = "2", features = ["build"] }
