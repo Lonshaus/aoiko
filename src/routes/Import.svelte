@@ -1,46 +1,8 @@
-<script module lang="ts">
-  import { db as inventoryDb } from '../db';
-  // 確定仕訳は不可逆なので、分類器が書き得る科目コードを在庫運用の判定材料にしない
-  export async function computeInventoryLive(): Promise<boolean> {
-    const itemCount = await inventoryDb.inventoryItems.count();
-    if (itemCount > 0) {
-      return true;
-    }
-    const line = await inventoryDb.journalLines.filter((l) => l.itemId !== undefined).first();
-    return line !== undefined;
-  }
-  // LLM の提案を自動入力するかどうかの唯一の判定点（実行部からもテストからもここを通す）。
-  export function shouldFillSuggestion<
-    T extends { accountCode: string | null; confidence: 'high' | 'low' | 'none' },
-  >(s: T): s is T & { accountCode: string; confidence: 'high' | 'low' } {
-    return Boolean(s.accountCode) && s.confidence !== 'none';
-  }
-</script>
-
 <script lang="ts">
-  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
-  import { db } from '../db';
-  import {
-    commitImport,
-    computeFileHash,
-    DuplicateImportError,
-    findOverlappingRows,
-    type ImportRow,
-  } from '../domain/import';
-  import {
-    findMatchingRule,
-    findVendorByDefaultAccount,
-    loadRules,
-    recordRuleHit,
-  } from '../domain/rules';
-  import { describeLlmError, type LlmAdapter } from '../domain/llm';
-  import {
-    classifyWithLlm,
-    counterpartCandidates,
-    type ClassifyInput,
-  } from '../domain/llm-classify';
+  import { onMount } from 'svelte';
+  import { commitImport, DuplicateImportError, type ImportRow } from '../domain/import';
+  import { recordRuleHit } from '../domain/rules';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
-  import { createLlmAdapter } from '../lib/llm-adapter';
   import { getSetting, setSetting } from '../lib/settings';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { formatJPY } from '../lib/decimal';
@@ -49,61 +11,29 @@
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import ScrollX from '../components/ScrollX.svelte';
   import { PARSERS, findParser } from '../parsers';
-  import type { ParsedTransaction } from '../parsers/types';
+  import { analysis } from '../stores/analysis.svelte';
+  import {
+    defaultTaxRateFor,
+    importDraft,
+    type PreparedClassify,
+    type RowState,
+  } from '../stores/import-draft.svelte';
   import { ledger } from '../stores/ledger.svelte';
-  import { taxRateForCategory } from '../lib/tax-category';
-  import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
-  import { CsvEncodingError, decodeCsv } from '../lib/encoding';
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
   const PAGE_SIZE = 500;
 
-  type RowState = {
-    transaction: ParsedTransaction;
-    counterpartAccountCode: string;
-    counterpartSubAccountId: string;
-    description: string;
-    skip: boolean;
-    matchedRuleId: string; // ルール一致時の ID、'' = 非適用
-    vendorMatched: boolean; // 取引先の既定科目を適用した行（ルール不一致の場合のみ）
-    llmConfidence: '' | 'high' | 'low'; // LLM 分類の信頼度、'' = LLM 未適用
-    taxRate: number; // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
-    invoiceCompliant: boolean; // 適格請求書あり（仕入税額控除 100%）
-  };
-  // 相手科目コードから税区分由来の既定税率を引く。
-  function defaultTaxRateFor(accountCode: string): number {
-    const acc = ledger.accounts.find((a) => a.code === accountCode);
-    return taxRateForCategory(acc?.taxCategory);
-  }
-
-  let selectedParserName = $state(PARSERS[0]?.name ?? '');
-  let fileName = $state('');
-  let fileHash = $state('');
-  let rows = $state<RowState[]>([]);
-  let page = $state(0);
-  let knownSubAccountId = $state('');
-  let duplicateNotice = $state('');
-  let parserChangedNotice = $state('');
-  let importing = $state(false);
-  // 解析済みの行は取込を押すまで DB に無い。画面を離れると読み直しになる。
-  const isDirty = $derived(rows.length > 0 && !importing);
-  const unsavedToken = {};
-  $effect(() => {
-    setUnsavedGuard(unsavedToken, isDirty);
-    return () => clearUnsavedGuard(unsavedToken);
-  });
-  let llmClassifying = $state(false);
-  let llmStatus = $state('');
+  const draft = importDraft;
+  // 読み込んだ行は取込を押すまで DB に無いが、store が持つので画面を離れても残る。
+  // 分類の準備はまだ実行権を取らない区間なので、ボタンの二度押しはここで防ぐ。
+  let preparing = $state(false);
+  const running = $derived(preparing || analysis.isRunning('classify'));
+  const cancelling = $derived(analysis.isCancelling('classify'));
+  const busyOther = $derived(analysis.isBusyWithOther('classify'));
   let llmConfirmOpen = $state(false);
-  let llmPending = $state<{
-    adapter: LlmAdapter;
-    targets: { row: RowState; index: number }[];
-    host: string;
-  } | null>(null);
-  let error = $state('');
-  let success = $state('');
+  let llmPending = $state<PreparedClassify | null>(null);
   let discardConfirmOpen = $state(false);
   let parserSelectEl = $state<HTMLSelectElement | null>(null);
   // Cancel／取込元切替／ファイル選び直しの3経路を同じダイアログで賄うため、破棄後の動作を種別で持つ
@@ -113,7 +43,12 @@
     | { kind: 'file'; file: File; input: HTMLInputElement };
   let pendingDiscard = $state<PendingDiscard | null>(null);
 
-  const currentParser = $derived(findParser(selectedParserName));
+  onMount(() => {
+    analysis.enter('classify');
+    return () => analysis.leave('classify');
+  });
+
+  const currentParser = $derived(findParser(draft.selectedParserName));
   const knownAccount = $derived(
     currentParser ? ledger.accounts.find((a) => a.code === currentParser.accountCode) : null,
   );
@@ -122,16 +57,16 @@
   );
   const accountGroups = $derived(ledger.groupedAccounts());
   const validCount = $derived(
-    rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length,
+    draft.rows.filter((r) => !r.skip && r.counterpartAccountCode.length > 0).length,
   );
   const unclassifiedCount = $derived(
-    rows.filter((r) => !r.skip && r.counterpartAccountCode.length === 0).length,
+    draft.rows.filter((r) => !r.skip && r.counterpartAccountCode.length === 0).length,
   );
-  const totalPages = $derived(pageCount(rows.length, PAGE_SIZE));
-  const currentPage = $derived(clampPage(page, rows.length, PAGE_SIZE));
-  const pageRange = $derived(pageBounds(rows.length, PAGE_SIZE, currentPage));
+  const totalPages = $derived(pageCount(draft.rows.length, PAGE_SIZE));
+  const currentPage = $derived(clampPage(draft.page, draft.rows.length, PAGE_SIZE));
+  const pageRange = $derived(pageBounds(draft.rows.length, PAGE_SIZE, currentPage));
   const pageRows = $derived(
-    rows
+    draft.rows
       .slice(pageRange.start, pageRange.end)
       .map((row, i) => ({ row, index: pageRange.start + i })),
   );
@@ -139,12 +74,18 @@
   // 再解析ではなく破棄：computeFileHash / 重複チェック / findOverlappingRows / ルール適用を
   // 丸ごとやり直す必要があり、handleFile の分岐が増えて事故りやすいため。
   function handleParserChange(newName: string) {
-    if (rows.length > 0 && newName !== selectedParserName) {
+    if (draft.locked) {
+      if (parserSelectEl) {
+        parserSelectEl.value = draft.selectedParserName;
+      }
+      return;
+    }
+    if (draft.rows.length > 0 && newName !== draft.selectedParserName) {
       pendingDiscard = { kind: 'parser', newName };
       discardConfirmOpen = true;
       return;
     }
-    selectedParserName = newName;
+    draft.selectedParserName = newName;
   }
 
   async function handleFile(e: Event) {
@@ -153,7 +94,11 @@
     if (!file) {
       return;
     }
-    if (rows.length > 0) {
+    if (draft.locked) {
+      input.value = '';
+      return;
+    }
+    if (draft.rows.length > 0) {
       pendingDiscard = { kind: 'file', file, input };
       discardConfirmOpen = true;
       return;
@@ -162,71 +107,9 @@
   }
 
   async function processFile(file: File, input: HTMLInputElement) {
-    error = '';
-    success = '';
-    parserChangedNotice = '';
-    rows = [];
-    page = 0;
-    if (!currentParser) {
-      return;
-    }
-    if (file.size > MAX_CSV_BYTES) {
-      error = m.common_file_too_large({
-        size: formatBytes(file.size),
-        limit: formatBytes(MAX_CSV_BYTES),
-      });
+    const result = await draft.loadFile(file);
+    if (result === 'clear-input') {
       input.value = '';
-      return;
-    }
-    fileName = file.name;
-    try {
-      const buffer = await file.arrayBuffer();
-      const text = decodeCsv(buffer, currentParser.encoding);
-      fileHash = await computeFileHash(text);
-
-      const dup = await db.importBatches.where('fileHash').equals(fileHash).first();
-      if (dup) {
-        error = m.import_duplicate_error({
-          date: new Date(dup.importedAt).toLocaleDateString('ja-JP'),
-          name: dup.fileName,
-        });
-        return;
-      }
-
-      const txs = currentParser.parse(text);
-      // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
-      const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
-      const rules = await loadRules();
-      const vendors = await db.vendors.toArray();
-      rows = txs.map((t, i): RowState => {
-        const rule = findMatchingRule(rules, t.description);
-        const vendor = rule ? null : findVendorByDefaultAccount(vendors, t.description);
-        const code = rule?.accountCode ?? vendor?.defaultAccountCode ?? '';
-        return {
-          transaction: t,
-          counterpartAccountCode: code,
-          counterpartSubAccountId: '',
-          description: t.description,
-          skip: overlapping.has(i),
-          matchedRuleId: rule?.id ?? '',
-          vendorMatched: vendor !== null,
-          llmConfidence: '',
-          taxRate: defaultTaxRateFor(code),
-          invoiceCompliant: false,
-        };
-      });
-      duplicateNotice =
-        overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
-      // 同じファイルを選び直しても change が発火するように、成功時も input をクリアする
-      input.value = '';
-    } catch (e) {
-      if (e instanceof CsvEncodingError) {
-        error = m.import_encoding_error({ parser: currentParser.displayName });
-        // 取込元を選び直して同じファイルを再選択できるようにする
-        input.value = '';
-      } else {
-        error = e instanceof Error ? e.message : String(e);
-      }
     }
   }
 
@@ -241,113 +124,29 @@
   }
 
   async function classifyRemainingWithLlm() {
-    if (!currentParser) {
+    if (preparing) {
       return;
     }
-    llmStatus = '';
-    error = '';
-
-    const targets = rows
-      .map((row, index) => ({ row, index }))
-      .filter(({ row }) => !row.skip && !row.counterpartAccountCode);
-    if (targets.length === 0) {
-      llmStatus = m.import_llm_no_target();
-      return;
-    }
-
-    let adapter;
+    preparing = true;
     try {
-      adapter = await createLlmAdapter('classify');
-    } catch (e) {
-      error = describeLlmError(e);
-      return;
-    }
-    const skip = await getSetting('skipExternalSendConfirm');
-    if (
-      shouldConfirmExternalSend({ external: adapter.external, host: adapter.destinationHost }, skip)
-    ) {
-      llmPending = { adapter, targets, host: adapter.destinationHost };
-      llmConfirmOpen = true;
-      return;
-    }
-    await runClassify(adapter, targets);
-  }
-
-  async function runClassify(adapter: LlmAdapter, targets: { row: RowState; index: number }[]) {
-    if (!currentParser) {
-      return;
-    }
-    llmClassifying = true;
-    try {
-      const bySide = new Map<'debit' | 'credit', typeof targets>();
-      for (const t of targets) {
-        const s = t.row.transaction.side;
-        const arr = bySide.get(s) ?? [];
-        arr.push(t);
-        bySide.set(s, arr);
+      const prepared = await draft.prepareClassify();
+      if (prepared === null) {
+        return;
       }
-
-      let highCount = 0;
-      let lowCount = 0;
-      let noneCount = 0;
-      let failedCount = 0;
-      const inventoryLive = await computeInventoryLive();
-
-      for (const [knownSide, group] of bySide) {
-        const inputs: ClassifyInput[] = group.map((g) => ({
-          ref: String(g.index),
-          description: g.row.description,
-          amount: g.row.transaction.amount,
-        }));
-        const suggestions = await classifyWithLlm(adapter, inputs, {
-          knownAccountCode: currentParser.accountCode,
-          knownSide,
-          candidateAccounts: counterpartCandidates(
-            ledger.accounts,
-            currentParser.accountCode,
-            knownSide,
-            inventoryLive,
-          ),
-        });
-        for (const s of suggestions) {
-          const idx = Number(s.ref);
-          const row = rows[idx];
-          if (!row) {
-            continue;
-          }
-          if (shouldFillSuggestion(s)) {
-            row.counterpartAccountCode = s.accountCode;
-            row.taxRate = defaultTaxRateFor(s.accountCode);
-            row.llmConfidence = s.confidence;
-            if (s.confidence === 'high') {
-              highCount++;
-            } else {
-              lowCount++;
-            }
-          } else if (s.failed) {
-            failedCount++;
-          } else {
-            noneCount++;
-          }
-        }
+      const skip = await getSetting('skipExternalSendConfirm');
+      if (
+        shouldConfirmExternalSend(
+          { external: prepared.adapter.external, host: prepared.host },
+          skip,
+        )
+      ) {
+        llmPending = prepared;
+        llmConfirmOpen = true;
+        return;
       }
-      const baseStatus =
-        noneCount > 0
-          ? m.import_llm_status_with_none({
-              count: highCount + lowCount,
-              high: highCount,
-              low: lowCount,
-              none: noneCount,
-            })
-          : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
-      llmStatus =
-        failedCount > 0
-          ? `${baseStatus} ${m.import_llm_status_failed({ failed: failedCount })}`
-          : baseStatus;
-    } catch (e) {
-      error = describeLlmError(e);
+      await draft.runClassify(prepared);
     } finally {
-      llmClassifying = false;
+      preparing = false;
     }
   }
 
@@ -361,23 +160,12 @@
     if (dontAskAgain) {
       await setSetting('skipExternalSendConfirm', true);
     }
-    await runClassify(p.adapter, p.targets);
+    await draft.runClassify(p);
   }
 
   function onLlmCancel() {
     llmConfirmOpen = false;
     llmPending = null;
-  }
-
-  function reset() {
-    rows = [];
-    page = 0;
-    fileName = '';
-    fileHash = '';
-    knownSubAccountId = '';
-    duplicateNotice = '';
-    parserChangedNotice = '';
-    error = '';
   }
 
   function requestDiscard() {
@@ -394,13 +182,13 @@
       return;
     }
     if (pending.kind === 'cancel') {
-      reset();
+      draft.reset();
       return;
     }
     if (pending.kind === 'parser') {
-      reset();
-      selectedParserName = pending.newName;
-      parserChangedNotice = m.import_parser_changed_notice();
+      draft.reset();
+      draft.selectedParserName = pending.newName;
+      draft.parserChangedNotice = m.import_parser_changed_notice();
       return;
     }
     await processFile(pending.file, pending.input);
@@ -412,7 +200,7 @@
     const pending = pendingDiscard;
     pendingDiscard = null;
     if (pending?.kind === 'parser' && parserSelectEl) {
-      parserSelectEl.value = selectedParserName;
+      parserSelectEl.value = draft.selectedParserName;
     } else if (pending?.kind === 'file') {
       pending.input.value = '';
     }
@@ -422,11 +210,11 @@
     if (!currentParser) {
       return;
     }
-    importing = true;
-    error = '';
-    success = '';
+    draft.importing = true;
+    draft.error = '';
+    draft.success = '';
     try {
-      const importRows: ImportRow[] = rows.map((r) => ({
+      const importRows: ImportRow[] = draft.rows.map((r) => ({
         transaction: r.transaction,
         counterpartAccountCode: r.counterpartAccountCode,
         ...(r.counterpartSubAccountId
@@ -444,17 +232,17 @@
       const result = await commitImport(
         {
           parserName: currentParser.name,
-          fileName,
-          fileHash,
+          fileName: draft.fileName,
+          fileHash: draft.fileHash,
           knownAccountCode: currentParser.accountCode,
-          ...(knownSubAccountId ? { knownSubAccountId } : {}),
+          ...(draft.knownSubAccountId ? { knownSubAccountId: draft.knownSubAccountId } : {}),
         },
         importRows,
         { allowFiledYear: true },
       );
       // 採用されたルールの hitCount をインクリメント
       const ruleIds = new Set(
-        rows
+        draft.rows
           .filter(
             (r) => !r.skip && r.matchedRuleId.length > 0 && r.counterpartAccountCode.length > 0,
           )
@@ -463,16 +251,16 @@
       for (const id of ruleIds) {
         await recordRuleHit(id);
       }
-      success = m.import_success({ count: result.entryCount });
-      reset();
+      draft.success = m.import_success({ count: result.entryCount });
+      draft.reset();
     } catch (e) {
       if (e instanceof DuplicateImportError) {
-        error = e.message;
+        draft.error = e.message;
       } else {
-        error = e instanceof Error ? e.message : String(e);
+        draft.error = e instanceof Error ? e.message : String(e);
       }
     } finally {
-      importing = false;
+      draft.importing = false;
     }
   }
 </script>
@@ -490,7 +278,8 @@
         <select
           bind:this={parserSelectEl}
           name="importParser"
-          value={selectedParserName}
+          value={draft.selectedParserName}
+          disabled={draft.locked}
           onchange={(e) => handleParserChange((e.target as HTMLSelectElement).value)}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         >
@@ -509,7 +298,7 @@
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.import_known_subaccount()}</span>
           <select
-            bind:value={knownSubAccountId}
+            bind:value={draft.knownSubAccountId}
             name="importKnownSubAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
@@ -524,64 +313,79 @@
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.import_step_file()}</span>
         <span class="mt-1 block">
-          <FilePicker accept=".csv,text/csv" onchange={handleFile} />
+          <FilePicker accept=".csv,text/csv" onchange={handleFile} disabled={draft.locked} />
         </span>
-        {#if fileName}
+        {#if draft.fileName}
           <span class="text-xs text-muted-foreground mt-1 block">
-            {m.import_file_selected({ name: fileName })}
+            {m.import_file_selected({ name: draft.fileName })}
           </span>
         {/if}
       </label>
     </div>
 
-    {#if error}
+    {#if draft.error}
       <div
         class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
       >
-        {error}
+        {draft.error}
       </div>
     {/if}
-    {#if success}
+    {#if draft.success}
       <div class="border border-primary bg-primary/10 text-foreground rounded-lg px-4 py-2 text-sm">
-        ✓ {success}
+        ✓ {draft.success}
       </div>
     {/if}
-    {#if duplicateNotice}
+    {#if draft.duplicateNotice}
       <div
         class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
       >
-        ⚠ {duplicateNotice}
+        ⚠ {draft.duplicateNotice}
       </div>
     {/if}
-    {#if parserChangedNotice}
+    {#if draft.parserChangedNotice}
       <div
         class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
       >
-        ⚠ {parserChangedNotice}
+        ⚠ {draft.parserChangedNotice}
       </div>
     {/if}
   </section>
 
-  {#if rows.length > 0}
+  {#if draft.rows.length > 0}
     <section class="bg-card text-card-foreground rounded-xl shadow-sm overflow-hidden">
       <header class="flex items-baseline justify-between p-4 border-b border-border/50">
         <h3 class="text-sm font-semibold">{m.import_step_review()}</h3>
         <span class="text-xs text-muted-foreground tabular-nums">
-          {m.import_planned_count({ valid: validCount, total: rows.length })}
+          {m.import_planned_count({ valid: validCount, total: draft.rows.length })}
         </span>
       </header>
 
-      <div class="flex items-center gap-3 px-4 py-2 border-b border-border/50 text-xs">
+      <div class="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-border/50 text-xs">
         <button
           type="button"
           onclick={classifyRemainingWithLlm}
-          disabled={llmClassifying}
+          disabled={running || busyOther}
           class="px-3 py-1 border rounded hover:bg-accent disabled:opacity-50"
         >
-          {llmClassifying ? m.import_llm_button_running() : m.import_llm_button()}
+          {running ? m.import_llm_button_running() : m.import_llm_button()}
         </button>
-        {#if llmStatus}
-          <span class="text-muted-foreground">{llmStatus}</span>
+        {#if analysis.isRunning('classify')}
+          <button
+            type="button"
+            onclick={() => analysis.cancel()}
+            disabled={cancelling}
+            class="px-3 py-1 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {cancelling ? m.analysis_cancelling() : m.analysis_cancel()}
+          </button>
+        {:else if busyOther}
+          <span class="text-muted-foreground">{m.analysis_busy_other()}</span>
+        {/if}
+        {#if cancelling}
+          <span class="text-muted-foreground">{m.analysis_cancelling_hint()}</span>
+        {/if}
+        {#if draft.llmStatus}
+          <span class="text-muted-foreground">{draft.llmStatus}</span>
         {/if}
       </div>
 
@@ -713,7 +517,7 @@
         >
           <button
             type="button"
-            onclick={() => (page = currentPage - 1)}
+            onclick={() => (draft.page = currentPage - 1)}
             disabled={currentPage === 0}
             class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
           >
@@ -723,12 +527,12 @@
             {m.import_pager_range({
               start: pageRange.start + 1,
               end: pageRange.end,
-              total: rows.length,
+              total: draft.rows.length,
             })}
           </span>
           <button
             type="button"
-            onclick={() => (page = currentPage + 1)}
+            onclick={() => (draft.page = currentPage + 1)}
             disabled={currentPage >= totalPages - 1}
             class="px-2 py-1 border rounded hover:bg-accent disabled:opacity-50"
           >
@@ -746,7 +550,7 @@
         <button
           type="button"
           onclick={requestDiscard}
-          disabled={importing}
+          disabled={draft.importing}
           class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
           {m.common_cancel()}
@@ -754,10 +558,10 @@
         <button
           type="button"
           onclick={submit}
-          disabled={importing || validCount === 0}
+          disabled={draft.importing || validCount === 0}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
-          {importing ? m.import_submit_running() : m.import_submit({ count: validCount })}
+          {draft.importing ? m.import_submit_running() : m.import_submit({ count: validCount })}
         </button>
       </div>
     </section>

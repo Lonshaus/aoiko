@@ -3,6 +3,7 @@
 // 分類用の LLM アダプターを流用（テキストのみ、画像不要）。
 
 import { buildOrderPrompt, parseOrderResponse, type OrderExtracted } from '../domain/order-extract';
+import type { LlmCallOptions } from '../domain/llm';
 import { createLlmAdapter } from './llm-adapter';
 
 export interface OrderExtractor {
@@ -10,7 +11,7 @@ export interface OrderExtractor {
   readonly external: boolean;
   /** 送信先ホスト（確認ダイアログ表示用） */
   readonly destinationHost: string;
-  extract(pastedText: string): Promise<OrderExtracted>;
+  extract(pastedText: string, options?: LlmCallOptions): Promise<OrderExtracted>;
 }
 
 export async function createOrderExtractor(): Promise<OrderExtractor> {
@@ -18,11 +19,13 @@ export async function createOrderExtractor(): Promise<OrderExtractor> {
   return {
     external: adapter.external,
     destinationHost: adapter.destinationHost,
-    async extract(pastedText: string) {
+    async extract(pastedText: string, options?: LlmCallOptions) {
       const raw = adapter.runDataTask
-        ? await adapter.runDataTask('order', { text: pastedText })
+        ? await adapter.runDataTask('order', { text: pastedText }, options)
         : await adapter.generateJson(
             `${buildOrderPrompt()}\n\n---\n以下が貼り付けテキスト：\n\n${pastedText}`,
+            undefined,
+            options,
           );
       return parseOrderResponse(raw);
     },

@@ -1,10 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
-  import { fileToBase64, type ReceiptExtracted } from '../domain/ocr';
-  import { downscaleForUpload } from '../lib/image-downscale';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { toIndexable } from '../lib/decimal';
@@ -12,12 +9,10 @@
   import { newId } from '../lib/id';
   import { formatBytes, MAX_IMAGE_BYTES } from '../lib/file-limit';
   import { describeStorageError } from '../lib/storage-error';
-  import { createReceiptExtractor, type ReceiptExtractor } from '../lib/receipt-extractor';
   import {
     defaultRuleEngine,
     getSetting,
     setSetting,
-    type AiEngine,
     type ReceiptMethod,
     type ReceiptRuleEngine,
   } from '../lib/settings';
@@ -25,28 +20,21 @@
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
+  import { analysis } from '../stores/analysis.svelte';
+  import { receiptDraft, type PreparedReceipt } from '../stores/receipt-draft.svelte';
   import type { JournalLine } from '../db/types';
-  import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
-  let file = $state<File | null>(null);
-  let preview = $state<string | null>(null);
-  let extracted = $state<ReceiptExtracted | null>(null);
-  let counterpartAccount = $state('5910'); // 既定は雑費
-  let knownAccount = $state('1110'); // 既定は現金
-  let processing = $state(false);
-  let error = $state('');
-  // 読み込んだ画像と OCR 結果は確定するまで DB に無い。撮り直し・再解析になる。
-  const isDirty = $derived(file !== null || extracted !== null);
-  const unsavedToken = {};
-  $effect(() => {
-    setUnsavedGuard(unsavedToken, isDirty);
-    return () => clearUnsavedGuard(unsavedToken);
-  });
-  let success = $state('');
+  const draft = receiptDraft;
+  // 画像・抽出結果は確定するまで DB に無いが、store が持つので画面を離れても残る。
+  // 解析の準備（縮小・符号化）はまだ実行権を取らない区間なので、ボタンの二度押しはここで防ぐ。
+  let preparing = $state(false);
+  const running = $derived(preparing || analysis.isRunning('receipt'));
+  const cancelling = $derived(analysis.isCancelling('receipt'));
+  const busyOther = $derived(analysis.isBusyWithOther('receipt'));
   // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
   let committing = $state(false);
   let confirmOpen = $state(false);
@@ -54,12 +42,7 @@
   // Cancel／画像選び直しの2経路を同じダイアログで賄うため、破棄後の動作を種別で持つ
   type PendingDiscard = { kind: 'cancel' } | { kind: 'file'; file: File; input: HTMLInputElement };
   let pendingDiscard = $state<PendingDiscard | null>(null);
-  let lastEngine = $state<ReceiptExtractor['engine'] | null>(null);
-  let pending = $state<{
-    extractor: ReceiptExtractor;
-    image: LlmImageInput;
-    host: string;
-  } | null>(null);
+  let pending = $state<PreparedReceipt | null>(null);
   // 証憑写真の添付前確認
   let attachmentConfirmOpen = $state(false);
   let attachmentPreview = $state<string | null>(null);
@@ -77,7 +60,27 @@
   // null の間は native の利用可否を確認中。tesseract は常に入るため空配列にはならない。
   let availableRuleEngines = $state<ReceiptRuleEngine[] | null>(null);
 
+  let disposed = false;
+  onMount(() => {
+    analysis.enter('receipt');
+    return () => {
+      disposed = true;
+      analysis.leave('receipt');
+    };
+  });
+
   onMount(async () => {
+    try {
+      await loadEngineSettings();
+    } catch (e) {
+      // 画面を離れた後の失敗は表示先が無い。
+      if (!disposed) {
+        throw e;
+      }
+    }
+  });
+
+  async function loadEngineSettings() {
     aiEngineInUse = (await getSetting('aiEngine')) ?? 'gemini';
     receiptMethod = (await getSetting('receiptMethod')) ?? 'ai';
 
@@ -98,7 +101,7 @@
     }
     // 解析ボタンの有効／無効はこの値で決まる。確定した engine を入れ終えてから公開する。
     availableRuleEngines = engines;
-  });
+  }
 
   async function onMethodChange(next: ReceiptMethod) {
     receiptMethod = next;
@@ -110,24 +113,17 @@
     await setSetting('receiptRuleEngine', next);
   }
 
-  function stageFile(f: File) {
-    file = f;
-    extracted = null;
-    error = '';
-    success = '';
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
-    preview = URL.createObjectURL(f);
-  }
-
   async function handleFile(e: Event) {
     const input = e.target as HTMLInputElement;
     const f = input.files?.[0];
     if (!f) {
       return;
     }
-    if (extracted !== null) {
+    if (draft.locked) {
+      input.value = '';
+      return;
+    }
+    if (draft.extracted !== null) {
       pendingDiscard = { kind: 'file', file: f, input };
       discardConfirmOpen = true;
       return;
@@ -137,7 +133,7 @@
 
   async function proceedFile(f: File, input: HTMLInputElement) {
     if (f.size > MAX_IMAGE_BYTES) {
-      error = m.common_file_too_large({
+      draft.error = m.common_file_too_large({
         size: formatBytes(f.size),
         limit: formatBytes(MAX_IMAGE_BYTES),
       });
@@ -151,7 +147,7 @@
       attachmentConfirmOpen = true;
       return;
     }
-    stageFile(f);
+    draft.stageFile(f);
   }
 
   async function onAttachmentConfirm(dontAskAgain: boolean) {
@@ -169,7 +165,7 @@
     if (dontAskAgain) {
       await setSetting('skipAttachmentConfirm', true);
     }
-    stageFile(f);
+    draft.stageFile(f);
   }
 
   function onAttachmentCancel() {
@@ -186,43 +182,29 @@
   }
 
   async function analyze() {
-    if (!file) {
+    if (preparing) {
       return;
     }
-    processing = true;
-    error = '';
+    preparing = true;
     try {
-      const extractor = await createReceiptExtractor(receiptMethod, receiptRuleEngine);
-      // 縮小の要否はエンジンが決める。クラウドは通信量、ブラウザ内蔵の AI はコンテキストウィンドウが理由で、
-      // 端末内かどうかとは別の軸になる。
-      const source = extractor.downscale ? await downscaleForUpload(file) : file;
-      const image = await fileToBase64(source);
+      const prepared = await draft.prepare(receiptMethod, receiptRuleEngine);
+      if (prepared === null) {
+        return;
+      }
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
-          { external: extractor.external, host: extractor.destinationHost },
+          { external: prepared.extractor.external, host: prepared.host },
           skip,
         )
       ) {
-        pending = { extractor, image, host: extractor.destinationHost };
+        pending = prepared;
         confirmOpen = true;
         return;
       }
-      await runExtract(extractor, image);
-    } catch (e) {
-      error = describeLlmError(e);
-      processing = false;
-    }
-  }
-
-  async function runExtract(extractor: ReceiptExtractor, image: LlmImageInput) {
-    try {
-      extracted = await extractor.extract(image);
-      lastEngine = extractor.engine;
-    } catch (e) {
-      error = describeLlmError(e);
+      await draft.run(prepared);
     } finally {
-      processing = false;
+      preparing = false;
     }
   }
 
@@ -231,40 +213,39 @@
     const p = pending;
     pending = null;
     if (!p) {
-      processing = false;
       return;
     }
     if (dontAskAgain) {
       await setSetting('skipExternalSendConfirm', true);
     }
-    await runExtract(p.extractor, p.image);
+    await draft.run(p);
   }
 
   function onCancelSend() {
     confirmOpen = false;
     pending = null;
-    processing = false;
   }
 
   async function commit() {
-    if (!extracted) {
+    const data = draft.extracted;
+    if (!data) {
       return;
     }
     if (committing) {
       return;
     }
-    const data = extracted; // 以降のクロージャ内でも絞り込み済みの保証
-    error = '';
-    success = '';
+    const file = draft.file;
+    draft.error = '';
+    draft.success = '';
     // 日付が空・不正でも IndexedDB は受け付けてしまい、year が 0 の仕訳として
     // どの画面にも出てこなくなる（訂正の入口すら無い）。金額と同じく必須検証する。
     if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-      error = m.receipt_date_required();
+      draft.error = m.receipt_date_required();
       return;
     }
     // ローカル OCR は totalAmount が空のまま戻ることがあるため、ここで必須検証
     if (!data.totalAmount || !/^\d+$/.test(data.totalAmount)) {
-      error = m.receipt_amount_required();
+      draft.error = m.receipt_amount_required();
       return;
     }
     committing = true;
@@ -276,7 +257,7 @@
           id: newId(),
           entryId,
           side: 'debit',
-          accountCode: counterpartAccount,
+          accountCode: draft.counterpartAccount,
           amount: data.totalAmount,
           amountIndexed: toIndexable(data.totalAmount),
           taxRate: data.taxRate ?? 0,
@@ -287,7 +268,7 @@
           id: newId(),
           entryId,
           side: 'credit',
-          accountCode: knownAccount,
+          accountCode: draft.knownAccount,
           amount: data.totalAmount,
           amountIndexed: toIndexable(data.totalAmount),
           taxRate: 0,
@@ -322,33 +303,17 @@
         }
       });
 
-      success = m.receipt_success({ name: description, amount: formatJPY(data.totalAmount) });
-      extracted = null;
-      file = null;
-      if (preview) {
-        URL.revokeObjectURL(preview);
-        preview = null;
-      }
+      draft.completeCommit(
+        m.receipt_success({ name: description, amount: formatJPY(data.totalAmount) }),
+      );
     } catch (e) {
-      error =
+      draft.error =
         e instanceof AttachmentInvalidTypeError
           ? m.common_file_not_image()
           : describeStorageError(e);
     } finally {
       committing = false;
     }
-  }
-
-  function reset() {
-    extracted = null;
-    lastEngine = null;
-    file = null;
-    if (preview) {
-      URL.revokeObjectURL(preview);
-      preview = null;
-    }
-    error = '';
-    success = '';
   }
 
   function requestDiscard() {
@@ -365,7 +330,7 @@
       return;
     }
     if (pending.kind === 'cancel') {
-      reset();
+      draft.reset();
       return;
     }
     await proceedFile(pending.file, pending.input);
@@ -394,13 +359,13 @@
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.receipt_step_image()}</span>
       <span class="mt-1 block">
-        <FilePicker accept="image/*" onchange={handleFile} />
+        <FilePicker accept="image/*" onchange={handleFile} disabled={draft.locked} />
       </span>
     </label>
 
-    {#if preview}
+    {#if draft.preview}
       <div class="border rounded-lg overflow-hidden bg-background flex items-center justify-center">
-        <img src={preview} alt={m.receipt_preview_alt()} class="max-h-80 object-contain" />
+        <img src={draft.preview} alt={m.receipt_preview_alt()} class="max-h-80 object-contain" />
       </div>
     {/if}
 
@@ -480,39 +445,59 @@
       </span>
     </div>
 
-    {#if file && !extracted}
-      <button
-        type="button"
-        onclick={analyze}
-        disabled={processing || (receiptMethod === 'rule' && availableRuleEngines === null)}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
-      >
-        {processing ? m.receipt_analyze_running() : m.receipt_analyze_button()}
-      </button>
+    {#if draft.file && !draft.extracted}
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onclick={analyze}
+          disabled={running ||
+            busyOther ||
+            (receiptMethod === 'rule' && availableRuleEngines === null)}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {running ? m.receipt_analyze_running() : m.receipt_analyze_button()}
+        </button>
+        {#if analysis.isRunning('receipt')}
+          <button
+            type="button"
+            onclick={() => analysis.cancel()}
+            disabled={cancelling}
+            class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {cancelling ? m.analysis_cancelling() : m.analysis_cancel()}
+          </button>
+        {:else if busyOther}
+          <span class="text-xs text-muted-foreground">{m.analysis_busy_other()}</span>
+        {/if}
+      </div>
+      {#if cancelling}
+        <p class="text-xs text-muted-foreground">{m.analysis_cancelling_hint()}</p>
+      {/if}
     {/if}
 
-    {#if error}
+    {#if draft.error}
       <div
         class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
       >
-        {error}
+        {draft.error}
       </div>
     {/if}
-    {#if success}
+    {#if draft.success}
       <div class="border border-primary bg-primary/10 text-foreground rounded-lg px-3 py-2 text-sm">
-        {success}
+        {draft.success}
       </div>
     {/if}
   </section>
 
-  {#if extracted}
+  {#if draft.extracted}
+    {@const ex = draft.extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.receipt_step_extracted()}</h3>
-      {#if lastEngine === 'tesseract' || lastEngine === 'native'}
+      {#if draft.lastEngine === 'tesseract' || draft.lastEngine === 'native'}
         <div
           class="border border-amber-500/40 bg-amber-500/10 text-foreground rounded-lg px-3 py-2 text-xs"
         >
-          {__NATIVE__ && lastEngine === 'native'
+          {__NATIVE__ && draft.lastEngine === 'native'
             ? m.receipt_native_engine_notice()
             : m.receipt_local_engine_notice()}
         </div>
@@ -525,7 +510,7 @@
             type="date"
             name="receiptDate"
             autocomplete="off"
-            bind:value={extracted.date}
+            bind:value={ex.date}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
@@ -535,7 +520,7 @@
             type="text"
             name="receiptVendorTitle"
             autocomplete="off"
-            bind:value={extracted.vendorName}
+            bind:value={ex.vendorName}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
         </label>
@@ -545,34 +530,32 @@
             type="number"
             name="receiptTotalAmount"
             autocomplete="off"
-            value={extracted.totalAmount}
+            value={ex.totalAmount}
             oninput={(e) => {
-              if (extracted) {
-                extracted.totalAmount = (e.target as HTMLInputElement).value;
-              }
+              ex.totalAmount = (e.target as HTMLInputElement).value;
             }}
             min="0"
             step="1"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-right text-foreground tabular-nums"
           />
         </label>
-        {#if extracted.invoiceNumber}
+        {#if ex.invoiceNumber}
           <div class="block">
             <span class="text-xs text-muted-foreground">{m.receipt_label_invoice_number()}</span>
             <div class="mt-1 px-3 py-2 bg-background border rounded font-mono text-sm">
-              {extracted.invoiceNumber}
+              {ex.invoiceNumber}
             </div>
           </div>
         {/if}
       </div>
 
-      {#if extracted.items.length > 0}
+      {#if ex.items.length > 0}
         <details class="border rounded-lg">
           <summary class="cursor-pointer px-3 py-2 text-sm text-muted-foreground">
-            {m.receipt_items_summary({ count: extracted.items.length })}
+            {m.receipt_items_summary({ count: ex.items.length })}
           </summary>
           <ul class="border-t divide-y divide-border/50">
-            {#each extracted.items as item, i (i)}
+            {#each ex.items as item, i (i)}
               <li class="flex justify-between px-3 py-2 text-sm">
                 <span>{item.description}</span>
                 <span class="tabular-nums">{formatJPY(item.amount)}</span>
@@ -586,7 +569,7 @@
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.receipt_label_counterpart()}</span>
           <select
-            bind:value={counterpartAccount}
+            bind:value={draft.counterpartAccount}
             name="receiptCounterpartAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
@@ -602,7 +585,7 @@
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.receipt_label_known_account()}</span>
           <select
-            bind:value={knownAccount}
+            bind:value={draft.knownAccount}
             name="receiptKnownAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >
