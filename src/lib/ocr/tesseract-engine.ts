@@ -11,9 +11,10 @@
 // native 版はアプリに同梱するため通信自体が発生しない）。
 import { OCRClient } from 'tesseract-wasm';
 import { extractFromOcrText } from '../../domain/receipt-text-extract';
-import type { LlmImageInput } from '../../domain/llm';
+import type { LlmCallOptions, LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { isOffline } from '../network-status';
+import { abortError, raceAbort } from '../abort';
 import { m } from '../../paraglide/messages';
 const WORKER_URL = '/tesseract/tesseract-worker.js';
 const MODEL_URL = '/tesseract/jpn.traineddata';
@@ -33,24 +34,34 @@ export function createTesseractReceiptExtractor(): ReceiptExtractor {
     destinationHost: '',
     downscale: false,
     engine: 'tesseract',
-    async extract(image: LlmImageInput) {
+    async extract(image: LlmImageInput, options?: LlmCallOptions) {
+      const signal = options?.signal;
+      if (signal?.aborted) {
+        throw abortError();
+      }
       // 画像の復号はブラウザに任せる（tesseract-wasm 自身は復号器を持たない）。
       // 対応外の形式ならここで例外になり、無言で空文字が返ることはない。
       const bitmap = await createImageBitmap(toBlob(image));
       const client = new OCRClient({ workerURL: WORKER_URL });
       try {
-        // worker・コア・モデルは同一オリジンだが precache 対象外なので、初回だけ
-        // 取得が要る。オフラインだと素の fetch 失敗が出るため、原因が分かる文言に変換する。
-        try {
-          await client.loadModel(MODEL_URL);
-        } catch (e) {
-          if (isOffline()) {
-            throw new Error(m.common_offline_error(), { cause: e });
-          }
-          throw e;
-        }
-        await client.loadImage(bitmap);
-        return extractFromOcrText(await client.getText());
+        // getText は terminate 後も戻らないため、中止はここで競合させて待つのをやめる。
+        return await raceAbort(
+          signal,
+          (async () => {
+            // worker・コア・モデルは同一オリジンだが precache 対象外なので、初回だけ
+            // 取得が要る。オフラインだと素の fetch 失敗が出るため、原因が分かる文言に変換する。
+            try {
+              await client.loadModel(MODEL_URL);
+            } catch (e) {
+              if (isOffline()) {
+                throw new Error(m.common_offline_error(), { cause: e });
+              }
+              throw e;
+            }
+            await client.loadImage(bitmap);
+            return extractFromOcrText(await client.getText());
+          })(),
+        );
       } finally {
         bitmap.close();
         // worker を残すと WASM のヒープが解放されない（tesseract-wasm の既知の制約）。

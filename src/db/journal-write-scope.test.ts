@@ -96,8 +96,8 @@ describe('仕訳を書く取引の範囲', () => {
         'domain/reverse.ts:49',
         'domain/snapshots.ts:6',
         'routes/JournalEntryForm.svelte:370',
-        'routes/OrderImport.svelte:284',
-        'routes/Receipt.svelte:309',
+        'routes/OrderImport.svelte:242',
+        'routes/Receipt.svelte:290',
       ].sort(),
     );
   });

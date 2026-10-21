@@ -1424,5 +1424,14 @@
   "common_scroll_more_right": "右に続きます",
   "legacy_host_notice_dated": "この URL は {when} 中に使えなくなる予定です。データは新しい URL {newUrl} へ自動では移りません。先にバックアップを書き出し、新しい URL で復元してください。",
   "legacy_host_notice": "この URL は近く使えなくなります。データは新しい URL {newUrl} へ自動では移りません。先にバックアップを書き出し、新しい URL で復元してください。",
-  "legacy_host_action_backup": "設定で操作 →"
+  "legacy_host_action_backup": "設定で操作 →",
+  "analysis_busy_other": "別の解析を実行中のため、開始できません。",
+  "analysis_cancel": "解析を中止",
+  "analysis_cancelling": "中止しています…",
+  "analysis_cancelling_hint": "この方法は途中で止められないため、処理が終わるまで少しお待ちください。",
+  "analysis_badge_running": "解析中",
+  "analysis_badge_done": "確認待ち",
+  "analysis_badge_failed": "失敗",
+  "analysis_toast_done": "{name}の解析が完了しました。ここを押すと結果を確認できます。",
+  "analysis_toast_failed": "{name}の解析に失敗しました。ここを押すと内容を確認できます。"
 }

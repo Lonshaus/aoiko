@@ -2,7 +2,12 @@
 //
 // aoiko からは送信しない（推論先が端末内かどうかはブラウザの実装が決める）。クラウドへ逃がすハイブリッド型の SDK
 // （Firebase AI Logic 等）は入れない。入れた時点で external: false が嘘になる。
-import { LlmError, type LlmAdapter, type LlmImageInput } from '../../domain/llm';
+import {
+  LlmError,
+  type LlmAdapter,
+  type LlmCallOptions,
+  type LlmImageInput,
+} from '../../domain/llm';
 import { m } from '../../paraglide/messages';
 import { createChromeAiSession, type ChromeAiSession } from './availability';
 import { CLASSIFY_SCHEMA } from './classify-schema';
@@ -37,9 +42,14 @@ export class ChromeAiAdapter implements LlmAdapter {
     private readonly openSession: SessionFactory = createChromeAiSession,
   ) {}
 
-  async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
+  async generateJson(
+    prompt: string,
+    image?: LlmImageInput,
+    options?: LlmCallOptions,
+  ): Promise<unknown> {
     const session = await this.openSession();
     try {
+      options?.signal?.throwIfAborted();
       const content: { type: string; value: unknown }[] = [{ type: 'text', value: prompt }];
       if (image) {
         content.push({ type: 'image', value: base64ToBlob(image.base64, image.mimeType) });
@@ -53,7 +63,10 @@ export class ChromeAiAdapter implements LlmAdapter {
           this.purpose === 'ocr' ? m.error_chrome_ai_over_receipt() : m.error_chrome_ai_over_data(),
         );
       }
-      const raw = await session.prompt(input, { responseConstraint: SCHEMAS[this.purpose] });
+      const raw = await session.prompt(input, {
+        responseConstraint: SCHEMAS[this.purpose],
+        ...(options?.signal ? { signal: options.signal } : {}),
+      });
       try {
         return JSON.parse(raw);
       } catch (e) {

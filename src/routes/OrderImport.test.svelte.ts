@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { orderDraft } from '../stores/order-draft.svelte';
 import { mount, unmount, flushSync } from 'svelte';
 import { db } from '../db/db';
 import { setLocale } from '../paraglide/runtime';
@@ -82,6 +83,8 @@ afterEach(async () => {
     container = undefined;
   }
   await db.delete();
+  orderDraft.reset();
+  orderDraft.success = '';
 });
 
 async function analyze(c: HTMLElement): Promise<void> {
