@@ -45,7 +45,7 @@ aoiko 自身のライセンスは同梱の LICENSE（AGPL-3.0）を参照して�
   locate-character@3.0.0  —  MIT
   lz-string@1.5.0  —  MIT
   magic-string@0.30.21  —  MIT
-  marked@18.0.14  —  MIT
+  marked@18.1.1  —  MIT
   runed@0.35.1  —  MIT
   shadcn-svelte@1.7.0  —  MIT
   style-to-object@1.0.14  —  MIT
@@ -1257,7 +1257,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ──────────────────────────────────────────────────────────────────────────────
 
-対象：marked@18.0.14
+対象：marked@18.1.1
 
 # License information
 
