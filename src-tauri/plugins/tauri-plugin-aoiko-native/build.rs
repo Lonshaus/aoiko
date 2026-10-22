@@ -18,6 +18,11 @@ const COMMANDS: &[&str] = &[
     "apple_ai_availability",
     "apple_ai_extract",
     "apple_ai_run",
+    "notification_status",
+    "notification_request",
+    "analysis_notify",
+    "analysis_activity_begin",
+    "analysis_activity_end",
 ];
 // これらの Swift ファイルは iOS 側では SwiftPM（ios/Package.swift）がビルドする。
 // macOS にはその仕組みが無く、ここで静的ライブラリへ手動でコンパイルする。
@@ -27,6 +32,8 @@ const APPLE_INTELLIGENCE_SWIFT: &str = "ios/Sources/AoikoNativePlugin/AppleIntel
 const CONCURRENCY_SWIFT: &str = "ios/Sources/AoikoNativePlugin/Concurrency.swift";
 // 分類ループの中核。同じ理由（FoundationModels 非依存・単体テスト対象）で切り出してある。
 const CLASSIFY_LOOP_SWIFT: &str = "ios/Sources/AoikoNativePlugin/ClassifyLoop.swift";
+// 解析の完了通知と作業中宣言。UserNotifications だけに依存し、他のソースとは独立。
+const ANALYSIS_NOTIFY_SWIFT: &str = "ios/Sources/AoikoNativePlugin/AnalysisNotify.swift";
 
 fn main() {
     // build.rs は host 向けにビルドされるため cfg!(target_os) は host を指す。
@@ -45,6 +52,7 @@ fn build_apple_intelligence_lib() {
     println!("cargo:rerun-if-changed={APPLE_INTELLIGENCE_SWIFT}");
     println!("cargo:rerun-if-changed={CONCURRENCY_SWIFT}");
     println!("cargo:rerun-if-changed={CLASSIFY_LOOP_SWIFT}");
+    println!("cargo:rerun-if-changed={ANALYSIS_NOTIFY_SWIFT}");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR");
     let arch = match env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
         Ok("aarch64") => "arm64",
@@ -78,11 +86,12 @@ fn build_apple_intelligence_lib() {
         .arg(APPLE_INTELLIGENCE_SWIFT)
         .arg(CONCURRENCY_SWIFT)
         .arg(CLASSIFY_LOOP_SWIFT)
+        .arg(ANALYSIS_NOTIFY_SWIFT)
         .status()
         .expect("swiftc を起動できません");
     assert!(
         status.success(),
-        "AppleIntelligence.swift / Concurrency.swift / ClassifyLoop.swift のビルドに失敗しました"
+        "AppleIntelligence.swift / Concurrency.swift / ClassifyLoop.swift / AnalysisNotify.swift のビルドに失敗しました"
     );
     println!("cargo:rustc-link-lib=static={lib_name}");
     println!("cargo:rustc-link-search=native={out_dir}");

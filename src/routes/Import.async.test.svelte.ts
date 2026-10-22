@@ -66,7 +66,9 @@ beforeEach(async () => {
   setLocale('ja', { reload: false });
   await db.delete();
   await db.open();
-  ledger.accounts = ACCOUNTS;
+  // ledger の科目は liveQuery の購読から届くが、db.delete() と重なった問い合わせの扱いで
+  // 届く時期も届くかどうかも揺れるため、テストでは値を固定する。
+  vi.spyOn(ledger, 'accounts', 'get').mockReturnValue(ACCOUNTS);
   gate.resolve = null;
   gate.calls = 0;
   gate.signals.length = 0;

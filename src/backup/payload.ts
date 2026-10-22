@@ -1,12 +1,18 @@
 import { db } from '../db/db';
 import { sha256Hex } from '../lib/sha256';
 import type { Attachment } from '../db/types';
+import type { SettingsMap } from '../lib/settings';
 import type { BackupPayload } from './types';
-// 常にバックアップ対象外の settings キー。除外理由は 2 種類ある。
+// 解析完了の通知設定。通知の許可は端末ごとなので、別端末のバックアップで勝手にオンにならないよう
+// 書き出しからも復元からも外す（復元側は domain/restore.ts が同じ定数で扱う）。
+export const ANALYSIS_NOTIFY_SETTING_KEY = 'analysisNotifyEnabled' satisfies keyof SettingsMap;
+// 常にバックアップ対象外の settings キー。除外理由は 3 種類ある。
 // - backupFolderHandle：FileSystemDirectoryHandle でシリアライズできない
 // - nativeBackupFolder：シリアライズはできるが端末固有（パス / security-scoped bookmark）で、
 //   別端末へ復元すると存在しない場所や他人のフォルダを指し得る
-const SKIP_SETTING_KEYS = new Set([
+// - ANALYSIS_NOTIFY_SETTING_KEY：端末ごとの通知許可に紐づく
+const SKIP_SETTING_KEYS = new Set<string>([
+  ANALYSIS_NOTIFY_SETTING_KEY,
   'backupFolderHandle',
   'nativeBackupFolder',
   // 支援者バッジ。ストアから復元できるものなので、バックアップで運ぶと

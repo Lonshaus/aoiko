@@ -259,6 +259,53 @@ describe('支援の記録は復元で消えない', () => {
     expect((await db.settings.get('supporterBadgeAt'))?.value).toBe('2026-08-18');
   });
 });
+// 通知の許可は端末ごと。バックアップで運ぶと、許可していない端末でオンの表示になる。
+describe('解析完了の通知設定は復元で持ち込まれず、消えもしない', () => {
+  const put = (value: boolean) =>
+    db.settings.put({ key: 'analysisNotifyEnabled', value, updatedAt: Date.now() });
+  const backupWith = (value: boolean) => ({
+    version: PAYLOAD_VERSION,
+    exportedAt: '2026-10-22',
+    tables: { settings: [{ key: 'analysisNotifyEnabled', value, updatedAt: 1 }] },
+  });
+
+  test('バックアップが true でも、この端末が false ならオンにならない', async () => {
+    await put(false);
+    await restoreFromJson(backupWith(true));
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(false);
+  });
+
+  test('バックアップが true でも、この端末に値が無ければ行を作らない', async () => {
+    await restoreFromJson(backupWith(true));
+    expect(await db.settings.get('analysisNotifyEnabled')).toBeUndefined();
+  });
+
+  test('この端末が true なら、キーを含まないバックアップを復元しても残る', async () => {
+    await put(true);
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-10-22', tables: {} });
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(true);
+  });
+
+  test('この端末が true なら、バックアップが false でも true のまま', async () => {
+    await put(true);
+    await restoreFromJson(backupWith(false));
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(true);
+  });
+
+  test('同じ settings の他のキーは通常どおり復元される', async () => {
+    await restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-10-22',
+      tables: {
+        settings: [
+          { key: 'analysisNotifyEnabled', value: true, updatedAt: 1 },
+          { key: 'userBusinessName', value: '青井商店', updatedAt: 1 },
+        ],
+      },
+    });
+    expect((await db.settings.get('userBusinessName'))?.value).toBe('青井商店');
+  });
+});
 
 describe('証憑写真の zip 往復', () => {
   // 備考：happy-dom + fake-indexeddb の組み合わせでは Blob の structured clone が

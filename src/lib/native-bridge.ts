@@ -51,7 +51,25 @@ export type NativeBridge = {
   // 失敗時は数値の理由コードで reject する（1 コンテキスト超過 / 2 入力データが処理できない /
   // 3 その他 / 4 OS が古い）。権限不足・未知コマンド等は数値ではなく文字列で reject される。
   appleAiRun?(task: number, data: string): Promise<string>;
+  // 解析の完了通知。OS の通知の許可状態。'unsupported' はこの環境に通知の仕組みが無いこと。
+  notificationStatus?(): Promise<NativeNotificationStatus>;
+  // 許可を求める。利用者の操作の中で呼ぶ。戻り値は求めた後の状態。
+  requestNotification?(): Promise<NativeNotificationStatus>;
+  // 通知を出す。文面はネイティブ側の固定表から引かれ、ここから渡せるのは列挙値だけ。
+  notifyAnalysis?(
+    kind: 'receipt' | 'order' | 'classify',
+    outcome: 'done' | 'failed',
+    locale: 'ja' | 'en' | 'zh-TW',
+  ): Promise<void>;
+  // 解析中、OS に作業中であることを伝える（idle sleep や省電力で止められにくくする）。
+  // job は英数字とハイフンだけの 128 文字以下。終了は開始の応答が返ってから送ること。
+  analysisActivityBegin?(job: string): Promise<void>;
+  analysisActivityEnd?(job: string): Promise<void>;
+  // 通知が押されたときの合図。payload は信用せず、受け取る側で検証する。戻り値は購読を解く関数。
+  onAnalysisOpen?(callback: (payload: unknown) => void): Promise<() => void>;
 };
+
+export type NativeNotificationStatus = 'unsupported' | 'default' | 'denied' | 'granted';
 
 export type IapProductKind = 'tip' | 'supporter-badge';
 

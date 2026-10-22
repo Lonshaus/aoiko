@@ -136,6 +136,14 @@ describe('支援の記録は持ち出さない', () => {
   });
 });
 
+describe('解析完了の通知設定は持ち出さない', () => {
+  test('analysisNotifyEnabled は常に除外（端末ごとの通知許可に紐づく）', async () => {
+    await db.settings.put({ key: 'analysisNotifyEnabled', value: true, updatedAt: Date.now() });
+    const p = await buildPayload({ includeApiKeys: true, includeFilerInfo: true });
+    expect(settingKeys(p.tables)).not.toContain('analysisNotifyEnabled');
+  });
+});
+
 describe('iterateAttachmentBlobs', () => {
   test('添付が無ければ何も yield しない', async () => {
     const results: Array<readonly [string, Uint8Array]> = [];

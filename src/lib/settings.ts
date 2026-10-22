@@ -70,6 +70,9 @@ export type SettingsMap = {
   openaiApiKey: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
+  // 解析が終わったとき、画面を離れていれば通知する（既定 false）。通知の許可は端末ごとなので、
+  // バックアップには含めない（backup/payload.ts の ANALYSIS_NOTIFY_SETTING_KEY）。
+  analysisNotifyEnabled: boolean;
   // バックアップ・エクスポートに API キーを含めるか（既定 false）。
   // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。
   backupIncludeApiKeys: boolean;

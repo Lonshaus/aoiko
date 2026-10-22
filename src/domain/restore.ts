@@ -7,6 +7,7 @@ import {
   parseBackupZip,
   type BackupPayload,
 } from '../backup';
+import { ANALYSIS_NOTIFY_SETTING_KEY } from '../backup/payload';
 import { validateBackupPayload } from './restore-validate';
 import type { Attachment } from '../db/types';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
@@ -84,6 +85,10 @@ export async function restoreFromPayload(
   const preservedBadge = (await db.settings.toArray()).filter(
     (r) => r.key === 'supporterBadgeAt' && !restoredSettingKeys.has(r.key),
   );
+  // 通知設定は端末ごとの許可に紐づく。バックアップに入っていても取り込まず、この端末の値を残す。
+  const preservedAnalysisNotify = (await db.settings.toArray()).filter(
+    (r) => r.key === ANALYSIS_NOTIFY_SETTING_KEY,
+  );
   // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
   // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
   const writes: { name: string; rows: unknown[] }[] = [];
@@ -110,6 +115,9 @@ export async function restoreFromPayload(
         };
       });
     }
+    if (table.name === 'settings') {
+      rows = rows.filter((r) => (r as { key?: string }).key !== ANALYSIS_NOTIFY_SETTING_KEY);
+    }
     writes.push({ name: table.name, rows });
   }
   // 全消去と書き込みを 1 つのトランザクションに入れる。db.delete() でデータベースごと
@@ -134,6 +142,9 @@ export async function restoreFromPayload(
     }
     if (preservedBadge.length > 0) {
       await db.settings.bulkPut(preservedBadge);
+    }
+    if (preservedAnalysisNotify.length > 0) {
+      await db.settings.bulkPut(preservedAnalysisNotify);
     }
   });
 

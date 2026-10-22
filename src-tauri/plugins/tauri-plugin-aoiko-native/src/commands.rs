@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Manager, Runtime};
 
 use crate::backup::{self, OpenFiles};
+use crate::notify::{AnalysisKind, JobId, NotifyStatus, Outcome, Tokens, UiLocale};
 use crate::path::SafeTarget;
 use crate::store::{self, StoredFolder};
 use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
@@ -269,6 +270,88 @@ fn apple_ai_run_native(task: i32, data: &str) -> std::result::Result<String, u8>
         let _ = (task, data);
         Err(4)
     }
+}
+// 通知まわりの引数は列挙型か検証済みのジョブ識別子だけ。文面は notify.rs の固定表から引く。
+// OS への問い合わせは応答まで待つので、tokio のワーカーで直に待たず spawn_blocking へ逃がす
+// （待っている間、無関係な IPC まで詰まる）。
+#[tauri::command(async)]
+pub(crate) async fn notification_status<R: Runtime>(app: AppHandle<R>) -> NotifyStatus {
+    let _ = &app;
+    // 結果を受け取れなかったときは、許可されていない扱いにする。
+    tauri::async_runtime::spawn_blocking(notification_status_native)
+        .await
+        .unwrap_or(NotifyStatus::Denied)
+}
+
+fn notification_status_native() -> NotifyStatus {
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::analysis_notify::status()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        NotifyStatus::Unsupported
+    }
+}
+// 許可の要求は利用者の操作の中で呼ぶ前提。ダイアログの応答待ちは長くなり得る。
+#[tauri::command(async)]
+pub(crate) async fn notification_request<R: Runtime>(app: AppHandle<R>) -> NotifyStatus {
+    let _ = &app;
+    tauri::async_runtime::spawn_blocking(notification_request_native)
+        .await
+        .unwrap_or(NotifyStatus::Denied)
+}
+
+fn notification_request_native() -> NotifyStatus {
+    #[cfg(target_os = "macos")]
+    {
+        crate::desktop::analysis_notify::request()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        NotifyStatus::Unsupported
+    }
+}
+
+#[tauri::command(async)]
+pub(crate) async fn analysis_notify<R: Runtime>(
+    app: AppHandle<R>,
+    kind: AnalysisKind,
+    outcome: Outcome,
+    locale: UiLocale,
+) -> Result<()> {
+    let _ = &app;
+    tauri::async_runtime::spawn_blocking(move || analysis_notify_native(kind, outcome, locale))
+        .await
+        .unwrap_or(Err(Error::Notification))
+}
+
+fn analysis_notify_native(kind: AnalysisKind, outcome: Outcome, locale: UiLocale) -> Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let text = crate::notify::text(locale, kind, outcome);
+        if crate::desktop::analysis_notify::post(kind, text.title, text.body) {
+            Ok(())
+        } else {
+            Err(Error::Notification)
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (kind, outcome, locale);
+        Err(Error::UnsupportedPlatform)
+    }
+}
+// 開始と終了の順序は呼び出し側が守る（終了は開始の応答が返ってから送る）。それでも
+// 先に終了が届いたときは、後から来る開始を台帳が無視する。
+#[tauri::command(async)]
+pub(crate) fn analysis_activity_begin<R: Runtime>(app: AppHandle<R>, job: JobId) {
+    app.state::<Tokens>().begin(&job, std::time::Instant::now());
+}
+
+#[tauri::command(async)]
+pub(crate) fn analysis_activity_end<R: Runtime>(app: AppHandle<R>, job: JobId) {
+    app.state::<Tokens>().end(&job, std::time::Instant::now());
 }
 
 #[tauri::command(async)]
@@ -564,6 +647,10 @@ mod tests {
         assert!(
             source.contains("ClassifyLoopTests.swift"),
             "test-swift.mjs が ClassifyLoopTests.swift を参照していない"
+        );
+        assert!(
+            source.contains("AnalysisNotifyTests.swift"),
+            "test-swift.mjs が AnalysisNotifyTests.swift を参照していない"
         );
     }
     // 分類の @Generable 型が配列プロパティを持たない単一オブジェクトである退行を検知する

@@ -7,6 +7,7 @@
 // path/tray/webview/webviewWindow/window だけ）。そのためここで束ねて、必要な入口だけを
 // window.__aoikoNative へ出す。プラグインごとの npm パッケージは入れず、invoke を直に叩く。
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { createDiscardText } from './discard-text.js';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
@@ -14,6 +15,7 @@ import { createExternalFetch } from './external-fetch.js';
 import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
 import { createAppleAi } from './apple-ai.js';
+import { createAnalysisNotify } from './analysis-notify.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -101,6 +103,11 @@ Object.assign(window.__aoikoNative, createIap(invoke, window.__aoikoPlatform) ??
 // 文字認識も同じ形。OS が備えていない環境では関数ごと生えず、設定画面に選択肢も出ない。
 Object.assign(window.__aoikoNative, createNativeOcr(invoke, window.__aoikoPlatform) ?? {});
 Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform) ?? {});
+// 解析の完了通知も同じ形。実装の無い環境では入口ごと生えず、設定画面にトグルも出ない。
+Object.assign(
+  window.__aoikoNative,
+  createAnalysisNotify(invoke, listen, window.__aoikoPlatform) ?? {},
+);
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    ローカルの Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
 //    同一 origin の取得（tesseract の worker・wasm・traineddata 等）は素のまま通す。

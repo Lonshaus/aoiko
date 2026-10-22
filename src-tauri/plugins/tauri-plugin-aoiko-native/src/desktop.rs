@@ -373,6 +373,92 @@ pub(crate) mod apple_intelligence {
         Ok(json)
     }
 }
+// 解析の完了通知と「作業中」宣言。ネイティブ側の入口（AnalysisNotify）を直に呼ぶ。
+// 文面は notify.rs の固定表の CStr だけを渡し、ポインタは呼び出しの間しか使われない。
+#[cfg(target_os = "macos")]
+pub(crate) mod analysis_notify {
+    use std::ffi::{c_char, CStr};
+    use std::time::Duration;
+
+    use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
+
+    use crate::notify::{self, ActivityBackend, AnalysisKind, NotifyStatus, Tokens};
+
+    extern "C" {
+        fn aoiko_notify_status() -> i32;
+        fn aoiko_notify_request() -> i32;
+        fn aoiko_notify_post(kind: i32, title: *const c_char, body: *const c_char) -> i32;
+        fn aoiko_notify_set_open_handler(handler: extern "C" fn(i32));
+        fn aoiko_activity_begin() -> u64;
+        fn aoiko_activity_end(handle: u64);
+    }
+    // 呼び出しはどれもワーカースレッドから。ネイティブ側が待つので、メインスレッドで呼ばない。
+    pub(crate) fn status() -> NotifyStatus {
+        NotifyStatus::from_code(unsafe { aoiko_notify_status() })
+    }
+
+    pub(crate) fn request() -> NotifyStatus {
+        NotifyStatus::from_code(unsafe { aoiko_notify_request() })
+    }
+
+    pub(crate) fn post(kind: AnalysisKind, title: &CStr, body: &CStr) -> bool {
+        unsafe { aoiko_notify_post(kind.index(), title.as_ptr(), body.as_ptr()) == 0 }
+    }
+
+    pub(crate) struct SystemActivity;
+
+    impl ActivityBackend for SystemActivity {
+        fn begin(&self) -> u64 {
+            unsafe { aoiko_activity_begin() }
+        }
+
+        fn end(&self, handle: u64) {
+            unsafe { aoiko_activity_end(handle) }
+        }
+    }
+    // ネイティブ側から呼ばれる。panic を C の側へ出さず、重い処理はここでは行わない。
+    extern "C" fn on_open(kind: i32) {
+        notify::dispatch_open(kind);
+    }
+
+    #[derive(Clone, serde::Serialize)]
+    struct OpenPayload {
+        kind: AnalysisKind,
+    }
+    // 通知を押されたら、最小化や非表示のウィンドウを戻してから、画面を開く合図を送る。
+    fn open_window<R: Runtime>(app: &AppHandle<R>, kind: AnalysisKind) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            let _ = app.emit_to(
+                EventTarget::WebviewWindow {
+                    label: "main".to_string(),
+                },
+                "aoiko-analysis-open",
+                OpenPayload { kind },
+            );
+        });
+    }
+    // 取りこぼした終了があっても、上限を過ぎた宣言が残り続けないようにする。
+    const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
+
+    pub(crate) fn install<R: Runtime>(app: &AppHandle<R>) {
+        let emitter = app.clone();
+        notify::set_open_emitter(Box::new(move |kind| open_window(&emitter, kind)));
+        unsafe { aoiko_notify_set_open_handler(on_open) };
+        let sweeper = app.clone();
+        std::thread::spawn(move || loop {
+            std::thread::sleep(SWEEP_INTERVAL);
+            if let Some(tokens) = sweeper.try_state::<Tokens>() {
+                tokens.sweep(std::time::Instant::now());
+            }
+        });
+    }
+}
 
 #[cfg(target_os = "macos")]
 mod macos {

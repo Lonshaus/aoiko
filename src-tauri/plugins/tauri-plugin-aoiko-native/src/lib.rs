@@ -18,6 +18,7 @@ mod commands;
 mod desktop;
 #[cfg(target_os = "ios")]
 mod ios;
+mod notify;
 mod path;
 mod store;
 
@@ -39,6 +40,8 @@ pub enum Error {
     BadChunkRequest(String),
     /// 文字認識に失敗、または文字が 1 つも見つからなかった。
     Ocr(String),
+    /// 通知を出せなかった。理由は区別しない（文面に出せる情報が無い）。
+    Notification,
 }
 
 impl std::fmt::Display for Error {
@@ -60,6 +63,7 @@ impl std::fmt::Display for Error {
             Error::TooManyOpenFiles => write!(f, "同時に開けるファイルの上限を超えました"),
             Error::BadChunkRequest(e) => write!(f, "書き込みの指定が不正です: {e}"),
             Error::Ocr(e) => write!(f, "文字を認識できません: {e}"),
+            Error::Notification => write!(f, "通知を出せません"),
         }
     }
 }
@@ -235,10 +239,25 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::apple_ai_availability,
             commands::apple_ai_extract,
             commands::apple_ai_run,
+            commands::notification_status,
+            commands::notification_request,
+            commands::analysis_notify,
+            commands::analysis_activity_begin,
+            commands::analysis_activity_end,
         ])
+        // 再読み込みでページが入れ替わると、前のページが保持していた宣言の終了は届かない。
+        // 始まる側と終わる側のどちらでも手放しておく。
+        .on_page_load(|webview, _payload| {
+            if let Some(tokens) = webview.app_handle().try_state::<notify::Tokens>() {
+                tokens.end_all(std::time::Instant::now());
+            }
+        })
         .setup(|app, _api| {
             app.manage(Resolved::default());
             app.manage(backup::OpenFiles::default());
+            app.manage(notify::Tokens::new(notify::platform_activity()));
+            #[cfg(target_os = "macos")]
+            desktop::analysis_notify::install(app);
             #[cfg(target_os = "ios")]
             {
                 let handle = ios::init(app, _api)?;

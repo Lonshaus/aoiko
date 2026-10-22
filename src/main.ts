@@ -7,6 +7,7 @@ import { getSetting, setSetting } from './lib/settings';
 import { migrateOcrEngineSetting } from './lib/settings-migration';
 import { applyUiLanguage } from './lib/ui-language';
 import { cleanupStaleTesseractCaches } from './lib/ocr/tesseract-cache-cleanup';
+import { installAnalysisNotifyListener } from './lib/analysis-notify-listener';
 import { renderStartupError } from './lib/startup-error';
 async function start(): Promise<void> {
   // 初回起動時に勘定科目をシードし、currentYear が未設定なら 2026 を入れる
@@ -28,6 +29,8 @@ if (!__NATIVE__) {
     __TESSERACT_CACHE_NAME__,
   );
 }
+// web ではサービスワーカーから、ネイティブ側では OS の通知から、画面を開く合図が届く。
+installAnalysisNotifyListener();
 // IndexedDB に触らないので、start() が落ちる環境でも先に済ませられる。
 applyUiLanguage();
 try {

@@ -539,6 +539,11 @@ pub fn run() {
             let builder = builder
                 .inner_size(1280.0, 860.0)
                 .min_inner_size(400.0, 560.0);
+            // 既定では、ウィンドウが隠れて数分たつと web view の処理が止まり、解析が途中で終わらなくなる。
+            // この指定は web view の作成時にしか効かない。
+            #[cfg(target_os = "macos")]
+            let builder = builder
+                .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled);
             let window = builder.build()?;
             // メニューは desktop 専用。モバイルにはメニューの枠組み自体が無い。
             #[cfg(desktop)]

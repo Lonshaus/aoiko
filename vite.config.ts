@@ -206,6 +206,8 @@ export default defineConfig(({ command }) => {
           // （選んだ時点で通常のリクエストとして取得され、下の runtimeCaching が保持する）。
           globIgnores: ['tesseract/**'],
           runtimeCaching: [tesseractRuntimeCaching(TESSERACT_CACHE_NAME)],
+          // 解析完了の通知をクリックしたときの処理（public/analysis-notify-sw.js）。
+          importScripts: ['analysis-notify-sw.js'],
           // 初回訪問でも SW が今のページを即座に制御する。既存の SW が居る更新時は
           // waiting のまま変わらず、UpdatePrompt の「更新する」操作を経る（SW の仕様）。
           clientsClaim: true,
