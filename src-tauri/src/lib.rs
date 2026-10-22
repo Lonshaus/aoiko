@@ -494,6 +494,9 @@ fn set_ui_locale(app: tauri::AppHandle, locale: String) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ウィンドウも web view もまだ作っていないうちに判定する。
+    #[cfg(target_os = "windows")]
+    tauri_plugin_aoiko_native::exit_if_toast_relaunch();
     tauri::Builder::default()
         // plugin-fs は登録しない。登録したままだと capabilities に fs:* を 1 行足すだけで
         // ページ上のスクリプトへファイル入出力が戻る。ファイルへ触るのは plugin-aoiko-native

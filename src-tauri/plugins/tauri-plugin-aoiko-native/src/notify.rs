@@ -335,6 +335,53 @@ pub(crate) fn dispatch_open(index: i32) {
         open_guarded(index, emit.as_ref());
     }
 }
+/// 通知を押したときに OS から戻る起動文字列と、通知の設定値の読み替え。
+pub(crate) mod toast {
+    #![cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    use super::{AnalysisKind, NotifyStatus};
+    /// 同じ種別の通知を置き換えるための組の名前。
+    pub(crate) const GROUP: &str = "aoiko-analysis";
+
+    const KINDS: [AnalysisKind; 3] = [
+        AnalysisKind::Receipt,
+        AnalysisKind::Order,
+        AnalysisKind::Classify,
+    ];
+
+    pub(crate) fn launch_arg(kind: AnalysisKind) -> &'static str {
+        match kind {
+            AnalysisKind::Receipt => "aoiko-analysis-open:receipt",
+            AnalysisKind::Order => "aoiko-analysis-open:order",
+            AnalysisKind::Classify => "aoiko-analysis-open:classify",
+        }
+    }
+
+    pub(crate) fn tag(kind: AnalysisKind) -> &'static str {
+        match kind {
+            AnalysisKind::Receipt => "receipt",
+            AnalysisKind::Order => "order",
+            AnalysisKind::Classify => "classify",
+        }
+    }
+    // 完全一致だけ。前後の空白や大文字小文字の違いも受けない。
+    pub(crate) fn parse_launch(raw: &str) -> Option<AnalysisKind> {
+        KINDS.into_iter().find(|kind| launch_arg(*kind) == raw)
+    }
+    /// None は通知の口を作れなかった、Err は設定値を読めなかったことを表す。
+    /// 0 だけが許可で、知らない値は許可されていない扱い。
+    pub(crate) fn status(setting: Option<Result<i32, ()>>) -> NotifyStatus {
+        match setting {
+            None => NotifyStatus::Unsupported,
+            Some(Ok(0)) => NotifyStatus::Granted,
+            Some(_) => NotifyStatus::Denied,
+        }
+    }
+    // 起動引数は同じ利用者の誰でも渡せる。ここで決めるのは終えるかどうかだけで、
+    // 画面の切り替えには使わない。
+    pub(crate) fn should_exit_toast_relaunch(args: &[Option<&str>], existed: bool) -> bool {
+        existed && matches!(args, [Some(arg)] if parse_launch(arg).is_some())
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -773,6 +820,94 @@ mod tests {
         dispatch_open(0);
         dispatch_open(99);
     }
+
+    #[test]
+    fn launch_arg_round_trips_for_every_kind() {
+        let mut seen = HashSet::new();
+        for kind in KINDS {
+            let arg = toast::launch_arg(kind);
+            assert!(seen.insert(arg), "{arg}");
+            assert_eq!(toast::parse_launch(arg), Some(kind), "{arg}");
+        }
+    }
+
+    #[test]
+    fn parse_launch_accepts_only_the_exact_strings() {
+        for bad in [
+            "",
+            " ",
+            "aoiko-analysis-open:",
+            "aoiko-analysis-open",
+            "AOIKO-ANALYSIS-OPEN:RECEIPT",
+            "Aoiko-analysis-open:receipt",
+            "aoiko-analysis-open:Receipt",
+            " aoiko-analysis-open:receipt",
+            "aoiko-analysis-open:receipt ",
+            "\taoiko-analysis-open:receipt",
+            "aoiko-analysis-open:receipt\n",
+            "\"aoiko-analysis-open:receipt\"",
+            "xaoiko-analysis-open:receipt",
+            "aoiko-analysis-open:receiptx",
+            "aoiko-analysis-open:receipt:order",
+            "aoiko-analysis-open:receipt aoiko-analysis-open:order",
+            "aoiko-analysis-open:all",
+            "aoiko-analysis-open:0",
+            "receipt",
+            "order",
+            "classify",
+            "{\"kind\":\"receipt\"}",
+            "kind:receipt",
+            "kind=receipt",
+            "/receipt",
+            "/order-import",
+            "/import",
+            "aoiko-analysis-open:/receipt",
+            "aoiko-analysis-receipt",
+            "aoiko-analysis-open:receipt\0",
+        ] {
+            assert_eq!(toast::parse_launch(bad), None, "{bad:?}");
+        }
+    }
+
+    #[test]
+    fn tag_and_group_are_fixed_and_carry_only_the_kind() {
+        for kind in KINDS {
+            let tag = toast::tag(kind);
+            assert_eq!(serde_json::to_string(&kind).unwrap(), format!("\"{tag}\""));
+        }
+        assert_eq!(toast::GROUP, "aoiko-analysis");
+    }
+
+    #[test]
+    fn toast_status_maps_only_enabled_to_granted() {
+        assert_eq!(toast::status(None), NotifyStatus::Unsupported);
+        assert_eq!(toast::status(Some(Err(()))), NotifyStatus::Denied);
+        assert_eq!(toast::status(Some(Ok(0))), NotifyStatus::Granted);
+        for bad in [1, 2, 3, 4, 5, -1, i32::MIN, i32::MAX, 99] {
+            assert_eq!(toast::status(Some(Ok(bad))), NotifyStatus::Denied, "{bad}");
+        }
+    }
+
+    #[test]
+    fn a_relaunch_exits_only_with_one_valid_argument_while_another_instance_runs() {
+        use toast::should_exit_toast_relaunch as exits;
+        for kind in KINDS {
+            assert!(exits(&[Some(toast::launch_arg(kind))], true));
+        }
+        let valid = toast::launch_arg(AnalysisKind::Receipt);
+        assert!(!exits(&[Some(valid)], false));
+        assert!(!exits(&[], true));
+        assert!(!exits(&[], false));
+        assert!(!exits(&[Some(valid), Some(valid)], true));
+        assert!(!exits(&[Some(valid), Some("--extra")], true));
+        assert!(!exits(&[Some("--extra"), Some(valid)], true));
+        assert!(!exits(&[Some(valid), None], true));
+        assert!(!exits(&[None], true));
+        assert!(!exits(&[None, Some(valid)], true));
+        assert!(!exits(&[Some("receipt")], true));
+        assert!(!exits(&[Some("")], true));
+        assert!(!exits(&[Some(" aoiko-analysis-open:receipt")], true));
+    }
     // ネイティブ側の AnalysisNotify は実行時に OS を呼ぶため、ここでは書かれ方だけを固定する。
     fn native_source() -> &'static str {
         include_str!("../ios/Sources/AoikoNativePlugin/AnalysisNotify.swift")
@@ -871,6 +1006,142 @@ mod tests {
         assert!(source.contains("private let postWaitSeconds: TimeInterval = 5"));
         assert_eq!(source.matches("done.wait(").count(), 3);
         assert_eq!(source.matches("!Thread.isMainThread").count(), 3);
+    }
+    // desktop.rs の 2 つ目の analysis_notify も実行時に OS を呼ぶため、書かれ方だけを固定する。
+    fn toast_source() -> &'static str {
+        let source = include_str!("desktop.rs")
+            .split("pub(crate) mod analysis_notify {")
+            .nth(2)
+            .and_then(|rest| rest.split("\n}\n").next())
+            .expect("2 つ目の analysis_notify が見つからない");
+        assert!(source.contains("ToastNotificationManager"));
+        source
+    }
+
+    fn fn_body<'a>(source: &'a str, head: &str) -> &'a str {
+        source
+            .split(head)
+            .nth(1)
+            .and_then(|rest| rest.split("\n    }\n").next())
+            .expect(head)
+    }
+
+    #[test]
+    fn toast_xml_is_built_only_through_dom_calls() {
+        let source = toast_source();
+        for call in [
+            "XmlDocument::new()",
+            "doc.CreateElement(",
+            ".SetAttribute(",
+            "doc.CreateTextNode(",
+            ".AppendChild(",
+        ] {
+            assert!(source.contains(call), "{call}");
+        }
+        for banned in [
+            "format!", "concat!", "push_str", "LoadXml", "write!", "+ \"", "<toast", "<text",
+        ] {
+            assert!(!source.contains(banned), "{banned}");
+        }
+        for banned in ["image", "actions", "audio", "scenario"] {
+            assert!(!source.contains(&format!("h!(\"{banned}\")")), "{banned}");
+        }
+        assert!(source.contains(
+            "root.SetAttribute(h!(\"launch\"), &HSTRING::from(toast::launch_arg(kind)))"
+        ));
+        assert!(source.contains("binding.SetAttribute(h!(\"template\"), h!(\"ToastGeneric\"))"));
+        assert_eq!(source.matches(".SetAttribute(").count(), 2);
+        assert!(source.contains("for line in [title, body] {"));
+        assert!(source.contains("let text = notify::text(locale, kind, outcome);"));
+    }
+
+    #[test]
+    fn toast_tag_and_group_come_from_the_fixed_table() {
+        let source = toast_source();
+        assert!(source.contains("notification.SetTag(&HSTRING::from(toast::tag(kind)))?;"));
+        assert!(source.contains("notification.SetGroup(&HSTRING::from(toast::GROUP))?;"));
+        assert_eq!(source.matches("SetTag(").count(), 1);
+        assert_eq!(source.matches("SetGroup(").count(), 1);
+    }
+
+    #[test]
+    fn toast_activation_runs_entirely_inside_catch_unwind() {
+        let source = toast_source();
+        assert_eq!(source.matches(".Activated(").count(), 1);
+        let handler = source
+            .split("TypedEventHandler::<ToastNotification, IInspectable>::new(")
+            .nth(1)
+            .and_then(|rest| rest.split("Ok(())").next())
+            .expect("TypedEventHandler::new が見つからない");
+        let lines: Vec<&str> = handler
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with("//"))
+            .collect();
+        assert_eq!(lines.first(), Some(&"|_, args| {"));
+        assert_eq!(
+            lines.get(1),
+            Some(&"let _ = catch_unwind(AssertUnwindSafe(|| {"),
+        );
+        assert_eq!(lines.last(), Some(&"}));"));
+        assert!(handler.contains("args.cast::<ToastActivatedEventArgs>()"));
+        assert!(handler.contains("args.Arguments()"));
+        assert!(handler.contains("toast::parse_launch(&launch)"));
+        assert!(handler.contains("notify::dispatch_open(kind.index());"));
+        assert!(!handler.contains("move"));
+        assert!(!handler.contains("["));
+    }
+
+    #[test]
+    fn toast_module_avoids_panics_files_and_error_text() {
+        let source = toast_source();
+        for banned in [
+            "unwrap(",
+            "expect(",
+            "Dismissed",
+            "Failed",
+            "std::fs",
+            "OpenOptions",
+            "std::io",
+            "to_string(",
+            "{e",
+            "{:?}",
+            ".message()",
+            "Debug",
+        ] {
+            assert!(!source.contains(banned), "{banned}");
+        }
+    }
+
+    #[test]
+    fn toast_post_rechecks_the_setting_before_showing() {
+        let body = fn_body(toast_source(), "pub(crate) fn post(");
+        let setting = body.find("notifier.Setting()").expect("Setting()");
+        let gate = body
+            .find("!= NotifyStatus::Granted")
+            .expect("Granted の確認");
+        let show = body.find("notifier.Show(").expect("Show(");
+        assert!(setting < gate && gate < show);
+    }
+
+    #[test]
+    fn toast_install_clears_the_history_left_by_earlier_processes() {
+        let body = fn_body(toast_source(), "pub(crate) fn install<");
+        assert!(body.contains("notify::set_open_emitter("));
+        assert!(body.contains("ToastNotificationManager::History()"));
+        assert!(body.contains("history.Clear()"));
+    }
+
+    #[test]
+    fn toast_keeps_at_most_one_notification_per_kind_without_indexing() {
+        let source = toast_source();
+        assert!(source.contains(
+            "static SHOWN: Mutex<[Option<ToastNotification>; 3]> = Mutex::new([None, None, None]);"
+        ));
+        let body = fn_body(source, "fn keep(");
+        assert!(body.contains("let Ok(mut shown) = SHOWN.lock() else {"));
+        assert!(body.contains("shown.get_mut(slot)"));
+        assert!(!body.contains("shown["));
     }
 
     #[test]

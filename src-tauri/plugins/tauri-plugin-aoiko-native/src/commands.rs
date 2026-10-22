@@ -284,11 +284,11 @@ pub(crate) async fn notification_status<R: Runtime>(app: AppHandle<R>) -> Notify
 }
 
 fn notification_status_native() -> NotifyStatus {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         crate::desktop::analysis_notify::status()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         NotifyStatus::Unsupported
     }
@@ -303,11 +303,11 @@ pub(crate) async fn notification_request<R: Runtime>(app: AppHandle<R>) -> Notif
 }
 
 fn notification_request_native() -> NotifyStatus {
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     {
         crate::desktop::analysis_notify::request()
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         NotifyStatus::Unsupported
     }
@@ -336,7 +336,15 @@ fn analysis_notify_native(kind: AnalysisKind, outcome: Outcome, locale: UiLocale
             Err(Error::Notification)
         }
     }
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "windows")]
+    {
+        if crate::desktop::analysis_notify::post(kind, outcome, locale) {
+            Ok(())
+        } else {
+            Err(Error::Notification)
+        }
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = (kind, outcome, locale);
         Err(Error::UnsupportedPlatform)

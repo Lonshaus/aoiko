@@ -1220,5 +1220,5 @@
   "settings_analysis_notify_denied": "ブラウザの通知が許可されなかったため、オンにできませんでした。ブラウザのサイト設定で通知を許可してから、もう一度お試しください。",
   "settings_analysis_notify_unsupported": "このブラウザでは通知を使えません。iPhone や iPad では、ホーム画面に追加したアプリからのみ使えます。",
   "settings_analysis_notify_hint_native": "アプリを離れている間に解析が終わったときだけ、OS の通知でお知らせします。通知に出るのは画面の名前と結果だけで、金額や取引先は含まれません。",
-  "settings_analysis_notify_denied_native": "通知が許可されなかったため、オンにできませんでした。システム設定の通知で aoiko を許可してから、もう一度お試しください。"
+  "settings_analysis_notify_denied_native": "通知が許可されなかったため、オンにできませんでした。OS の通知設定で aoiko を許可してから、もう一度お試しください。"
 }

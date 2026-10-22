@@ -373,6 +373,35 @@ pub(crate) mod apple_intelligence {
         Ok(json)
     }
 }
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+mod analysis_open {
+    use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
+
+    use crate::notify::AnalysisKind;
+
+    #[derive(Clone, serde::Serialize)]
+    struct OpenPayload {
+        kind: AnalysisKind,
+    }
+    // 通知を押されたら、最小化や非表示のウィンドウを戻してから、画面を開く合図を送る。
+    pub(super) fn open_window<R: Runtime>(app: &AppHandle<R>, kind: AnalysisKind) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+            let _ = app.emit_to(
+                EventTarget::WebviewWindow {
+                    label: "main".to_string(),
+                },
+                "aoiko-analysis-open",
+                OpenPayload { kind },
+            );
+        });
+    }
+}
 // 解析の完了通知と「作業中」宣言。ネイティブ側の入口（AnalysisNotify）を直に呼ぶ。
 // 文面は notify.rs の固定表の CStr だけを渡し、ポインタは呼び出しの間しか使われない。
 #[cfg(target_os = "macos")]
@@ -380,8 +409,9 @@ pub(crate) mod analysis_notify {
     use std::ffi::{c_char, CStr};
     use std::time::Duration;
 
-    use tauri::{AppHandle, Emitter, EventTarget, Manager, Runtime};
+    use tauri::{AppHandle, Manager, Runtime};
 
+    use super::analysis_open::open_window;
     use crate::notify::{self, ActivityBackend, AnalysisKind, NotifyStatus, Tokens};
 
     extern "C" {
@@ -420,29 +450,6 @@ pub(crate) mod analysis_notify {
     extern "C" fn on_open(kind: i32) {
         notify::dispatch_open(kind);
     }
-
-    #[derive(Clone, serde::Serialize)]
-    struct OpenPayload {
-        kind: AnalysisKind,
-    }
-    // 通知を押されたら、最小化や非表示のウィンドウを戻してから、画面を開く合図を送る。
-    fn open_window<R: Runtime>(app: &AppHandle<R>, kind: AnalysisKind) {
-        let app = app.clone();
-        tauri::async_runtime::spawn(async move {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.unminimize();
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
-            let _ = app.emit_to(
-                EventTarget::WebviewWindow {
-                    label: "main".to_string(),
-                },
-                "aoiko-analysis-open",
-                OpenPayload { kind },
-            );
-        });
-    }
     // 取りこぼした終了があっても、上限を過ぎた宣言が残り続けないようにする。
     const SWEEP_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -457,6 +464,130 @@ pub(crate) mod analysis_notify {
                 tokens.sweep(std::time::Instant::now());
             }
         });
+    }
+}
+// 解析の完了通知。文面は notify.rs の固定表から引き、XML は DOM の操作だけで組む
+// （文字列を繋いで組むと、文面の記号がそのまま構造として読まれる）。
+#[cfg(target_os = "windows")]
+pub(crate) mod analysis_notify {
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::sync::Mutex;
+
+    use tauri::{AppHandle, Runtime};
+    use windows::{
+        core::{h, IInspectable, Interface, HSTRING},
+        Data::Xml::Dom::XmlDocument,
+        Foundation::TypedEventHandler,
+        UI::Notifications::{
+            ToastActivatedEventArgs, ToastNotification, ToastNotificationManager, ToastNotifier,
+        },
+    };
+
+    use super::analysis_open::open_window;
+    use crate::notify::{self, toast, AnalysisKind, NotifyStatus, Outcome, UiLocale};
+    // 通知を手放すと、押されたときの受け口も一緒に消える。種別ごとに最新の 1 件を持ち続ける。
+    static SHOWN: Mutex<[Option<ToastNotification>; 3]> = Mutex::new([None, None, None]);
+    // パッケージとして登録されていない起動では作れない。
+    fn notifier() -> Option<ToastNotifier> {
+        ToastNotificationManager::CreateToastNotifier().ok()
+    }
+
+    pub(crate) fn status() -> NotifyStatus {
+        toast::status(notifier().map(|n| n.Setting().map(|s| s.0).map_err(|_| ())))
+    }
+    // 許可を尋ねる画面は無い。今の設定をそのまま返す。
+    pub(crate) fn request() -> NotifyStatus {
+        status()
+    }
+
+    pub(crate) fn post(kind: AnalysisKind, outcome: Outcome, locale: UiLocale) -> bool {
+        let Some(notifier) = notifier() else {
+            return false;
+        };
+        // 設定で切られた後に出さないよう、出す直前にも確かめる。
+        let setting = notifier.Setting().map(|s| s.0).map_err(|_| ());
+        if toast::status(Some(setting)) != NotifyStatus::Granted {
+            return false;
+        }
+        let text = notify::text(locale, kind, outcome);
+        let (Ok(title), Ok(body)) = (text.title.to_str(), text.body.to_str()) else {
+            return false;
+        };
+        let Ok(notification) = build(kind, title, body) else {
+            return false;
+        };
+        if notifier.Show(&notification).is_err() {
+            return false;
+        }
+        keep(kind, notification);
+        true
+    }
+
+    fn build(
+        kind: AnalysisKind,
+        title: &str,
+        body: &str,
+    ) -> windows::core::Result<ToastNotification> {
+        let doc = XmlDocument::new()?;
+        let root = doc.CreateElement(h!("toast"))?;
+        root.SetAttribute(h!("launch"), &HSTRING::from(toast::launch_arg(kind)))?;
+        let visual = doc.CreateElement(h!("visual"))?;
+        let binding = doc.CreateElement(h!("binding"))?;
+        binding.SetAttribute(h!("template"), h!("ToastGeneric"))?;
+        for line in [title, body] {
+            let element = doc.CreateElement(h!("text"))?;
+            element.AppendChild(&doc.CreateTextNode(&HSTRING::from(line))?)?;
+            binding.AppendChild(&element)?;
+        }
+        visual.AppendChild(&binding)?;
+        root.AppendChild(&visual)?;
+        doc.AppendChild(&root)?;
+        let notification = ToastNotification::CreateToastNotification(&doc)?;
+        notification.SetTag(&HSTRING::from(toast::tag(kind)))?;
+        notification.SetGroup(&HSTRING::from(toast::GROUP))?;
+        notification.Activated(&TypedEventHandler::<ToastNotification, IInspectable>::new(
+            |_, args| {
+                // OS のスレッドから呼ばれる。panic をその外へ出さない。
+                let _ = catch_unwind(AssertUnwindSafe(|| {
+                    let Some(args) = args.as_ref() else {
+                        return;
+                    };
+                    let Ok(args) = args.cast::<ToastActivatedEventArgs>() else {
+                        return;
+                    };
+                    let Ok(launch) = args.Arguments() else {
+                        return;
+                    };
+                    let Ok(launch) = String::from_utf16(&launch) else {
+                        return;
+                    };
+                    if let Some(kind) = toast::parse_launch(&launch) {
+                        notify::dispatch_open(kind.index());
+                    }
+                }));
+                Ok(())
+            },
+        ))?;
+        Ok(notification)
+    }
+
+    fn keep(kind: AnalysisKind, notification: ToastNotification) {
+        let Ok(mut shown) = SHOWN.lock() else {
+            return;
+        };
+        let Ok(slot) = usize::try_from(kind.index()) else {
+            return;
+        };
+        if let Some(held) = shown.get_mut(slot) {
+            *held = Some(notification);
+        }
+    }
+
+    pub(crate) fn install<R: Runtime>(app: &AppHandle<R>) {
+        let emitter = app.clone();
+        notify::set_open_emitter(Box::new(move |kind| open_window(&emitter, kind)));
+        // 前のプロセスが出した通知は、押しても受け口が無い。残さない。
+        let _ = ToastNotificationManager::History().and_then(|history| history.Clear());
     }
 }
 

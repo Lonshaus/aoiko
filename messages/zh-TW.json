@@ -1221,5 +1221,5 @@
   "settings_analysis_notify_denied": "瀏覽器未允許通知，因此無法開啟這項設定。請在瀏覽器的網站設定中允許通知後，再試一次。",
   "settings_analysis_notify_unsupported": "這個瀏覽器無法使用通知。在 iPhone 與 iPad 上，只有加入主畫面的應用程式才能使用。",
   "settings_analysis_notify_hint_native": "只有在你離開應用程式的期間解析完成，才會以系統通知告知。通知只會顯示畫面名稱與結果，不含金額或交易對象。",
-  "settings_analysis_notify_denied_native": "通知未獲允許，因此無法開啟這項設定。請在「系統設定」的通知中允許 aoiko 後，再試一次。"
+  "settings_analysis_notify_denied_native": "通知未獲允許，因此無法開啟這項設定。請在作業系統的通知設定中允許 aoiko 後，再試一次。"
 }

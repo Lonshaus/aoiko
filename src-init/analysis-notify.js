@@ -1,7 +1,7 @@
 // 解析の完了通知と、解析中の「作業中」宣言。実装のある環境でだけ入口を用意する
 // （無い環境で用意すると、設定画面に押しても何も起きないトグルが出る）。
 // 渡せる値は種別・結果・言語の列挙値とジョブの識別子だけで、通知の文面はネイティブ側が持つ。
-const PLATFORMS = ['macos'];
+const PLATFORMS = ['macos', 'windows'];
 const OPEN_EVENT = 'aoiko-analysis-open';
 
 export function createAnalysisNotify(invoke, listen, platform) {

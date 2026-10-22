@@ -3,15 +3,17 @@ import { test } from 'node:test';
 import { createAnalysisNotify } from './analysis-notify.js';
 
 test('実装のある環境でだけ入口が用意される', () => {
-  assert.equal(
-    typeof createAnalysisNotify(
-      async () => {},
-      async () => {},
-      'macos',
-    )?.notifyAnalysis,
-    'function',
-  );
-  for (const platform of ['windows', 'ios', 'other', undefined]) {
+  for (const platform of ['macos', 'windows']) {
+    assert.equal(
+      typeof createAnalysisNotify(
+        async () => {},
+        async () => {},
+        platform,
+      )?.notifyAnalysis,
+      'function',
+    );
+  }
+  for (const platform of ['ios', 'other', '', undefined]) {
     assert.equal(
       createAnalysisNotify(
         async () => {},
