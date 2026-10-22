@@ -4,7 +4,8 @@
 // 各ライセンス自身の要求なので、web 版・app 版のどちらにも等しく掛かる。
 //
 // 一覧の取得元は package-lock.json（実際に配るバージョンが固定されている唯一の場所）で、
-// node_modules は本文を読むためだけに使う。--check は生成し直して差分を見る。
+// node_modules は本文を読むためだけに使う。--check はファイルを書かずに、許可済みの
+// ライセンス種別だけに収まっていることと、生成が最後まで通ることを確かめる。
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,7 @@ import {
   ASSETS as TESSERACT_ASSETS,
   MODEL_FILE as TESSERACT_MODEL_FILE,
 } from './copy-tesseract-assets.js';
+import { disallowedLicenses } from './license-policy.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 // public/ に置くと vite がそのまま dist/ へ複製する。MIT・BSD が求めているのは
@@ -690,9 +692,9 @@ function render(packages) {
   const lines = [
     'aoiko が配布物に含む第三者ソフトウェアと、その著作権表示',
     '',
-    'このファイルは scripts/gen-third-party-licenses.js が package-lock.json・node_modules・',
-    '手で保守する EXTERNAL_ARTIFACTS から生成しています。直接編集せず、依存やビルド構成を',
-    '変えたら再生成してください。',
+    'このファイルはビルド時に scripts/gen-third-party-licenses.js が package-lock.json・',
+    'node_modules・手で保守する EXTERNAL_ARTIFACTS から生成します。バージョン管理には',
+    '含めず、手で編集しないでください。',
     '',
     `対象：npm 依存として自動収集した ${packages.length} 件 + npm 外から手動で追跡する ${EXTERNAL_ARTIFACTS.length} 件。`,
     'npm の dependencies に加え、devDependencies に置かれていても実際に配られるもの',
@@ -800,16 +802,18 @@ function render(packages) {
 }
 
 assertTesseractAssetsCovered();
-const generated = render(shippedPackages());
-if (process.argv.includes('--check')) {
-  const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
-  if (current !== generated) {
-    console.error(
-      'public/THIRD_PARTY_LICENSES.txt が依存と一致していません。npm run licenses:generate を実行してください。',
-    );
-    process.exit(1);
+const packages = shippedPackages();
+const rejected = disallowedLicenses([...packages, ...EXTERNAL_ARTIFACTS]);
+if (rejected.length > 0) {
+  console.error('許可していないライセンスが配布物に含まれています。');
+  for (const { name, version, license } of rejected) {
+    console.error(`  ${name} ${version}: ${license}`);
   }
-  console.log('public/THIRD_PARTY_LICENSES.txt は依存と一致しています。');
+  process.exit(1);
+}
+const generated = render(packages);
+if (process.argv.includes('--check')) {
+  console.log('配布物のライセンスはすべて許可済みで、一覧も生成できました。');
 } else {
   writeFileSync(outPath, generated);
   console.log(`public/THIRD_PARTY_LICENSES.txt を書き出しました（${generated.length} 文字）。`);
