@@ -11,6 +11,8 @@ coverage/
 src/paraglide/
 # tesseract.js の worker / コア（node_modules から自動複製）
 public/tesseract/
+# 第三者ライセンス一覧（ビルド時に gen-third-party-licenses.js が生成）
+public/THIRD_PARTY_LICENSES.txt
 # 環境変数
 .env
 .env.*
