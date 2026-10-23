@@ -14,6 +14,14 @@ export interface LlmImageInput {
 }
 /** データだけを渡す端末内経路が対応するタスク。分類（CSV 相手科目）と注文取込。 */
 export type LlmDataTask = 'classify' | 'order';
+/** 中止できる経路だけが signal を使う。使えない経路は無視してよい。 */
+export interface LlmCallOptions {
+  signal?: AbortSignal;
+}
+// 利用者の取消は失敗として扱わない。fetch・Chrome AI・自前の競合のどれも name で揃う。
+export function isAbortError(e: unknown): boolean {
+  return typeof e === 'object' && e !== null && (e as { name?: unknown }).name === 'AbortError';
+}
 
 export interface LlmAdapter {
   /** 端末外へデータを送るか（クラウド = true、ローカル = false） */
@@ -21,12 +29,12 @@ export interface LlmAdapter {
   /** 送信先ホスト（確認ダイアログ表示用。例：generativelanguage.googleapis.com） */
   readonly destinationHost: string;
   /** プロンプトを送り、JSON 文字列としてパース可能なレスポンスを返す */
-  generateJson(prompt: string, image?: LlmImageInput): Promise<unknown>;
+  generateJson(prompt: string, image?: LlmImageInput, options?: LlmCallOptions): Promise<unknown>;
   /**
    * プロンプトを介さずデータだけを渡す経路。指示は実装側（ネイティブ）に固定で埋め込まれ、
    * 呼び出し元はプロンプトを書き換えられない。対応するアダプターだけが実装する。
    */
-  runDataTask?(task: LlmDataTask, data: unknown): Promise<unknown>;
+  runDataTask?(task: LlmDataTask, data: unknown, options?: LlmCallOptions): Promise<unknown>;
 }
 
 export class LlmError extends Error {
@@ -85,7 +93,11 @@ export class GeminiAdapter implements LlmAdapter {
     private readonly model: string,
   ) {}
 
-  async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
+  async generateJson(
+    prompt: string,
+    image?: LlmImageInput,
+    options?: LlmCallOptions,
+  ): Promise<unknown> {
     if (!this.apiKey) {
       throw new LlmError(m.error_gemini_key_unconfigured());
     }
@@ -112,8 +124,12 @@ export class GeminiAdapter implements LlmAdapter {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
     } catch (e) {
+      if (isAbortError(e)) {
+        throw e;
+      }
       throw new LlmError(connectionErrorMessage(m.error_gemini_connection_failed(), e), e);
     }
 
@@ -199,7 +215,11 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
     return h;
   }
 
-  async generateJson(prompt: string, image?: LlmImageInput): Promise<unknown> {
+  async generateJson(
+    prompt: string,
+    image?: LlmImageInput,
+    options?: LlmCallOptions,
+  ): Promise<unknown> {
     if (!this.model) {
       throw new LlmError(m.error_model_not_selected());
     }
@@ -227,8 +247,12 @@ export class OpenAICompatibleAdapter implements LlmAdapter {
         method: 'POST',
         headers: this.headers(),
         body: JSON.stringify(body),
+        ...(options?.signal ? { signal: options.signal } : {}),
       });
     } catch (e) {
+      if (isAbortError(e)) {
+        throw e;
+      }
       throw new LlmError(
         connectionErrorMessage(
           `${this.destinationHost} への接続に失敗しました（ローカル LLM サーバ起動・CORS 設定を確認）`,

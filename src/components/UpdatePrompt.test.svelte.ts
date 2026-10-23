@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { setLocale } from '../paraglide/runtime';
+import { updateCard } from '../stores/update-card.svelte';
 
 type RegisterOptions = {
   onNeedRefresh?: () => void;
@@ -98,5 +99,20 @@ describe('UpdatePrompt', () => {
     flushSync();
     expect(container!.querySelector('.fixed')).toBeNull();
     expect(spacer()).toBeNull();
+  });
+});
+
+describe('UpdatePrompt と解析の通知', () => {
+  test('カードの表示状態を通知側へ渡し、外すと渡さなくなる', () => {
+    mountPrompt();
+    expect(updateCard.isShown?.()).toBe(false);
+    offlineReady();
+    expect(updateCard.isShown?.()).toBe(true);
+    container!.querySelector<HTMLButtonElement>('button')!.click();
+    flushSync();
+    expect(updateCard.isShown?.()).toBe(false);
+    unmount(instance!);
+    instance = undefined;
+    expect(updateCard.isShown).toBeNull();
   });
 });

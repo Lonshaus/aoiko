@@ -21,6 +21,18 @@ function receipt(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe('createAppleAiReceiptExtractor', () => {
+  test('中止できないため signal は無視し、ネイティブ側の完了まで待つ', async () => {
+    const appleAiExtract = vi.fn(async () => receipt());
+    vi.stubGlobal('window', { __aoikoNative: { appleAiExtract } });
+    const controller = new AbortController();
+    controller.abort();
+    const result = await createAppleAiReceiptExtractor().extract(IMAGE, {
+      signal: controller.signal,
+    });
+    expect(appleAiExtract).toHaveBeenCalledOnce();
+    expect(result.totalAmount).toBe('1500');
+  });
+
   test('engine ラベルと送信先（端末外に出ない）', () => {
     const extractor = createAppleAiReceiptExtractor();
     expect(extractor.engine).toBe('apple-ai');

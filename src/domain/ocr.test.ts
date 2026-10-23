@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { extractReceipt, buildOcrPrompt } from './ocr';
 import { todayISO } from '../lib/date';
 import type { LlmAdapter } from './llm';
@@ -136,5 +136,23 @@ describe('extractReceipt', () => {
     });
     const r = await extractReceipt(adapter, { base64: 'x', mimeType: 'image/jpeg' });
     expect(r.taxRate).toBeUndefined();
+  });
+});
+
+describe('extractReceipt の signal', () => {
+  test('signal をアダプターの generateJson へ渡す', async () => {
+    const generateJson = vi.fn(async () => ({
+      date: '2026-05-08',
+      vendorName: 'X',
+      totalAmount: '100',
+      items: [],
+    }));
+    const adapter: LlmAdapter = { external: false, destinationHost: '', generateJson };
+    const image = { base64: 'x', mimeType: 'image/jpeg' };
+    const controller = new AbortController();
+    await extractReceipt(adapter, image, { signal: controller.signal });
+    expect(generateJson).toHaveBeenCalledWith(expect.any(String), image, {
+      signal: controller.signal,
+    });
   });
 });

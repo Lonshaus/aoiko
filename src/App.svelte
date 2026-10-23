@@ -11,7 +11,10 @@
   import { pathToChapter } from './lib/manual-routes';
   import { isOpaqueError } from './lib/opaque-error';
   import { ledger } from './stores/ledger.svelte';
+  import { analysis, type AnalysisKind } from './stores/analysis.svelte';
+  import AnalysisToast from './components/AnalysisToast.svelte';
   import { m } from './paraglide/messages';
+  import { getLocale } from './paraglide/runtime';
 
   const helpChapter = $derived(pathToChapter(router.path));
   const isManual = $derived(router.path === '/manual' || router.path.startsWith('/manual/'));
@@ -96,21 +99,84 @@
     '/opening-setup': memo(() => import('./routes/OpeningSetup.svelte')),
   };
   const routeLoader = $derived(ROUTE_COMPONENT[router.path] ?? null);
-  const NAV_ITEMS: { href: string; label: () => string }[] = [
+  const NAV_ITEMS: { href: string; label: () => string; analysis?: AnalysisKind }[] = [
     { href: '/', label: m.nav_home },
     { href: '/journal', label: m.nav_journal },
     { href: '/reports', label: m.nav_reports },
     { href: '/income-deductions', label: m.nav_income_deductions },
-    { href: '/import', label: m.nav_import },
-    { href: '/order-import', label: m.nav_order_import },
-    { href: '/receipt', label: m.nav_receipt },
+    { href: '/import', label: m.nav_import, analysis: 'classify' },
+    { href: '/order-import', label: m.nav_order_import, analysis: 'order' },
+    { href: '/receipt', label: m.nav_receipt, analysis: 'receipt' },
     { href: '/invoices', label: m.nav_invoices },
     { href: '/import-history', label: m.nav_import_history },
     { href: '/settings', label: m.nav_settings },
     { href: '/manual', label: m.nav_manual },
   ];
   let mobileNavOpen = $state(false);
+  type MarkState = 'running' | 'done' | 'failed';
+  // 色覚の差があっても見分けられるよう、カラーユニバーサルデザイン推奨配色の赤・黄・青を使う。
+  const DOT_CLASS: Record<MarkState, string> = {
+    running:
+      'inline-block size-2.5 rounded-full bg-[var(--analysis-running)] ring-1 ring-[var(--analysis-running-ring)] motion-safe:animate-pulse',
+    done: 'inline-block size-2.5 rounded-full bg-[var(--analysis-done)]',
+    failed: 'inline-block size-2.5 rounded-full bg-[var(--analysis-failed)]',
+  };
+  function stateText(state: MarkState): string {
+    if (state === 'running') {
+      return m.analysis_badge_running();
+    }
+    return state === 'done' ? m.analysis_badge_done() : m.analysis_badge_failed();
+  }
+  function kindState(kind: AnalysisKind): MarkState | null {
+    return analysis.isRunning(kind) ? 'running' : (analysis.unseen[kind] ?? null);
+  }
+  const menuDescription = $derived.by(() => {
+    const parts: string[] = [];
+    for (const item of NAV_ITEMS) {
+      const state = item.analysis === undefined ? null : kindState(item.analysis);
+      if (state !== null) {
+        parts.push(`${item.label()} ${stateText(state)}`);
+      }
+    }
+    return parts.length === 0
+      ? null
+      : new Intl.ListFormat(getLocale(), { type: 'conjunction' }).format(parts);
+  });
 </script>
+
+{#snippet stateMark(kind: AnalysisKind | 'menu', state: MarkState, cls: string)}
+  <span
+    data-analysis-badge={kind === 'menu' ? undefined : kind}
+    data-menu-indicator={kind === 'menu' ? '' : undefined}
+    data-state={state}
+    title={stateText(state)}
+    class={[cls, DOT_CLASS[state]]}
+  >
+    <span class="sr-only">{stateText(state)}</span>
+  </span>
+{/snippet}
+
+{#snippet navMark(kind: AnalysisKind | undefined)}
+  {#if kind !== undefined}
+    {@const state = kindState(kind)}
+    {#if state !== null}
+      {@render stateMark(kind, state, 'ml-0.5 align-super')}
+    {/if}
+  {/if}
+{/snippet}
+
+{#snippet navBadge(kind: AnalysisKind | undefined)}
+  {#if kind !== undefined}
+    {@const state = kindState(kind)}
+    {#if state !== null}
+      <span
+        data-analysis-badge={kind}
+        class="ml-1.5 inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+        ><span aria-hidden="true" class={DOT_CLASS[state]}></span>{stateText(state)}</span
+      >
+    {/if}
+  {/if}
+{/snippet}
 
 <svelte:window
   onkeydown={(event) => {
@@ -153,14 +219,15 @@
               href={item.href}
               use:link
               class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
-              >{item.label()}</a
+              >{item.label()}{@render navMark(item.analysis)}</a
             >
           {/each}
         </nav>
         <button
           type="button"
-          class="lg:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
+          class="relative lg:hidden shrink-0 rounded p-2 text-muted-foreground hover:text-foreground"
           aria-label={m.nav_menu()}
+          aria-describedby={menuDescription === null ? undefined : 'nav-menu-status'}
           aria-expanded={mobileNavOpen}
           onclick={() => (mobileNavOpen = !mobileNavOpen)}
         >
@@ -180,7 +247,19 @@
               <path d="M4 6h16M4 12h16M4 18h16" />
             {/if}
           </svg>
+          {#if analysis.menuIndicator !== null}
+            {@render stateMark(
+              'menu',
+              analysis.menuIndicator,
+              analysis.menuIndicator === 'running'
+                ? 'absolute top-0.5 right-0.5 shadow-[0_0_0_3px_var(--card)]'
+                : 'absolute top-0.5 right-0.5 shadow-[0_0_0_2px_var(--card)]',
+            )}
+          {/if}
         </button>
+        {#if menuDescription !== null}
+          <span id="nav-menu-status" class="sr-only">{menuDescription}</span>
+        {/if}
       </div>
       {#if mobileNavOpen}
         <nav class="lg:hidden border-t px-4 py-2 flex flex-col text-sm">
@@ -189,7 +268,8 @@
               href={item.href}
               use:link
               class="rounded px-2 py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              onclick={() => (mobileNavOpen = false)}>{item.label()}</a
+              onclick={() => (mobileNavOpen = false)}
+              >{item.label()}{@render navBadge(item.analysis)}</a
             >
           {/each}
         </nav>
@@ -264,6 +344,8 @@
   <!-- 余白を min-h-screen の内側に置き、画面より短いページにはスクロールを生まない -->
   <UpdatePrompt />
 </div>
+
+<AnalysisToast />
 
 <UnsavedChangesDialog />
 <FiledYearWarningDialog />

@@ -33,6 +33,11 @@ afterEach(() => {
 });
 
 describe('FilePicker', () => {
+  test('disabled を渡すと input が無効になる', () => {
+    expect(render({ disabled: true }).disabled).toBe(true);
+    expect(render().disabled).toBe(false);
+  });
+
   test('本物の input type=file を残す', () => {
     expect(render().type).toBe('file');
   });

@@ -10,7 +10,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { createDiscardText } from './discard-text.js';
 import { exportFile, readBackupFile, writeBackupFile } from './file-io.js';
-import { frameRequest, parseReplyFrame, requestMeta } from './frame.js';
+import { createExternalFetch } from './external-fetch.js';
 import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
 import { createAppleAi } from './apple-ai.js';
@@ -104,31 +104,7 @@ Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    ローカルの Ollama の CORS allowlist には載っていないため素の fetch は拒否される。
 //    同一 origin の取得（tesseract の worker・wasm・traineddata 等）は素のまま通す。
-async function rawIpcFetch(req, body) {
-  let reply;
-  try {
-    reply = new Uint8Array(await invoke('aoiko_fetch', frameRequest(requestMeta(req), body)));
-  } catch (e) {
-    // 素の fetch は通信の失敗を TypeError で投げる。公開 repo の判定（describeLlmError）が
-    // それ前提で書かれているので、invoke の拒否をここで同じ形に揃える。
-    throw new TypeError(typeof e === 'string' ? e : String(e));
-  }
-  const { head, payload } = parseReplyFrame(reply);
-  return new Response(payload.byteLength > 0 ? payload : null, {
-    status: head.status,
-    statusText: head.statusText,
-    headers: head.headers,
-  });
-}
-
-async function externalFetch(input, init) {
-  // 入力の形（文字列 / URL / Request、headers も Headers / object / 配列）を Request 1 つへ
-  // 潰してから読む。body を文字列で渡されたときの content-type もここで確定する。
-  const req = new Request(input, init);
-  const body = await req.arrayBuffer();
-  return rawIpcFetch(req, body);
-}
-
+const externalFetch = createExternalFetch(invoke);
 const browserFetch = window.fetch.bind(window);
 window.fetch = function (input, init) {
   const raw =
