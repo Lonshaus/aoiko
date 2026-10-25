@@ -39,14 +39,26 @@ vi.mock('../parsers', () => ({
   findParser: (name: string) => [parserA, parserB].find((p) => p.name === name) ?? null,
 }));
 
-vi.mock('../lib/llm-adapter', () => ({
-  createLlmAdapter: async () => ({
+vi.mock('../lib/llm-adapter', () => {
+  const adapter = () => ({
     external: false,
     destinationHost: '',
     generateJson: (prompt: string, image?: unknown, options?: LlmCallOptions) =>
       adapterRef.generateJson(prompt, image, options),
-  }),
-}));
+  });
+  return {
+    createLlmAdapter: async () => adapter(),
+    createLlmAdapterWithConfig: async () => ({
+      adapter: adapter(),
+      config: {
+        engine: 'openai-compatible',
+        model: 'm',
+        apiKey: '',
+        baseUrl: 'http://localhost:1',
+      },
+    }),
+  };
+});
 
 const { importDraft } = await import('./import-draft.svelte');
 const { analysis } = await import('./analysis.svelte');

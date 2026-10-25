@@ -4,7 +4,30 @@
 const PLATFORMS = ['macos', 'windows'];
 const OPEN_EVENT = 'aoiko-analysis-open';
 
+function permissionAndOpen(invoke, listen) {
+  return {
+    // 'unsupported' | 'default' | 'denied' | 'granted'
+    async notificationStatus() {
+      return invoke('plugin:aoiko-native|notification_status');
+    },
+    // 利用者の操作の中で呼ぶ。応答は notificationStatus と同じ値。
+    async requestNotification() {
+      return invoke('plugin:aoiko-native|notification_request');
+    },
+    // 通知が押されたときの合図。中身は信用せず、受け取る側で検証する。
+    // 戻り値は購読を解く関数。
+    async onAnalysisOpen(callback) {
+      return listen(OPEN_EVENT, (event) => callback(event.payload));
+    },
+  };
+}
+
 export function createAnalysisNotify(invoke, listen, platform) {
+  // iOS は解析をネイティブ側で走らせ、通知を出すかどうかもネイティブ側が決める。
+  // ページから通知を出す口（notifyAnalysis）を持たせないので、同じ通知が二重に出ることも無い。
+  if (platform === 'ios') {
+    return permissionAndOpen(invoke, listen);
+  }
   if (!PLATFORMS.includes(platform)) {
     return null;
   }

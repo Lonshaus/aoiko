@@ -1,4 +1,5 @@
 import { db } from '../db';
+import type { Account } from '../db/types';
 import { computeFileHash, findOverlappingRows } from '../domain/import';
 import { findMatchingRule, findVendorByDefaultAccount, loadRules } from '../domain/rules';
 import { describeLlmError, isAbortError, type LlmAdapter } from '../domain/llm';
@@ -8,7 +9,13 @@ import {
   shouldFillSuggestion,
   type ClassifyInput,
 } from '../domain/llm-classify';
-import { createLlmAdapter } from '../lib/llm-adapter';
+import { createLlmAdapterWithConfig } from '../lib/llm-adapter';
+import {
+  runClassifyInRunner,
+  runnerConfig,
+  type RunnerConfig,
+  type RunnerSuggestion,
+} from '../lib/native-runner-client';
 import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
 import { CsvEncodingError, decodeCsv } from '../lib/encoding';
 import { taxRateForCategory } from '../lib/tax-category';
@@ -16,7 +23,7 @@ import { PARSERS, findParser } from '../parsers';
 import type { ParsedTransaction } from '../parsers/types';
 import { registerUnloadCheck } from '../router.svelte';
 import { m } from '../paraglide/messages';
-import { analysis } from './analysis.svelte';
+import { analysis, type AnalysisJob } from './analysis.svelte';
 import { ledger } from './ledger.svelte';
 
 export type RowState = {
@@ -36,11 +43,23 @@ export type ClassifyTarget = { row: RowState; index: number };
 
 export interface PreparedClassify {
   adapter: LlmAdapter;
+  // web view の外で走らせるときの設定。それ以外は null（従来の経路）。
+  runner: RunnerConfig | null;
   targets: ClassifyTarget[];
   host: string;
   fileHash: string;
   knownAccountCode: string;
 }
+
+type ClassifyGroup = {
+  knownSide: 'debit' | 'credit';
+  inputs: ClassifyInput[];
+  candidateAccounts: Account[];
+};
+
+type ClassifyCounts = { high: number; low: number; none: number; failed: number };
+
+type Suggestion = RunnerSuggestion | Awaited<ReturnType<typeof classifyWithLlm>>[number];
 // 確定仕訳は不可逆なので、分類器が書き得る科目コードを在庫運用の判定材料にしない
 export async function computeInventoryLive(): Promise<boolean> {
   const itemCount = await db.inventoryItems.count();
@@ -169,9 +188,10 @@ class ImportDraft {
     }
     const fileHash = this.fileHash;
     try {
-      const adapter = await createLlmAdapter('classify');
+      const { adapter, config } = await createLlmAdapterWithConfig('classify');
       return {
         adapter,
+        runner: runnerConfig(config),
         targets,
         host: adapter.destinationHost,
         fileHash,
@@ -181,6 +201,75 @@ class ImportDraft {
       this.error = describeLlmError(e);
       return null;
     }
+  }
+  // 側（借方・貸方）ごとに 1 グループ。どちらの経路も同じグループを作る。
+  private async buildGroups(prepared: PreparedClassify): Promise<ClassifyGroup[]> {
+    const bySide = new Map<'debit' | 'credit', ClassifyTarget[]>();
+    for (const t of prepared.targets) {
+      const s = t.row.transaction.side;
+      const arr = bySide.get(s) ?? [];
+      arr.push(t);
+      bySide.set(s, arr);
+    }
+    const inventoryLive = await computeInventoryLive();
+    return [...bySide].map(([knownSide, group]) => ({
+      knownSide,
+      inputs: group.map((g) => ({
+        ref: String(g.index),
+        description: g.row.description,
+        amount: g.row.transaction.amount,
+      })),
+      candidateAccounts: counterpartCandidates(
+        ledger.accounts,
+        prepared.knownAccountCode,
+        knownSide,
+        inventoryLive,
+      ),
+    }));
+  }
+
+  private applySuggestions(suggestions: Suggestion[], counts: ClassifyCounts): void {
+    for (const s of suggestions) {
+      const idx = Number(s.ref);
+      const row = this.rows[idx];
+      if (!row) {
+        continue;
+      }
+      if (shouldFillSuggestion(s)) {
+        row.counterpartAccountCode = s.accountCode;
+        row.taxRate = defaultTaxRateFor(s.accountCode);
+        row.llmConfidence = s.confidence;
+        if (s.confidence === 'high') {
+          counts.high++;
+        } else {
+          counts.low++;
+        }
+      } else if (s.failed) {
+        counts.failed++;
+      } else {
+        counts.none++;
+      }
+    }
+  }
+
+  private setStatus(counts: ClassifyCounts): void {
+    const baseStatus =
+      counts.none > 0
+        ? m.import_llm_status_with_none({
+            count: counts.high + counts.low,
+            high: counts.high,
+            low: counts.low,
+            none: counts.none,
+          })
+        : m.import_llm_status({
+            count: counts.high + counts.low,
+            high: counts.high,
+            low: counts.low,
+          });
+    this.llmStatus =
+      counts.failed > 0
+        ? `${baseStatus} ${m.import_llm_status_failed({ failed: counts.failed })}`
+        : baseStatus;
   }
 
   async runClassify(prepared: PreparedClassify): Promise<void> {
@@ -196,88 +285,32 @@ class ImportDraft {
     const stale = () => analysis.isCancelled(job) || prepared.fileHash !== this.fileHash;
     let outcome: 'done' | 'failed' | 'cancelled' = 'cancelled';
     try {
-      const bySide = new Map<'debit' | 'credit', ClassifyTarget[]>();
-      for (const t of prepared.targets) {
-        const s = t.row.transaction.side;
-        const arr = bySide.get(s) ?? [];
-        arr.push(t);
-        bySide.set(s, arr);
+      const groups = await this.buildGroups(prepared);
+      const counts: ClassifyCounts = { high: 0, low: 0, none: 0, failed: 0 };
+      if (prepared.runner !== null) {
+        outcome = await this.runInRunner(prepared, prepared.runner, groups, job, stale, counts);
+        return;
       }
-
-      let highCount = 0;
-      let lowCount = 0;
-      let noneCount = 0;
-      let failedCount = 0;
-      const inventoryLive = await computeInventoryLive();
-      let aborted = false;
-
-      for (const [knownSide, group] of bySide) {
+      for (const group of groups) {
         if (stale()) {
-          aborted = true;
-          break;
+          return;
         }
-        const inputs: ClassifyInput[] = group.map((g) => ({
-          ref: String(g.index),
-          description: g.row.description,
-          amount: g.row.transaction.amount,
-        }));
         const suggestions = await classifyWithLlm(
           prepared.adapter,
-          inputs,
+          group.inputs,
           {
             knownAccountCode: prepared.knownAccountCode,
-            knownSide,
-            candidateAccounts: counterpartCandidates(
-              ledger.accounts,
-              prepared.knownAccountCode,
-              knownSide,
-              inventoryLive,
-            ),
+            knownSide: group.knownSide,
+            candidateAccounts: group.candidateAccounts,
           },
           { signal: job.controller.signal },
         );
         if (stale()) {
-          aborted = true;
-          break;
+          return;
         }
-        for (const s of suggestions) {
-          const idx = Number(s.ref);
-          const row = this.rows[idx];
-          if (!row) {
-            continue;
-          }
-          if (shouldFillSuggestion(s)) {
-            row.counterpartAccountCode = s.accountCode;
-            row.taxRate = defaultTaxRateFor(s.accountCode);
-            row.llmConfidence = s.confidence;
-            if (s.confidence === 'high') {
-              highCount++;
-            } else {
-              lowCount++;
-            }
-          } else if (s.failed) {
-            failedCount++;
-          } else {
-            noneCount++;
-          }
-        }
+        this.applySuggestions(suggestions, counts);
       }
-      if (aborted) {
-        return;
-      }
-      const baseStatus =
-        noneCount > 0
-          ? m.import_llm_status_with_none({
-              count: highCount + lowCount,
-              high: highCount,
-              low: lowCount,
-              none: noneCount,
-            })
-          : m.import_llm_status({ count: highCount + lowCount, high: highCount, low: lowCount });
-      this.llmStatus =
-        failedCount > 0
-          ? `${baseStatus} ${m.import_llm_status_failed({ failed: failedCount })}`
-          : baseStatus;
+      this.setStatus(counts);
       outcome = 'done';
     } catch (e) {
       if (!stale() && !isAbortError(e)) {
@@ -287,6 +320,60 @@ class ImportDraft {
     } finally {
       analysis.finish(job, outcome);
     }
+  }
+  // すべてのグループを 1 つのジョブで送り、戻った提案をグループの順に従来と同じ判定で書く。取消しの後に届いた
+  // グループは、取消しの前に終わっていたグループなので、ファイルが同じなら書く（従来の経路で取消し前に書かれる行と同じ）。
+  private async runInRunner(
+    prepared: PreparedClassify,
+    runner: RunnerConfig,
+    groups: ClassifyGroup[],
+    job: AnalysisJob,
+    stale: () => boolean,
+    counts: ClassifyCounts,
+  ): Promise<'done' | 'failed' | 'cancelled'> {
+    if (stale()) {
+      return 'cancelled';
+    }
+    const result = await runClassifyInRunner(
+      runner,
+      prepared.host,
+      groups.map((group) => ({
+        knownSide: group.knownSide,
+        inputs: group.inputs,
+        knownAccountCode: prepared.knownAccountCode,
+        candidateAccounts: group.candidateAccounts,
+      })),
+      job.controller.signal,
+    );
+    if (result.kind === 'cancelled') {
+      if (prepared.fileHash === this.fileHash) {
+        for (const partial of result.partial) {
+          this.applySuggestions(partial.suggestions, counts);
+        }
+      }
+      return 'cancelled';
+    }
+    if (result.kind === 'failed') {
+      for (const partial of result.partial) {
+        if (stale()) {
+          return 'cancelled';
+        }
+        this.applySuggestions(partial.suggestions, counts);
+      }
+      if (stale()) {
+        return 'cancelled';
+      }
+      this.error = describeLlmError(result.error);
+      return 'failed';
+    }
+    for (const suggestions of result.groups) {
+      if (stale()) {
+        return 'cancelled';
+      }
+      this.applySuggestions(suggestions, counts);
+    }
+    this.setStatus(counts);
+    return 'done';
   }
 
   reset(): void {

@@ -23,6 +23,9 @@ const COMMANDS: &[&str] = &[
     "analysis_notify",
     "analysis_activity_begin",
     "analysis_activity_end",
+    "analysis_runner_start",
+    "analysis_runner_take",
+    "analysis_runner_cancel",
 ];
 // これらの Swift ファイルは iOS 側では SwiftPM（ios/Package.swift）がビルドする。
 // macOS にはその仕組みが無く、ここで静的ライブラリへ手動でコンパイルする。

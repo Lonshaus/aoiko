@@ -31,10 +31,10 @@ export type SettingsMap = {
   currentYear: number;
   backupFolderHandle: FileSystemDirectoryHandle | null;
   // ラッパー版で選んだバックアップ先。token は端末固有の
-  // 不透明文字列なので、バックアップには含めない（payload.ts の SKIP_SETTING_KEYS）。
+  // 不透明文字列なので、バックアップには含めない（backup/skip-lists.ts の SKIP_SETTING_KEYS）。
   nativeBackupFolder: NativeBackupFolder | null;
   // 支援者バッジを買った日（ローカル暦の YYYY-MM-DD）。null は未購入。
-  // ストアから復元できるので、バックアップには含めない（backup/payload.ts）。
+  // ストアから復元できるので、バックアップには含めない（backup/skip-lists.ts）。
   supporterBadgeAt: string | null;
   lastBackupAt: number | null;
   lastDownloadAt: number | null;
@@ -71,7 +71,7 @@ export type SettingsMap = {
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
   // 解析が終わったとき、画面を離れていれば通知する（既定 false）。通知の許可は端末ごとなので、
-  // バックアップには含めない（backup/payload.ts の ANALYSIS_NOTIFY_SETTING_KEY）。
+  // バックアップには含めない（backup/skip-lists.ts の SKIP_SETTING_KEYS）。
   analysisNotifyEnabled: boolean;
   // バックアップ・エクスポートに API キーを含めるか（既定 false）。
   // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。

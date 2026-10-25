@@ -3,32 +3,76 @@ import { setLocale } from '../paraglide/runtime';
 import { m } from '../paraglide/messages';
 import {
   analysisNotifyPermission,
+  closeAnalysisNotifications,
   notifyAnalysisDone,
   requestAnalysisNotifyPermission,
+  webNotifySupport,
 } from './analysis-notify';
 
 const showNotification = vi.fn(async (_title: string, _options: NotificationOptions) => {});
+const getNotifications = vi.fn(async (_filter?: GetNotificationOptions) => shown);
 const requestPermission = vi.fn(async () => 'granted');
+let shown: { close: () => void }[] = [];
+let registration: unknown;
+// ready は登録が無いと永久に待つ。触れたら分かるようにしておく。
+const readyGetter = vi.fn(() => new Promise(() => {}));
 
 function stubBrowser(permission: NotificationPermission, withServiceWorker = true): void {
+  vi.stubGlobal('isSecureContext', true);
   vi.stubGlobal('Notification', { permission, requestPermission });
   if (withServiceWorker) {
-    Object.defineProperty(navigator, 'serviceWorker', {
-      configurable: true,
-      value: { ready: Promise.resolve({ showNotification }) },
-    });
+    const serviceWorker = { getRegistration: vi.fn(async () => registration) };
+    Object.defineProperty(serviceWorker, 'ready', { get: readyGetter });
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: serviceWorker });
   }
 }
 
 beforeEach(() => {
   setLocale('ja', { reload: false });
+  shown = [];
+  registration = { active: {}, showNotification, getNotifications };
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   Reflect.deleteProperty(navigator, 'serviceWorker');
-  showNotification.mockClear();
+  showNotification.mockReset();
+  getNotifications.mockClear();
   requestPermission.mockClear();
+  readyGetter.mockClear();
+});
+
+describe('webNotifySupport', () => {
+  test('すべて揃えば available', () => {
+    stubBrowser('default');
+    expect(webNotifySupport()).toBe('available');
+  });
+
+  test.each([
+    ['isSecureContext が false', false],
+    ['isSecureContext が無い', undefined],
+  ])('%s なら insecure', (_name, value) => {
+    stubBrowser('granted');
+    vi.stubGlobal('isSecureContext', value);
+    expect(webNotifySupport()).toBe('insecure');
+  });
+
+  test('Notification が無ければ unsupported', () => {
+    stubBrowser('granted');
+    vi.stubGlobal('Notification', undefined);
+    expect(webNotifySupport()).toBe('unsupported');
+  });
+
+  test('serviceWorker が無ければ unsupported', () => {
+    stubBrowser('granted', false);
+    expect(webNotifySupport()).toBe('unsupported');
+  });
+
+  test('ネイティブの橋渡しが居れば unsupported', () => {
+    stubBrowser('granted');
+    vi.stubGlobal('window', { ...window, __aoikoNative: {} });
+    expect(webNotifySupport()).toBe('unsupported');
+  });
 });
 
 describe('analysisNotifyPermission', () => {
@@ -39,6 +83,12 @@ describe('analysisNotifyPermission', () => {
 
   test('serviceWorker が無い環境は unsupported', async () => {
     stubBrowser('granted', false);
+    await expect(analysisNotifyPermission()).resolves.toBe('unsupported');
+  });
+
+  test('非セキュアコンテキストは unsupported', async () => {
+    stubBrowser('granted');
+    vi.stubGlobal('isSecureContext', false);
     await expect(analysisNotifyPermission()).resolves.toBe('unsupported');
   });
 
@@ -117,5 +167,77 @@ describe('notifyAnalysisDone', () => {
     await notifyAnalysisDone('classify', 'done');
     expect(showNotification).not.toHaveBeenCalled();
     expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['登録が無い', undefined],
+    ['登録はあるが動いている Service Worker が無い', { active: null, showNotification }],
+  ])('%s ときは待たずに終わり、出さない', async (_name, value) => {
+    stubBrowser('granted');
+    registration = value;
+    await expect(notifyAnalysisDone('receipt', 'done')).resolves.toBeUndefined();
+    expect(showNotification).not.toHaveBeenCalled();
+    expect(readyGetter).not.toHaveBeenCalled();
+  });
+
+  test('ready は使わない', async () => {
+    stubBrowser('granted');
+    await notifyAnalysisDone('receipt', 'done');
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(readyGetter).not.toHaveBeenCalled();
+  });
+
+  test('showNotification の拒否は呼び出し側へそのまま返す（握りつぶすのは呼び出し側）', async () => {
+    stubBrowser('granted');
+    showNotification.mockRejectedValue(new TypeError('x'));
+    await expect(notifyAnalysisDone('receipt', 'done')).rejects.toThrow('x');
+  });
+
+  test.each(['receipt', 'order', 'classify'] as const)(
+    '%s の本文には画面の名前と結果の決まった文しか入らない',
+    async (kind) => {
+      stubBrowser('granted');
+      await notifyAnalysisDone(kind, 'done');
+      await notifyAnalysisDone(kind, 'failed');
+      const [done, failed] = showNotification.mock.calls.map((call) => call[1]);
+      const name = { receipt: m.nav_receipt, order: m.nav_order_import, classify: m.nav_import }[
+        kind
+      ]();
+      expect(done).toEqual({
+        body: m.analysis_notify_done({ name }),
+        tag: `aoiko-analysis-${kind}`,
+        data: { kind },
+      });
+      expect(failed).toEqual({
+        body: m.analysis_notify_failed({ name }),
+        tag: `aoiko-analysis-${kind}`,
+        data: { kind },
+      });
+    },
+  );
+});
+
+describe('closeAnalysisNotifications', () => {
+  test('その種別の tag の通知だけを問い合わせて閉じる', async () => {
+    stubBrowser('granted');
+    const close = vi.fn();
+    shown = [{ close }, { close }];
+    await closeAnalysisNotifications('order');
+    expect(getNotifications).toHaveBeenCalledExactlyOnceWith({ tag: 'aoiko-analysis-order' });
+    expect(close).toHaveBeenCalledTimes(2);
+  });
+
+  test('登録が無ければ何もしない', async () => {
+    stubBrowser('granted');
+    registration = undefined;
+    await expect(closeAnalysisNotifications('order')).resolves.toBeUndefined();
+    expect(getNotifications).not.toHaveBeenCalled();
+  });
+
+  test('通知を使えない環境では serviceWorker に触れない', async () => {
+    stubBrowser('granted');
+    vi.stubGlobal('isSecureContext', false);
+    await closeAnalysisNotifications('order');
+    expect(getNotifications).not.toHaveBeenCalled();
   });
 });

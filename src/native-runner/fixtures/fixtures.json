@@ -1,0 +1,26 @@
+{
+  "fixtures": [
+    {
+      "file": "receipt-a.png",
+      "mimeType": "image/png",
+      "orientation": 1,
+      "storedHeight": 1600,
+      "storedWidth": 1200
+    },
+    {
+      "file": "receipt-a.jpg",
+      "mimeType": "image/jpeg",
+      "orientation": 1,
+      "storedHeight": 1600,
+      "storedWidth": 1200
+    },
+    {
+      "file": "receipt-a-exif6.jpg",
+      "mimeType": "image/jpeg",
+      "orientation": 6,
+      "storedHeight": 1200,
+      "storedWidth": 1600
+    }
+  ],
+  "template": "receipt-layout-extract.test.ts receipt()"
+}

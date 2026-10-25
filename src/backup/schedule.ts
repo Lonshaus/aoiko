@@ -5,6 +5,15 @@ export type BackupRetentionCount = (typeof BACKUP_RETENTION_COUNTS)[number];
 // 参照されなくなった証憑の実体を消すまでの日数。0 = 消さない（既定）。
 export const BLOB_RETENTION_DAYS = [0, 30, 90, 180] as const;
 export type BlobRetentionDays = (typeof BLOB_RETENTION_DAYS)[number];
+// 保存先の控えを削る設定は、一覧にある値だけを受け付ける。それ以外（型違い・1e-9・
+// 一覧外の数）は 0（削除しない）として読む。古いバックアップから入った値もここで 0 として扱う。
+export function parseBackupRetentionCount(value: unknown): BackupRetentionCount {
+  return BACKUP_RETENTION_COUNTS.find((n) => n === value) ?? 0;
+}
+
+export function parseBlobRetentionDays(value: unknown): BlobRetentionDays {
+  return BLOB_RETENTION_DAYS.find((n) => n === value) ?? 0;
+}
 
 export function daysSince(ts: number | null): number | null {
   if (!ts) {

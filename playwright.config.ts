@@ -36,7 +36,8 @@ export default defineConfig({
       name: 'pwa-chromium',
       // Service Worker の route 差し替え・Cache Storage の内容確認は Chromium 系専用の
       // CDP 前提が要り、Firefox / WebKit では Playwright から同じ形で観測できない。
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:31527' },
+      // headless shell は通知の許可を与えても denied のままなので、同じバージョンの chromium 本体（新 headless）で動かす。
+      use: { ...devices['Desktop Chrome'], channel: 'chromium', baseURL: 'http://localhost:31527' },
       testMatch: ['pwa/**'],
       // 1 テストで解析を 2 回走らせる（初回取得＋オフライン再解析）ため既定の 30 秒では足りない。
       timeout: 90_000,

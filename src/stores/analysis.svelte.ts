@@ -1,4 +1,8 @@
-import { analysisNotifyPermission, notifyAnalysisDone } from '../lib/analysis-notify';
+import {
+  analysisNotifyPermission,
+  closeAnalysisNotifications,
+  notifyAnalysisDone,
+} from '../lib/analysis-notify';
 import { newId } from '../lib/id';
 import { nativeBridge } from '../lib/native-bridge';
 import { getSetting } from '../lib/settings';
@@ -30,15 +34,23 @@ export const ANALYSIS_ROUTE: Record<AnalysisKind, string> = {
 export function isAnalysisKind(value: unknown): value is AnalysisKind {
   return typeof value === 'string' && Object.hasOwn(ANALYSIS_ROUTE, value);
 }
+// 外から届いた種別を経路へ変える唯一の入口。表に無い値は null。
+export function analysisRouteFor(value: unknown): string | null {
+  return isAnalysisKind(value) ? ANALYSIS_ROUTE[value] : null;
+}
 
 const TOAST_MS = 8000;
-// ロック名は他のタブと重ならないようタブごとに変える。解析の連番はタブごとに 0 から始まる。
-const TAB_ID = newId();
+// ロック名と作業中宣言の識別子は、ページの読み込みごとに変える。解析の連番は読み込みごとに 0 から始まり、
+// ネイティブ側は一度終わった識別子を無視するため。
+let pageLoadId: string | undefined;
+function currentPageLoadId(): string {
+  pageLoadId ??= newId();
+  return pageLoadId;
+}
 // 解析中は Web Lock を保持し続ける。ブラウザの省エネ機能は、ロックを持つタブを凍結しない。
 // 取得は待たない。解析の開始をロックの状況に左右させないため。終わった後に取得できても何も保持しない。
 function holdWebLock(name: string): () => void {
-  const locks: LockManager | null | undefined =
-    typeof navigator === 'undefined' ? undefined : navigator.locks;
+  const locks = typeof navigator !== 'undefined' && 'locks' in navigator ? navigator.locks : null;
   if (!locks) {
     return () => {};
   }
@@ -135,7 +147,7 @@ class AnalysisStore {
       cancelling: false,
     };
     this.job = job;
-    const name = `${TAB_ID}-${job.id}`;
+    const name = `${currentPageLoadId()}-${job.id}`;
     const releaseLock = holdWebLock(`aoiko-analysis-${name}`);
     const endActivity = holdNativeActivity(name);
     this.#releaseLocks.set(job.id, () => {
@@ -200,6 +212,7 @@ class AnalysisStore {
       this.unseen = rest;
     }
     this.notices = this.notices.filter((n) => n.kind !== kind);
+    closeAnalysisNotifications(kind).catch(() => {});
   }
 
   dismissNotice(id: number): void {

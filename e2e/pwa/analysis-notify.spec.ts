@@ -15,8 +15,8 @@ const VENDOR_IN_RESULT = 'テスト商店';
 // ANALYSIS_ROUTE の値。src/ の store は Svelte のルーンを含み Playwright からは読めないため、
 // ここには写しを置く。SW 側の表との一致は src/lib/analysis-notify-sw.test.ts が見る。
 const RECEIPT_ROUTE = '/receipt';
-// headless shell は許可を与えても通知を常に denied と返すため、通知を出せる chromium 本体で動かす。
-test.use({ channel: 'chromium', permissions: ['notifications'] });
+// 通知を出せるのは chromium 本体（pwa-chromium の channel: 'chromium'）だけ。headless shell は許可を与えても denied のまま。
+test.use({ permissions: ['notifications'] });
 
 async function putSettings(page: Page, settings: Record<string, unknown>): Promise<void> {
   await page.evaluate(async (entries) => {
@@ -157,24 +157,23 @@ test('離れている間に解析が終わると通知が 1 件出て、クリ�
   const shown = JSON.stringify(await shownNotifications(page));
   expect(shown).not.toContain(VENDOR_IN_RESULT);
   expect(shown).not.toContain('1500');
-  // クリックの経路。別の画面を開いた状態から、SW 内で notificationclick を起こす。
-  // 実際の OS 通知のクリックではないが、SW 側のリスナー登録とアプリ側の受け口はここで通る。
+  // クリックの経路。別の画面を開いた状態から、SW 内でクリック時の処理を通知のデータで直接呼ぶ。
+  // 合成した notificationclick は信頼されないイベントで waitUntil が例外になるため、イベントは使わない。
   await page.goto('/settings');
   await expect(page.getByRole('heading', { name: '設定', exact: true })).toBeVisible();
   const worker =
     context.serviceWorkers().find((w) => w.url().endsWith('/sw.js')) ??
     (await context.waitForEvent('serviceworker'));
   await worker.evaluate(async () => {
-    const scope = self as unknown as { registration: ServiceWorkerRegistration };
-    const NotificationEventCtor = (
-      globalThis as unknown as {
-        NotificationEvent: new (type: string, init: { notification: Notification }) => Event;
-      }
-    ).NotificationEvent;
+    const scope = self as unknown as {
+      registration: ServiceWorkerRegistration;
+      clients: unknown;
+      aoikoNotificationClick: (data: unknown, clients: unknown) => Promise<void>;
+    };
     const [notification] = await scope.registration.getNotifications();
-    self.dispatchEvent(
-      new NotificationEventCtor('notificationclick', { notification: notification! }),
-    );
+    await scope.aoikoNotificationClick(notification!.data, scope.clients);
   });
   await expect.poll(() => new URL(page.url()).pathname).toBe(RECEIPT_ROUTE);
+  // 解析した画面へ戻ったので、その画面の通知は閉じられている。
+  await expect.poll(() => shownNotifications(page)).toEqual([]);
 });

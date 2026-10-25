@@ -26,6 +26,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
+  import { escapeHtml } from '../lib/html-escape';
   import FilePicker from '../components/FilePicker.svelte';
 
   const draft = receiptDraft;
@@ -624,7 +625,7 @@
 <ConfirmDialog
   open={confirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(pending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}

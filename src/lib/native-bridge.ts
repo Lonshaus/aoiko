@@ -67,6 +67,12 @@ export type NativeBridge = {
   analysisActivityEnd?(job: string): Promise<void>;
   // 通知が押されたときの合図。payload は信用せず、受け取る側で検証する。戻り値は購読を解く関数。
   onAnalysisOpen?(callback: (payload: unknown) => void): Promise<() => void>;
+  // 一部の環境だけ：解析を web view の外（アプリのプロセス）で走らせる。spec はデータだけ。
+  // 開始の拒否は 'start-failed' / 'disallowed-url' の文字列で reject する。
+  runAnalysis?(spec: unknown): Promise<void>;
+  // ジョブが終わるまで待ち、結果を 1 度だけ返す。中身は信用せず、受け取る側で検証する。
+  takeAnalysis?(job: string): Promise<unknown>;
+  cancelAnalysis?(job: string): Promise<void>;
 };
 
 export type NativeNotificationStatus = 'unsupported' | 'default' | 'denied' | 'granted';

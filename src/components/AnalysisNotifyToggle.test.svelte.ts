@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { getSetting, setSetting } from '../lib/settings';
@@ -143,5 +145,85 @@ describe('ネイティブ向けの設定で通知の仕組みがある環境', (
     toggle(input!, false);
     await vi.waitFor(async () => expect(await getSetting('analysisNotifyEnabled')).toBe(false));
     expect(requestNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe('ネイティブ向けの設定でデスクトップ形の橋渡しがある環境', () => {
+  test('トグルを有効で描き、オンにすると requestNotification を 1 回呼んで設定を保存する', async () => {
+    installBridge({
+      notificationStatus,
+      requestNotification,
+      notifyAnalysis: vi.fn(async () => {}),
+      analysisActivityBegin: vi.fn(async () => {}),
+      analysisActivityEnd: vi.fn(async () => {}),
+      onAnalysisOpen: vi.fn(async () => () => {}),
+    });
+    const input = await mountToggle();
+    expect(input).not.toBeNull();
+    expect(input!.disabled).toBe(false);
+    toggle(input!, true);
+    expect(requestNotification).toHaveBeenCalledTimes(1);
+    await vi.waitFor(async () => expect(await getSetting('analysisNotifyEnabled')).toBe(true));
+    expect(requestNotification).toHaveBeenCalledTimes(1);
+    expect(container!.textContent).not.toContain(m.settings_analysis_notify_blocked());
+    expectBrowserApisUntouched();
+  });
+
+  test('OS で拒否済みでも、従来と同じく有効で描く（ブロック中の表示は web だけ）', async () => {
+    notificationStatus.mockResolvedValue('denied');
+    installBridge({ notificationStatus, requestNotification, notifyAnalysis: vi.fn() });
+    const input = await mountToggle();
+    expect(input!.disabled).toBe(false);
+    expect(container!.textContent).not.toContain(m.settings_analysis_notify_blocked());
+  });
+});
+
+describe('ネイティブ向けの設定で iOS 形の橋渡しがある環境', () => {
+  function iosBridge(): Record<string, unknown> {
+    return {
+      runAnalysis: vi.fn(async () => {}),
+      takeAnalysis: vi.fn(async () => ({ outcome: 'cancelled' })),
+      cancelAnalysis: vi.fn(async () => {}),
+      notificationStatus,
+      requestNotification,
+      onAnalysisOpen: vi.fn(async () => () => {}),
+    };
+  }
+
+  test('トグルを有効で描き、オンにすると先に requestNotification を呼んで設定を保存する', async () => {
+    installBridge(iosBridge());
+    const input = await mountToggle();
+    expect(input).not.toBeNull();
+    expect(input!.disabled).toBe(false);
+    toggle(input!, true);
+    expect(requestNotification).toHaveBeenCalledTimes(1);
+    await vi.waitFor(async () => expect(await getSetting('analysisNotifyEnabled')).toBe(true));
+    expect(container!.textContent).toContain(m.settings_analysis_notify_hint_native());
+    expectBrowserApisUntouched();
+  });
+
+  test('非対応と答えたらトグルを描かない', async () => {
+    notificationStatus.mockResolvedValue('unsupported');
+    installBridge(iosBridge());
+    expect(await mountToggle()).toBeNull();
+  });
+});
+// 置き場所はどのビルドでも同じ。描くかどうかはコンポーネントが決める。
+describe('Settings.svelte での置き場所', () => {
+  test('<AnalysisNotifyToggle /> は __NATIVE__ の条件の内側に置かない', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/routes/Settings.svelte'), 'utf8');
+    const markup = source.slice(source.indexOf('</script>'));
+    const at = markup.indexOf('<AnalysisNotifyToggle />');
+    expect(at).toBeGreaterThan(0);
+    expect(markup.split('<AnalysisNotifyToggle').length).toBe(2);
+    const open: string[] = [];
+    for (const block of markup.slice(0, at).matchAll(/\{(#if|\/if)([^}]*)\}/g)) {
+      if (block[1] === '#if') {
+        open.push(block[2] ?? '');
+      } else {
+        open.pop();
+      }
+    }
+    expect(open.filter((condition) => condition.includes('__NATIVE__'))).toEqual([]);
   });
 });

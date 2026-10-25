@@ -3,6 +3,7 @@
   import {
     analysisNotifyPermission,
     requestAnalysisNotifyPermission,
+    webNotifySupport,
     type AnalysisNotifyPermission,
   } from '../lib/analysis-notify';
   import { getSetting, setSetting } from '../lib/settings';
@@ -12,9 +13,15 @@
   let enabled = $state(false);
   let denied = $state(false);
   const supported = $derived(permission !== null && permission !== 'unsupported');
+  // ブラウザで拒否済みのサイトは、ここから尋ね直せない。ブラウザ側の設定でしか戻せない。
+  const blocked = $derived(!__NATIVE__ && permission === 'denied');
   // 使えない環境の出し分け。ブラウザは理由を添えて無効のトグルを出す。ネイティブ側の使えない環境は
   // そもそも通知の仕組みが無いので、トグル自体を出さない。
   const shown = $derived(permission !== null && (supported || !__NATIVE__));
+  const unsupportedText =
+    !__NATIVE__ && webNotifySupport() === 'insecure'
+      ? m.settings_analysis_notify_insecure
+      : m.settings_analysis_notify_unsupported;
   const hint = __NATIVE__
     ? m.settings_analysis_notify_hint_native
     : m.settings_analysis_notify_hint;
@@ -52,14 +59,17 @@
         type="checkbox"
         name="analysisNotifyEnabled"
         checked={enabled}
-        disabled={!supported}
+        disabled={!supported || blocked}
         onchange={handleChange}
       />
       {m.settings_analysis_notify_label()}
     </label>
     <p class="text-xs text-muted-foreground">{hint()}</p>
     {#if !supported}
-      <p class="text-xs text-muted-foreground">{m.settings_analysis_notify_unsupported()}</p>
+      <p class="text-xs text-muted-foreground">{unsupportedText()}</p>
+    {/if}
+    {#if blocked}
+      <p class="text-xs text-muted-foreground">{m.settings_analysis_notify_blocked()}</p>
     {/if}
     {#if denied}
       <p class="text-xs text-destructive" role="alert">{deniedText()}</p>

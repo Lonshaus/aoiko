@@ -4,21 +4,44 @@ import type { AnalysisKind } from '../stores/analysis.svelte';
 import { nativeBridge } from './native-bridge';
 
 export type AnalysisNotifyPermission = NotificationPermission | 'unsupported';
+// web で通知を使えるかと、使えない理由。http では Notification も Service Worker も無い。
+export type WebNotifySupport = 'available' | 'insecure' | 'unsupported';
 
 const SCREEN_NAME: Record<AnalysisKind, () => string> = {
   receipt: m.nav_receipt,
   order: m.nav_order_import,
   classify: m.nav_import,
 };
-function webPermission(): AnalysisNotifyPermission {
+// ネイティブの橋渡しがあるページは web の通知を使わない（通知はネイティブ側の役目）。
+export function webNotifySupport(): WebNotifySupport {
+  if (typeof isSecureContext === 'undefined' || !isSecureContext) {
+    return 'insecure';
+  }
   if (
     typeof Notification === 'undefined' ||
     typeof navigator === 'undefined' ||
-    !('serviceWorker' in navigator)
+    !('serviceWorker' in navigator) ||
+    nativeBridge() !== null
   ) {
     return 'unsupported';
   }
+  return 'available';
+}
+
+function webPermission(): AnalysisNotifyPermission {
+  if (webNotifySupport() !== 'available') {
+    return 'unsupported';
+  }
   return Notification.permission;
+}
+
+function notificationTag(kind: AnalysisKind): string {
+  return `aoiko-analysis-${kind}`;
+}
+// 登録済みで動いている Service Worker だけを使う。ready は登録が無いと永久に待つ。
+async function activeRegistration(): Promise<ServiceWorkerRegistration | null> {
+  const registration = await navigator.serviceWorker.getRegistration();
+  return registration?.active ? registration : null;
 }
 // 知らない値は使えない扱いにする。許可を勝手に読み替えない。
 function toPermission(status: unknown): AnalysisNotifyPermission {
@@ -79,12 +102,28 @@ export async function notifyAnalysisDone(
   if (webPermission() !== 'granted') {
     return;
   }
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await activeRegistration();
+  if (registration === null) {
+    return;
+  }
   const name = SCREEN_NAME[kind]();
   await registration.showNotification(m.app_name(), {
     body:
       outcome === 'done' ? m.analysis_notify_done({ name }) : m.analysis_notify_failed({ name }),
-    tag: `aoiko-analysis-${kind}`,
+    tag: notificationTag(kind),
     data: { kind },
   });
+}
+// 画面へ戻ったら、その画面について出したままの通知は閉じる。
+export async function closeAnalysisNotifications(kind: AnalysisKind): Promise<void> {
+  if (__NATIVE__ || webNotifySupport() !== 'available') {
+    return;
+  }
+  const registration = await activeRegistration();
+  if (registration === null) {
+    return;
+  }
+  for (const notification of await registration.getNotifications({ tag: notificationTag(kind) })) {
+    notification.close();
+  }
 }

@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime,
+    AppHandle, Manager, Runtime,
 };
 
 mod backup;
@@ -20,7 +20,10 @@ mod desktop;
 mod ios;
 mod notify;
 mod path;
+mod runner;
 mod store;
+
+pub use runner::{set_runner_fetcher, set_runner_url_check, MAX_RESPONSE_BODY_BYTES};
 
 #[derive(Debug)]
 pub enum Error {
@@ -237,6 +240,17 @@ pub fn exit_if_toast_relaunch() {
         std::process::exit(0);
     }
 }
+/// web view の初期化スクリプトの先頭に足す 1 文。本物の runner.js が埋め込まれた iOS のビルドでだけ、
+/// web 側へ解析の入口（runAnalysis 等）を出させる。それ以外は空で、従来の web view の経路のままにする。
+pub fn runner_init_script<R: Runtime>(app: &AppHandle<R>) -> &'static str {
+    #[cfg(target_os = "ios")]
+    return runner::ios::flag_script(app);
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = app;
+        ""
+    }
+}
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("aoiko-native")
@@ -263,13 +277,26 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::analysis_notify,
             commands::analysis_activity_begin,
             commands::analysis_activity_end,
+            commands::analysis_runner_start,
+            commands::analysis_runner_take,
+            commands::analysis_runner_cancel,
         ])
         // 再読み込みでページが入れ替わると、前のページが保持していた宣言の終了は届かない。
         // 始まる側と終わる側のどちらでも手放しておく。
-        .on_page_load(|webview, _payload| {
+        .on_page_load(|webview, payload| {
             if let Some(tokens) = webview.app_handle().try_state::<notify::Tokens>() {
                 tokens.end_all(std::time::Instant::now());
             }
+            // 前のページが始めた解析は、結果を受け取る相手がもういない。
+            #[cfg(target_os = "ios")]
+            if let Some(runner) = runner::ios::global() {
+                runner.page_load(matches!(
+                    payload.event(),
+                    tauri::webview::PageLoadEvent::Started
+                ));
+            }
+            #[cfg(not(target_os = "ios"))]
+            let _ = payload;
         })
         .setup(|app, _api| {
             app.manage(Resolved::default());
@@ -281,6 +308,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             {
                 let handle = ios::init(app, _api)?;
                 app.manage(handle);
+                ios::analysis_notify::install(app.app_handle());
+                runner::ios::install(app.app_handle());
             }
             Ok(())
         })
@@ -348,6 +377,26 @@ mod tests {
         ] {
             assert!(!source.contains(banned), "{banned}");
         }
+    }
+    // A-1：印は web view を作るときに、アセットを読んだ結果で足す。プラグインの固定の初期化スクリプトでは出さない。
+    #[test]
+    fn the_runner_flag_is_decided_from_the_asset_when_the_web_view_is_built() {
+        let plugin = include_str!("lib.rs");
+        let source = plugin.split("#[cfg(test)]").next().expect("本体が無い");
+        assert!(!source.contains("js_init_script"));
+        let app = include_str!("../../../src/lib.rs");
+        let script = app
+            .split(".initialization_script(format!(")
+            .nth(1)
+            .and_then(|rest| rest.split(".on_navigation(").next())
+            .expect("initialization_script が無い");
+        let flag = script
+            .find("tauri_plugin_aoiko_native::runner_init_script(app.handle())")
+            .expect("runner_init_script が無い");
+        let format = script.split(',').next().expect("書式が無い");
+        assert!(format.contains("{}{INIT_SCRIPT}"), "{format}");
+        assert!(flag > format.len());
+        assert_eq!(app.matches("runner_init_script(").count(), 1);
     }
 
     #[test]

@@ -21,6 +21,7 @@
   import { ledger } from '../stores/ledger.svelte';
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
   import { m } from '../paraglide/messages';
+  import { escapeHtml } from '../lib/html-escape';
   import FilePicker from '../components/FilePicker.svelte';
 
   const PAGE_SIZE = 500;
@@ -571,7 +572,7 @@
 <ConfirmDialog
   open={llmConfirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: llmPending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(llmPending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onLlmConfirm}

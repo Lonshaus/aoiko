@@ -12,6 +12,7 @@ let instance: Record<string, unknown> | undefined;
 
 function stubBrowser(permission: NotificationPermission | 'none', answer = 'granted'): void {
   requestPermission.mockResolvedValue(answer);
+  vi.stubGlobal('isSecureContext', true);
   if (permission === 'none') {
     vi.stubGlobal('Notification', undefined);
     return;
@@ -108,16 +109,26 @@ describe('通知のトグル', () => {
     expect(await getSetting('analysisNotifyEnabled')).toBeUndefined();
   });
 
-  test('ブラウザで拒否済みなら尋ね直さず、戻して理由を出す', async () => {
+  test('ブラウザで拒否済みならブロック中と示して無効にし、尋ね直さない', async () => {
     stubBrowser('denied');
+    await setSetting('analysisNotifyEnabled', true);
     const input = await mountToggle();
-    toggle(input!, true);
-    await vi.waitFor(() =>
-      expect(container!.textContent).toContain(m.settings_analysis_notify_denied()),
-    );
-    expect(requestPermission).not.toHaveBeenCalled();
+    expect(input!.disabled).toBe(true);
     expect(input!.checked).toBe(false);
+    expect(container!.textContent).toContain(m.settings_analysis_notify_blocked());
+    expect(container!.textContent).not.toContain(m.settings_analysis_notify_unsupported());
+    expect(requestPermission).not.toHaveBeenCalled();
   });
+
+  test.each(['default', 'granted'] as const)(
+    '%s のときはブロック中の説明を出さない',
+    async (permission) => {
+      stubBrowser(permission);
+      const input = await mountToggle();
+      expect(input!.disabled).toBe(false);
+      expect(container!.textContent).not.toContain(m.settings_analysis_notify_blocked());
+    },
+  );
 
   test('オフにすると設定を false にする。許可は求めない', async () => {
     stubBrowser('granted');
@@ -129,7 +140,7 @@ describe('通知のトグル', () => {
   });
 
   test('ブラウザ向けの文言を使う', async () => {
-    stubBrowser('denied');
+    stubBrowser('default', 'denied');
     const input = await mountToggle();
     toggle(input!, true);
     await vi.waitFor(() =>
@@ -145,5 +156,56 @@ describe('通知のトグル', () => {
     const input = await mountToggle();
     expect(input!.disabled).toBe(true);
     expect(container!.textContent).toContain(m.settings_analysis_notify_unsupported());
+  });
+});
+
+describe('トグルを有効にする条件（web）', () => {
+  test.each([
+    [
+      'serviceWorker が無い',
+      () => {
+        Reflect.deleteProperty(navigator, 'serviceWorker');
+      },
+    ],
+    [
+      'Notification が無い',
+      () => {
+        vi.stubGlobal('Notification', undefined);
+      },
+    ],
+    [
+      'ネイティブの橋渡しが居る',
+      () => {
+        vi.stubGlobal('window', { ...window, __aoikoNative: {} });
+      },
+    ],
+  ])('%s ときは許可済みでも無効にし、使えない理由を出す', async (_name, breakIt) => {
+    stubBrowser('granted');
+    await setSetting('analysisNotifyEnabled', true);
+    breakIt();
+    const input = await mountToggle();
+    expect(input!.disabled).toBe(true);
+    expect(input!.checked).toBe(false);
+    expect(container!.textContent).toContain(m.settings_analysis_notify_unsupported());
+    expect(container!.textContent).not.toContain(m.settings_analysis_notify_insecure());
+  });
+
+  test.each([
+    ['isSecureContext が false', false],
+    ['isSecureContext が無い', undefined],
+  ])('%s ときは無効にし、https で開く必要があると示す', async (_name, value) => {
+    stubBrowser('granted');
+    vi.stubGlobal('isSecureContext', value);
+    const input = await mountToggle();
+    expect(input!.disabled).toBe(true);
+    expect(container!.textContent).toContain(m.settings_analysis_notify_insecure());
+    expect(container!.textContent).not.toContain(m.settings_analysis_notify_unsupported());
+  });
+
+  test('表示しただけでは許可を求めない', async () => {
+    stubBrowser('default');
+    const input = await mountToggle();
+    expect(input!.disabled).toBe(false);
+    expect(requestPermission).not.toHaveBeenCalled();
   });
 });

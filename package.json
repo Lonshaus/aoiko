@@ -27,6 +27,7 @@
     "licenses:check": "node scripts/gen-third-party-licenses.js --check",
     "tauri": "tauri",
     "init:bundle": "esbuild src-init/index.js --bundle --format=iife --target=safari16 --outfile=src-tauri/init.js",
+    "native-runner:bundle": "node scripts/build-native-runner.mjs",
     "tauri:dev": "npm run init:bundle && node scripts/with-swift-native.mjs tauri dev",
     "tauri:build": "npm run init:bundle && node scripts/build-frontend.mjs && node scripts/with-swift-native.mjs tauri build",
     "ios:prepare": "node scripts/prepare-ios.mjs",

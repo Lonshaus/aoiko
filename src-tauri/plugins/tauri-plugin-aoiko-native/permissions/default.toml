@@ -3,7 +3,7 @@
 [default]
 description = """
 バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と
-アプリ内ブラウザ表示、解析の完了通知に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、
+アプリ内ブラウザ表示、解析の完了通知と iOS での解析の実行に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、
 受け取ったパスはその配下に収まることを検査してから使う。
 """
 permissions = [
@@ -29,4 +29,7 @@ permissions = [
   "allow-analysis-notify",
   "allow-analysis-activity-begin",
   "allow-analysis-activity-end",
+  "allow-analysis-runner-start",
+  "allow-analysis-runner-take",
+  "allow-analysis-runner-cancel",
 ]

@@ -1,4 +1,5 @@
 import type { BackupPayload } from '../backup';
+import { SKIP_TABLES } from '../backup/skip-lists';
 import { m } from '../paraglide/messages';
 // 復元前のスキーマ検証。db.delete() で全消去する前に呼び、不正なバックアップで
 // 既存データを失うのを防ぐ。会計の根幹（仕訳・明細）は型まで検証し、
@@ -39,10 +40,6 @@ export const PRIMARY_KEY: Record<string, string> = {
   arApEntries: 'id',
   invoices: 'id',
 };
-// 意図的に復元しないテーブル。PRIMARY_KEY に載せないことで「無視される」を利用している。
-// 載せてしまうと、手で書き換えたバックアップから別端末のスタンプを持ち込めてしまう。
-// backup/payload.ts の SKIP_TABLES（書き出し側）と対。
-export const NEVER_RESTORED = new Set(['stamps']);
 
 function validateJournalEntry(r: unknown, i: number): void {
   if (!isObject(r)) {
@@ -131,7 +128,12 @@ export function validateBackupPayload(payload: BackupPayload): void {
     if (!Array.isArray(rows)) {
       throw new BackupValidationError(m.error_backup_table_not_array({ name }));
     }
-    const keyField = PRIMARY_KEY[name];
+    // 復元では書かないテーブル。中身が何であれ検証で止めない。
+    if (SKIP_TABLES.has(name)) {
+      continue;
+    }
+    // 継承した名前（constructor・__proto__ など）を既知テーブルと取り違えない。
+    const keyField = Object.hasOwn(PRIMARY_KEY, name) ? PRIMARY_KEY[name] : undefined;
     if (!keyField) {
       continue;
     }

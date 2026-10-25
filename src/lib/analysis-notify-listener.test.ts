@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi, type MockInstance } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { router } from '../router.svelte';
 import { ANALYSIS_ROUTE, type AnalysisKind } from '../stores/analysis.svelte';
 import {
@@ -151,5 +153,65 @@ describe('installAnalysisNotifyListener（ネイティブ向けの設定）', ()
     expect(() => installAnalysisNotifyListener()).not.toThrow();
     installBridge(undefined);
     expect(() => installAnalysisNotifyListener()).not.toThrow();
+  });
+});
+
+describe('installAnalysisNotifyListener（iOS 形の橋渡し）', () => {
+  test('正しい種別だけその画面へ移り、それ以外は何もしない', async () => {
+    let deliver: (payload: unknown) => void = () => {};
+    const onAnalysisOpen = vi.fn(async (next: (payload: unknown) => void) => {
+      deliver = next;
+      return () => {};
+    });
+    vi.stubGlobal('window', {
+      ...window,
+      __aoikoNative: {
+        runAnalysis: vi.fn(),
+        takeAnalysis: vi.fn(),
+        cancelAnalysis: vi.fn(),
+        notificationStatus: vi.fn(async () => 'granted'),
+        requestNotification: vi.fn(async () => 'granted'),
+        onAnalysisOpen,
+      },
+    });
+    installAnalysisNotifyListener();
+    expect(onAnalysisOpen).toHaveBeenCalledTimes(1);
+    for (const kind of Object.keys(ANALYSIS_ROUTE) as AnalysisKind[]) {
+      goto.mockClear();
+      deliver({ kind });
+      expect(goto).toHaveBeenCalledExactlyOnceWith(ANALYSIS_ROUTE[kind]);
+    }
+    goto.mockClear();
+    for (const bad of [
+      { kind: 'constructor' },
+      { kind: '__proto__' },
+      { kind: '/settings' },
+      { kind: 1 },
+      'receipt',
+      null,
+      [],
+    ]) {
+      deliver(bad);
+    }
+    expect(goto).not.toHaveBeenCalled();
+  });
+});
+// 呼び出し側は条件を持たない。web とネイティブの出し分けはリスナーの中だけにある。
+describe('main.ts での呼び出し', () => {
+  test('installAnalysisNotifyListener() を最上位で無条件に呼ぶ', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/main.ts'), 'utf8');
+    const lines = source.split('\n');
+    const at = lines.findIndex((line) => line.includes('installAnalysisNotifyListener()'));
+    expect(lines[at]).toBe('installAnalysisNotifyListener();');
+    expect(source.split('installAnalysisNotifyListener()').length).toBe(2);
+    const before = lines
+      .slice(0, at)
+      .filter((line) => !line.trimStart().startsWith('//'))
+      .join('\n');
+    const depth = [...before].reduce(
+      (count, char) => count + (char === '{' ? 1 : char === '}' ? -1 : 0),
+      0,
+    );
+    expect(depth).toBe(0);
   });
 });

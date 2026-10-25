@@ -13,7 +13,7 @@ test('実装のある環境でだけ入口が用意される', () => {
       'function',
     );
   }
-  for (const platform of ['ios', 'other', '', undefined]) {
+  for (const platform of ['other', '', undefined]) {
     assert.equal(
       createAnalysisNotify(
         async () => {},
@@ -89,4 +89,57 @@ test('開く合図は固定のイベント名を購読し、payload だけを渡
   subscribed[0].handler({ event: 'aoiko-analysis-open', id: 1, payload: { kind: 'order' } });
   subscribed[0].handler({ payload: '/settings' });
   assert.deepEqual(received, [{ kind: 'order' }, '/settings']);
+});
+
+test('iOS には許可・要求・開く合図だけがあり、通知を出す口と作業中宣言は無い', async () => {
+  const calls = [];
+  const subscribed = [];
+  const api = createAnalysisNotify(
+    async (cmd, args) => {
+      calls.push({ cmd, args });
+      return 'granted';
+    },
+    async (event, handler) => {
+      subscribed.push({ event, handler });
+      return () => {};
+    },
+    'ios',
+  );
+  assert.deepEqual(Object.keys(api).sort(), [
+    'notificationStatus',
+    'onAnalysisOpen',
+    'requestNotification',
+  ]);
+  for (const missing of ['notifyAnalysis', 'analysisActivityBegin', 'analysisActivityEnd']) {
+    assert.equal(api[missing], undefined, missing);
+  }
+  assert.equal(await api.notificationStatus(), 'granted');
+  assert.equal(await api.requestNotification(), 'granted');
+  const received = [];
+  await api.onAnalysisOpen((payload) => received.push(payload));
+  subscribed[0].handler({ payload: { kind: 'classify' } });
+  assert.deepEqual(calls, [
+    { cmd: 'plugin:aoiko-native|notification_status', args: undefined },
+    { cmd: 'plugin:aoiko-native|notification_request', args: undefined },
+  ]);
+  assert.equal(subscribed[0].event, 'aoiko-analysis-open');
+  assert.deepEqual(received, [{ kind: 'classify' }]);
+});
+
+test('macOS と Windows の入口は変わらない', () => {
+  for (const platform of ['macos', 'windows']) {
+    const api = createAnalysisNotify(
+      async () => {},
+      async () => {},
+      platform,
+    );
+    assert.deepEqual(Object.keys(api).sort(), [
+      'analysisActivityBegin',
+      'analysisActivityEnd',
+      'notificationStatus',
+      'notifyAnalysis',
+      'onAnalysisOpen',
+      'requestNotification',
+    ]);
+  }
 });

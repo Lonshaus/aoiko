@@ -16,6 +16,7 @@ import { createIap } from './iap.js';
 import { createNativeOcr } from './native-ocr.js';
 import { createAppleAi } from './apple-ai.js';
 import { createAnalysisNotify } from './analysis-notify.js';
+import { createNativeRunner } from './native-runner.js';
 
 function isExternal(url) {
   if (url.protocol === 'http:' || url.protocol === 'https:') {
@@ -107,6 +108,12 @@ Object.assign(window.__aoikoNative, createAppleAi(invoke, window.__aoikoPlatform
 Object.assign(
   window.__aoikoNative,
   createAnalysisNotify(invoke, listen, window.__aoikoPlatform) ?? {},
+);
+// 解析を web view の外で走らせる口（iOS だけ）。開発時のように runner.js が無いビルドでは作られず、
+// 解析は従来の web view の経路を通る。
+Object.assign(
+  window.__aoikoNative,
+  createNativeRunner(invoke, window.__aoikoPlatform, window.__aoikoRunnerBuild) ?? {},
 );
 // 1. 外部 API への fetch を IPC へ回す。WebView の origin は tauri://localhost で、
 //    ローカルの Ollama の CORS allowlist には載っていないため素の fetch は拒否される。

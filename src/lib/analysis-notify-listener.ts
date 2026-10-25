@@ -1,5 +1,5 @@
 import { router } from '../router.svelte';
-import { ANALYSIS_ROUTE, isAnalysisKind } from '../stores/analysis.svelte';
+import { analysisRouteFor } from '../stores/analysis.svelte';
 import { nativeBridge } from './native-bridge';
 // 通知のクリックはサービスワーカーからこのメッセージで届く。内容は信用せず、
 // 既知の種別のときだけ、表から引いた経路へ移る。
@@ -8,10 +8,13 @@ export function openAnalysisRouteFromMessage(data: unknown): void {
     return;
   }
   const { type, kind } = data as { type?: unknown; kind?: unknown };
-  if (type !== 'aoiko-open-route' || !isAnalysisKind(kind)) {
+  if (type !== 'aoiko-open-route') {
     return;
   }
-  router.goto(ANALYSIS_ROUTE[kind]);
+  const path = analysisRouteFor(kind);
+  if (path !== null) {
+    router.goto(path);
+  }
 }
 // ネイティブの通知のクリックは {kind} の合図で届く。ページ上のスクリプトも同じ名前の
 // イベントを出せるので、これも信用せず、既知の種別のときだけ表から引いた経路へ移る。
@@ -20,10 +23,14 @@ export function openAnalysisRouteFromPayload(data: unknown): void {
     return;
   }
   const { kind } = data as { kind?: unknown };
-  if (!isAnalysisKind(kind)) {
-    return;
+  const path = analysisRouteFor(kind);
+  if (path !== null) {
+    router.goto(path);
   }
-  router.goto(ANALYSIS_ROUTE[kind]);
+}
+// ページ上のスクリプトが送った message（送り主が Service Worker ではないもの）は見ない。
+function isFromServiceWorker(event: MessageEvent): boolean {
+  return typeof ServiceWorker !== 'undefined' && event.source instanceof ServiceWorker;
 }
 
 export function installAnalysisNotifyListener(): void {
@@ -38,6 +45,8 @@ export function installAnalysisNotifyListener(): void {
     return;
   }
   navigator.serviceWorker.addEventListener('message', (event) => {
-    openAnalysisRouteFromMessage(event.data);
+    if (isFromServiceWorker(event)) {
+      openAnalysisRouteFromMessage(event.data);
+    }
   });
 }

@@ -1221,5 +1221,12 @@
   "settings_analysis_notify_denied": "The browser did not allow notifications, so this setting could not be turned on. Allow notifications for this site in your browser settings, then try again.",
   "settings_analysis_notify_unsupported": "Notifications are not available in this browser. On iPhone and iPad they work only in an app added to the Home Screen.",
   "settings_analysis_notify_hint_native": "A system notification is sent only if an analysis finishes while you are away from the app. It shows only the screen name and the result, never amounts or vendors.",
-  "settings_analysis_notify_denied_native": "Notifications were not allowed, so this setting could not be turned on. Allow notifications for aoiko in your operating system's notification settings, then try again."
+  "settings_analysis_notify_denied_native": "Notifications were not allowed, so this setting could not be turned on. Allow notifications for aoiko in your operating system's notification settings, then try again.",
+  "settings_analysis_notify_insecure": "Notifications are available only when this page is opened over https.",
+  "settings_analysis_notify_blocked": "Notifications for this site are blocked in your browser. To use them, allow notifications in your browser's site settings, then reopen this screen.",
+  "runner_expired": "The analysis stopped because the time the system allows the app to keep working while you are away ran out. Keep the app open and try again.",
+  "runner_invalid_result": "The analysis result was not in the expected format, so it could not be used. Please try again.",
+  "runner_local_engine_failed": "The on-device text recognition could not run, so the analysis did not finish. Please try again.",
+  "runner_start_failed": "The analysis could not be started. Check your settings and try again.",
+  "runner_text_recognition_failed": "The text could not be recognized. Please try again."
 }

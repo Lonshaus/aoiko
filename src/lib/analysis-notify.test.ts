@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { setLocale } from '../paraglide/runtime';
 import {
   analysisNotifyPermission,
+  closeAnalysisNotifications,
   notifyAnalysisDone,
   requestAnalysisNotifyPermission,
 } from './analysis-notify';
@@ -45,6 +46,14 @@ describe('ネイティブ向けの設定では通知 API に触れない', () =>
     await expect(notifyAnalysisDone('receipt', 'done')).resolves.toBeUndefined();
     expect(serviceWorkerGetter).not.toHaveBeenCalled();
     expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  test('通知を閉じる処理も serviceWorker に触れない（橋渡しがあっても）', async () => {
+    stubBrowserApis();
+    await expect(closeAnalysisNotifications('receipt')).resolves.toBeUndefined();
+    installBridge({ notificationStatus: async () => 'granted', notifyAnalysis: async () => {} });
+    await expect(closeAnalysisNotifications('order')).resolves.toBeUndefined();
+    expect(serviceWorkerGetter).not.toHaveBeenCalled();
   });
 
   test('許可の要求も unsupported を返すだけで requestPermission を呼ばない', async () => {
@@ -142,5 +151,39 @@ describe('ネイティブ向けの設定では橋渡しの入口を使う', () =
   test('通知の入口が無ければ何もしない', async () => {
     installBridge({ notificationStatus: async () => 'granted' });
     await expect(notifyAnalysisDone('order', 'done')).resolves.toBeUndefined();
+  });
+});
+
+describe('iOS 形の橋渡し（通知はネイティブ側が出す）', () => {
+  test('notifyAnalysisDone は何も出さず、解析の入口にも触れない', async () => {
+    stubBrowserApis();
+    const bridge = {
+      runAnalysis: vi.fn(async () => {}),
+      takeAnalysis: vi.fn(async () => ({})),
+      cancelAnalysis: vi.fn(async () => {}),
+      notificationStatus: vi.fn(async () => 'granted'),
+      requestNotification: vi.fn(async () => 'granted'),
+      onAnalysisOpen: vi.fn(async () => () => {}),
+    };
+    installBridge(bridge);
+    await expect(notifyAnalysisDone('receipt', 'done')).resolves.toBeUndefined();
+    await expect(notifyAnalysisDone('classify', 'failed')).resolves.toBeUndefined();
+    expect(bridge.runAnalysis).not.toHaveBeenCalled();
+    expect(bridge.takeAnalysis).not.toHaveBeenCalled();
+    expect(bridge.cancelAnalysis).not.toHaveBeenCalled();
+    expect(bridge.requestNotification).not.toHaveBeenCalled();
+    expect(bridge.onAnalysisOpen).not.toHaveBeenCalled();
+    expect(serviceWorkerGetter).not.toHaveBeenCalled();
+    expect(requestPermission).not.toHaveBeenCalled();
+  });
+
+  test('許可の状態と要求は iOS でも橋渡しを使う', async () => {
+    installBridge({
+      runAnalysis: vi.fn(),
+      notificationStatus: vi.fn(async () => 'default'),
+      requestNotification: vi.fn(async () => 'granted'),
+    });
+    await expect(analysisNotifyPermission()).resolves.toBe('default');
+    await expect(requestAnalysisNotifyPermission()).resolves.toBe('granted');
   });
 });

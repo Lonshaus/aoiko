@@ -22,7 +22,12 @@ import {
 import { DeadlineExceededError, withDeadline } from '../lib/deadline';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import { describeStorageError } from '../lib/storage-error';
-import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
+import {
+  daysSince,
+  needsOffsiteBackupWarning,
+  parseBackupRetentionCount,
+  parseBlobRetentionDays,
+} from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
 
@@ -270,7 +275,7 @@ class BackupManager {
   // 例外を外へ出さない。ここで例外を投げると成功した保存が失敗として表示されてしまう。
   private async pruneOldBackups(): Promise<void> {
     try {
-      const keepCount = (await getSetting('backupRetentionCount')) ?? 0;
+      const keepCount = parseBackupRetentionCount(await getSetting('backupRetentionCount'));
       if (keepCount === 0 || !this.adapter) {
         return;
       }
@@ -291,13 +296,14 @@ class BackupManager {
   // バックアップが 1 件も走らなくなる。
   private async sweepBlobs(): Promise<void> {
     try {
-      const retentionDays = (await getSetting('blobRetentionDays')) ?? 0;
+      const retentionDays = parseBlobRetentionDays(await getSetting('blobRetentionDays'));
       if (retentionDays === 0 || !this.adapter || this.sweepInFlight) {
         return;
       }
       const now = Date.now();
       const last = (await getSetting('lastBlobSweepAt')) ?? 0;
-      // 端末の時計が巻き戻された場合は走らせる側に倒す（掃除しないより溜まる方が困る）。
+      // 端末の時計が戻って今の時刻が前回の掃除の時刻以前になったときは、間隔を待たずに掃除する。
+      // 待つと時計が追いつくまで掃除されず、不要なファイルが溜まり続けるため。
       if (now > last && now - last < SWEEP_INTERVAL_MS) {
         return;
       }

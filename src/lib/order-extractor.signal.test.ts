@@ -5,6 +5,10 @@ const { adapterRef } = vi.hoisted(() => ({ adapterRef: { current: null as LlmAda
 
 vi.mock('./llm-adapter', () => ({
   createLlmAdapter: async () => adapterRef.current,
+  createLlmAdapterWithConfig: async () => ({
+    adapter: adapterRef.current,
+    config: { engine: 'apple-ai' },
+  }),
 }));
 
 const { createOrderExtractor } = await import('./order-extractor');

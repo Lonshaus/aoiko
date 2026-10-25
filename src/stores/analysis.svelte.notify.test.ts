@@ -4,6 +4,7 @@ import { setSetting } from '../lib/settings';
 
 vi.mock('../lib/analysis-notify', () => ({
   analysisNotifyPermission: vi.fn(),
+  closeAnalysisNotifications: vi.fn(async () => {}),
   notifyAnalysisDone: vi.fn(),
 }));
 

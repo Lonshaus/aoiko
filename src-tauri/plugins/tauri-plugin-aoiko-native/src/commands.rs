@@ -5,6 +5,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use crate::backup::{self, OpenFiles};
 use crate::notify::{AnalysisKind, JobId, NotifyStatus, Outcome, Tokens, UiLocale};
 use crate::path::SafeTarget;
+use crate::runner::{StartError, TakeResult};
 use crate::store::{self, StoredFolder};
 use crate::{Error, PickedFolder, RecognizedText, Resolved, ResolvedFolder, Result};
 
@@ -189,13 +190,16 @@ pub(crate) fn apple_ai_availability<R: Runtime>(app: AppHandle<R>) -> u8 {
 }
 // 実測（このMac）：8064x6048・最大画質 JPEG はレシート相当の内容で 2.0MB、
 // 同じ画素数の純ノイズという病的な内容でも 41.3MB。この画素数・画質での実用上限。
-const APPLE_AI_IMAGE_CEILING_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const APPLE_AI_IMAGE_CEILING_BYTES: usize = 64 * 1024 * 1024;
 // 分類・注文取込に渡す JSON テキスト。通常の使い方でここまで大きくなることは無い。
-const APPLE_AI_DATA_CEILING_BYTES: usize = 8 * 1024 * 1024;
+pub(crate) const APPLE_AI_DATA_CEILING_BYTES: usize = 8 * 1024 * 1024;
 // 空はデコードできても中身が無く、Swift 側は長さ 0 の非 null ポインタ（何も指していない
 // ダングリングポインタ）を渡されることになる。上限は、この経路が画像を downscale せずに
 // 素通しする（する経路は receipt-text-extract.ts 側だけ）ことへの歯止め。
-fn check_apple_ai_payload_len(len: usize, ceiling: usize) -> std::result::Result<(), u8> {
+pub(crate) fn check_apple_ai_payload_len(
+    len: usize,
+    ceiling: usize,
+) -> std::result::Result<(), u8> {
     if len == 0 {
         return Err(2);
     }
@@ -288,7 +292,11 @@ fn notification_status_native() -> NotifyStatus {
     {
         crate::desktop::analysis_notify::status()
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::analysis_notify::status()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
     {
         NotifyStatus::Unsupported
     }
@@ -307,7 +315,11 @@ fn notification_request_native() -> NotifyStatus {
     {
         crate::desktop::analysis_notify::request()
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    #[cfg(target_os = "ios")]
+    {
+        crate::ios::analysis_notify::request()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "ios")))]
     {
         NotifyStatus::Unsupported
     }
@@ -360,6 +372,60 @@ pub(crate) fn analysis_activity_begin<R: Runtime>(app: AppHandle<R>, job: JobId)
 #[tauri::command(async)]
 pub(crate) fn analysis_activity_end<R: Runtime>(app: AppHandle<R>, job: JobId) {
     app.state::<Tokens>().end(&job, std::time::Instant::now());
+}
+// iOS の解析の実行。仕様の検査・宛先の決定・一度に 1 件の管理は runner.rs が持つ。
+// iOS 以外には実行する場所が無く、開始は start-failed で断り、take は知らないジョブとして cancelled を返す。
+#[tauri::command(async)]
+pub(crate) async fn analysis_runner_start<R: Runtime>(
+    app: AppHandle<R>,
+    spec: serde_json::Value,
+) -> std::result::Result<(), StartError> {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        // 画像の base64 を含む検査は重いので、tokio のワーカーで直に走らせない。
+        tauri::async_runtime::spawn_blocking(move || match crate::runner::ios::global() {
+            Some(runner) => runner.start(spec),
+            None => Err(StartError::StartFailed),
+        })
+        .await
+        .unwrap_or(Err(StartError::StartFailed))
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = spec;
+        Err(StartError::StartFailed)
+    }
+}
+// ジョブが終わるまで待つ。待つのはブロッキング用のスレッドで、tokio のワーカーは塞がない。
+#[tauri::command(async)]
+pub(crate) async fn analysis_runner_take<R: Runtime>(app: AppHandle<R>, job: JobId) -> TakeResult {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    {
+        tauri::async_runtime::spawn_blocking(move || match crate::runner::ios::global() {
+            Some(runner) => runner.take(&job),
+            None => TakeResult::Cancelled { partial: None },
+        })
+        .await
+        .unwrap_or(TakeResult::Cancelled { partial: None })
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = job;
+        TakeResult::Cancelled { partial: None }
+    }
+}
+
+#[tauri::command(async)]
+pub(crate) fn analysis_runner_cancel<R: Runtime>(app: AppHandle<R>, job: JobId) {
+    let _ = &app;
+    #[cfg(target_os = "ios")]
+    if let Some(runner) = crate::runner::ios::global() {
+        runner.cancel(&job);
+    }
+    #[cfg(not(target_os = "ios"))]
+    let _ = job;
 }
 
 #[tauri::command(async)]
@@ -660,6 +726,12 @@ mod tests {
             source.contains("AnalysisNotifyTests.swift"),
             "test-swift.mjs が AnalysisNotifyTests.swift を参照していない"
         );
+        for suite in ["AnalysisRunnerTests.swift", "BackgroundTimeTests.swift"] {
+            assert!(
+                source.contains(suite),
+                "test-swift.mjs が {suite} を参照していない"
+            );
+        }
     }
     // 分類の @Generable 型が配列プロパティを持たない単一オブジェクトである退行を検知する
     // （配列出力はコンテキストウィンドウを埋め切る暴走の原因だった＝実測済み）。

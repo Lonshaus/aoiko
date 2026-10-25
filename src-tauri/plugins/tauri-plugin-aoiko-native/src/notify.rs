@@ -115,6 +115,29 @@ pub(crate) fn text(locale: UiLocale, kind: AnalysisKind, outcome: Outcome) -> Te
         body,
     }
 }
+// iOS の背景処理の表示。text と同じく画面の名前だけを含む固定の文面。
+pub(crate) fn background_text(
+    locale: UiLocale,
+    kind: AnalysisKind,
+) -> crate::runner::BackgroundText {
+    use AnalysisKind::{Classify, Order, Receipt};
+    use UiLocale::{En, Ja, ZhTw};
+    let subtitle = match (locale, kind) {
+        (Ja, Receipt) => c"領収書の解析中",
+        (Ja, Order) => c"注文取込の解析中",
+        (Ja, Classify) => c"インポートの解析中",
+        (En, Receipt) => c"Receipts: analyzing",
+        (En, Order) => c"Orders: analyzing",
+        (En, Classify) => c"Import: analyzing",
+        (ZhTw, Receipt) => c"「收據」解析中",
+        (ZhTw, Order) => c"「訂單匯入」解析中",
+        (ZhTw, Classify) => c"「匯入」解析中",
+    };
+    crate::runner::BackgroundText {
+        title: c"aoiko",
+        subtitle,
+    }
+}
 /// 解析 1 件を指す識別子。128 文字以下の英数字とハイフンだけ。
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JobId(String);
@@ -384,7 +407,62 @@ pub(crate) mod toast {
 }
 
 #[cfg(test)]
+pub(crate) mod tests_support {
+    // リリースは panic = "abort" で、catch_unwind は効かない。OS や C から呼ばれる経路は、
+    // ソース上に panic し得る呼び出しが無いことを固定する。
+    pub(crate) fn assert_panic_free(name: &str, body: &str) {
+        let lines: Vec<&str> = body
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with("//"))
+            .collect();
+        assert!(!lines.is_empty(), "{name}");
+        for line in &lines {
+            for banned in [
+                "unwrap(",
+                "expect(",
+                "panic!",
+                "unreachable!",
+                "todo!",
+                "unimplemented!",
+                "assert",
+                "[",
+                " + ",
+                " - ",
+                " * ",
+                " / ",
+                " % ",
+                "+=",
+                "-=",
+                "*=",
+                "/=",
+                "<<",
+                ">>",
+                "unchecked",
+            ] {
+                assert!(!line.contains(banned), "{name}: {banned} in {line}");
+            }
+            if line.contains(".lock()") || line.contains(".read()") || line.contains(".write()") {
+                assert!(
+                    line.contains("let Ok(")
+                        || line.contains(".ok()")
+                        || line.contains("unwrap_or_else(PoisonError::into_inner)"),
+                    "{name}: lock poisoning not handled in {line}"
+                );
+            }
+            if line.contains("CString::new(") || line.contains("String::from_utf") {
+                assert!(
+                    line.contains("let Ok("),
+                    "{name}: conversion not handled in {line}"
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
 mod tests {
+    use super::tests_support::assert_panic_free;
     use super::*;
     use std::cell::RefCell;
     use std::collections::HashSet;
@@ -1068,11 +1146,7 @@ mod tests {
     fn toast_activation_runs_entirely_inside_catch_unwind() {
         let source = toast_source();
         assert_eq!(source.matches(".Activated(").count(), 1);
-        let handler = source
-            .split("TypedEventHandler::<ToastNotification, IInspectable>::new(")
-            .nth(1)
-            .and_then(|rest| rest.split("Ok(())").next())
-            .expect("TypedEventHandler::new が見つからない");
+        let handler = toast_activation_handler();
         let lines: Vec<&str> = handler
             .lines()
             .map(str::trim)
@@ -1090,6 +1164,67 @@ mod tests {
         assert!(handler.contains("notify::dispatch_open(kind.index());"));
         assert!(!handler.contains("move"));
         assert!(!handler.contains("["));
+    }
+    fn top_fn_body<'a>(source: &'a str, head: &str) -> &'a str {
+        source
+            .split(head)
+            .nth(1)
+            .and_then(|rest| rest.split("\n}\n").next())
+            .expect(head)
+    }
+
+    fn toast_activation_handler() -> &'static str {
+        toast_source()
+            .split("TypedEventHandler::<ToastNotification, IInspectable>::new(")
+            .nth(1)
+            .and_then(|rest| rest.split("Ok(())").next())
+            .expect("TypedEventHandler::new が見つからない")
+    }
+
+    #[test]
+    fn the_open_callback_path_cannot_panic_by_construction() {
+        let source = include_str!("notify.rs");
+        for head in [
+            "pub(crate) fn forward_open(",
+            "pub(crate) fn open_guarded(",
+            "pub(crate) fn dispatch_open(",
+        ] {
+            assert_panic_free(head, top_fn_body(source, head));
+        }
+        for head in [
+            "pub(crate) fn from_index(",
+            "pub(crate) fn index(",
+            "pub(crate) fn parse_launch(",
+            "pub(crate) fn launch_arg(",
+        ] {
+            assert_panic_free(head, fn_body(source, head));
+        }
+        let desktop = include_str!("desktop.rs");
+        assert_eq!(desktop.matches("extern \"C\" fn ").count(), 1);
+        for head in ["extern \"C\" fn on_open(", "pub(super) fn open_window<"] {
+            assert_panic_free(head, fn_body(desktop, head));
+        }
+        assert_eq!(
+            desktop
+                .matches(
+                    "notify::set_open_emitter(Box::new(move |kind| open_window(&emitter, kind)));"
+                )
+                .count(),
+            2
+        );
+        assert_eq!(desktop.matches("notify::set_open_emitter(").count(), 2);
+        assert_panic_free("Activated", toast_activation_handler());
+    }
+
+    #[test]
+    fn the_open_callback_entries_keep_catch_unwind_for_debug_and_tests() {
+        let source = include_str!("notify.rs");
+        assert!(top_fn_body(source, "pub(crate) fn open_guarded(")
+            .contains("let _ = catch_unwind(AssertUnwindSafe(|| forward_open(index, emit)));"));
+        assert!(top_fn_body(source, "pub(crate) fn dispatch_open(")
+            .contains("open_guarded(index, emit.as_ref());"));
+        let on_open = fn_body(include_str!("desktop.rs"), "extern \"C\" fn on_open(");
+        assert!(on_open.contains("notify::dispatch_open(kind);"));
     }
 
     #[test]
@@ -1143,11 +1278,67 @@ mod tests {
         assert!(body.contains("shown.get_mut(slot)"));
         assert!(!body.contains("shown["));
     }
+    // iOS は通知の許可・投稿・押下だけを使い、「作業中」宣言は使わない（背景の時間は runner が持つ）。
+    fn ios_notify_source() -> &'static str {
+        include_str!("ios.rs")
+            .split("pub(crate) mod analysis_notify {")
+            .nth(1)
+            .and_then(|rest| rest.split("\n}\n").next())
+            .expect("ios の analysis_notify が見つからない")
+    }
 
     #[test]
-    fn ios_does_not_reference_the_desktop_only_symbols() {
+    fn ios_uses_the_notify_entries_but_never_the_activity_entries() {
         let source = include_str!("ios.rs");
-        assert!(!source.contains("aoiko_notify_"));
         assert!(!source.contains("aoiko_activity_"));
+        let module = ios_notify_source();
+        for entry in [
+            "fn aoiko_notify_status() -> i32;",
+            "fn aoiko_notify_request() -> i32;",
+            "fn aoiko_notify_post(kind: i32, title: *const c_char, body: *const c_char) -> i32;",
+            "fn aoiko_notify_set_open_handler(handler: extern \"C\" fn(i32));",
+        ] {
+            assert!(module.contains(entry), "{entry}");
+        }
+        assert_eq!(source.matches("aoiko_notify_").count(), 8);
+        assert!(include_str!("lib.rs").contains("ios::analysis_notify::install(app.app_handle());"));
+    }
+
+    #[test]
+    fn the_ios_open_callback_path_cannot_panic_by_construction() {
+        let module = ios_notify_source();
+        assert_eq!(module.matches("extern \"C\" fn ").count(), 1);
+        let on_open = fn_body(module, "extern \"C\" fn on_open(");
+        assert_panic_free("ios on_open", on_open);
+        assert!(on_open.contains("notify::dispatch_open(kind);"));
+        assert_panic_free("ios open_main", fn_body(module, "fn open_main<"));
+        assert_eq!(
+            module
+                .matches(
+                    "notify::set_open_emitter(Box::new(move |kind| open_main(&emitter, kind)));"
+                )
+                .count(),
+            1
+        );
+        assert_eq!(
+            include_str!("ios.rs")
+                .matches("notify::set_open_emitter(")
+                .count(),
+            1
+        );
+    }
+    // 状態はメインスレッドで読み、待つのは呼び出し元（Rust のワーカー）だけ。メインスレッドで
+    // メインスレッドを待つと止まる。
+    #[test]
+    fn ios_app_state_is_read_on_main_and_waited_for_off_main() {
+        let source = include_str!("../ios/Sources/AoikoNativePlugin/AppState.swift");
+        assert!(source.contains("DispatchQueue.main.async"));
+        assert!(!source.contains("DispatchQueue.main.sync"));
+        assert!(!source.contains("@MainActor"));
+        assert!(source.contains("private let appStateWaitSeconds: TimeInterval = 2"));
+        assert_eq!(source.matches("done.wait(").count(), 1);
+        assert_eq!(source.matches("applicationState").count(), 1);
+        let notify = native_source();
+        assert!(!notify.contains("applicationState"));
     }
 }

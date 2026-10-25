@@ -28,27 +28,36 @@ vi.mock('../parsers', () => ({
   findParser: (name: string) => (name === parserA.name ? parserA : null),
 }));
 
-vi.mock('../lib/llm-adapter', () => ({
-  createLlmAdapter: async () => ({
-    external: false,
-    destinationHost: '',
-    generateJson: (_prompt: string, _image?: unknown, options?: { signal?: AbortSignal }) => {
-      gate.calls += 1;
-      if (options?.signal) {
-        gate.signals.push(options.signal);
-      }
-      return new Promise((resolve) => {
-        gate.resolve = () =>
-          resolve({
-            classifications: [
-              { ref: '0', accountCode: '5200', confidence: 'high', reason: '' },
-              { ref: '1', accountCode: '5200', confidence: 'high', reason: '' },
-            ],
-          });
-      });
-    },
-  }),
-}));
+vi.mock('../lib/llm-adapter', () => {
+  const mocked = {
+    createLlmAdapter: async () => ({
+      external: false,
+      destinationHost: '',
+      generateJson: (_prompt: string, _image?: unknown, options?: { signal?: AbortSignal }) => {
+        gate.calls += 1;
+        if (options?.signal) {
+          gate.signals.push(options.signal);
+        }
+        return new Promise((resolve) => {
+          gate.resolve = () =>
+            resolve({
+              classifications: [
+                { ref: '0', accountCode: '5200', confidence: 'high', reason: '' },
+                { ref: '1', accountCode: '5200', confidence: 'high', reason: '' },
+              ],
+            });
+        });
+      },
+    }),
+  };
+  return {
+    ...mocked,
+    createLlmAdapterWithConfig: async () => ({
+      adapter: await mocked.createLlmAdapter(),
+      config: { engine: 'apple-ai' },
+    }),
+  };
+});
 
 const { default: Import } = await import('./Import.svelte');
 const { importDraft } = await import('../stores/import-draft.svelte');

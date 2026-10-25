@@ -7,6 +7,9 @@ import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtractor } from '../receipt-extractor';
 import { nativeBridge } from '../native-bridge';
 import { m } from '../../paraglide/messages';
+// 文字が見つからなかったときの文言。橋渡しの recognizeText が返す（ネイティブ側の）文言と同じで、
+// web view の外の解析の実行環境（src/native-runner）もこの文言を使う。
+export const NATIVE_NO_TEXT_MESSAGE = 'テキストが見つかりません';
 
 export function createNativeReceiptExtractor(): ReceiptExtractor {
   return {
