@@ -10,6 +10,8 @@
     daysSince,
     isFolderBackupActive,
     needsOffsiteBackupWarning,
+    parseBackupRetentionCount,
+    parseBlobRetentionDays,
     shouldShowHomeScreenHint,
   } from '../backup/schedule';
   import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
@@ -28,8 +30,8 @@
   onMount(async () => {
     includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
     includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-    retentionCount = (await getSetting('backupRetentionCount')) ?? 0;
-    blobRetentionDays = (await getSetting('blobRetentionDays')) ?? 0;
+    retentionCount = parseBackupRetentionCount(await getSetting('backupRetentionCount'));
+    blobRetentionDays = parseBlobRetentionDays(await getSetting('blobRetentionDays'));
   });
 
   async function onToggleIncludeApiKeys(e: Event) {

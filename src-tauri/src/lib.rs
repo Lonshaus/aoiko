@@ -306,6 +306,81 @@ async fn fetch_frame(frame: &[u8]) -> Result<Vec<u8>, String> {
     frame.extend_from_slice(&body);
     Ok(frame)
 }
+// iOS の解析（runner）の通信。aoiko_fetch と同じ枠・同じ検査を通すが、宛先はジョブの origin に限り、
+// リダイレクトは追わない（3xx はそのまま応答として runner へ返す）。aoiko_fetch 側の Client とは分ける。
+#[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
+fn runner_client() -> Option<&'static reqwest::Client> {
+    static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .ok()
+        })
+        .as_ref()
+}
+// プラグイン側の開始時の検査から呼ばれる。可否の基準は aoiko_fetch と同じ is_allowed_url だけ。
+#[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
+fn runner_url_allowed(raw: &str) -> bool {
+    reqwest::Url::parse(raw).is_ok_and(|url| is_allowed_url(&url))
+}
+// 失敗の理由は返さない（runner 側は固定の文言で「接続できない」とだけ伝える）。
+#[cfg_attr(not(any(target_os = "ios", test)), allow(dead_code))]
+async fn runner_fetch_frame(frame: &[u8], origin: &str) -> Option<Vec<u8>> {
+    let (meta, body) = split_frame(frame).ok()?;
+    let meta: FetchRequestMeta = serde_json::from_slice(meta).ok()?;
+    let url = reqwest::Url::parse(&meta.url).ok()?;
+    let allowed = reqwest::Url::parse(origin).ok()?;
+    if url.origin() != allowed.origin() || !is_allowed_url(&url) {
+        return None;
+    }
+    let method = match meta.method.as_str() {
+        "GET" => reqwest::Method::GET,
+        "POST" => reqwest::Method::POST,
+        _ => return None,
+    };
+    let mut headers = HeaderMap::new();
+    for (name, value) in &meta.headers {
+        let name = HeaderName::from_bytes(name.as_bytes()).ok()?;
+        if is_forbidden_header(&name) {
+            continue;
+        }
+        headers.append(name, HeaderValue::from_str(value).ok()?);
+    }
+    let mut builder = runner_client()?.request(method, url).headers(headers);
+    if !body.is_empty() {
+        builder = builder.body(body.to_vec());
+    }
+    let mut response = builder.send().await.ok()?;
+    let status = response.status();
+    let meta = FetchResponseMeta {
+        status: status.as_u16(),
+        status_text: status.canonical_reason().unwrap_or_default().to_string(),
+        headers: response
+            .headers()
+            .iter()
+            .filter_map(|(name, value)| {
+                Some((name.as_str().to_string(), value.to_str().ok()?.to_string()))
+            })
+            .collect(),
+    };
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if body.len().saturating_add(chunk.len())
+            > tauri_plugin_aoiko_native::MAX_RESPONSE_BODY_BYTES
+        {
+            return None;
+        }
+        body.extend_from_slice(&chunk);
+    }
+    let meta = serde_json::to_vec(&meta).ok()?;
+    let mut frame = Vec::with_capacity(4 + meta.len() + body.len());
+    frame.extend_from_slice(&u32::try_from(meta.len()).ok()?.to_le_bytes());
+    frame.extend_from_slice(&meta);
+    frame.extend_from_slice(&body);
+    Some(frame)
+}
 /// 今メニューが出している言語。web 側が渡してきた値を覚えておき、同じ言語で
 /// 作り直さないようにする（ページを読み込むたびに渡ってくるため）。
 #[cfg(desktop)]
@@ -494,6 +569,9 @@ fn set_ui_locale(app: tauri::AppHandle, locale: String) {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ウィンドウも web view もまだ作っていないうちに判定する。
+    #[cfg(target_os = "windows")]
+    tauri_plugin_aoiko_native::exit_if_toast_relaunch();
     tauri::Builder::default()
         // plugin-fs は登録しない。登録したままだと capabilities に fs:* を 1 行足すだけで
         // ページ上のスクリプトへファイル入出力が戻る。ファイルへ触るのは plugin-aoiko-native
@@ -513,10 +591,20 @@ pub fn run() {
             set_ui_locale
         ])
         .setup(|app| {
+            #[cfg(target_os = "ios")]
+            {
+                tauri_plugin_aoiko_native::set_runner_url_check(runner_url_allowed);
+                tauri_plugin_aoiko_native::set_runner_fetcher(|frame, origin| async move {
+                    runner_fetch_frame(&frame, &origin).await
+                });
+            }
             let handle = app.handle().clone();
             let builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("aoiko")
-                .initialization_script(format!("window.__aoikoPlatform={PLATFORM:?};{INIT_SCRIPT}"))
+                .initialization_script(format!(
+                    "window.__aoikoPlatform={PLATFORM:?};{}{INIT_SCRIPT}",
+                    tauri_plugin_aoiko_native::runner_init_script(app.handle())
+                ))
                 // マニュアルと UI の外部リンクは、そのままだとアプリのウィンドウごと外部サイトへ
                 // 遷移し、戻る手段が無くなる。OS 標準のブラウザへ渡してナビゲーションは中止する。
                 .on_navigation(move |url| {
@@ -539,6 +627,11 @@ pub fn run() {
             let builder = builder
                 .inner_size(1280.0, 860.0)
                 .min_inner_size(400.0, 560.0);
+            // 既定では、ウィンドウが隠れて数分たつと web view の処理が止まり、解析が途中で終わらなくなる。
+            // この指定は web view の作成時にしか効かない。
+            #[cfg(target_os = "macos")]
+            let builder = builder
+                .background_throttling(tauri::utils::config::BackgroundThrottlingPolicy::Disabled);
             let window = builder.build()?;
             // メニューは desktop 専用。モバイルにはメニューの枠組み自体が無い。
             #[cfg(desktop)]
@@ -826,6 +919,133 @@ mod frame_roundtrip {
         assert_eq!(got.header("cookie"), None);
         assert_eq!(got.header("origin"), None);
         assert_eq!(got.header("content-type"), Some("application/json"));
+    }
+
+    #[test]
+    fn runner_url_check_refuses_what_aoiko_fetch_refuses() {
+        use super::runner_url_allowed;
+        assert!(!runner_url_allowed("http://192.168.1.2/"));
+        assert!(!runner_url_allowed("ftp://example.com/"));
+        assert!(!runner_url_allowed("not a url"));
+        assert!(runner_url_allowed("https://api.example.com/v1"));
+        assert!(runner_url_allowed("http://127.0.0.1:41741"));
+    }
+
+    fn runner_call(meta: &str, body: &[u8], origin: &str) -> Option<Vec<u8>> {
+        tauri::async_runtime::block_on(super::runner_fetch_frame(&frame(meta, body), origin))
+    }
+    // 受けた接続の数だけを数える。1 本も来ないことを確かめる側。
+    fn count_connections() -> (u16, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let count = std::sync::Arc::new(AtomicUsize::new(0));
+        let seen = count.clone();
+        std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                if stream.is_ok() {
+                    seen.fetch_add(1, Ordering::SeqCst);
+                }
+            }
+        });
+        (port, count)
+    }
+    // 1 接続だけ受けて、決めた応答をそのまま返す。
+    fn serve_raw(response: Vec<u8>) -> (u16, Receiver<()>) {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let (tx, rx) = channel();
+        std::thread::spawn(move || {
+            let (stream, _) = listener.accept().expect("accept");
+            let mut reader = BufReader::new(stream);
+            loop {
+                let mut line = String::new();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 || line.trim_end().is_empty() {
+                    break;
+                }
+            }
+            let mut stream = reader.into_inner();
+            let _ = stream.write_all(&response);
+            let _ = stream.flush();
+            let _ = tx.send(());
+        });
+        (port, rx)
+    }
+
+    #[test]
+    fn runner_frames_to_another_origin_never_reach_the_network() {
+        use std::sync::atomic::Ordering;
+        let (port, count) = count_connections();
+        for (url, method) in [
+            (
+                format!("http://127.0.0.1:{port}/v1/chat/completions"),
+                "POST",
+            ),
+            (
+                format!("http://localhost:{port}/v1/chat/completions"),
+                "POST",
+            ),
+        ] {
+            let meta = format!(r#"{{"url":"{url}","method":"{method}","headers":[]}}"#);
+            assert!(runner_call(&meta, b"{}", "http://127.0.0.1:1").is_none());
+        }
+        let meta = format!(r#"{{"url":"http://127.0.0.1:{port}/v1","method":"PUT","headers":[]}}"#);
+        assert!(runner_call(&meta, b"{}", &format!("http://127.0.0.1:{port}")).is_none());
+        let meta = r#"{"url":"http://192.168.1.2/v1","method":"GET","headers":[]}"#;
+        assert!(runner_call(meta, b"", "http://192.168.1.2").is_none());
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn runner_returns_302_and_307_without_following_them() {
+        use std::sync::atomic::Ordering;
+        let (second, count) = count_connections();
+        for status in ["302 Found", "307 Temporary Redirect"] {
+            let response = format!(
+                "HTTP/1.1 {status}\r\nlocation: http://127.0.0.1:{second}/stolen\r\ncontent-length: 0\r\nconnection: close\r\n\r\n"
+            );
+            let (port, rx) = serve_raw(response.into_bytes());
+            let meta = format!(
+                r#"{{"url":"http://127.0.0.1:{port}/v1/chat/completions","method":"POST","headers":[["content-type","application/json"]]}}"#
+            );
+            let out = runner_call(&meta, b"{}", &format!("http://127.0.0.1:{port}"))
+                .expect("3xx は応答として返る");
+            rx.recv().expect("応答した");
+            let code: u16 = status[..3].parse().unwrap();
+            assert_eq!(response_status(&out), code);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert_eq!(count.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn runner_answers_and_strips_forbidden_headers_like_aoiko_fetch() {
+        let (port, rx) = serve_once();
+        let meta = format!(
+            r#"{{"url":"http://127.0.0.1:{port}/v1/chat/completions","method":"POST","headers":[["cookie","a=1"],["content-type","application/json"]]}}"#
+        );
+        let out = runner_call(&meta, b"{}", &format!("http://127.0.0.1:{port}")).expect("POST");
+        assert_eq!(response_status(&out), 200);
+        let got = rx.recv().expect("受信");
+        assert_eq!(got.header("cookie"), None);
+        assert_eq!(got.header("content-type"), Some("application/json"));
+        assert_eq!(got.body, b"{}");
+    }
+
+    #[test]
+    fn runner_bodies_over_64_mib_fail_the_request() {
+        let limit = tauri_plugin_aoiko_native::MAX_RESPONSE_BODY_BYTES;
+        assert_eq!(limit, 64 * 1024 * 1024);
+        let mut response = format!(
+            "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n",
+            limit + 1
+        )
+        .into_bytes();
+        response.resize(response.len() + limit + 1, b'a');
+        let (port, _rx) = serve_raw(response);
+        let meta = format!(r#"{{"url":"http://127.0.0.1:{port}/x","method":"GET","headers":[]}}"#);
+        assert!(runner_call(&meta, b"", &format!("http://127.0.0.1:{port}")).is_none());
     }
 
     #[test]

@@ -9,6 +9,8 @@ import { getSetting, setSetting } from '../lib/settings';
 import * as saveFileModule from '../lib/save-file';
 import type { BackupAdapter } from '../backup/types';
 import type { SaveFileResult } from '../lib/save-file';
+import { restoreFromJson } from '../domain/restore';
+import { PAYLOAD_VERSION } from '../backup';
 
 interface Pending {
   resolve: () => void;
@@ -267,6 +269,99 @@ describe('backupManager.backup（掃除が返ってこない場合）', () => {
     await runBackup();
     expect(await getSetting('lastBlobSweepAt')).toBeUndefined();
   });
+});
+// 保存先の控えを削る方針はこの端末のもの。バックアップを復元しても、DB に一覧外の値が
+// 残っていても、それで利用者のフォルダの控えを消させない。
+describe('backupManager.backup（保持設定は一覧の値だけ・復元で持ち込まない）', () => {
+  const SNAPSHOTS = Array.from(
+    { length: 10 },
+    (_, i) => `snapshots/2026-01-${String(i + 1).padStart(2, '0')}T120000Z.json`,
+  );
+  const BLOBS = ['a', 'b', 'c'].map((ch) => `attachments/${ch.repeat(64)}`);
+
+  async function runBackup(): Promise<void> {
+    const p = backupManager.backup();
+    await waitForCalls(fake.calls + 1);
+    fake.settleOne();
+    await p;
+  }
+
+  beforeEach(() => {
+    fake.stored = new Set([...SNAPSHOTS, ...BLOBS]);
+    // どの実体も参照しない、読めるスナップショット。掃除が走れば実体は全部消える。
+    const empty = new TextEncoder().encode(
+      JSON.stringify({
+        format: 1,
+        payloadVersion: PAYLOAD_VERSION,
+        exportedAt: '2026-01-10T12:00:00.000Z',
+        tables: {},
+        attachments: [],
+      }),
+    );
+    fake.read = () => Promise.resolve(empty.slice());
+  });
+
+  function restoreWith(retentionCount: unknown, retentionDays: unknown): Promise<unknown> {
+    return restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-10-23T00:00:00.000Z',
+      tables: {
+        settings: [
+          { key: 'backupRetentionCount', value: retentionCount, updatedAt: 1 },
+          { key: 'blobRetentionDays', value: retentionDays, updatedAt: 1 },
+        ],
+      },
+    });
+  }
+
+  test('（前提）この端末で 7 件・30 日を選んでいれば、古い控えと参照されない実体が消える', async () => {
+    await setSetting('backupRetentionCount', 7);
+    await setSetting('blobRetentionDays', 30);
+    await runBackup();
+    expect(SNAPSHOTS.filter((p) => !fake.stored.has(p))).toHaveLength(3);
+    expect(BLOBS.filter((p) => !fake.stored.has(p))).toHaveLength(3);
+  });
+
+  test.each([
+    [7, 1e-9],
+    [1, 'x'],
+  ])(
+    '端末が 0 のまま、保持 %s・日数 %s のバックアップを復元しても何も消えない',
+    async (count, days) => {
+      await setSetting('backupRetentionCount', 0);
+      await setSetting('blobRetentionDays', 0);
+      await restoreWith(count, days);
+      await runBackup();
+      expect([...fake.stored].sort()).toEqual([...SNAPSHOTS, ...BLOBS].sort());
+      expect(await getSetting('backupRetentionCount')).toBe(0);
+      expect(await getSetting('blobRetentionDays')).toBe(0);
+    },
+  );
+
+  test('端末に設定が無いまま復元しても、設定は無いままで何も消えない', async () => {
+    await restoreWith(7, 30);
+    await runBackup();
+    expect([...fake.stored].sort()).toEqual([...SNAPSHOTS, ...BLOBS].sort());
+    expect(await getSetting('backupRetentionCount')).toBeUndefined();
+    expect(await getSetting('blobRetentionDays')).toBeUndefined();
+  });
+
+  test.each([
+    [1, 1e-9],
+    ['7', 'x'],
+    [1e-9, '30'],
+    [-1, -1],
+  ])(
+    'DB に一覧外の値（保持 %s・日数 %s）が残っていれば 0 として扱い何も消えない',
+    async (count, days) => {
+      await db.settings.bulkPut([
+        { key: 'backupRetentionCount', value: count, updatedAt: 1 },
+        { key: 'blobRetentionDays', value: days, updatedAt: 1 },
+      ]);
+      await runBackup();
+      expect([...fake.stored].sort()).toEqual([...SNAPSHOTS, ...BLOBS].sort());
+    },
+  );
 });
 // OPFS の控えは帳簿と証憑写真の完全な複製なのに、利用者はファイル管理アプリから見ることも
 // 消すこともできない。ここに取りこぼしがあると、譲渡・廃棄した端末に帳簿が残る。

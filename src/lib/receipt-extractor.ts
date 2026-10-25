@@ -1,7 +1,8 @@
 // 領収書 OCR の実体を生成するファクトリ。
 //
 // method='ai' はここに来る前に決まっている aiEngine（gemini / openai-compatible / apple-ai）を
-// 使う。gemini / openai-compatible は既存の createLlmAdapter+extractReceipt をラップする。
+// 使う。gemini / openai-compatible は既存の createLlmAdapter+extractReceipt をラップする
+// （web view の外で走らせる環境では、同じ処理を native-runner-client.ts で走らせる）。
 // method='rule' は ruleEngine で更に分岐する：
 // - tesseract：完全ローカル WASM OCR（tesseract-wasm）。動的 import で読み込み、ルールベース抽出層に渡す
 // - native：OS 内蔵の文字認識。ネイティブ側の橋渡しを呼び、同じルールベース抽出層に渡す
@@ -10,10 +11,19 @@
 //
 // 送信先（external / destinationHost）は確認ダイアログ（CloudSendConfirmDialog）の
 // 表示要否判定に使う。tesseract と native と apple-ai は常に external=false。
+// web view の外で走らせる環境では、tesseract・native・apple-ai もそこで走らせる（native-runner-client.ts）。
+// 選ぶエンジンは従来と同じで、ここで作った抽出器を包むだけ。
 
 import { extractReceipt, type ReceiptExtracted } from '../domain/ocr';
 import type { LlmCallOptions, LlmImageInput } from '../domain/llm';
-import { createLlmAdapter } from './llm-adapter';
+import { createLlmAdapterWithConfig } from './llm-adapter';
+import {
+  runLocalReceiptInRunner,
+  runReceiptInRunner,
+  runnerAvailable,
+  runnerConfig,
+  type LocalReceiptEngine,
+} from './native-runner-client';
 import {
   defaultRuleEngine,
   getSetting,
@@ -37,6 +47,20 @@ export interface ReceiptExtractor {
   extract(image: LlmImageInput, options?: LlmCallOptions): Promise<ReceiptExtracted>;
 }
 
+// 作った抽出器のエンジンと送信先はそのまま。画像を扱えないと答えられたら、この抽出器で読む。
+function inRunner(prepared: ReceiptExtractor, engine: LocalReceiptEngine): ReceiptExtractor {
+  if (!runnerAvailable()) {
+    return prepared;
+  }
+  return {
+    external: prepared.external,
+    destinationHost: prepared.destinationHost,
+    downscale: prepared.downscale,
+    engine: prepared.engine,
+    extract: (image, options) => runLocalReceiptInRunner(prepared, engine, image, options),
+  };
+}
+
 export async function createReceiptExtractor(
   method: ReceiptMethod,
   ruleEngine: ReceiptRuleEngine,
@@ -47,13 +71,19 @@ export async function createReceiptExtractor(
     switch (engine) {
       case 'gemini':
       case 'openai-compatible': {
-        const adapter = await createLlmAdapter('ocr');
+        const { adapter, config } = await createLlmAdapterWithConfig('ocr');
+        // web view の外で走らせる環境のための設定。送る設定はここで読んだもの（確認に出す宛先と同じ）に限る。
+        const runner = runnerConfig(config);
         return {
           external: adapter.external,
           destinationHost: adapter.destinationHost,
           downscale: true,
           engine,
-          extract: (image, options) => extractReceipt(adapter, image, options),
+          extract:
+            runner === null
+              ? (image, options) => extractReceipt(adapter, image, options)
+              : (image, options) =>
+                  runReceiptInRunner(runner, adapter.destinationHost, image, options),
         };
       }
       case 'chrome-ai': {
@@ -76,7 +106,7 @@ export async function createReceiptExtractor(
         // native と同じ理由でビルド時に畳む。
         if (__NATIVE__) {
           const { createAppleAiReceiptExtractor } = await import('./ocr/apple-ai-engine');
-          return createAppleAiReceiptExtractor();
+          return inRunner(createAppleAiReceiptExtractor(), 'apple-ai');
         }
         // native と同じ理由で、この経路を持たない側では黙って差し替えず拒否する。
         throw new Error('apple-ai OCR is unavailable in this build');
@@ -95,13 +125,13 @@ export async function createReceiptExtractor(
 
   if (resolvedRuleEngine === 'tesseract') {
     const { createTesseractReceiptExtractor } = await import('./ocr/tesseract-engine');
-    return createTesseractReceiptExtractor();
+    return inRunner(createTesseractReceiptExtractor(), 'tesseract');
   }
   // 判定はビルド時に畳む。実行時だけの分岐にすると、このエンジンを持たない web にも
   // ラッパーが丸ごと入り、ビルド成果物に文言が残る（購入画面と同じ理由）。
   if (__NATIVE__) {
     const { createNativeReceiptExtractor } = await import('./ocr/native-engine');
-    return createNativeReceiptExtractor();
+    return inRunner(createNativeReceiptExtractor(), 'native');
   }
   // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、
   // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。

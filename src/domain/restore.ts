@@ -7,6 +7,12 @@ import {
   parseBackupZip,
   type BackupPayload,
 } from '../backup';
+import {
+  hasSettingKey,
+  RESET_ON_RESTORE_KEYS,
+  SKIP_SETTING_KEYS,
+  SKIP_TABLES,
+} from '../backup/skip-lists';
 import { validateBackupPayload } from './restore-validate';
 import type { Attachment } from '../db/types';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
@@ -74,21 +80,17 @@ export async function restoreFromPayload(
   const restoredSettingKeys = new Set(
     Array.isArray(settingRows) ? settingRows.map((r) => (r as { key?: string }).key) : [],
   );
-  const preservedFilerSettings = (await db.settings.toArray()).filter(
-    (r) => FILER_INFO_SETTING_KEYS.has(r.key) && !restoredSettingKeys.has(r.key),
-  );
-  // スタンプ帳と支援者バッジはこの端末だけの記録で、バックアップにも入っていない
-  // （backup/payload.ts の SKIP_TABLES / SKIP_SETTING_KEYS）。全消去で巻き添えにすると、
-  // 復元しただけで消える。書き戻して残す。
-  const preservedStamps = await db.stamps.toArray();
-  const preservedBadge = (await db.settings.toArray()).filter(
-    (r) => r.key === 'supporterBadgeAt' && !restoredSettingKeys.has(r.key),
+  const preservedFilerKeys = [...FILER_INFO_SETTING_KEYS].filter(
+    (key) => !restoredSettingKeys.has(key),
   );
   // Dexie トランザクション内では非 Dexie の Promise を待てないため、書き込むデータ
   // （証憑写真の Blob 組み立てを含む）は全消去・トランザクションの前に組み立てておく。
   const writes: { name: string; rows: unknown[] }[] = [];
   let missingBlobCount = 0;
   for (const table of db.tables) {
+    if (SKIP_TABLES.has(table.name)) {
+      continue;
+    }
     let rows = payload.tables[table.name];
     if (!Array.isArray(rows) || rows.length === 0) {
       continue;
@@ -110,6 +112,13 @@ export async function restoreFromPayload(
         };
       });
     }
+    if (table.name === 'settings') {
+      // 同じキーが何行あっても 1 行ずつ見て落とす。
+      rows = rows.filter((r) => {
+        const key = (r as { key?: unknown }).key;
+        return !hasSettingKey(SKIP_SETTING_KEYS, key) && !hasSettingKey(RESET_ON_RESTORE_KEYS, key);
+      });
+    }
     writes.push({ name: table.name, rows });
   }
   // 全消去と書き込みを 1 つのトランザクションに入れる。db.delete() でデータベースごと
@@ -120,6 +129,18 @@ export async function restoreFromPayload(
     // （db/filed-year-guard.ts）はそれを止めるので、正当な経路であることを明示する。
     // ここを外すと、申告済みの年度を含むバックアップが復元できなくなる。
     allowFiledYearWriteInThisTransaction();
+    // 端末固有の行と退避する申告者情報は clear() の直前に同じトランザクションで読む。外で読むと、
+    // その後に書かれた値（復元の開始と同時に選び直した保存先など）を古い値で上書きしてしまう。
+    const deviceSettings = (await db.settings.bulkGet([...SKIP_SETTING_KEYS])).filter(
+      (r) => r !== undefined,
+    );
+    const preservedFilerSettings = (await db.settings.bulkGet(preservedFilerKeys)).filter(
+      (r) => r !== undefined,
+    );
+    const deviceTables: { name: string; rows: unknown[] }[] = [];
+    for (const name of SKIP_TABLES) {
+      deviceTables.push({ name, rows: await db.table(name).toArray() });
+    }
     for (const table of db.tables) {
       await table.clear();
     }
@@ -129,11 +150,11 @@ export async function restoreFromPayload(
     if (preservedFilerSettings.length > 0) {
       await db.settings.bulkPut(preservedFilerSettings);
     }
-    if (preservedStamps.length > 0) {
-      await db.stamps.bulkPut(preservedStamps);
-    }
-    if (preservedBadge.length > 0) {
-      await db.settings.bulkPut(preservedBadge);
+    // 条件を付けずにそのまま戻す。バックアップ側の行は上で落としてあるので、
+    // この端末に無かったキーは無いままになる。
+    await db.settings.bulkPut(deviceSettings);
+    for (const t of deviceTables) {
+      await db.table(t.name).bulkPut(t.rows);
     }
   });
 

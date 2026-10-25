@@ -1212,5 +1212,20 @@
   "analysis_badge_done": "確認待ち",
   "analysis_badge_failed": "失敗",
   "analysis_toast_done": "{name}の解析が完了しました。ここを押すと結果を確認できます。",
-  "analysis_toast_failed": "{name}の解析に失敗しました。ここを押すと内容を確認できます。"
+  "analysis_toast_failed": "{name}の解析に失敗しました。ここを押すと内容を確認できます。",
+  "analysis_notify_done": "{name}の解析が終わりました",
+  "analysis_notify_failed": "{name}の解析に失敗しました",
+  "settings_analysis_notify_label": "解析が終わったら通知する",
+  "settings_analysis_notify_hint": "画面やタブを離れている間に解析が終わったときだけ、ブラウザの通知でお知らせします。通知に出るのは画面の名前と結果だけで、金額や取引先は含まれません。",
+  "settings_analysis_notify_denied": "ブラウザの通知が許可されなかったため、オンにできませんでした。ブラウザのサイト設定で通知を許可してから、もう一度お試しください。",
+  "settings_analysis_notify_unsupported": "このブラウザでは通知を使えません。iPhone や iPad では、ホーム画面に追加したアプリからのみ使えます。",
+  "settings_analysis_notify_hint_native": "アプリを離れている間に解析が終わったときだけ、OS の通知でお知らせします。通知に出るのは画面の名前と結果だけで、金額や取引先は含まれません。",
+  "settings_analysis_notify_denied_native": "通知が許可されなかったため、オンにできませんでした。OS の通知設定で aoiko を許可してから、もう一度お試しください。",
+  "settings_analysis_notify_insecure": "このページは https で開かれていないため、通知を使えません。",
+  "settings_analysis_notify_blocked": "このサイトの通知はブラウザでブロックされています。使うには、ブラウザのサイト設定で通知を許可してから、この画面を開き直してください。",
+  "runner_expired": "アプリを離れている間に処理を続けられる時間が尽きたため、解析を中断しました。アプリを開いたまま、もう一度お試しください。",
+  "runner_invalid_result": "解析結果の形式が正しくなかったため、取り込めませんでした。もう一度お試しください。",
+  "runner_local_engine_failed": "端末内の文字認識を実行できなかったため、解析できませんでした。もう一度お試しください。",
+  "runner_start_failed": "解析を開始できませんでした。設定を確認してから、もう一度お試しください。",
+  "runner_text_recognition_failed": "文字を認識できませんでした。もう一度お試しください。"
 }

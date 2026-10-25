@@ -5,7 +5,7 @@
 import type { LlmImageInput } from '../../domain/llm';
 import type { ReceiptExtracted, ReceiptItem } from '../../domain/ocr';
 import type { ReceiptExtractor } from '../receipt-extractor';
-import { nativeBridge } from '../native-bridge';
+import { nativeBridge, type NativeBridge } from '../native-bridge';
 import { m } from '../../paraglide/messages';
 
 type AppleReceiptItem = {
@@ -46,35 +46,43 @@ const AVAILABILITY_MESSAGES: Record<number, () => string> = {
 const INVOICE_NUMBER_WITH_T_RE = /^T\d{13}$/;
 const INVOICE_NUMBER_WITHOUT_T_RE = /^\d{13}$/;
 
+// 呼び出し先の形。web view では nativeBridge()、web view の外の解析の実行環境では aoikoHost を包んだもの。
+export type AppleAiReceiptBridge = Pick<NativeBridge, 'appleAiAvailability' | 'appleAiExtract'>;
+
 export function createAppleAiReceiptExtractor(): ReceiptExtractor {
   return {
     external: false,
     destinationHost: '',
     downscale: false,
     engine: 'apple-ai',
-    async extract(image: LlmImageInput) {
-      await checkAvailability();
-      // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、
-      // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。
-      const extract = nativeBridge()?.appleAiExtract;
-      if (typeof extract !== 'function') {
-        throw new Error(m.ocr_apple_ai_error_4());
-      }
-      let raw: string;
-      try {
-        raw = await extract(image.base64);
-      } catch (code) {
-        const toMessage = typeof code === 'number' ? ERROR_MESSAGES[code] : undefined;
-        throw new Error(toMessage?.() ?? m.ocr_apple_ai_error_3());
-      }
-      return toReceiptExtracted(parseAppleReceipt(raw));
-    },
+    extract: (image: LlmImageInput) => extractReceiptWithAppleAi(image),
   };
+}
+
+export async function extractReceiptWithAppleAi(
+  image: LlmImageInput,
+  bridge: AppleAiReceiptBridge | null = nativeBridge(),
+): Promise<ReceiptExtracted> {
+  await checkAvailability(bridge);
+  // 設定はバックアップに乗って別の環境へ渡る。ここで落とさずに下の LLM へ流すと、
+  // 端末内で読むつもりの利用者の画像が外へ出る。黙ってエンジンを差し替えない。
+  const extract = bridge?.appleAiExtract;
+  if (typeof extract !== 'function') {
+    throw new Error(m.ocr_apple_ai_error_4());
+  }
+  let raw: string;
+  try {
+    raw = await extract(image.base64);
+  } catch (code) {
+    const toMessage = typeof code === 'number' ? ERROR_MESSAGES[code] : undefined;
+    throw new Error(toMessage?.() ?? m.ocr_apple_ai_error_3());
+  }
+  return toReceiptExtracted(parseAppleReceipt(raw));
 }
 // 判定できない場合は常に抽出へ進む：この確認は良いメッセージを出すためのものであって、
 // 機能の門番ではない。ここを門番にすると、確認自体が使えない環境で機能ごと壊れる。
-async function checkAvailability(): Promise<void> {
-  const availability = nativeBridge()?.appleAiAvailability;
+async function checkAvailability(bridge: AppleAiReceiptBridge | null): Promise<void> {
+  const availability = bridge?.appleAiAvailability;
   if (typeof availability !== 'function') {
     return;
   }

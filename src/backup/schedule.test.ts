@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'vitest';
 import {
+  BACKUP_RETENTION_COUNTS,
+  BLOB_RETENTION_DAYS,
   daysSince,
   isFolderBackupActive,
   needsOffsiteBackupWarning,
+  parseBackupRetentionCount,
+  parseBlobRetentionDays,
   shouldShowHomeScreenHint,
 } from './schedule';
 
@@ -93,5 +97,48 @@ describe('isFolderBackupActive', () => {
   test('OPFS と非対応は常に false', () => {
     expect(isFolderBackupActive('opfs', 'idle')).toBe(false);
     expect(isFolderBackupActive('none', 'unsupported')).toBe(false);
+  });
+});
+// 保存先の控えを削る値。一覧外の値で削らせない（0 = 削除しない）。
+describe('保持設定の読み取り', () => {
+  const nonMembers: unknown[] = [
+    undefined,
+    null,
+    1,
+    -7,
+    1e-9,
+    7.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    '7',
+    '30',
+    'x',
+    true,
+    [7],
+    { valueOf: () => 7 },
+  ];
+
+  test('parseBackupRetentionCount は一覧の値をそのまま返す', () => {
+    for (const n of BACKUP_RETENTION_COUNTS) {
+      expect(parseBackupRetentionCount(n)).toBe(n);
+    }
+  });
+
+  test('parseBackupRetentionCount は一覧外を 0 にする', () => {
+    for (const v of [...nonMembers, 180]) {
+      expect(parseBackupRetentionCount(v), String(v)).toBe(0);
+    }
+  });
+
+  test('parseBlobRetentionDays は一覧の値をそのまま返す', () => {
+    for (const n of BLOB_RETENTION_DAYS) {
+      expect(parseBlobRetentionDays(n)).toBe(n);
+    }
+  });
+
+  test('parseBlobRetentionDays は一覧外を 0 にする', () => {
+    for (const v of [...nonMembers, 7]) {
+      expect(parseBlobRetentionDays(v), String(v)).toBe(0);
+    }
   });
 });

@@ -117,3 +117,59 @@ pub(crate) mod apple_intelligence {
         Ok(json)
     }
 }
+// 解析の完了通知。AnalysisNotify.swift の入口を直に呼ぶ（desktop.rs の macOS 版と同じ形）。
+// 文面は notify.rs の固定表の CStr だけを渡し、ポインタは呼び出しの間しか使われない。
+pub(crate) mod analysis_notify {
+    use std::ffi::{c_char, CStr};
+
+    use tauri::{AppHandle, Emitter, EventTarget, Runtime};
+
+    use crate::notify::{self, AnalysisKind, NotifyStatus};
+
+    extern "C" {
+        fn aoiko_notify_status() -> i32;
+        fn aoiko_notify_request() -> i32;
+        fn aoiko_notify_post(kind: i32, title: *const c_char, body: *const c_char) -> i32;
+        fn aoiko_notify_set_open_handler(handler: extern "C" fn(i32));
+    }
+    // 呼び出しはどれもワーカースレッドから。ネイティブ側が待つので、メインスレッドで呼ばない。
+    pub(crate) fn status() -> NotifyStatus {
+        NotifyStatus::from_code(unsafe { aoiko_notify_status() })
+    }
+
+    pub(crate) fn request() -> NotifyStatus {
+        NotifyStatus::from_code(unsafe { aoiko_notify_request() })
+    }
+
+    pub(crate) fn post(kind: AnalysisKind, title: &CStr, body: &CStr) -> bool {
+        unsafe { aoiko_notify_post(kind.index(), title.as_ptr(), body.as_ptr()) == 0 }
+    }
+
+    #[derive(Clone, serde::Serialize)]
+    struct OpenPayload {
+        kind: AnalysisKind,
+    }
+    // 画面を開く合図だけを送る。iOS は通知を押した時点でアプリが前面へ出る。
+    fn open_main<R: Runtime>(app: &AppHandle<R>, kind: AnalysisKind) {
+        let app = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = app.emit_to(
+                EventTarget::WebviewWindow {
+                    label: "main".to_string(),
+                },
+                "aoiko-analysis-open",
+                OpenPayload { kind },
+            );
+        });
+    }
+    // ネイティブ側から呼ばれる。panic を C の側へ出さず、重い処理はここでは行わない。
+    extern "C" fn on_open(kind: i32) {
+        notify::dispatch_open(kind);
+    }
+
+    pub(crate) fn install<R: Runtime>(app: &AppHandle<R>) {
+        let emitter = app.clone();
+        notify::set_open_emitter(Box::new(move |kind| open_main(&emitter, kind)));
+        unsafe { aoiko_notify_set_open_handler(on_open) };
+    }
+}

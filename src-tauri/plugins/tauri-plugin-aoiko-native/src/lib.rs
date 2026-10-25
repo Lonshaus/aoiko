@@ -9,7 +9,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{
     plugin::{Builder, TauriPlugin},
-    Manager, Runtime,
+    AppHandle, Manager, Runtime,
 };
 
 mod backup;
@@ -18,8 +18,12 @@ mod commands;
 mod desktop;
 #[cfg(target_os = "ios")]
 mod ios;
+mod notify;
 mod path;
+mod runner;
 mod store;
+
+pub use runner::{set_runner_fetcher, set_runner_url_check, MAX_RESPONSE_BODY_BYTES};
 
 #[derive(Debug)]
 pub enum Error {
@@ -39,6 +43,8 @@ pub enum Error {
     BadChunkRequest(String),
     /// 文字認識に失敗、または文字が 1 つも見つからなかった。
     Ocr(String),
+    /// 通知を出せなかった。理由は区別しない（文面に出せる情報が無い）。
+    Notification,
 }
 
 impl std::fmt::Display for Error {
@@ -60,6 +66,7 @@ impl std::fmt::Display for Error {
             Error::TooManyOpenFiles => write!(f, "同時に開けるファイルの上限を超えました"),
             Error::BadChunkRequest(e) => write!(f, "書き込みの指定が不正です: {e}"),
             Error::Ocr(e) => write!(f, "文字を認識できません: {e}"),
+            Error::Notification => write!(f, "通知を出せません"),
         }
     }
 }
@@ -214,6 +221,36 @@ impl Resolved {
         }
     }
 }
+/// 通知を押すと、動いているプロセスへの合図とは別に、起動文字列を引数にした
+/// 2 つ目のプロセスも起動される。それと分かるものはウィンドウを作る前に終える。
+/// 画面の切り替えは動いている側が通知から受け取るので、ここでは引数を使わない。
+#[cfg(target_os = "windows")]
+pub fn exit_if_toast_relaunch() {
+    use windows::core::w;
+    use windows::Win32::Foundation::{GetLastError, ERROR_ALREADY_EXISTS};
+    use windows::Win32::System::Threading::CreateMutexW;
+    // 閉じずにプロセスの終わりまで持つ。後から起動したプロセスがこの名前を見つけられるように。
+    let created = unsafe { CreateMutexW(None, false, w!("Local\\aoiko-desktop-instance")) };
+    let last_error = unsafe { GetLastError() };
+    let existed = created.is_ok() && last_error == ERROR_ALREADY_EXISTS;
+    // args() は UTF-8 でない引数で panic する。読めない引数は起動文字列ではない扱い。
+    let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    let args: Vec<Option<&str>> = args.iter().map(|arg| arg.to_str()).collect();
+    if notify::toast::should_exit_toast_relaunch(&args, existed) {
+        std::process::exit(0);
+    }
+}
+/// web view の初期化スクリプトの先頭に足す 1 文。本物の runner.js が埋め込まれた iOS のビルドでだけ、
+/// web 側へ解析の入口（runAnalysis 等）を出させる。それ以外は空で、従来の web view の経路のままにする。
+pub fn runner_init_script<R: Runtime>(app: &AppHandle<R>) -> &'static str {
+    #[cfg(target_os = "ios")]
+    return runner::ios::flag_script(app);
+    #[cfg(not(target_os = "ios"))]
+    {
+        let _ = app;
+        ""
+    }
+}
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("aoiko-native")
@@ -235,14 +272,44 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             commands::apple_ai_availability,
             commands::apple_ai_extract,
             commands::apple_ai_run,
+            commands::notification_status,
+            commands::notification_request,
+            commands::analysis_notify,
+            commands::analysis_activity_begin,
+            commands::analysis_activity_end,
+            commands::analysis_runner_start,
+            commands::analysis_runner_take,
+            commands::analysis_runner_cancel,
         ])
+        // 再読み込みでページが入れ替わると、前のページが保持していた宣言の終了は届かない。
+        // 始まる側と終わる側のどちらでも手放しておく。
+        .on_page_load(|webview, payload| {
+            if let Some(tokens) = webview.app_handle().try_state::<notify::Tokens>() {
+                tokens.end_all(std::time::Instant::now());
+            }
+            // 前のページが始めた解析は、結果を受け取る相手がもういない。
+            #[cfg(target_os = "ios")]
+            if let Some(runner) = runner::ios::global() {
+                runner.page_load(matches!(
+                    payload.event(),
+                    tauri::webview::PageLoadEvent::Started
+                ));
+            }
+            #[cfg(not(target_os = "ios"))]
+            let _ = payload;
+        })
         .setup(|app, _api| {
             app.manage(Resolved::default());
             app.manage(backup::OpenFiles::default());
+            app.manage(notify::Tokens::new(notify::platform_activity()));
+            #[cfg(any(target_os = "macos", target_os = "windows"))]
+            desktop::analysis_notify::install(app);
             #[cfg(target_os = "ios")]
             {
                 let handle = ios::init(app, _api)?;
                 app.manage(handle);
+                ios::analysis_notify::install(app.app_handle());
+                runner::ios::install(app.app_handle());
             }
             Ok(())
         })
@@ -263,5 +330,93 @@ mod tests {
         assert_eq!(cache.get("b"), None);
         cache.clear();
         assert_eq!(cache.get("a"), None);
+    }
+    // 起動直後に OS を呼ぶので、書かれ方だけを固定する。
+    fn relaunch_exit_source() -> &'static str {
+        include_str!("lib.rs")
+            .split("pub fn exit_if_toast_relaunch() {")
+            .nth(1)
+            .and_then(|rest| rest.split("\n}\n").next())
+            .expect("exit_if_toast_relaunch が見つからない")
+    }
+
+    #[test]
+    fn relaunch_exit_reads_the_fixed_mutex_right_after_creating_it() {
+        let source = relaunch_exit_source();
+        let lines: Vec<&str> = source.lines().map(str::trim).collect();
+        let created = lines
+            .iter()
+            .position(|line| line.contains("CreateMutexW(None, false"))
+            .expect("CreateMutexW");
+        assert!(lines[created].contains(r#"w!("Local\\aoiko-desktop-instance")"#));
+        assert_eq!(
+            lines.get(created + 1),
+            Some(&"let last_error = unsafe { GetLastError() };")
+        );
+        assert!(source.contains("created.is_ok() && last_error == ERROR_ALREADY_EXISTS"));
+        assert_eq!(source.matches("CreateMutexW(").count(), 1);
+        for banned in ["CloseHandle", "Owned", "drop(", "Drop"] {
+            assert!(!source.contains(banned), "{banned}");
+        }
+    }
+
+    #[test]
+    fn relaunch_exit_never_drives_navigation_and_reads_raw_arguments() {
+        let source = relaunch_exit_source();
+        assert!(source.contains("std::env::args_os()"));
+        assert!(!source.contains("env::args()"));
+        assert!(source.contains("arg.to_str()"));
+        assert!(source.contains("should_exit_toast_relaunch(&args, existed)"));
+        assert!(source.contains("std::process::exit(0);"));
+        for banned in [
+            "dispatch_open",
+            "emit",
+            "OPEN_EMITTER",
+            "AppHandle",
+            "parse_launch",
+        ] {
+            assert!(!source.contains(banned), "{banned}");
+        }
+    }
+    // A-1：印は web view を作るときに、アセットを読んだ結果で足す。プラグインの固定の初期化スクリプトでは出さない。
+    #[test]
+    fn the_runner_flag_is_decided_from_the_asset_when_the_web_view_is_built() {
+        let plugin = include_str!("lib.rs");
+        let source = plugin.split("#[cfg(test)]").next().expect("本体が無い");
+        assert!(!source.contains("js_init_script"));
+        let app = include_str!("../../../src/lib.rs");
+        let script = app
+            .split(".initialization_script(format!(")
+            .nth(1)
+            .and_then(|rest| rest.split(".on_navigation(").next())
+            .expect("initialization_script が無い");
+        let flag = script
+            .find("tauri_plugin_aoiko_native::runner_init_script(app.handle())")
+            .expect("runner_init_script が無い");
+        let format = script.split(',').next().expect("書式が無い");
+        assert!(format.contains("{}{INIT_SCRIPT}"), "{format}");
+        assert!(flag > format.len());
+        assert_eq!(app.matches("runner_init_script(").count(), 1);
+    }
+
+    #[test]
+    fn the_app_calls_the_relaunch_exit_before_building_anything() {
+        let app = include_str!("../../../src/lib.rs");
+        let run = app
+            .split("\npub fn run() {")
+            .nth(1)
+            .expect("pub fn run() が無い");
+        let call = run
+            .find("tauri_plugin_aoiko_native::exit_if_toast_relaunch();")
+            .expect("exit_if_toast_relaunch の呼び出しが無い");
+        let builder = run.find("tauri::Builder").expect("tauri::Builder が無い");
+        assert!(call < builder);
+        let before: Vec<&str> = run[..call]
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty() && !line.starts_with("//"))
+            .collect();
+        assert_eq!(before.len(), 1);
+        assert!(before.iter().all(|line| line.starts_with("#[cfg(")));
     }
 }

@@ -50,6 +50,17 @@ for (const script of ['check', 'build']) {
     process.exit(result.status ?? 1);
   }
 }
+// iOS は解析の本体（runner.js）を web view の外で走らせる。frontendDist と一緒に埋め込まれるよう、
+// Vite の出力（dist/）の中へ束ねる。
+if (platform === 'ios') {
+  const runnerResult = spawnSync('node', ['scripts/build-native-runner.mjs'], {
+    cwd: root,
+    stdio: 'inherit',
+  });
+  if (runnerResult.status !== 0) {
+    process.exit(runnerResult.status ?? 1);
+  }
+}
 // build の直前に再生成する。古いままの THIRD_PARTY_LICENSES_NATIVE.txt が
 // そのまま同梱されるのを防ぐ。
 const genResult = spawnSync('node', ['scripts/gen-native-licenses.mjs'], {

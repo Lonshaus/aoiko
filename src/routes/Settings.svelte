@@ -72,6 +72,7 @@
   import { formatJPY } from '../lib/decimal';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { countSuppressedConfirms, resetSuppressedConfirms } from '../lib/suppressed-confirms';
+  import AnalysisNotifyToggle from '../components/AnalysisNotifyToggle.svelte';
   import BackupPanel from '../components/BackupPanel.svelte';
   import PolicyDocViewer from '../components/PolicyDocViewer.svelte';
   import { DEFAULT_INVOICE_PREFIX, DEFAULT_QUOTE_PREFIX } from '../domain/invoice';
@@ -3685,6 +3686,8 @@
         {/if}
       </div>
     </div>
+
+    <AnalysisNotifyToggle />
   </section>
 
   <div bind:this={backupSection} class="scroll-mt-20">

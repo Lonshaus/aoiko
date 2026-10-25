@@ -28,27 +28,36 @@ vi.mock('../parsers', () => ({
   findParser: (name: string) => (name === parserA.name ? parserA : null),
 }));
 
-vi.mock('../lib/llm-adapter', () => ({
-  createLlmAdapter: async () => ({
-    external: false,
-    destinationHost: '',
-    generateJson: (_prompt: string, _image?: unknown, options?: { signal?: AbortSignal }) => {
-      gate.calls += 1;
-      if (options?.signal) {
-        gate.signals.push(options.signal);
-      }
-      return new Promise((resolve) => {
-        gate.resolve = () =>
-          resolve({
-            classifications: [
-              { ref: '0', accountCode: '5200', confidence: 'high', reason: '' },
-              { ref: '1', accountCode: '5200', confidence: 'high', reason: '' },
-            ],
-          });
-      });
-    },
-  }),
-}));
+vi.mock('../lib/llm-adapter', () => {
+  const mocked = {
+    createLlmAdapter: async () => ({
+      external: false,
+      destinationHost: '',
+      generateJson: (_prompt: string, _image?: unknown, options?: { signal?: AbortSignal }) => {
+        gate.calls += 1;
+        if (options?.signal) {
+          gate.signals.push(options.signal);
+        }
+        return new Promise((resolve) => {
+          gate.resolve = () =>
+            resolve({
+              classifications: [
+                { ref: '0', accountCode: '5200', confidence: 'high', reason: '' },
+                { ref: '1', accountCode: '5200', confidence: 'high', reason: '' },
+              ],
+            });
+        });
+      },
+    }),
+  };
+  return {
+    ...mocked,
+    createLlmAdapterWithConfig: async () => ({
+      adapter: await mocked.createLlmAdapter(),
+      config: { engine: 'apple-ai' },
+    }),
+  };
+});
 
 const { default: Import } = await import('./Import.svelte');
 const { importDraft } = await import('../stores/import-draft.svelte');
@@ -66,7 +75,9 @@ beforeEach(async () => {
   setLocale('ja', { reload: false });
   await db.delete();
   await db.open();
-  ledger.accounts = ACCOUNTS;
+  // ledger の科目は liveQuery の購読から届くが、db.delete() と重なった問い合わせの扱いで
+  // 届く時期も届くかどうかも揺れるため、テストでは値を固定する。
+  vi.spyOn(ledger, 'accounts', 'get').mockReturnValue(ACCOUNTS);
   gate.resolve = null;
   gate.calls = 0;
   gate.signals.length = 0;

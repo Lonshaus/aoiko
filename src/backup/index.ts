@@ -6,6 +6,7 @@ export {
   FILER_INFO_SETTING_KEYS,
   PAYLOAD_VERSION,
 } from './payload';
+export { hasSettingKey, RESET_ON_RESTORE_KEYS, SKIP_SETTING_KEYS, SKIP_TABLES } from './skip-lists';
 export { ATTACHMENT_DIR, SNAPSHOT_DIR } from './content-store';
 export { pruneSnapshots, writeLooseBackup } from './snapshot-writer';
 export { sweepUnreferencedBlobs } from './blob-gc';

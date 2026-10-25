@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
+import { isDeepStrictEqual } from 'node:util';
 import { db } from '../db/db';
 import { buildBackupZipStream, buildPayload, PAYLOAD_VERSION } from '../backup';
 import { newId } from '../lib/id';
@@ -14,6 +15,12 @@ import {
   restoreFromPayload,
 } from './restore';
 import { MAX_BACKUP_BYTES } from '../lib/file-limit';
+import { setSetting, type SettingsMap } from '../lib/settings';
+import { decideNativeState } from '../backup/native';
+import { SKIP_SETTING_KEYS } from '../backup/skip-lists';
+import type { BackupPayload } from '../backup';
+import type { Setting } from '../db/types';
+import type { Stamp } from './stamps';
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -237,6 +244,29 @@ describe('restoreFromJson', () => {
     });
     expect((await db.settings.get('userRiyoshaId'))?.value).toBe('NEW');
   });
+  // 退避する申告者情報も書き込みと同じトランザクションの中で読む。外で先に読むと、
+  // 復元の間に書き直した値が、読んでおいた古い値で上書きされる。
+  test('申告者情報を含まないバックアップの復元中に書き直した値は失われない', async () => {
+    const lost: number[] = [];
+    for (let ticks = 0; ticks < 60; ticks++) {
+      await db.settings.clear();
+      await setSetting('userFilerName', '青井 太郎');
+      const edited = `青井 花子 ${ticks}`;
+      const restoring = restoreFromJson({
+        version: PAYLOAD_VERSION,
+        exportedAt: '2026-05-10',
+        tables: { vendors: [{ id: 'v1', name: '業者' }] },
+      });
+      for (let i = 0; i < ticks; i++) {
+        await new Promise((r) => setImmediate(r));
+      }
+      await Promise.all([restoring, setSetting('userFilerName', edited)]);
+      if ((await db.settings.get('userFilerName'))?.value !== edited) {
+        lost.push(ticks);
+      }
+    }
+    expect(lost).toEqual([]);
+  });
 });
 // 復元は全テーブルを clear してから書き戻す。スタンプ帳とバッジはバックアップに
 // 入っていないので、素通りさせると「復元しただけで消える」ことになる。
@@ -257,6 +287,310 @@ describe('支援の記録は復元で消えない', () => {
     await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
     await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-08-18', tables: {} });
     expect((await db.settings.get('supporterBadgeAt'))?.value).toBe('2026-08-18');
+  });
+});
+// 通知の許可は端末ごと。バックアップで運ぶと、許可していない端末でオンの表示になる。
+describe('解析完了の通知設定は復元で持ち込まれず、消えもしない', () => {
+  const put = (value: boolean) =>
+    db.settings.put({ key: 'analysisNotifyEnabled', value, updatedAt: Date.now() });
+  const backupWith = (value: boolean) => ({
+    version: PAYLOAD_VERSION,
+    exportedAt: '2026-10-22',
+    tables: { settings: [{ key: 'analysisNotifyEnabled', value, updatedAt: 1 }] },
+  });
+
+  test('バックアップが true でも、この端末が false ならオンにならない', async () => {
+    await put(false);
+    await restoreFromJson(backupWith(true));
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(false);
+  });
+
+  test('バックアップが true でも、この端末に値が無ければ行を作らない', async () => {
+    await restoreFromJson(backupWith(true));
+    expect(await db.settings.get('analysisNotifyEnabled')).toBeUndefined();
+  });
+
+  test('この端末が true なら、キーを含まないバックアップを復元しても残る', async () => {
+    await put(true);
+    await restoreFromJson({ version: PAYLOAD_VERSION, exportedAt: '2026-10-22', tables: {} });
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(true);
+  });
+
+  test('この端末が true なら、バックアップが false でも true のまま', async () => {
+    await put(true);
+    await restoreFromJson(backupWith(false));
+    expect((await db.settings.get('analysisNotifyEnabled'))?.value).toBe(true);
+  });
+
+  test('同じ settings の他のキーは通常どおり復元される', async () => {
+    await restoreFromJson({
+      version: PAYLOAD_VERSION,
+      exportedAt: '2026-10-22',
+      tables: {
+        settings: [
+          { key: 'analysisNotifyEnabled', value: true, updatedAt: 1 },
+          { key: 'userBusinessName', value: '青井商店', updatedAt: 1 },
+        ],
+      },
+    });
+    expect((await db.settings.get('userBusinessName'))?.value).toBe('青井商店');
+  });
+});
+
+function backupOf(tables: Record<string, unknown[]>): BackupPayload {
+  return { version: PAYLOAD_VERSION, exportedAt: '2026-10-23T00:00:00.000Z', tables };
+}
+
+function settingRow(key: string, value: unknown, updatedAt = 1): Setting {
+  return { key, value, updatedAt };
+}
+// 端末の値とバックアップの値。両者が違うことで「端末の値が残った」と区別できるようにする。
+const SKIP_VALUES = {
+  backupFolderHandle: [
+    { name: 'device-folder', kind: 'directory' },
+    { name: 'forged', kind: 'directory' },
+  ],
+  nativeBackupFolder: [
+    { token: 'device-token', name: 'aoiko' },
+    { token: '/Users/someone-else/Dropbox', name: 'forged' },
+  ],
+  supporterBadgeAt: ['2026-08-18', '2026-10-01'],
+  analysisNotifyEnabled: [false, true],
+  lastBackupAt: [1_000, Date.now()],
+  lastDownloadAt: [2_000, Date.now()],
+  lastBlobSweepAt: [3_000, Date.now()],
+  backupRetentionCount: [0, 7],
+  blobRetentionDays: [0, 30],
+} satisfies Partial<Record<keyof SettingsMap, [unknown, unknown]>>;
+const SKIP_CASES = Object.entries(SKIP_VALUES) as [string, [unknown, unknown]][];
+
+describe('SKIP_SETTING_KEYS は復元で端末の値のまま（追加・変更・削除されない）', () => {
+  test('試験用の値は SKIP_SETTING_KEYS の全キーを覆う', () => {
+    expect(SKIP_CASES.map(([k]) => k).sort()).toEqual([...SKIP_SETTING_KEYS].sort());
+  });
+
+  test.each(SKIP_CASES)('%s：(a) 端末とバックアップで値が違えば端末の値', async (key, values) => {
+    const device = settingRow(key, values[0], 111);
+    await db.settings.put(device);
+    await restoreFromJson(backupOf({ settings: [settingRow(key, values[1], 222)] }));
+    expect(await db.settings.get(key)).toEqual(device);
+  });
+
+  test.each(SKIP_CASES)(
+    '%s：(b) 端末に無ければバックアップにあっても無いまま',
+    async (key, values) => {
+      await restoreFromJson(backupOf({ settings: [settingRow(key, values[1], 222)] }));
+      expect(await db.settings.get(key)).toBeUndefined();
+    },
+  );
+
+  test.each(SKIP_CASES)('%s：(c) バックアップに無くても端末の値は残る', async (key, values) => {
+    const device = settingRow(key, values[0], 111);
+    await db.settings.put(device);
+    await restoreFromJson(backupOf({ settings: [settingRow('userBusinessName', '青井商店')] }));
+    expect(await db.settings.get(key)).toEqual(device);
+    expect((await db.settings.get('userBusinessName'))?.value).toBe('青井商店');
+  });
+
+  test.each(SKIP_CASES)(
+    '%s：同じキーが 2 行あっても端末の状態は変わらない',
+    async (key, values) => {
+      const device = settingRow(key, values[0], 111);
+      await db.settings.put(device);
+      const dup = backupOf({
+        settings: [settingRow(key, values[1], 222), settingRow(key, 'second', 333)],
+      });
+      await restoreFromJson(dup);
+      expect(await db.settings.get(key)).toEqual(device);
+
+      await db.settings.delete(key);
+      await restoreFromJson(dup);
+      expect(await db.settings.get(key)).toBeUndefined();
+    },
+  );
+  // 一度もダウンロードしていない端末で「端末外バックアップがありません」の警告が消えないこと。
+  test('ダウンロードしたことの無い端末は、最近の lastDownloadAt を持つバックアップを復元しても未記録のまま', async () => {
+    await restoreFromJson(
+      backupOf({ settings: [settingRow('lastDownloadAt', Date.now(), Date.now())] }),
+    );
+    expect(await db.settings.get('lastDownloadAt')).toBeUndefined();
+  });
+});
+// 復元のあとは、外部送信の前に必ずもう一度確認する。バックアップで確認の省略を持ち込ませない。
+describe('skipExternalSendConfirm は復元のたびに消える', () => {
+  const KEY = 'skipExternalSendConfirm';
+  const cases: [string, unknown, unknown[]][] = [
+    ['端末 true・バックアップ true', true, [true]],
+    ['端末 false・バックアップ true', false, [true]],
+    ['端末に無し・バックアップ true', undefined, [true]],
+    ['端末 true・バックアップ false', true, [false]],
+    ['端末 true・バックアップに無し', true, []],
+    ['端末に無し・バックアップに無し', undefined, []],
+    ['端末 true・バックアップに重複（false・true）', true, [false, true]],
+    ['端末に無し・バックアップに重複（true・true）', undefined, [true, true]],
+  ];
+
+  test.each(cases)('%s → 無し', async (_label, device, backupValues) => {
+    if (device !== undefined) {
+      await db.settings.put(settingRow(KEY, device));
+    }
+    await restoreFromJson(
+      backupOf({
+        settings: [
+          ...backupValues.map((v, i) => settingRow(KEY, v, i + 1)),
+          settingRow('userBusinessName', '青井商店'),
+        ],
+      }),
+    );
+    expect(await db.settings.get(KEY)).toBeUndefined();
+    expect((await db.settings.get('userBusinessName'))?.value).toBe('青井商店');
+  });
+});
+
+describe('stamps は復元で端末の記録のまま', () => {
+  const deviceStamps: Stamp[] = [
+    { id: 'd1', shape: 'yarn', color: 'orange', at: '2026-08-18', createdAt: 1 },
+    { id: 'd2', shape: 'bell', color: 'blue', at: '2026-08-19', createdAt: 2 },
+  ];
+  const backupStamps = [
+    { id: 'b1', shape: 'bell', color: 'blue', at: '2026-09-01', createdAt: 3 },
+    { id: 'd1', shape: 'bell', color: 'blue', at: '2026-09-02', createdAt: 4 },
+  ];
+
+  test('端末に 0 件なら、バックアップにあっても 0 件', async () => {
+    await restoreFromJson(backupOf({ stamps: backupStamps }));
+    expect(await db.stamps.count()).toBe(0);
+  });
+
+  test('端末にあれば、バックアップの別のスタンプが混ざらず端末の分だけ', async () => {
+    await db.stamps.bulkPut(deviceStamps);
+    await restoreFromJson(backupOf({ stamps: backupStamps }));
+    expect(await db.stamps.orderBy('id').toArray()).toEqual(deviceStamps);
+  });
+
+  test('id の無い行があっても復元はエラーにならず、端末の分が残る', async () => {
+    await db.stamps.bulkPut(deviceStamps);
+    await expect(
+      restoreFromJson(
+        backupOf({ stamps: [{ shape: 'bell' }], vendors: [{ id: 'v1', name: '業者' }] }),
+      ),
+    ).resolves.toBeDefined();
+    expect(await db.stamps.orderBy('id').toArray()).toEqual(deviceStamps);
+    expect(await db.vendors.count()).toBe(1);
+  });
+});
+// 復元のあともバックアップ先は設定されたまま。偽の行で別のフォルダへ向けられないこと。
+describe('バックアップ先の設定は復元の前後で同じ', () => {
+  const nativeFolder = { token: 'device-token', name: 'aoiko' };
+  const legacyHandle = { name: 'legacy', kind: 'directory' };
+  const forged = backupOf({
+    settings: [
+      settingRow('nativeBackupFolder', { token: '/Users/someone-else', name: 'forged' }, 9),
+      settingRow('nativeBackupFolder', null, 10),
+      settingRow('backupFolderHandle', { name: 'forged', kind: 'directory' }, 11),
+    ],
+  });
+  const devices: [string, Setting[]][] = [
+    [
+      '両方あり',
+      [
+        settingRow('nativeBackupFolder', nativeFolder),
+        settingRow('backupFolderHandle', legacyHandle),
+      ],
+    ],
+    ['ネイティブの保存先だけ', [settingRow('nativeBackupFolder', nativeFolder)]],
+    ['FSA 時代の handle だけ', [settingRow('backupFolderHandle', legacyHandle)]],
+    ['どちらも無し', []],
+  ];
+  // backup.svelte.ts の initNative と同じ読み方で状態を決める。
+  async function nativeState(): Promise<string> {
+    const folder = (await db.settings.get('nativeBackupFolder'))?.value;
+    const legacy = folder ? null : ((await db.settings.get('backupFolderHandle'))?.value ?? null);
+    return decideNativeState({
+      hasFolder: folder !== null && folder !== undefined,
+      hasLegacyHandle: legacy !== null,
+      ready: true,
+    });
+  }
+
+  async function folderRows(): Promise<(Setting | undefined)[]> {
+    return db.settings.bulkGet(['nativeBackupFolder', 'backupFolderHandle']);
+  }
+
+  test.each(devices)('%s', async (_label, rows) => {
+    await db.settings.bulkPut(rows);
+    const before = await folderRows();
+    const stateBefore = await nativeState();
+
+    await restoreFromJson(forged);
+    expect(await folderRows()).toEqual(before);
+    expect(await nativeState()).toBe(stateBefore);
+
+    await restoreFromJson(backupOf({}));
+    expect(await folderRows()).toEqual(before);
+    expect(await nativeState()).toBe(stateBefore);
+  });
+  // 端末の行は書き込みと同じトランザクションの中で読む。外で先に読むと、復元の開始と
+  // 同じ瞬間に選び直した保存先が、古い値で上書きされる。
+  test('復元の開始と同じ tick に書いた保存先は失われない', async () => {
+    await setSetting('nativeBackupFolder', nativeFolder);
+    const chosen = { token: 'chosen-now', name: 'new-folder' };
+    const restoring = restoreFromJson(forged);
+    const choosing = setSetting('nativeBackupFolder', chosen);
+    await Promise.all([restoring, choosing]);
+    expect((await db.settings.get('nativeBackupFolder'))?.value).toEqual(chosen);
+  });
+  // 書き込みが復元のどの段階に重なっても、最後に書いた保存先が残る。
+  test('復元の途中のどの時点で書いた保存先も失われない', async () => {
+    const lost: number[] = [];
+    for (let ticks = 0; ticks < 60; ticks++) {
+      await db.settings.clear();
+      await setSetting('nativeBackupFolder', nativeFolder);
+      const chosen = { token: `chosen-${ticks}`, name: 'new-folder' };
+      const restoring = restoreFromJson(forged);
+      for (let i = 0; i < ticks; i++) {
+        await new Promise((r) => setImmediate(r));
+      }
+      await Promise.all([restoring, setSetting('nativeBackupFolder', chosen)]);
+      if (!isDeepStrictEqual((await db.settings.get('nativeBackupFolder'))?.value, chosen)) {
+        lost.push(ticks);
+      }
+    }
+    expect(lost).toEqual([]);
+  });
+});
+
+describe('restoreFromPayload は渡された payload を書き換えない', () => {
+  test('settings・stamps・attachments を含む payload が復元の前後で同じ', async () => {
+    const payload = backupOf({
+      settings: [
+        settingRow('userBusinessName', '青井商店'),
+        settingRow('skipExternalSendConfirm', true),
+        settingRow('skipExternalSendConfirm', false, 2),
+        settingRow('lastBlobSweepAt', Date.now()),
+        settingRow('lastBlobSweepAt', 5, 2),
+        settingRow('supporterBadgeAt', '2026-10-01'),
+        settingRow('backupRetentionCount', 7),
+      ],
+      stamps: [{ id: 'b1', shape: 'bell', color: 'blue', at: '2026-09-01', createdAt: 3 }],
+      attachments: [
+        { id: 'a1', entryId: 'e', mimeType: 'image/jpeg', fileName: 'a.jpg', createdAt: 1 },
+      ],
+      vendors: [{ id: 'v1', name: '業者' }],
+    });
+    const snapshot = structuredClone(payload);
+    const settingsRef = payload.tables.settings;
+    vi.stubGlobal('Blob', NodeBlob);
+    try {
+      await restoreFromPayload(payload, new Map());
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(payload).toEqual(snapshot);
+    expect(payload.tables.settings).toBe(settingsRef);
+    expect((await db.settings.get('userBusinessName'))?.value).toBe('青井商店');
+    expect(await db.settings.get('skipExternalSendConfirm')).toBeUndefined();
+    expect(await db.settings.get('lastBlobSweepAt')).toBeUndefined();
   });
 });
 

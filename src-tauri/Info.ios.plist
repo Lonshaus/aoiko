@@ -41,6 +41,12 @@
     <string>zh-Hant</string>
     <string>en</string>
   </array>
+  <!-- 解析中にアプリを離れても続けるための続行タスク（iOS 26 以降）。識別子はジョブごとに
+       この接頭辞の後へ乱数を付けて作る（BackgroundTime.swift）。 -->
+  <key>BGTaskSchedulerPermittedIdentifiers</key>
+  <array>
+    <string>net.lonshaus.aoiko.ios.analysis.*</string>
+  </array>
   <!-- iOS 27 からシーン対応が必須。複数ウインドウは 2 枚目の中身が作られず真っ黒になるため無効にする。 -->
   <key>UIApplicationSceneManifest</key>
   <dict>

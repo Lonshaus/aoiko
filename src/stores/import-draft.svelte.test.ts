@@ -39,14 +39,26 @@ vi.mock('../parsers', () => ({
   findParser: (name: string) => [parserA, parserB].find((p) => p.name === name) ?? null,
 }));
 
-vi.mock('../lib/llm-adapter', () => ({
-  createLlmAdapter: async () => ({
+vi.mock('../lib/llm-adapter', () => {
+  const adapter = () => ({
     external: false,
     destinationHost: '',
     generateJson: (prompt: string, image?: unknown, options?: LlmCallOptions) =>
       adapterRef.generateJson(prompt, image, options),
-  }),
-}));
+  });
+  return {
+    createLlmAdapter: async () => adapter(),
+    createLlmAdapterWithConfig: async () => ({
+      adapter: adapter(),
+      config: {
+        engine: 'openai-compatible',
+        model: 'm',
+        apiKey: '',
+        baseUrl: 'http://localhost:1',
+      },
+    }),
+  };
+});
 
 const { importDraft } = await import('./import-draft.svelte');
 const { analysis } = await import('./analysis.svelte');
@@ -80,7 +92,9 @@ const SUGGEST_ALL = {
 beforeEach(async () => {
   await db.delete();
   await db.open();
-  ledger.accounts = ACCOUNTS;
+  // ledger の科目は liveQuery の購読から届くが、db.delete() と重なった問い合わせの扱いで
+  // 届く時期も届くかどうかも揺れるため、テストでは値を固定する。
+  vi.spyOn(ledger, 'accounts', 'get').mockReturnValue(ACCOUNTS);
   adapterRef.generateJson = async () => SUGGEST_ALL;
 });
 

@@ -17,6 +17,7 @@
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
   import { m } from '../paraglide/messages';
+  import { escapeHtml } from '../lib/html-escape';
   import ScrollX from '../components/ScrollX.svelte';
   // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
   const uaModKey = /Mac|iPhone|iPad/.test(navigator.userAgent) ? 'Cmd' : 'Ctrl';
@@ -504,7 +505,7 @@
 <ConfirmDialog
   open={confirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(pending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}

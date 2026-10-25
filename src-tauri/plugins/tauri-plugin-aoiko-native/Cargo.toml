@@ -55,6 +55,12 @@ windows = { version = "0.61", features = [
   "Graphics_Imaging",
   "Storage_Streams",
   "Globalization",
+  "Foundation",
+  "Data_Xml_Dom",
+  "UI_Notifications",
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_Threading",
 ] }
 # フォルダ選択・保存先の指定・未保存確認はこのプラグインの中で完結させる。デスクトップの
 # plugin-dialog は rfd の薄いラッパーでしかないので、その rfd を直接持って plugin-dialog ごと外す。

@@ -1,7 +1,7 @@
 ## Default Permission
 
 バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と
-アプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、
+アプリ内ブラウザ表示、解析の完了通知と iOS での解析の実行に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、
 受け取ったパスはその配下に収まることを検査してから使う。
 
 #### This default permission set includes the following:
@@ -23,6 +23,14 @@
 - `allow-apple-ai-availability`
 - `allow-apple-ai-extract`
 - `allow-apple-ai-run`
+- `allow-notification-status`
+- `allow-notification-request`
+- `allow-analysis-notify`
+- `allow-analysis-activity-begin`
+- `allow-analysis-activity-end`
+- `allow-analysis-runner-start`
+- `allow-analysis-runner-take`
+- `allow-analysis-runner-cancel`
 
 ## Permission Table
 
@@ -32,6 +40,162 @@
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-activity-begin`
+
+</td>
+<td>
+
+Enables the analysis_activity_begin command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-activity-begin`
+
+</td>
+<td>
+
+Denies the analysis_activity_begin command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-activity-end`
+
+</td>
+<td>
+
+Enables the analysis_activity_end command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-activity-end`
+
+</td>
+<td>
+
+Denies the analysis_activity_end command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-notify`
+
+</td>
+<td>
+
+Enables the analysis_notify command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-notify`
+
+</td>
+<td>
+
+Denies the analysis_notify command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-runner-cancel`
+
+</td>
+<td>
+
+Enables the analysis_runner_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-runner-cancel`
+
+</td>
+<td>
+
+Denies the analysis_runner_cancel command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-runner-start`
+
+</td>
+<td>
+
+Enables the analysis_runner_start command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-runner-start`
+
+</td>
+<td>
+
+Denies the analysis_runner_start command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-analysis-runner-take`
+
+</td>
+<td>
+
+Enables the analysis_runner_take command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-analysis-runner-take`
+
+</td>
+<td>
+
+Denies the analysis_runner_take command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -341,6 +505,58 @@ Enables the is_text_recognition_available command without any pre-configured sco
 <td>
 
 Denies the is_text_recognition_available command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-notification-request`
+
+</td>
+<td>
+
+Enables the notification_request command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-notification-request`
+
+</td>
+<td>
+
+Denies the notification_request command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:allow-notification-status`
+
+</td>
+<td>
+
+Enables the notification_status command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`aoiko-native:deny-notification-status`
+
+</td>
+<td>
+
+Denies the notification_status command without any pre-configured scope.
 
 </td>
 </tr>

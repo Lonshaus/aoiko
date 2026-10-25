@@ -4,7 +4,8 @@
 
 import { buildOrderPrompt, parseOrderResponse, type OrderExtracted } from '../domain/order-extract';
 import type { LlmCallOptions } from '../domain/llm';
-import { createLlmAdapter } from './llm-adapter';
+import { createLlmAdapterWithConfig } from './llm-adapter';
+import { runOrderInRunner, runnerConfig } from './native-runner-client';
 
 export interface OrderExtractor {
   /** 端末外へデータを送るか（送信前確認ダイアログ表示要否） */
@@ -15,11 +16,16 @@ export interface OrderExtractor {
 }
 
 export async function createOrderExtractor(): Promise<OrderExtractor> {
-  const adapter = await createLlmAdapter('order');
+  const { adapter, config } = await createLlmAdapterWithConfig('order');
+  // web view の外で走らせる環境のための設定。送る設定はここで読んだもの（確認に出す宛先と同じ）に限る。
+  const runner = runnerConfig(config);
   return {
     external: adapter.external,
     destinationHost: adapter.destinationHost,
     async extract(pastedText: string, options?: LlmCallOptions) {
+      if (runner !== null) {
+        return runOrderInRunner(runner, adapter.destinationHost, pastedText, options);
+      }
       const raw = adapter.runDataTask
         ? await adapter.runDataTask('order', { text: pastedText }, options)
         : await adapter.generateJson(

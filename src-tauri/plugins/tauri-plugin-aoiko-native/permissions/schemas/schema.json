@@ -295,6 +295,78 @@
       "type": "string",
       "oneOf": [
         {
+          "description": "Enables the analysis_activity_begin command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-activity-begin",
+          "markdownDescription": "Enables the analysis_activity_begin command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_activity_begin command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-activity-begin",
+          "markdownDescription": "Denies the analysis_activity_begin command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the analysis_activity_end command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-activity-end",
+          "markdownDescription": "Enables the analysis_activity_end command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_activity_end command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-activity-end",
+          "markdownDescription": "Denies the analysis_activity_end command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the analysis_notify command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-notify",
+          "markdownDescription": "Enables the analysis_notify command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_notify command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-notify",
+          "markdownDescription": "Denies the analysis_notify command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the analysis_runner_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-runner-cancel",
+          "markdownDescription": "Enables the analysis_runner_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_runner_cancel command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-runner-cancel",
+          "markdownDescription": "Denies the analysis_runner_cancel command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the analysis_runner_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-runner-start",
+          "markdownDescription": "Enables the analysis_runner_start command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_runner_start command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-runner-start",
+          "markdownDescription": "Denies the analysis_runner_start command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the analysis_runner_take command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-analysis-runner-take",
+          "markdownDescription": "Enables the analysis_runner_take command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the analysis_runner_take command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-analysis-runner-take",
+          "markdownDescription": "Denies the analysis_runner_take command without any pre-configured scope."
+        },
+        {
           "description": "Enables the apple_ai_availability command without any pre-configured scope.",
           "type": "string",
           "const": "allow-apple-ai-availability",
@@ -439,6 +511,30 @@
           "markdownDescription": "Denies the is_text_recognition_available command without any pre-configured scope."
         },
         {
+          "description": "Enables the notification_request command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-notification-request",
+          "markdownDescription": "Enables the notification_request command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the notification_request command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-notification-request",
+          "markdownDescription": "Denies the notification_request command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the notification_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-notification-status",
+          "markdownDescription": "Enables the notification_status command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the notification_status command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-notification-status",
+          "markdownDescription": "Denies the notification_status command without any pre-configured scope."
+        },
+        {
           "description": "Enables the open_in_app command without any pre-configured scope.",
           "type": "string",
           "const": "allow-open-in-app",
@@ -499,10 +595,10 @@
           "markdownDescription": "Denies the resolve_folder command without any pre-configured scope."
         },
         {
-          "description": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`\n- `allow-is-text-recognition-available`\n- `allow-apple-ai-availability`\n- `allow-apple-ai-extract`\n- `allow-apple-ai-run`",
+          "description": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示、解析の完了通知と iOS での解析の実行に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`\n- `allow-is-text-recognition-available`\n- `allow-apple-ai-availability`\n- `allow-apple-ai-extract`\n- `allow-apple-ai-run`\n- `allow-notification-status`\n- `allow-notification-request`\n- `allow-analysis-notify`\n- `allow-analysis-activity-begin`\n- `allow-analysis-activity-end`\n- `allow-analysis-runner-start`\n- `allow-analysis-runner-take`\n- `allow-analysis-runner-cancel`",
           "type": "string",
           "const": "default",
-          "markdownDescription": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`\n- `allow-is-text-recognition-available`\n- `allow-apple-ai-availability`\n- `allow-apple-ai-extract`\n- `allow-apple-ai-run`"
+          "markdownDescription": "バックアップフォルダの選択と解決、その配下のファイル入出力、iOS/iPadOS の印刷と\nアプリ内ブラウザ表示、解析の完了通知と iOS での解析の実行に必要な権限。どのフォルダを起点にするかはプラグイン側だけが決め、\n受け取ったパスはその配下に収まることを検査してから使う。\n\n#### This default permission set includes:\n\n- `allow-pick-folder`\n- `allow-resolve-folder`\n- `allow-print-page`\n- `allow-open-in-app`\n- `allow-confirm-discard`\n- `allow-backup-open`\n- `allow-backup-write-chunk`\n- `allow-backup-close`\n- `allow-backup-read`\n- `allow-backup-list`\n- `allow-backup-remove`\n- `allow-export-open`\n- `allow-recognize-text`\n- `allow-is-text-recognition-available`\n- `allow-apple-ai-availability`\n- `allow-apple-ai-extract`\n- `allow-apple-ai-run`\n- `allow-notification-status`\n- `allow-notification-request`\n- `allow-analysis-notify`\n- `allow-analysis-activity-begin`\n- `allow-analysis-activity-end`\n- `allow-analysis-runner-start`\n- `allow-analysis-runner-take`\n- `allow-analysis-runner-cancel`"
         }
       ]
     }

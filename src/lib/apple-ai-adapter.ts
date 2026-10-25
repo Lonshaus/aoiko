@@ -3,7 +3,7 @@
 // これは制約であって不備ではない。runDataTask だけがデータを渡し、指示は環境側に固定で
 // 埋め込まれている（AppleIntelligence.swift の classifyInstructions / orderInstructions）。
 import { LlmError, type LlmAdapter, type LlmDataTask, type LlmImageInput } from '../domain/llm';
-import { nativeBridge } from './native-bridge';
+import { nativeBridge, type NativeBridge } from './native-bridge';
 import { m } from '../paraglide/messages';
 
 const TASK_CODES: Record<LlmDataTask, number> = {
@@ -30,16 +30,21 @@ function describeRunFailure(code: unknown): string {
   return m.error_apple_ai_run_misconfigured({ detail: String(code) });
 }
 
+// 呼び出し先の形。web view では nativeBridge()、web view の外の解析の実行環境では aoikoHost を包んだもの。
+export type AppleAiRunBridge = Pick<NativeBridge, 'appleAiRun'>;
+
 export class AppleAiAdapter implements LlmAdapter {
   readonly external = false;
   readonly destinationHost = '';
+
+  constructor(private readonly bridge: AppleAiRunBridge | null = nativeBridge()) {}
 
   async generateJson(_prompt: string, _image?: LlmImageInput): Promise<unknown> {
     throw new LlmError(m.error_apple_ai_prompt_unsupported());
   }
 
   async runDataTask(task: LlmDataTask, data: unknown): Promise<unknown> {
-    const run = nativeBridge()?.appleAiRun;
+    const run = this.bridge?.appleAiRun;
     if (typeof run !== 'function') {
       throw new LlmError(m.error_apple_ai_run_4());
     }

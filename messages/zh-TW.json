@@ -1213,5 +1213,20 @@
   "analysis_badge_done": "待確認",
   "analysis_badge_failed": "失敗",
   "analysis_toast_done": "「{name}」解析完成，點選這裡即可查看結果。",
-  "analysis_toast_failed": "「{name}」解析失敗，點選這裡即可查看原因。"
+  "analysis_toast_failed": "「{name}」解析失敗，點選這裡即可查看原因。",
+  "analysis_notify_done": "「{name}」解析完成",
+  "analysis_notify_failed": "「{name}」解析失敗",
+  "settings_analysis_notify_label": "解析完成時發送通知",
+  "settings_analysis_notify_hint": "只有在你離開這個分頁或應用程式的期間解析完成，才會以瀏覽器通知告知。通知只會顯示畫面名稱與結果，不含金額或交易對象。",
+  "settings_analysis_notify_denied": "瀏覽器未允許通知，因此無法開啟這項設定。請在瀏覽器的網站設定中允許通知後，再試一次。",
+  "settings_analysis_notify_unsupported": "這個瀏覽器無法使用通知。在 iPhone 與 iPad 上，只有加入主畫面的應用程式才能使用。",
+  "settings_analysis_notify_hint_native": "只有在你離開應用程式的期間解析完成，才會以系統通知告知。通知只會顯示畫面名稱與結果，不含金額或交易對象。",
+  "settings_analysis_notify_denied_native": "通知未獲允許，因此無法開啟這項設定。請在作業系統的通知設定中允許 aoiko 後，再試一次。",
+  "settings_analysis_notify_insecure": "這個頁面不是以 https 開啟，因此無法使用通知。",
+  "settings_analysis_notify_blocked": "瀏覽器已封鎖這個網站的通知。若要使用，請在瀏覽器的網站設定中允許通知，再重新開啟這個畫面。",
+  "runner_expired": "離開 App 期間可繼續處理的時間已用完，因此解析已中斷。請保持 App 開啟後再試一次。",
+  "runner_invalid_result": "解析結果的格式不正確，無法使用。請再試一次。",
+  "runner_local_engine_failed": "無法在裝置上執行文字辨識，因此未能完成解析。請再試一次。",
+  "runner_start_failed": "無法開始解析。請確認設定後再試一次。",
+  "runner_text_recognition_failed": "無法辨識文字。請再試一次。"
 }

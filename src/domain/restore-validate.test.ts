@@ -1,10 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import {
-  BackupValidationError,
-  NEVER_RESTORED,
-  PRIMARY_KEY,
-  validateBackupPayload,
-} from './restore-validate';
+import { BackupValidationError, PRIMARY_KEY, validateBackupPayload } from './restore-validate';
+import { SKIP_TABLES } from '../backup/skip-lists';
 import { db } from '../db';
 import type { BackupPayload } from '../backup';
 
@@ -47,6 +43,18 @@ describe('validateBackupPayload', () => {
       validateBackupPayload(payload({ journalEntries: [], unknownTable: [{ x: 1 }] })),
     ).not.toThrow();
   });
+  // JSON.parse は __proto__ も自前のキーとして作るので、バックアップの読み込みと同じく JSON.parse で組み立てる。
+  test.each(['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__'])(
+    'Object の継承メンバーと同じ名前 %s も未知テーブルとして無視する',
+    (name) => {
+      const tables = JSON.parse(`{"${name}": [{ "x": 1 }, "x", null]}`) as Record<
+        string,
+        unknown[]
+      >;
+      expect(Object.keys(tables)).toEqual([name]);
+      expect(() => validateBackupPayload(payload(tables))).not.toThrow();
+    },
+  );
 
   test('tables が配列でなければ投げる', () => {
     expect(() => validateBackupPayload(payload({ journalEntries: {} as never }))).toThrow(
@@ -119,11 +127,17 @@ describe('validateBackupPayload', () => {
 describe('意図的に復元しないテーブル', () => {
   test('stamps は PRIMARY_KEY に載せない（載せると別端末の記録を持ち込める）', () => {
     expect('stamps' in PRIMARY_KEY).toBe(false);
-    expect(NEVER_RESTORED.has('stamps')).toBe(true);
+    expect(SKIP_TABLES.has('stamps')).toBe(true);
   });
 
   test('stamps を含むバックアップでも検証は通る（無視されるだけ）', () => {
     expect(() => validateBackupPayload(payload({ stamps: [{ id: 's1' }] }))).not.toThrow();
+  });
+
+  test('stamps の行が id を持たなくても、オブジェクトでなくても検証で止めない', () => {
+    expect(() =>
+      validateBackupPayload(payload({ stamps: [{ shape: 'bell' }, 'x', null] })),
+    ).not.toThrow();
   });
 });
 
@@ -131,7 +145,7 @@ describe('PRIMARY_KEY と db スキーマの同期', () => {
   test('db.tables の全テーブルが PRIMARY_KEY に登録されている', () => {
     const missing = db.tables
       .map((t) => t.name)
-      .filter((name) => !(name in PRIMARY_KEY) && !NEVER_RESTORED.has(name));
+      .filter((name) => !(name in PRIMARY_KEY) && !SKIP_TABLES.has(name));
     expect(
       missing,
       'db に新テーブルを追加したら restore-validate.ts の PRIMARY_KEY にも追加すること（未登録テーブルは復元時に黙って無視され、利用者データが復元されない）',

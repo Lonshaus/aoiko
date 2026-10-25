@@ -59,19 +59,28 @@ vi.mock('../parsers', () => ({
     [parserA, parserB, parserC, parserD].find((p) => p.name === name) ?? null,
 }));
 // 失敗行数表示テスト専用。ローカルエンジンの分類結果を模し、確認ダイアログを経由させない external: false。
-vi.mock('../lib/llm-adapter', () => ({
-  createLlmAdapter: async () => ({
-    external: false,
-    destinationHost: '',
-    generateJson: async () => ({
-      classifications: [
-        { ref: '2', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
-        { ref: '5', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
-        { ref: '10', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
-      ],
+vi.mock('../lib/llm-adapter', () => {
+  const mocked = {
+    createLlmAdapter: async () => ({
+      external: false,
+      destinationHost: '',
+      generateJson: async () => ({
+        classifications: [
+          { ref: '2', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
+          { ref: '5', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
+          { ref: '10', accountCode: '', confidence: 'none', reason: '', status: 'failed' },
+        ],
+      }),
     }),
-  }),
-}));
+  };
+  return {
+    ...mocked,
+    createLlmAdapterWithConfig: async () => ({
+      adapter: await mocked.createLlmAdapter(),
+      config: { engine: 'apple-ai' },
+    }),
+  };
+});
 
 const { default: Import } = await import('./Import.svelte');
 const { computeInventoryLive, importDraft } = await import('../stores/import-draft.svelte');

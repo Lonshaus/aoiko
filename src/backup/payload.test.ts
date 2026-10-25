@@ -3,6 +3,7 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+import { RESET_ON_RESTORE_KEYS, SKIP_SETTING_KEYS, SKIP_TABLES } from './skip-lists';
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -133,6 +134,46 @@ describe('支援の記録は持ち出さない', () => {
     await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
     const p = await buildPayload({ includeApiKeys: true });
     expect(settingKeys(p.tables)).not.toContain('supporterBadgeAt');
+  });
+});
+
+describe('解析完了の通知設定は持ち出さない', () => {
+  test('analysisNotifyEnabled は常に除外（端末ごとの通知許可に紐づく）', async () => {
+    await db.settings.put({ key: 'analysisNotifyEnabled', value: true, updatedAt: Date.now() });
+    const p = await buildPayload({ includeApiKeys: true, includeFilerInfo: true });
+    expect(settingKeys(p.tables)).not.toContain('analysisNotifyEnabled');
+  });
+});
+
+describe('端末固有の記録は持ち出さない（skip-lists.ts）', () => {
+  test('SKIP_SETTING_KEYS のキーは含めるオプションを全部立てても書き出さない', async () => {
+    const now = Date.now();
+    await db.settings.bulkPut(
+      [...SKIP_SETTING_KEYS].map((key) => ({ key, value: `device-${key}`, updatedAt: now })),
+    );
+    const p = await buildPayload({ includeApiKeys: true, includeFilerInfo: true });
+    const keys = settingKeys(p.tables);
+    for (const key of SKIP_SETTING_KEYS) {
+      expect(keys, key).not.toContain(key);
+    }
+    expect(keys).toContain('userBusinessName');
+  });
+
+  test('SKIP_TABLES のテーブルは書き出さない', async () => {
+    await db.stamps.put({ id: 's1', shape: 'bell', color: 'blue', at: '2026-08-18', createdAt: 1 });
+    const p = await buildPayload({ includeApiKeys: true, includeFilerInfo: true });
+    for (const name of SKIP_TABLES) {
+      expect(p.tables[name], name).toBeUndefined();
+    }
+  });
+  // 書き出しの形式を変えないために残している。復元では取り込まない（domain/restore.ts）。
+  test('RESET_ON_RESTORE_KEYS のキーは書き出しには残る', async () => {
+    const now = Date.now();
+    await db.settings.bulkPut(
+      [...RESET_ON_RESTORE_KEYS].map((key) => ({ key, value: true, updatedAt: now })),
+    );
+    const keys = settingKeys((await buildPayload()).tables);
+    expect(keys).toContain('skipExternalSendConfirm');
   });
 });
 

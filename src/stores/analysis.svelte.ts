@@ -1,3 +1,11 @@
+import {
+  analysisNotifyPermission,
+  closeAnalysisNotifications,
+  notifyAnalysisDone,
+} from '../lib/analysis-notify';
+import { newId } from '../lib/id';
+import { nativeBridge } from '../lib/native-bridge';
+import { getSetting } from '../lib/settings';
 import { registerUnloadCheck } from '../router.svelte';
 
 export type AnalysisKind = 'receipt' | 'order' | 'classify';
@@ -23,7 +31,71 @@ export const ANALYSIS_ROUTE: Record<AnalysisKind, string> = {
   classify: '/import',
 };
 
+export function isAnalysisKind(value: unknown): value is AnalysisKind {
+  return typeof value === 'string' && Object.hasOwn(ANALYSIS_ROUTE, value);
+}
+// 外から届いた種別を経路へ変える唯一の入口。表に無い値は null。
+export function analysisRouteFor(value: unknown): string | null {
+  return isAnalysisKind(value) ? ANALYSIS_ROUTE[value] : null;
+}
+
 const TOAST_MS = 8000;
+// ロック名と作業中宣言の識別子は、ページの読み込みごとに変える。解析の連番は読み込みごとに 0 から始まり、
+// ネイティブ側は一度終わった識別子を無視するため。
+let pageLoadId: string | undefined;
+function currentPageLoadId(): string {
+  pageLoadId ??= newId();
+  return pageLoadId;
+}
+// 解析中は Web Lock を保持し続ける。ブラウザの省エネ機能は、ロックを持つタブを凍結しない。
+// 取得は待たない。解析の開始をロックの状況に左右させないため。終わった後に取得できても何も保持しない。
+function holdWebLock(name: string): () => void {
+  const locks = typeof navigator !== 'undefined' && 'locks' in navigator ? navigator.locks : null;
+  if (!locks) {
+    return () => {};
+  }
+  const request = new AbortController();
+  let release = () => {};
+  const held = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  locks
+    .request(name, { signal: request.signal }, () => (request.signal.aborted ? undefined : held))
+    .catch(() => {});
+  return () => {
+    request.abort();
+    release();
+  };
+}
+// 解析中は OS に作業中であることを伝える（アプリが裏に回っても止められにくくする）。
+// 終了は開始の応答が返ってから送る。先に終了が着くと、後から着いた開始が残ってしまう。
+// 失敗しても解析自体は進められるので、結果は捨てる。
+function holdNativeActivity(job: string): () => void {
+  const bridge = __NATIVE__ ? nativeBridge() : null;
+  if (typeof bridge?.analysisActivityBegin !== 'function') {
+    return () => {};
+  }
+  const begun = Promise.resolve()
+    .then(() => bridge.analysisActivityBegin?.(job))
+    .catch(() => {});
+  return () => {
+    void begun.then(() => bridge.analysisActivityEnd?.(job)).catch(() => {});
+  };
+}
+
+function userIsAway(): boolean {
+  return document.visibilityState === 'hidden' || !document.hasFocus();
+}
+// 許可は呼ぶ時点の実際の状態で見る（設定がオンでも、ブラウザ側で取り消されていれば出さない）。
+async function notifyIfEnabled(kind: AnalysisKind, outcome: 'done' | 'failed'): Promise<void> {
+  if ((await analysisNotifyPermission()) !== 'granted') {
+    return;
+  }
+  if ((await getSetting('analysisNotifyEnabled')) !== true) {
+    return;
+  }
+  await notifyAnalysisDone(kind, outcome);
+}
 // 3 画面で解析の実行権を 1 つだけ共有する。端末内の AI は行程全体で 1 件しか生成できず、
 // 2 件目を許すと busy で落ちるため、キューにはせず開始を断る。
 class AnalysisStore {
@@ -33,6 +105,7 @@ class AnalysisStore {
   unseen = $state<Partial<Record<AnalysisKind, 'done' | 'failed'>>>({});
   notices = $state<AnalysisNotice[]>([]);
   #seq = 0;
+  #releaseLocks = new Map<number, () => void>();
 
   get busy(): boolean {
     return this.job !== null;
@@ -74,6 +147,13 @@ class AnalysisStore {
       cancelling: false,
     };
     this.job = job;
+    const name = `${currentPageLoadId()}-${job.id}`;
+    const releaseLock = holdWebLock(`aoiko-analysis-${name}`);
+    const endActivity = holdNativeActivity(name);
+    this.#releaseLocks.set(job.id, () => {
+      releaseLock();
+      endActivity();
+    });
     return job;
   }
   // 結果を捨てる判定は signal.aborted で行う（job は不変なので cancelling の複製は参照しない）。
@@ -88,11 +168,22 @@ class AnalysisStore {
     }
     this.job = { ...job, cancelling: true };
     job.controller.abort();
+    this.#releaseLock(job.id);
+  }
+
+  #releaseLock(id: number): void {
+    this.#releaseLocks.get(id)?.();
+    this.#releaseLocks.delete(id);
   }
 
   finish(job: AnalysisJob, outcome: AnalysisOutcome): void {
+    this.#releaseLock(job.id);
     if (this.job?.id === job.id) {
       this.job = null;
+    }
+    // 表示中の画面かどうかとは別に、離れていれば OS の通知を出す。
+    if (outcome !== 'cancelled' && userIsAway()) {
+      notifyIfEnabled(job.kind, outcome).catch(() => {});
     }
     if (outcome === 'cancelled' || this.viewing === job.kind) {
       return;
@@ -121,6 +212,7 @@ class AnalysisStore {
       this.unseen = rest;
     }
     this.notices = this.notices.filter((n) => n.kind !== kind);
+    closeAnalysisNotifications(kind).catch(() => {});
   }
 
   dismissNotice(id: number): void {

@@ -38,7 +38,7 @@ class AoikoDB extends Dexie {
   budgets!: Table<Budget, [number, number]>;
   arApEntries!: Table<ArApEntry, string>;
   invoices!: Table<Invoice, string>;
-  // 支援のスタンプ帳。バックアップには含めない（payload.ts の SKIP_TABLES）。
+  // 支援のスタンプ帳。バックアップには含めない（backup/skip-lists.ts の SKIP_TABLES）。
   stamps!: Table<Stamp, string>;
 
   constructor() {
