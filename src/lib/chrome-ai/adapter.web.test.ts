@@ -77,3 +77,49 @@ describe('ChromeAiAdapter.generateJson', () => {
     expect(destroy).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('ChromeAiAdapter の signal', () => {
+  test('signal を session.prompt の options へ渡す', async () => {
+    const prompt = vi.fn(
+      async (_input?: unknown, _options?: { responseConstraint?: unknown; signal?: AbortSignal }) =>
+        '{}',
+    );
+    const adapter = new ChromeAiAdapter('order', async () => stubSession({ prompt }));
+    const controller = new AbortController();
+    await adapter.generateJson('p', undefined, { signal: controller.signal });
+    expect(prompt.mock.calls[0]?.[1]?.signal).toBe(controller.signal);
+  });
+
+  test('signal が無ければ options に signal を含めない', async () => {
+    const prompt = vi.fn(async (_input?: unknown, _options?: object) => '{}');
+    const adapter = new ChromeAiAdapter('order', async () => stubSession({ prompt }));
+    await adapter.generateJson('p');
+    expect(prompt.mock.calls[0]?.[1]).not.toHaveProperty('signal');
+  });
+
+  test('prompt が AbortError で拒否されたらそのまま伝え、session を破棄する', async () => {
+    const destroy = vi.fn();
+    const session = stubSession({
+      destroy,
+      prompt: async () => {
+        throw new DOMException('aborted', 'AbortError');
+      },
+    });
+    const adapter = new ChromeAiAdapter('order', async () => session);
+    await expect(
+      adapter.generateJson('p', undefined, { signal: new AbortController().signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(destroy).toHaveBeenCalledTimes(1);
+  });
+
+  test('中止済みなら prompt を呼ばずに拒否する', async () => {
+    const prompt = vi.fn(async () => '{}');
+    const adapter = new ChromeAiAdapter('order', async () => stubSession({ prompt }));
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      adapter.generateJson('p', undefined, { signal: controller.signal }),
+    ).rejects.toBeDefined();
+    expect(prompt).not.toHaveBeenCalled();
+  });
+});

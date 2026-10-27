@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { registerSW } from 'virtual:pwa-register';
   import { m } from '../paraglide/messages';
   import { nativeBridge } from '../lib/native-bridge';
   import { classifyNeedRefresh, refreshAction } from '../lib/update-prompt';
+  import { updateCard } from '../stores/update-card.svelte';
 
   let updateAvailable = $state(false);
   let offlineReady = $state(false);
   let dismissOffline = $state(false);
   let registerFailed = $state(false);
   let dismissRegisterFailed = $state(false);
-  let cardHeight = $state(0);
   const cardShown = $derived(
     updateAvailable ||
       (offlineReady && !dismissOffline) ||
       (registerFailed && !dismissRegisterFailed),
   );
+  updateCard.isShown = () => cardShown;
+  onDestroy(() => {
+    updateCard.isShown = null;
+  });
   let updateFn: ((reloadPage?: boolean) => Promise<void>) | null = null;
   let registration: ServiceWorkerRegistration | undefined;
   let controlledAtRegister = false;
@@ -77,7 +81,7 @@
 
 {#if updateAvailable}
   <div
-    bind:offsetHeight={cardHeight}
+    bind:offsetHeight={updateCard.height}
     class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-lg p-4 max-w-sm"
   >
     <p class="text-sm font-medium mb-1">{m.update_available_title()}</p>
@@ -103,7 +107,7 @@
   </div>
 {:else if offlineReady && !dismissOffline}
   <div
-    bind:offsetHeight={cardHeight}
+    bind:offsetHeight={updateCard.height}
     class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
   >
     <span class="text-xs text-muted-foreground">
@@ -120,7 +124,7 @@
   </div>
 {:else if registerFailed && !dismissRegisterFailed}
   <div
-    bind:offsetHeight={cardHeight}
+    bind:offsetHeight={updateCard.height}
     class="print:hidden fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-50 bg-card text-card-foreground border rounded-lg shadow-sm p-3 max-w-sm flex items-center gap-3"
   >
     <span class="text-xs text-muted-foreground">
@@ -141,6 +145,6 @@
   <div
     aria-hidden="true"
     class="print:hidden"
-    style:height="calc({cardHeight}px + 2rem + env(safe-area-inset-bottom))"
+    style:height="calc({updateCard.height}px + 2rem + env(safe-area-inset-bottom))"
   ></div>
 {/if}

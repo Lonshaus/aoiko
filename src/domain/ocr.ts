@@ -1,4 +1,4 @@
-import { LlmError, type LlmAdapter, type LlmImageInput } from './llm';
+import { LlmError, type LlmAdapter, type LlmCallOptions, type LlmImageInput } from './llm';
 import { todayISO } from '../lib/date';
 import { m } from '../paraglide/messages';
 // 領収書 OCR：画像 → 構造化された取引データ。
@@ -31,9 +31,10 @@ export interface ReceiptExtracted {
 export async function extractReceipt(
   adapter: LlmAdapter,
   image: LlmImageInput,
+  options?: LlmCallOptions,
 ): Promise<ReceiptExtracted> {
   const prompt = buildOcrPrompt();
-  const raw = await adapter.generateJson(prompt, image);
+  const raw = await adapter.generateJson(prompt, image, options);
   return parseOcrResponse(raw);
 }
 

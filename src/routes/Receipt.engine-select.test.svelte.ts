@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { db } from '../db/db';
 import { setLocale } from '../paraglide/runtime';
+import { receiptDraft } from '../stores/receipt-draft.svelte';
 import { setSetting } from '../lib/settings';
 
 const { bridgeState, extractorCalls } = vi.hoisted(() => ({
@@ -55,6 +56,8 @@ afterEach(async () => {
     container = undefined;
   }
   await db.delete();
+  receiptDraft.reset();
+  receiptDraft.success = '';
 });
 
 async function waitFor(
@@ -84,7 +87,8 @@ async function selectFile(c: HTMLElement): Promise<void> {
   dt.items.add(file);
   Object.defineProperty(input, 'files', { value: dt.files, configurable: true });
   input.dispatchEvent(new Event('change', { bubbles: true }));
-  await waitFor(() => c.querySelector('button') !== null);
+  // 設定の読み込みを終えて draft に載るまで待つ。途中で終えると後始末で消した DB を読みに行く。
+  await waitFor(() => receiptDraft.file !== null);
   flushSync();
 }
 
@@ -125,6 +129,7 @@ describe('Receipt: エンジン選択', () => {
     button(c, '解析する').click();
     await waitFor(() => extractorCalls.length > 0);
     expect(extractorCalls[0]).toEqual(['rule', 'tesseract']);
+    await waitFor(() => receiptDraft.extracted !== null);
   });
 
   test('AI 行は aiEngine を反映する（openai-compatible）', async () => {
@@ -191,5 +196,34 @@ describe('Receipt: エンジン選択', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
     await waitFor(() => c.textContent?.includes('決まった規則で') === true);
     expect(c.textContent).not.toContain('店名と品目も推測します');
+  });
+});
+
+describe('Receipt: 初期化中に画面を離れる', () => {
+  test('設定の読み込み途中で DB が閉じても、未処理の失敗を残さない', async () => {
+    const get = db.settings.get.bind(db.settings);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const spy = vi.spyOn(db.settings, 'get').mockImplementation((async (key: string) => {
+      await gate;
+      return get(key);
+    }) as typeof db.settings.get);
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    process.on('unhandledRejection', onRejection);
+    try {
+      renderReceipt();
+      flushSync();
+      await Promise.resolve();
+      unmount(instance!);
+      instance = undefined;
+      db.close();
+      release();
+      await new Promise((r) => setTimeout(r, 50));
+    } finally {
+      process.off('unhandledRejection', onRejection);
+      spy.mockRestore();
+    }
+    expect(rejections).toEqual([]);
   });
 });

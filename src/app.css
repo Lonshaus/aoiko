@@ -35,6 +35,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --analysis-failed: #ff4b00;
+  --analysis-running: #fff100;
+  --analysis-running-ring: oklch(0.205 0 0);
+  --analysis-done: #005aff;
 }
 
 .dark {
@@ -65,6 +69,10 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.65 0.1 236);
+  --analysis-failed: #ff4b00;
+  --analysis-running: #fff100;
+  --analysis-running-ring: transparent;
+  --analysis-done: #4dc4ff;
 }
 
 @theme inline {
@@ -129,6 +137,10 @@
     --border: oklch(1 0 0 / 12%);
     --input: oklch(1 0 0 / 15%);
     --ring: oklch(0.65 0.1 236);
+    --analysis-failed: #ff4b00;
+    --analysis-running: #fff100;
+    --analysis-running-ring: transparent;
+    --analysis-done: #4dc4ff;
   }
 }
 /* 印刷時は prefers-color-scheme: dark が有効なままでも用紙上は常に明色にする（帳票印刷は print:block、他は print:hidden） */

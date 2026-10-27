@@ -13,7 +13,10 @@ type SessionOptions = {
 export type ChromeAiSession = {
   contextWindow: number;
   measureContextUsage(input: unknown): Promise<number>;
-  prompt(input: unknown, options?: { responseConstraint?: unknown }): Promise<string>;
+  prompt(
+    input: unknown,
+    options?: { responseConstraint?: unknown; signal?: AbortSignal },
+  ): Promise<string>;
   destroy(): void;
 };
 

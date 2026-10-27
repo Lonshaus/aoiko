@@ -123,6 +123,24 @@ The OS's built-in text recognition shows no dialog either, and fetches nothing e
 The OS's built-in text recognition shows no dialog either, and aoiko itself fetches nothing extra at all — recognition runs entirely on-device using the OS's own engine. Reading Japanese requires the Japanese OCR language feature to be present in Windows (preinstalled, or added in Windows settings); aoiko neither downloads nor installs it.
 <!-- /only -->
 
+#### Moving to another screen while analyzing, and stopping
+
+Analysis can take from a few seconds to several tens of seconds. In the meantime you can move to other screens and carry on, for example reviewing journal entries.
+
+- While it runs, a round mark appears next to **"Receipts"** in the navigation: yellow while it runs, blue when it finishes, and red if it fails. When the screen is narrow and the navigation is folded into a menu button, the button shows the mark too (if there are several, only one is shown, in the order red, blue, yellow). Opening the menu also shows the state in words: **"Analyzing"**, **"Ready to review"**, or **"Failed"**. A notice also appears at the bottom of the screen; select it to return to the Receipts screen. The notice disappears after a few seconds, but the mark stays until you open the Receipts screen
+- When you return, the chosen image and the extracted result are still there. They are kept until you register the entry or discard them with **"Cancel"**
+- Reloading the page, or closing the tab or app, loses the image and the result (a confirmation appears when you try to close)
+- Only one analysis runs at a time. While any of Receipts, Orders, or the AI classification on the CSV import screen is analyzing, the analyze buttons on the other screens are disabled and show "Another analysis is already running, so this one can't start."
+- You cannot choose a different image while analyzing. This keeps the result and the image from getting out of step
+- **"Stop analysis"** cancels it, and the result of a cancelled analysis is not used. Most engines stop right away
+<!-- only:apple -->
+- Apple Intelligence and the OS's built-in text recognition cannot be interrupted. After you cancel, "**Stopping…**" stays on screen until the processing ends, and then you can start the next analysis
+<!-- /only -->
+<!-- only:windows -->
+- The OS's built-in text recognition cannot be interrupted. After you cancel, "**Stopping…**" stays on screen until the processing ends, and then you can start the next analysis
+<!-- /only -->
+- Cancelling does not take back data that has already been sent to an external AI
+
 ### 2-3. Review and edit the extracted result
 
 When done, **"2. Extracted result (editable)"** expands below:
