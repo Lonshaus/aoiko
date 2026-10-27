@@ -6,10 +6,13 @@ import { join } from 'node:path';
 // CI では runner の一時領域を使う（TMPDIR が RUNNER_TEMP と一致する保証が無いため
 // 環境変数から直接取り、workflow の artifact パスと確実に揃える）。
 const artifactRoot = join(process.env.RUNNER_TEMP ?? tmpdir(), 'aoiko-playwright');
+// CI はブラウザごとに job を分ける。pwa-chromium を走らせない job で build まで待たないための切替
+const skipPwa = process.env.E2E_SKIP_PWA === '1';
 // e2e は実 IDB 上での挙動・Svelte 5 + Dexie + PWA 統合を検証する。
 // ドメインロジックは Vitest で網羅済み。重複は避け、UI フロー中心。
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   outputDir: join(artifactRoot, 'test-results'),
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -31,15 +34,19 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: ['pwa/**'] },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: ['pwa/**'] },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, testIgnore: ['pwa/**'] },
-    {
-      name: 'pwa-chromium',
-      // Service Worker の route 差し替え・Cache Storage の内容確認は Chromium 系専用の
-      // CDP 前提が要り、Firefox / WebKit では Playwright から同じ形で観測できない。
-      use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:31527' },
-      testMatch: ['pwa/**'],
-      // 1 テストで解析を 2 回走らせる（初回取得＋オフライン再解析）ため既定の 30 秒では足りない。
-      timeout: 90_000,
-    },
+    ...(skipPwa
+      ? []
+      : [
+          {
+            name: 'pwa-chromium',
+            // Service Worker の route 差し替え・Cache Storage の内容確認は Chromium 系専用の
+            // CDP 前提が要り、Firefox / WebKit では Playwright から同じ形で観測できない。
+            use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:31527' },
+            testMatch: ['pwa/**'],
+            // 1 テストで解析を 2 回走らせる（初回取得＋オフライン再解析）ため既定の 30 秒では足りない。
+            timeout: 90_000,
+          },
+        ]),
   ],
   webServer: [
     {
@@ -48,13 +55,17 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
-    {
-      // Service Worker は本物のビルド成果物でしか検証できない（dev server は生成しない）。
-      command: 'npm run build && npm run preview -- --port 31527 --strictPort',
-      url: 'http://localhost:31527',
-      reuseExistingServer: !process.env.CI,
-      // build 込みなので既定の 60 秒では足りない。
-      timeout: 180_000,
-    },
+    ...(skipPwa
+      ? []
+      : [
+          {
+            // Service Worker は本物のビルド成果物でしか検証できない（dev server は生成しない）。
+            command: 'npm run build && npm run preview -- --port 31527 --strictPort',
+            url: 'http://localhost:31527',
+            reuseExistingServer: !process.env.CI,
+            // build 込みなので既定の 60 秒では足りない。
+            timeout: 180_000,
+          },
+        ]),
   ],
 });
