@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { D } from '../lib/decimal';
-import { buildMonthly } from './reports';
+import { buildMonthly, type YearData } from './reports';
 import type { Budget } from '../db/types';
 
 interface MonthlyBudgetRow {
@@ -19,8 +19,11 @@ export interface BudgetVsActualReport {
 }
 // 予算 vs 実際。実績は既存の buildMonthly をそのまま使い回す
 // （月別売上/経費の集計ロジックを重複させない）。
-export async function computeBudgetVsActual(year: number): Promise<BudgetVsActualReport> {
-  const monthly = await buildMonthly(year);
+export async function computeBudgetVsActual(
+  year: number,
+  data?: YearData,
+): Promise<BudgetVsActualReport> {
+  const monthly = await buildMonthly(year, data);
   const budgetRows = await db.budgets.where('year').equals(year).toArray();
   const budgetMap = new Map(budgetRows.map((b) => [b.month, b]));
 

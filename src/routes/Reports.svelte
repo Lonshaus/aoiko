@@ -12,9 +12,11 @@
   } from '../lib/amount-input';
   import {
     buildAll,
+    buildBreakdown,
     buildMultiYearBS,
     buildMultiYearPL,
     buildPL,
+    loadYearData,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -23,6 +25,7 @@
     type MultiYearBSReport,
     type MultiYearPLReport,
     type PLReport,
+    type YearData,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
   import { saveTextFile } from '../lib/save-file';
@@ -135,6 +138,8 @@
   let monthlyPL = $state<MonthlyPLReport | null>(null);
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
+  // 主 liveQuery が読んだ年度データ。大きい配列を深くプロキシ化しないよう raw で持つ
+  let loadedYearData = $state.raw<{ year: number; data: YearData } | null>(null);
   let amendment = $state<AmendmentDiff | null>(null);
   let staleCarryover = $state<StaleCarryover | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
@@ -597,17 +602,17 @@
 
   $effect(() => {
     const yr = year;
-    const ax = breakdownAxis;
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const filing = (await getSetting('filingType')) ?? 'blue';
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const reports = await buildAll(yr, ax);
-      const processed = await processYear(yr);
+      const yearData = await loadYearData(yr);
+      const reports = await buildAll(yr, 'vendor', yearData, { skipBreakdown: true });
+      const processed = await processYear(yr, undefined, { yearData });
       const inventory = ledger.inventoryAutoValuationEnabled
         ? await computeInventoryValuation(`${yr}-12-31`)
         : null;
-      const budget = await computeBudgetVsActual(yr);
+      const budget = await computeBudgetVsActual(yr, yearData);
       const yearAccounts = await db.accounts.where({ year: yr }).toArray();
       const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
       const salesRatio = computeTaxableSalesRatio(
@@ -618,9 +623,13 @@
       );
       return {
         ...reports,
-        amendment: await getAmendmentDiff(yr),
+        yearData: { year: yr, data: yearData },
+        amendment: await getAmendmentDiff(yr, yearData),
         staleCarryover: await detectStaleCarryover(yr),
-        consumptionTax: await compareAll(yr, cat, attributionMethod, compareOptions),
+        consumptionTax: await compareAll(yr, cat, attributionMethod, {
+          ...compareOptions,
+          yearData,
+        }),
         interimVoluntary: await loadInterimVoluntaryInputs(),
         taxRegistration: reg,
         simplifiedCategory: cat,
@@ -641,7 +650,7 @@
         hasRealEstate = v.hasRealEstate;
         inventoryValuation = v.inventory;
         monthlyPL = v.monthlyPL;
-        breakdown = v.breakdown;
+        loadedYearData = v.yearData;
         amendment = v.amendment;
         staleCarryover = v.staleCarryover;
         consumptionTax = v.consumptionTax;
@@ -670,11 +679,33 @@
         bs = null;
         inventoryValuation = null;
         monthlyPL = null;
+        loadedYearData = null;
         breakdown = null;
         amendment = null;
         staleCarryover = null;
         consumptionTax = null;
         budgetVsActual = null;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+
+  $effect(() => {
+    const yr = year;
+    const ax = breakdownAxis;
+    const loaded = loadedYearData;
+    if (!loaded || loaded.year !== yr) {
+      return;
+    }
+    // 取引先・補助科目は別テーブルなので、年度データを渡しても liveQuery で購読して変更に追従する
+    const sub = liveQuery(() => buildBreakdown(yr, ax, loaded.data)).subscribe({
+      next: (v) => {
+        reportsError = '';
+        breakdown = v;
+      },
+      error: (e: unknown) => {
+        reportsError = describeStorageError(e);
+        breakdown = null;
       },
     });
     return () => sub.unsubscribe();

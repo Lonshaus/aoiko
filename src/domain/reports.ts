@@ -208,9 +208,9 @@ export interface BSReport {
 // B/S・繰越に幻の残高が生じるため、必ずペアで除外すること。
 // 期締め後の訂正処理（修正申告ロジック）は reportSnapshots の filed フラグ機構で対応予定。
 
-type YearData = { entries: JournalEntry[]; lines: JournalLine[]; accounts: Account[] };
+export type YearData = { entries: JournalEntry[]; lines: JournalLine[]; accounts: Account[] };
 
-async function loadYearData(year: number): Promise<YearData> {
+export async function loadYearData(year: number): Promise<YearData> {
   const entries = await db.journalEntries
     .where('year')
     .equals(year)
@@ -236,17 +236,35 @@ interface AllReports {
 }
 // 同一年度の全レポートを 1 回の loadYearData で計算する。
 // 各 buildX を個別に呼ぶと同じ年度データを 5 回読み込むため、共有して IDB アクセスを削減する。
-export async function buildAll(year: number, breakdownAxis: BreakdownAxis): Promise<AllReports> {
-  const data = await loadYearData(year);
-  return {
-    monthly: await buildMonthly(year, data),
-    pl: await buildPL(year, data),
-    bs: await buildBS(year, data),
-    monthlyPL: await buildMonthlyPL(year, data),
-    breakdown: await buildBreakdown(year, breakdownAxis, data),
+export async function buildAll(
+  year: number,
+  breakdownAxis: BreakdownAxis,
+  data?: YearData,
+): Promise<AllReports>;
+export async function buildAll(
+  year: number,
+  breakdownAxis: BreakdownAxis,
+  data: YearData | undefined,
+  options: { skipBreakdown: true },
+): Promise<Omit<AllReports, 'breakdown'>>;
+export async function buildAll(
+  year: number,
+  breakdownAxis: BreakdownAxis,
+  data?: YearData,
+  options: { skipBreakdown?: boolean } = {},
+): Promise<AllReports | Omit<AllReports, 'breakdown'>> {
+  const yearData = data ?? (await loadYearData(year));
+  const base = {
+    monthly: await buildMonthly(year, yearData),
+    pl: await buildPL(year, yearData),
+    bs: await buildBS(year, yearData),
+    monthlyPL: await buildMonthlyPL(year, yearData),
   };
+  if (options.skipBreakdown) {
+    return base;
+  }
+  return { ...base, breakdown: await buildBreakdown(year, breakdownAxis, yearData) };
 }
-
 export async function buildMonthly(year: number, data?: YearData): Promise<MonthlyReport> {
   const { entries, lines, accounts } = data ?? (await loadYearData(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
