@@ -65,7 +65,10 @@ beforeEach(async () => {
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
-  await waitFor(() => (container!.textContent ?? '').includes('賃貸アパート'));
+  await waitFor(() => {
+    const text = container!.textContent ?? '';
+    return text.includes(MOUNT_SENTINEL) && text.includes('賃貸アパート');
+  });
 });
 
 afterEach(async () => {
