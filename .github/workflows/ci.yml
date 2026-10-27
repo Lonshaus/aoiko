@@ -33,7 +33,27 @@ jobs:
       - run: npm run build
 
   e2e:
+    name: e2e (${{ matrix.browser }})
     runs-on: ubuntu-latest
+    # ブラウザごとに並列で回す。globalSetup が chromium で dev server を温めるので、どの job にも chromium を入れる
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            install: chromium
+            projects: --project=chromium --project=pwa-chromium
+            skip-pwa: ''
+          - browser: firefox
+            install: chromium firefox
+            projects: --project=firefox
+            skip-pwa: '1'
+          - browser: webkit
+            install: chromium webkit
+            projects: --project=webkit
+            skip-pwa: '1'
+    env:
+      E2E_SKIP_PWA: ${{ matrix.skip-pwa }}
     steps:
       - uses: actions/checkout@v7
 
@@ -53,21 +73,21 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.os-release.outputs.id }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.os-release.outputs.id }}-${{ matrix.browser }}-${{ hashFiles('package-lock.json') }}
 
-      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npx playwright install --with-deps ${{ matrix.install }}
         if: steps.playwright-cache.outputs.cache-hit != 'true'
 
-      - run: npx playwright install-deps
+      - run: npx playwright install-deps ${{ matrix.install }}
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
-      - run: npm run test:e2e
+      - run: npm run test:e2e -- ${{ matrix.projects }}
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.browser }}
           path: ${{ runner.temp }}/aoiko-playwright/report/
           retention-days: 7
   # パッケージ（インストーラ生成）以外はすべてこの repo にあるので、ネイティブ側もここで回す。
