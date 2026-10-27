@@ -633,6 +633,7 @@
     missing: [],
     assumed: [],
     dismissedAssets: [],
+    missingError: null,
   });
   $effect(() => {
     const sub = liveQuery(() => readOpeningRecoveryState()).subscribe({
@@ -882,6 +883,17 @@
   {#if recoveryError}
     <p data-testid="opening-recovery-error" class="text-sm text-destructive" role="alert">
       {recoveryError}
+    </p>
+  {/if}
+  {#if recovery.missingError !== null}
+    <p
+      data-testid="opening-missing-assets-load-error"
+      class="text-sm text-destructive"
+      role="alert"
+    >
+      {m.opening_missing_assets_load_failed({
+        reason: describeStorageError(recovery.missingError),
+      })}
     </p>
   {/if}
   {#if visibleMissing.length > 0 || recovery.assumed.length > 0}

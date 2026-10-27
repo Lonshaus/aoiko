@@ -143,6 +143,7 @@
   "opening_missing_assets_basis_unreadable": "仕訳の金額を読めないか上限を超えているため、この資産は登録できません。元の仕訳を確かめてください",
   "opening_missing_assets_registered": "{name} を固定資産に登録しました。",
   "opening_missing_assets_not_missing": "この資産はすでに登録されているか、元の仕訳が打ち消されたため、登録しませんでした。",
+  "opening_missing_assets_load_failed": "登録し直す転用資産を読み込めなかったため、一覧を表示できません：{reason}",
   "common_integer_invalid": "{min}〜{max} の整数で入力してください",
   "income_deductions_invalid_count": "入力に誤りが {count} 件あります。直してから保存してください",
   "settings_filer_riyosha_id_invalid": "利用者識別番号は 16 桁の数字で入力してください",

@@ -10,7 +10,7 @@ import { parseAmountInput, readStoredAmount } from '../lib/amount-input';
 import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 import { InvalidFixedAssetError, validateFixedAsset } from './fixed-asset-check';
-import { readStoredBusinessDate, sameStoredBusinessDate } from './depreciation';
+import { readStoredBusinessDate, sameStoredBusinessDate } from './stored-business-date';
 import { m } from '../paraglide/messages';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
@@ -1117,6 +1117,8 @@ export interface OpeningRecoveryState {
   missing: MissingOpeningAsset[];
   assumed: AssumedOpeningAsset[];
   dismissedAssets: string[];
+  /** 登録し直す転用資産を読めなかったときの原因。読めたときは null */
+  missingError: unknown;
 }
 // 画面の案内に使う。読めない部分は空として扱い、画面のほかの部分を止めない。
 // liveQuery が読んだ表を追えるよう、読み取りはすべて呼ばれた時点で始める（別の await の後に始めると追えない）
@@ -1124,7 +1126,10 @@ export async function readOpeningRecoveryState(): Promise<OpeningRecoveryState> 
   const [interrupted, dismissedYears, found, dismissedAssets] = await Promise.all([
     findInterruptedOpeningYears(),
     loadDismissedInterruptedOpeningYears().catch((): number[] => []),
-    findMissingOpeningAssets().catch(() => ({ missing: [], assumed: [] })),
+    findMissingOpeningAssets().then(
+      (r) => ({ ...r, missingError: null as unknown }),
+      (e: unknown) => ({ missing: [], assumed: [], missingError: e }),
+    ),
     loadDismissedMissingOpeningAssets().catch((): string[] => []),
   ]);
   return { interrupted, dismissedYears, ...found, dismissedAssets };

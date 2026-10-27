@@ -181,7 +181,7 @@ Pressing "Don't show" shows the "Hide the notice for 2026?" confirmation. Its de
 
 ## 10. Converted assets to register again
 
-Among the converted assets of the opening entries restored in [§ 9-1](#9-1-restoring-the-opening-entries), those that are not registered as fixed assets are listed under **"Converted assets to register again"** on the Opening Setup screen. Enter the acquisition date, acquisition cost and useful life and register them, and they are used for year-end depreciation. The entry amount is used as the opening book value. Each row shows the name, year and opening book value in the form "name (2026, opening book value ¥…)".
+Among the converted assets of the opening entries restored in [§ 9-1](#9-1-restoring-the-opening-entries), those that are not registered as fixed assets are listed under **"Converted assets to register again"** on the Opening Setup screen. Enter the acquisition date, acquisition cost and useful life and register them, and they are used for year-end depreciation. The entry amount is used as the opening book value. Each row shows the name, year and opening book value in the form "name (2026, opening book value ¥…)". If the list cannot be loaded, "The converted assets to register again could not be read, so the list cannot be shown:" is shown followed by the reason, in place of the list.
 
 An asset with the same name and the same account registered in Settings, whose acquisition date is on or before the business start date, is treated as corresponding to this converted asset. In that case "An asset with the same name registered in Settings (name, acquired …) was treated as this converted asset" appears.
 

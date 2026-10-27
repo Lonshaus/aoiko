@@ -70,15 +70,14 @@
     generateYearEndDepreciation,
     InvalidBusinessDateError,
     readBusinessDateSources,
-    readStoredBusinessDate,
     saveBusinessDateSettings,
     selectEffectiveBusinessDates,
     serviceStartDate,
     type BusinessDateField,
     type BusinessDateSelection,
     type BusinessDateSources,
-    type StoredBusinessDate,
   } from '../domain/depreciation';
+  import { readStoredBusinessDate, type StoredBusinessDate } from '../domain/stored-business-date';
   import { readVisibleInterruptedOpeningYears } from '../domain/business-opening';
   import {
     aggregateTransferIncome,

@@ -359,6 +359,25 @@ describe('B 類：止まっていない年は示さない（H6）', () => {
     expect(text()).toContain(m.opening_expense_title());
   });
 
+  test('表示しない資産の設定を読めなければ、登録し直す資産の読み込み失敗を示す', async () => {
+    await seedOpening('2026-07-01', '私用PC');
+    const original = db.settings.get.bind(db.settings);
+    vi.spyOn(db.settings, 'get').mockImplementation(((key: unknown, ...rest: unknown[]) =>
+      key === 'dismissedMissingOpeningAssets'
+        ? Promise.reject(new Error('読み込み失敗（試験）'))
+        : (original as (...a: unknown[]) => unknown)(key, ...rest)) as never);
+    await render();
+    await waitFor(
+      () =>
+        text().includes(m.opening_missing_assets_load_failed({ reason: '読み込み失敗（試験）' })),
+      1000,
+    ).catch(() => {});
+    expect(text()).toContain(
+      m.opening_missing_assets_load_failed({ reason: '読み込み失敗（試験）' }),
+    );
+    expect(input('jigyoStartDate')).not.toBeNull();
+  });
+
   test('元に戻した開業仕訳が無ければ、印や開業年の無い旧い開業資産があっても登録し直す資産を出さない', async () => {
     await seedOpening('2026-07-01', '私用PC');
     const asset = (await db.fixedAssets.toArray())[0]!;

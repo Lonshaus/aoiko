@@ -15,6 +15,7 @@ import {
   loadDismissedInterruptedOpeningYears,
   loadDismissedMissingOpeningAssets,
   OpeningRestoreAborted,
+  readOpeningRecoveryState,
   registerMissingOpeningAsset,
   removeOpeningEntries,
   replaceOpeningEntries,
@@ -472,5 +473,25 @@ describe('B 類：元に戻した仕訳をのちに作り直す（既存の関�
       assetNames: ['私用PC'],
     });
     expect(await db.fixedAssets.count()).toBe(1);
+  });
+});
+
+describe('readOpeningRecoveryState（登録し直す転用資産の読み込み失敗）', () => {
+  it('読めたときは missingError が null', async () => {
+    expect((await readOpeningRecoveryState()).missingError).toBeNull();
+  });
+
+  it('表示しない資産の設定を読めなければ、一覧は空にして失敗の原因を missingError で返す', async () => {
+    await seedOpening('2026-07-01', '私用PC');
+    const injected = new Error('読み込み失敗（試験）');
+    const original = db.settings.get.bind(db.settings);
+    vi.spyOn(db.settings, 'get').mockImplementation(((key: unknown, ...rest: unknown[]) =>
+      key === 'dismissedMissingOpeningAssets'
+        ? Promise.reject(injected)
+        : (original as (...a: unknown[]) => unknown)(key, ...rest)) as never);
+    const state = await readOpeningRecoveryState();
+    expect(state.missing).toEqual([]);
+    expect(state.assumed).toEqual([]);
+    expect(state.missingError).toBe(injected);
   });
 });

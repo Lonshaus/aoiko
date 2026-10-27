@@ -144,6 +144,7 @@
   "opening_missing_assets_basis_unreadable": "The entry amount cannot be read or exceeds the limit, so this asset cannot be registered. Check the original entry.",
   "opening_missing_assets_registered": "Registered {name} as a fixed asset.",
   "opening_missing_assets_not_missing": "This asset was not registered because it is already registered or its original entry was reversed.",
+  "opening_missing_assets_load_failed": "The converted assets to register again could not be read, so the list cannot be shown: {reason}",
   "common_integer_invalid": "Enter a whole number from {min} to {max}",
   "income_deductions_invalid_count": "{count} fields have errors. Fix them before saving",
   "settings_filer_riyosha_id_invalid": "Enter the user identification number as 16 digits",

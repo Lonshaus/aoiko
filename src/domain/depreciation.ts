@@ -11,6 +11,11 @@ import {
 } from '../tax-schema/2026/limits';
 import { oldStraightLineRate } from './business-opening';
 import {
+  readStoredBusinessDate,
+  sameStoredBusinessDate,
+  type StoredBusinessDate,
+} from './stored-business-date';
+import {
   findInvalidFixedAssets,
   fixedAssetIssueScope,
   fixedAssetLabel,
@@ -280,10 +285,6 @@ export function assertBusinessDatesValid(
     }
   }
 }
-export interface StoredBusinessDate {
-  value: unknown;
-  valid: boolean;
-}
 // 開業日・廃業日の出どころ。設定値は復元で型を検証しないため元の値のまま持つ
 export interface BusinessDateSources {
   settingStart?: StoredBusinessDate;
@@ -306,21 +307,6 @@ export interface BusinessDateSelection extends EffectiveBusinessDates {
   issues: BusinessDateIssue[];
 }
 
-export function readStoredBusinessDate(value: unknown): StoredBusinessDate | undefined {
-  if (value === undefined || value === null || value === '') {
-    return undefined;
-  }
-  return { value, valid: isValidIsoDate(value) };
-}
-// 保存済みの値は復元で型を検証しないため、取り出すたびに別の物になる物・配列は中身で比べる
-export function sameStoredBusinessDate(a: unknown, b: unknown): boolean {
-  const x = readStoredBusinessDate(a)?.value;
-  const y = readStoredBusinessDate(b)?.value;
-  if (typeof x === 'object' && x !== null && typeof y === 'object' && y !== null) {
-    return JSON.stringify(x) === JSON.stringify(y);
-  }
-  return Object.is(x, y);
-}
 export type BusinessDateField = 'start' | 'close';
 interface BusinessDateWrite {
   /** 書くときの値。空文字列は消す。書かない欄は undefined */

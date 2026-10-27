@@ -144,6 +144,7 @@
   "opening_missing_assets_basis_unreadable": "無法讀取傳票金額或超過上限，因此無法登錄這項資產。請確認原傳票",
   "opening_missing_assets_registered": "已將 {name} 登錄為固定資產。",
   "opening_missing_assets_not_missing": "這項資產已經登錄，或原傳票已被沖銷，所以沒有登錄。",
+  "opening_missing_assets_load_failed": "無法讀取需要重新登錄的轉用資產，因此無法顯示清單：{reason}",
   "common_integer_invalid": "請輸入 {min}～{max} 的整數",
   "income_deductions_invalid_count": "輸入有 {count} 處錯誤，請修正後再儲存",
   "settings_filer_riyosha_id_invalid": "利用者識別號碼請輸入 16 位數字",
