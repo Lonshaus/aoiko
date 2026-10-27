@@ -14,7 +14,10 @@ async function seedEntry(opts: {
   debitAccount: string;
   creditAccount: string;
   amount: string;
-  debitExtras?: Pick<JournalLine, 'taxCategory' | 'inputUsageCategory' | 'itemId' | 'quantity'>;
+  debitExtras?: Pick<
+    JournalLine,
+    'taxCategory' | 'inputUsageCategory' | 'itemId' | 'quantity' | 'taxableTransferConsideration'
+  >;
 }): Promise<string> {
   const entryId = newId();
   const now = Date.now();
@@ -334,5 +337,21 @@ describe('reverseEntry', () => {
     const reversalId = await reverseEntry(origId);
     const reversal = await db.journalEntries.get(reversalId);
     expect(reversal).toBeDefined();
+  });
+});
+
+describe('A 類（H8）：reverseEntry の明細の写し', () => {
+  test('課税資産の譲渡等の対価も訂正仕訳の明細へ写す', async () => {
+    const origId = await seedEntry({
+      description: '機械の売却',
+      date: '2026-04-15',
+      debitAccount: '1130',
+      creditAccount: '1510',
+      amount: '30000',
+      debitExtras: { taxableTransferConsideration: '30000' },
+    });
+    const reversalId = await reverseEntry(origId);
+    const lines = await db.journalLines.where('entryId').equals(reversalId).toArray();
+    expect(lines.find((l) => l.side === 'credit')?.taxableTransferConsideration).toBe('30000');
   });
 });

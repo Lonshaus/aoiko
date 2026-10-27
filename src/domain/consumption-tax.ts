@@ -15,7 +15,7 @@
 //     「申告書相当額」。ただし付表 2-3 等の正式な申告書そのものは生成しない。
 import { db } from '../db/db';
 import { D, Decimal } from '../lib/decimal';
-import { countsTowardTotals } from './journal';
+import { countsTowardTotals, readTransferConsideration } from './journal';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
 import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { Account, JournalLine, TaxFilingMethod } from '../db/types';
@@ -413,6 +413,7 @@ export async function processYear(
   const accounts = await db.accounts.where('year').equals(year).toArray();
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryDateMap = new Map(yearEntries.map((e) => [e.id, e.date]));
+  const entryById = new Map(yearEntries.map((e) => [e.id, e]));
   const { smallAmountLineIds, capExcess } = classifyNonInvoicePurchases(
     year,
     entryDateMap,
@@ -473,7 +474,7 @@ export async function processYear(
     // 課税資産の譲渡等の行単位の印：科目区分を問わずこの対価を課税売上として集計する
     // （固定資産の譲渡等）。収入科目の売上経路とは重複させず、仕入としても扱わない
     if (line.taxableTransferConsideration !== undefined && line.taxRate !== 0) {
-      const consideration = D(line.taxableTransferConsideration);
+      const consideration = readTransferConsideration(line, entryById.get(line.entryId));
       const national = nationalPortion(consideration, line.taxRate, line.taxIncluded);
       const base = taxExcludedPortion(consideration, line.taxRate, line.taxIncluded);
       output = output.plus(national);

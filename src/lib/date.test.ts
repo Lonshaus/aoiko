@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { toISODateLocal, todayISO } from './date';
+import { isValidIsoDate, toISODateLocal, todayISO } from './date';
 
 describe('toISODateLocal', () => {
   test('ローカル日付を YYYY-MM-DD に整形する', () => {
@@ -24,4 +24,17 @@ describe('todayISO', () => {
     expect(todayISO()).toBe(toISODateLocal(now));
     expect(todayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+});
+
+describe('isValidIsoDate', () => {
+  test.each(['2026-01-01', '2024-02-29', '2026-12-31'])('%j は実在する日付', (v) => {
+    expect(isValidIsoDate(v)).toBe(true);
+  });
+
+  test.each(['2026-13-01', '2026/12/31', '2025-02-29', '2026-1-1', '', 'abc', 20260101, null])(
+    '%j は日付として読めない',
+    (v) => {
+      expect(isValidIsoDate(v)).toBe(false);
+    },
+  );
 });

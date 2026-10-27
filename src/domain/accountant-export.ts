@@ -5,7 +5,13 @@ import { D, Decimal } from '../lib/decimal';
 import { buildCsv } from '../lib/csv';
 import { db } from '../db/db';
 import { getSetting, loadSmallAmountSpecialInputs } from '../lib/settings';
-import { countsTowardTotals } from './journal';
+import { countsTowardTotals, readTransferConsideration } from './journal';
+import {
+  findOversizedAmounts,
+  findUnreadableReversedAmounts,
+  OversizedAmountsError,
+} from './oversized-amounts';
+import { findInvalidConsumptionTaxSettings, InvalidStoredValuesError } from './stored-value-checks';
 import {
   classifyNonInvoicePurchases,
   taxExcludedPortion,
@@ -238,6 +244,11 @@ export function buildYayoiCsvRows(
       continue;
     }
     voucherNo++;
+    for (const line of entryLines) {
+      if (line.taxableTransferConsideration !== undefined) {
+        readTransferConsideration(line, entry);
+      }
+    }
 
     const buildSide = (line: JournalLine): YayoiSideCell => {
       const account = accountMap.get(line.accountCode);
@@ -267,7 +278,7 @@ export function buildYayoiCsvRows(
         continue;
       }
       const info = markedTransferTaxInfo(line, ctx);
-      const amount = D(line.taxableTransferConsideration).toFixed(0);
+      const amount = readTransferConsideration(line, entry).toFixed(0);
       const dept = entry.department ?? '';
       const accountName = account?.name ?? line.accountCode;
       creditCells.push({
@@ -446,20 +457,37 @@ async function loadExportData(year: number): Promise<ExportData> {
     ctx: { taxFilingMethod, simplifiedTaxCategory, smallAmountSpecial },
   };
 }
+// 1e14 以上・読めない明細は toFixed(0) で桁数の多い文字列や例外になるため、出力前に止めて一覧を示す
+async function assertAmountsExportable(year: number): Promise<void> {
+  const found = await findOversizedAmounts({ year });
+  if (found.total > 0) {
+    throw new OversizedAmountsError(found);
+  }
+}
 
 export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  await assertAmountsExportable(year);
+  const invalidSettings = await findInvalidConsumptionTaxSettings(year);
+  if (invalidSettings.length > 0) {
+    throw new InvalidStoredValuesError(invalidSettings);
+  }
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   const rows = buildYayoiCsvRows(entries, lines, accounts, subAccounts, ctx);
   return encodeShiftJis(buildCsv(rows));
 }
 
 export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  await assertAmountsExportable(year);
   const { entries, lines, accounts, subAccounts } = await loadExportData(year);
   const rows = buildGenericCsvRows(entries, lines, accounts, subAccounts);
   return encodeUtf8WithBom(buildCsv([GENERIC_HEADER, ...rows]));
 }
-
+// 訂正で打ち消すことが過大な明細の直し方なので、1e14 以上では止めない。読めない明細だけ止める
 export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  const unreadable = await findUnreadableReversedAmounts(year);
+  if (unreadable.total > 0) {
+    throw new OversizedAmountsError(unreadable, 'unreadable');
+  }
   const entries = await db.journalEntries.where('year').equals(year).toArray();
   const lines =
     entries.length === 0

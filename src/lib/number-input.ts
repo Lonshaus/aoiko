@@ -22,3 +22,13 @@ export function assignInputNumber(
     }
   };
 }
+// 空欄のときは undefined を代入する（assignInputNumber のように直前の値を残さない）
+export function assignInputNumberOrEmpty(
+  assign: (value: number | undefined) => void,
+): FormEventHandler<HTMLInputElement> {
+  return (e) => {
+    const el = e.currentTarget as HTMLInputElement;
+    const v = el.valueAsNumber;
+    assign(Number.isFinite(v) ? v : undefined);
+  };
+}

@@ -238,4 +238,24 @@ describe('computeInventoryValuation', () => {
     expect(result.items[0]?.quantity.toString()).toBe('-3');
     expect(result.items[0]?.value.toString()).toBe('0');
   });
+
+  test('数量を読めない明細は在庫に数えず、日付と摘要を返す（例外にしない）', async () => {
+    await addEntry({
+      date: '2026-03-01',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '1000', itemId: 'i1', quantity: '10' },
+        { side: 'credit', accountCode: '1130', amount: '1000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-03-02',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '500', itemId: 'i1', quantity: 'abc' },
+        { side: 'credit', accountCode: '1130', amount: '500' },
+      ],
+    });
+    const v = await computeInventoryValuation('2026-12-31');
+    expect(v.items[0]?.quantity.toString()).toBe('10');
+    expect(v.unreadable).toEqual([{ date: '2026-03-02', description: 'テスト' }]);
+  });
 });

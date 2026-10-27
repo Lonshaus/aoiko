@@ -17,6 +17,8 @@
     groupLineItemsByTaxRate,
     hasReducedRateItems,
     invoiceTotal,
+    hasUnreadableLineItems,
+    isInvoiceTotalTooLarge,
     isLineItemInvalid,
     issueInvoice,
     newLineItem,
@@ -33,6 +35,8 @@
   let editing = $state<Invoice | null>(null);
   let printingId = $state<string | null>(null);
   let errorMessage = $state('');
+  // 一覧の読み込みの失敗。操作のたびに消える errorMessage と分け、読めるまで出し続ける
+  let loadError = $state('');
   let submitting = $state(false);
   // 編集を開いた時点の内容。下書き（明細行を含む）を丸ごと失うのを防ぐ。
   let editingSnapshot = $state<string | null>(null);
@@ -52,9 +56,12 @@
     const sub = liveQuery(() => db.invoices.toArray()).subscribe({
       next: (v) => {
         invoices = v;
+        loadError = '';
       },
       error: (e: unknown) => {
-        errorMessage = describeStorageError(e);
+        // 読めなかったのに前の一覧を残すと、最新の状態と取り違える
+        invoices = [];
+        loadError = describeStorageError(e);
       },
     });
     return () => sub.unsubscribe();
@@ -242,6 +249,11 @@
   const printingGroups = $derived(
     printingInvoice ? groupLineItemsByTaxRate(printingInvoice.lineItems) : [],
   );
+  const issueTooLarge = $derived(
+    editing !== null &&
+      editing.documentType === 'invoice' &&
+      isInvoiceTotalTooLarge(editing.lineItems),
+  );
   const printingTotal = $derived(printingInvoice ? invoiceTotal(printingInvoice.lineItems) : D(0));
   const printingHasReduced = $derived(
     printingInvoice ? hasReducedRateItems(printingInvoice.lineItems) : false,
@@ -283,6 +295,9 @@
       {m.invoices_action_new()}
     </button>
 
+    {#if loadError}
+      <div class="text-sm text-destructive" role="alert">{loadError}</div>
+    {/if}
     {#if errorMessage}
       <div class="text-sm text-destructive">{errorMessage}</div>
     {/if}
@@ -296,7 +311,11 @@
             >
             <span class="min-w-32">{vendorName(inv.vendorId)}</span>
             <span class="text-xs text-muted-foreground">{inv.date}</span>
-            <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
+            {#if hasUnreadableLineItems(inv.lineItems)}
+              <span class="text-destructive">{m.common_stored_amount_unreadable()}</span>
+            {:else}
+              <span class="font-mono">{formatJPY(invoiceTotal(inv.lineItems))}</span>
+            {/if}
             <span class="text-xs px-2 py-0.5 rounded bg-muted">{statusLabel(inv.status)}</span>
             <div class="ml-auto flex gap-3 print:hidden">
               {#if inv.status === 'draft'}
@@ -345,7 +364,7 @@
           </li>
         {/each}
       </ul>
-    {:else}
+    {:else if !loadError}
       <p class="text-sm text-muted-foreground">{m.invoices_empty()}</p>
     {/if}
   {:else}
@@ -475,6 +494,9 @@
         </div>
       </div>
 
+      {#if issueTooLarge}
+        <div class="text-sm text-destructive">{m.common_amount_too_large()}</div>
+      {/if}
       {#if errorMessage}
         <div class="text-sm text-destructive">{errorMessage}</div>
       {/if}
@@ -491,7 +513,7 @@
         <button
           type="button"
           onclick={issue}
-          disabled={submitting}
+          disabled={submitting || issueTooLarge}
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.invoices_action_issue()}

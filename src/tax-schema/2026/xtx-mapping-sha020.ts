@@ -21,6 +21,7 @@
 //    中間納付の充当は差引税額（納付側）に対してのみ行い、ABJ00130 は符号付き純額（負＝還付）
 
 import { D, Decimal } from '../../lib/decimal';
+import { toKingaku } from './xtx-mapping-shared';
 import {
   computeOfficialOutputTax,
   computeSimplifiedCategoryDeduction,
@@ -29,17 +30,9 @@ import {
 } from '../../domain/consumption-tax';
 import type { SimplifiedTaxCategory } from './simplified-tax';
 import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
-// gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
-function toKingaku(value: Decimal): string {
-  const rounded = value.toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  if (rounded.isZero()) {
-    return '0';
-  }
-  return rounded.toString();
-}
 
 function put(out: XtxLeafValues, tag: string, value: Decimal): void {
-  const v = toKingaku(value);
+  const v = toKingaku(value, tag);
   if (v !== '0') {
     out[tag] = v;
   }

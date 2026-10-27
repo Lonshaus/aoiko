@@ -10,8 +10,11 @@ import {
   formatUnitPrice,
   groupLineItemsByTaxRate,
   hasReducedRateItems,
+  hasUnreadableLineItems,
   invoiceTotal,
+  isInvoiceTotalTooLarge,
   isLineItemInvalid,
+  readInvoiceLineValue,
   issueInvoice,
   normalizeLineItems,
   voidInvoice,
@@ -115,14 +118,11 @@ describe('明細の数量・単価の読み取り', () => {
     '5000.',
     '.5',
     '-0',
-    'Infinity',
-    '-Infinity',
-    'NaN',
     5 as never,
     -2.5 as never,
   ];
 
-  test('D() が読める数量・単価の組はすべて、変更前と同じ小計・税額・合計になる', () => {
+  test('保存済みの有限な D() が読める数量・単価の組はすべて、変更前と同じ小計・税額・合計になる', () => {
     for (const quantity of D_ACCEPTED) {
       for (const unitPrice of D_ACCEPTED) {
         const items = [
@@ -135,6 +135,15 @@ describe('明細の数量・単価の読み取り', () => {
       }
     }
   });
+
+  test.each(['NaN', 'Infinity', '-Infinity'])(
+    '非有限の %j は読めない値として 0 に数え、行は無効になる',
+    (v) => {
+      const items = [lineItem({ quantity: v }), lineItem({ quantity: '2', unitPrice: '500' })];
+      expect(invoiceTotal(items).toString()).toBe('1100');
+      expect(isLineItemInvalid(items[0]!)).toBe(true);
+    },
+  );
 
   test('負の数量の行（値引き）は変更前と同じく差し引いて合計する', () => {
     const items = [
@@ -187,10 +196,19 @@ describe('明細の数量・単価の読み取り', () => {
     expect(() => invoiceTotal([item])).not.toThrow();
   });
 
-  test.each(['1', '-1', '1e3', '0x10', '5000.', '.5', '+5', '５', '5,000', ' 5 ', '－1', '1.5'])(
-    '数量 %j の行は読める行として扱う',
+  test.each(['1', '-1', '５', '5,000', ' 5 ', '－1', '1.5'])(
+    '数量 %j の行は有効な入力として扱う',
     (q) => {
       expect(isLineItemInvalid(lineItem({ quantity: q, unitPrice: q }))).toBe(false);
+    },
+  );
+
+  test.each(['1e3', '0x10'])(
+    '数量 %j は保存済みの値としては読めるが、入力としては無効で発行できない',
+    (q) => {
+      const item = lineItem({ quantity: q, unitPrice: '1' });
+      expect(readInvoiceLineValue(q)?.isFinite()).toBe(true);
+      expect(isLineItemInvalid(item)).toBe(true);
     },
   );
 
@@ -387,7 +405,7 @@ describe('issueInvoice', () => {
     expect(issued.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([['2', '1000']]);
   });
 
-  test('D() が読める値の明細は、そのままの形で保存され変更前と同じ金額で発行される', async () => {
+  test('指数・小数点だけの末尾など D() だけが読める形の明細は発行できず、何も書き込まない', async () => {
     const vendorId = await seedVendor();
     const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
     draft.lineItems = [
@@ -395,10 +413,25 @@ describe('issueInvoice', () => {
       lineItem({ quantity: '-1', unitPrice: '500' }),
     ];
 
+    await expect(issueInvoice(draft, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(
+      m.invoices_line_invalid(),
+    );
+    expect(await db.invoices.count()).toBe(0);
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('一般の書き方の明細は標準の形で保存され、値引きを差し引いた金額で発行される', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [
+      lineItem({ quantity: '10', unitPrice: '5000' }),
+      lineItem({ quantity: '-1', unitPrice: '500' }),
+    ];
+
     const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
 
     expect(issued.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([
-      ['1e1', '5000.'],
+      ['10', '5000'],
       ['-1', '500'],
     ]);
     expect((await db.arApEntries.get(issued.arApEntryId!))?.originalAmount).toBe('54450');
@@ -532,5 +565,126 @@ describe('convertQuoteToInvoiceDraft', () => {
       createdAt: Date.now(),
     };
     expect(() => convertQuoteToInvoiceDraft(invoice, '2026-07-08')).toThrow(/見積書のみ/);
+  });
+});
+
+describe('請求書の数量・単価の入力検査', () => {
+  test.each(['0x10', '1e3', '0b1', 'NaN', 'Infinity'])(
+    '数量 %j の行は入力として受け付けない',
+    (q) => {
+      expect(isLineItemInvalid(lineItem({ quantity: q }))).toBe(true);
+    },
+  );
+
+  test.each(['0x10', '1e3'])('数量 %j の請求書は発行できず、何も書き込まない', async (q) => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: q })];
+
+    await expect(issueInvoice(draft, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(
+      m.invoices_line_invalid(),
+    );
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('保存済みの 1e3 の明細は合計が変わらない', () => {
+    const items = [lineItem({ quantity: '1e3', unitPrice: '2' })];
+    expect(invoiceTotal(items).toString()).toBe('2200');
+  });
+
+  test.each(['NaN', 'Infinity', '-Infinity'])('%j は読めない値で、合計が NaN にならない', (v) => {
+    expect(readInvoiceLineValue(v)).toBeUndefined();
+    expect(invoiceTotal([lineItem({ quantity: v })]).toString()).toBe('0');
+  });
+
+  test('長い 16 進文字列は 1 秒以内に読めない値になり、指数が範囲外の値も読めない', () => {
+    const start = Date.now();
+    expect(readInvoiceLineValue('0x' + 'f'.repeat(200000))).toBeUndefined();
+    expect(Date.now() - start).toBeLessThan(1000);
+    expect(readInvoiceLineValue('1e-5000')).toBeUndefined();
+    expect(readInvoiceLineValue('1.' + '5'.repeat(200000))).toBeUndefined();
+  });
+
+  test('合計が 1e14 以上の請求書は発行せず、仕訳を作らない', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: '1', unitPrice: '100000000000000' })];
+    expect(isInvoiceTotalTooLarge(draft.lineItems)).toBe(true);
+
+    await expect(issueInvoice(draft, DEFAULT_INVOICE_PREFIX)).rejects.toThrow(
+      m.common_amount_too_large(),
+    );
+    expect(await db.journalEntries.count()).toBe(0);
+    expect(await db.arApEntries.count()).toBe(0);
+  });
+
+  test('小数の数量でも売掛金と仕訳の金額は指数表記にならない', async () => {
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [lineItem({ quantity: '0.0000001', unitPrice: '1' })];
+
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+
+    expect((await db.arApEntries.get(issued.arApEntryId!))?.originalAmount).toBe('0.0000001');
+    const lines = await db.journalLines.where('entryId').equals(issued.journalEntryId!).toArray();
+    expect(lines.every((l) => !/e/i.test(l.amount))).toBe(true);
+  });
+
+  test('見積書を請求書にすると全角・桁区切りの明細が半角に揃う', () => {
+    const quote = createDraftInvoice('quote', 'v', '2026-07-08');
+    quote.lineItems = [lineItem({ quantity: '１,０００', unitPrice: '２' })];
+    const draft = convertQuoteToInvoiceDraft({ ...quote, status: 'issued' }, '2026-07-09');
+    expect(draft.lineItems.map((i) => [i.quantity, i.unitPrice])).toEqual([['1000', '2']]);
+  });
+});
+
+describe('数量・単価の十進の書き方（R7・S13・S14）', () => {
+  test.each([
+    ['.5', '1000', '550'],
+    ['1.', '1000', '1100'],
+    ['+5', '1000', '5500'],
+    ['1,000.', '100', '110000'],
+    ['＋５', '100', '550'],
+  ])('数量 %j × 単価 %j は発行でき、合計 %j が仕訳の金額になる', async (q, p, total) => {
+    const item = lineItem({ quantity: q, unitPrice: p });
+    expect(isLineItemInvalid(item)).toBe(false);
+    expect(invoiceTotal([item]).toString()).toBe(total);
+    const vendorId = await seedVendor();
+    const draft = createDraftInvoice('invoice', vendorId, '2026-07-08');
+    draft.lineItems = [item];
+    const issued = await issueInvoice(draft, DEFAULT_INVOICE_PREFIX);
+    const lines = await db.journalLines.where('entryId').equals(issued.journalEntryId!).toArray();
+    expect(lines.find((l) => l.side === 'debit')?.amount).toBe(total);
+  });
+
+  test.each(['1e3', '0x10'])('入力 %j は発行できない', (q) => {
+    expect(isLineItemInvalid(lineItem({ quantity: q }))).toBe(true);
+  });
+
+  test('保存済みの 1e3 の明細は合計を 1000 × 単価で示すが、発行はできない', () => {
+    const item = lineItem({ quantity: '1e3', unitPrice: '3' });
+    expect(invoiceTotal([item]).toString()).toBe('3300');
+    expect(isLineItemInvalid(item)).toBe(true);
+  });
+
+  test('100 万桁の数量・単価は 1 秒以内に読めない値になる', () => {
+    const long = '0.' + '1'.repeat(1e6);
+    const start = Date.now();
+    const item = lineItem({ quantity: long, unitPrice: long });
+    expect(readInvoiceLineValue(long)).toBeUndefined();
+    expect(isLineItemInvalid(item)).toBe(true);
+    expect(hasUnreadableLineItems([item])).toBe(true);
+    invoiceTotal([item]);
+    expect(Date.now() - start).toBeLessThan(1000);
+  });
+
+  test('読めない明細のある請求書を見分ける', () => {
+    expect(hasUnreadableLineItems([lineItem({ quantity: 'abc' })])).toBe(true);
+    expect(hasUnreadableLineItems([lineItem({ quantity: '1e3' })])).toBe(false);
+  });
+
+  test('下書きの空欄は読めない値として扱わない', () => {
+    expect(hasUnreadableLineItems([lineItem({ unitPrice: '' })])).toBe(false);
+    expect(hasUnreadableLineItems([lineItem({ quantity: '' })])).toBe(false);
   });
 });

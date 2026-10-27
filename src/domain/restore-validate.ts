@@ -1,4 +1,5 @@
 import type { BackupPayload } from '../backup';
+import { D, toIndexable, type Decimal } from '../lib/decimal';
 import { m } from '../paraglide/messages';
 // 復元前のスキーマ検証。db.delete() で全消去する前に呼び、不正なバックアップで
 // 既存データを失うのを防ぐ。会計の根幹（仕訳・明細）は型まで検証し、
@@ -62,6 +63,43 @@ function validateJournalEntry(r: unknown, i: number): void {
   }
 }
 
+const ECHO_LIMIT = 40;
+// 有効 28 桁の toString() は指数 -1000〜1000 なら 35 文字以内に収まる。長さで先に切るのは、
+// 巨大な 16 進文字列などの解析に時間がかかるのを防ぐため。
+const MAX_NON_PLAIN_LENGTH = 64;
+const EXPONENT_LIMIT = 1000;
+
+function echo(v: unknown): string {
+  return String(v).slice(0, ECHO_LIMIT);
+}
+// 旧バージョンは入力欄の値（1e3・0x10 など）をそのまま保存していたため、
+// 通常の表記以外も数値として読めれば受け入れる。
+function parseNonPlainAmount(amount: string, i: number, field: string): Decimal {
+  if (amount.length > MAX_NON_PLAIN_LENGTH) {
+    fail('journalLines', i, `${field} が長すぎます：${echo(amount)}`);
+  }
+  let d: Decimal;
+  try {
+    d = D(amount);
+  } catch {
+    fail('journalLines', i, `${field} が非負の数値文字列ではありません：${echo(amount)}`);
+  }
+  if (!d.isFinite() || d.isNegative()) {
+    fail('journalLines', i, `${field} が非負の数値文字列ではありません：${echo(amount)}`);
+  }
+  if (!(d.e >= -EXPONENT_LIMIT && d.e <= EXPONENT_LIMIT)) {
+    fail('journalLines', i, `${field} の桁数が範囲外です：${echo(amount)}`);
+  }
+  return d;
+}
+// 金額欄の検査（文字列であること・通常の表記・それ以外は読めて非負で指数が範囲内）。索引との突き合わせは呼び出し側
+function validateLineAmountText(v: unknown, i: number, field: string): Decimal | undefined {
+  if (typeof v !== 'string') {
+    fail('journalLines', i, `${field} が非負の数値文字列ではありません：${echo(v)}`);
+  }
+  return /^\d+(\.\d+)?$/.test(v) ? undefined : parseNonPlainAmount(v, i, field);
+}
+
 function validateJournalLine(r: unknown, i: number): void {
   if (!isObject(r)) {
     fail('journalLines', i, 'オブジェクトではありません');
@@ -80,13 +118,22 @@ function validateJournalLine(r: unknown, i: number): void {
   }
   // 負の金額は validateLines も toIndexable も禁じている。ここだけ通すと、改竄または
   // 破損したバックアップ経由でしか作れない負金額の明細が DB に入る。
-  if (typeof r.amount !== 'string' || !/^\d+(\.\d+)?$/.test(r.amount)) {
-    fail('journalLines', i, `amount が非負の数値文字列ではありません：${String(r.amount)}`);
+  const parsed = validateLineAmountText(r.amount, i, 'amount');
+  // 課税資産の譲渡等の対価も消費税の計算と会計士向け CSV が金額として読む。対応する索引は無い
+  if (r.taxableTransferConsideration !== undefined) {
+    validateLineAmountText(r.taxableTransferConsideration, i, 'taxableTransferConsideration');
   }
   // toIndexable の出力形式（整数部ゼロ詰め + 小数部固定長）。索引の並びが壊れると
   // 金額範囲検索が黙って誤った結果を返すため、形式まで見る。
   if (typeof r.amountIndexed !== 'string' || !/^\d+\.\d+$/.test(r.amountIndexed)) {
-    fail('journalLines', i, `amountIndexed が不正：${String(r.amountIndexed)}`);
+    fail('journalLines', i, `amountIndexed が不正：${echo(r.amountIndexed)}`);
+  }
+  // 通常の表記以外は今回から受け入れる値なので、索引が金額と食い違っていないか確かめる。
+  // 1e14 以上と小数 3 桁以上は toIndexable の範囲外なので形式だけ見て通す。
+  if (parsed && parsed.lt('1e14') && parsed.decimalPlaces() <= 2) {
+    if (r.amountIndexed !== toIndexable(parsed) || !/^\d{14}\.\d{2}$/.test(r.amountIndexed)) {
+      fail('journalLines', i, `amountIndexed が amount と一致しません：${echo(r.amountIndexed)}`);
+    }
   }
   if (typeof r.taxRate !== 'number') {
     fail('journalLines', i, 'taxRate が数値ではありません');

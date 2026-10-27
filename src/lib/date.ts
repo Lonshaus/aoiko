@@ -10,3 +10,12 @@ export function toISODateLocal(d: Date): string {
 export function todayISO(): string {
   return toISODateLocal(new Date());
 }
+// YYYY-MM-DD の形で、実在する日付か
+export function isValidIsoDate(v: unknown): v is string {
+  if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    return false;
+  }
+  const [y = 0, mo = 0, d = 0] = v.split('-').map(Number);
+  const t = new Date(Date.UTC(y, mo - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mo - 1 && t.getUTCDate() === d;
+}

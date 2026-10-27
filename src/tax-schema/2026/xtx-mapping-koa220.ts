@@ -21,6 +21,7 @@
 
 import koa220 from './xtx-schema-koa220.generated.json';
 import { D } from '../../lib/decimal';
+import { toKingaku, type XtxRowOverflowItem } from './xtx-mapping-shared';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
@@ -84,26 +85,12 @@ const EXPENSE_ALIAS: Record<string, string> = {
   '給料賃金（不動産）': '給料賃金',
   '雑費（不動産）': 'その他の経費',
 };
-// gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string): void {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -223,7 +210,7 @@ const MAX_ADDITIONAL_EXPENSE_ROWS = 5;
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
@@ -231,9 +218,12 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
 // 第2頁「貸家等の状況」（ANF00340）。incomeType: 'realEstate' の FixedAsset の
 // realEstateDetail から生成する（物件＝資産という1:1の単純化、複数棟をまたぐ
 // 按分等は対象外）。
+function propertyAssets(ctx: XtxContext) {
+  return ctx.fixedAssets.filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail);
+}
+
 function propertyRows(ctx: XtxContext): XtxLeafValues[] {
-  return ctx.fixedAssets
-    .filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail)
+  return propertyAssets(ctx)
     .slice(0, MAX_PROPERTY_ROWS)
     .map((a) => {
       const d = a.realEstateDetail!;
@@ -271,12 +261,12 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
 }
 // 第3頁「減価償却費の計算」（ANF00890）。incomeType: 'realEstate' の FixedAsset のみ、
 // 事業所得側（xtx-mapping-koa110.ts の mapKoa110RepeatedValues）と同じロジックを使う。
-function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
+function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
   const realEstateAssets = ctx.fixedAssets.filter((a) => a.incomeType === 'realEstate');
@@ -288,6 +278,46 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
       statuses.get(a.id) === 'applicable',
   );
   const applicableIds = new Set(applicableThisYear.map((a) => a.id));
+  const individual = realEstateAssets
+    .filter((a) => !applicableIds.has(a.id))
+    .map((asset) => ({
+      asset,
+      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
+    }))
+    .filter(({ result }) => !D(result.amount).isZero())
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
+  // まとめ行があると個別行に使える行が 1 つ減る
+  const individualMax = MAX_DEPRECIATION_ROWS - (applicableThisYear.length > 0 ? 1 : 0);
+  return { detailYear, pools, statuses, applicableThisYear, individual, individualMax };
+}
+// 明細欄に入りきらない物件・減価償却資産・支払先（xtx.ts の xtxRowOverflow 参照）
+export function koa220RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
+  const { individual, individualMax } = depreciationCandidates(ctx);
+  const input = ctx.personalDeductions?.realEstateIncome;
+  return [
+    ...propertyAssets(ctx)
+      .slice(MAX_PROPERTY_ROWS)
+      .map((a) => ({ name: a.name, amount: a.realEstateDetail?.annualRent ?? '' })),
+    ...individual
+      .slice(individualMax)
+      .map(({ asset, result }) => ({ name: asset.name, amount: result.amount })),
+    ...payeeOverflow(input?.rentPaid, MAX_RENT_PAID_ROWS),
+    ...payeeOverflow(input?.loanInterestPaid, MAX_LOAN_INTEREST_PAID_ROWS),
+    ...payeeOverflow(input?.professionalFeesPaid, MAX_PROFESSIONAL_FEE_ROWS),
+  ];
+}
+
+type PayeeItem = { payeeName?: string; payeeAddress?: string; amount: string };
+
+function payeeOverflow(items: readonly PayeeItem[] | undefined, max: number): XtxRowOverflowItem[] {
+  return (items ?? [])
+    .slice(max)
+    .map((item) => ({ name: item.payeeName || item.payeeAddress || '', amount: item.amount }));
+}
+
+function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
+  const { detailYear, pools, statuses, applicableThisYear, individual, individualMax } =
+    depreciationCandidates(ctx);
   const summaryRow: XtxLeafValues | undefined = (() => {
     if (applicableThisYear.length === 0) {
       return undefined;
@@ -320,36 +350,27 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
     row.ANF01080 = SMALL_ASSET_SUMMARY_NOTE;
     return row;
   })();
-  const individualRows = realEstateAssets
-    .filter((a) => !applicableIds.has(a.id))
-    .map((asset) => ({
-      asset,
-      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
-    }))
-    .filter(({ result }) => !D(result.amount).isZero())
-    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
-    .slice(0, MAX_DEPRECIATION_ROWS - (summaryRow ? 1 : 0))
-    .map(({ asset, result }) => {
-      const row: XtxLeafValues = {};
-      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
-      if (name) {
-        row.ANF00900 = name;
-      }
-      putRow(row, 'ANF00930', asset.acquisitionCost);
-      putRow(row, 'ANF00940', result.depreciationBase);
-      row.ANF00950 = effectiveMethodLabel(asset, statuses.get(asset.id));
-      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
-        row.ANF00960 = String(asset.usefulLifeYears);
-      }
-      putRow(row, 'ANF01020', result.amount);
-      putRow(row, 'ANF01040', result.amount);
-      putRow(row, 'ANF01060', result.amount);
-      putRow(row, 'ANF01070', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
-        row.ANF01080 = asset.disposalType === 'sale' ? '売却' : '除却';
-      }
-      return row;
-    });
+  const individualRows = individual.slice(0, individualMax).map(({ asset, result }) => {
+    const row: XtxLeafValues = {};
+    const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+    if (name) {
+      row.ANF00900 = name;
+    }
+    putRow(row, 'ANF00930', asset.acquisitionCost);
+    putRow(row, 'ANF00940', result.depreciationBase);
+    row.ANF00950 = effectiveMethodLabel(asset, statuses.get(asset.id));
+    if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+      row.ANF00960 = String(asset.usefulLifeYears);
+    }
+    putRow(row, 'ANF01020', result.amount);
+    putRow(row, 'ANF01040', result.amount);
+    putRow(row, 'ANF01060', result.amount);
+    putRow(row, 'ANF01070', result.bookValueEnd);
+    if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
+      row.ANF01080 = asset.disposalType === 'sale' ? '売却' : '除却';
+    }
+    return row;
+  });
   return summaryRow ? [summaryRow, ...individualRows] : individualRows;
 }
 

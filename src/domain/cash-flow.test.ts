@@ -30,7 +30,23 @@ describe('remainingBalance', () => {
       paidAmount: '30000',
       createdAt: 0,
     };
-    expect(remainingBalance(e).toString()).toBe('70000');
+    expect(remainingBalance(e)?.toString()).toBe('70000');
+  });
+
+  test('復元された 1e3・1e-7 は読み、読めない値は undefined', () => {
+    const base: ArApEntry = {
+      id: '1',
+      type: 'receivable',
+      description: '',
+      dueDate: '2026-08-01',
+      originalAmount: '1e3',
+      paidAmount: '0',
+      createdAt: 0,
+    };
+    expect(remainingBalance(base)?.toString()).toBe('1000');
+    expect(remainingBalance({ ...base, originalAmount: '1e-7' })?.toString()).toBe('1e-7');
+    expect(remainingBalance({ ...base, originalAmount: 'abc' })).toBeUndefined();
+    expect(remainingBalance({ ...base, paidAmount: 'abc' })).toBeUndefined();
   });
 });
 
@@ -84,6 +100,20 @@ describe('addArApEntry / recordPayment', () => {
       await expect(recordPayment(row.id, amount)).rejects.toThrow(InvalidPaymentAmountError);
     }
     expect((await db.arApEntries.get(row.id))!.paidAmount).toBe('3000');
+  });
+
+  test('保存済みの paidAmount を読めないときは名前付きの例外を投げ、書き込まない', async () => {
+    await db.arApEntries.add({
+      id: 'bad',
+      type: 'receivable',
+      description: '壊れた売掛',
+      dueDate: '2026-08-01',
+      originalAmount: '10000',
+      paidAmount: 'abc',
+      createdAt: 0,
+    });
+    await expect(recordPayment('bad', '100')).rejects.toThrow('壊れた売掛');
+    expect((await db.arApEntries.get('bad'))?.paidAmount).toBe('abc');
   });
 
   test('全角・カンマ付きの額は値として消し込む', async () => {
@@ -147,10 +177,61 @@ describe('computeCashFlowForecast', () => {
     expect(r.months[0]!.expectedInflow).toBe('0');
   });
 
+  test('金額を読めない行は予測に含めず件数を返す', () => {
+    const entries = [
+      entry({ id: 'a', dueDate: '2026-07-10', originalAmount: '1e3' }),
+      entry({ id: 'b', dueDate: '2026-07-10', originalAmount: '1e-7' }),
+      entry({ id: 'c', dueDate: '2026-07-10', originalAmount: 'abc' }),
+    ];
+    const r = computeCashFlowForecast(entries, '2026-07-01', 1);
+    expect(r.months[0]!.expectedInflow).toBe('1000.0000001');
+    expect(r.unreadableCount).toBe(1);
+  });
+
   test('年をまたぐ月バケットも正しく生成される', () => {
     const entries = [entry({ dueDate: '2027-01-10', originalAmount: '5000' })];
     const r = computeCashFlowForecast(entries, '2026-11-01', 4);
     expect(r.months.map((m) => m.yearMonth)).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
     expect(r.months[2]!.expectedInflow).toBe('5000');
+  });
+});
+
+describe('computeCashFlowForecast の読めない行（R22）', () => {
+  function entry(over: Partial<ArApEntry>): ArApEntry {
+    return {
+      id: over.id ?? 'x',
+      type: over.type ?? 'receivable',
+      description: '',
+      dueDate: over.dueDate ?? '2026-08-01',
+      originalAmount: over.originalAmount ?? '10000',
+      paidAmount: over.paidAmount ?? '0',
+      createdAt: 0,
+    };
+  }
+
+  test('期日が数値・種別が不明の行は除いて数え、ほかの行は予測する', () => {
+    const r = computeCashFlowForecast(
+      [
+        entry({ id: 'ok', dueDate: '2026-07-10', originalAmount: '100' }),
+        entry({ id: 'num', dueDate: 20261231 as never }),
+        entry({ id: 'type', type: 'x' as never }),
+        entry({ id: 'bad', dueDate: '2026-13-01' }),
+      ],
+      '2026-07-01',
+      3,
+    );
+    expect(r.unreadableCount).toBe(3);
+    expect(r.months[0]!.expectedInflow).toBe('100');
+    expect(r.months.every((m) => m.expectedOutflow === '0')).toBe(true);
+  });
+
+  test('期日なし（""）の請求書はこれまでどおり最初の月に入れる', () => {
+    const r = computeCashFlowForecast(
+      [entry({ dueDate: '', originalAmount: '700' })],
+      '2026-07-01',
+      2,
+    );
+    expect(r.unreadableCount).toBe(0);
+    expect(r.months[0]!.expectedInflow).toBe('700');
   });
 });

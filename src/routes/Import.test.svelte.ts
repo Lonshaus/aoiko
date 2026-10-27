@@ -5,7 +5,7 @@ import type { CsvParser } from '../parsers/types';
 import type { JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 
-const { parserA, parserB, parserC, parserD } = vi.hoisted(() => {
+const { parserA, parserB, parserC, parserD, parserE } = vi.hoisted(() => {
   const parserA: CsvParser = {
     name: 'parser-a',
     displayName: 'パーサーA',
@@ -50,13 +50,32 @@ const { parserA, parserB, parserC, parserD } = vi.hoisted(() => {
         rawRow: {},
       })),
   };
-  return { parserA, parserB, parserC, parserD };
+  // 金額を読めない行・過大な行を含む、金額検査専用のパーサー
+  const parserE: CsvParser = {
+    name: 'parser-e',
+    displayName: 'パーサーE',
+    accountCode: '1130',
+    encoding: 'utf-8',
+    parse: () => [
+      { date: '2026-06-01', description: '店E', amount: '1000', side: 'debit', rawRow: {} },
+      { date: '2026-06-02', description: '店E', amount: '1234円', side: 'debit', rawRow: {} },
+      { date: '2026-06-03', description: '店E', amount: '２０００', side: 'debit', rawRow: {} },
+      {
+        date: '2026-06-04',
+        description: '店E',
+        amount: '100000000000000',
+        side: 'debit',
+        rawRow: {},
+      },
+    ],
+  };
+  return { parserA, parserB, parserC, parserD, parserE };
 });
 
 vi.mock('../parsers', () => ({
-  PARSERS: [parserA, parserB, parserC, parserD],
+  PARSERS: [parserA, parserB, parserC, parserD, parserE],
   findParser: (name: string) =>
-    [parserA, parserB, parserC, parserD].find((p) => p.name === name) ?? null,
+    [parserA, parserB, parserC, parserD, parserE].find((p) => p.name === name) ?? null,
 }));
 // 失敗行数表示テスト専用。ローカルエンジンの分類結果を模し、確認ダイアログを経由させない external: false。
 vi.mock('../lib/llm-adapter', () => ({
@@ -377,6 +396,42 @@ describe('Import: 相手科目セレクトの幅はバッジの有無で変わ�
     expect(withBadge?.className).toBe(withoutBadge?.className);
     expect(withBadge?.className).toMatch(/\bw-\d+\b/);
     expect(withBadge?.className).not.toContain('flex-1');
+  });
+});
+
+describe('Import: CSV の金額検査', () => {
+  test('読めない金額と 1e14 以上の行は日付・摘要・金額で示し、除いて残りを取り込む', async () => {
+    await db.vendors.add({ id: 've', name: '店E', defaultAccountCode: '5300' });
+    const c = container as HTMLElement;
+    changeParser(c, parserE.name);
+    await loadFile(c);
+
+    const alert = c.querySelector('[role="alert"]')?.textContent ?? '';
+    expect(alert).toContain(
+      m.import_amount_row_invalid({ date: '2026-06-02', description: '店E', value: '1234円' }),
+    );
+    expect(alert).toContain(
+      m.import_amount_row_too_large({
+        date: '2026-06-04',
+        description: '店E',
+        value: '100000000000000',
+      }),
+    );
+    expect(alert).not.toContain('件目');
+    const skips = Array.from(
+      c.querySelectorAll<HTMLInputElement>('tbody tr td:last-child input[type="checkbox"]'),
+    );
+    expect(skips.map((b) => [b.checked, b.disabled])).toEqual([
+      [false, false],
+      [true, true],
+      [false, false],
+      [true, true],
+    ]);
+
+    button(c, m.import_submit({ count: 2 })).click();
+    await waitFor(() => (c.textContent ?? '').includes(m.import_amount_excluded({ count: 2 })));
+    const lines = await db.journalLines.toArray();
+    expect(lines.map((l) => l.amount).sort()).toEqual(['1000', '1000', '2000', '2000']);
   });
 });
 

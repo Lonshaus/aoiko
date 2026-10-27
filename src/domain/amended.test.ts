@@ -263,6 +263,63 @@ describe('getAmendmentDiff', () => {
   });
 });
 
+describe('getAmendmentDiff：復元されたスナップショットを読めないとき', () => {
+  const pl = {
+    rows: [],
+    totalRevenue: '100000',
+    totalExpense: '0',
+    netIncome: '100000',
+  };
+  async function putSnapshot(type: 'pl' | 'bs', payload: unknown): Promise<void> {
+    await db.reportSnapshots.add({
+      id: newId(),
+      year: 2026,
+      type,
+      status: 'filed',
+      filedAt: 1,
+      payload: payload as never,
+      generatedAt: 1,
+      generatedFromEntriesUpTo: '2026-12-31',
+    });
+  }
+
+  test.each([
+    ['PL の totalRevenue が abc', { type: 'pl', data: { ...pl, totalRevenue: 'abc' } }],
+    ['PL の netIncome が abc', { type: 'pl', data: { ...pl, netIncome: 'abc' } }],
+    ['PL の payload が null', null],
+    ['PL の data が null', { type: 'pl', data: null }],
+  ])('%s：例外にせず「読めない」状態を返し、変更なしとは扱わない', async (_label, payload) => {
+    await putSnapshot('pl', payload);
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(true);
+    expect(r?.hasChange).toBe(false);
+  });
+
+  test.each([
+    ['BS の payload が null', null],
+    ['BS の data が空オブジェクト', { type: 'bs', data: {} }],
+    [
+      'BS の行の金額が abc',
+      {
+        type: 'bs',
+        data: { assets: [{ accountCode: '1130', amount: 'abc' }], liabilities: [], equity: [] },
+      },
+    ],
+  ])('%s：例外にせず「読めない」状態を返す', async (_label, payload) => {
+    await putSnapshot('pl', { type: 'pl', data: pl });
+    await putSnapshot('bs', payload);
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(true);
+  });
+
+  test('数値で保存された金額は読む', async () => {
+    await putSnapshot('pl', { type: 'pl', data: { ...pl, netIncome: 100000 } });
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(false);
+    expect(r?.filedNetIncome).toBe('100000');
+  });
+});
+
 describe('amendmentChecklist', () => {
   test('5 ステップの key を順に返す', () => {
     const items = amendmentChecklist();

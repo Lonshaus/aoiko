@@ -29,7 +29,11 @@ import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod } from '../../db/types';
 import type { BSRow } from '../../domain/reports';
-import { stripClassificationSuffix } from './xtx-mapping-shared';
+import {
+  stripClassificationSuffix,
+  toKingaku,
+  type XtxRowOverflowItem,
+} from './xtx-mapping-shared';
 
 const SCHEMA = koa210 as XtxSchema;
 
@@ -169,27 +173,12 @@ const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 function formAmount(accountName: string, amount: string): string {
   return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
 }
-// gen:kingaku は xsd:long（整数・小数不可・先頭マイナス可）。
-// Decimal 文字列を整数円へ（小数部切捨て、カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -333,7 +322,7 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
 const SMALL_ASSET_SUMMARY_NOTE = '措法28の2（明細は別途保管）';
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
@@ -353,12 +342,12 @@ function effectiveMethodLabel(
   return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
 }
 
-export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
   const businessAssets = ctx.fixedAssets.filter((a) => a.incomeType !== 'realEstate');
@@ -371,6 +360,29 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
       statuses.get(a.id) === 'applicable',
   );
   const applicableIds = new Set(applicableThisYear.map((a) => a.id));
+  const individual = businessAssets
+    .filter((a) => !applicableIds.has(a.id))
+    .map((asset) => ({
+      asset,
+      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
+    }))
+    .filter(({ result }) => !D(result.amount).isZero())
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
+  // まとめ行があると個別行に使える行が 1 つ減る
+  const individualMax = MAX_DEPRECIATION_ROWS - (applicableThisYear.length > 0 ? 1 : 0);
+  return { detailYear, pools, statuses, applicableThisYear, individual, individualMax };
+}
+// 明細欄に入りきらない減価償却資産（xtx.ts の xtxRowOverflow 参照）
+export function koa210RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
+  const { individual, individualMax } = depreciationCandidates(ctx);
+  return individual
+    .slice(individualMax)
+    .map(({ asset, result }) => ({ name: asset.name, amount: result.amount }));
+}
+
+export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const { detailYear, pools, statuses, applicableThisYear, individual, individualMax } =
+    depreciationCandidates(ctx);
   const summaryRow: XtxLeafValues | undefined = (() => {
     if (applicableThisYear.length === 0) {
       return undefined;
@@ -402,39 +414,30 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     row.AMF01790 = SMALL_ASSET_SUMMARY_NOTE;
     return row;
   })();
-  const individualRows = businessAssets
-    .filter((a) => !applicableIds.has(a.id))
-    .map((asset) => ({
-      asset,
-      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
-    }))
-    .filter(({ result }) => !D(result.amount).isZero())
-    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
-    .slice(0, MAX_DEPRECIATION_ROWS - (summaryRow ? 1 : 0))
-    .map(({ asset, result }) => {
-      const row: XtxLeafValues = {};
-      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
-      if (name) {
-        row.AMF01610 = name;
-      }
-      // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
-      // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
-      putRow(row, 'AMF01640', asset.acquisitionCost);
-      putRow(row, 'AMF01650', result.depreciationBase);
-      row.AMF01660 = effectiveMethodLabel(asset, statuses.get(asset.id));
-      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
-        row.AMF01670 = String(asset.usefulLifeYears);
-      }
-      putRow(row, 'AMF01730', result.amount);
-      putRow(row, 'AMF01750', result.amount);
-      row.AMF01760 = BUSINESS_USE_RATIO;
-      putRow(row, 'AMF01770', result.amount);
-      putRow(row, 'AMF01780', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
-        row.AMF01790 = asset.disposalType === 'sale' ? '売却' : '除却';
-      }
-      return row;
-    });
+  const individualRows = individual.slice(0, individualMax).map(({ asset, result }) => {
+    const row: XtxLeafValues = {};
+    const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+    if (name) {
+      row.AMF01610 = name;
+    }
+    // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
+    // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
+    putRow(row, 'AMF01640', asset.acquisitionCost);
+    putRow(row, 'AMF01650', result.depreciationBase);
+    row.AMF01660 = effectiveMethodLabel(asset, statuses.get(asset.id));
+    if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+      row.AMF01670 = String(asset.usefulLifeYears);
+    }
+    putRow(row, 'AMF01730', result.amount);
+    putRow(row, 'AMF01750', result.amount);
+    row.AMF01760 = BUSINESS_USE_RATIO;
+    putRow(row, 'AMF01770', result.amount);
+    putRow(row, 'AMF01780', result.bookValueEnd);
+    if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
+      row.AMF01790 = asset.disposalType === 'sale' ? '売却' : '除却';
+    }
+    return row;
+  });
   const rows = summaryRow ? [summaryRow, ...individualRows] : individualRows;
   const repeats: XtxRepeatedValues = rows.length > 0 ? { AMF01600: rows } : {};
   const { bs } = ctx;

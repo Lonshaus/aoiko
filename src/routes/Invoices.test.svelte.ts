@@ -260,3 +260,17 @@ describe('Invoices: 数量・単価の入力', () => {
     await waitFor(() => c.textContent?.includes('¥1,650') === true);
   });
 });
+
+describe('Invoices: 一覧の合計（R21）', () => {
+  test('読めない明細のある請求書は、合計を 0 と見せずに読めないと示す', async () => {
+    const inv = draft();
+    inv.lineItems = [{ ...inv.lineItems[0]!, quantity: 'abc' }];
+    await db.invoices.add(inv);
+    const c = container as HTMLElement;
+    instance = mount(Invoices, { target: c, props: {} });
+    await waitFor(() => button(c, m.invoices_action_edit()) !== undefined);
+    const row = button(c, m.invoices_action_edit())!.closest('li')!;
+    expect(row.textContent).toContain(m.common_stored_amount_unreadable());
+    expect(row.textContent).not.toContain('¥0');
+  });
+});

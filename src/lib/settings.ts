@@ -135,10 +135,14 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
-  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定が書き込む）。
-  // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定と設定画面が書き込む）。
+  // 開業日は開業仕訳の無い年にだけ使う（depreciation.ts の selectEffectiveBusinessDates）。
   businessStartDate: string;
   businessCloseDate: string;
+  // 作り直しの途中で止まった年の案内を利用者が「表示しない」にした年
+  dismissedInterruptedOpeningYears: number[];
+  // 開業設定で登録し直す転用資産のうち「登録しない」にした明細（`${仕訳 id}:${明細 id}`）
+  dismissedMissingOpeningAssets: string[];
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。

@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   combinedTotalIncomeAmount,
@@ -967,5 +968,14 @@ describe('計算部分：ctx.cashBasis が青色申告特別控除に反映さ�
     });
     expect(totalIncomeAmount(c).toString()).toBe('1900000');
     expect(mapKoa020LeafValues(c).ABB00800).toBe('100000');
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test.each(['abc', '1e+21', '1000000000000000'])('収入金額 %j は省かずに例外にする', (v) => {
+    const base = ctx();
+    expect(() => mapKoa020LeafValues(ctx({ pl: { ...base.pl, totalRevenue: v } }))).toThrow(
+      XtxAmountOutOfRangeError,
+    );
   });
 });

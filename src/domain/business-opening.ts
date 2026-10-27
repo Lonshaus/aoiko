@@ -1,15 +1,25 @@
-import { D, Decimal, toIndexable } from '../lib/decimal';
+import { D, Decimal, formatJPY, toAmountString, toIndexable } from '../lib/decimal';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
-import { countsTowardTotals } from './journal';
+import { countsTowardTotals, validateLines } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
-import { calendarMonthsCeil } from '../tax-schema/2026/limits';
+import { calendarMonthsCeil, isSmallAssetEligible } from '../tax-schema/2026/limits';
+import { DEPRECIABLE_ASSET_ACCOUNTS } from '../tax-schema/2026/accounts';
+import { isValidIsoDate } from '../lib/date';
+import { parseAmountInput, readStoredAmount } from '../lib/amount-input';
+import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import type { DepreciationMethod, FixedAsset, JournalEntry, JournalLine } from '../db/types';
+import { InvalidFixedAssetError, validateFixedAsset } from './fixed-asset-check';
+import { readStoredBusinessDate, sameStoredBusinessDate } from './depreciation';
 import { m } from '../paraglide/messages';
 
 const KAIGYOHI_CODE = '1530'; // 開業費
 const CAPITAL_CODE = '3110'; // 元入金
 const DEPRECIATION_EXPENSE_CODE = '5210'; // 減価償却費（繰延資産の償却もここに計上）
+// 開業仕訳の転用資産の明細の memo。登録し直す資産を元に戻した仕訳から探すときも使う
+export const CONVERTED_ASSET_MEMO_PREFIX = '転用資産：';
+// 作り直しの途中で止まった年の開業仕訳を元に戻した仕訳の説明の先頭。資産タグ（#＋8 文字）と紛れない
+export const OPENING_RESTORE_PREFIX = '[再計上] ';
 // 所令137条1項1号：開業費は 60 で除し業務を行っていた期間の月数を乗じる。
 const OPENING_EXPENSE_MONTHS = 60;
 // 非業務用（私用）資産を業務の用に供した場合の未償却残高計算（所得税法施行令第135条・136条準拠）。
@@ -124,6 +134,16 @@ const OLD_STRAIGHT_LINE_RATE: Record<number, string> = {
 function extendedUsefulLife(usefulLifeYears: number): number {
   return Math.floor(usefulLifeYears * 1.5);
 }
+export function hasOldStraightLineRate(usefulLifeYears: number): boolean {
+  return OLD_STRAIGHT_LINE_RATE[usefulLifeYears] !== undefined;
+}
+// 転用資産の未償却残高は耐用年数×1.5 の旧定額法償却率で求めるため、率表（2〜100 年）に収まる耐用年数だけ扱える
+export function isConvertedAssetLifeSupported(usefulLifeYears: number): boolean {
+  return (
+    Number.isInteger(usefulLifeYears) && hasOldStraightLineRate(extendedUsefulLife(usefulLifeYears))
+  );
+}
+
 export function oldStraightLineRate(usefulLifeYears: number): Decimal {
   const rate = OLD_STRAIGHT_LINE_RATE[usefulLifeYears];
   if (rate === undefined) {
@@ -173,6 +193,16 @@ export function computeConvertedAssetBasis(
   acquisitionCost: string,
   usefulLifeYears: number,
 ): ConvertedAssetBasis {
+  if (!isValidIsoDate(acquisitionDate)) {
+    throw new Error(m.fixed_asset_issue_date({ field: m.opening_converted_acq_date_title() }));
+  }
+  if (!isValidIsoDate(businessStartDate)) {
+    throw new Error(m.fixed_asset_issue_date({ field: m.opening_start_date_title() }));
+  }
+  // 開業後に取得した資産を転用資産にすると、私用期間が負になり未償却残高が取得価額を超える
+  if (acquisitionDate > businessStartDate) {
+    throw new Error(m.opening_asset_acquired_after_start({ acquisitionDate, businessStartDate }));
+  }
   const extendedLife = extendedUsefulLife(usefulLifeYears);
   const rate = oldStraightLineRate(extendedLife);
   const years = nonBusinessPeriodYears(acquisitionDate, businessStartDate);
@@ -254,7 +284,7 @@ function newLine(
     entryId,
     side,
     accountCode,
-    amount: amount.toString(),
+    amount: toAmountString(amount),
     amountIndexed: toIndexable(amount),
     taxRate: 0,
     taxIncluded: false,
@@ -262,8 +292,7 @@ function newLine(
     memo,
   };
 }
-function newEntry(date: string, description: string): JournalEntry {
-  const now = Date.now();
+function newEntry(date: string, description: string, now: number): JournalEntry {
   const year = Number(date.slice(0, 4));
   return {
     id: newId(),
@@ -276,226 +305,832 @@ function newEntry(date: string, description: string): JournalEntry {
     confirmedAt: now,
   };
 }
-// 開業設定：開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
+type OpeningReplaceAbortReason =
+  'nothing-to-reverse' | 'already-exists' | 'empty' | 'dates-changed';
+// 取引の中で書き込みを始めた後に成功以外で終わるときに投げる。投げれば取引ごと取り消される
+export class OpeningReplaceAborted extends Error {
+  readonly reason: OpeningReplaceAbortReason;
+  constructor(reason: OpeningReplaceAbortReason) {
+    super(reason);
+    this.name = 'OpeningReplaceAborted';
+    this.reason = reason;
+  }
+}
+async function hasOpeningEntries(year: number): Promise<boolean> {
+  const found = await db.journalEntries
+    .where('year')
+    .equals(year)
+    .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+    .first();
+  return found !== undefined;
+}
+// 取引の中から呼ぶ。開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
 // 転用資産は本体（固定資産テーブルへの登録）のみ行い、以後の減価償却は既存の
 // 年末一括生成（generateYearEndDepreciation）に委ねる。ここでは開業時点の
 // 未償却残高を計上する開業仕訳のみを作る。
-export async function generateOpeningEntries(
+async function createOpeningInTx(
   input: OpeningSetupInput,
-  options?: { allowFiledYear?: boolean },
+  date: string,
+  now: number,
 ): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
-  const date = input.businessStartDate;
   const year = Number(date.slice(0, 4));
-  await assertYearsWritable([year], options);
-  let alreadyExists = false;
+  // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
+  // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
+  if (await hasOpeningEntries(year)) {
+    return { reason: 'already-exists' };
+  }
+  // 開業費（繰延資産）
+  const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
+  if (!expenseTotal.isZero()) {
+    const entry = newEntry(date, '開業費計上（開業設定）', now);
+    const lines = [
+      newLine(entry.id, 'debit', KAIGYOHI_CODE, expenseTotal, '開業費'),
+      newLine(entry.id, 'credit', CAPITAL_CODE, expenseTotal, '開業費（元入金）'),
+    ];
+    await db.journalEntries.add(entry);
+    await db.journalLines.bulkAdd(lines);
+    entryIds.push(entry.id);
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
-    markConfirmedWrite(options);
-    // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
-    // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
-    const existing = await db.journalEntries
-      .where('year')
-      .equals(year)
-      .filter(
-        (e) =>
-          e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
-      )
-      .first();
-    if (existing) {
-      alreadyExists = true;
-      return;
-    }
-    // 開業費（繰延資産）
-    const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
-    if (!expenseTotal.isZero()) {
-      const entry = newEntry(date, '開業費計上（開業設定）');
-      const lines = [
-        newLine(entry.id, 'debit', KAIGYOHI_CODE, expenseTotal, '開業費'),
-        newLine(entry.id, 'credit', CAPITAL_CODE, expenseTotal, '開業費（元入金）'),
+    const amortized = openingExpenseAmortization(
+      expenseTotal,
+      date,
+      input.expenseAmortization,
+      input.customAmortizationAmount,
+    );
+    if (!amortized.isZero()) {
+      const amortEntry = newEntry(date, '開業費償却（開業設定）', now);
+      const amortLines = [
+        newLine(amortEntry.id, 'debit', DEPRECIATION_EXPENSE_CODE, amortized, '繰延資産償却'),
+        newLine(amortEntry.id, 'credit', KAIGYOHI_CODE, amortized, '開業費償却'),
       ];
-      await db.journalEntries.add(entry);
-      await db.journalLines.bulkAdd(lines);
-      entryIds.push(entry.id);
-
-      const amortized = openingExpenseAmortization(
-        expenseTotal,
-        date,
-        input.expenseAmortization,
-        input.customAmortizationAmount,
-      );
-      if (!amortized.isZero()) {
-        const amortEntry = newEntry(date, '開業費償却（開業設定）');
-        const amortLines = [
-          newLine(amortEntry.id, 'debit', DEPRECIATION_EXPENSE_CODE, amortized, '繰延資産償却'),
-          newLine(amortEntry.id, 'credit', KAIGYOHI_CODE, amortized, '開業費償却'),
-        ];
-        await db.journalEntries.add(amortEntry);
-        await db.journalLines.bulkAdd(amortLines);
-        entryIds.push(amortEntry.id);
-      }
+      await db.journalEntries.add(amortEntry);
+      await db.journalLines.bulkAdd(amortLines);
+      entryIds.push(amortEntry.id);
     }
-    // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
-    const assetLines: Array<{
-      side: 'debit' | 'credit';
-      accountCode: string;
-      amount: Decimal;
-      memo: string;
-    }> = [];
-    for (const asset of input.convertedAssets) {
-      const basis = computeConvertedAssetBasis(
+  }
+  // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
+  const assetLines: Array<{
+    side: 'debit' | 'credit';
+    accountCode: string;
+    amount: Decimal;
+    memo: string;
+  }> = [];
+  for (const asset of input.convertedAssets) {
+    let basis: ReturnType<typeof computeConvertedAssetBasis>;
+    try {
+      basis = computeConvertedAssetBasis(
         asset.acquisitionDate,
         date,
         asset.acquisitionCost,
         asset.usefulLifeYears,
       );
-      const fixedAsset: FixedAsset = {
-        id: newId(),
-        name: asset.name,
-        acquisitionDate: asset.acquisitionDate,
-        acquisitionCost: asset.acquisitionCost,
-        usefulLifeYears: asset.usefulLifeYears,
-        depreciationMethod: asset.depreciationMethod,
+    } catch (e) {
+      throw new Error(
+        m.fixed_asset_invalid({
+          name: asset.name,
+          reasons: e instanceof Error ? e.message : String(e),
+        }),
+        { cause: e },
+      );
+    }
+    const fixedAsset: FixedAsset = {
+      id: newId(),
+      name: asset.name,
+      acquisitionDate: asset.acquisitionDate,
+      acquisitionCost: asset.acquisitionCost,
+      usefulLifeYears: asset.usefulLifeYears,
+      depreciationMethod: asset.depreciationMethod,
+      accountCode: asset.accountCode,
+      source: 'opening',
+      conversionBasis: toAmountString(basis.businessStartBasis),
+      serviceStartDate: date,
+      openingYear: year,
+    };
+    // 減価償却・.xtx が読めない形の資産を書かない。投げるとトランザクションごと取り消される
+    const issues = validateFixedAsset(fixedAsset);
+    if (issues.length > 0) {
+      throw new InvalidFixedAssetError([{ asset: fixedAsset, issues }]);
+    }
+    await db.fixedAssets.add(fixedAsset);
+    assetIds.push(fixedAsset.id);
+    if (!basis.businessStartBasis.isZero()) {
+      assetLines.push({
+        side: 'debit',
         accountCode: asset.accountCode,
-        source: 'opening',
-        conversionBasis: basis.businessStartBasis.toString(),
-        serviceStartDate: date,
-        openingYear: year,
-      };
-      await db.fixedAssets.add(fixedAsset);
-      assetIds.push(fixedAsset.id);
-      if (!basis.businessStartBasis.isZero()) {
-        assetLines.push({
-          side: 'debit',
-          accountCode: asset.accountCode,
-          amount: basis.businessStartBasis,
-          memo: `転用資産：${asset.name}`,
-        });
-      }
+        amount: basis.businessStartBasis,
+        memo: `${CONVERTED_ASSET_MEMO_PREFIX}${asset.name}`,
+      });
     }
-    for (const item of input.customItems) {
-      const amount = D(item.amount);
-      if (amount.isZero()) {
-        continue;
-      }
-      assetLines.push({ side: item.side, accountCode: item.accountCode, amount, memo: item.name });
+  }
+  for (const item of input.customItems) {
+    const amount = D(item.amount);
+    if (amount.isZero()) {
+      continue;
     }
-    if (assetLines.length > 0) {
-      const entry = newEntry(date, '開業時資産計上（開業設定）');
-      const netDebit = assetLines.reduce(
-        (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
-        D(0),
-      );
-      const lines = assetLines.map((l) =>
-        newLine(entry.id, l.side, l.accountCode, l.amount, l.memo),
-      );
-      if (!netDebit.isZero()) {
-        const capitalSide = netDebit.isPositive() ? 'credit' : 'debit';
-        lines.push(newLine(entry.id, capitalSide, CAPITAL_CODE, netDebit.abs(), '開業（元入金）'));
-      }
-      await db.journalEntries.add(entry);
-      await db.journalLines.bulkAdd(lines);
-      entryIds.push(entry.id);
+    assetLines.push({ side: item.side, accountCode: item.accountCode, amount, memo: item.name });
+  }
+  if (assetLines.length > 0) {
+    const entry = newEntry(date, '開業時資産計上（開業設定）', now);
+    const netDebit = assetLines.reduce(
+      (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
+      D(0),
+    );
+    const lines = assetLines.map((l) => newLine(entry.id, l.side, l.accountCode, l.amount, l.memo));
+    if (!netDebit.isZero()) {
+      const capitalSide = netDebit.isPositive() ? 'credit' : 'debit';
+      lines.push(newLine(entry.id, capitalSide, CAPITAL_CODE, netDebit.abs(), '開業（元入金）'));
+    }
+    await db.journalEntries.add(entry);
+    await db.journalLines.bulkAdd(lines);
+    entryIds.push(entry.id);
+  }
+  return { entryIds, assetIds };
+}
+// 取引の中から呼ぶ。開業日は入力の値を書く。廃業日は入力があれば書き、空欄なら開業日以後の保存済みの値は消し、
+// それより前（再開業前の廃業日）と読めない値は残す。申告済みの確認に出した年は確認の前に読んだ廃業日で数えているので、
+// 取引の中で読んだ値が違えば書かない
+async function writeOpeningDateSettingsInTx(
+  formStart: string,
+  formClose: string,
+  expectedStoredClose: unknown,
+): Promise<void> {
+  const storedClose: unknown = await getSetting('businessCloseDate');
+  if (!sameStoredBusinessDate(storedClose, expectedStoredClose)) {
+    throw new OpeningReplaceAborted('dates-changed');
+  }
+  await setSetting('businessStartDate', formStart);
+  if (formClose !== '') {
+    await setSetting('businessCloseDate', formClose);
+    return;
+  }
+  const stored = readStoredBusinessDate(storedClose);
+  if (stored?.valid === true && String(stored.value) >= formStart) {
+    await deleteSetting('businessCloseDate');
+  }
+}
+export interface OpeningDateSettings {
+  /** 入力の廃業日。空文字列は空欄 */
+  formClose: string;
+  /** 確認の前に読んだ保存済みの廃業日（元の値のまま） */
+  expectedStoredClose: unknown;
+}
+// 開業設定：開業費・転用資産・自由項目をまとめて仕訳・固定資産登録として書き込む。
+// dateSettings を渡すと、開業日・廃業日の設定値も同じ取引で書く（作らなかったときは書かない）。
+export async function generateOpeningEntries(
+  input: OpeningSetupInput,
+  options?: { allowFiledYear?: boolean; dateSettings?: OpeningDateSettings },
+): Promise<OpeningSetupResult | { reason: 'already-exists' } | { reason: 'dates-changed' }> {
+  const date = input.businessStartDate;
+  const year = Number(date.slice(0, 4));
+  await assertYearsWritable([year], options);
+  try {
+    return await db.transaction(
+      'rw',
+      db.journalEntries,
+      db.journalLines,
+      db.fixedAssets,
+      db.settings,
+      async () => {
+        markConfirmedWrite(options);
+        const created = await createOpeningInTx(input, date, Date.now());
+        if ('reason' in created) {
+          return created;
+        }
+        if (options?.dateSettings !== undefined) {
+          await writeOpeningDateSettingsInTx(
+            date,
+            options.dateSettings.formClose,
+            options.dateSettings.expectedStoredClose,
+          );
+        }
+        return created;
+      },
+    );
+  } catch (e) {
+    if (e instanceof OpeningReplaceAborted && e.reason === 'dates-changed') {
+      return { reason: 'dates-changed' };
+    }
+    throw e;
+  }
+}
+// 開業設定で作った有効な開業仕訳のある年。generateOpeningEntries・removeOpeningEntries と同じく year の値で数え、日付が読めなくても数える
+export async function readOpeningYears(): Promise<number[]> {
+  const years = new Set<number>();
+  await db.journalEntries.each((e) => {
+    if (e.source === 'opening' && countsTowardTotals(e)) {
+      years.add(e.year);
     }
   });
-  if (alreadyExists) {
-    return { reason: 'already-exists' };
-  }
-
-  return { entryIds, assetIds };
+  return [...years].sort((a, b) => a - b);
 }
 
 interface OpeningRemovalBlocked {
   reason: 'has-depreciation';
   assetNames: string[];
 }
-// 開業設定のやり直し。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
+// 取引の中から呼ぶ。開業仕訳は打消し仕訳で相殺し（確定仕訳は物理削除しない＝電子帳簿
 // 保存法。removeCarryover と同じ方式）、開業設定が登録した固定資産は取り除く。
 //
 // 固定資産は仕訳ではないので打ち消せず、削除するしかない。ところが減価償却・除却の仕訳は
 // description の資産タグ（#<id 先頭 8 文字>）でしか資産と結び付いておらず、外部キーが無い。
 // 参照が残っている資産を消すと、存在しない資産を指す仕訳が帳簿に残るため、その場合は
-// 仕訳も資産も触らずに中止して、先にそちらを訂正してもらう。
+// 何も書かずに中止して、先にそちらを訂正してもらう。
 //
 // 印（source: 'opening'）が付くのはこの仕組みを入れて以降に作られた資産だけ。それ以前の
 // 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
+async function reverseOpeningYearInTx(
+  year: number,
+  now: number,
+): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
+  const originals = await db.journalEntries
+    .where('year')
+    .equals(year)
+    .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+    .toArray();
+  if (originals.length === 0) {
+    return { removed: false };
+  }
+  // openingYear の無い旧データは取得日＝開業日で登録されているので取得日の年で絞れる。
+  const targets = await db.fixedAssets
+    .filter(
+      (a) =>
+        a.source === 'opening' && (a.openingYear ?? Number(a.acquisitionDate.slice(0, 4))) === year,
+    )
+    .toArray();
+  if (targets.length > 0) {
+    const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
+    const referenced = new Set<string>();
+    await db.journalEntries.each((e) => {
+      if (!countsTowardTotals(e)) {
+        return;
+      }
+      for (const [tag, name] of byTag) {
+        if (e.description.includes(tag)) {
+          referenced.add(name);
+        }
+      }
+    });
+    if (referenced.size > 0) {
+      return { reason: 'has-depreciation', assetNames: [...referenced] };
+    }
+  }
+
+  for (const orig of originals) {
+    const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+    const reversalId = newId();
+    await db.journalEntries.add({
+      id: reversalId,
+      // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
+      date: orig.date,
+      year: orig.year,
+      description: `[訂正] ${orig.description}`,
+      status: 'confirmed',
+      originalEntryId: orig.id,
+      source: 'opening',
+      createdAt: now,
+      confirmedAt: now,
+    });
+    for (const line of lines) {
+      await db.journalLines.add({
+        ...line,
+        id: newId(),
+        entryId: reversalId,
+        side: line.side === 'debit' ? 'credit' : 'debit',
+      });
+    }
+    await db.journalEntries.update(orig.id, {
+      status: 'reversed',
+      reversedByEntryId: reversalId,
+    });
+  }
+  await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
+  return { removed: true };
+}
+// 開業設定のやり直しのうち、打消しだけを行う。
 export async function removeOpeningEntries(
   year: number,
   options?: { allowFiledYear?: boolean },
 ): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
   await assertYearsWritable([year], options);
-  let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
-
-  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
+  return db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
     markConfirmedWrite(options);
-    const originals = await db.journalEntries
-      .where('year')
-      .equals(year)
-      .filter((e) => e.source === 'opening' && countsTowardTotals(e))
-      .toArray();
-    if (originals.length === 0) {
+    return reverseOpeningYearInTx(year, Date.now());
+  });
+}
+export type OpeningReplaceResult =
+  | OpeningSetupResult
+  | { reason: 'nothing-to-reverse' }
+  | { reason: 'already-exists'; year: number }
+  | OpeningRemovalBlocked
+  | { reason: 'empty' }
+  | { reason: 'dates-changed' };
+// 作り直し：1 つの年の開業仕訳を打ち消し、いまの入力で作り、開業日・廃業日の設定値を書く。
+// 途中で止まると開業仕訳が無いまま残るので、すべてを 1 つの取引で行う。
+// 判定は確認の前の読み取りではなく取引の中で読み直した値で行う（確認の間のほかの画面での変更も見つける）。
+export async function replaceOpeningEntries(
+  args: {
+    reverseYear: number;
+    input: OpeningSetupInput;
+    formClose: string;
+    expectedStoredClose: unknown;
+  },
+  options?: { allowFiledYear?: boolean },
+): Promise<OpeningReplaceResult> {
+  const { reverseYear, input } = args;
+  const date = input.businessStartDate;
+  const createYear = Number(date.slice(0, 4));
+  await assertYearsWritable([reverseYear, createYear], options);
+  try {
+    return await db.transaction(
+      'rw',
+      db.journalEntries,
+      db.journalLines,
+      db.fixedAssets,
+      db.settings,
+      async (): Promise<OpeningReplaceResult> => {
+        markConfirmedWrite(options);
+        if (!(await hasOpeningEntries(reverseYear))) {
+          return { reason: 'nothing-to-reverse' };
+        }
+        if (createYear !== reverseYear && (await hasOpeningEntries(createYear))) {
+          return { reason: 'already-exists', year: createYear };
+        }
+        // 打消しと作成の入力時刻を揃える。途中で止まった年の判定（findInterruptedOpeningYears）がこれで済んだと分かる
+        const now = Date.now();
+        const removal = await reverseOpeningYearInTx(reverseYear, now);
+        if ('reason' in removal) {
+          return removal;
+        }
+        if (!removal.removed) {
+          throw new OpeningReplaceAborted('nothing-to-reverse');
+        }
+        // ここから先は打消しを書いた後なので、成功以外は投げて取引ごと取り消す
+        const created = await createOpeningInTx(input, date, now);
+        if ('reason' in created) {
+          throw new OpeningReplaceAborted('already-exists');
+        }
+        if (created.entryIds.length === 0 && created.assetIds.length === 0) {
+          throw new OpeningReplaceAborted('empty');
+        }
+        await writeOpeningDateSettingsInTx(date, args.formClose, args.expectedStoredClose);
+        return created;
+      },
+    );
+  } catch (e) {
+    if (!(e instanceof OpeningReplaceAborted)) {
+      throw e;
+    }
+    if (e.reason === 'already-exists') {
+      return { reason: 'already-exists', year: createYear };
+    }
+    return { reason: e.reason };
+  }
+}
+function isRestoredOpening(e: JournalEntry): boolean {
+  return typeof e.description === 'string' && e.description.startsWith(OPENING_RESTORE_PREFIX);
+}
+// 作り直しの途中で止まった年：開業仕訳の打消しがあり、有効な開業仕訳が無く、最後の打消しの後に作り直した開業仕訳も無い年。
+// 同じ年の作り直しは、打消し以後に作った開業仕訳（のちに打ち消されたものも含む）があれば済んでいる。
+// 開業日の変更（ほかの年を作る）は打消しと作成の入力時刻が同じなので、それと同じ時刻のほかの年の開業仕訳があれば済んでいる。
+// 元に戻した仕訳（[再計上]）は済んだ根拠にしない。入力時刻が読めない記録（復元由来）も根拠にしない。
+// 取引の中からも呼ぶので、読めないときに握りつぶさない
+async function scanInterruptedYears(): Promise<number[]> {
+  const valid = new Set<number>();
+  const reversalTimes = new Map<number, number[]>();
+  const originals: { year: number; createdAt: number }[] = [];
+  await db.journalEntries.each((e) => {
+    if (e.source !== 'opening') {
       return;
     }
-    // openingYear の無い旧データは取得日＝開業日で登録されているので取得日の年で絞れる。
-    const targets = await db.fixedAssets
-      .filter(
-        (a) =>
-          a.source === 'opening' &&
-          (a.openingYear ?? Number(a.acquisitionDate.slice(0, 4))) === year,
-      )
-      .toArray();
-    if (targets.length > 0) {
-      const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
-      const referenced = new Set<string>();
-      await db.journalEntries.each((e) => {
-        if (!countsTowardTotals(e)) {
-          return;
-        }
-        for (const [tag, name] of byTag) {
-          if (e.description.includes(tag)) {
-            referenced.add(name);
-          }
-        }
-      });
-      if (referenced.size > 0) {
-        result = { reason: 'has-depreciation', assetNames: [...referenced] };
-        return;
-      }
+    if (countsTowardTotals(e)) {
+      valid.add(e.year);
     }
-
-    const now = Date.now();
-    for (const orig of originals) {
-      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
-      const reversalId = newId();
-      await db.journalEntries.add({
-        id: reversalId,
-        // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
-        date: orig.date,
-        year: orig.year,
-        description: `[訂正] ${orig.description}`,
-        status: 'confirmed',
-        originalEntryId: orig.id,
-        source: 'opening',
-        createdAt: now,
-        confirmedAt: now,
-      });
-      for (const line of lines) {
-        await db.journalLines.add({
-          ...line,
-          id: newId(),
-          entryId: reversalId,
-          side: line.side === 'debit' ? 'credit' : 'debit',
-        });
-      }
-      await db.journalEntries.update(orig.id, {
-        status: 'reversed',
-        reversedByEntryId: reversalId,
-      });
+    if (!Number.isFinite(e.createdAt)) {
+      return;
     }
-    await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
-    result = { removed: true };
+    if (e.originalEntryId !== undefined) {
+      reversalTimes.set(e.year, [...(reversalTimes.get(e.year) ?? []), e.createdAt]);
+    } else if (!isRestoredOpening(e)) {
+      originals.push({ year: e.year, createdAt: e.createdAt });
+    }
   });
+  const years: number[] = [];
+  for (const [year, times] of reversalTimes) {
+    if (valid.has(year)) {
+      continue;
+    }
+    const latest = Math.max(...times);
+    const redone = originals.some((o) =>
+      o.year === year ? o.createdAt >= latest : o.createdAt === latest,
+    );
+    if (!redone) {
+      years.push(year);
+    }
+  }
+  return years.sort((a, b) => a - b);
+}
+// 読めないときは案内を出さないだけにして、画面のほかの部分を止めない
+export async function findInterruptedOpeningYears(): Promise<number[]> {
+  try {
+    return await scanInterruptedYears();
+  } catch {
+    return [];
+  }
+}
 
-  return result;
+export async function loadDismissedInterruptedOpeningYears(): Promise<number[]> {
+  const v: unknown = await getSetting('dismissedInterruptedOpeningYears');
+  return Array.isArray(v) && v.every((y) => Number.isInteger(y)) ? (v as number[]) : [];
+}
+
+export async function loadDismissedMissingOpeningAssets(): Promise<string[]> {
+  const v: unknown = await getSetting('dismissedMissingOpeningAssets');
+  return Array.isArray(v) && v.every((k) => typeof k === 'string') ? (v as string[]) : [];
+}
+
+export async function dismissInterruptedOpeningYear(year: number): Promise<void> {
+  await db.transaction('rw', db.settings, async () => {
+    const current = await loadDismissedInterruptedOpeningYears();
+    if (!current.includes(year)) {
+      await setSetting('dismissedInterruptedOpeningYears', [...current, year]);
+    }
+  });
+}
+
+export async function showDismissedInterruptedOpeningYears(): Promise<void> {
+  await deleteSetting('dismissedInterruptedOpeningYears');
+}
+
+export async function dismissMissingOpeningAsset(key: string): Promise<void> {
+  await db.transaction('rw', db.settings, async () => {
+    const current = await loadDismissedMissingOpeningAssets();
+    if (!current.includes(key)) {
+      await setSetting('dismissedMissingOpeningAssets', [...current, key]);
+    }
+  });
+}
+
+export class OpeningRestoreAborted extends Error {
+  readonly reason: 'target-invalid' | 'amount-invalid';
+  constructor(reason: 'target-invalid' | 'amount-invalid') {
+    super(reason);
+    this.name = 'OpeningRestoreAborted';
+    this.reason = reason;
+  }
+}
+// 元に戻すのは最後の打消し（removeOpeningEntries は 1 回の打消しに同じ入力時刻を付ける）の元の仕訳だけ。
+// 元が開業設定の原仕訳でない・この打消しで打ち消されていない・ほかの年のものなら、何も書かずに止める
+async function restoreTargets(year: number): Promise<JournalEntry[]> {
+  const reversals = (await db.journalEntries.where('year').equals(year).toArray()).filter(
+    (e) =>
+      e.source === 'opening' && e.originalEntryId !== undefined && Number.isFinite(e.createdAt),
+  );
+  if (reversals.length === 0) {
+    return [];
+  }
+  const latest = Math.max(...reversals.map((e) => e.createdAt));
+  const targets = new Map<string, JournalEntry>();
+  for (const rev of reversals.filter((e) => e.createdAt === latest)) {
+    const origId: unknown = rev.originalEntryId;
+    const orig = typeof origId === 'string' ? await db.journalEntries.get(origId) : undefined;
+    if (
+      orig === undefined ||
+      orig.source !== 'opening' ||
+      orig.originalEntryId !== undefined ||
+      orig.status !== 'reversed' ||
+      orig.reversedByEntryId !== rev.id ||
+      orig.year !== year
+    ) {
+      throw new OpeningRestoreAborted('target-invalid');
+    }
+    targets.set(orig.id, orig);
+  }
+  return [...targets.values()];
+}
+
+export interface OpeningRestorePreview {
+  entries: { id: string; date: string; description: string; amount: Decimal | undefined }[];
+  /** 保存済みの開業日（読めるときだけ） */
+  settingStart: string | undefined;
+}
+// 元に戻す前の確認に出す内容。金額は借方の合計で、読めない明細があれば undefined
+export async function previewInterruptedOpeningRestore(
+  year: number,
+): Promise<OpeningRestorePreview> {
+  const targets = await restoreTargets(year);
+  const entries: OpeningRestorePreview['entries'] = [];
+  for (const orig of targets) {
+    const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+    let amount: Decimal | undefined = D(0);
+    for (const l of lines.filter((x) => x.side === 'debit')) {
+      const a = readStoredAmount(l.amount);
+      amount = a === undefined || amount === undefined ? undefined : amount.plus(a);
+    }
+    entries.push({
+      id: orig.id,
+      date: String(orig.date),
+      description: String(orig.description),
+      amount,
+    });
+  }
+  const start = readStoredBusinessDate(await getSetting('businessStartDate'));
+  return {
+    entries,
+    settingStart: start?.valid === true ? String(start.value) : undefined,
+  };
+}
+// 作り直しの途中で止まった年の開業仕訳を、元の仕訳を写した新しい確定仕訳として作る。元の仕訳と打消し仕訳は変えない。
+// 転用資産の固定資産は記録が残っていないので、利用者が登録し直す（findMissingOpeningAssets）
+export async function restoreInterruptedOpeningEntries(
+  year: number,
+  options?: { allowFiledYear?: boolean },
+): Promise<{ entryIds: string[] } | { reason: 'not-interrupted' }> {
+  await assertYearsWritable([year], options);
+  return db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+    markConfirmedWrite(options);
+    if (!(await scanInterruptedYears()).includes(year)) {
+      return { reason: 'not-interrupted' as const };
+    }
+    const targets = await restoreTargets(year);
+    const now = Date.now();
+    const planned: { entry: JournalEntry; lines: JournalLine[] }[] = [];
+    for (const orig of targets) {
+      const entryId = newId();
+      const lines = (await db.journalLines.where('entryId').equals(orig.id).toArray()).map(
+        (line): JournalLine => {
+          const amount = readStoredAmount(line.amount);
+          if (amount === undefined || amount.isNegative()) {
+            throw new OpeningRestoreAborted('amount-invalid');
+          }
+          return {
+            ...line,
+            id: newId(),
+            entryId,
+            amount: toAmountString(amount),
+            amountIndexed: toIndexable(amount),
+          };
+        },
+      );
+      validateLines(lines);
+      const { reversedByEntryId: _reversedBy, ...rest } = orig;
+      planned.push({
+        entry: {
+          ...rest,
+          id: entryId,
+          description: `${OPENING_RESTORE_PREFIX}${String(orig.description)}`,
+          status: 'confirmed',
+          createdAt: now,
+          confirmedAt: now,
+        },
+        lines,
+      });
+    }
+    for (const p of planned) {
+      await db.journalEntries.add(p.entry);
+      await db.journalLines.bulkAdd(p.lines);
+    }
+    return { entryIds: planned.map((p) => p.entry.id) };
+  });
+}
+
+export interface MissingOpeningAsset {
+  /** `${仕訳 id}:${明細 id}`。「登録しない」の記録に使う */
+  key: string;
+  entryId: string;
+  lineId: string;
+  year: number;
+  /** 元に戻した仕訳の日付（開業日） */
+  openingDate: string;
+  name: string;
+  accountCode: string;
+  /** 明細の金額（保存されている元の値） */
+  amount: unknown;
+}
+export interface AssumedOpeningAsset {
+  name: string;
+  acquisitionDate: string;
+  year: number;
+}
+function openingYearOf(a: FixedAsset): number {
+  return a.openingYear ?? Number(String(a.serviceStartDate ?? a.acquisitionDate).slice(0, 4));
+}
+// 元に戻した開業仕訳（[再計上]）の転用資産の明細のうち、対応する固定資産が無いもの。ほかの開業仕訳は見ない
+// （旧データの開業資産には openingYear や source が無く、対応を判定できない）。
+// 年・名前・科目ごとに明細の数から対応する資産の数を引く。開業設定の資産はその年のもの、
+// 設定画面で登録した資産は取得日が開業日以前のものを対応とみなす。登録し直した資産は未償却残高が明細の額と同じなので、その明細に充てる。
+// 「登録しない」にした明細は数えない（数えると、その明細に資産が充てられて別の明細が残り続ける）
+export async function findMissingOpeningAssets(): Promise<{
+  missing: MissingOpeningAsset[];
+  assumed: AssumedOpeningAsset[];
+}> {
+  const entries = new Map<string, JournalEntry>();
+  const [, dismissedKeys] = await Promise.all([
+    db.journalEntries.each((e) => {
+      if (e.source === 'opening' && countsTowardTotals(e) && isRestoredOpening(e)) {
+        entries.set(e.id, e);
+      }
+    }),
+    loadDismissedMissingOpeningAssets(),
+  ]);
+  const dismissed = new Set(dismissedKeys);
+  if (entries.size === 0) {
+    return { missing: [], assumed: [] };
+  }
+  const assetCodes = new Set(DEPRECIABLE_ASSET_ACCOUNTS.map((a) => a.code));
+  const lines = (
+    await db.journalLines
+      .where('entryId')
+      .anyOf([...entries.keys()])
+      .toArray()
+  )
+    .filter(
+      (l) =>
+        l.side === 'debit' &&
+        assetCodes.has(l.accountCode) &&
+        typeof l.memo === 'string' &&
+        l.memo.startsWith(CONVERTED_ASSET_MEMO_PREFIX) &&
+        !dismissed.has(`${l.entryId}:${l.id}`),
+    )
+    .sort((a, b) => a.entryId.localeCompare(b.entryId) || a.id.localeCompare(b.id));
+  const groups = new Map<string, MissingOpeningAsset[]>();
+  for (const l of lines) {
+    const entry = entries.get(l.entryId)!;
+    const item: MissingOpeningAsset = {
+      key: `${l.entryId}:${l.id}`,
+      entryId: l.entryId,
+      lineId: l.id,
+      year: entry.year,
+      openingDate: String(entry.date),
+      name: l.memo!.slice(CONVERTED_ASSET_MEMO_PREFIX.length),
+      accountCode: l.accountCode,
+      amount: l.amount,
+    };
+    const groupKey = JSON.stringify([item.year, item.name, item.accountCode]);
+    groups.set(groupKey, [...(groups.get(groupKey) ?? []), item]);
+  }
+  const assets = await db.fixedAssets.toArray();
+  const used = new Set<string>();
+  const missing: MissingOpeningAsset[] = [];
+  const assumed: AssumedOpeningAsset[] = [];
+  const ordered = [...groups.values()].sort((a, b) => a[0]!.year - b[0]!.year);
+  for (const group of ordered) {
+    const { year, name, accountCode } = group[0]!;
+    const openingDate = group.map((g) => g.openingDate).sort()[0]!;
+    const candidates = assets.filter(
+      (a) =>
+        !used.has(a.id) &&
+        a.name === name &&
+        a.accountCode === accountCode &&
+        (a.source === 'opening'
+          ? openingYearOf(a) === year
+          : isValidIsoDate(a.acquisitionDate) && a.acquisitionDate <= openingDate),
+    );
+    const uncovered = [...group];
+    const take = (a: FixedAsset, index: number) => {
+      uncovered.splice(index, 1);
+      used.add(a.id);
+      if (a.source !== 'opening') {
+        assumed.push({ name: a.name, acquisitionDate: a.acquisitionDate, year });
+      }
+    };
+    const rest: FixedAsset[] = [];
+    for (const a of candidates) {
+      const basis = readStoredAmount(a.conversionBasis);
+      const index =
+        basis === undefined
+          ? -1
+          : uncovered.findIndex((u) => readStoredAmount(u.amount)?.eq(basis) === true);
+      if (index >= 0) {
+        take(a, index);
+      } else {
+        rest.push(a);
+      }
+    }
+    for (const a of rest) {
+      if (uncovered.length === 0) {
+        break;
+      }
+      take(a, 0);
+    }
+    missing.push(...uncovered);
+  }
+  return { missing, assumed };
+}
+// 明細の額を開業時の未償却残高として使う。読めない・上限を超える額は登録できない
+export function missingOpeningAssetBasis(target: MissingOpeningAsset): Decimal | undefined {
+  const basis = readStoredAmount(target.amount);
+  return basis === undefined || basis.isNegative() || basis.gte('1e14') ? undefined : basis;
+}
+
+export interface MissingOpeningAssetForm {
+  acquisitionDate: string;
+  acquisitionCost: string;
+  usefulLifeYears: number;
+  depreciationMethod: DepreciationMethod;
+}
+// 開業設定の転用資産と同じ検査を通した固定資産を返す。通らなければ理由を投げる
+export function buildMissingOpeningAsset(
+  target: MissingOpeningAsset,
+  form: MissingOpeningAssetForm,
+): FixedAsset {
+  if (!isValidIsoDate(form.acquisitionDate)) {
+    throw new Error(m.fixed_asset_issue_date({ field: m.opening_converted_acq_date_title() }));
+  }
+  if (form.acquisitionDate > target.openingDate) {
+    throw new Error(
+      m.opening_asset_acquired_after_start({
+        acquisitionDate: form.acquisitionDate,
+        businessStartDate: target.openingDate,
+      }),
+    );
+  }
+  if (!isConvertedAssetLifeSupported(form.usefulLifeYears)) {
+    throw new Error(m.opening_asset_life_unsupported());
+  }
+  const cost = parseAmountInput(form.acquisitionCost);
+  if (cost === undefined) {
+    throw new Error(m.common_amount_invalid());
+  }
+  if (cost.gte('1e14')) {
+    throw new Error(m.common_amount_too_large());
+  }
+  const basis = missingOpeningAssetBasis(target);
+  if (basis === undefined) {
+    throw new Error(m.opening_missing_assets_basis_unreadable());
+  }
+  if (cost.lt(basis)) {
+    throw new Error(m.opening_missing_assets_cost_below_basis({ basis: formatJPY(basis) }));
+  }
+  const acquisitionCost = toAmountString(cost);
+  const asset: FixedAsset = {
+    id: newId(),
+    name: target.name,
+    acquisitionDate: form.acquisitionDate,
+    acquisitionCost,
+    usefulLifeYears: form.usefulLifeYears,
+    depreciationMethod:
+      form.depreciationMethod === 'small-asset-special' &&
+      !isSmallAssetEligible(form.acquisitionDate, acquisitionCost)
+        ? 'straight-line'
+        : form.depreciationMethod,
+    accountCode: target.accountCode,
+    source: 'opening',
+    conversionBasis: toAmountString(basis),
+    serviceStartDate: target.openingDate,
+    openingYear: target.year,
+  };
+  const issues = validateFixedAsset(asset);
+  if (issues.length > 0) {
+    throw new InvalidFixedAssetError([{ asset, issues }]);
+  }
+  return asset;
+}
+// 取引の中で数え直し、その明細がまだ足りず元の仕訳が有効なときだけ登録する
+export async function registerMissingOpeningAsset(
+  args: { entryId: string; lineId: string } & MissingOpeningAssetForm,
+): Promise<{ assetId: string } | { reason: 'not-missing' }> {
+  return db.transaction(
+    'rw',
+    db.journalEntries,
+    db.journalLines,
+    db.fixedAssets,
+    db.settings,
+    async () => {
+      const { missing } = await findMissingOpeningAssets();
+      const target = missing.find((x) => x.entryId === args.entryId && x.lineId === args.lineId);
+      if (target === undefined) {
+        return { reason: 'not-missing' as const };
+      }
+      const asset = buildMissingOpeningAsset(target, args);
+      await db.fixedAssets.add(asset);
+      return { assetId: asset.id };
+    },
+  );
+}
+
+export interface OpeningRecoveryState {
+  /** 作り直しの途中で止まった年（「表示しない」にした年も含む） */
+  interrupted: number[];
+  dismissedYears: number[];
+  missing: MissingOpeningAsset[];
+  assumed: AssumedOpeningAsset[];
+  dismissedAssets: string[];
+}
+// 画面の案内に使う。読めない部分は空として扱い、画面のほかの部分を止めない。
+// liveQuery が読んだ表を追えるよう、読み取りはすべて呼ばれた時点で始める（別の await の後に始めると追えない）
+export async function readOpeningRecoveryState(): Promise<OpeningRecoveryState> {
+  const [interrupted, dismissedYears, found, dismissedAssets] = await Promise.all([
+    findInterruptedOpeningYears(),
+    loadDismissedInterruptedOpeningYears().catch((): number[] => []),
+    findMissingOpeningAssets().catch(() => ({ missing: [], assumed: [] })),
+    loadDismissedMissingOpeningAssets().catch((): string[] => []),
+  ]);
+  return { interrupted, dismissedYears, ...found, dismissedAssets };
+}
+// 案内に出す年（「表示しない」にした年を除く）
+export async function readVisibleInterruptedOpeningYears(): Promise<number[]> {
+  const { interrupted, dismissedYears } = await readOpeningRecoveryState();
+  return interrupted.filter((y) => !dismissedYears.includes(y));
 }

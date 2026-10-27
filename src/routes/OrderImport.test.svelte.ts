@@ -130,6 +130,62 @@ describe('OrderImport: 品目合計と総額の不一致', () => {
   });
 });
 
+describe('OrderImport: 金額が読めない品目', () => {
+  test('3 列中 1 列の金額が空なら、その列を示して登録しない（合計が合っていても）', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [
+        { description: '品目A', amount: '4000' },
+        { description: '品目B', amount: '' },
+        { description: '品目C', amount: '5000' },
+      ],
+      totalAmount: '9000',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+
+    await commit(c);
+
+    expect(c.textContent).toContain(m.common_amount_invalid());
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('1e3 や過大な金額の品目も登録しない', async () => {
+    for (const bad of ['1e3', '100000000000000']) {
+      state.extracted = {
+        date: '2026-03-01',
+        vendor: 'テスト商店',
+        items: [{ description: '品目A', amount: bad }],
+        totalAmount: '9000',
+      };
+      const c = container as HTMLElement;
+      await analyze(c);
+      await commit(c);
+      expect(await db.journalEntries.count()).toBe(0);
+      button(c, 'キャンセル').click();
+      flushSync();
+      bodyButton(m.discard_candidates_discard()).click();
+      flushSync();
+    }
+  });
+
+  test('桁区切りの品目金額は半角の整数に揃えて登録する', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [{ description: '品目A', amount: '9,000' }],
+      totalAmount: '9000',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+
+    await commit(c);
+
+    expect((await expenseLines()).map((l) => l.amount)).toEqual(['9000']);
+  });
+});
+
 describe('OrderImport: キャンセル時の破棄確認', () => {
   test('候補がある状態でキャンセルすると確認ダイアログが出て、候補は表示されたまま', async () => {
     const c = container as HTMLElement;

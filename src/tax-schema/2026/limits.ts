@@ -86,29 +86,38 @@ function nextDay(iso: string): string {
   const next = new Date(Date.UTC(y, mo - 1, d + 1));
   return next.toISOString().slice(0, 10);
 }
-// その年の業務期間の月数。開業日・廃業日が同年に無ければ 12（既存データ互換）。
+// その年の業務期間の月数。その年の開業日・廃業日が無ければ 12（既存データ互換）。
+// 開業日は再開業した年ごとにあり得るため年ごとに渡す。同じ年に複数あれば最も早い日を使う。
 export function businessMonthsInYear(
   year: number,
-  businessStartDate?: string,
+  businessStartDates: readonly string[] = [],
   businessCloseDate?: string,
 ): number {
-  const from =
-    businessStartDate && Number(businessStartDate.slice(0, 4)) === year
-      ? businessStartDate
-      : `${year}-01-01`;
-  const to =
-    businessCloseDate && Number(businessCloseDate.slice(0, 4)) === year
-      ? nextDay(businessCloseDate)
-      : `${year + 1}-01-01`;
+  const start = businessStartDates.filter((d) => Number(d.slice(0, 4)) === year).sort()[0];
+  const close =
+    businessCloseDate !== undefined && Number(businessCloseDate.slice(0, 4)) === year
+      ? businessCloseDate
+      : undefined;
+  const yearStart = `${year}-01-01`;
+  const nextYearStart = `${year + 1}-01-01`;
+  // 同じ年に廃業してから再開業した場合は、年初〜廃業日と開業日〜年末の 2 つの期間を合わせる
+  if (start !== undefined && close !== undefined && close < start) {
+    return Math.min(
+      12,
+      calendarMonthsCeil(yearStart, nextDay(close)) + calendarMonthsCeil(start, nextYearStart),
+    );
+  }
+  const from = start ?? yearStart;
+  const to = close !== undefined ? nextDay(close) : nextYearStart;
   return Math.min(12, calendarMonthsCeil(from, to));
 }
 // 措法28の2第1項後段：開業年・廃業年は 300 万円を 12 で除し業務期間の月数を乗じた額。
 export function smallAssetAnnualCap(
   year: number,
-  businessStartDate?: string,
+  businessStartDates: readonly string[] = [],
   businessCloseDate?: string,
 ): Decimal {
-  const months = businessMonthsInYear(year, businessStartDate, businessCloseDate);
+  const months = businessMonthsInYear(year, businessStartDates, businessCloseDate);
   return D(SMALL_ASSET_ANNUAL_CAP).dividedBy(12).times(months);
 }
 interface AssetUseConditions {
