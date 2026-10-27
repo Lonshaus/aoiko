@@ -4,6 +4,15 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.6] - 2026-10-27
+
+Fixes for consumption tax .xtx files and for what is shown when aoiko cannot start.
+
+### Fixed
+
+- The procedure version written into consumption tax .xtx files did not match the e-Tax software's consumption tax module used for a sole proprietor's 2026 (Reiwa 8) return
+- With site data blocked in the browser, the screen stayed blank on startup. It now says that aoiko could not start and what to try
+
 ## [1.2.5] - 2026-10-19
 
 Fixes for input fields, Journal entries and Reports, and display fixes.
