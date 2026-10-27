@@ -43,13 +43,17 @@ jobs:
           cache: npm
 
       - run: npm ci
+      # ブラウザのビルドは OS のリリースごとに違う。別のリリースで落としたブラウザは起動できない
+      - name: Detect OS release
+        id: os-release
+        run: echo "id=$(. /etc/os-release && echo "${ID}${VERSION_ID}")" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         uses: actions/cache@v6
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ steps.os-release.outputs.id }}-${{ hashFiles('package-lock.json') }}
 
       - run: npx playwright install --with-deps chromium firefox webkit
         if: steps.playwright-cache.outputs.cache-hit != 'true'
