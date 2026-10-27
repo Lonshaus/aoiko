@@ -171,7 +171,7 @@ describe('消費税 .xtx 実 XSD 検証（公式 xsd / xmllint）', () => {
     });
     // 手続 RSH0030（簡易課税・個人）。RSH0010（一般・個人）は CONTENTS が SHA010
     // 系統のみ許可し SHA020 系統を受け付けない（実機での取込で発覚、2026-07-05）。
-    expect(xml).toMatch(/<RSH0030 VR="26\.0\.0" id="RSH0030">/);
+    expect(xml).toMatch(/<RSH0030 VR="23\.2\.0" id="RSH0030">/);
     const forms: Array<[string, string]> = [
       ['SHA020', '_valwrap-SHA020.xsd'],
       ['SHB070', '_valwrap-SHB070.xsd'],
