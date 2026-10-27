@@ -12,6 +12,7 @@ import koa020 from './xtx-schema-koa020.generated.json';
 import koa110 from './xtx-schema-koa110.generated.json';
 import sha020 from './xtx-schema-sha020.generated.json';
 import type { XtxSchema } from './xtx-schema';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 
 const k210 = koa210 as XtxSchema;
 const k020 = koa020 as XtxSchema;
@@ -280,5 +281,40 @@ describe('区分（kubun）ブランチの生 XML 上書き（raw、SHA020 ABY00
   test('raw のみのページも「実質データ有り」として出力される', () => {
     const frag = buildFormFragment(s020, {}, {}, {}, {}, { ABY00000: '<kubun_CD>1</kubun_CD>' });
     expect(frag).toMatch(/<SHA020-1 page="1">/);
+  });
+});
+
+describe('buildXtxBundle の gen:kingaku 最終検査', () => {
+  const schema = koa020 as XtxSchema;
+  const tag = schema.refTree.find(
+    (e) => e.kind === 'leaf' && !e.idref && e.refType === 'gen:kingaku',
+  )!.tag;
+
+  test.each(['1e+21', '1000000000000000', '12.5', 'abc'])(
+    '直接値 %j は出力せず tag 付きで投げる',
+    (v) => {
+      expect(() =>
+        buildXtxBundle([{ schema, values: {}, leafValues: { [tag]: v } }], {
+          includeSofusho: false,
+        }),
+      ).toThrow(XtxAmountOutOfRangeError);
+    },
+  );
+
+  test('繰り返しブロックの値も検査する', () => {
+    expect(() =>
+      buildXtxBundle(
+        [{ schema, values: {}, leafValues: {}, repeats: { ANY: [{ [tag]: '1e+21' }] } }],
+        { includeSofusho: false },
+      ),
+    ).toThrow(XtxAmountOutOfRangeError);
+  });
+
+  test('15 桁までの整数は通す', () => {
+    expect(
+      buildXtxBundle([{ schema, values: {}, leafValues: { [tag]: '-999999999999999' } }], {
+        includeSofusho: false,
+      }),
+    ).toContain('-999999999999999');
   });
 });

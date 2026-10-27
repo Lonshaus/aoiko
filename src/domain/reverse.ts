@@ -77,6 +77,9 @@ export async function reverseEntry(
         ...(line.inputUsageCategory ? { inputUsageCategory: line.inputUsageCategory } : {}),
         ...(line.itemId ? { itemId: line.itemId } : {}),
         ...(line.quantity ? { quantity: line.quantity } : {}),
+        ...(line.taxableTransferConsideration !== undefined
+          ? { taxableTransferConsideration: line.taxableTransferConsideration }
+          : {}),
       });
     }
 

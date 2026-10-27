@@ -42,7 +42,11 @@ import {
   WHITE_RETURN_UNMAPPABLE_EXPENSE_ACCOUNTS,
   whiteReturnAdjustedNetIncome,
 } from './white-return-income';
-import { stripClassificationSuffix } from './xtx-mapping-shared';
+import {
+  stripClassificationSuffix,
+  toKingaku,
+  type XtxRowOverflowItem,
+} from './xtx-mapping-shared';
 import { homeWorkerAdjustment } from './xtx-mapping-koa020';
 
 const SCHEMA = koa110 as XtxSchema;
@@ -92,26 +96,12 @@ const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 function formAmount(accountName: string, amount: string): string {
   return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
 }
-// gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -222,53 +212,69 @@ const USEFUL_LIFE_MAX = 100;
 const BUSINESS_USE_RATIO = '100';
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
 }
-
-export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+// 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
+// KOA210（青色・一般用）と同じ扱い。措法28の2は青色限定のためまとめ行は無い（KOA110は白色専用）。
+function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
-  // 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
-  // KOA210（青色・一般用）と同じ扱い。措法28の2は青色限定のためまとめ行は無い（KOA110は白色専用）。
-  const rows = ctx.fixedAssets
+  const candidates = ctx.fixedAssets
     .filter((a) => a.incomeType !== 'realEstate')
     .map((asset) => ({
       asset,
       result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
     }))
     .filter(({ result }) => !D(result.amount).isZero())
-    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
-    .slice(0, MAX_DEPRECIATION_ROWS)
-    .map(({ asset, result }) => {
-      const row: XtxLeafValues = {};
-      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
-      if (name) {
-        row.AIM00020 = name;
-      }
-      putRow(row, 'AIM00060', asset.acquisitionCost);
-      putRow(row, 'AIM00070', result.depreciationBase);
-      row.AIM00080 = effectiveMethodLabel(asset, statuses.get(asset.id));
-      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
-        row.AIM00090 = String(asset.usefulLifeYears);
-      }
-      putRow(row, 'AIM00150', result.amount);
-      putRow(row, 'AIM00170', result.amount);
-      row.AIM00180 = BUSINESS_USE_RATIO;
-      putRow(row, 'AIM00190', result.amount);
-      putRow(row, 'AIM00200', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
-        row.AIM00210 = asset.disposalType === 'sale' ? '売却' : '除却';
-      }
-      return row;
-    });
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
+  return { detailYear, statuses, candidates };
+}
+// 明細欄に入りきらない減価償却資産・専従者（xtx.ts の xtxRowOverflow 参照）
+export function koa110RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
+  const { candidates } = depreciationCandidates(ctx);
+  return [
+    ...candidates.slice(MAX_DEPRECIATION_ROWS).map(({ asset, result }) => ({
+      name: asset.name,
+      amount: result.amount,
+    })),
+    ...familyEmployeeEntries(ctx)
+      .slice(MAX_FAMILY_EMPLOYEE_ROWS)
+      .map((e) => ({ name: e.name, amount: e.amount.toString() })),
+  ];
+}
+
+export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const { detailYear, statuses, candidates } = depreciationCandidates(ctx);
+  const rows = candidates.slice(0, MAX_DEPRECIATION_ROWS).map(({ asset, result }) => {
+    const row: XtxLeafValues = {};
+    const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+    if (name) {
+      row.AIM00020 = name;
+    }
+    putRow(row, 'AIM00060', asset.acquisitionCost);
+    putRow(row, 'AIM00070', result.depreciationBase);
+    row.AIM00080 = effectiveMethodLabel(asset, statuses.get(asset.id));
+    if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+      row.AIM00090 = String(asset.usefulLifeYears);
+    }
+    putRow(row, 'AIM00150', result.amount);
+    putRow(row, 'AIM00170', result.amount);
+    row.AIM00180 = BUSINESS_USE_RATIO;
+    putRow(row, 'AIM00190', result.amount);
+    putRow(row, 'AIM00200', result.bookValueEnd);
+    if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
+      row.AIM00210 = asset.disposalType === 'sale' ? '売却' : '除却';
+    }
+    return row;
+  });
   const familyEmployeeRows = mapFamilyEmployeeRows(ctx);
   const additionalExpenseRows = additionalExpenseCandidates(ctx)
     .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
@@ -301,24 +307,29 @@ const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<FamilyEmployeeRelation, string> = {
   other: '親族',
 };
 
+function familyEmployeeEntries(ctx: XtxContext) {
+  const preDeductionIncome = whiteReturnAdjustedNetIncome(ctx.pl);
+  const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
+  return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees).entries;
+}
+
 function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
-  const { pl } = ctx;
-  const preDeductionIncome = whiteReturnAdjustedNetIncome(pl);
   const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   const ageById = new Map(employees.map((e) => [e.id, e.age]));
-  const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
-  return deduction.entries.slice(0, MAX_FAMILY_EMPLOYEE_ROWS).map((entry) => {
-    const row: XtxLeafValues = {};
-    const name = sanitizeLine(entry.name);
-    if (name) {
-      row.AIJ00020 = name;
-    }
-    const age = ageById.get(entry.id);
-    if (age !== undefined) {
-      row.AIJ00030 = String(age);
-    }
-    row.AIJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
-    row.AIJ00050 = String(entry.monthsWorked);
-    return row;
-  });
+  return familyEmployeeEntries(ctx)
+    .slice(0, MAX_FAMILY_EMPLOYEE_ROWS)
+    .map((entry) => {
+      const row: XtxLeafValues = {};
+      const name = sanitizeLine(entry.name);
+      if (name) {
+        row.AIJ00020 = name;
+      }
+      const age = ageById.get(entry.id);
+      if (age !== undefined) {
+        row.AIJ00030 = String(age);
+      }
+      row.AIJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+      row.AIJ00050 = String(entry.monthsWorked);
+      return row;
+    });
 }

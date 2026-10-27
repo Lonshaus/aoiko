@@ -1,9 +1,10 @@
 import { db } from '../db/db';
-import { D, type Decimal, toIndexable } from '../lib/decimal';
+import { D, type Decimal, toAmountString, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
 
 export interface CarryoverPreview {
   year: number;
@@ -116,7 +117,7 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
       if (bal.isZero()) {
         continue;
       }
-      out.push({ accountCode: code, accountName: acc.name, amount: bal.toString() });
+      out.push({ accountCode: code, accountName: acc.name, amount: toAmountString(bal) });
     }
     out.sort((a, b) => a.accountCode.localeCompare(b.accountCode));
     return out;
@@ -187,13 +188,27 @@ export async function applyCarryover(
       return;
     }
     const negativeSide = positiveSide === 'debit' ? 'credit' : 'debit';
+    let amountText: string;
+    let amountIndexed: string;
+    try {
+      amountText = toAmountString(amount.abs());
+      amountIndexed = toIndexable(amount.abs());
+    } catch (e) {
+      throw new Error(
+        m.carryover_amount_failed({
+          account: accountCode,
+          message: e instanceof Error ? e.message : String(e),
+        }),
+        { cause: e },
+      );
+    }
     lines.push({
       id: newId(),
       entryId: entry.id,
       side: amount.isPositive() ? positiveSide : negativeSide,
       accountCode,
-      amount: amount.abs().toString(),
-      amountIndexed: toIndexable(amount.abs()),
+      amount: amountText,
+      amountIndexed,
       taxRate: 0,
       taxIncluded: false,
       invoiceCompliant: false,

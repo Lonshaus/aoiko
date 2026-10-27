@@ -176,6 +176,18 @@ describe('buildDisposalLines（売却）', () => {
 });
 
 describe('generateDisposalEntry', () => {
+  test('売却価格を読めない資産は資産名付きの例外で止まり、仕訳を書かない', async () => {
+    const a = asset({
+      name: '売却した車',
+      disposedDate: '2023-06-30',
+      disposalType: 'sale',
+      salePrice: 'abc',
+    });
+    await db.fixedAssets.add(a);
+    await expect(generateDisposalEntry(a.id)).rejects.toThrow('売却した車');
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
   test('当年分の償却仕訳が無ければ needs-year-end-depreciation', async () => {
     const a = asset({ disposedDate: '2023-06-30', disposalType: 'scrap' });
     await db.fixedAssets.add(a);

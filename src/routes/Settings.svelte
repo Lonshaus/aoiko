@@ -1,16 +1,39 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+  import { liveQuery } from 'dexie';
   import { clearUnsavedGuard, link, setUnsavedGuard } from '../router.svelte';
   import { db } from '../db';
   import { newId } from '../lib/id';
-  import { assignInputNumber, assignInputString } from '../lib/number-input';
+  import { assignInputNumberOrEmpty, assignInputString } from '../lib/number-input';
+  import {
+    isFilerZipInvalid,
+    isRiyoshaIdInvalid,
+    normalizeFilerZip,
+    normalizeRiyoshaId,
+    readFilerField,
+    type FilerFieldKind,
+  } from '../lib/filer-fields';
   import {
     isAmountInputInvalid,
+    isJournalAmountTooLarge,
     normalizeAmountInput,
     parseAmountInput,
+    parseIntegerInput,
+    readStoredAmount,
+    storedToInputText,
   } from '../lib/amount-input';
-  import { toISODateLocal, todayISO } from '../lib/date';
+  import {
+    describeConversionBasisOverCost,
+    describeFixedAssetIssues,
+    describeInvalidFixedAssets,
+    fixedAssetIssueScope,
+    fixedAssetLabel,
+    hasComputeIssue,
+    validateFixedAsset,
+    type FixedAssetIssue,
+  } from '../domain/fixed-asset-check';
+  import { isValidIsoDate, toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
   import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
   import { isPlatform, PLATFORMS, type Platform } from '../lib/build-only';
@@ -21,7 +44,6 @@
     DISCLAIMER_VERSION,
     deleteSetting,
     getSetting,
-    loadBusinessDates,
     setSetting,
     type AiEngine,
   } from '../lib/settings';
@@ -35,20 +57,28 @@
   import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
   import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
   import { takeSettingsTarget } from '../lib/settings-target';
+  import { describeFoundAmounts, findOversizedAmounts } from '../domain/oversized-amounts';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
     exportYayoiCsv,
   } from '../domain/accountant-export';
   import {
+    buildDepreciationInputs,
     computeDepreciation,
     depreciableCost,
     generateYearEndDepreciation,
-    lumpSumPoolShares,
+    InvalidBusinessDateError,
+    readBusinessDateSources,
+    saveBusinessDateSettings,
+    selectEffectiveBusinessDates,
     serviceStartDate,
-    smallAssetSpecialStatuses,
-    type SmallAssetStatus,
+    type BusinessDateField,
+    type BusinessDateSelection,
+    type BusinessDateSources,
   } from '../domain/depreciation';
+  import { readStoredBusinessDate, type StoredBusinessDate } from '../domain/stored-business-date';
+  import { readVisibleInterruptedOpeningYears } from '../domain/business-opening';
   import {
     aggregateTransferIncome,
     estimateTransferIncome,
@@ -69,7 +99,7 @@
     isSmallAssetEligible,
     smallAssetThreshold,
   } from '../tax-schema/2026/limits';
-  import { formatJPY } from '../lib/decimal';
+  import { D, formatJPY } from '../lib/decimal';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { countSuppressedConfirms, resetSuppressedConfirms } from '../lib/suppressed-confirms';
   import BackupPanel from '../components/BackupPanel.svelte';
@@ -131,6 +161,14 @@
   }
 
   let currentYear = $state(2026);
+  // 入力欄の値。空欄・範囲外のときも currentYear は直前の有効な年のまま残し、保存とその年で動く操作を止める
+  let currentYearDraft = $state<number | undefined>(2026);
+  const currentYearInvalid = $derived(
+    parseIntegerInput(currentYearDraft === undefined ? '' : String(currentYearDraft), {
+      min: 2020,
+      max: 2099,
+    }) === undefined,
+  );
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
@@ -207,6 +245,7 @@
   let restoreError = $state('');
   let restoreSuccess = $state('');
   let restoreWarning = $state('');
+  let restoreOversized = $state('');
   let restoringFromFolder = $state(false);
   let restoreProgressDone = $state(0);
   let restoreProgressTotal = $state(0);
@@ -237,13 +276,13 @@
   let newRuleMatchType = $state<ParserRuleMatchType>('description-includes');
   let newRulePattern = $state('');
   let newRuleAccountCode = $state('');
-  let newRulePriority = $state(10);
+  let newRulePriority = $state<number | undefined>(10);
   let ruleError = $state('');
 
   let newAssetName = $state('');
   let newAssetDate = $state(todayISO());
   let newAssetCost = $state('');
-  let newAssetLife = $state(4);
+  let newAssetLife = $state<number | undefined>(4);
   let newAssetAccount = $state('1510');
   let newAssetMethod = $state<DepreciationMethod>('straight-line');
   let newAssetIncomeType = $state<IncomeType>('business');
@@ -294,8 +333,16 @@
   let propertyOtherIncome = $state('');
   let propertyDepositBalance = $state('');
   let propertyError = $state('');
+  const DEPRECIATION_YEAR_RANGE = { min: 2020, max: 2099 };
   let depreciationYear = $state(new Date().getFullYear());
+  // 入力欄が空・範囲外の間は depreciationYear を直前の値のまま残し、実行だけを止める
+  let depreciationYearInvalid = $state(false);
   let depreciationStatus = $state('');
+  // 計算に効く問題のある資産のうち、耐用年数とリース期間だけを直す欄
+  let lifeEditId = $state<string | null>(null);
+  let lifeEditYears = $state<number | undefined>(undefined);
+  let lifeEditLeaseMonths = $state('');
+  let lifeEditError = $state('');
   let disposeEditId = $state<string | null>(null);
   let disposeDate = $state(todayISO());
   let disposeType = $state<DisposalType>('scrap');
@@ -362,8 +409,121 @@
   // 確認を通るまで filingType は変えないため、選択の見た目は別に持つ。同じ値へ戻すと
   // 再描画が起きず、取り消しても押した側に選択が残る。
   let filingTypeChoice = $state<FilingType>('blue');
-  // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業設定が書き込む）。
-  let businessDates = $state<{ businessStartDate?: string; businessCloseDate?: string }>({});
+  type BusinessDateSourcesState =
+    | { status: 'loading' }
+    | { status: 'ok'; sources: BusinessDateSources }
+    | { status: 'error'; reason: string };
+  // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日の出どころ。開業設定や復元で変わっても追従する
+  let businessDateSources = $state.raw<BusinessDateSourcesState>({ status: 'loading' });
+  let bizStartInput = $state('');
+  let bizCloseInput = $state('');
+  // 欄ごとに、変えたかと、変え始めたときに画面が出していた保存済みの値（保存の前にほかの画面での変更と突き合わせる）
+  let startEdited = $state(false);
+  let closeEdited = $state(false);
+  let startBase: unknown = undefined;
+  let closeBase: unknown = undefined;
+  let bizDatesError = $state('');
+  let bizDatesConflict = $state('');
+  let bizDatesSaved = $state(false);
+  function storedDateText(v: StoredBusinessDate | undefined): string {
+    return v?.valid ? String(v.value) : '';
+  }
+  $effect(() => {
+    const sub = liveQuery(() => readBusinessDateSources()).subscribe({
+      next: (sources) => {
+        businessDateSources = { status: 'ok', sources };
+        // 入力途中の欄は書き換えない。変えていない欄は保存済みの値に追従させる
+        if (!startEdited) {
+          bizStartInput = storedDateText(sources.settingStart);
+        }
+        if (!closeEdited) {
+          bizCloseInput = storedDateText(sources.settingClose);
+        }
+      },
+      error: (e: unknown) => {
+        businessDateSources = { status: 'error', reason: describeStorageError(e) };
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+  const businessDateSelection = $derived<BusinessDateSelection | null>(
+    businessDateSources.status === 'ok'
+      ? selectEffectiveBusinessDates(businessDateSources.sources)
+      : null,
+  );
+  // 欄を変え始めた最初の入力のときに、画面が出している値をそのまま基準にする（読み直すと間の変更を見落とす）
+  function markBusinessDateEdited(field: BusinessDateField): void {
+    bizDatesSaved = false;
+    if (businessDateSources.status !== 'ok') {
+      return;
+    }
+    const { settingStart, settingClose } = businessDateSources.sources;
+    if (field === 'start' && !startEdited) {
+      startBase = settingStart?.value;
+      startEdited = true;
+    }
+    if (field === 'close' && !closeEdited) {
+      closeBase = settingClose?.value;
+      closeEdited = true;
+    }
+  }
+  // 書くのは変えた欄と、保存済みの値が読めない欄（空欄で表示しており、そのまま保存すると消える）
+  function writesBusinessDate(field: BusinessDateField, sources: BusinessDateSources): boolean {
+    return field === 'start'
+      ? startEdited || sources.settingStart?.valid === false
+      : closeEdited || sources.settingClose?.valid === false;
+  }
+  function inputBusinessDate(value: string): StoredBusinessDate | undefined {
+    return value !== '' ? { value, valid: isValidIsoDate(value) } : undefined;
+  }
+  // 書く欄だけを欄の値に置き換えた出どころ
+  function draftBusinessDateSources(sources: BusinessDateSources): BusinessDateSources {
+    const { settingStart, settingClose, ...rest } = sources;
+    const start = writesBusinessDate('start', sources)
+      ? inputBusinessDate(bizStartInput)
+      : settingStart;
+    const close = writesBusinessDate('close', sources)
+      ? inputBusinessDate(bizCloseInput)
+      : settingClose;
+    return {
+      ...rest,
+      ...(start !== undefined ? { settingStart: start } : {}),
+      ...(close !== undefined ? { settingClose: close } : {}),
+    };
+  }
+  // 作り直しの途中で止まった年。ここでは示すだけで、元に戻す操作は開業設定の画面で行う
+  let interruptedOpeningYears = $state.raw<number[]>([]);
+  $effect(() => {
+    const sub = liveQuery(() => readVisibleInterruptedOpeningYears()).subscribe({
+      next: (years) => {
+        interruptedOpeningYears = years;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+  const bizStartNote = $derived.by(() => {
+    if (businessDateSources.status !== 'ok' || !isValidIsoDate(bizStartInput)) {
+      return '';
+    }
+    const year = Number(bizStartInput.slice(0, 4));
+    return businessDateSources.sources.openingStartByYear.has(year)
+      ? m.settings_business_dates_start_unused()
+      : m.settings_business_dates_start_used({ year });
+  });
+  const bizCloseReopen = $derived.by(() => {
+    if (businessDateSources.status !== 'ok') {
+      return false;
+    }
+    const draft = selectEffectiveBusinessDates(
+      draftBusinessDateSources(businessDateSources.sources),
+    );
+    const close = draft.businessCloseDate;
+    if (close === undefined) {
+      return false;
+    }
+    const start = draft.businessStartDates.filter((d) => d.slice(0, 4) === close.slice(0, 4))[0];
+    return start !== undefined && close < start;
+  });
   let pendingFilingType = $state<FilingType | null>(null);
   let confirmingFilingType = $state(false);
   type PendingConfirm = { title: string; desc: string; action: string; run: () => Promise<void> };
@@ -403,8 +563,25 @@
   let aoiroDeductionKind = $state<AoiroDeductionKind>('electronic');
   let cashBasisElection = $state(false);
   let filerSaved = $state(false);
+  // 復元された申告者情報は型を検査していない。文字列にできない値と、桁が化けうる数値の識別番号は
+  // 読めない値として示し、入力し直すまで保存しない
+  const filerStoredUnreadable = new SvelteSet<string>();
+  function loadFilerText(key: string, stored: unknown, kind: FilerFieldKind): string {
+    const text = readFilerField(stored, kind);
+    if (text === undefined) {
+      filerStoredUnreadable.add(key);
+    }
+    return text ?? storedToInputText(stored);
+  }
+  const riyoshaIdInvalid = $derived(
+    filerStoredUnreadable.has('userRiyoshaId') || isRiyoshaIdInvalid(userRiyoshaId),
+  );
+  const filerZipInvalid = $derived(
+    filerStoredUnreadable.has('userFilerZip') || isFilerZipInvalid(userFilerZip),
+  );
   const zeimushoCodeInvalid = $derived(
-    userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode),
+    filerStoredUnreadable.has('userZeimushoCode') ||
+      (userZeimushoCode.trim() !== '' && !isValidZeimushoCode(userZeimushoCode)),
   );
   // 税務署サジェスト（署名・コードで検索 → コード+署名を確定）
   let zeimushoQuery = $state('');
@@ -416,12 +593,16 @@
   );
   const zeimushoResults = $derived(zeimushoOpen ? searchZeimusho(zeimushoQuery) : []);
   function selectZeimusho(e: ZeimushoEntry): void {
+    filerStoredUnreadable.delete('userZeimushoCode');
+    filerStoredUnreadable.delete('userZeimushoName');
     userZeimushoCode = e.code;
     userZeimushoName = e.name;
     zeimushoQuery = displayZeimusho(e.code, e.name);
     zeimushoOpen = false;
   }
   function onZeimushoInput(value: string): void {
+    filerStoredUnreadable.delete('userZeimushoCode');
+    filerStoredUnreadable.delete('userZeimushoName');
     zeimushoQuery = value;
     zeimushoOpen = true;
     const next = nextConfirmedZeimusho(value, {
@@ -477,10 +658,18 @@
         notice.missingBlobCount > 0
           ? m.settings_restore_missing_blobs({ count: notice.missingBlobCount })
           : '';
+      // 復元の検証は 1e14 以上の明細を形式だけで通すため、戻した直後に一覧で示す。失敗しても他の設定は読む
+      try {
+        const found = await findOversizedAmounts();
+        restoreOversized = found.total > 0 ? describeFoundAmounts(found) : '';
+      } catch {
+        restoreOversized = '';
+      }
     }
     currentYear = (await getSetting('currentYear')) ?? 2026;
-    userBusinessName = (await getSetting('userBusinessName')) ?? '';
-    userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
+    currentYearDraft = currentYear;
+    userBusinessName = storedToInputText(await getSetting('userBusinessName'));
+    userInvoiceNumber = storedToInputText(await getSetting('userInvoiceNumber'));
     invoiceNumberPrefix = (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX;
     quoteNumberPrefix = (await getSetting('quoteNumberPrefix')) ?? DEFAULT_QUOTE_PREFIX;
     geminiKey = (await getSetting('geminiApiKey')) ?? '';
@@ -533,21 +722,38 @@
     ctShortenedFrom = shortened?.from ?? '';
     ctShortenedTo = shortened?.to ?? '';
     ctForeignWithoutDomesticPe = (await getSetting('foreignWithoutDomesticPe')) ?? false;
-    ctBasePeriodSales = (await getSetting('basePeriodTaxableSales')) ?? '';
-    ctSpecifiedPeriodSales = (await getSetting('specifiedPeriodTaxableSales')) ?? '';
+    ctBasePeriodSales = loadCtAmount(
+      'ctBasePeriodSales',
+      await getSetting('basePeriodTaxableSales'),
+    );
+    ctSpecifiedPeriodSales = loadCtAmount(
+      'ctSpecifiedPeriodSales',
+      await getSetting('specifiedPeriodTaxableSales'),
+    );
     ctSimplifiedElectionFiledDate = (await getSetting('simplifiedElectionFiledDate')) ?? '';
     ctInterimVoluntaryFiled = (await getSetting('interimVoluntaryFiled')) ?? false;
     ctInterimVoluntaryLapsed = (await getSetting('interimVoluntaryLapsed')) ?? false;
-    userRiyoshaId = (await getSetting('userRiyoshaId')) ?? '';
-    userFilerName = (await getSetting('userFilerName')) ?? '';
-    userFilerZip = (await getSetting('userFilerZip')) ?? '';
-    userFilerAddress = (await getSetting('userFilerAddress')) ?? '';
-    userZeimushoCode = (await getSetting('userZeimushoCode')) ?? '';
-    userZeimushoName = (await getSetting('userZeimushoName')) ?? '';
+    userRiyoshaId = loadFilerText('userRiyoshaId', await getSetting('userRiyoshaId'), 'code');
+    userFilerName = loadFilerText('userFilerName', await getSetting('userFilerName'), 'text');
+    userFilerZip = loadFilerText('userFilerZip', await getSetting('userFilerZip'), 'zip');
+    userFilerAddress = loadFilerText(
+      'userFilerAddress',
+      await getSetting('userFilerAddress'),
+      'text',
+    );
+    userZeimushoCode = loadFilerText(
+      'userZeimushoCode',
+      await getSetting('userZeimushoCode'),
+      'code',
+    );
+    userZeimushoName = loadFilerText(
+      'userZeimushoName',
+      await getSetting('userZeimushoName'),
+      'text',
+    );
     zeimushoQuery = displayZeimusho(userZeimushoCode, userZeimushoName);
     filingType = (await getSetting('filingType')) ?? 'blue';
     filingTypeChoice = filingType;
-    businessDates = await loadBusinessDates();
     aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
     skipAttachmentConfirm = (await getSetting('skipAttachmentConfirm')) ?? false;
@@ -596,6 +802,15 @@
     | 'adjustedFixedAssetDate'
     | 'simplifiedElectionFiledDate';
   type CtAmountKey = 'basePeriodTaxableSales' | 'specifiedPeriodTaxableSales';
+  // 復元された設定は型を検証しないため数値などが入りうる。読む側（settings.ts）は文字列しか読まないので、
+  // 数値は文字列にして見せつつ誤りとして示し、それ以外は空欄にして示す
+  function loadCtAmount(name: string, stored: unknown): string {
+    if (stored === undefined || (typeof stored === 'string' && !isAmountInputInvalid(stored))) {
+      return stored ?? '';
+    }
+    ctErrors.set(name, m.common_stored_amount_unreadable);
+    return storedToInputText(stored);
+  }
   type CtFlagKey = 'foreignWithoutDomesticPe' | 'interimVoluntaryFiled' | 'interimVoluntaryLapsed';
   // 空欄・未チェックは未設定として消し、判定を従来どおりにする
   async function saveCtText(key: CtTextKey, name: string, value: string) {
@@ -829,13 +1044,18 @@
     e.preventDefault();
     // ボタンの disabled だけに頼らない。欄と確定値がずれたまま保存すると、画面に
     // 出ている署とは違うコードが .xtx へ載る。
-    if (zeimushoCodeInvalid || zeimushoUnresolved) {
+    if (
+      zeimushoCodeInvalid ||
+      zeimushoUnresolved ||
+      riyoshaIdInvalid ||
+      filerZipInvalid ||
+      filerStoredUnreadable.size > 0
+    ) {
       return;
     }
-    await setSetting('userRiyoshaId', userRiyoshaId.normalize('NFKC').trim());
+    await setSetting('userRiyoshaId', normalizeRiyoshaId(userRiyoshaId));
     await setSetting('userFilerName', userFilerName.trim());
-    // 郵便番号は全角の数字まで消さないよう、揃えてから数字以外を除く
-    await setSetting('userFilerZip', userFilerZip.normalize('NFKC').replace(/[^0-9]/g, ''));
+    await setSetting('userFilerZip', normalizeFilerZip(userFilerZip));
     await setSetting('userFilerAddress', userFilerAddress.trim());
     await setSetting('userZeimushoCode', userZeimushoCode.trim());
     await setSetting('userZeimushoName', userZeimushoName.trim());
@@ -856,6 +1076,9 @@
 
   async function saveBasic(e: Event) {
     e.preventDefault();
+    if (currentYearInvalid) {
+      return;
+    }
     await setSetting('currentYear', currentYear);
     // 保存した処理年度を全画面（概況・仕訳一覧・帳票）へ即時反映する
     ledger.switchYear(currentYear);
@@ -888,6 +1111,9 @@
   }
 
   async function previewCarryover() {
+    if (currentYearInvalid) {
+      return;
+    }
     carryoverError = '';
     carryoverStatus = '';
     try {
@@ -898,6 +1124,9 @@
   }
 
   async function runCarryover() {
+    if (currentYearInvalid) {
+      return;
+    }
     carryoverError = '';
     carryoverStatus = '';
     if (!(await filedYearGuard.confirm([currentYear]))) {
@@ -919,6 +1148,9 @@
   }
 
   async function runBadDebtReversal() {
+    if (currentYearInvalid) {
+      return;
+    }
     badDebtReversalError = '';
     badDebtReversalStatus = '';
     if (!(await filedYearGuard.confirm([currentYear]))) {
@@ -941,6 +1173,9 @@
   }
 
   async function deleteCarryover() {
+    if (currentYearInvalid) {
+      return;
+    }
     carryoverError = '';
     carryoverStatus = '';
     if (
@@ -1052,6 +1287,11 @@
     e.preventDefault();
     ruleError = '';
     const pattern = newRulePattern.trim();
+    const priority = newRulePriority;
+    if (priority === undefined || !Number.isSafeInteger(priority) || priority < 0) {
+      ruleError = m.settings_rule_priority_invalid();
+      return;
+    }
     if (!pattern || !newRuleAccountCode) {
       ruleError = m.settings_rule_error_required();
       return;
@@ -1061,7 +1301,7 @@
       matchType: newRuleMatchType,
       pattern,
       accountCode: newRuleAccountCode,
-      priority: newRulePriority,
+      priority,
       hitCount: 0,
     };
     await db.parserRules.add(rule);
@@ -1106,28 +1346,197 @@
       acquisitionDate: newAssetDate,
     }),
   );
-  const assetPools = $derived(lumpSumPoolShares(ledger.fixedAssets));
-  // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日で一括して決まる（措法28の2）。
-  const smallAssetStatuses = $derived(
-    smallAssetSpecialStatuses(
-      ledger.fixedAssets,
-      businessDates.businessStartDate,
-      businessDates.businessCloseDate,
+  function assetAmountError(raw: string, required: boolean): string {
+    if (normalizeAmountInput(raw) === '') {
+      return required ? m.settings_asset_error_required() : '';
+    }
+    if (parseAmountInput(raw) === undefined) {
+      return m.common_amount_invalid();
+    }
+    return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
+  }
+  const newAssetCostError = $derived(assetAmountError(newAssetCost, false));
+  const newAssetResidualError = $derived(assetAmountError(newAssetResidualGuarantee, false));
+  const newAssetLeaseTermValue = $derived(
+    parseIntegerInput(newAssetLeaseTermMonths, { min: 1, max: Number.MAX_SAFE_INTEGER }),
+  );
+  // 登録する資産は減価償却・.xtx の検査（validateFixedAsset）を必ず通る形にする
+  const newAssetLifeIssues = $derived(
+    validateFixedAsset({
+      id: '',
+      name: '',
+      acquisitionDate: newAssetDate,
+      acquisitionCost: '0',
+      usefulLifeYears: newAssetLife ?? Number.NaN,
+      depreciationMethod: newAssetMethod,
+      accountCode: newAssetAccount,
+      ...assetCategoryFields(newAssetCategory),
+      ...(newAssetUsableLifeUnderOneYear ? { usableLifeUnderOneYear: true } : {}),
+      ...(newAssetMethod === 'small-asset-special' && newAssetDecliningBalanceElected
+        ? { decliningBalanceElected: true }
+        : {}),
+      ...(newAssetMethod === 'lease-period-straight-line' && newAssetLeaseTermValue !== undefined
+        ? { leaseTermMonths: newAssetLeaseTermValue }
+        : {}),
+    }),
+  );
+  const newAssetLifeError = $derived(
+    newAssetLifeIssues.some((i) => i.kind === 'useful-life')
+      ? m.fixed_asset_issue_useful_life()
+      : '',
+  );
+  const newAssetLeaseTermError = $derived(
+    newAssetLifeIssues.some((i) => i.kind === 'lease-term') ? m.fixed_asset_issue_lease_term() : '',
+  );
+  const newAssetFieldErrors = $derived(
+    [
+      { label: m.settings_asset_cost_placeholder(), message: newAssetCostError },
+      { label: m.settings_asset_life_title(), message: newAssetLifeError },
+      { label: m.fixed_asset_field_residual_guarantee(), message: newAssetResidualError },
+      { label: m.settings_asset_lease_term_months(), message: newAssetLeaseTermError },
+    ].filter((e) => e.message !== ''),
+  );
+  // 復元された資産は主キーしか検査していない。少額特例の枠と一括償却の群は全資産で決まるため、
+  // 計算に効く問題が 1 件でもあれば、どの資産の償却額も出さずに理由を示す（仕訳の生成と同じ関門）。
+  // 問題のある資産を除いて計算すると、画面の金額が生成される仕訳と食い違う
+  const assetIssuesById = $derived(
+    new Map<string, FixedAssetIssue[]>(
+      ledger.fixedAssets.map((a) => [a.id, validateFixedAsset(a)]),
     ),
   );
-  const transferIncomeTerms = $derived(
-    transferIncomeByTerm(ledger.fixedAssets, depreciationYear, smallAssetStatuses),
+  // dates：開業日・廃業日の読み込み・値の問題で止まっている（減価償却も同じ理由で止まるので押させない）
+  type DepreciationInputsState =
+    | { status: 'loading' }
+    | { status: 'ok'; inputs: ReturnType<typeof buildDepreciationInputs> }
+    | { status: 'blocked'; reason: string; dates: boolean };
+  const depreciationInputs = $derived.by<DepreciationInputsState>(() => {
+    const blocked = ledger.fixedAssets.flatMap((asset) => {
+      const issues = (assetIssuesById.get(asset.id) ?? []).filter(
+        (i) => fixedAssetIssueScope(i) === 'compute',
+      );
+      return issues.length > 0 ? [{ asset, issues }] : [];
+    });
+    if (blocked.length > 0) {
+      return { status: 'blocked', reason: describeInvalidFixedAssets(blocked), dates: false };
+    }
+    if (businessDateSources.status === 'loading' || businessDateSelection === null) {
+      return businessDateSources.status === 'error'
+        ? { status: 'blocked', reason: businessDateSources.reason, dates: true }
+        : { status: 'loading' };
+    }
+    const issue = businessDateSelection.issues[0];
+    if (issue) {
+      return {
+        status: 'blocked',
+        reason: new InvalidBusinessDateError(issue.source, issue.value).message,
+        dates: true,
+      };
+    }
+    try {
+      return {
+        status: 'ok',
+        inputs: buildDepreciationInputs(
+          ledger.fixedAssets,
+          businessDateSelection.businessStartDates,
+          businessDateSelection.businessCloseDate,
+        ),
+      };
+    } catch (e) {
+      return { status: 'blocked', reason: describeStorageError(e), dates: false };
+    }
+  });
+  const depreciationRunBlocked = $derived(
+    depreciationInputs.status === 'loading' ||
+      (depreciationInputs.status === 'blocked' && depreciationInputs.dates),
   );
+  const conversionBasisNotice = $derived(describeConversionBasisOverCost(ledger.fixedAssets));
+  function errorText(e: unknown): string {
+    return e instanceof Error ? e.message : String(e);
+  }
+  type TransferEstimate = NonNullable<ReturnType<typeof estimateTransferIncome>>;
+  interface AssetRowCalc {
+    depreciation: { amount: string; book: string } | { error: string };
+    transfer: TransferEstimate | { error: string } | null;
+  }
+  // 資産ごとの計算は 1 件ずつ囲み、計算できない資産はその行に理由を出す
+  const assetRowCalcs = $derived.by(() => {
+    const calcs = new Map<string, AssetRowCalc>();
+    if (depreciationInputs.status !== 'ok') {
+      return calcs;
+    }
+    const { pools, statuses } = depreciationInputs.inputs;
+    for (const a of ledger.fixedAssets) {
+      let depreciation: AssetRowCalc['depreciation'];
+      try {
+        const r = computeDepreciation(a, depreciationYear, pools.get(a.id), statuses);
+        depreciation = { amount: r.amount, book: r.bookValueEnd };
+      } catch (e) {
+        depreciation = { error: errorText(e) };
+      }
+      let transfer: AssetRowCalc['transfer'] = null;
+      const disposalIssues = (assetIssuesById.get(a.id) ?? []).filter(
+        (i) => fixedAssetIssueScope(i) === 'disposal',
+      );
+      if (a.disposalType === 'sale' && a.disposedDate && disposalIssues.length > 0) {
+        transfer = { error: describeFixedAssetIssues(disposalIssues) };
+      } else if (disposalIssues.length === 0) {
+        try {
+          transfer = estimateTransferIncome(a, statuses);
+        } catch (e) {
+          transfer = { error: errorText(e) };
+        }
+      }
+      calcs.set(a.id, { depreciation, transfer });
+    }
+    return calcs;
+  });
+  // 売却した年の譲渡所得の合計。1 件でも計算できなければ、一部だけの合計は出さない
+  const transferAssetsThisYear = $derived(
+    ledger.fixedAssets.filter(
+      (a) =>
+        a.disposalType === 'sale' &&
+        typeof a.disposedDate === 'string' &&
+        Number(a.disposedDate.slice(0, 4)) === depreciationYear,
+    ),
+  );
+  type TransferTotalState =
+    { ok: true; terms: ReturnType<typeof transferIncomeByTerm> } | { ok: false; names: string[] };
+  const transferIncomeTotal = $derived.by<TransferTotalState>(() => {
+    if (depreciationInputs.status !== 'ok') {
+      return { ok: false, names: [] };
+    }
+    const failed = transferAssetsThisYear.filter((a) => {
+      const t = assetRowCalcs.get(a.id)?.transfer;
+      return t !== null && t !== undefined && 'error' in t;
+    });
+    if (failed.length > 0) {
+      return { ok: false, names: failed.map(fixedAssetLabel) };
+    }
+    try {
+      return {
+        ok: true,
+        terms: transferIncomeByTerm(
+          transferAssetsThisYear,
+          depreciationYear,
+          depreciationInputs.inputs.statuses,
+        ),
+      };
+    } catch {
+      return { ok: false, names: transferAssetsThisYear.map(fixedAssetLabel) };
+    }
+  });
   const transferIncomeAggregate = $derived.by(() => {
-    const occasional = transferOccasionalIncome.trim();
+    if (!transferIncomeTotal.ok) {
+      return null;
+    }
+    const occasional = parseAmountInput(transferOccasionalIncome);
     return aggregateTransferIncome({
-      shortTerm: transferIncomeTerms.shortTerm,
-      longTerm: transferIncomeTerms.longTerm,
-      ...(occasional !== '' && Number.isFinite(Number(occasional))
-        ? { occasionalIncome: occasional }
-        : {}),
+      shortTerm: transferIncomeTotal.terms.shortTerm,
+      longTerm: transferIncomeTotal.terms.longTerm,
+      ...(occasional !== undefined ? { occasionalIncome: occasional.toFixed() } : {}),
     });
   });
+  const transferOccasionalInvalid = $derived(isAmountInputInvalid(transferOccasionalIncome));
 
   function selectNewAssetAccount(code: string) {
     newAssetAccount = code;
@@ -1149,12 +1558,19 @@
   async function addAsset(e: Event) {
     e.preventDefault();
     assetError = '';
-    if (!newAssetName.trim() || !newAssetCost.trim()) {
+    if (!newAssetName.trim() || normalizeAmountInput(newAssetCost) === '') {
       assetError = m.settings_asset_error_required();
       return;
     }
-    if (newAssetLife < 1) {
-      assetError = m.settings_asset_error_life();
+    const cost = parseAmountInput(newAssetCost);
+    if (
+      cost === undefined ||
+      newAssetCostError !== '' ||
+      newAssetResidualError !== '' ||
+      newAssetLifeError !== '' ||
+      newAssetLeaseTermError !== '' ||
+      newAssetLife === undefined
+    ) {
       return;
     }
     if (
@@ -1169,7 +1585,7 @@
       return;
     }
     const leaseContractDate = newAssetLeaseContractDate;
-    const residualGuarantee = newAssetResidualGuarantee.trim();
+    const residualGuarantee = parseAmountInput(newAssetResidualGuarantee)?.toFixed() ?? '';
     const employeeCount = newAssetEmployeeCountValue;
     const employeeFields =
       newAssetMethod === 'small-asset-special' &&
@@ -1181,7 +1597,7 @@
       id: newId(),
       name: newAssetName.trim(),
       acquisitionDate: newAssetDate,
-      acquisitionCost: newAssetCost.trim(),
+      acquisitionCost: cost.toFixed(),
       usefulLifeYears: newAssetLife,
       depreciationMethod: newAssetMethod,
       accountCode: newAssetAccount,
@@ -1193,8 +1609,8 @@
       ...employeeFields,
       ...(newAssetUsableLifeUnderOneYear ? { usableLifeUnderOneYear: true } : {}),
       ...(newAssetEssentialToBusiness ? { essentialToBusiness: true } : {}),
-      ...(newAssetMethod === 'lease-period-straight-line' && newAssetLeaseTermMonths.trim() !== ''
-        ? { leaseTermMonths: Number(newAssetLeaseTermMonths) }
+      ...(newAssetMethod === 'lease-period-straight-line' && newAssetLeaseTermValue !== undefined
+        ? { leaseTermMonths: newAssetLeaseTermValue }
         : {}),
       ...(newAssetMethod === 'small-asset-special' && newAssetDecliningBalanceElected
         ? { decliningBalanceElected: true }
@@ -1204,6 +1620,11 @@
         ? { lumpSumPoolId: `${newAssetIncomeType}-${newAssetDate.slice(0, 4)}` }
         : {}),
     };
+    const issues = validateFixedAsset(a);
+    if (issues.length > 0) {
+      assetError = describeFixedAssetIssues(issues);
+      return;
+    }
     await db.fixedAssets.add(a);
     newAssetName = '';
     newAssetCost = '';
@@ -1222,21 +1643,37 @@
     await db.fixedAssets.delete(id);
   }
 
+  function canonicalAmount(raw: string): string {
+    return (parseAmountInput(raw) ?? D(0)).toFixed();
+  }
+  const propertyAmountsInvalid = $derived(
+    [propertyAreaSqm, propertyKeyMoneyEtc, propertyOtherIncome, propertyDepositBalance].some((v) =>
+      isAmountInputInvalid(v),
+    ) || isAmountInputInvalid(propertyAnnualRent),
+  );
+  const disposeAmountsInvalid = $derived(
+    disposeType === 'sale' &&
+      (isAmountInputInvalid(disposeSalePrice) || isAmountInputInvalid(disposeSaleExpenses)),
+  );
+
   function startEditProperty(a: FixedAsset) {
     propertyEditId = a.id;
-    const d = a.realEstateDetail;
-    propertyType = d?.propertyType ?? '';
-    propertyIsResidential = d?.isResidential ?? true;
-    propertyAddress = d?.address ?? '';
-    propertyTenantName = d?.tenantName ?? '';
-    propertyTenantAddress = d?.tenantAddress ?? '';
-    propertyRentalStart = d?.rentalPeriodStart ?? '';
-    propertyRentalEnd = d?.rentalPeriodEnd ?? '';
-    propertyAreaSqm = d?.areaSqm ?? '';
-    propertyAnnualRent = d?.annualRent ?? '';
-    propertyKeyMoneyEtc = d?.keyMoneyEtc ?? '';
-    propertyOtherIncome = d?.otherIncome ?? '';
-    propertyDepositBalance = d?.depositBalance ?? '';
+    // 復元された明細は型を検査していない。数値などはそのまま文字列にして入力し直せるようにする
+    const raw: unknown = a.realEstateDetail;
+    const d: Record<string, unknown> =
+      typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+    propertyType = storedToInputText(d.propertyType);
+    propertyIsResidential = d.isResidential !== false;
+    propertyAddress = storedToInputText(d.address);
+    propertyTenantName = storedToInputText(d.tenantName);
+    propertyTenantAddress = storedToInputText(d.tenantAddress);
+    propertyRentalStart = storedToInputText(d.rentalPeriodStart);
+    propertyRentalEnd = storedToInputText(d.rentalPeriodEnd);
+    propertyAreaSqm = storedToInputText(d.areaSqm);
+    propertyAnnualRent = storedToInputText(d.annualRent);
+    propertyKeyMoneyEtc = storedToInputText(d.keyMoneyEtc);
+    propertyOtherIncome = storedToInputText(d.otherIncome);
+    propertyDepositBalance = storedToInputText(d.depositBalance);
     propertyError = '';
   }
 
@@ -1254,6 +1691,10 @@
       propertyError = m.settings_asset_property_error_required();
       return;
     }
+    if (propertyAmountsInvalid) {
+      propertyError = m.common_amount_invalid();
+      return;
+    }
     const a = await db.fixedAssets.get(propertyEditId);
     if (!a) {
       return;
@@ -1262,26 +1703,254 @@
       propertyType: propertyType.trim(),
       isResidential: propertyIsResidential,
       address: propertyAddress.trim(),
-      annualRent: propertyAnnualRent.trim(),
+      annualRent: canonicalAmount(propertyAnnualRent),
       ...(propertyTenantName.trim() ? { tenantName: propertyTenantName.trim() } : {}),
       ...(propertyTenantAddress.trim() ? { tenantAddress: propertyTenantAddress.trim() } : {}),
       ...(propertyRentalStart ? { rentalPeriodStart: propertyRentalStart } : {}),
       ...(propertyRentalEnd ? { rentalPeriodEnd: propertyRentalEnd } : {}),
-      ...(propertyAreaSqm.trim() ? { areaSqm: propertyAreaSqm.trim() } : {}),
-      ...(propertyKeyMoneyEtc.trim() ? { keyMoneyEtc: propertyKeyMoneyEtc.trim() } : {}),
-      ...(propertyOtherIncome.trim() ? { otherIncome: propertyOtherIncome.trim() } : {}),
-      ...(propertyDepositBalance.trim() ? { depositBalance: propertyDepositBalance.trim() } : {}),
+      ...(propertyAreaSqm.trim() ? { areaSqm: canonicalAmount(propertyAreaSqm) } : {}),
+      ...(propertyKeyMoneyEtc.trim() ? { keyMoneyEtc: canonicalAmount(propertyKeyMoneyEtc) } : {}),
+      ...(propertyOtherIncome.trim() ? { otherIncome: canonicalAmount(propertyOtherIncome) } : {}),
+      ...(propertyDepositBalance.trim()
+        ? { depositBalance: canonicalAmount(propertyDepositBalance) }
+        : {}),
     };
     await db.fixedAssets.put({ ...a, realEstateDetail: detail });
     propertyEditId = null;
   }
 
+  function startEditLife(a: FixedAsset) {
+    lifeEditId = a.id;
+    const life: unknown = a.usefulLifeYears;
+    lifeEditYears = typeof life === 'number' && Number.isFinite(life) ? life : undefined;
+    lifeEditLeaseMonths = storedToInputText(a.leaseTermMonths);
+    lifeEditError = '';
+  }
+
+  function cancelEditLife() {
+    lifeEditId = null;
+    lifeEditError = '';
+  }
+  // 耐用年数とリース期間は過去の年の償却額も変える。申告済みの年を確認に出すため、供用年から今の年までを並べる
+  function lifeAffectedYears(a: FixedAsset): number[] {
+    const start = Number(String(a.serviceStartDate ?? a.acquisitionDate).slice(0, 4));
+    const end = Math.max(depreciationYear, ledger.currentYear);
+    if (!Number.isInteger(start) || start < 1900 || start > end) {
+      return [end];
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+
+  async function hasConfirmedAssetEntries(ids: readonly string[]): Promise<boolean> {
+    const tags = ids.map((id) => `#${String(id).slice(0, 8)}`);
+    if (tags.length === 0) {
+      return false;
+    }
+    const found = await db.journalEntries
+      .filter(
+        (e) =>
+          e.status === 'confirmed' &&
+          e.originalEntryId === undefined &&
+          tags.some((tag) => e.description.includes(tag)) &&
+          ['減価償却', '固定資産除却', '固定資産売却'].some((k) => e.description.includes(k)),
+      )
+      .first();
+    return found !== undefined;
+  }
+
+  async function saveLife() {
+    const id = lifeEditId;
+    if (!id) {
+      return;
+    }
+    lifeEditError = '';
+    const a = await db.fixedAssets.get(id);
+    if (!a) {
+      lifeEditId = null;
+      return;
+    }
+    const isLease = a.depreciationMethod === 'lease-period-straight-line';
+    const leaseTermMonths = isLease
+      ? parseIntegerInput(lifeEditLeaseMonths, { min: 1, max: Number.MAX_SAFE_INTEGER })
+      : undefined;
+    const { leaseTermMonths: _lt, ...base } = a;
+    const updated: FixedAsset = {
+      ...base,
+      usefulLifeYears: lifeEditYears ?? Number.NaN,
+      ...(isLease && leaseTermMonths !== undefined ? { leaseTermMonths } : {}),
+      ...(!isLease && a.leaseTermMonths !== undefined
+        ? { leaseTermMonths: a.leaseTermMonths }
+        : {}),
+    };
+    // 新規登録と同じ規則で耐用年数・リース期間を確かめる。ほかの問題はこの欄では直せない
+    const ruleIssues = validateFixedAsset(updated).filter(
+      (i) => i.kind === 'useful-life' || i.kind === 'lease-term',
+    );
+    if (ruleIssues.length > 0) {
+      lifeEditError = describeFixedAssetIssues(ruleIssues);
+      return;
+    }
+    const commit = async () => {
+      if (!(await filedYearGuard.confirm(lifeAffectedYears(a)))) {
+        return;
+      }
+      await db.transaction('rw', db.fixedAssets, async () => {
+        const current = await db.fixedAssets.get(id);
+        if (!current) {
+          return;
+        }
+        const { leaseTermMonths: _clt, ...rest } = current;
+        await db.fixedAssets.put({
+          ...rest,
+          usefulLifeYears: updated.usefulLifeYears,
+          ...(updated.leaseTermMonths !== undefined
+            ? { leaseTermMonths: updated.leaseTermMonths }
+            : {}),
+        });
+      });
+      lifeEditId = null;
+    };
+    if (await hasConfirmedAssetEntries([id])) {
+      pendingConfirm = {
+        title: m.settings_asset_fix_confirm_title(),
+        desc: m.settings_asset_fix_confirm_desc({ name: fixedAssetLabel(a) }),
+        action: m.settings_asset_fix_confirm_action(),
+        run: commit,
+      };
+      confirmingDelete = true;
+      return;
+    }
+    await commit();
+  }
+  // 計算に使う開業日・廃業日のうち変わるものの年
+  function changedBusinessDateYears(
+    before: BusinessDateSelection,
+    after: BusinessDateSelection,
+  ): number[] {
+    const kept = new Set(
+      before.businessStartDates.filter((d) => after.businessStartDates.includes(d)),
+    );
+    const dates = [...before.businessStartDates, ...after.businessStartDates].filter(
+      (d) => !kept.has(d),
+    );
+    if (before.businessCloseDate !== after.businessCloseDate) {
+      for (const d of [before.businessCloseDate, after.businessCloseDate]) {
+        if (d !== undefined) {
+          dates.push(d);
+        }
+      }
+    }
+    return dates.map((d) => Number(d.slice(0, 4)));
+  }
+  // 少額特例の枠は変わった年の償却額を変え、落選した資産の翌年以降の償却額も変える。lifeAffectedYears と同じく今の年まで並べる
+  function businessDateAffectedYears(years: readonly number[]): number[] {
+    const start = Math.min(...years);
+    const end = Math.max(depreciationYear, ledger.currentYear);
+    if (!Number.isInteger(start) || start < 1900) {
+      return [end];
+    }
+    if (start > end) {
+      return [...new Set(years)].sort((a, b) => a - b);
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+  // 食い違った欄だけ最新の値に戻す。もう片方の入力は残す
+  function applyBusinessDateConflict(
+    conflicts: BusinessDateField[],
+    stored: Record<BusinessDateField, unknown>,
+  ): void {
+    if (conflicts.includes('start')) {
+      startEdited = false;
+      startBase = undefined;
+      bizStartInput = storedDateText(readStoredBusinessDate(stored.start));
+    }
+    if (conflicts.includes('close')) {
+      closeEdited = false;
+      closeBase = undefined;
+      bizCloseInput = storedDateText(readStoredBusinessDate(stored.close));
+    }
+    bizDatesConflict = m.settings_business_dates_conflict({
+      fields:
+        conflicts.length > 1
+          ? m.settings_business_dates_field_both()
+          : conflicts[0] === 'start'
+            ? m.settings_business_dates_field_start()
+            : m.settings_business_dates_field_close(),
+    });
+  }
+  async function saveBusinessDates() {
+    bizDatesError = '';
+    bizDatesConflict = '';
+    bizDatesSaved = false;
+    if (businessDateSources.status !== 'ok') {
+      return;
+    }
+    const startInput = bizStartInput;
+    const closeInput = bizCloseInput;
+    if (
+      (startInput !== '' && !isValidIsoDate(startInput)) ||
+      (closeInput !== '' && !isValidIsoDate(closeInput))
+    ) {
+      bizDatesError = m.settings_business_dates_input_invalid();
+      return;
+    }
+    const sources = businessDateSources.sources;
+    const writeStart = writesBusinessDate('start', sources);
+    const writeClose = writesBusinessDate('close', sources);
+    // 突き合わせる値：変えた欄は変え始めたときの値、変えていない欄はここで年を数えるのに使う値
+    const expectedStart = startEdited ? startBase : sources.settingStart?.value;
+    const expectedClose = closeEdited ? closeBase : sources.settingClose?.value;
+    const changed = changedBusinessDateYears(
+      selectEffectiveBusinessDates(sources),
+      selectEffectiveBusinessDates(draftBusinessDateSources(sources)),
+    );
+    const commit = async () => {
+      try {
+        const result = await saveBusinessDateSettings({
+          start: { value: writeStart ? startInput : undefined, expected: expectedStart },
+          close: { value: writeClose ? closeInput : undefined, expected: expectedClose },
+        });
+        if (result.conflicts.length > 0) {
+          applyBusinessDateConflict(result.conflicts, result.stored);
+          return;
+        }
+        startEdited = false;
+        closeEdited = false;
+        startBase = undefined;
+        closeBase = undefined;
+        bizDatesSaved = true;
+      } catch (e) {
+        bizDatesError = describeStorageError(e);
+      }
+    };
+    // 使われない設定値だけを変えたときは、どの年の計算も変わらない
+    if (changed.length === 0) {
+      await commit();
+      return;
+    }
+    if (!(await filedYearGuard.confirm(businessDateAffectedYears(changed)))) {
+      return;
+    }
+    if (await hasConfirmedAssetEntries(ledger.fixedAssets.map((a) => a.id))) {
+      pendingConfirm = {
+        title: m.settings_business_dates_confirm_title(),
+        desc: m.settings_business_dates_confirm_desc(),
+        action: m.settings_business_dates_confirm_action(),
+        run: commit,
+      };
+      confirmingDelete = true;
+      return;
+    }
+    await commit();
+  }
+
   function startEditDisposal(a: FixedAsset) {
     disposeEditId = a.id;
-    disposeDate = a.disposedDate ?? todayISO();
-    disposeType = a.disposalType ?? 'scrap';
-    disposeSalePrice = a.salePrice ?? '';
-    disposeSaleExpenses = a.saleExpenses ?? '';
+    const disposed: unknown = a.disposedDate;
+    disposeDate = typeof disposed === 'string' && disposed !== '' ? disposed : todayISO();
+    disposeType = a.disposalType === 'sale' ? 'sale' : 'scrap';
+    disposeSalePrice = storedToInputText(a.salePrice);
+    disposeSaleExpenses = storedToInputText(a.saleExpenses);
     disposeCashAccount = '1110';
     disposeError = '';
   }
@@ -1301,6 +1970,10 @@
       disposeError = m.settings_asset_disposal_error_sale_price();
       return;
     }
+    if (disposeAmountsInvalid) {
+      disposeError = m.common_amount_invalid();
+      return;
+    }
     const a = await db.fixedAssets.get(disposeEditId);
     if (!a) {
       return;
@@ -1313,8 +1986,8 @@
       disposalType: disposeType,
       ...(disposeType === 'sale'
         ? {
-            salePrice: trimmedSalePrice,
-            ...(trimmedSaleExpenses ? { saleExpenses: trimmedSaleExpenses } : {}),
+            salePrice: canonicalAmount(trimmedSalePrice),
+            ...(trimmedSaleExpenses ? { saleExpenses: canonicalAmount(trimmedSaleExpenses) } : {}),
           }
         : {}),
     };
@@ -1334,6 +2007,13 @@
 
   async function runDisposalEntry(id: string) {
     const asset = await db.fixedAssets.get(id);
+    if (asset) {
+      const issues = validateFixedAsset(asset).filter((i) => fixedAssetIssueScope(i) !== 'output');
+      if (issues.length > 0) {
+        disposeStatus = { ...disposeStatus, [id]: describeFixedAssetIssues(issues) };
+        return;
+      }
+    }
     if (asset?.disposedDate) {
       const year = Number(asset.disposedDate.slice(0, 4));
       if (
@@ -1348,7 +2028,13 @@
         return;
       }
     }
-    const result = await generateDisposalEntry(id, disposeCashAccount, { allowFiledYear: true });
+    let result: Awaited<ReturnType<typeof generateDisposalEntry>>;
+    try {
+      result = await generateDisposalEntry(id, disposeCashAccount, { allowFiledYear: true });
+    } catch (e) {
+      disposeStatus = { ...disposeStatus, [id]: describeStorageError(e) };
+      return;
+    }
     if (result.created) {
       disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
       return;
@@ -1365,14 +2051,14 @@
 
   async function runDepreciation() {
     depreciationStatus = '';
+    if (depreciationYearInvalid || depreciationRunBlocked) {
+      return;
+    }
     if (!(await filedYearGuard.confirm([depreciationYear]))) {
       return;
     }
     try {
-      const r = await generateYearEndDepreciation(depreciationYear, {
-        allowFiledYear: true,
-        ...businessDates,
-      });
+      const r = await generateYearEndDepreciation(depreciationYear, { allowFiledYear: true });
       const parts: string[] = [];
       parts.push(
         r.skipped > 0
@@ -1385,25 +2071,16 @@
       if (r.smallAssetIneligible > 0) {
         parts.push(m.settings_asset_run_warn_small_ineligible({ count: r.smallAssetIneligible }));
       }
+      const conversionNotice = describeConversionBasisOverCost(await db.fixedAssets.toArray());
+      if (conversionNotice !== '') {
+        parts.push(conversionNotice);
+      }
       depreciationStatus = parts.join(' / ');
     } catch (e) {
       depreciationStatus = m.settings_asset_run_error({
         message: e instanceof Error ? e.message : String(e),
       });
     }
-  }
-
-  function assetCurrentDepreciation(asset: FixedAsset): {
-    amount: string;
-    book: string;
-  } {
-    const r = computeDepreciation(
-      asset,
-      depreciationYear,
-      assetPools.get(asset.id),
-      smallAssetStatuses,
-    );
-    return { amount: r.amount, book: r.bookValueEnd };
   }
 
   async function saveGeminiKey() {
@@ -1636,6 +2313,9 @@
   }
 
   async function downloadYayoiCsv() {
+    if (currentYearInvalid) {
+      return;
+    }
     accountantExportError = '';
     try {
       const bytes = await exportYayoiCsv(currentYear);
@@ -1646,6 +2326,9 @@
   }
 
   async function downloadGenericCsv() {
+    if (currentYearInvalid) {
+      return;
+    }
     accountantExportError = '';
     try {
       const bytes = await exportGenericCsv(currentYear);
@@ -1656,6 +2339,9 @@
   }
 
   async function downloadCorrectionHistoryCsv() {
+    if (currentYearInvalid) {
+      return;
+    }
     accountantExportError = '';
     try {
       const bytes = await exportCorrectionHistoryCsv(currentYear);
@@ -1767,12 +2453,25 @@
           name="currentTaxNen"
           autocomplete="off"
           value={currentYear}
-          oninput={assignInputNumber((v) => (currentYear = v))}
+          oninput={assignInputNumberOrEmpty((v) => {
+            currentYearDraft = v;
+            if (
+              v !== undefined &&
+              parseIntegerInput(String(v), { min: 2020, max: 2099 }) !== undefined
+            ) {
+              currentYear = v;
+            }
+          })}
           min="2020"
           max="2099"
           step="1"
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
+        {#if currentYearInvalid}
+          <span class="block mt-1 text-xs text-destructive"
+            >{m.common_integer_invalid({ min: 2020, max: 2099 })}</span
+          >
+        {/if}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_invoice_number_prefix()}</span>
@@ -1855,7 +2554,8 @@
     <div class="flex justify-end">
       <button
         type="submit"
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {basicSaved ? m.settings_basic_saved() : m.settings_basic_save()}
       </button>
@@ -2174,10 +2874,16 @@
           name="etaxRiyoshaId"
           autocomplete="off"
           bind:value={userRiyoshaId}
+          oninput={() => filerStoredUnreadable.delete('userRiyoshaId')}
           inputmode="numeric"
           maxlength="16"
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {#if riyoshaIdInvalid}
+          <span class="block mt-1 text-xs text-destructive"
+            >{m.settings_filer_riyosha_id_invalid()}</span
+          >
+        {/if}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_filer_name()}</span>
@@ -2186,8 +2892,14 @@
           name="filerShimei"
           autocomplete="off"
           bind:value={userFilerName}
+          oninput={() => filerStoredUnreadable.delete('userFilerName')}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
+        {#if filerStoredUnreadable.has('userFilerName')}
+          <span class="block mt-1 text-xs text-destructive"
+            >{m.settings_filer_stored_unreadable()}</span
+          >
+        {/if}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_filer_zip()}</span>
@@ -2196,10 +2908,14 @@
           name="filerYubinBango"
           autocomplete="off"
           bind:value={userFilerZip}
+          oninput={() => filerStoredUnreadable.delete('userFilerZip')}
           inputmode="numeric"
           maxlength="8"
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
+        {#if filerZipInvalid}
+          <span class="block mt-1 text-xs text-destructive">{m.settings_filer_zip_invalid()}</span>
+        {/if}
       </label>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.settings_filer_address()}</span>
@@ -2208,8 +2924,14 @@
           name="filerJusho"
           autocomplete="off"
           bind:value={userFilerAddress}
+          oninput={() => filerStoredUnreadable.delete('userFilerAddress')}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
+        {#if filerStoredUnreadable.has('userFilerAddress')}
+          <span class="block mt-1 text-xs text-destructive"
+            >{m.settings_filer_stored_unreadable()}</span
+          >
+        {/if}
       </label>
       <label class="block sm:col-span-2 relative">
         <span class="text-xs text-muted-foreground">{m.settings_filer_zeimusho()}</span>
@@ -2247,7 +2969,9 @@
             {/each}
           </ul>
         {/if}
-        {#if zeimushoCodeInvalid}
+        {#if filerStoredUnreadable.has('userZeimushoName')}
+          <span class="text-xs text-red-600">{m.settings_filer_stored_unreadable()}</span>
+        {:else if zeimushoCodeInvalid}
           <span class="text-xs text-red-600">{m.settings_filer_zeimusho_invalid()}</span>
         {:else if zeimushoUnresolved}
           <span class="text-xs text-red-600">{m.settings_filer_zeimusho_unresolved()}</span>
@@ -2305,7 +3029,11 @@
       {/if}
       <button
         type="submit"
-        disabled={zeimushoCodeInvalid || zeimushoUnresolved}
+        disabled={zeimushoCodeInvalid ||
+          zeimushoUnresolved ||
+          riyoshaIdInvalid ||
+          filerZipInvalid ||
+          filerStoredUnreadable.size > 0}
         class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_basic_save()}
@@ -2322,14 +3050,16 @@
       <button
         type="button"
         onclick={previewCarryover}
-        class="px-4 py-2 border rounded hover:bg-accent"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_carryover_preview_button()}
       </button>
       <button
         type="button"
         onclick={runCarryover}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_carryover_apply_button()}
       </button>
@@ -2338,10 +3068,16 @@
         data-testid="carryover-reverse-button"
         onclick={() =>
           askReverseCarryover(m.settings_carryover_name({ year: currentYear }), deleteCarryover)}
-        class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 border rounded text-destructive hover:bg-destructive/10 disabled:opacity-50"
       >
         {m.settings_carryover_delete_button()}
       </button>
+      {#if currentYearInvalid}
+        <span class="self-center text-xs text-destructive"
+          >{m.common_integer_invalid({ min: 2020, max: 2099 })}</span
+        >
+      {/if}
     </div>
     {#if carryoverStatus}
       <p class="text-sm text-green-600">{carryoverStatus}</p>
@@ -2349,7 +3085,7 @@
     {#if carryoverError}
       <p class="text-sm text-destructive">{carryoverError}</p>
     {/if}
-    {#if carryoverPreview}
+    {#if carryoverPreview && !currentYearInvalid}
       {@const p = carryoverPreview}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm pt-2">
         <div>
@@ -2415,10 +3151,16 @@
         type="button"
         onclick={runBadDebtReversal}
         data-testid="bad-debt-reversal-run"
-        class="px-4 py-2 border rounded hover:bg-accent"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_bad_debt_reversal_button()}
       </button>
+      {#if currentYearInvalid}
+        <span class="ml-2 text-xs text-destructive"
+          >{m.common_integer_invalid({ min: 2020, max: 2099 })}</span
+        >
+      {/if}
       {#if badDebtReversalStatus}
         <p class="text-sm text-green-600">{badDebtReversalStatus}</p>
       {/if}
@@ -2672,6 +3414,127 @@
     </section>
   {/if}
 
+  <section
+    data-testid="business-dates-section"
+    class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
+    <h3 class="text-lg font-semibold">{m.settings_business_dates_title()}</h3>
+    <p class="text-xs text-muted-foreground">{m.settings_business_dates_intro()}</p>
+    {#if interruptedOpeningYears.length > 0}
+      <p data-testid="settings-interrupted-opening-years" class="text-sm text-amber-600">
+        {m.opening_interrupted_years({ years: interruptedOpeningYears.join('、') })}
+        <a href="/opening-setup" use:link class="underline">{m.opening_entry_action()}</a>
+      </p>
+    {/if}
+    {#if businessDateSources.status === 'loading'}
+      <p class="text-sm text-muted-foreground">{m.settings_business_dates_loading()}</p>
+    {:else if businessDateSources.status === 'error'}
+      <p class="text-sm text-destructive" role="alert">
+        {m.settings_business_dates_load_failed({ reason: businessDateSources.reason })}
+      </p>
+    {:else}
+      {@const sources = businessDateSources.sources}
+      <div class="space-y-1">
+        <h4 class="text-sm font-medium">{m.settings_business_dates_effective_title()}</h4>
+        {#if businessDateSelection && businessDateSelection.startSources.length > 0}
+          <ul class="text-sm space-y-0.5 tabular-nums">
+            {#each businessDateSelection.startSources as src (src.year)}
+              <li>
+                {m.settings_business_dates_effective_row({
+                  year: src.year,
+                  date: src.date,
+                  source:
+                    src.source === 'setting'
+                      ? m.settings_business_dates_source_setting()
+                      : m.settings_business_dates_source_opening_entry(),
+                })}
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="text-sm text-muted-foreground">
+            {m.settings_business_dates_effective_none()}
+          </p>
+        {/if}
+        {#each sources.invalidOpeningDates as value, i (i)}
+          <p class="text-xs text-destructive">
+            {m.settings_business_dates_opening_entry_unreadable({ value: value.slice(0, 40) })}
+          </p>
+        {/each}
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_business_dates_start_label()}</span
+          >
+          <input
+            type="date"
+            name="businessStartDateSetting"
+            autocomplete="off"
+            bind:value={bizStartInput}
+            oninput={() => markBusinessDateEdited('start')}
+            class="mt-1 block px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
+          />
+          {#if sources.settingStart && !sources.settingStart.valid}
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_business_dates_stored_unreadable({
+                value: String(sources.settingStart.value).slice(0, 40),
+              })}
+            </span>
+          {/if}
+          {#if bizStartNote}
+            <span class="block mt-1 text-xs text-muted-foreground">{bizStartNote}</span>
+          {/if}
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.settings_business_dates_close_label()}</span
+          >
+          <input
+            type="date"
+            name="businessCloseDateSetting"
+            autocomplete="off"
+            bind:value={bizCloseInput}
+            oninput={() => markBusinessDateEdited('close')}
+            class="mt-1 block px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none supports-[-webkit-touch-callout:none]:w-40 [&::-webkit-date-and-time-value]:text-left"
+          />
+          {#if sources.settingClose && !sources.settingClose.valid}
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_business_dates_stored_unreadable({
+                value: String(sources.settingClose.value).slice(0, 40),
+              })}
+            </span>
+          {/if}
+          {#if bizCloseReopen}
+            <span class="block mt-1 text-xs text-muted-foreground">
+              {m.settings_business_dates_close_reopen()}
+            </span>
+          {/if}
+        </label>
+      </div>
+      <div class="flex flex-wrap items-center justify-end gap-2">
+        {#if bizDatesError}
+          <span class="text-xs text-destructive">{bizDatesError}</span>
+        {/if}
+        {#if bizDatesConflict}
+          <span data-testid="business-dates-conflict" class="text-xs text-destructive">
+            {bizDatesConflict}
+          </span>
+        {/if}
+        {#if bizDatesSaved}
+          <span class="text-xs text-green-600">{m.settings_basic_saved()}</span>
+        {/if}
+        <button
+          type="button"
+          onclick={saveBusinessDates}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        >
+          {m.settings_action_save()}
+        </button>
+      </div>
+    {/if}
+  </section>
+
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_asset_title()}</h3>
     <p class="text-xs text-muted-foreground">
@@ -2719,10 +3582,9 @@
           autocomplete="off"
           aria-label={m.settings_asset_life_title()}
           value={newAssetLife}
-          oninput={assignInputNumber((v) => (newAssetLife = v))}
+          oninput={assignInputNumberOrEmpty((v) => (newAssetLife = v))}
           required
           min="1"
-          max="50"
           step="1"
           title={m.settings_asset_life_title()}
           class="w-20 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
@@ -2894,10 +3756,21 @@
         <p class="text-xs text-destructive">{m.settings_asset_lump_sum_ineligible()}</p>
       {/if}
     {/if}
+    {#each newAssetFieldErrors as e (e.label)}
+      <p class="text-xs text-destructive">{e.label}：{e.message}</p>
+    {/each}
     {#if assetError}
       <div class="text-sm text-destructive">{assetError}</div>
     {/if}
 
+    {#if ledger.fixedAssets.length > 0 && depreciationInputs.status === 'blocked'}
+      <p class="text-xs text-destructive" role="alert">
+        {m.settings_asset_calc_blocked({ reasons: depreciationInputs.reason })}
+      </p>
+    {/if}
+    {#if conversionBasisNotice}
+      <p class="text-xs text-amber-600" role="alert">{conversionBasisNotice}</p>
+    {/if}
     {#if ledger.fixedAssets.length > 0}
       <!-- 列数が多く狭幅で溢れるため、ページ全体ではなく表だけ横スクロールさせる -->
       <ScrollX>
@@ -2915,8 +3788,19 @@
           </thead>
           <tbody>
             {#each ledger.fixedAssets as a (a.id)}
-              {@const d = assetCurrentDepreciation(a)}
-              {@const estimate = estimateTransferIncome(a, smallAssetStatuses)}
+              {@const issues = assetIssuesById.get(a.id) ?? []}
+              {@const calc = assetRowCalcs.get(a.id)}
+              {@const d = calc && 'amount' in calc.depreciation ? calc.depreciation : null}
+              {@const estimate =
+                calc?.transfer && !('error' in calc.transfer) ? calc.transfer : null}
+              {@const calcErrors = [
+                ...new Set(
+                  [
+                    calc && 'error' in calc.depreciation ? calc.depreciation.error : '',
+                    calc?.transfer && 'error' in calc.transfer ? calc.transfer.error : '',
+                  ].filter((t) => t !== ''),
+                ),
+              ]}
               <tr class="border-t border-border/50">
                 <td class="py-2">
                   {a.name}
@@ -2928,7 +3812,15 @@
                       {a.disposedDate})
                     </span>
                   {/if}
-                  {#if a.conversionBasis !== undefined}
+                  {#if issues.length > 0}
+                    <span class="block text-xs text-destructive" role="alert">
+                      {describeFixedAssetIssues(issues)}
+                    </span>
+                  {/if}
+                  {#each calcErrors as calcError (calcError)}
+                    <span class="block text-xs text-destructive" role="alert">{calcError}</span>
+                  {/each}
+                  {#if issues.length === 0 && a.conversionBasis !== undefined}
                     <span class="block text-xs text-muted-foreground">
                       {m.settings_asset_conversion_basis({
                         amount: formatJPY(depreciableCost(a)),
@@ -2938,15 +3830,30 @@
                   {/if}
                 </td>
                 <td class="py-2 tabular-nums text-muted-foreground">{a.acquisitionDate}</td>
-                <td class="py-2 text-right tabular-nums">{formatJPY(a.acquisitionCost)}</td>
+                <td class="py-2 text-right tabular-nums">
+                  {readStoredAmount(a.acquisitionCost) === undefined
+                    ? m.common_stored_amount_unreadable()
+                    : formatJPY(a.acquisitionCost)}
+                </td>
                 <td class="py-2 text-right tabular-nums"
                   >{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td
                 >
-                <td class="py-2 text-right tabular-nums">{formatJPY(d.amount)}</td>
+                <td class="py-2 text-right tabular-nums"
+                  >{d ? formatJPY(d.amount) : m.common_dash()}</td
+                >
                 <td class="py-2 text-right tabular-nums text-muted-foreground"
-                  >{formatJPY(d.book)}</td
+                  >{d ? formatJPY(d.book) : m.common_dash()}</td
                 >
                 <td class="py-2 text-right whitespace-nowrap">
+                  {#if hasComputeIssue(issues)}
+                    <button
+                      type="button"
+                      onclick={() => startEditLife(a)}
+                      class="text-xs text-primary hover:underline"
+                    >
+                      {m.settings_asset_fix_button()}
+                    </button>
+                  {/if}
                   {#if a.incomeType === 'realEstate'}
                     <button
                       type="button"
@@ -2972,6 +3879,66 @@
                   </button>
                 </td>
               </tr>
+              {#if lifeEditId === a.id}
+                <tr class="border-t border-border/50 bg-muted/30">
+                  <td colspan="7" class="py-3">
+                    <div class="space-y-2">
+                      <p class="text-xs text-muted-foreground">{m.settings_asset_fix_intro()}</p>
+                      <div class="flex flex-wrap items-end gap-2">
+                        <label class="block">
+                          <span class="text-xs text-muted-foreground"
+                            >{m.settings_asset_life_title()}</span
+                          >
+                          <input
+                            type="number"
+                            name="assetFixUsefulLife"
+                            autocomplete="off"
+                            value={lifeEditYears}
+                            oninput={assignInputNumberOrEmpty((v) => (lifeEditYears = v))}
+                            min="1"
+                            step="1"
+                            class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+                          />
+                        </label>
+                        {#if a.depreciationMethod === 'lease-period-straight-line'}
+                          <label class="block">
+                            <span class="text-xs text-muted-foreground"
+                              >{m.settings_asset_lease_term_months()}</span
+                            >
+                            <input
+                              type="number"
+                              name="assetFixLeaseTermMonths"
+                              autocomplete="off"
+                              value={lifeEditLeaseMonths}
+                              oninput={assignInputString((v) => (lifeEditLeaseMonths = v))}
+                              min="1"
+                              step="1"
+                              class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums"
+                            />
+                          </label>
+                        {/if}
+                        <button
+                          type="button"
+                          onclick={saveLife}
+                          class="px-3 h-10 bg-primary text-primary-foreground rounded hover:opacity-90"
+                        >
+                          {m.settings_action_save()}
+                        </button>
+                        <button
+                          type="button"
+                          onclick={cancelEditLife}
+                          class="px-3 h-10 text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          {m.settings_action_cancel()}
+                        </button>
+                      </div>
+                      {#if lifeEditError}
+                        <p class="text-xs text-destructive">{lifeEditError}</p>
+                      {/if}
+                    </div>
+                  </td>
+                </tr>
+              {/if}
               {#if propertyEditId === a.id}
                 <tr class="border-t border-border/50 bg-muted/30">
                   <td colspan="7" class="py-3">
@@ -3096,6 +4063,9 @@
                           class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
                         />
                       </div>
+                      {#if propertyAmountsInvalid}
+                        <div class="text-xs text-destructive">{m.common_amount_invalid()}</div>
+                      {/if}
                       {#if propertyError}
                         <div class="text-xs text-destructive">{propertyError}</div>
                       {/if}
@@ -3177,6 +4147,9 @@
                           </select>
                         {/if}
                       </div>
+                      {#if disposeAmountsInvalid}
+                        <div class="text-xs text-destructive">{m.common_amount_invalid()}</div>
+                      {/if}
                       {#if disposeError}
                         <div class="text-xs text-destructive">{disposeError}</div>
                       {/if}
@@ -3244,7 +4217,7 @@
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
-    {#if transferIncomeTerms.count > 0}
+    {#if transferAssetsThisYear.some((a) => assetRowCalcs.get(a.id)?.transfer) || (depreciationInputs.status === 'blocked' && transferAssetsThisYear.length > 0)}
       <div class="space-y-2 pt-3 border-t border-border/50">
         <h4 class="text-sm font-semibold">
           {m.settings_transfer_income_aggregate_title({ year: depreciationYear })}
@@ -3261,15 +4234,28 @@
             class="w-36 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
           />
         </label>
-        <p class="text-xs text-muted-foreground">
-          {m.settings_transfer_income_special_deduction({
-            gain: formatJPY(transferIncomeAggregate.gain),
-            deduction: formatJPY(transferIncomeAggregate.specialDeduction),
-            shortTerm: formatJPY(transferIncomeAggregate.shortTermIncome),
-            longTerm: formatJPY(transferIncomeAggregate.longTermIncome),
-            half: formatJPY(transferIncomeAggregate.halfOfLongTermAndOccasional),
-          })}
-        </p>
+        {#if !transferIncomeAggregate}
+          <p class="text-xs text-destructive" role="alert">
+            {m.common_dash()}
+            {#if !transferIncomeTotal.ok && transferIncomeTotal.names.length > 0}
+              {m.settings_transfer_income_unavailable({
+                names: transferIncomeTotal.names.join('、'),
+              })}
+            {/if}
+          </p>
+        {:else if transferOccasionalInvalid}
+          <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            {m.settings_transfer_income_special_deduction({
+              gain: formatJPY(transferIncomeAggregate.gain),
+              deduction: formatJPY(transferIncomeAggregate.specialDeduction),
+              shortTerm: formatJPY(transferIncomeAggregate.shortTermIncome),
+              longTerm: formatJPY(transferIncomeAggregate.longTermIncome),
+              half: formatJPY(transferIncomeAggregate.halfOfLongTermAndOccasional),
+            })}
+          </p>
+        {/if}
       </div>
     {/if}
 
@@ -3281,17 +4267,30 @@
           name="depreciationTargetNen"
           autocomplete="off"
           value={depreciationYear}
-          oninput={assignInputNumber((v) => (depreciationYear = v))}
+          oninput={assignInputNumberOrEmpty((v) => {
+            const y = parseIntegerInput(v === undefined ? '' : String(v), DEPRECIATION_YEAR_RANGE);
+            depreciationYearInvalid = y === undefined;
+            if (y !== undefined) {
+              depreciationYear = y;
+            }
+          })}
           min="2020"
           max="2099"
           step="1"
           class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground tabular-nums text-sm"
         />
+        {#if depreciationYearInvalid}
+          <span class="block mt-1 text-xs text-destructive"
+            >{m.common_integer_invalid(DEPRECIATION_YEAR_RANGE)}</span
+          >
+        {/if}
       </label>
       <button
         type="button"
         onclick={runDepreciation}
-        disabled={ledger.fixedAssets.length === 0}
+        disabled={ledger.fixedAssets.length === 0 ||
+          depreciationYearInvalid ||
+          depreciationRunBlocked}
         class="px-4 h-10 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_asset_run_button()}
@@ -3350,7 +4349,7 @@
         autocomplete="off"
         aria-label={m.settings_rule_priority_title()}
         value={newRulePriority}
-        oninput={assignInputNumber((v) => (newRulePriority = v))}
+        oninput={assignInputNumberOrEmpty((v) => (newRulePriority = v))}
         min="0"
         step="1"
         title={m.settings_rule_priority_title()}
@@ -3700,24 +4699,32 @@
       <button
         type="button"
         onclick={downloadYayoiCsv}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_accountant_export_yayoi()}
       </button>
       <button
         type="button"
         onclick={downloadGenericCsv}
-        class="px-4 py-2 border rounded hover:bg-accent"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_accountant_export_generic()}
       </button>
       <button
         type="button"
         onclick={downloadCorrectionHistoryCsv}
-        class="px-4 py-2 border rounded hover:bg-accent"
+        disabled={currentYearInvalid}
+        class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
       >
         {m.settings_accountant_export_corrections()}
       </button>
+      {#if currentYearInvalid}
+        <span class="self-center text-xs text-destructive"
+          >{m.common_integer_invalid({ min: 2020, max: 2099 })}</span
+        >
+      {/if}
     </div>
     <p class="text-xs text-muted-foreground border-t pt-2">
       {m.settings_accountant_export_disclaimer()}
@@ -3796,6 +4803,14 @@
     {#if restoreSuccess}
       <div class="text-sm text-foreground border border-primary bg-primary/10 rounded px-3 py-2">
         ✓ {restoreSuccess}
+      </div>
+    {/if}
+    {#if restoreOversized}
+      <div
+        class="text-sm text-foreground border border-destructive bg-destructive/10 rounded px-3 py-2"
+        role="alert"
+      >
+        ⚠ {restoreOversized}
       </div>
     {/if}
     {#if restoreWarning}

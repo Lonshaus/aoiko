@@ -79,9 +79,9 @@ afterEach(async () => {
 describe('申告者情報の番号欄', () => {
   test('全角の利用者識別番号は前後の空白を除いた半角で保存される', async () => {
     await renderSettings();
-    typeInto('etaxRiyoshaId', '　１２３４　');
+    typeInto('etaxRiyoshaId', '　１２３４５６７８９０１２３４５６　');
     await submitFiler();
-    expect(await getSetting('userRiyoshaId')).toBe('1234');
+    expect(await getSetting('userRiyoshaId')).toBe('1234567890123456');
   });
 
   test.each([
@@ -93,5 +93,43 @@ describe('申告者情報の番号欄', () => {
     typeInto('filerYubinBango', typed);
     await submitFiler();
     expect(await getSetting('userFilerZip')).toBe(expected);
+  });
+});
+
+describe('申告者情報の番号欄の検査', () => {
+  test.each(['123456789012345', '123456789012345a', '12345678901234567'])(
+    '利用者識別番号 %j は保存されず、欄の下に誤りが出る',
+    async (typed) => {
+      await renderSettings();
+      typeInto('etaxRiyoshaId', typed);
+      expect(container!.textContent).toContain(m.settings_filer_riyosha_id_invalid());
+      field('etaxRiyoshaId')
+        .closest('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      flushSync();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(await getSetting('userRiyoshaId')).toBeUndefined();
+      expect(container!.textContent).not.toContain(m.settings_basic_saved());
+    },
+  );
+
+  test('郵便番号 123 は保存されず、欄の下に誤りが出る', async () => {
+    await renderSettings();
+    typeInto('filerYubinBango', '123');
+    expect(container!.textContent).toContain(m.settings_filer_zip_invalid());
+    field('filerYubinBango')
+      .closest('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    flushSync();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(await getSetting('userFilerZip')).toBeUndefined();
+  });
+
+  test('空欄は保存できる（任意項目）', async () => {
+    await renderSettings();
+    typeInto('etaxRiyoshaId', '');
+    typeInto('filerYubinBango', '');
+    await submitFiler();
+    expect(await getSetting('userRiyoshaId')).toBe('');
   });
 });

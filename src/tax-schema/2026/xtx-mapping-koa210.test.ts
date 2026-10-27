@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   BsExtraAccountOverflowError,
@@ -859,5 +860,14 @@ describe('措法28の2第3項明細（当年適用の少額特例資産を1行�
     const fallback = rows.find((r) => r.AMF01610 === 's7');
     expect(fallback).toBeDefined();
     expect(fallback?.AMF01660).toBe('定率法');
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test.each(['abc', '1e+21'])('%j は省かずに例外にする', (v) => {
+    const base = ctx();
+    expect(() => mapKoa210Values(ctx({ pl: { ...base.pl, totalRevenue: v } }))).toThrow(
+      XtxAmountOutOfRangeError,
+    );
   });
 });

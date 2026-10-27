@@ -46,6 +46,10 @@ Enter data from the **"Deductions"** navigation item.
 - **Your status**: whether you qualify as disabled, severely disabled, single parent, widow, or working student
 - **Tax credits**: dividend tax credit, housing loan special tax credit, political donation special tax credit, housing seismic renovation special tax credit etc., foreign tax credit, other tax credits, disaster exemption amount (all entered as final amounts)
 
+The year accepts only a whole number from 2020 to 2099. Ages (spouse, dependents, and family employees) are entered as whole numbers from 0 to 120, and the number of months worked as a whole number from 0 to 12. A field outside the range shows a message such as "Enter a whole number from 0 to 120". If even one field has an error, the count is shown, as in "2 fields have errors. Fix them before saving", and **"Save"** cannot be pressed. A field in which you entered an unreadable amount is also counted.
+
+If the books for that year cannot be loaded, "The books for this year cannot be loaded, so the estimate and saving are unavailable:" is shown followed by the reason, and neither the estimate nor saving is possible ("Cannot save because the books cannot be loaded" is shown next to the save button). If the saved record has a field that cannot be read, "The following saved fields cannot be read. Enter them again and save:" is shown followed by the field names.
+
 Input is saved per year (it isn't automatically carried over from the previous year).
 
 ## 3. Estimate results

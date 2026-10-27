@@ -1,12 +1,18 @@
 import { db } from '../db/db';
-import { D, type Decimal } from '../lib/decimal';
+import { D, type Decimal, toAmountString } from '../lib/decimal';
 import { newId } from '../lib/id';
-import { parseAmountInput } from '../lib/amount-input';
+import { isValidIsoDate } from '../lib/date';
+import { parseAmountInput, readStoredAmount } from '../lib/amount-input';
 import type { ArApEntry, ArApType } from '../db/types';
 import { m } from '../paraglide/messages';
-
-export function remainingBalance(entry: ArApEntry): Decimal {
-  return D(entry.originalAmount).minus(entry.paidAmount);
+// 復元された補助簿は金額を検査していないため、読めない行は undefined を返し表全体を巻き込まない
+export function remainingBalance(entry: ArApEntry): Decimal | undefined {
+  const original = readStoredAmount(entry.originalAmount);
+  const paid = readStoredAmount(entry.paidAmount);
+  if (original === undefined || paid === undefined) {
+    return undefined;
+  }
+  return original.minus(paid);
 }
 
 export async function addArApEntry(input: {
@@ -50,11 +56,16 @@ export async function recordPayment(id: string, amount: string): Promise<void> {
   if (!entry) {
     throw new Error(m.error_receivable_not_found());
   }
-  const newPaid = D(entry.paidAmount).plus(paid);
-  if (newPaid.greaterThan(entry.originalAmount)) {
+  const original = readStoredAmount(entry.originalAmount);
+  const alreadyPaid = readStoredAmount(entry.paidAmount);
+  if (original === undefined || alreadyPaid === undefined) {
+    throw new Error(m.error_arap_amount_unreadable({ description: entry.description }));
+  }
+  const newPaid = alreadyPaid.plus(paid);
+  if (newPaid.greaterThan(original)) {
     throw new OverpaymentError();
   }
-  await db.arApEntries.update(id, { paidAmount: newPaid.toString() });
+  await db.arApEntries.update(id, { paidAmount: toAmountString(newPaid) });
 }
 
 interface CashFlowMonthBucket {
@@ -67,6 +78,8 @@ interface CashFlowMonthBucket {
 export interface CashFlowForecast {
   asOfDate: string;
   months: CashFlowMonthBucket[];
+  // 金額を読めず予測に含めなかった行の数
+  unreadableCount: number;
 }
 // asOfDate から horizonMonths か月分の入出金予測。残高が残っている売掛金/買掛金のみ対象。
 // 期限超過分（dueDate < asOfDate）は最初のバケット（当月）に繰り入れる
@@ -91,8 +104,17 @@ export function computeCashFlowForecast(
     bucketKeys.map((k) => [k, { inflow: D(0), outflow: D(0) }]),
   );
 
+  let unreadableCount = 0;
   for (const e of entries) {
     const remaining = remainingBalance(e);
+    // 期日なしの請求書は '' で保存されるため、これまでどおり最初の月に入れる
+    const dueDate: unknown = e.dueDate;
+    const dueReadable = dueDate === '' || isValidIsoDate(dueDate);
+    const type: unknown = e.type;
+    if (remaining === undefined || !dueReadable || (type !== 'receivable' && type !== 'payable')) {
+      unreadableCount++;
+      continue;
+    }
     if (remaining.lessThanOrEqualTo(0)) {
       continue;
     }
@@ -119,7 +141,7 @@ export function computeCashFlowForecast(
     };
   });
 
-  return { asOfDate, months };
+  return { asOfDate, months, unreadableCount };
 }
 
 export async function forecastCashFlow(

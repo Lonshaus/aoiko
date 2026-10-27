@@ -272,6 +272,37 @@ describe('computeDepreciation - 定率法（200%）', () => {
 });
 
 describe('generateYearEndDepreciation', () => {
+  test('2 資産のうち 2 件目が取得価額 1e15・定率法耐用年数 30 なら、1 件目も含め仕訳を書かず資産名を示す', async () => {
+    await db.fixedAssets.bulkAdd([
+      asset({ id: 'a1', name: '正常な PC' }),
+      asset({
+        id: 'a2',
+        name: '壊れた機械',
+        acquisitionCost: '1000000000000000',
+        depreciationMethod: 'declining-balance',
+        usefulLifeYears: 30,
+      }),
+    ]);
+    await expect(generateYearEndDepreciation(2026)).rejects.toThrow('壊れた機械');
+    expect(await db.journalEntries.count()).toBe(0);
+    expect(await db.journalLines.count()).toBe(0);
+  });
+
+  test.each([
+    { acquisitionCost: 'abc' },
+    { acquisitionCost: '1e-5000' },
+    { usefulLifeYears: 'abc' as unknown as number },
+    { conversionBasis: 'abc' },
+    { depreciationMethod: 'lease-period-straight-line' as const },
+  ])('読めない資産 %j があれば仕訳を 1 件も書かず資産名を示す', async (bad) => {
+    await db.fixedAssets.bulkAdd([
+      asset({ id: 'a1', name: '正常な PC' }),
+      asset({ id: 'a2', name: '壊れた資産', ...bad }),
+    ]);
+    await expect(generateYearEndDepreciation(2026)).rejects.toThrow('壊れた資産');
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
   test('全資産分の仕訳を作成し、件数を返す', async () => {
     await db.fixedAssets.bulkAdd([
       asset({
@@ -933,7 +964,7 @@ describe('少額特例の要件（措法28の2・措令18条の5）', () => {
       );
     }
     // 399,999 × 3 = 1,199,997、4 件目で 1,599,996 となり 1,500,000 を超える
-    const r = await generateYearEndDepreciation(2026, { businessStartDate: '2026-07-01' });
+    const r = await generateYearEndDepreciation(2026, { businessStartDates: ['2026-07-01'] });
     expect(r.created).toBe(4);
     expect(r.smallAssetCapExceeded).toBe(1);
   });

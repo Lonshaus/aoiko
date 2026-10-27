@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   koa130AdditionalExpenseOverflow,
@@ -734,5 +735,18 @@ describe('一括償却資産のグループと旧償却方法', () => {
     ];
     const rows = mapKoa130RepeatedValues(ctx({ fixedAssets: assets })).AKK00010 ?? [];
     expect(rows.map((r) => r.AKK00080)).toEqual(['旧定額法', '旧定率法']);
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test.each(['1e+21', '1000000000000000'])('%j は省かずに例外にする', (v) => {
+    expect(() =>
+      mapKoa130Values(
+        ctx({
+          realEstatePl: realEstatePl({ totalRevenue: v, netIncome: v }),
+          personalDeductions: withRealEstate({ businessScale: true }),
+        }),
+      ),
+    ).toThrow(XtxAmountOutOfRangeError);
   });
 });

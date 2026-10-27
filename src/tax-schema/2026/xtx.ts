@@ -31,6 +31,7 @@ import koa110 from './xtx-schema-koa110.generated.json';
 import koa220 from './xtx-schema-koa220.generated.json';
 import koa130 from './xtx-schema-koa130.generated.json';
 import type { XtxSchema } from './xtx-schema';
+import type { XtxRowOverflowItem } from './xtx-mapping-shared';
 import { buildXtxBundle, type XtxFilerInfo, type XtxFormInput } from './xtx-document';
 import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
@@ -41,24 +42,29 @@ import {
   mapKoa020LeafValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
+  koa020RowOverflow,
 } from './xtx-mapping-koa020';
 import {
   koa210AdditionalExpenseOverflow,
+  koa210RowOverflow,
   mapKoa210RepeatedValues,
   mapKoa210Values,
 } from './xtx-mapping-koa210';
 import {
   koa110AdditionalExpenseOverflow,
+  koa110RowOverflow,
   mapKoa110Values,
   mapKoa110RepeatedValues,
 } from './xtx-mapping-koa110';
 import {
   koa220AdditionalExpenseOverflow,
+  koa220RowOverflow,
   mapKoa220RepeatedValues,
   mapKoa220Values,
 } from './xtx-mapping-koa220';
 import {
   koa130AdditionalExpenseOverflow,
+  koa130RowOverflow,
   mapKoa130RepeatedValues,
   mapKoa130Values,
 } from './xtx-mapping-koa130';
@@ -101,8 +107,8 @@ export interface XtxContext {
   cashBasis?: boolean;
   /** 白色申告の収支内訳書第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
-  /** 少額特例の年合計上限の月割に使う開業日。未指定は最も古い開業仕訳の日付 */
-  businessStartDate?: string;
+  /** 少額特例の年合計上限の月割に使う年ごとの開業日（loadEffectiveBusinessDates の値）。未指定は開業日なし（全年扱い） */
+  businessStartDates?: readonly string[];
   /** 少額特例の年合計上限の月割に使う廃業日。未指定は廃業なし（全年扱い） */
   businessCloseDate?: string;
   /** 不動産所得のPL（incomeType: 'realEstate' の仕訳から buildPL で算出）。無ければ不動産所得なし */
@@ -329,6 +335,14 @@ export function xtxAdditionalExpenseOverflow(ctx: XtxContext): XtxAdditionalExpe
     ...koa210AdditionalExpenseOverflow(ctx),
     ...(ctx.realEstatePl ? koa220AdditionalExpenseOverflow(ctx) : []),
   ];
+}
+// 明細欄の行数を超えて書かなかった項目。追加科目欄と同じく出力は止めず、利用者へ示す
+export function xtxRowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
+  const statements =
+    ctx.filingType === 'white'
+      ? [...koa110RowOverflow(ctx), ...(ctx.realEstatePl ? koa130RowOverflow(ctx) : [])]
+      : [...koa210RowOverflow(ctx), ...(ctx.realEstatePl ? koa220RowOverflow(ctx) : [])];
+  return [...koa020RowOverflow(ctx), ...statements];
 }
 
 export function buildXtx2026(ctx: XtxContext): string {

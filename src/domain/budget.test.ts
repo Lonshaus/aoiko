@@ -103,4 +103,12 @@ describe('computeBudgetVsActual', () => {
     expect(jan.expenseBudget).toBe('0');
     expect(jan.revenueDiff).toBe('0');
   });
+
+  test('保存済みの予算を読めない月は差異を空にし、例外にしない', async () => {
+    await db.budgets.put({ year: 2026, month: 3, revenueBudget: 'abc', expenseBudget: '1e3' });
+    const r = await computeBudgetVsActual(2026);
+    const mar = r.months[2]!;
+    expect(mar.revenueDiff).toBe('');
+    expect(mar.expenseDiff).toBe('-1000');
+  });
 });

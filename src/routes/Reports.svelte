@@ -4,11 +4,18 @@
   import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
   import { D, formatJPY } from '../lib/decimal';
   import { toISODateLocal, todayISO } from '../lib/date';
-  import { assignInputNumber, assignInputString } from '../lib/number-input';
+  import {
+    assignInputNumber,
+    assignInputNumberOrEmpty,
+    assignInputString,
+  } from '../lib/number-input';
+  import { readStoredFiler } from '../lib/filer-fields';
   import {
     isAmountInputInvalid,
     normalizeAmountInput,
     parseAmountInput,
+    parseIntegerInput,
+    readStoredAmount,
   } from '../lib/amount-input';
   import {
     buildAll,
@@ -44,18 +51,29 @@
     type CashFlowForecast,
   } from '../domain/cash-flow';
   import { amendmentChecklist, getAmendmentDiff, type AmendmentDiff } from '../domain/amended';
+  import {
+    describeFoundAmounts,
+    findOversizedAmounts,
+    type FoundAmounts,
+  } from '../domain/oversized-amounts';
+  import {
+    findInvalidStoredAmounts,
+    InvalidStoredValuesError,
+  } from '../domain/stored-value-checks';
   import { detectStaleCarryover, type StaleCarryover } from '../domain/carryover';
+  import { loadEffectiveBusinessDates } from '../domain/depreciation';
+  import { describeConversionBasisOverCost } from '../domain/fixed-asset-check';
   import {
     buildXtx2026,
     personalDeductionsToCtx,
     RealEstateIncomeInputMissingError,
     xtxAdditionalExpenseOverflow,
+    xtxRowOverflow,
     type FilingType,
   } from '../tax-schema/2026/xtx';
   import {
     getSetting,
     setSetting,
-    loadBusinessDates,
     loadInterimPriorPeriodMonths,
     loadInterimVoluntaryInputs,
     loadSmallAmountSpecialInputs,
@@ -125,6 +143,9 @@
   const now = new Date();
   // 処理年度に追従（writable derived：セレクタ選択で上書き、設定画面の変更で追従に戻る）。
   let year = $derived(ledger.currentYear);
+  const YEAR_RANGE = { min: 2020, max: 2099 };
+  // 入力欄の値が読めない間も year は直前の有効な年のまま残り、保存だけを止める
+  let yearInvalid = $state(false);
 
   let monthly = $state<MonthlyReport | null>(null);
   let pl = $state<PLReport | null>(null);
@@ -150,6 +171,8 @@
   let lockNotice = $state('');
   let lockMethod = $state<ConsumptionTaxResult['method'] | ''>('');
   let reportsError = $state('');
+  // 申告年度に .xtx・会計士向け CSV へ出せない明細があるあいだは常に示す
+  let oversizedAmounts = $state<FoundAmounts | null>(null);
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
   let xtxOverflowWarning = $state('');
@@ -235,6 +258,7 @@
   async function saveBudgets() {
     // 一部の月だけ保存すると、どの月が保存されたか画面から分からなくなるため全体を止める
     if (
+      yearInvalid ||
       budgetDrafts.some(
         (d) =>
           isNumberInputInvalid(d.revenueBudget, d.revenueBadInput) ||
@@ -273,8 +297,16 @@
   let paymentDrafts = $state<Record<string, string>>({});
   let paymentBadInput = $state<Record<string, boolean>>({});
   let cashFlowAsOfDate = $state(todayISO());
-  let cashFlowHorizon = $state(6);
+  let cashFlowHorizon = $state<number | undefined>(6);
+  const HORIZON_RANGE = { min: 1, max: 24 };
+  const cashFlowHorizonMonths = $derived(
+    parseIntegerInput(cashFlowHorizon === undefined ? '' : String(cashFlowHorizon), HORIZON_RANGE),
+  );
+  const cashFlowInputInvalid = $derived(
+    cashFlowHorizonMonths === undefined || cashFlowAsOfDate === '',
+  );
   let cashFlowForecastResult = $state<CashFlowForecast | null>(null);
+  let cashFlowError = $state('');
 
   $effect(() => {
     const sub = liveQuery(async () => ({
@@ -298,12 +330,16 @@
     if (!newArApDescription || !newArApAmount) {
       return;
     }
+    const amount = parseAmountInput(newArApAmount);
+    if (amount === undefined) {
+      return;
+    }
     try {
       await addArApEntry({
         type: newArApType,
         description: newArApDescription,
         dueDate: newArApDueDate,
-        originalAmount: newArApAmount,
+        originalAmount: amount.toFixed(),
       });
       newArApDescription = '';
       newArApAmount = '';
@@ -331,7 +367,16 @@
   }
 
   async function loadCashFlowForecast() {
-    cashFlowForecastResult = await forecastCashFlow(cashFlowAsOfDate, cashFlowHorizon);
+    if (cashFlowHorizonMonths === undefined || cashFlowAsOfDate === '') {
+      return;
+    }
+    cashFlowError = '';
+    try {
+      cashFlowForecastResult = await forecastCashFlow(cashFlowAsOfDate, cashFlowHorizonMonths);
+    } catch (e) {
+      cashFlowForecastResult = null;
+      cashFlowError = describeStorageError(e);
+    }
   }
 
   function safeDecimal(s: string) {
@@ -354,13 +399,17 @@
   function isMonthsInputInvalid(s: string): boolean {
     return s.normalize('NFKC').trim() !== '' && parseMonths(s) === undefined;
   }
+  // 前年税額・月数が読めない間は、0 や 12 に置き換えて試算せず結果を出さない
   const interimObligation = $derived(
-    interimFilingObligation(
-      year,
-      safeDecimal(priorYearAmountInput),
-      safeMonths(interimPriorPeriodMonthsInput),
-      interimVoluntary,
-    ),
+    isAmountInputInvalid(priorYearAmountInput) ||
+      isMonthsInputInvalid(interimPriorPeriodMonthsInput)
+      ? null
+      : interimFilingObligation(
+          year,
+          safeDecimal(priorYearAmountInput),
+          safeMonths(interimPriorPeriodMonthsInput),
+          interimVoluntary,
+        ),
   );
   // change（フォーカスを外す）まで保存されない欄。フォーカス時点と値が違う間にページを閉じると入力が黙って消えるため未保存として登録する。
   const pending = new SvelteSet<string>();
@@ -454,7 +503,7 @@
   // なりうるため、範囲外なら先頭にフォールバックする（未定義のまま渡すと period が
   // undefined になり確定申告モードに化けてしまう——中間申告ボタンとしては致命的な誤動作）
   const selectedInstallment = $derived(
-    interimObligation.installments[selectedInstallmentIndex] ?? interimObligation.installments[0],
+    interimObligation?.installments[selectedInstallmentIndex] ?? interimObligation?.installments[0],
   );
 
   $effect(() => {
@@ -538,11 +587,15 @@
       : input624 !== ''
         ? input624
         : undefined;
-    const rows = transfers.some((t) => isAmountInputInvalid(t.netTax))
-      ? saved?.specifiedSmallAssetTransfers
-      : transfers.length > 0
-        ? transfers
-        : undefined;
+    // 読めない行は保存済みの同じ位置の行を残し、読める行だけを書き換える
+    const rowList = transfers.flatMap((t, i) => {
+      if (!isAmountInputInvalid(t.netTax)) {
+        return [t];
+      }
+      const previous = saved?.specifiedSmallAssetTransfers?.[i];
+      return previous === undefined ? [] : [previous];
+    });
+    const rows = rowList.length > 0 ? rowList : undefined;
     const stored: StoredWariBaseAdjustments = {
       ...(sales78 !== undefined ? { salesReturnTax78: sales78 } : {}),
       ...(sales624 !== undefined ? { salesReturnTax624: sales624 } : {}),
@@ -679,6 +732,19 @@
     });
     return () => sub.unsubscribe();
   });
+  // 読めない金額の案内は、まさにその金額で集計が失敗したときにこそ要るため、集計とは別に購読する
+  $effect(() => {
+    const yr = year;
+    const sub = liveQuery(() => findOversizedAmounts({ year: yr })).subscribe({
+      next: (v) => {
+        oversizedAmounts = v;
+      },
+      error: () => {
+        oversizedAmounts = null;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
 
   function consumptionTaxMethodLabel(
     r: ConsumptionTaxResult,
@@ -753,6 +819,9 @@
     confirmingLock = false;
     lockError = '';
     lockNotice = '';
+    if (yearInvalid) {
+      return;
+    }
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
     // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
     const lockYearTarget = year;
@@ -828,6 +897,9 @@
     confirmingUnlock = false;
     lockError = '';
     lockNotice = '';
+    if (yearInvalid) {
+      return;
+    }
     try {
       await unlockYear(year);
     } catch (e) {
@@ -835,22 +907,46 @@
     }
   }
   // 申告者情報を設定から読む。IT部の必須項目（税務署・利用者識別番号・氏名・住所）が
-  // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。
+  // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。バックアップの復元などで
+  // 型の違う値も入りうるので、読めない値は invalid として出力しない
   async function loadFiler() {
-    const filer = {
-      riyoshaId: ((await getSetting('userRiyoshaId')) ?? '').normalize('NFKC').trim(),
-      name: (await getSetting('userFilerName')) ?? '',
-      zip: (await getSetting('userFilerZip')) ?? '',
-      address: (await getSetting('userFilerAddress')) ?? '',
-      zeimushoCode: (await getSetting('userZeimushoCode')) ?? '',
-      zeimushoName: (await getSetting('userZeimushoName')) ?? '',
-    };
-    const missing = !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
-    return { filer, missing };
+    try {
+      return readStoredFiler({
+        userRiyoshaId: await getSetting('userRiyoshaId'),
+        userFilerName: await getSetting('userFilerName'),
+        userFilerZip: await getSetting('userFilerZip'),
+        userFilerAddress: await getSetting('userFilerAddress'),
+        userZeimushoCode: await getSetting('userZeimushoCode'),
+        userZeimushoName: await getSetting('userZeimushoName'),
+        userBusinessName: await getSetting('userBusinessName'),
+        userInvoiceNumber: await getSetting('userInvoiceNumber'),
+      });
+    } catch {
+      const empty = { riyoshaId: '', name: '', zip: '', address: '' };
+      return {
+        filer: { ...empty, zeimushoCode: '', zeimushoName: '' },
+        businessName: '',
+        invoiceNumber: '',
+        missing: false,
+        invalid: true,
+      };
+    }
+  }
+  // 復元された値は .xtx に書けない形でも DB に入りうるため、組み立てる前に洗い出して理由を示す
+  async function xtxBlocker(y: number, scope: 'income' | 'consumption'): Promise<string> {
+    const found = await findOversizedAmounts({ year: y });
+    if (found.total > 0) {
+      return describeFoundAmounts(found);
+    }
+    const invalid = await findInvalidStoredAmounts(y, scope);
+    return invalid.length > 0 ? new InvalidStoredValuesError(invalid).message : '';
   }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
   // 令和7年分（NENBUN=7）で行う。.xtx のファイル構造は年分に依存しない（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
+    if (yearInvalid) {
+      return;
+    }
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
     // 対象年度をその場再計算して .xtx を組み立てる（消費税側の processYear 方式と統一）
     const filingYear = year;
@@ -865,16 +961,25 @@
       xtxOverflowWarning = '';
       return;
     }
-    const { filer, missing } = await loadFiler();
+    const { filer, businessName, invoiceNumber, missing, invalid } = await loadFiler();
+    if (invalid) {
+      lockError = m.reports_xtx_filer_invalid();
+      xtxOverflowWarning = '';
+      return;
+    }
     if (missing) {
       lockError = m.reports_xtx_filer_incomplete();
       xtxOverflowWarning = '';
       return;
     }
+    const blocker = await xtxBlocker(filingYear, 'income');
+    if (blocker !== '') {
+      lockError = blocker;
+      xtxOverflowWarning = '';
+      return;
+    }
     lockError = '';
     xtxOverflowWarning = '';
-    const businessName = (await getSetting('userBusinessName')) ?? '';
-    const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
@@ -884,44 +989,61 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
-    // 少額特例の年合計上限の月割（措法28の2）に使う開業日・廃業日（開業設定が書き込む）。
-    const businessDates = await loadBusinessDates();
-    const xtxCtx = {
-      year: exportYear,
-      dataYear: filingYear,
-      businessName,
-      invoiceNumber,
-      monthly,
-      pl,
-      bs,
-      filer,
-      fixedAssets,
-      filingType,
-      aoiroDeductionKind,
-      cashBasis: cashBasisElection,
-      ...businessDates,
-      ...(realEstatePl ? { realEstatePl } : {}),
-      ...(storedDeductions
-        ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
-        : {}),
-    };
     let xml: string;
+    let xtxCtx: Parameters<typeof buildXtx2026>[0];
     try {
+      // 少額特例の年合計上限の月割（措法28の2）に使う。年末の減価償却と同じ値を読む
+      const businessDates = await loadEffectiveBusinessDates();
+      xtxCtx = {
+        year: exportYear,
+        dataYear: filingYear,
+        businessName,
+        invoiceNumber,
+        monthly,
+        pl,
+        bs,
+        filer,
+        fixedAssets,
+        filingType,
+        aoiroDeductionKind,
+        cashBasis: cashBasisElection,
+        ...businessDates,
+        ...(realEstatePl ? { realEstatePl } : {}),
+        ...(storedDeductions
+          ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
+          : {}),
+      };
       xml = buildXtx2026(xtxCtx);
     } catch (e) {
-      if (e instanceof RealEstateIncomeInputMissingError) {
-        lockError = m.reports_xtx_real_estate_input_missing();
-        return;
-      }
-      throw e;
+      lockError =
+        e instanceof RealEstateIncomeInputMissingError
+          ? m.reports_xtx_real_estate_input_missing()
+          : describeStorageError(e);
+      return;
     }
     const overflow = xtxAdditionalExpenseOverflow(xtxCtx);
-    if (overflow.length > 0) {
-      xtxOverflowWarning = m.reports_xtx_additional_expense_overflow({
-        list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
-      });
-    }
+    const rowOverflow = xtxRowOverflow(xtxCtx);
+    xtxOverflowWarning = [
+      overflow.length > 0
+        ? m.reports_xtx_additional_expense_overflow({
+            list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
+          })
+        : '',
+      rowOverflow.length > 0
+        ? m.reports_xtx_row_overflow({
+            list: rowOverflow.map((o) => overflowItemLabel(o.name, o.amount)).join('、'),
+          })
+        : '',
+      describeConversionBasisOverCost(fixedAssets),
+    ]
+      .filter((t) => t !== '')
+      .join(' ');
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
+  }
+  function overflowItemLabel(name: unknown, amount: unknown): string {
+    const label = String(name ?? '').slice(0, 40);
+    const value = readStoredAmount(amount);
+    return value === undefined ? label : `${label}（${formatJPY(value)}）`;
   }
   async function downloadXml(xml: string, filename: string): Promise<void> {
     await saveTextFile(xml, filename, 'application/xml');
@@ -929,6 +1051,9 @@
   // 2割特例（消費税）の .xtx を出力する。SHA020(簡易課税用の様式を流用)＋付表6。
   // 2割特例は確定申告書への付記で適用する制度（28年改正法附則51の2③）のため中間申告（仮決算）非対応。
   async function downloadConsumptionTaxXtx() {
+    if (yearInvalid) {
+      return;
+    }
     if (!isTwoWariEligibleYear(year, await loadWariEligibilityInputs())) {
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
@@ -937,121 +1062,169 @@
       consumptionTaxXtxError = m.common_amount_invalid();
       return;
     }
-    const { filer, missing } = await loadFiler();
+    const { filer, businessName, missing, invalid } = await loadFiler();
+    if (invalid) {
+      consumptionTaxXtxError = m.reports_xtx_filer_invalid();
+      return;
+    }
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
       return;
     }
+    const blocker = await xtxBlocker(year, 'consumption');
+    if (blocker !== '') {
+      consumptionTaxXtxError = blocker;
+      return;
+    }
     consumptionTaxXtxError = '';
-    const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year);
     const adjustments = await loadWariBaseAdjustments(year);
-    const xml = buildTwoWariXtx({
-      year,
-      businessName,
-      filer,
-      taxableBase10: processed.taxableBase10,
-      taxableBase8: processed.taxableBase8,
-      badDebtTax10: processed.badDebtTax10,
-      badDebtTax8: processed.badDebtTax8,
-      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
-      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
-      ...(adjustments.salesReturnTax78 ? { salesReturnTax78: adjustments.salesReturnTax78 } : {}),
-      ...(adjustments.salesReturnTax624
-        ? { salesReturnTax624: adjustments.salesReturnTax624 }
-        : {}),
-      interimPaidNational: safeDecimal(interimPaidNationalInput),
-      interimPaidLocal: safeDecimal(interimPaidLocalInput),
-    });
+    let xml: string;
+    try {
+      xml = buildTwoWariXtx({
+        year,
+        businessName,
+        filer,
+        taxableBase10: processed.taxableBase10,
+        taxableBase8: processed.taxableBase8,
+        badDebtTax10: processed.badDebtTax10,
+        badDebtTax8: processed.badDebtTax8,
+        badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+        badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+        ...(adjustments.salesReturnTax78 ? { salesReturnTax78: adjustments.salesReturnTax78 } : {}),
+        ...(adjustments.salesReturnTax624
+          ? { salesReturnTax624: adjustments.salesReturnTax624 }
+          : {}),
+        interimPaidNational: safeDecimal(interimPaidNationalInput),
+        interimPaidLocal: safeDecimal(interimPaidLocalInput),
+      });
+    } catch (e) {
+      consumptionTaxXtxError = describeStorageError(e);
+      return;
+    }
     await downloadXml(xml, `aoiko-shohi-${year}.xtx`);
   }
   // 簡易課税（単一事業区分。印の付いた行があれば+第四種の兼業）の .xtx を出力する。SHA020＋付表4-3＋付表5-3。
   async function downloadSimplifiedXtx(period?: { start: string; end: string }) {
+    if (yearInvalid) {
+      return;
+    }
     if (period === undefined && interimPaidInvalid) {
       consumptionTaxXtxError = m.common_amount_invalid();
       return;
     }
-    const { filer, missing } = await loadFiler();
+    const { filer, businessName, missing, invalid } = await loadFiler();
+    if (invalid) {
+      consumptionTaxXtxError = m.reports_xtx_filer_invalid();
+      return;
+    }
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
       return;
     }
+    const blocker = await xtxBlocker(year, 'consumption');
+    if (blocker !== '') {
+      consumptionTaxXtxError = blocker;
+      return;
+    }
     consumptionTaxXtxError = '';
-    const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year, period);
-    const xml = buildSimplifiedXtx({
-      year,
-      businessName,
-      filer,
-      taxableBase10: processed.taxableBase10,
-      taxableBase8: processed.taxableBase8,
-      category: simplifiedCategory,
-      deemedInputRate: deemedInputRate(simplifiedCategory),
-      badDebtTax10: processed.badDebtTax10,
-      badDebtTax8: processed.badDebtTax8,
-      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
-      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
-      markedTransferBase10: processed.markedTransferBase10,
-      markedTransferBase8: processed.markedTransferBase8,
-      ...(period
-        ? { interimPeriod: period }
-        : {
-            interimPaidNational: safeDecimal(interimPaidNationalInput),
-            interimPaidLocal: safeDecimal(interimPaidLocalInput),
-          }),
-    });
+    let xml: string;
+    try {
+      xml = buildSimplifiedXtx({
+        year,
+        businessName,
+        filer,
+        taxableBase10: processed.taxableBase10,
+        taxableBase8: processed.taxableBase8,
+        category: simplifiedCategory,
+        deemedInputRate: deemedInputRate(simplifiedCategory),
+        badDebtTax10: processed.badDebtTax10,
+        badDebtTax8: processed.badDebtTax8,
+        badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+        badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+        markedTransferBase10: processed.markedTransferBase10,
+        markedTransferBase8: processed.markedTransferBase8,
+        ...(period
+          ? { interimPeriod: period }
+          : {
+              interimPaidNational: safeDecimal(interimPaidNationalInput),
+              interimPaidLocal: safeDecimal(interimPaidLocalInput),
+            }),
+      });
+    } catch (e) {
+      consumptionTaxXtxError = describeStorageError(e);
+      return;
+    }
     await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 一般課税（本則）の .xtx を出力する。SHA010＋付表1-3＋付表2-3。
   async function downloadGeneralXtx(period?: { start: string; end: string }) {
+    if (yearInvalid) {
+      return;
+    }
     if (period === undefined && interimPaidInvalid) {
       consumptionTaxXtxError = m.common_amount_invalid();
       return;
     }
-    const { filer, missing } = await loadFiler();
+    const { filer, businessName, missing, invalid } = await loadFiler();
+    if (invalid) {
+      consumptionTaxXtxError = m.reports_xtx_filer_invalid();
+      return;
+    }
     if (missing) {
       consumptionTaxXtxError = m.reports_xtx_filer_incomplete();
       return;
     }
+    const blocker = await xtxBlocker(year, 'consumption');
+    if (blocker !== '') {
+      consumptionTaxXtxError = blocker;
+      return;
+    }
     consumptionTaxXtxError = '';
-    const businessName = (await getSetting('userBusinessName')) ?? '';
     const processed = await processYear(year, period, {
       smallAmountSpecial: await loadSmallAmountSpecialInputs(),
     });
     const attributionMethod =
       (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
-    const xml = buildGeneralXtx({
-      year,
-      businessName,
-      filer,
-      taxableBase10: processed.taxableBase10,
-      taxableBase8: processed.taxableBase8,
-      input10: processed.input10,
-      input8: processed.input8,
-      exportExemptSalesBase: processed.exportExemptSalesBase,
-      nonTaxableSalesBase: processed.nonTaxableSalesBase,
-      inputCommon10: processed.inputCommon10,
-      inputCommon8: processed.inputCommon8,
-      inputNonTaxableOnly10: processed.inputNonTaxableOnly10,
-      inputNonTaxableOnly8: processed.inputNonTaxableOnly8,
-      importTax10: processed.importTax10,
-      importTax8: processed.importTax8,
-      reverseChargeBase: processed.reverseChargeBase,
-      reverseChargeTax: processed.reverseChargeTax,
-      reverseChargeCommonTax: processed.reverseChargeCommonTax,
-      reverseChargeNonTaxableOnlyTax: processed.reverseChargeNonTaxableOnlyTax,
-      attributionMethod,
-      badDebtTax10: processed.badDebtTax10,
-      badDebtTax8: processed.badDebtTax8,
-      badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
-      badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
-      ...(period
-        ? { interimPeriod: period }
-        : {
-            interimPaidNational: safeDecimal(interimPaidNationalInput),
-            interimPaidLocal: safeDecimal(interimPaidLocalInput),
-          }),
-    });
+    let xml: string;
+    try {
+      xml = buildGeneralXtx({
+        year,
+        businessName,
+        filer,
+        taxableBase10: processed.taxableBase10,
+        taxableBase8: processed.taxableBase8,
+        input10: processed.input10,
+        input8: processed.input8,
+        exportExemptSalesBase: processed.exportExemptSalesBase,
+        nonTaxableSalesBase: processed.nonTaxableSalesBase,
+        inputCommon10: processed.inputCommon10,
+        inputCommon8: processed.inputCommon8,
+        inputNonTaxableOnly10: processed.inputNonTaxableOnly10,
+        inputNonTaxableOnly8: processed.inputNonTaxableOnly8,
+        importTax10: processed.importTax10,
+        importTax8: processed.importTax8,
+        reverseChargeBase: processed.reverseChargeBase,
+        reverseChargeTax: processed.reverseChargeTax,
+        reverseChargeCommonTax: processed.reverseChargeCommonTax,
+        reverseChargeNonTaxableOnlyTax: processed.reverseChargeNonTaxableOnlyTax,
+        attributionMethod,
+        badDebtTax10: processed.badDebtTax10,
+        badDebtTax8: processed.badDebtTax8,
+        badDebtRecoveryTax10: processed.badDebtRecoveryTax10,
+        badDebtRecoveryTax8: processed.badDebtRecoveryTax8,
+        ...(period
+          ? { interimPeriod: period }
+          : {
+              interimPaidNational: safeDecimal(interimPaidNationalInput),
+              interimPaidLocal: safeDecimal(interimPaidLocalInput),
+            }),
+      });
+    } catch (e) {
+      consumptionTaxXtxError = describeStorageError(e);
+      return;
+    }
     await downloadXml(xml, `aoiko-shohi-${year}${period ? '-interim' : ''}.xtx`);
   }
   // 月別売上のバー高さ計算用、月内の最大売上を取る
@@ -1085,12 +1258,23 @@
         name="reportNen"
         autocomplete="off"
         value={year}
-        oninput={assignInputNumber((v) => (year = v))}
+        oninput={assignInputNumberOrEmpty((v) => {
+          const y = parseIntegerInput(v === undefined ? '' : String(v), YEAR_RANGE);
+          yearInvalid = y === undefined;
+          if (y !== undefined) {
+            year = y;
+          }
+        })}
         min="2020"
         max="2099"
         step="1"
         class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
       />
+      {#if yearInvalid}
+        <span class="block mt-1 text-xs text-destructive"
+          >{m.common_integer_invalid(YEAR_RANGE)}</span
+        >
+      {/if}
     </label>
   </header>
 
@@ -1115,6 +1299,14 @@
       {m.reports_load_error({ message: reportsError })}
     </div>
   {/if}
+  {#if oversizedAmounts && oversizedAmounts.total > 0}
+    <div
+      class="border border-destructive bg-destructive/10 text-foreground rounded-lg px-4 py-2 text-sm"
+      role="alert"
+    >
+      {describeFoundAmounts(oversizedAmounts)}
+    </div>
+  {/if}
 
   {#if pl}
     <section class="bg-card text-card-foreground rounded-2xl p-8 space-y-4 shadow-sm">
@@ -1128,7 +1320,8 @@
             <button
               type="button"
               onclick={() => (confirmingUnlock = true)}
-              class="text-xs text-muted-foreground hover:text-destructive"
+              disabled={yearInvalid}
+              class="text-xs text-muted-foreground hover:text-destructive disabled:opacity-50"
             >
               {m.reports_unlock_button()}
             </button>
@@ -1136,10 +1329,14 @@
             <button
               type="button"
               onclick={askLock}
-              class="text-xs px-3 py-1 border rounded hover:bg-accent"
+              disabled={yearInvalid}
+              class="text-xs px-3 py-1 border rounded hover:bg-accent disabled:opacity-50"
             >
               {m.reports_lock_button()}
             </button>
+          {/if}
+          {#if yearInvalid}
+            <span class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</span>
           {/if}
         </div>
       </header>
@@ -1257,6 +1454,16 @@
             })}
           </p>
           <p>{m.reports_pl_inventory_suggestion_hint()}</p>
+        </div>
+      {/if}
+      {#if inventoryValuation && inventoryValuation.unreadable.length > 0}
+        <div class="border border-destructive rounded px-3 py-2 text-xs space-y-1" role="alert">
+          <p class="font-medium text-destructive">{m.reports_inventory_quantity_unreadable()}</p>
+          <ul class="list-disc pl-4">
+            {#each inventoryValuation.unreadable as u, i (i)}
+              <li>{u.date} {u.description}</li>
+            {/each}
+          </ul>
         </div>
       {/if}
 
@@ -1770,9 +1977,12 @@
               >
               <td
                 class="px-3 py-1 text-right tabular-nums"
-                class:text-destructive={D(actual?.revenueDiff ?? '0').isNegative()}
+                class:text-destructive={actual?.revenueDiff === '' ||
+                  D(actual?.revenueDiff ?? '0').isNegative()}
               >
-                {formatJPY(actual?.revenueDiff ?? '0')}
+                {actual?.revenueDiff === ''
+                  ? m.common_stored_amount_unreadable()
+                  : formatJPY(actual?.revenueDiff ?? '0')}
               </td>
               <td class="px-3 py-1 text-right">
                 <input
@@ -1800,9 +2010,12 @@
               >
               <td
                 class="px-3 py-1 text-right tabular-nums"
-                class:text-destructive={D(actual?.expenseDiff ?? '0').isPositive()}
+                class:text-destructive={actual?.expenseDiff === '' ||
+                  D(actual?.expenseDiff ?? '0').isPositive()}
               >
-                {formatJPY(actual?.expenseDiff ?? '0')}
+                {actual?.expenseDiff === ''
+                  ? m.common_stored_amount_unreadable()
+                  : formatJPY(actual?.expenseDiff ?? '0')}
               </td>
             </tr>
           {/each}
@@ -1871,10 +2084,14 @@
           required
           class="mt-1 w-28 h-8 px-2 bg-background border rounded text-foreground text-right tabular-nums"
         />
+        {#if isAmountInputInvalid(newArApAmount)}
+          <span class="block text-xs text-destructive">{m.common_amount_invalid()}</span>
+        {/if}
       </label>
       <button
         type="submit"
-        class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
+        disabled={isAmountInputInvalid(newArApAmount)}
+        class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.reports_arap_add()}
       </button>
@@ -1912,10 +2129,16 @@
                 </td>
                 <td class="px-3 py-1">{arApDisplayDescription(e, arApVendorsById)}</td>
                 <td class="px-3 py-1 tabular-nums whitespace-nowrap">{e.dueDate}</td>
-                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
-                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
+                {#if remaining === undefined}
+                  <td class="px-3 py-1 text-right text-xs text-destructive" colspan="2">
+                    {m.common_stored_amount_unreadable()}
+                  </td>
+                {:else}
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
+                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining)}</td>
+                {/if}
                 <td class="px-3 py-1">
-                  {#if remaining.isPositive()}
+                  {#if remaining?.isPositive() === true}
                     <div class="flex gap-1 print:hidden">
                       <input
                         type="number"
@@ -1980,22 +2203,36 @@
             name="cashFlowHorizon"
             autocomplete="off"
             value={cashFlowHorizon}
-            oninput={assignInputNumber((v) => (cashFlowHorizon = v))}
+            oninput={assignInputNumberOrEmpty((v) => (cashFlowHorizon = v))}
             min="1"
             max="24"
             step="1"
             class="mt-1 w-20 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
+          {#if cashFlowHorizonMonths === undefined}
+            <span class="block text-xs text-destructive"
+              >{m.common_integer_invalid(HORIZON_RANGE)}</span
+            >
+          {/if}
         </label>
         <button
           type="button"
           onclick={loadCashFlowForecast}
-          class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90"
+          disabled={cashFlowInputInvalid}
+          class="h-8 px-3 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
         >
           {m.reports_cashflow_run()}
         </button>
       </div>
 
+      {#if cashFlowError}
+        <p class="text-xs text-destructive" role="alert">{cashFlowError}</p>
+      {/if}
+      {#if cashFlowForecastResult && cashFlowForecastResult.unreadableCount > 0}
+        <p class="text-xs text-destructive">
+          {m.reports_cashflow_unreadable({ count: cashFlowForecastResult.unreadableCount })}
+        </p>
+      {/if}
       {#if cashFlowForecastResult}
         <ScrollX>
           <table class="w-full min-w-[480px] text-sm">
@@ -2041,7 +2278,11 @@
           {m.reports_amendment_filed_at({ date: toISODateLocal(new Date(a.filedAt)) })}
         </span>
       </header>
-      {#if !a.hasChange}
+      {#if a.unreadable}
+        <p class="text-sm text-destructive" role="alert">
+          {m.common_stored_amount_unreadable()}
+        </p>
+      {:else if !a.hasChange}
         <p class="text-sm text-muted-foreground">
           {m.reports_amendment_no_change()}
         </p>
@@ -2355,8 +2596,9 @@
           </p>
           <button
             type="button"
+            disabled={yearInvalid}
             onclick={() => downloadConsumptionTaxXtx()}
-            class="px-4 py-2 border rounded hover:bg-accent"
+            class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
           >
             {m.reports_consumption_tax_xtx_two_wari_download()}
           </button>
@@ -2366,8 +2608,9 @@
         </p>
         <button
           type="button"
+          disabled={yearInvalid}
           onclick={() => downloadSimplifiedXtx()}
-          class="px-4 py-2 border rounded hover:bg-accent"
+          class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
           {m.reports_consumption_tax_xtx_simplified_download()}
         </button>
@@ -2376,11 +2619,15 @@
         </p>
         <button
           type="button"
+          disabled={yearInvalid}
           onclick={() => downloadGeneralXtx()}
-          class="px-4 py-2 border rounded hover:bg-accent"
+          class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
           {m.reports_consumption_tax_xtx_general_download()}
         </button>
+        {#if yearInvalid}
+          <p class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</p>
+        {/if}
         {#if consumptionTaxXtxError}
           <p
             class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2"
@@ -2431,7 +2678,9 @@
           </span>
         {/if}
       </label>
-      {#if interimObligation.installmentCount === 0}
+      {#if interimObligation === null}
+        <p class="text-sm text-muted-foreground">{m.reports_interim_inputs_invalid()}</p>
+      {:else if interimObligation.installmentCount === 0}
         <p class="text-sm text-muted-foreground">{m.reports_interim_no_obligation()}</p>
       {:else}
         <p class="text-sm">
@@ -2477,19 +2726,24 @@
           <div class="flex flex-wrap gap-2">
             <button
               type="button"
+              disabled={yearInvalid}
               onclick={() => downloadSimplifiedXtx(selectedInstallment)}
-              class="px-4 py-2 border rounded hover:bg-accent"
+              class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
             >
               {m.reports_consumption_tax_xtx_simplified_download()}
             </button>
             <button
               type="button"
+              disabled={yearInvalid}
               onclick={() => downloadGeneralXtx(selectedInstallment)}
-              class="px-4 py-2 border rounded hover:bg-accent"
+              class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
             >
               {m.reports_consumption_tax_xtx_general_download()}
             </button>
           </div>
+          {#if yearInvalid}
+            <p class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</p>
+          {/if}
           {#if consumptionTaxXtxError}
             <p
               class="text-sm font-medium text-destructive border border-destructive rounded px-3 py-2"
@@ -2513,22 +2767,27 @@
       <div class="flex flex-wrap gap-2">
         <button
           type="button"
+          disabled={yearInvalid}
           onclick={() => downloadXtx(false)}
-          class="px-4 py-2 border rounded hover:bg-accent"
+          class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
         >
           {m.reports_xtx_download()}
         </button>
         {#if import.meta.env.DEV}
           <button
             type="button"
+            disabled={yearInvalid}
             onclick={() => downloadXtx(true)}
-            class="px-4 py-2 border border-dashed rounded text-muted-foreground hover:bg-accent"
+            class="px-4 py-2 border border-dashed rounded text-muted-foreground hover:bg-accent disabled:opacity-50"
             title={m.reports_xtx_download_reiwa7_hint()}
           >
             {m.reports_xtx_download_reiwa7()}
           </button>
         {/if}
       </div>
+      {#if yearInvalid}
+        <p class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</p>
+      {/if}
       {#if lockError}
         <div
           class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"

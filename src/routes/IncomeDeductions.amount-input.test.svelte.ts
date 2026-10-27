@@ -130,7 +130,7 @@ describe('所得控除画面の金額欄', () => {
     await waitFor(() => errorUnder(el, deductible.name));
     expect(errorUnder(el, amount.name)).toBe(false);
   });
-  test('負・読めない公的年金等は入力のまま保存され、再表示でも入力の誤りが出て、試算は未記入と同じになる', async () => {
+  test('負・読めない公的年金等は保存されず、件数が出る。既に保存済みの不良値は再表示で誤りが出て、試算は未記入と同じ', async () => {
     const label = m.income_deductions_combined_total_income_label();
     const blankEl = await render();
     const blankEstimate = estimate(blankEl, label);
@@ -143,15 +143,45 @@ describe('所得控除画面の金額欄', () => {
     for (const bad of ['-5000', 'abc']) {
       const el = await render();
       type(el, 'publicPensionAmount', bad);
+      await waitFor(() => saveButton(el).disabled);
+      expect(el.textContent).toContain(m.income_deductions_invalid_count({ count: 1 }));
       saveButton(el).click();
-      await waitFor(() => (el.textContent ?? '').includes(m.income_deductions_saved()));
-      expect((await db.personalDeductions.get(2026))?.miscIncome?.publicPensionAmount).toBe(bad);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(await db.personalDeductions.get(2026)).toBeUndefined();
+      expect(el.textContent).not.toContain(m.income_deductions_saved());
       unmount(instance!);
       instance = undefined;
       container!.remove();
       container = undefined;
 
-      const reloaded = await render();
+      await db.personalDeductions.put({
+        year: 2026,
+        updatedAt: Date.now(),
+        socialInsurancePaid: '0',
+        smallBusinessMutualAidPaid: '0',
+        lifeInsurance: {},
+        earthquakeInsurancePaid: '0',
+        oldLongTermInsurancePaid: '0',
+        medicalExpensePaid: '0',
+        medicalInsuranceReimbursement: '0',
+        donationAmount: '0',
+        casualtyLossDeduction: '0',
+        isDisabled: false,
+        isSpecialDisabled: false,
+        isSingleParent: false,
+        isWidow: false,
+        isWorkingStudent: false,
+        dependents: [],
+        miscIncome: { publicPensionAmount: bad },
+      });
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      instance = mount(IncomeDeductions, { target: container, props: {} });
+      const reloaded = container;
+      await waitFor(() => reloaded.querySelector('input[name="deductionNen"]') !== null);
+      const yearInput = named(reloaded, 'deductionNen');
+      yearInput.value = '2026';
+      yearInput.dispatchEvent(new Event('input', { bubbles: true }));
       await waitFor(() => named(reloaded, 'publicPensionAmount').value === bad);
       expect(errorUnder(reloaded, 'publicPensionAmount')).toBe(true);
       expect(estimate(reloaded, label)).toBe(blankEstimate);
@@ -159,6 +189,7 @@ describe('所得控除画面の金額欄', () => {
       instance = undefined;
       container!.remove();
       container = undefined;
+      await db.personalDeductions.clear();
     }
   });
 
@@ -178,7 +209,7 @@ describe('所得控除画面の金額欄', () => {
     }
   });
 
-  test('支払先明細の金額が文字列以外で保存されていても画面は表示される', async () => {
+  test('支払先明細の金額が文字列以外で保存されていても画面は表示され、欄の名前を示して保存させない', async () => {
     await setSetting('realEstateIncomeEnabled', true);
     await waitFor(() => ledger.realEstateIncomeEnabled);
     await db.personalDeductions.put({
@@ -205,8 +236,17 @@ describe('所得控除画面の金額欄', () => {
         rentPaid: [{ payeeName: '地主', amount: 600000 }],
       },
     } as never);
-    const el = await render();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(IncomeDeductions, { target: container, props: {} });
+    const el = container;
+    await waitFor(() => el.querySelector('input[name="deductionNen"]') !== null);
+    const yearInput = el.querySelector<HTMLInputElement>('input[name="deductionNen"]')!;
+    yearInput.value = '2026';
+    yearInput.dispatchEvent(new Event('input', { bubbles: true }));
     await waitFor(() => el.querySelector('input[name$="-amount"][name^="fudosanRent-"]') !== null);
     expect(el.textContent).not.toContain('予期しないエラー');
+    expect(el.textContent).toContain(m.income_deductions_real_estate_rent_paid_title());
+    expect(saveButton(el).disabled).toBe(true);
   });
 });

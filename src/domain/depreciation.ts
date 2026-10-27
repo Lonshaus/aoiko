@@ -1,7 +1,7 @@
 import { D, Decimal } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { db } from '../db/db';
-import { toIndexable } from '../lib/decimal';
+import { toAmountString, toIndexable } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import {
@@ -10,6 +10,19 @@ import {
   smallAssetAnnualCap,
 } from '../tax-schema/2026/limits';
 import { oldStraightLineRate } from './business-opening';
+import {
+  readStoredBusinessDate,
+  sameStoredBusinessDate,
+  type StoredBusinessDate,
+} from './stored-business-date';
+import {
+  findInvalidFixedAssets,
+  fixedAssetIssueScope,
+  fixedAssetLabel,
+  InvalidFixedAssetError,
+} from './fixed-asset-check';
+import { isValidIsoDate } from '../lib/date';
+import { deleteSetting, getSetting, setSetting } from '../lib/settings';
 import type { FixedAsset, JournalEntry, JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 // 減価償却の計算と仕訳生成。
@@ -182,6 +195,9 @@ const OLD_DECLINING_RATE_TABLE: Record<number, string> = {
   99: '0.023',
   100: '0.023',
 };
+export function hasDecliningBalanceRate(usefulLifeYears: number): boolean {
+  return DECLINING_RATE_TABLE[usefulLifeYears] !== undefined;
+}
 // テスト用：耐用年数省令別表第七の旧定率法償却率を1件取得する（未登録は undefined）。
 export function oldDecliningBalanceRate(usefulLifeYears: number): string | undefined {
   return OLD_DECLINING_RATE_TABLE[usefulLifeYears];
@@ -241,15 +257,187 @@ function isSmallAssetSpecialCandidate(asset: FixedAsset, year: number): boolean 
   }
   return Number(serviceStartDate(asset).slice(0, 4)) === year;
 }
+// 'argument' は呼出元が渡した値（保存済みの値ではない）
+export type BusinessDateErrorSource =
+  'setting-start' | 'setting-close' | 'opening-entry' | 'argument';
+const BUSINESS_DATE_MESSAGES: Record<BusinessDateErrorSource, (p: { value: string }) => string> = {
+  'setting-start': m.business_date_invalid_setting_start,
+  'setting-close': m.business_date_invalid_setting_close,
+  'opening-entry': m.business_date_invalid_opening_entry,
+  argument: m.business_date_invalid_argument,
+};
+export class InvalidBusinessDateError extends Error {
+  readonly source: BusinessDateErrorSource;
+  constructor(source: BusinessDateErrorSource, value: string) {
+    super(BUSINESS_DATE_MESSAGES[source]({ value: value.slice(0, 40) }));
+    this.name = 'InvalidBusinessDateError';
+    this.source = source;
+  }
+}
+// 月割の計算は日付として読めない値で例外（RangeError）になる。未設定は通年扱いのまま
+export function assertBusinessDatesValid(
+  businessStartDates: readonly string[],
+  businessCloseDate: string | undefined,
+): void {
+  for (const d of [...businessStartDates, businessCloseDate]) {
+    if (d !== undefined && !isValidIsoDate(d)) {
+      throw new InvalidBusinessDateError('argument', String(d));
+    }
+  }
+}
+// 開業日・廃業日の出どころ。設定値は復元で型を検証しないため元の値のまま持つ
+export interface BusinessDateSources {
+  settingStart?: StoredBusinessDate;
+  settingClose?: StoredBusinessDate;
+  /** 年ごとの最も早い有効な開業仕訳の日付 */
+  openingStartByYear: ReadonlyMap<number, string>;
+  /** 日付として読めない有効な開業仕訳の日付 */
+  invalidOpeningDates: readonly string[];
+}
+export interface BusinessDateIssue {
+  source: Exclude<BusinessDateErrorSource, 'argument'>;
+  value: string;
+}
+export interface EffectiveBusinessDates {
+  businessStartDates: string[];
+  businessCloseDate?: string;
+}
+export interface BusinessDateSelection extends EffectiveBusinessDates {
+  startSources: { year: number; date: string; source: 'opening-entry' | 'setting' }[];
+  issues: BusinessDateIssue[];
+}
+
+export type BusinessDateField = 'start' | 'close';
+interface BusinessDateWrite {
+  /** 書くときの値。空文字列は消す。書かない欄は undefined */
+  value: string | undefined;
+  /** 書く前にこの値と保存済みの値が同じであることを確かめる */
+  expected: unknown;
+}
+// 2 つの値は 1 つの取引で書く。どちらかがほかの画面で変わっていたら何も書かず、変わった欄を返す
+export async function saveBusinessDateSettings(writes: {
+  start: BusinessDateWrite;
+  close: BusinessDateWrite;
+}): Promise<{ conflicts: BusinessDateField[]; stored: Record<BusinessDateField, unknown> }> {
+  return db.transaction('rw', db.settings, async () => {
+    const stored = {
+      start: await getSetting('businessStartDate'),
+      close: await getSetting('businessCloseDate'),
+    };
+    const conflicts = (['start', 'close'] as const).filter(
+      (f) => !sameStoredBusinessDate(stored[f], writes[f].expected),
+    );
+    if (conflicts.length > 0) {
+      return { conflicts, stored };
+    }
+    const keys = { start: 'businessStartDate', close: 'businessCloseDate' } as const;
+    for (const f of ['start', 'close'] as const) {
+      const value = writes[f].value;
+      if (value === undefined) {
+        continue;
+      }
+      if (value === '') {
+        await deleteSetting(keys[f]);
+      } else {
+        await setSetting(keys[f], value);
+      }
+    }
+    return { conflicts: [], stored };
+  });
+}
+// DB を読めなければ reject する。日付が読めないことは呼出元が selectEffectiveBusinessDates で扱う
+export async function readBusinessDateSources(): Promise<BusinessDateSources> {
+  const openings = await db.journalEntries
+    .orderBy('date')
+    .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+    .toArray();
+  const settingStart = readStoredBusinessDate(await getSetting('businessStartDate'));
+  const settingClose = readStoredBusinessDate(await getSetting('businessCloseDate'));
+  const openingStartByYear = new Map<number, string>();
+  const invalidOpeningDates: string[] = [];
+  for (const e of openings) {
+    if (!isValidIsoDate(e.date)) {
+      invalidOpeningDates.push(String(e.date));
+      continue;
+    }
+    const year = Number(e.date.slice(0, 4));
+    if (!openingStartByYear.has(year)) {
+      openingStartByYear.set(year, e.date);
+    }
+  }
+  return {
+    ...(settingStart ? { settingStart } : {}),
+    ...(settingClose ? { settingClose } : {}),
+    openingStartByYear,
+    invalidOpeningDates,
+  };
+}
+// 開業日は年ごとに決める。開業仕訳のある年はその日付（帳簿が正）、設定値は開業仕訳の無い年にだけ使う
+export function selectEffectiveBusinessDates(sources: BusinessDateSources): BusinessDateSelection {
+  const startSources: BusinessDateSelection['startSources'] = [...sources.openingStartByYear].map(
+    ([year, date]) => ({ year, date, source: 'opening-entry' as const }),
+  );
+  const issues: BusinessDateIssue[] = [];
+  const { settingStart, settingClose } = sources;
+  if (settingStart && !settingStart.valid) {
+    issues.push({ source: 'setting-start', value: String(settingStart.value) });
+  } else if (settingStart) {
+    const date = String(settingStart.value);
+    const year = Number(date.slice(0, 4));
+    if (!sources.openingStartByYear.has(year)) {
+      startSources.push({ year, date, source: 'setting' });
+    }
+  }
+  startSources.sort((a, b) => a.date.localeCompare(b.date));
+  if (settingClose && !settingClose.valid) {
+    issues.push({ source: 'setting-close', value: String(settingClose.value) });
+  }
+  // 読めない開業仕訳は、その年（年が読めなければどの年も）の開業日が別にあれば計算に影響しない
+  for (const value of sources.invalidOpeningDates) {
+    const yearText = value.slice(0, 4);
+    const covered = /^\d{4}$/.test(yearText)
+      ? startSources.some((s) => s.year === Number(yearText))
+      : startSources.length > 0;
+    if (!covered) {
+      issues.push({ source: 'opening-entry', value });
+    }
+  }
+  return {
+    businessStartDates: startSources.map((s) => s.date),
+    ...(settingClose?.valid ? { businessCloseDate: String(settingClose.value) } : {}),
+    startSources,
+    issues,
+  };
+}
+// 計算に使う開業日・廃業日。ignore で指定した側の問題は、呼出元が別の値を使うので見ない
+export async function loadEffectiveBusinessDates(ignore?: {
+  start?: boolean;
+  close?: boolean;
+}): Promise<EffectiveBusinessDates> {
+  const selection = selectEffectiveBusinessDates(await readBusinessDateSources());
+  const issue = selection.issues.find((i) =>
+    i.source === 'setting-close' ? ignore?.close !== true : ignore?.start !== true,
+  );
+  if (issue) {
+    throw new InvalidBusinessDateError(issue.source, issue.value);
+  }
+  return {
+    businessStartDates: selection.businessStartDates,
+    ...(selection.businessCloseDate !== undefined
+      ? { businessCloseDate: selection.businessCloseDate }
+      : {}),
+  };
+}
 // 全資産・全年度分の少額特例の適用状況をまとめて判定する。年ごとに取得日昇順で年合計 300 万円
 // （開業・廃業年は月割）の上限枠を充当し、要件外（isSmallAssetEligible=false）または上限超過は
 // 'ineligible' / 'cap-exceeded' として返す。落選判定の取得価額の閾値は原始取得価額（所令126条）を使う。
 // 結果は資産 id 単位で年度に関わらず一意（業務供用年に一度だけ判定される）。
 export function smallAssetSpecialStatuses(
   assets: readonly FixedAsset[],
-  businessStartDate?: string,
+  businessStartDates: readonly string[] = [],
   businessCloseDate?: string,
 ): Map<string, SmallAssetStatus> {
+  assertBusinessDatesValid(businessStartDates, businessCloseDate);
   const byYear = new Map<number, FixedAsset[]>();
   for (const a of assets) {
     if (a.depreciationMethod !== 'small-asset-special' || isImmediateExpenseAsset(a)) {
@@ -262,7 +450,7 @@ export function smallAssetSpecialStatuses(
   }
   const result = new Map<string, SmallAssetStatus>();
   for (const [year, yearAssets] of byYear) {
-    const cap = smallAssetAnnualCap(year, businessStartDate, businessCloseDate);
+    const cap = smallAssetAnnualCap(year, businessStartDates, businessCloseDate);
     const sorted = [...yearAssets].sort(
       (a, b) => a.acquisitionDate.localeCompare(b.acquisitionDate) || a.id.localeCompare(b.id),
     );
@@ -357,9 +545,9 @@ export function computeDepreciation(
     return {
       amount: '0',
       accumulatedEnd: '0',
-      bookValueEnd: cost.toString(),
+      bookValueEnd: toAmountString(cost),
       fullyDepreciated: false,
-      depreciationBase: cost.toString(),
+      depreciationBase: toAmountString(cost),
     };
   }
   // 一括償却資産は除却後も 3 年均等償却を継続する（未償却残高の一時損金算入は不可）ため、
@@ -437,11 +625,46 @@ export function lumpSumPoolShares(assets: readonly FixedAsset[]): Map<string, Lu
     const total = members.reduce((sum, a) => sum.plus(a.acquisitionCost), D(0));
     let preceding = D(0);
     for (const a of members) {
-      shares.set(a.id, { totalCost: total.toString(), precedingCost: preceding.toString() });
+      shares.set(a.id, {
+        totalCost: toAmountString(total),
+        precedingCost: toAmountString(preceding),
+      });
       preceding = preceding.plus(a.acquisitionCost);
     }
   }
   return shares;
+}
+// 一括償却の群と少額特例の枠は全資産から決まる。画面の表示と仕訳の生成で同じ入力を使う
+export function buildDepreciationInputs(
+  assets: readonly FixedAsset[],
+  businessStartDates: readonly string[] = [],
+  businessCloseDate?: string,
+): { pools: Map<string, LumpSumPoolShare>; statuses: Map<string, SmallAssetStatus> } {
+  const statuses = smallAssetSpecialStatuses(assets, businessStartDates, businessCloseDate);
+  return { pools: lumpSumPoolShares(assets), statuses };
+}
+// 1 年分の償却額を全資産について計算する。1 件でも計算できなければ、その資産の名前付きで投げる
+export function computeYearDepreciationAll(
+  assets: readonly FixedAsset[],
+  year: number,
+  inputs: ReturnType<typeof buildDepreciationInputs>,
+): { asset: FixedAsset; result: DepreciationResult }[] {
+  return assets.map((asset) => {
+    try {
+      return {
+        asset,
+        result: computeDepreciation(asset, year, inputs.pools.get(asset.id), inputs.statuses),
+      };
+    } catch (e) {
+      throw new Error(
+        m.fixed_asset_invalid({
+          name: fixedAssetLabel(asset),
+          reasons: e instanceof Error ? e.message : String(e),
+        }),
+        { cause: e },
+      );
+    }
+  });
 }
 // 一括償却資産（施行令139条）：原始取得価額を 3 年で均等償却。取得月による月按分は無く、
 // 除却・売却後も未償却残高の一時損金算入はできず 3 年間の償却を継続する。
@@ -457,10 +680,10 @@ function computeLumpSum(
   if (year > finalYear) {
     return {
       amount: '0',
-      accumulatedEnd: conversionCost.toString(),
+      accumulatedEnd: toAmountString(conversionCost),
       bookValueEnd: '0',
       fullyDepreciated: true,
-      depreciationBase: originalCost.toString(),
+      depreciationBase: toAmountString(originalCost),
     };
   }
   const raw = lumpSumAccumulated(year - acqYear + 1, originalCost, pool);
@@ -469,11 +692,11 @@ function computeLumpSum(
   const accumulated = Decimal.min(raw, conversionCost);
   const previous = Decimal.min(previousRaw, conversionCost);
   return {
-    amount: accumulated.minus(previous).toString(),
-    accumulatedEnd: accumulated.toString(),
-    bookValueEnd: conversionCost.minus(accumulated).toString(),
+    amount: toAmountString(accumulated.minus(previous)),
+    accumulatedEnd: toAmountString(accumulated),
+    bookValueEnd: toAmountString(conversionCost.minus(accumulated)),
     fullyDepreciated: year === finalYear || accumulated.equals(conversionCost),
-    depreciationBase: originalCost.toString(),
+    depreciationBase: toAmountString(originalCost),
   };
 }
 // k 年目末の累計額。グループ指定時は一括償却対象額の ÷3 を累計の差で按分し、各年のグループ合計を端数なく一致させる。
@@ -499,11 +722,11 @@ function computeSmallAssetSpecial(
   cost: Decimal,
 ): DepreciationResult {
   return {
-    amount: year === acqYear ? cost.toString() : '0',
-    accumulatedEnd: cost.toString(),
+    amount: year === acqYear ? toAmountString(cost) : '0',
+    accumulatedEnd: toAmountString(cost),
     bookValueEnd: '0',
     fullyDepreciated: true,
-    depreciationBase: cost.toString(),
+    depreciationBase: toAmountString(cost),
   };
 }
 
@@ -541,11 +764,11 @@ function computeStraightLine(
       const accumulatedEnd = accumulated.plus(yearAmount);
       const bookValueEnd = cost.minus(accumulatedEnd);
       return {
-        amount: yearAmount.toString(),
-        accumulatedEnd: accumulatedEnd.toString(),
-        bookValueEnd: bookValueEnd.toString(),
+        amount: toAmountString(yearAmount),
+        accumulatedEnd: toAmountString(accumulatedEnd),
+        bookValueEnd: toAmountString(bookValueEnd),
         fullyDepreciated: bookValueEnd.equals(floor),
-        depreciationBase: originalCost.toString(),
+        depreciationBase: toAmountString(originalCost),
       };
     }
     accumulated = accumulated.plus(yearAmount);
@@ -553,10 +776,10 @@ function computeStraightLine(
 
   return {
     amount: '0',
-    accumulatedEnd: accumulated.toString(),
-    bookValueEnd: cost.minus(accumulated).toString(),
+    accumulatedEnd: toAmountString(accumulated),
+    bookValueEnd: toAmountString(cost.minus(accumulated)),
     fullyDepreciated: false,
-    depreciationBase: originalCost.toString(),
+    depreciationBase: toAmountString(originalCost),
   };
 }
 
@@ -622,11 +845,11 @@ function computeDecliningBalance(
       const accumulatedEnd = accumulated.plus(yearAmount);
       const bookValueEnd = cost.minus(accumulatedEnd);
       return {
-        amount: yearAmount.toString(),
-        accumulatedEnd: accumulatedEnd.toString(),
-        bookValueEnd: bookValueEnd.toString(),
+        amount: toAmountString(yearAmount),
+        accumulatedEnd: toAmountString(accumulatedEnd),
+        bookValueEnd: toAmountString(bookValueEnd),
         fullyDepreciated: bookValueEnd.equals(floor),
-        depreciationBase: depreciationBase.toString(),
+        depreciationBase: toAmountString(depreciationBase),
       };
     }
 
@@ -636,10 +859,10 @@ function computeDecliningBalance(
 
   return {
     amount: '0',
-    accumulatedEnd: accumulated.toString(),
-    bookValueEnd: cost.minus(accumulated).toString(),
+    accumulatedEnd: toAmountString(accumulated),
+    bookValueEnd: toAmountString(cost.minus(accumulated)),
     fullyDepreciated: false,
-    depreciationBase: (revisedBase ?? bookValue).toString(),
+    depreciationBase: toAmountString(revisedBase ?? bookValue),
   };
 }
 // 旧定額法・旧定率法。1号イ・ハは限度額到達の翌年以後、残額 −1 円を 5 年で均等償却する（所令134条2項）。
@@ -702,21 +925,21 @@ function computeOldMethod(
       const accumulatedEnd = accumulated.plus(yearAmount);
       const bookValueEnd = cost.minus(accumulatedEnd);
       return {
-        amount: yearAmount.toString(),
-        accumulatedEnd: accumulatedEnd.toString(),
-        bookValueEnd: bookValueEnd.toString(),
+        amount: toAmountString(yearAmount),
+        accumulatedEnd: toAmountString(accumulatedEnd),
+        bookValueEnd: toAmountString(bookValueEnd),
         fullyDepreciated: preConversionDeemed.plus(accumulatedEnd).equals(finalLimit),
-        depreciationBase: base.toString(),
+        depreciationBase: toAmountString(base),
       };
     }
     accumulated = accumulated.plus(yearAmount);
   }
   return {
     amount: '0',
-    accumulatedEnd: accumulated.toString(),
-    bookValueEnd: cost.minus(accumulated).toString(),
+    accumulatedEnd: toAmountString(accumulated),
+    bookValueEnd: toAmountString(cost.minus(accumulated)),
     fullyDepreciated: false,
-    depreciationBase: cost.toString(),
+    depreciationBase: toAmountString(cost),
   };
 }
 // リース期間定額法（所令120条の2第1項6号）：年額 = 取得価額（令和9年3月31日以前締結・残価保証額
@@ -756,21 +979,21 @@ function computeLeasePeriodStraightLine(
       const accumulatedEnd = accumulated.plus(yearAmount);
       const bookValueEnd = cost.minus(accumulatedEnd);
       return {
-        amount: yearAmount.toString(),
-        accumulatedEnd: accumulatedEnd.toString(),
-        bookValueEnd: bookValueEnd.toString(),
+        amount: toAmountString(yearAmount),
+        accumulatedEnd: toAmountString(accumulatedEnd),
+        bookValueEnd: toAmountString(bookValueEnd),
         fullyDepreciated: bookValueEnd.equals(floor),
-        depreciationBase: base.toString(),
+        depreciationBase: toAmountString(base),
       };
     }
     accumulated = accumulated.plus(yearAmount);
   }
   return {
     amount: '0',
-    accumulatedEnd: accumulated.toString(),
-    bookValueEnd: cost.minus(accumulated).toString(),
+    accumulatedEnd: toAmountString(accumulated),
+    bookValueEnd: toAmountString(cost.minus(accumulated)),
     fullyDepreciated: false,
-    depreciationBase: base.toString(),
+    depreciationBase: toAmountString(base),
   };
 }
 interface YearEndDepreciationResult {
@@ -783,12 +1006,22 @@ interface YearEndDepreciationResult {
   /** 少額特例として設定されているが取得日・価額が要件外で適用不可の件数（仕訳未作成） */
   smallAssetIneligible: number;
 }
-// 全年度分の開業仕訳のうち最も古い日付を開業日とみなす。開業設定を使っていなければ undefined（全年扱い）。
-async function earliestOpeningDate(): Promise<string | undefined> {
-  const openings = await db.journalEntries
-    .filter((e) => e.source === 'opening' && countsTowardTotals(e))
-    .toArray();
-  return openings.map((e) => e.date).sort()[0];
+// 訂正済み（reversed）や訂正仕訳は重複判定の対象外。
+// これにより誤った償却仕訳を reverseEntry で訂正したあと、正しい仕訳を再生成できる。
+// '減価償却' も条件に含めるのは、除却/売却の仕訳（asset-disposal.ts）が同じ資産タグを
+// 同一日付（除却日が年末なら 12/31 で一致し得る）に持つ場合との誤検出を避けるため。
+async function hasYearEndDepreciationEntry(assetId: string, year: number): Promise<boolean> {
+  const existing = await db.journalEntries
+    .where('[year+date]')
+    .equals([year, `${year}-12-31`])
+    .filter(
+      (e) =>
+        countsTowardTotals(e) &&
+        e.description.includes(`#${assetId.slice(0, 8)}`) &&
+        e.description.includes('減価償却'),
+    )
+    .first();
+  return existing !== undefined;
 }
 // 指定年度の全資産の償却仕訳をまとめて作成する。
 // 既に同じ assetId + year の仕訳が存在する場合はスキップ（重複作成防止）。
@@ -798,27 +1031,45 @@ export async function generateYearEndDepreciation(
   year: number,
   options?: {
     allowFiledYear?: boolean;
-    /** 未指定は開業仕訳の日付（無ければ全年扱い） */
-    businessStartDate?: string;
-    /** 未指定は廃業なし（全年扱い） */
+    /** 未指定は保存済みの値（loadEffectiveBusinessDates） */
+    businessStartDates?: readonly string[];
+    /** 未指定は保存済みの値（loadEffectiveBusinessDates） */
     businessCloseDate?: string;
   },
 ): Promise<YearEndDepreciationResult> {
   await assertYearsWritable([year], options);
   const assets = await db.fixedAssets.toArray();
-  const pools = lumpSumPoolShares(assets);
-  const businessStartDate = options?.businessStartDate ?? (await earliestOpeningDate());
-  const businessCloseDate = options?.businessCloseDate;
-  const statuses = smallAssetSpecialStatuses(assets, businessStartDate, businessCloseDate);
+  // 1 件でも計算できない資産があると一括償却の群合計や少額特例の枠が狂うため、何も書かずに止める。
+  // .xtx の明細だけに効く問題は償却額を変えないので止めない
+  const invalid = findInvalidFixedAssets(assets, (i) => fixedAssetIssueScope(i) === 'compute');
+  if (invalid.length > 0) {
+    throw new InvalidFixedAssetError(invalid);
+  }
+  const startOverride = options?.businessStartDates;
+  const closeOverride = options?.businessCloseDate;
+  const stored =
+    startOverride === undefined || closeOverride === undefined
+      ? await loadEffectiveBusinessDates({
+          start: startOverride !== undefined,
+          close: closeOverride !== undefined,
+        })
+      : undefined;
+  const businessStartDates = startOverride ?? stored?.businessStartDates ?? [];
+  const businessCloseDate = closeOverride ?? stored?.businessCloseDate;
+  assertBusinessDatesValid(businessStartDates, businessCloseDate);
+  const inputs = buildDepreciationInputs(assets, businessStartDates, businessCloseDate);
+  const { statuses } = inputs;
+  const computed = computeYearDepreciationAll(assets, year, inputs);
   const date = `${year}-12-31`;
   const now = Date.now();
 
-  let created = 0;
   let skipped = 0;
   let smallAssetCapExceeded = 0;
   let smallAssetIneligible = 0;
+  // 途中の資産で失敗したときに前の資産の仕訳だけが残らないよう、全資産分を先に組み立ててから 1 回で書く
+  const planned: { assetId: string; entry: JournalEntry; lines: JournalLine[] }[] = [];
 
-  for (const asset of assets) {
+  for (const { asset, result } of computed) {
     const isSmallCandidate = isSmallAssetSpecialCandidate(asset, year);
     const status = isSmallCandidate ? statuses.get(asset.id) : undefined;
     if (status === 'ineligible') {
@@ -827,40 +1078,37 @@ export async function generateYearEndDepreciation(
       smallAssetCapExceeded++;
     }
 
-    const result = computeDepreciation(asset, year, pools.get(asset.id), statuses);
     if (D(result.amount).isZero()) {
       continue;
     }
-    // 訂正済み（reversed）や訂正仕訳は重複判定の対象外。
-    // これにより誤った償却仕訳を reverseEntry で訂正したあと、正しい仕訳を再生成できる。
-    // '減価償却' も条件に含めるのは、除却/売却の仕訳（asset-disposal.ts）が同じ資産タグを
-    // 同一日付（除却日が年末なら 12/31 で一致し得る）に持つ場合との誤検出を避けるため。
-    const existing = await db.journalEntries
-      .where('[year+date]')
-      .equals([year, date])
-      .filter(
-        (e) =>
-          countsTowardTotals(e) &&
-          e.description.includes(`#${asset.id.slice(0, 8)}`) &&
-          e.description.includes('減価償却'),
-      )
-      .first();
-    if (existing) {
+    let amountIndexed: string;
+    try {
+      amountIndexed = toIndexable(result.amount);
+    } catch (e) {
+      throw new Error(
+        m.fixed_asset_invalid({
+          name: fixedAssetLabel(asset),
+          reasons: e instanceof Error ? e.message : String(e),
+        }),
+        { cause: e },
+      );
+    }
+    if (await hasYearEndDepreciationEntry(asset.id, year)) {
       skipped++;
       continue;
     }
 
     const entryId = newId();
-    const tag = `${asset.name} #${asset.id.slice(0, 8)}`;
+    const tag = `${fixedAssetLabel(asset)} #${asset.id.slice(0, 8)}`;
     const description =
       status === 'applicable'
         ? `減価償却（措法28の2）${tag}`
         : isImmediateExpenseAsset(asset)
           ? `減価償却（所令138）${tag}`
           : `減価償却 ${tag}`;
-    await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
-      markConfirmedWrite(options);
-      await db.journalEntries.add({
+    planned.push({
+      assetId: asset.id,
+      entry: {
         id: entryId,
         date,
         year,
@@ -869,16 +1117,15 @@ export async function generateYearEndDepreciation(
         source: 'manual',
         createdAt: now,
         confirmedAt: now,
-      } satisfies JournalEntry);
-
-      const lines: JournalLine[] = [
+      } satisfies JournalEntry,
+      lines: [
         {
           id: newId(),
           entryId,
           side: 'debit',
           accountCode: DEPRECIATION_EXPENSE,
           amount: result.amount,
-          amountIndexed: toIndexable(result.amount),
+          amountIndexed,
           taxRate: 0,
           taxIncluded: true,
           invoiceCompliant: false,
@@ -889,15 +1136,30 @@ export async function generateYearEndDepreciation(
           side: 'credit',
           accountCode: ACCUMULATED_DEPRECIATION,
           amount: result.amount,
-          amountIndexed: toIndexable(result.amount),
+          amountIndexed,
           taxRate: 0,
           taxIncluded: true,
           invoiceCompliant: false,
         },
-      ];
-      await db.journalLines.bulkAdd(lines);
+      ],
     });
-    created++;
+  }
+
+  let created = 0;
+  if (planned.length > 0) {
+    await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+      markConfirmedWrite(options);
+      // 同時に走った別の実行が先に書いていれば、ここで見えるので二重に書かない
+      for (const p of planned) {
+        if (await hasYearEndDepreciationEntry(p.assetId, year)) {
+          skipped++;
+          continue;
+        }
+        await db.journalEntries.add(p.entry);
+        await db.journalLines.bulkAdd(p.lines);
+        created++;
+      }
+    });
   }
 
   return { created, skipped, smallAssetCapExceeded, smallAssetIneligible };

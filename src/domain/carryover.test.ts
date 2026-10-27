@@ -575,3 +575,19 @@ describe('detectStaleCarryover', () => {
     expect(await detectStaleCarryover(2026)).toBeNull();
   });
 });
+
+describe('繰越の金額は指数表記にならない', () => {
+  test('1e-7 の残高も一般の書き方で返る', async () => {
+    await seedAccounts(2025);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '0.0000001' },
+        { side: 'credit', accountCode: '3110', amount: '0.0000001' },
+      ],
+    });
+    const p = await computeCarryover(2026);
+    expect(p.assets.map((a) => a.amount)).toEqual(['0.0000001']);
+  });
+});

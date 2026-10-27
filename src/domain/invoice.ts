@@ -1,5 +1,5 @@
-import { D, Decimal, formatJPY, toIndexable } from '../lib/decimal';
-import { normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
+import { D, Decimal, formatJPY, toAmountString, toIndexable } from '../lib/decimal';
+import { normalizeAmountInput, readStoredAmount } from '../lib/amount-input';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { isYearLocked } from './snapshots';
@@ -55,18 +55,42 @@ export const REDUCED_TAX_RATE = 0.08;
 export function hasReducedRateItems(lineItems: InvoiceLineItem[]): boolean {
   return lineItems.some((item) => item.taxRate === REDUCED_TAX_RATE);
 }
-// 保存済みの明細の合計を変えないよう、D() が読める値は D() のまま読む。
-// 読めない値だけ全角・桁区切り・前後の空白を除き、符号付きの数として読む
-export function readLineValue(raw: string): Decimal | undefined {
-  try {
-    return D(raw);
-  } catch {
-    return parseAmountInput(raw, { allowNegative: true });
+// 数量・単価に書ける十進の形（.5・1.・+5 を含む）
+const LINE_DECIMAL_PATTERN = /^[+-]?(\d+(\.\d*)?|\.\d+)$/;
+// 明細の値は長くても 64 文字。それより長い値は読む前に断り、画面が固まらないようにする
+const LINE_VALUE_MAX_LENGTH = 64;
+// 合計・保存・仕訳の金額はすべてこの読み方にそろえる。保存済みの旧い書き方（1e3・0x10）は合計を
+// 変えないようそのまま読み、読めない値だけ全角・桁区切り・前後の空白を除いて十進の数として読む
+export function readInvoiceLineValue(raw: unknown): Decimal | undefined {
+  if (typeof raw === 'string' && raw.length > LINE_VALUE_MAX_LENGTH) {
+    return undefined;
   }
+  const stored = readStoredAmount(raw);
+  if (stored !== undefined || typeof raw !== 'string') {
+    return stored;
+  }
+  const s = normalizeAmountInput(raw);
+  return LINE_DECIMAL_PATTERN.test(s) ? readStoredAmount(s) : undefined;
 }
-
+// 発行できるのは十進で書かれた値だけ。1e3 や 0x10 は合計には数えるが、発行は止める
 export function isLineItemInvalid(item: InvoiceLineItem): boolean {
-  return [item.quantity, item.unitPrice].some((v) => !(readLineValue(v)?.isFinite() ?? false));
+  return [item.quantity, item.unitPrice].some(
+    (v) =>
+      typeof v !== 'string' ||
+      readInvoiceLineValue(v) === undefined ||
+      !LINE_DECIMAL_PATTERN.test(normalizeAmountInput(v)),
+  );
+}
+// 一覧の合計を 0 と見せないよう、読めない明細のある請求書を見分ける。下書きの空欄は合計で 0 と数えるため読める値とする
+export function hasUnreadableLineItems(lineItems: readonly InvoiceLineItem[]): boolean {
+  const unreadable = (v: unknown) =>
+    !(typeof v === 'string' && v.trim() === '') && readInvoiceLineValue(v) === undefined;
+  return lineItems.some((item) => unreadable(item.quantity) || unreadable(item.unitPrice));
+}
+// 発行すると売掛金の仕訳になるため、明細金額の上限（14 桁）を超える請求書は発行できない
+export function isInvoiceTotalTooLarge(lineItems: InvoiceLineItem[]): boolean {
+  const normalized = normalizeLineItems(lineItems);
+  return invoiceTotal(normalized).abs().gte('1e14');
 }
 // D() が読める値には 1e3 や 0x10 のように揃えると読めなくなる形もあるため、読めない値だけを揃える
 export function normalizeLineItems(lineItems: InvoiceLineItem[]): InvoiceLineItem[] {
@@ -78,18 +102,14 @@ export function normalizeLineItems(lineItems: InvoiceLineItem[]): InvoiceLineIte
 }
 
 function normalizeLineValue(raw: string): string {
-  try {
-    D(raw);
+  if (readInvoiceLineValue(raw) === undefined || readStoredAmount(raw) !== undefined) {
     return raw;
-  } catch {
-    return parseAmountInput(raw, { allowNegative: true }) === undefined
-      ? raw
-      : normalizeAmountInput(raw);
   }
+  return normalizeAmountInput(raw);
 }
 
 export function formatUnitPrice(raw: string): string {
-  const value = readLineValue(raw);
+  const value = readInvoiceLineValue(raw);
   return value === undefined ? raw : formatJPY(value);
 }
 
@@ -97,8 +117,8 @@ export function groupLineItemsByTaxRate(lineItems: InvoiceLineItem[]): InvoiceTa
   const groups = new Map<0.1 | 0.08, Decimal>();
   for (const item of lineItems) {
     // 編集中の空欄・読めない値で画面全体が落ちないよう 0 として数える（発行は isLineItemInvalid で止める）
-    const amount = (readLineValue(item.quantity) ?? D(0)).times(
-      readLineValue(item.unitPrice) ?? D(0),
+    const amount = (readInvoiceLineValue(item.quantity) ?? D(0)).times(
+      readInvoiceLineValue(item.unitPrice) ?? D(0),
     );
     groups.set(item.taxRate, (groups.get(item.taxRate) ?? D(0)).plus(amount));
   }
@@ -144,7 +164,7 @@ function newJournalLine(
     side,
     accountCode,
     vendorId,
-    amount: amount.toString(),
+    amount: toAmountString(amount),
     amountIndexed: toIndexable(amount),
     taxRate,
     taxIncluded,
@@ -172,6 +192,9 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
     throw new InvoiceError(m.error_invoice_year_filed({ year }));
   }
 
+  if (invoice.documentType === 'invoice' && isInvoiceTotalTooLarge(lineItems)) {
+    throw new InvoiceError(m.common_amount_too_large());
+  }
   const groups = groupLineItemsByTaxRate(lineItems);
   const total = groups.reduce((sum, g) => sum.plus(g.grossAmount), D(0));
   const arApEntryId = newId();
@@ -239,7 +262,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
         type: 'receivable',
         description: vendorName ? `${number}（${vendorName}）` : number,
         dueDate: invoice.dueDate ?? invoice.date,
-        originalAmount: total.toString(),
+        originalAmount: toAmountString(total),
         paidAmount: '0',
         createdAt: now,
       });
@@ -295,7 +318,7 @@ export function convertQuoteToInvoiceDraft(quote: Invoice, date: string): Invoic
     number: '',
     vendorId: quote.vendorId,
     date,
-    lineItems: quote.lineItems.map((item) => ({ ...item, id: newId() })),
+    lineItems: normalizeLineItems(quote.lineItems).map((item) => ({ ...item, id: newId() })),
     ...(quote.memo !== undefined ? { memo: quote.memo } : {}),
     createdAt: Date.now(),
   };

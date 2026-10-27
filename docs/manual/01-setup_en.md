@@ -43,6 +43,13 @@ Open the **"Basic info"** section of Settings. These appear on the financial sta
 | Invoice number prefix | Text at the start of invoice numbers (e.g. `INV-2026-0001`) | `INV` |
 | Quote number prefix | Text at the start of quote numbers (e.g. `QUO-2026-0001`) | `QUO` |
 
+The "Current tax year" field accepts only a whole number from 2020 to 2099. If the value is out of range or the field is blank, "Enter a whole number from 2020 to 2099" appears below the field. While it is out of range, the following buttons cannot be pressed.
+
+- **"Save"** in Basic info
+- **"Preview"**, **"Create carryover entry"** and **"Reverse existing carryover entry"** in Prior-period carryover (opening balance)
+- **"Reverse the allowance for doubtful accounts"**
+- **"Export Yayoi-format CSV"**, **"Export generic CSV"** and **"Export reversal (cancellation) history CSV"** in Export for your accountant
+
 Press **"Save"** when done. Leave the invoice number blank if you haven't registered.
 
 ## 3a. Register filer info and the blue-return deduction (required for `.xtx` submission)
@@ -58,6 +65,16 @@ Required to load the `.xtx` into e-Tax software (download edition). Register the
 | Address | The address shown on your tax return |
 
 > **Stored only on this device and excluded from backups by default** (see [11. Backup and restore](11-backup_en.md)).
+
+If the user identification number is not blank and not 16 digits, or the postal code is not blank and not 7 digits, "Enter the user identification number as 16 digits" or "Enter the postal code as 7 digits" appears below the field, and "Save" cannot be pressed.
+
+If a saved value cannot be read, the field shows the following. "Save" cannot be pressed until you enter the unreadable fields again.
+
+| Field | Display |
+|---|---|
+| Name, address, tax office name | "The saved value cannot be read. Enter it again." |
+| User identification number, postal code | The same error as for an invalid format |
+| Tax office code | "Not a valid tax office code (5 digits)" |
 
 Then choose **Filing type** — **blue return or white return** — via the radio buttons. Switching shows a confirmation dialog (it changes which financial-statement form gets bundled into `.xtx`, and whether the blue-return deduction applies).
 
@@ -97,6 +114,8 @@ In the **"Consumption tax"** section, pick a method (`.xtx` output of the actual
 
 - **Taxable business**: you must file consumption tax. Also pick a method below.
 - **Tax-exempt business (no consumption-tax filing)**: no consumption tax filing required (taxable sales in the base period [2 years prior] ≤ ¥10 million, and taxable sales [or salary payments] in the specified period [prior year Jan 1–Jun 30] ≤ ¥10 million, and no invoice registration. Current-year sales have no bearing. Once registered as a qualified invoice issuer, you're never exempt regardless of the base-period amount).
+
+If a saved value in "Taxable sales in the base period (two years before) (¥)" or "Taxable sales in the specified period (January to June of the previous year) (¥)" cannot be read, that field shows "Cannot read the amount".
 
 ### 4-2. Method (for taxable businesses)
 
@@ -232,6 +251,7 @@ The following Settings sections have their own dedicated chapters and are covere
 
 | Section | Chapter |
 |---|---|
+| Business start and closing dates | [13. Opening Setup § 2](13-opening-setup_en.md#2-business-start-date) (checking each year's start date, and correcting the start and closing dates) |
 | Fixed assets | [08. Depreciation](08-depreciation_en.md) |
 | Prior-period carryover (opening balances) | [09. Prior-period carryover](09-carryover_en.md) |
 | Auto-classification rules | [03. CSV import](03-csv-import_en.md) |

@@ -624,4 +624,24 @@ describe('特定少額資産の譲渡行は入力して change すると保存�
     expect(await storedTransfers()).toEqual([{ date: '2026-03-01', rate: 0.1, netTax: '7000' }]);
     expect(hasUnsavedChanges()).toBe(false);
   });
+  test('3 行のうち 1 行が読めなくても、他の 2 行の変更は書き込まれ、読めない行は保存済みの値を残す', async () => {
+    await mountWithStored(
+      {
+        specifiedSmallAssetTransfers: [
+          { date: '2026-03-01', rate: 0.1, netTax: '1000' },
+          { date: '2026-04-01', rate: 0.1, netTax: '2000' },
+          { date: '2026-05-01', rate: 0.1, netTax: '3000' },
+        ],
+      },
+      'wariTransfer-netTax-2',
+      '3000',
+    );
+
+    await commitSettled('wariTransfer-netTax-1', 'abc');
+    await commitSettled('wariTransfer-netTax-0', '1100');
+    await commitSettled('wariTransfer-netTax-2', '3300');
+
+    expect(await storedNetTaxes()).toEqual(['1100', '2000', '3300']);
+    expect(hasUnsavedChanges()).toBe(true);
+  });
 });

@@ -3,7 +3,8 @@
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
-  import { D, formatJPY, toIndexable } from '../lib/decimal';
+  import { AmountTooLargeError, D, formatJPY, toAmountString, toIndexable } from '../lib/decimal';
+  import { normalizeAmountInput } from '../lib/amount-input';
   import { newId } from '../lib/id';
   import { createOrderExtractor, type OrderExtractor } from '../lib/order-extractor';
   import { describeLlmError } from '../domain/llm';
@@ -171,6 +172,17 @@
     const [only] = [...rates];
     return rates.size === 1 && only !== undefined ? only : item.taxRate;
   }
+  // 摘要のある品目だけが対象。金額は整数に限り、負数は値引として許す
+  function itemAmountError(item: ReviewItem): string {
+    if (item.description.trim() === '') {
+      return '';
+    }
+    const s = normalizeAmountInput(item.amount);
+    if (!/^-?\d+$/.test(s)) {
+      return m.common_amount_invalid();
+    }
+    return D(s).abs().gte('1e14') ? m.common_amount_too_large() : '';
+  }
   function setRate(item: ReviewItem, value: string) {
     item.taxRate = Number(value);
     item.rateTouched = true;
@@ -191,9 +203,17 @@
       error = m.order_amount_required();
       return;
     }
-    const validItems = reviewItems.filter(
-      (it) => it.description.trim() !== '' && /^-?\d+$/.test(it.amount),
-    );
+    if (D(data.totalAmount).gte('1e14')) {
+      error = m.common_amount_too_large();
+      return;
+    }
+    if (reviewItems.some((it) => itemAmountError(it) !== '')) {
+      error = m.common_amount_invalid();
+      return;
+    }
+    const validItems = reviewItems
+      .filter((it) => it.description.trim() !== '')
+      .map((it) => ({ ...it, amount: normalizeAmountInput(it.amount) }));
     if (validItems.length === 0) {
       error = m.order_no_items();
       return;
@@ -218,7 +238,7 @@
       // 各品目：正値 → 借方、負値（値引）→ 貸方
       for (const it of validItems) {
         const amount = D(it.amount);
-        const abs = amount.abs().toString();
+        const abs = toAmountString(amount.abs());
         const side = amount.isNegative() ? 'credit' : 'debit';
         lines.push({
           id: newId(),
@@ -281,7 +301,7 @@
       });
       reset();
     } catch (e) {
-      error = describeStorageError(e);
+      error = e instanceof AmountTooLargeError ? e.message : describeStorageError(e);
     } finally {
       committing = false;
     }
@@ -445,6 +465,9 @@
                     step="1"
                     class="w-full px-2 py-1 bg-background border rounded text-right text-foreground tabular-nums"
                   />
+                  {#if itemAmountError(item)}
+                    <p class="mt-1 text-xs text-destructive text-right">{itemAmountError(item)}</p>
+                  {/if}
                 </td>
                 <td class="px-2 py-2">
                   <select

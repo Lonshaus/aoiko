@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { readStoredAmount } from '../lib/amount-input';
 // 簡易在庫管理。最終仕入原価法（評価方法の届出を提出していない事業者に
 // 適用される法定デフォルト）のみ対応する。届出により他の評価方法（先入先出法・
 // 移動平均法等）を選んでいる利用者は Settings の inventoryAutoValuationEnabled を
@@ -24,6 +25,8 @@ interface ItemValuation {
 export interface InventoryValuation {
   items: ItemValuation[];
   totalValue: Decimal;
+  // 数量を読めず在庫に数えなかった明細の仕訳
+  unreadable: { date: string; description: string }[];
 }
 // asOfDate（当日を含む）までの確定仕訳から、品目ごとの在庫数量・直近仕入単価を
 // 導出し、最終仕入原価法で評価した期末棚卸高を返す。同一日付内の複数仕入は
@@ -45,12 +48,18 @@ export async function computeInventoryValuation(asOfDate: string): Promise<Inven
 
   const quantity = new Map<string, Decimal>();
   const unitCost = new Map<string, Decimal>();
+  const unreadable: InventoryValuation['unreadable'] = [];
   for (const entry of entries) {
     for (const line of linesByEntry.get(entry.id) ?? []) {
       if (!line.itemId || !line.quantity) {
         continue;
       }
-      const qty = D(line.quantity);
+      // 復元された明細は数量を検査していないため、読めない明細は在庫に数えず一覧に出す
+      const qty = readStoredAmount(line.quantity);
+      if (qty === undefined || qty.isNegative()) {
+        unreadable.push({ date: entry.date, description: entry.description });
+        continue;
+      }
       // 両建ては side で正味集計する（plContribution と同じ考え方）。仕入の貸方は
       // 仕入返品・返金で在庫が減り、売上の借方は売上返品で在庫が戻る。
       if (line.accountCode === PURCHASE_ACCOUNT_CODE) {
@@ -76,5 +85,5 @@ export async function computeInventoryValuation(asOfDate: string): Promise<Inven
     items.push({ itemId, quantity: qty, unitCost: cost, value });
     totalValue = totalValue.plus(value);
   }
-  return { items, totalValue };
+  return { items, totalValue, unreadable };
 }
