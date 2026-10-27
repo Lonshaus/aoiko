@@ -53,6 +53,8 @@ i.e.:
 
 **Settings > Current tax year** → set to the new year (e.g. 2026) → **"Save"**.
 
+While the Current tax year is outside 2020–2099, "Enter a whole number from 2020 to 2099" is shown. During that time **"Preview"**, **"Create carryover entry"**, **"Reverse existing carryover entry"** and, in § 7, **"Reverse the allowance for doubtful accounts"** cannot be pressed, and the preview content is not shown.
+
 ### 3-2. Preview
 
 In **Settings > Prior-period carryover (opening balance)** → click **"Preview"**:
@@ -86,6 +88,7 @@ If something is wrong:
 |---|---|
 | A carryover entry already exists. Reverse it first with "Reverse existing carryover entry". | Already exists at `{year}-01-01`. See 3-4 |
 | No journal entries in the previous year — nothing to carry over | No prior-year journal entries at all (e.g. first year of use) |
+| Carryover for account {account}: {message} | The carryover for that account cannot be written into the entry. When the cause is the size of the amount, it reads "Carryover for account {account}: The amount is too large. Enter an amount under ¥100 trillion" |
 
 ## 4. First year (no prior data)
 
@@ -130,7 +133,7 @@ Under Income Tax Act Art. 52(3), the allowance for doubtful accounts booked at t
 
 ### 7-2. Where the button is
 
-Settings > **"Prior-period carryover (opening balance)"** section, under "Reversal of the allowance for doubtful accounts": **"Reverse the allowance for doubtful accounts"**. Pressing it generates one journal entry dated `{year}-01-01`.
+Settings > **"Prior-period carryover (opening balance)"** section, under "Reversal of the allowance for doubtful accounts": **"Reverse the allowance for doubtful accounts"**. Pressing it generates one journal entry dated `{year}-01-01`. It cannot be pressed while the Current tax year is outside 2020–2099 ([§ 3-1](#3-1-switch-to-the-new-year)).
 
 ### 7-3. What it generates
 

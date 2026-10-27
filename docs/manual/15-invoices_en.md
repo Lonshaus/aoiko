@@ -31,6 +31,12 @@ A quote is only a proposal that hasn't become a deal yet, so issuing it never to
 5. Consumption tax is calculated once per tax-rate group (per the invoice system's "round fractions once per rate" rule — not per line item)
 6. Review, then click **"Save draft"** (to keep editing later) or **"Issue"**
 
+If the total of an invoice (quotes are not covered) is ¥100 trillion or more, "The amount is too large. Enter an amount under ¥100 trillion" appears and **"Issue"** cannot be pressed. **"Save draft"** can still be pressed.
+
+A line whose quantity or unit price is saved in a form such as "1e3" or "0x10" is counted in the total but cannot be issued. "Enter the quantity and unit price as numbers" appears under that line.
+
+In the list, a document that has a line whose quantity or unit price cannot be read shows "Cannot read the amount" as its total. If the list cannot be loaded, the error with its reason stays on the screen and the previous list is not shown.
+
 > **To show the customer's address on the invoice**: register a mailing address for that customer under **Settings > Vendors** (optional field).
 >
 > **An invoice can't be issued if its transaction date falls in a locked year** ([06. § 8](06-reports_en.md#8-year-lock-filed)). The entry auto-generated on issue would write to a locked year and is refused. Quotes don't generate an entry, so they aren't subject to this restriction.
@@ -50,7 +56,7 @@ A quote is only a proposal that hasn't become a deal yet, so issuing it never to
 
 ## 4. Converting a quote to an invoice
 
-From the quotes list, click **"Convert to invoice"** to create a new invoice draft with the line items copied over (transaction date defaults to today; the number isn't assigned yet). Review and adjust before issuing.
+From the quotes list, click **"Convert to invoice"** to create a new invoice draft with the line items copied over (transaction date defaults to today; the number isn't assigned yet). Quantities and unit prices containing full-width digits or thousands-separator commas are copied over converted to half-width digits with the commas removed. Review and adjust before issuing.
 
 ## 5. Printing to send
 

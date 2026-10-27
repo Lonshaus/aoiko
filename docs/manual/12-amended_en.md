@@ -61,6 +61,7 @@ After entering reversing entries, the Reports screen's **"Amended return guide"*
 - The filing date, and whether anything has changed since the filed snapshot (if nothing has, it says an amended return is not required)
 - When something has changed, **Revenue / Expenses / Income (net)** each with **"Filed: …"** and **"Current: …"** values (income also shows the **difference** from the filed value, as "Current: … (Δ …)")
 - Only when something has changed, a checklist of the amendment steps (unlock → correct the wrong entries → check the amended P/L and BS → file on e-Tax → re-lock)
+- If the data saved at filing time cannot be read, the "Amended return guide" shows "Cannot read the amount" and no comparison with the filed state is made
 
 > Verify the diff is what you expected. If unintended areas changed, inspect the related entries.
 
