@@ -39,8 +39,8 @@ const SHB067_SCHEMA = shb067 as XtxSchema;
 const SHA010_SCHEMA = sha010 as XtxSchema;
 const SHB017_SCHEMA = shb017 as XtxSchema;
 const SHB033_SCHEMA = shb033 as XtxSchema;
-// 手続 VR は提出日ではなく年度世代で決まる（手続一覧（申告）Ver260x、RSH0010-260.xsd・RSH0030-260.xsd）。
-const PROCEDURE_VERSION = '26.0.0';
+// 個人の令和8年分は国税庁が「令和8年9月30日以前に開始した課税期間用」を指定しており、対応する手続 VR は 23.2.0（RSH0010-232・RSH0030-232）。
+const PROCEDURE_VERSION = '23.2.0';
 // 消費税及び地方消費税申告(一般・個人)。CONTENTS が SHA010 系統のみ許可。
 const PROCEDURE_TAG_GENERAL = 'RSH0010';
 const PROCEDURE_NAME_GENERAL = '消費税及び地方消費税申告';
