@@ -325,6 +325,7 @@
   "reports_subtitle": "Monthly sales and P/L (per tax year)",
   "reports_overview_title": "{year} overview",
   "reports_load_error": "Failed to load reports ({message}). The figures on screen have been cleared. Please reload.",
+  "reports_breakdown_load_error": "Failed to load the breakdown ({message}). The other figures are still shown. Please reload.",
   "reports_filed_badge": "🔒 Filed",
   "reports_unlock_button": "Unlock",
   "reports_lock_button": "Lock as filed",

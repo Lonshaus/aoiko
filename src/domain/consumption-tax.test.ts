@@ -13,7 +13,9 @@ import {
   computeTwoWari,
   isFullDeductionEligible,
   processYear,
+  type CompareAllOptions,
 } from './consumption-tax';
+import { loadYearData } from './reports';
 import { D } from '../lib/decimal';
 import type { Account, InputUsageCategory, LineSide, TaxCategory } from '../db/types';
 
@@ -1242,5 +1244,108 @@ describe('簡易課税の兼業（設定区分＋印の付いた行の第四種�
     const r = await computeSimplified(2026, 5);
     // 780,000 × 50% = 390,000
     expect(r.inputTax.national).toBe('390000');
+  });
+});
+
+describe('年度データの共有（yearData 指定と DB 読み込みで結果が同じ）', () => {
+  async function seedSharedFixture(year: number): Promise<void> {
+    await seedAccounts(year);
+    await seedEntry({
+      date: `${year}-02-10`,
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '2200000' },
+        { side: 'credit', accountCode: '4110', amount: '2200000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: `${year}-08-20`,
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: `${year}-03-05`,
+      pairs: [
+        { side: 'debit', accountCode: '5200', amount: '330000', taxRate: 0.1, taxIncluded: true },
+        { side: 'credit', accountCode: '1130', amount: '330000' },
+      ],
+    });
+    await seedEntry({
+      date: `${year}-09-05`,
+      pairs: [
+        { side: 'debit', accountCode: '5200', amount: '9999', taxRate: 0.1, taxIncluded: true },
+        { side: 'credit', accountCode: '1130', amount: '9999' },
+      ],
+    });
+  }
+
+  test('processYear：期間なし・期間あり・smallAmountSpecial あり', async () => {
+    await seedSharedFixture(2026);
+    const yearData = await loadYearData(2026);
+    const period = { start: '2026-01-01', end: '2026-06-30' };
+    const special = { smallAmountSpecial: { basePeriodSales: D('50000000') } };
+    expect(await processYear(2026, undefined, { yearData })).toEqual(await processYear(2026));
+    expect(await processYear(2026, period, { yearData })).toEqual(await processYear(2026, period));
+    expect(await processYear(2026, undefined, { ...special, yearData })).toEqual(
+      await processYear(2026, undefined, special),
+    );
+  });
+
+  test('processYear：仕訳が無い年も同じ', async () => {
+    await seedAccounts(2026);
+    const yearData = await loadYearData(2026);
+    expect(await processYear(2026, undefined, { yearData })).toEqual(await processYear(2026));
+  });
+
+  test('computeSimplified・computeTwoWari・computeThreeWari', async () => {
+    await seedSharedFixture(2026);
+    const yearData = await loadYearData(2026);
+    const period = { start: '2026-01-01', end: '2026-06-30' };
+    const adjustments = { salesReturnTax78: D('1000') };
+    expect(await computeSimplified(2026, 4, undefined, yearData)).toEqual(
+      await computeSimplified(2026, 4),
+    );
+    expect(await computeSimplified(2026, 4, period, yearData)).toEqual(
+      await computeSimplified(2026, 4, period),
+    );
+    expect(await computeTwoWari(2026, undefined, adjustments, yearData)).toEqual(
+      await computeTwoWari(2026, undefined, adjustments),
+    );
+    expect(await computeThreeWari(2026, period, adjustments, yearData)).toEqual(
+      await computeThreeWari(2026, period, adjustments),
+    );
+  });
+
+  test.each([2026, 2027])('compareAll：%i 年は全方式で同じ', async (year) => {
+    await seedSharedFixture(year);
+    const yearData = await loadYearData(year);
+    const expected = await compareAll(year, 4);
+    expect(expected.length).toBeGreaterThanOrEqual(3);
+    expect(await compareAll(year, 4, 'proportional', { yearData })).toEqual(expected);
+  });
+
+  test('compareAll：レポート画面と同じ options 構造で、少額特例が効いた結果も同じ', async () => {
+    await seedSharedFixture(2026);
+    const yearData = await loadYearData(2026);
+    const options: CompareAllOptions = {
+      eligibility: { basePeriodSales: D('10000000') },
+      smallAmountSpecial: { basePeriodSales: D('50000000') },
+      wariAdjustments: { salesReturnTax78: D('1000') },
+      simplifiedElectionFiledDate: '2025-06-01',
+      priorYearMethod: 'general',
+    };
+    const withSpecial = await compareAll(2026, 4, 'proportional', options);
+    const withoutSpecial = await compareAll(2026, 4, 'proportional', {
+      ...options,
+      smallAmountSpecial: {},
+    });
+    expect(withSpecial.map((r) => r.method)).toEqual(['general', 'simplified', 'two-wari']);
+    const generalWith = withSpecial[0]!;
+    const generalWithout = withoutSpecial[0]!;
+    expect(generalWith.inputTax.national).not.toBe(generalWithout.inputTax.national);
+    expect(await compareAll(2026, 4, 'proportional', { ...options, yearData })).toEqual(
+      withSpecial,
+    );
   });
 });

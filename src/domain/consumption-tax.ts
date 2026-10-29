@@ -16,6 +16,7 @@
 import { db } from '../db/db';
 import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import type { YearData } from './reports';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
 import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { Account, JournalLine, TaxFilingMethod } from '../db/types';
@@ -239,6 +240,7 @@ export interface SmallAmountSpecialInputs {
 
 export interface ProcessYearOptions {
   smallAmountSpecial?: SmallAmountSpecialInputs;
+  yearData?: YearData;
 }
 // 附則53条の2：五年施行日から6年を経過する日まで
 const SMALL_AMOUNT_SPECIAL_START = '2023-10-01';
@@ -393,24 +395,29 @@ export async function processYear(
   options: ProcessYearOptions = {},
 ): Promise<ProcessedYearLines> {
   // 控除上限は年単位の累計なので、期間集計でも年間の仕訳から判定する
-  const yearEntries = await db.journalEntries
-    .where('year')
-    .equals(year)
-    .filter((e) => countsTowardTotals(e))
-    .toArray();
+  const yearEntries =
+    options.yearData?.entries ??
+    (await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter((e) => countsTowardTotals(e))
+      .toArray());
   const entries = period
     ? yearEntries.filter((e) => e.date >= period.start && e.date <= period.end)
     : yearEntries;
   if (entries.length === 0) {
     return emptyProcessedYearLines();
   }
-  const yearLines = await db.journalLines
-    .where('entryId')
-    .anyOf(yearEntries.map((e) => e.id))
-    .toArray();
+  const yearLines =
+    options.yearData?.lines ??
+    (await db.journalLines
+      .where('entryId')
+      .anyOf(yearEntries.map((e) => e.id))
+      .toArray());
   const inPeriod = new Set(entries.map((e) => e.id));
   const lines = yearLines.filter((l) => inPeriod.has(l.entryId));
-  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const accounts =
+    options.yearData?.accounts ?? (await db.accounts.where('year').equals(year).toArray());
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryDateMap = new Map(yearEntries.map((e) => [e.id, e.date]));
   const { smallAmountLineIds, capExcess } = classifyNonInvoicePurchases(
@@ -919,8 +926,9 @@ export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory,
   period?: ConsumptionTaxPeriod,
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  const processed = await processYear(year, period);
+  const processed = await processYear(year, period, yearData ? { yearData } : {});
   const {
     output,
     inputRaw,
@@ -1041,9 +1049,10 @@ async function computeWariException(
   inputDeductionRate: string,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
-  const processed = await processYear(year, period);
+  const processed = await processYear(year, period, yearData ? { yearData } : {});
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const salesReturnTax = combinedSalesReturnTax(adjustments);
@@ -1085,15 +1094,17 @@ export function computeTwoWari(
   year: number,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'two-wari', '0.8', period, adjustments);
+  return computeWariException(year, 'two-wari', '0.8', period, adjustments, yearData);
 }
 export function computeThreeWari(
   year: number,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'three-wari', '0.7', period, adjustments);
+  return computeWariException(year, 'three-wari', '0.7', period, adjustments, yearData);
 }
 // 未設定の項目は除外事由なしとして扱う（公開済みの利用者を入力欠落で不適用にしない）
 export interface WariEligibilityInputs {
@@ -1210,6 +1221,7 @@ export interface CompareAllOptions {
   simplifiedElectionFiledDate?: string;
   priorYearMethod?: TaxFilingMethod;
   wariAdjustments?: WariBaseAdjustments;
+  yearData?: YearData;
 }
 // 適用できない方式は提示しない（誤選択させない）。簡易課税は届出日が未入力なら従来どおり常に含める
 export async function compareAll(
@@ -1220,12 +1232,10 @@ export async function compareAll(
 ): Promise<ConsumptionTaxResult[]> {
   const eligibility = options.eligibility ?? {};
   const tasks: Promise<ConsumptionTaxResult>[] = [
-    computeGeneral(
-      year,
-      attributionMethod,
-      undefined,
-      options.smallAmountSpecial ? { smallAmountSpecial: options.smallAmountSpecial } : {},
-    ),
+    computeGeneral(year, attributionMethod, undefined, {
+      ...(options.smallAmountSpecial ? { smallAmountSpecial: options.smallAmountSpecial } : {}),
+      ...(options.yearData ? { yearData: options.yearData } : {}),
+    }),
   ];
   if (
     options.simplifiedElectionFiledDate === undefined ||
@@ -1235,13 +1245,13 @@ export async function compareAll(
       options.priorYearMethod,
     )
   ) {
-    tasks.push(computeSimplified(year, simplifiedCategory));
+    tasks.push(computeSimplified(year, simplifiedCategory, undefined, options.yearData));
   }
   if (isTwoWariEligibleYear(year, eligibility)) {
-    tasks.push(computeTwoWari(year, undefined, options.wariAdjustments ?? {}));
+    tasks.push(computeTwoWari(year, undefined, options.wariAdjustments ?? {}, options.yearData));
   }
   if (isThreeWariEligibleYear(year, eligibility)) {
-    tasks.push(computeThreeWari(year, undefined, options.wariAdjustments ?? {}));
+    tasks.push(computeThreeWari(year, undefined, options.wariAdjustments ?? {}, options.yearData));
   }
   return Promise.all(tasks);
 }

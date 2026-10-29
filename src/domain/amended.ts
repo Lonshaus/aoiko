@@ -1,6 +1,6 @@
 import { db } from '../db/db';
 import { D } from '../lib/decimal';
-import { buildBS, buildPL } from './reports';
+import { buildBS, buildPL, type YearData } from './reports';
 import type { BSData, PLData } from '../db/types';
 
 interface AmendmentBSAccountChange {
@@ -35,7 +35,10 @@ function flattenBS(data: BSData): Map<string, string> {
 // 申告済み年度の filed スナップショットと現在の集計結果を比較し、
 // 訂正仕訳によってどれだけ数値が変わったかを返す。
 // 修正申告（amended return）の提出要否判断・提出用差分把握に使う。
-export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | null> {
+export async function getAmendmentDiff(
+  year: number,
+  data?: YearData,
+): Promise<AmendmentDiff | null> {
   // 当初申告の基準スナップショット。ロック中は 'filed'、ロック解除後（修正申告中）は
   // 'superseded' になっているため、どちらも基準として採用する。複数あれば最新の申告を使う。
   const candidates = await db.reportSnapshots
@@ -51,7 +54,7 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
   }
   const filed = snap.payload.data as PLData;
 
-  const current = await buildPL(year);
+  const current = await buildPL(year, data);
 
   const delta = D(current.netIncome).minus(filed.netIncome);
   const revDelta = D(current.totalRevenue).minus(filed.totalRevenue);
@@ -70,7 +73,7 @@ export async function getAmendmentDiff(year: number): Promise<AmendmentDiff | nu
   let bsChanges: AmendmentBSAccountChange[] | null = null;
   if (bsSnap && bsSnap.payload.type === 'bs') {
     const filedBS = flattenBS(bsSnap.payload.data);
-    const bsReport = await buildBS(year);
+    const bsReport = await buildBS(year, data);
     const currentBS = flattenBS({
       assets: bsReport.assets.map((r) => ({ accountCode: r.accountCode, amount: r.balance })),
       liabilities: bsReport.liabilities.map((r) => ({
