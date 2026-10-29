@@ -325,6 +325,7 @@
   "reports_subtitle": "月別銷貨・損益計算書（依年度）",
   "reports_overview_title": "{year} 年概況",
   "reports_load_error": "報表讀取失敗（{message}）。畫面上的數字已清除，請重新載入。",
+  "reports_breakdown_load_error": "明細彙總讀取失敗（{message}）。其他數字仍照常顯示，請重新載入。",
   "reports_filed_badge": "🔒 已申報",
   "reports_unlock_button": "解除鎖定",
   "reports_lock_button": "標記為已申報並鎖定",

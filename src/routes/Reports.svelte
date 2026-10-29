@@ -155,6 +155,7 @@
   let lockNotice = $state('');
   let lockMethod = $state<ConsumptionTaxResult['method'] | ''>('');
   let reportsError = $state('');
+  let breakdownError = $state('');
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
   let xtxOverflowWarning = $state('');
@@ -674,6 +675,7 @@
       // （見出しの年度だけ進んで数字が古いまま、という誤表示を避ける）。
       error: (e: unknown) => {
         reportsError = describeStorageError(e);
+        breakdownError = '';
         monthly = null;
         pl = null;
         bs = null;
@@ -700,11 +702,11 @@
     // 取引先・補助科目は別テーブルなので、年度データを渡しても liveQuery で購読して変更に追従する
     const sub = liveQuery(() => buildBreakdown(yr, ax, loaded.data)).subscribe({
       next: (v) => {
-        reportsError = '';
+        breakdownError = '';
         breakdown = v;
       },
       error: (e: unknown) => {
-        reportsError = describeStorageError(e);
+        breakdownError = describeStorageError(e);
         breakdown = null;
       },
     });
@@ -1517,7 +1519,7 @@
     </section>
   {/if}
 
-  {#if breakdown && breakdown.groups.length > 0}
+  {#if pl && (breakdownError || (breakdown && breakdown.groups.length > 0))}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_breakdown_title()}</h3>
@@ -1554,34 +1556,42 @@
           </button>
         </div>
       </header>
-      <div class="space-y-4">
-        {#each breakdown.groups as g (g.accountCode)}
-          <div>
-            <header
-              class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
-            >
-              <span
-                ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
-                >{g.accountName}</span
+      {#if breakdownError}
+        <div
+          class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+        >
+          {m.reports_breakdown_load_error({ message: breakdownError })}
+        </div>
+      {:else if breakdown}
+        <div class="space-y-4">
+          {#each breakdown.groups as g (g.accountCode)}
+            <div>
+              <header
+                class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
               >
-              <span class="tabular-nums">{formatJPY(g.total)}</span>
-            </header>
-            <ul class="space-y-0.5 text-sm pl-4">
-              {#each g.entries as e (e.key)}
-                <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
-                  <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                  <span class="text-xs text-muted-foreground tabular-nums"
-                    >{m.reports_breakdown_count({ n: e.count })}</span
-                  >
-                  <span class="tabular-nums whitespace-nowrap w-28 text-right"
-                    >{formatJPY(e.amount)}</span
-                  >
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/each}
-      </div>
+                <span
+                  ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
+                  >{g.accountName}</span
+                >
+                <span class="tabular-nums">{formatJPY(g.total)}</span>
+              </header>
+              <ul class="space-y-0.5 text-sm pl-4">
+                {#each g.entries as e (e.key)}
+                  <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
+                    <span class:text-muted-foreground={!e.key}>{e.label}</span>
+                    <span class="text-xs text-muted-foreground tabular-nums"
+                      >{m.reports_breakdown_count({ n: e.count })}</span
+                    >
+                    <span class="tabular-nums whitespace-nowrap w-28 text-right"
+                      >{formatJPY(e.amount)}</span
+                    >
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
