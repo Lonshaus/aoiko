@@ -604,9 +604,10 @@
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
       const reports = await buildAll(yr, ax);
       const processed = await processYear(yr);
-      const inventory = ledger.inventoryAutoValuationEnabled
-        ? await computeInventoryValuation(`${yr}-12-31`)
-        : null;
+      const inventory =
+        (await getSetting('inventoryAutoValuationEnabled')) !== false
+          ? await computeInventoryValuation(`${yr}-12-31`)
+          : null;
       const budget = await computeBudgetVsActual(yr);
       const yearAccounts = await db.accounts.where({ year: yr }).toArray();
       const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
