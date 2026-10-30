@@ -16,7 +16,7 @@ describe('paypayParser', () => {
     expect(r).toHaveLength(3);
     expect(r[0]).toMatchObject({
       date: '2026-03-28',
-      description: '飲食店チェーン - 吉祥寺店',
+      description: '飲食店チェーン - みどり町店',
       amount: '9500',
       side: 'credit',
       memo: 'クレジット VISA 0000',
