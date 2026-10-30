@@ -71,7 +71,7 @@
   "disclaimer_prototype_subtitle": "用於實際申報所產生之結果，使用者自行負責。",
   "disclaimer_bullet_accuracy_html": "輸出之數字與 <code>.xtx</code> 檔案的<strong>正確性不予保證</strong>。最終的數字請向<strong>稅理士・稅務署</strong>確認。",
   "disclaimer_bullet_tax_law_html": "稅法與帳簿要件<strong>每年度修訂</strong>。目前年度的稅法資料是否符合最新國稅廳公告，由使用者自行確認。",
-  "disclaimer_bullet_xtx_html": "<code>.xtx</code> 輸出涵蓋決算書、確定申告書（事業所得・青色控除；「所得控除」畫面有輸入時含所得控除・稅額）與消費稅申告書（本則課稅・2 割特例・簡易課稅〔所設定的事業區分＋固定資產出售〕）。<strong>實際申報前請務必用 e-Tax 軟體（下載版）組み込み並確認內容</strong>。未輸入的所得控除與稅額請在 e-Tax 上補填。不保證正確性。",
+  "disclaimer_bullet_xtx_html": "<code>.xtx</code> 輸出涵蓋決算書、確定申告書（事業所得・青色控除；「所得控除」畫面有輸入時含所得控除・稅額）與消費稅申告書（本則課稅・2 割特例・簡易課稅〔所設定的事業區分＋固定資產出售〕）。<strong>實際申報前請務必用 e-Tax 軟體（下載版）匯入並確認內容</strong>。未輸入的所得控除與稅額請在 e-Tax 上補填。不保證正確性。",
   "disclaimer_bullet_llm_html": "使用生成式 AI 分類・OCR・訂單匯入時，CSV 匯入中未分類的列（摘要・金額）・收據照片・貼上的訂單頁完整文字（可能含收件人姓名・地址等）會送出到<strong>所選的引擎</strong>：Google Gemini 是雲端；OpenAI 相容是你指定的主機（指定 localhost 時不會離開本機）。Tesseract 在裝置內處理，不會產生送出。瀏覽器內建的 AI，aoiko 這邊不會送出任何資料，但推論是在裝置內還是在外部服務進行，由瀏覽器的實作決定，所以 aoiko 無法保證內容不會離開裝置。請於送出敏感資訊前確認。",
   "disclaimer_bullet_llm_html_native": "使用生成式 AI 分類・OCR・訂單匯入時，CSV 匯入中未分類的列（摘要・金額）・收據照片・貼上的訂單頁完整文字（可能含收件人姓名・地址等）會送出到<strong>所選的引擎</strong>：Google Gemini 是雲端；OpenAI 相容是你指定的主機（指定 localhost 時不會離開本機）。Tesseract、作業系統內建的文字辨識這類在裝置內完成的引擎，不會產生任何送出。請於送出敏感資訊前確認。",
   "disclaimer_bullet_storage_html": "資料儲存於<strong>瀏覽器 IndexedDB</strong>。清除瀏覽器快取會遺失，備份請使用者自行負責。",
