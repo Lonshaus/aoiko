@@ -16,25 +16,27 @@ interface PendingFiledYearWarning {
 
 class FiledYearGuard {
   pending = $state<PendingFiledYearWarning | null>(null);
-  // years のうち申告済みのものがあれば確認を出し、続行してよいかを返す。
-  // 申告済みが無ければダイアログを出さずに true。
+  // years のうち申告済みのものがあれば確認を出す。続行なら確認した時点で申告済みだった年度
+  // （無ければ空配列）、取消なら null を返す。戻り値は書き込みの門へ渡す、通してよい年度。
   async confirm(
     years: Iterable<number>,
     options?: { detail?: string; suppressible?: boolean },
-  ): Promise<boolean> {
+  ): Promise<readonly number[] | null> {
     const locked = await lockedYearsAmong(years);
     if (locked.length === 0) {
-      return true;
+      return locked;
     }
     if (options?.suppressible && (await getSetting('skipFiledYearWarning'))) {
-      return true;
+      return locked;
     }
-    return new Promise<boolean>((resolve) => {
+    return new Promise<readonly number[] | null>((resolve) => {
       this.pending = {
         years: locked,
         detail: options?.detail ?? null,
         suppressible: options?.suppressible ?? false,
-        resolve,
+        resolve: (proceed) => {
+          resolve(proceed ? locked : null);
+        },
       };
     });
   }

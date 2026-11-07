@@ -25,13 +25,22 @@ import { describeStorageError } from '../lib/storage-error';
 import { daysSince, needsOffsiteBackupWarning } from '../backup/schedule';
 import { todayISO } from '../lib/date';
 import { saveFile } from '../lib/save-file';
+import { normalizeAutoBackupParts, type BackupPartId } from '../backup/parts';
+// 証憑写真を含めないときに実体の代わりに渡す。
+async function* noAttachments<T>(): AsyncGenerator<T> {}
 
-async function backupZipStream(options: {
-  includeApiKeys: boolean;
-  includeFilerInfo: boolean;
-}): Promise<ReadableStream<Uint8Array>> {
-  const payload = await buildPayload(options);
-  return buildBackupZipStream(payload, iterateAttachmentBlobs());
+async function autoBackupParts(): Promise<ReadonlySet<BackupPartId>> {
+  return new Set(normalizeAutoBackupParts(await getSetting('backupParts')));
+}
+
+async function backupZipStream(
+  parts: ReadonlySet<BackupPartId>,
+): Promise<ReadableStream<Uint8Array>> {
+  const payload = await buildPayload({ parts });
+  return buildBackupZipStream(
+    payload,
+    parts.has('attachments') ? iterateAttachmentBlobs() : noAttachments(),
+  );
 }
 
 type BackupAdapterKind = 'native' | 'fsa' | 'opfs' | 'none';
@@ -384,12 +393,15 @@ class BackupManager {
       this.backupPending = false;
       this.status = 'writing';
       try {
-        const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-        const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+        const parts = await autoBackupParts();
         // zip を作り直さず、変わった分だけ書く。証憑写真は中身が同じなら 1 つしか置かない
         // ので、写真が増えても毎回の同期量は帳簿本体＋新しい写真だけで済む（#397）。
-        const payload = await buildPayload({ includeApiKeys, includeFilerInfo });
-        await writeLooseBackup(this.adapter, payload, iterateAttachmentSources());
+        const payload = await buildPayload({ parts });
+        await writeLooseBackup(
+          this.adapter,
+          payload,
+          parts.has('attachments') ? iterateAttachmentSources() : noAttachments(),
+        );
         this.lastBackupAt = Date.now();
         await setSetting('lastBackupAt', this.lastBackupAt);
         this.lastError = '';
@@ -421,8 +433,13 @@ class BackupManager {
   // 戻り値は「利用者に保存できたか確かめる必要があるか」。true のときだけ呼出側は
   // 確認ダイアログを出し、答えが来たら confirmDownloadSaved() を呼ぶ。それ以外の結果
   // （成功・取消・失敗）は lastDownloadAt / lastError に既に反映されている。
-  async downloadBackup(): Promise<boolean> {
+  //
+  // parts を省略すると自動バックアップと同じ区分。帳簿データを含まないファイルは
+  // 「端末外のバックアップが無い」警告を消す理由にならないので、時刻を刻まず確認もしない。
+  async downloadBackup(parts?: ReadonlySet<BackupPartId>): Promise<boolean> {
     this.lastError = '';
+    // 自動バックアップの区分は常に帳簿データを含む。
+    const countsAsOffsite = parts === undefined || parts.has('books');
     // 「保存できたか聞くべきか」はダウンロードを押した時点の警告表示状態で決める。
     // 刻んだ後に判定すると、既に刻んだ時刻のせいで warning が偽になってしまう。
     const daysSinceDownload = daysSince(this.lastDownloadAt);
@@ -435,18 +452,14 @@ class BackupManager {
       // zip の組み立ては saveFile が保存先を確定させた後に走らせる。先にやると
       // showSaveFilePicker の利用者操作の有効時間が切れる（issue#386）。
       const result = await saveFile(
-        async () => {
-          const includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-          const includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
-          return backupZipStream({ includeApiKeys, includeFilerInfo });
-        },
+        async () => backupZipStream(parts ?? (await autoBackupParts())),
         `aoiko-ledger-${todayISO()}.zip`,
         'application/zip',
         { confirmCompletion: true },
       );
       // 取り消した場合に時刻を刻むと、書き出されていないバックアップのために
       // 「端末外バックアップがありません」の警告が抑止されてしまう。
-      if (result === 'cancelled') {
+      if (result === 'cancelled' || !countsAsOffsite) {
         return false;
       }
       if (result === 'saved') {

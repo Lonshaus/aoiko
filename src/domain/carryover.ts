@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { D, type Decimal, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
@@ -39,7 +40,7 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
     .equals(priorYear)
     .filter(countsTowardTotals)
     .toArray();
-  const accounts = await db.accounts.where('year').equals(priorYear).toArray();
+  const accounts = await loadAccountsForYear(priorYear);
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
   if (entries.length === 0) {
@@ -140,7 +141,7 @@ export async function computeCarryover(year: number): Promise<CarryoverPreview> 
 // 同年度内に既存の carryover 仕訳がある場合はエラー（先に削除する想定）。
 export async function applyCarryover(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ entryId: string } | { reason: 'already-exists' | 'empty' }> {
   await assertYearsWritable([year], options);
   const preview = await computeCarryover(year);
@@ -216,7 +217,7 @@ export async function applyCarryover(
     '前期繰越（元入金）',
   );
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+  await db.transaction('rw', db.journalEntries, db.journalLines, db.reportSnapshots, async () => {
     markConfirmedWrite(options);
     await db.journalEntries.add(entry);
     await db.journalLines.bulkAdd(lines);
@@ -246,7 +247,7 @@ export async function detectStaleCarryover(year: number): Promise<StaleCarryover
   }
 
   const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
-  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const accounts = await loadAccountsForYear(year);
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
   const carried = new Map<string, Decimal>();
@@ -292,7 +293,7 @@ export async function detectStaleCarryover(year: number): Promise<StaleCarryover
 // 打消し仕訳は原仕訳と同じ期首日に記帳する。年をまたぐと繰越の対象年度が変わってしまうため。
 export async function removeCarryover(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ removed: boolean }> {
   await assertYearsWritable([year], options);
   const existing = await db.journalEntries
@@ -307,7 +308,7 @@ export async function removeCarryover(
     return { removed: false };
   }
   const now = Date.now();
-  await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+  await db.transaction('rw', db.journalEntries, db.journalLines, db.reportSnapshots, async () => {
     markConfirmedWrite(options);
     for (const orig of existing) {
       const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();

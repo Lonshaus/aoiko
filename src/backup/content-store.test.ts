@@ -159,6 +159,39 @@ describe('parseSnapshot', () => {
   });
 });
 
+describe('スナップショットの parts', () => {
+  test('payload の parts を保存し、読み戻せる', () => {
+    const payload: BackupPayload = {
+      version: 2,
+      exportedAt: '2026-08-09T12:00:00.000Z',
+      parts: ['books', 'business'],
+      tables: { journalEntries: [] },
+    };
+    const snapshot = buildSnapshot(payload, []);
+    expect(snapshot.parts).toEqual(['books', 'business']);
+    expect(parseSnapshot(JSON.stringify(snapshot))?.parts).toEqual(['books', 'business']);
+  });
+
+  test('parts の無い payload からは parts の欄を作らない', () => {
+    const snapshot = buildSnapshot(
+      { version: 1, exportedAt: '2026-08-09T12:00:00.000Z', tables: {} },
+      [],
+    );
+    expect(Object.hasOwn(snapshot, 'parts')).toBe(false);
+  });
+
+  test('parts の無い旧スナップショットはそのまま読め、parts の欄を持たない', () => {
+    const snapshot = parseSnapshot(validSnapshotJson());
+    expect(snapshot).not.toBeNull();
+    expect(Object.hasOwn(snapshot!, 'parts')).toBe(false);
+  });
+
+  test('parts が配列でなくても読み、値はそのまま運ぶ（確かめるのは復元側）', () => {
+    const json = JSON.stringify({ ...JSON.parse(validSnapshotJson()), parts: 'x' });
+    expect(parseSnapshot(json)?.parts).toBe('x');
+  });
+});
+
 describe('missingBlobs', () => {
   const snapshot: Snapshot = {
     format: SNAPSHOT_FORMAT,

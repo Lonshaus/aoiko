@@ -21,18 +21,16 @@ export { FiledYearError } from '../db/filed-year-guard';
  * 申告済み年度への書き込みを止める。書き込む処理の入口で、トランザクションを
  * 開く前に呼ぶ（reportSnapshots を読むため、書込トランザクションの中からは引けない）。
  *
- * 画面側の確認ダイアログを通ったときだけ allowFiledYear で開ける。画面の確認は
+ * 開けるのは、画面側の確認ダイアログで利用者が見た年度（allowedFiledYears）だけ。画面の確認は
  * 案内であって防壁ではない。画面を経ない経路（復元後の再実行、将来増える入口）から
  * 申告済みの年度が書き換わると、電子帳簿保存法上まずいうえに気付く手段が無い。
  */
 export async function assertYearsWritable(
   years: Iterable<number>,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<void> {
-  if (options?.allowFiledYear === true) {
-    return;
-  }
-  const locked = await lockedYearsAmong(years);
+  const allowed = new Set(options?.allowedFiledYears ?? []);
+  const locked = (await lockedYearsAmong(years)).filter((year) => !allowed.has(year));
   if (locked.length > 0) {
     throw new FiledYearError(locked);
   }
@@ -41,10 +39,8 @@ export async function assertYearsWritable(
  * 画面の確認を通った書き込みであることを、今の取引に記録する。取引の中から呼ぶ。
  *
  * assertYearsWritable は取引の外で判定するので、通したことが書き込み自体には残らない。
- * 書き込みの通り道に置いた門（db/filed-year-guard.ts）はこの印だけを見る。
+ * 書き込みの通り道に置いた門（db/filed-year-guard.ts）は、印の付いた年度だけを通す。
  */
-export function markConfirmedWrite(options?: { allowFiledYear?: boolean }): void {
-  if (options?.allowFiledYear === true) {
-    allowFiledYearWriteInThisTransaction();
-  }
+export function markConfirmedWrite(options?: { allowedFiledYears?: readonly number[] }): void {
+  allowFiledYearWriteInThisTransaction(options?.allowedFiledYears ?? []);
 }

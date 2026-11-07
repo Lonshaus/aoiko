@@ -9,7 +9,7 @@ describe('金額欄の入力の読み取り', () => {
     ['5,000', '5000'],
     [' 5000 ', '5000'],
     ['　5000　', '5000'],
-    ['1234.5', '1234.5'],
+    ['1234.0', '1234'],
     ['０', '0'],
   ])('%j は %s として読む', (raw, expected) => {
     expect(parseAmountInput(raw)?.toString()).toBe(expected);
@@ -20,6 +20,15 @@ describe('金額欄の入力の読み取り', () => {
     '%j は金額として読まず、入力の誤りとして扱う',
     (raw) => {
       expect(parseAmountInput(raw)).toBeUndefined();
+      expect(isAmountInputInvalid(raw)).toBe(true);
+    },
+  );
+
+  test.each(['1234.5', '0.5', '1,234.5', '１２３４．５'])(
+    '%j は小数として読めるが、円単位の金額欄では入力の誤りとして扱う',
+    (raw) => {
+      expect(parseAmountInput(raw)).toBeDefined();
+      expect(parseAmountInput(raw)?.isInteger()).toBe(false);
       expect(isAmountInputInvalid(raw)).toBe(true);
     },
   );

@@ -76,7 +76,7 @@ export async function computeBadDebtReversal(year: number): Promise<BadDebtRever
 
 export async function applyBadDebtReversal(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ entryId: string; total: string } | { reason: 'already-exists' | 'empty' }> {
   await assertYearsWritable([year], options);
   const preview = await computeBadDebtReversal(year);
@@ -87,7 +87,7 @@ export async function applyBadDebtReversal(
   const entryId = newId();
   let alreadyExists = false;
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+  await db.transaction('rw', db.journalEntries, db.journalLines, db.reportSnapshots, async () => {
     markConfirmedWrite(options);
     // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
     const existing = await db.journalEntries

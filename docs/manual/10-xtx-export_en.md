@@ -67,6 +67,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | **Consumption tax return** (the 30% special provision, and simplified taxation for a filer who actually runs multiple business categories) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and simplified taxation have `.xtx` export: [§ 5](#5-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption tax](07-consumption-tax_en.md)) |
 | **Basis for the allowance for doubtful accounts (lump-sum valuation)** ("total receivables" and "deductible limit" on page 2 of the financial statement) | Enter in e-Tax (aoiko does not track per-debtor receivable balances, so both boxes are output blank; the addition itself is still output) |
 | **Schedule of allowance for doubtful accounts (individual valuation)** | Prepare in e-Tax (it needs the statutory ground and the expected recoverable amounts, which aoiko does not hold, so aoiko does not generate it) |
+| **Detail rows that did not fit the form's fields** (depreciation schedule, real estate income breakdown, payees of rent, loan interest and professional fees, family employees) | Rows beyond the number of rows the form provides are not written to the `.xtx`. After the export, the same screen lists them, so add those rows in e-Tax |
 
 > **White return family employee deduction**: under Income Tax Act Art. 57(3), the deduction is the **lower** of (¥860,000 for a spouse / ¥500,000 for another relative, flat) and (pre-deduction business income etc. ÷ (number of family employees + 1)). aoiko computes this amount and outputs it on the tax return, satisfying the Art. 57(5) statement requirement. The family employee's name, relationship, and months worked are output on the second table (up to two people; the My Number and date of birth are not output, so add them in e-Tax). When the home-worker special provision (Special Taxation Measures Act Art. 27) applies, blue-return family employee salary and the white return family employee deduction are already included in the special-provision expenses, so they are not subtracted again on the business-income side — the deduction/salary field there is output as ¥0 (the NTA's position isn't published, so aoiko follows this reading of Income Tax Act Art. 57(1) (blue-return family employee salary included in necessary expenses) and Art. 57(3) (white return deduction "deemed a necessary expense")). In this case too, the family employee's name, relationship, and months worked are recorded on the second table, and this does not affect the deduction on the business-scale real estate income side.
 >
@@ -86,6 +87,9 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 6. **Depreciation entries** generated at year end ([08. § 3](08-depreciation_en.md#3-year-end-depreciation-entry-generation))
 7. For blue return, Reports > Balance sheet shows **assets = liabilities + equity** (no imbalance warning). White return's breakdown statement has no balance sheet, so this check doesn't apply
 8. If there's real estate income, the real estate income section in [14. Income & tax deductions](14-income-deductions_en.md) is filled in and saved (export is refused otherwise — this figure determines the cap on the blue-return special deduction, so aoiko never outputs a guessed amount in its absence)
+9. The amounts on the Deductions screen and in the fixed assets (real estate) in Settings are whole numbers of yen (the `.xtx` cannot be exported if an amount cannot be read or has a decimal part; correct it to a whole number of yen and save. Fixed assets (real estate) count only when real estate income is enabled in Settings)
+10. When real estate income is enabled, no property detail of the fixed assets (real estate) in Settings has an item that cannot be read as text (the `.xtx` cannot be exported otherwise; open the property detail, check it, and save)
+11. For a blue return, no balance sheet account is left over from the additional-account fields (accounts without a field on the form, such as accumulated depreciation or your own custom accounts, go into the additional-account fields, with a limit of 7 asset accounts and 14 liability and equity accounts. Beyond that the `.xtx` cannot be exported, and the accounts that don't fit are listed)
 
 ### 3-2. File name
 
@@ -145,7 +149,7 @@ Separately from income tax, install the **consumption tax year module** first, t
 | An error saying the file cannot be loaded | Filer info not entered, or loaded into the wrong year module |
 | Wrong file format | A non-`.xtx` file was loaded |
 | Form mismatch | aoiko's built-in form definitions (generated from the XSD) are out of date for the current year |
-| Wrong digit/format | Negative or non-integer amounts; review journal entries |
+| Wrong digit/format | Negative amounts, etc.; review journal entries |
 
 ## 7. Next steps
 

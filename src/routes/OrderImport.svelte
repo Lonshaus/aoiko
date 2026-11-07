@@ -17,6 +17,7 @@
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
+  import { escapeHtml } from '../lib/html-escape';
   import { m } from '../paraglide/messages';
   import ScrollX from '../components/ScrollX.svelte';
   // 全選択・コピーの修飾キーは環境で違うため、userAgent で出し分ける。
@@ -253,26 +254,31 @@
           : data.vendor
         : m.order_default_description();
 
-      if (
-        !(await filedYearGuard.confirm([Number(data.date.slice(0, 4))], { suppressible: true }))
-      ) {
+      const consent = await filedYearGuard.confirm([Number(data.date.slice(0, 4))], {
+        suppressible: true,
+      });
+      if (!consent) {
         return;
       }
 
-      await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
-        allowFiledYearWriteInThisTransaction();
-        await db.journalEntries.add({
-          id: entryId,
-          date: data.date,
-          year: Number(data.date.slice(0, 4)),
-          description,
-          status: 'confirmed',
-          source: 'paste',
-          createdAt: now,
-          confirmedAt: now,
-        });
-        await db.journalLines.bulkAdd(lines);
-      });
+      await db.transaction(
+        'rw',
+        [db.journalEntries, db.journalLines, db.reportSnapshots],
+        async () => {
+          allowFiledYearWriteInThisTransaction(consent);
+          await db.journalEntries.add({
+            id: entryId,
+            date: data.date,
+            year: Number(data.date.slice(0, 4)),
+            description,
+            status: 'confirmed',
+            source: 'paste',
+            createdAt: now,
+            confirmedAt: now,
+          });
+          await db.journalLines.bulkAdd(lines);
+        },
+      );
 
       success = m.order_success({
         name: description,
@@ -535,7 +541,7 @@
 <ConfirmDialog
   open={confirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(pending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}

@@ -2,7 +2,7 @@
   import { liveQuery } from 'dexie';
   import { SvelteSet } from 'svelte/reactivity';
   import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
-  import { D, formatJPY } from '../lib/decimal';
+  import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
   import {
@@ -30,6 +30,7 @@
     getConsumptionTaxSnapshot,
     isYearLocked,
     markYearFiled,
+    runFilingTransaction,
     unlockYear,
   } from '../domain/snapshots';
   import { arApDisplayDescription } from '../domain/ar-ap-description';
@@ -39,6 +40,7 @@
   import {
     addArApEntry,
     forecastCashFlow,
+    isPaymentAmountInvalid,
     recordPayment,
     remainingBalance,
     type CashFlowForecast,
@@ -50,8 +52,15 @@
     personalDeductionsToCtx,
     RealEstateIncomeInputMissingError,
     xtxAdditionalExpenseOverflow,
+    xtxDetailOverflow,
     type FilingType,
+    type XtxDetailOverflowItem,
   } from '../tax-schema/2026/xtx';
+  import { BsExtraAccountOverflowError } from '../tax-schema/2026/xtx-mapping-koa210';
+  import {
+    hasInvalidXtxAmounts,
+    hasInvalidXtxPropertyText,
+  } from '../tax-schema/2026/xtx-amount-check';
   import {
     getSetting,
     setSetting,
@@ -88,6 +97,7 @@
     Vendor,
   } from '../db/types';
   import { db } from '../db/db';
+  import { loadAccountsForYear } from '../db/year-accounts';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
   import type { AmendmentChecklistKey } from '../domain/amended';
@@ -153,6 +163,7 @@
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
   let xtxOverflowWarning = $state('');
+  let xtxDetailOverflowWarning = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
   // 無ければ利用者が手入力する（値を作らない——監査履歴を不変に保つため）
@@ -313,7 +324,24 @@
   }
 
   function isPaymentInvalid(id: string): boolean {
-    return isNumberInputInvalid(paymentDrafts[id] ?? '', paymentBadInput[id] === true);
+    if (paymentBadInput[id] === true) {
+      return true;
+    }
+    const draft = paymentDrafts[id] ?? '';
+    const entry = arApEntries.find((e) => e.id === id);
+    return (
+      normalizeAmountInput(draft) !== '' &&
+      entry !== undefined &&
+      isPaymentAmountInvalid(draft, entry)
+    );
+  }
+  // formatJPY は整数に丸めるため、小数の残高は Decimal の文字列のまま表示する
+  function formatRemaining(remaining: Decimal): string {
+    if (remaining.isInteger()) {
+      return formatJPY(remaining.toString());
+    }
+    const [intPart = '0', fracPart = ''] = remaining.abs().toFixed().split('.');
+    return `${remaining.isNegative() ? '-' : ''}${formatJPY(intPart)}.${fracPart}`;
   }
 
   async function submitPayment(id: string) {
@@ -608,7 +636,7 @@
         ? await computeInventoryValuation(`${yr}-12-31`)
         : null;
       const budget = await computeBudgetVsActual(yr);
-      const yearAccounts = await db.accounts.where({ year: yr }).toArray();
+      const yearAccounts = await loadAccountsForYear(yr);
       const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
       const salesRatio = computeTaxableSalesRatio(
         processed.taxableBase10,
@@ -734,7 +762,10 @@
     }
     try {
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const results = await compareAll(yr, cat, attributionMethod, compareOptions);
+      const results = await compareAll(yr, cat, attributionMethod, {
+        ...compareOptions,
+        sequential: true,
+      });
       const method = chosen || bestMethod(results);
       const picked = results.find((r) => r.method === method);
       if (!picked) {
@@ -756,67 +787,71 @@
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
     // 対象年度をその場再計算してロックする（消費税側の processYear 方式と統一）
     const lockYearTarget = year;
-    const { monthly, pl, bs } = await buildAll(lockYearTarget, breakdownAxis);
-    // 裸で return すると確認ダイアログだけ閉じて、バッジもエラーも出ないまま
-    // 利用者はロックされたと思い込む。
-    if (!monthly || !pl) {
-      lockError = m.reports_no_data_for_year({ year: lockYearTarget });
-      return;
-    }
-    const consumptionTaxPayload = await buildConsumptionTaxPayload(lockYearTarget, lockMethod);
     try {
-      await markYearFiled(
-        lockYearTarget,
-        {
-          monthlySales: {
-            type: 'monthly-sales',
-            data: {
-              months: monthly.months.map((m) => ({
-                month: m.month,
-                sales: m.sales,
-              })),
+      const outcome = await runFilingTransaction(async () => {
+        const { monthly, pl, bs } = await buildAll(lockYearTarget, 'department');
+        // 裸で return すると確認ダイアログだけ閉じて、バッジもエラーも出ないまま
+        // 利用者はロックされたと思い込む。
+        if (!monthly || !pl) {
+          return 'no-data' as const;
+        }
+        const consumptionTaxPayload = await buildConsumptionTaxPayload(lockYearTarget, lockMethod);
+        await markYearFiled(
+          lockYearTarget,
+          {
+            monthlySales: {
+              type: 'monthly-sales',
+              data: {
+                months: monthly.months.map((m) => ({
+                  month: m.month,
+                  sales: m.sales,
+                })),
+              },
             },
-          },
-          pl: {
-            type: 'pl',
-            data: {
-              rows: [...pl.revenue, ...pl.expense].map((r) => ({
-                accountCode: r.accountCode,
-                amount: r.amount,
-              })),
-              totalRevenue: pl.totalRevenue,
-              totalExpense: pl.totalExpense,
-              netIncome: pl.netIncome,
+            pl: {
+              type: 'pl',
+              data: {
+                rows: [...pl.revenue, ...pl.expense].map((r) => ({
+                  accountCode: r.accountCode,
+                  amount: r.amount,
+                })),
+                totalRevenue: pl.totalRevenue,
+                totalExpense: pl.totalExpense,
+                netIncome: pl.netIncome,
+              },
             },
-          },
-          ...(bs
-            ? {
-                bs: {
-                  type: 'bs' as const,
-                  data: {
-                    assets: bs.assets.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
-                    liabilities: bs.liabilities.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
-                    equity: bs.equity.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
+            ...(bs
+              ? {
+                  bs: {
+                    type: 'bs' as const,
+                    data: {
+                      assets: bs.assets.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                      liabilities: bs.liabilities.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                      equity: bs.equity.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                    },
                   },
-                },
-              }
-            : {}),
-          ...(consumptionTaxPayload !== null && consumptionTaxPayload !== 'failed'
-            ? { consumptionTax: consumptionTaxPayload }
-            : {}),
-        },
-        `${lockYearTarget}-12-31`,
-      );
-      if (consumptionTaxPayload === 'failed') {
+                }
+              : {}),
+            ...(consumptionTaxPayload !== null && consumptionTaxPayload !== 'failed'
+              ? { consumptionTax: consumptionTaxPayload }
+              : {}),
+          },
+          `${lockYearTarget}-12-31`,
+        );
+        return consumptionTaxPayload === 'failed' ? ('ct-failed' as const) : ('ok' as const);
+      });
+      if (outcome === 'no-data') {
+        lockError = m.reports_no_data_for_year({ year: lockYearTarget });
+      } else if (outcome === 'ct-failed') {
         lockNotice = m.reports_lock_ct_not_saved();
       }
     } catch (e) {
@@ -848,6 +883,19 @@
     const missing = !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
     return { filer, missing };
   }
+  const DETAIL_OVERFLOW_SECTION_LABEL = {
+    depreciation: () => m.reports_xtx_detail_overflow_depreciation(),
+    realEstateProperty: () => m.reports_xtx_detail_overflow_real_estate_property(),
+    rentPaid: () => m.reports_xtx_detail_overflow_rent_paid(),
+    loanInterestPaid: () => m.reports_xtx_detail_overflow_loan_interest_paid(),
+    professionalFee: () => m.reports_xtx_detail_overflow_professional_fee(),
+    familyEmployee: () => m.reports_xtx_detail_overflow_family_employee(),
+  } satisfies Record<XtxDetailOverflowItem['section'], () => string>;
+  function detailOverflowText(item: XtxDetailOverflowItem): string {
+    const amount = formatJPY(item.amount);
+    const subject = item.label === '' ? amount : `${item.label}（${amount}）`;
+    return `${item.formId} ${DETAIL_OVERFLOW_SECTION_LABEL[item.section]()}：${subject}`;
+  }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
   // 令和7年分（NENBUN=7）で行う。.xtx のファイル構造は年分に依存しない（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
@@ -858,21 +906,25 @@
     if (!monthly || !pl || !bs) {
       lockError = m.reports_no_data_for_year({ year: filingYear });
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     if (filingYear !== 2026) {
       lockError = m.reports_xtx_unsupported_year({ year: filingYear });
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     const { filer, missing } = await loadFiler();
     if (missing) {
       lockError = m.reports_xtx_filer_incomplete();
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     lockError = '';
     xtxOverflowWarning = '';
+    xtxDetailOverflowWarning = '';
     const businessName = (await getSetting('userBusinessName')) ?? '';
     const invoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
@@ -881,6 +933,18 @@
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : filingYear;
     const storedDeductions = await db.personalDeductions.get(filingYear);
+    if (hasInvalidXtxAmounts(storedDeductions, fixedAssets, ledger.realEstateIncomeEnabled)) {
+      lockError = m.reports_xtx_amount_invalid();
+      xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
+      return;
+    }
+    if (hasInvalidXtxPropertyText(fixedAssets, ledger.realEstateIncomeEnabled)) {
+      lockError = m.reports_xtx_property_text_invalid();
+      xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
+      return;
+    }
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
@@ -913,12 +977,26 @@
         lockError = m.reports_xtx_real_estate_input_missing();
         return;
       }
+      if (e instanceof BsExtraAccountOverflowError) {
+        lockError = m.reports_xtx_bs_extra_overflow({
+          list: e.accountNames.join('、'),
+          assetMax: e.assetMax,
+          liabilityEquityMax: e.liabilityEquityMax,
+        });
+        return;
+      }
       throw e;
     }
     const overflow = xtxAdditionalExpenseOverflow(xtxCtx);
     if (overflow.length > 0) {
       xtxOverflowWarning = m.reports_xtx_additional_expense_overflow({
         list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
+      });
+    }
+    const detailOverflow = xtxDetailOverflow(xtxCtx);
+    if (detailOverflow.length > 0) {
+      xtxDetailOverflowWarning = m.reports_xtx_detail_overflow({
+        list: detailOverflow.map(detailOverflowText).join('、'),
       });
     }
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
@@ -933,7 +1011,12 @@
       consumptionTaxXtxError = m.reports_consumption_tax_xtx_unsupported_year({ year });
       return;
     }
-    if (interimPaidInvalid) {
+    if (
+      interimPaidInvalid ||
+      isAmountInputInvalid(wariSalesReturnTax78Input) ||
+      isAmountInputInvalid(wariSalesReturnTax624Input) ||
+      wariSpecifiedSmallAssetTransfers.some((t) => isAmountInputInvalid(t.netTax))
+    ) {
       consumptionTaxXtxError = m.common_amount_invalid();
       return;
     }
@@ -1913,7 +1996,7 @@
                 <td class="px-3 py-1">{arApDisplayDescription(e, arApVendorsById)}</td>
                 <td class="px-3 py-1 tabular-nums whitespace-nowrap">{e.dueDate}</td>
                 <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
-                <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining.toString())}</td>
+                <td class="px-3 py-1 text-right tabular-nums">{formatRemaining(remaining)}</td>
                 <td class="px-3 py-1">
                   {#if remaining.isPositive()}
                     <div class="flex gap-1 print:hidden">
@@ -2539,6 +2622,11 @@
       {#if xtxOverflowWarning}
         <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
           {xtxOverflowWarning}
+        </div>
+      {/if}
+      {#if xtxDetailOverflowWarning}
+        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+          {xtxDetailOverflowWarning}
         </div>
       {/if}
     </section>

@@ -1,4 +1,5 @@
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from './journal';
 import type { Account, AccountCategory, IncomeType, JournalEntry, JournalLine } from '../db/types';
@@ -223,7 +224,7 @@ async function loadYearData(year: number): Promise<YearData> {
     .where('entryId')
     .anyOf(entries.map((e) => e.id))
     .toArray();
-  const accounts = await db.accounts.where({ year }).toArray();
+  const accounts = await loadAccountsForYear(year);
   return { entries, lines, accounts };
 }
 

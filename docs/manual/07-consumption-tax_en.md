@@ -87,7 +87,7 @@ Navigation **"Reports"** > **"Consumption tax"** section. The year's actuals are
 |---|---|
 | Filing method | General and simplified taxation, plus the special provision that applies to the year (simplified shows the registered category) |
 | Output tax | Tax on taxable sales (4xxx accounts) for the year, plus the tax on journal lines carrying a taxable-transfer marker (e.g. a fixed-asset sale), whatever their account — including asset-account and `事業主借` (Owner's contributions) lines |
-| Input tax (before transitional rule) | Tax on taxable purchases (5xxx + 1xxx, excluding `1610 事業主貸` (owner's draws)) — informational |
+| Input tax (before transitional rule) | Tax on taxable purchases (5xxx + 1xxx; see [§ 4-3](#4-3-what-aoiko-aggregates-for-input-tax) for what is counted) — informational |
 | Creditable input tax | Post-transitional credit amount |
 | Tax payable | Output − creditable (simplified / 20% / 30% special provision use separate formulas) |
 | Filing-form equivalent (est.) | An estimate that mimics the actual return's rounding (taxable base rounded down to the nearest ¥1,000, tax amounts rounded down to ¥100, etc.) |
@@ -96,7 +96,8 @@ Navigation **"Reports"** > **"Consumption tax"** section. The year's actuals are
 
 ### 4-3. What aoiko aggregates for input tax
 
-- Debit side with **expense** or **asset** category (5xxx + 1xxx excluding `1610 事業主貸`)
+- **Expense** category (5xxx; refunds entered on the credit side are subtracted) and the debit side of **asset** category accounts (1xxx). The following asset accounts are not counted: `1610 事業主貸` (owner's draws), `1110 現金` (cash), `1120 当座預金` (checking account), `1130 普通預金` (ordinary deposit), `1140 定期預金` (time deposit), `1310 売掛金` (accounts receivable), `1320 未収入金` (other receivables), and `1420 貸付金` (loans receivable). Acquiring these is not a taxable purchase (Consumption Tax Act Art. 2(1)(xii), Appended Table 2 item 2, and Enforcement Order Art. 9(1)(iv)). The tax rate you enter on the debit side of these accounts does not affect the calculation. Things that are taxable purchases, such as collector coins or golf club memberships, should be recorded in other accounts
+- A year that you locked as filed before cash, bank deposits, and monetary claims were removed from this aggregation keeps the rule used at filing. In that year, the debit side of these 7 accounts is also counted as purchases: `1110 現金`, `1120 当座預金`, `1130 普通預金`, `1140 定期預金`, `1310 売掛金`, `1320 未収入金`, and `1420 貸付金`. `1610 事業主貸` is not counted under either rule. Unlocking and locking the year again does not change this
 - Tax rate > 0 (10% / 8%)
 - If **Tax included** is ticked, the inclusive amount is back-calculated; if not, exclusive is used
 

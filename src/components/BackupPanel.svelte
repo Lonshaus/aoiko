@@ -4,6 +4,14 @@
   import { getSetting, setSetting } from '../lib/settings';
   import { m } from '../paraglide/messages';
   import ConfirmDialog from './ConfirmDialog.svelte';
+  import BackupPartsChecklist from './BackupPartsChecklist.svelte';
+  import * as AlertDialog from '$lib/components/ui/alert-dialog';
+  import {
+    BACKUP_PART_IDS,
+    EXPORT_DEFAULT_PARTS,
+    normalizeAutoBackupParts,
+    type BackupPartId,
+  } from '../backup/parts';
   import {
     BACKUP_RETENTION_COUNTS,
     BLOB_RETENTION_DAYS,
@@ -15,8 +23,9 @@
   import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 
   let downloadSavedConfirmOpen = $state(false);
-  let includeApiKeys = $state(false);
-  let includeFilerInfo = $state(false);
+  let backupParts = $state<BackupPartId[]>([...EXPORT_DEFAULT_PARTS]);
+  let exportDialogOpen = $state(false);
+  let exportParts = $state<BackupPartId[]>([]);
   let retentionCount = $state<BackupRetentionCount>(0);
   let blobRetentionDays = $state<BlobRetentionDays>(0);
   // 起動後に変わらないので non-reactive でよい
@@ -26,20 +35,14 @@
       (navigator as Navigator & { standalone?: boolean }).standalone === true);
 
   onMount(async () => {
-    includeApiKeys = (await getSetting('backupIncludeApiKeys')) ?? false;
-    includeFilerInfo = (await getSetting('backupIncludeFilerInfo')) ?? false;
+    backupParts = normalizeAutoBackupParts(await getSetting('backupParts'));
     retentionCount = (await getSetting('backupRetentionCount')) ?? 0;
     blobRetentionDays = (await getSetting('blobRetentionDays')) ?? 0;
   });
 
-  async function onToggleIncludeApiKeys(e: Event) {
-    includeApiKeys = (e.target as HTMLInputElement).checked;
-    await setSetting('backupIncludeApiKeys', includeApiKeys);
-  }
-
-  async function onToggleIncludeFilerInfo(e: Event) {
-    includeFilerInfo = (e.target as HTMLInputElement).checked;
-    await setSetting('backupIncludeFilerInfo', includeFilerInfo);
+  async function onChangeBackupParts(next: BackupPartId[]) {
+    backupParts = next;
+    await setSetting('backupParts', next);
   }
 
   async function onChangeRetentionCount(e: Event) {
@@ -51,9 +54,15 @@
     blobRetentionDays = Number((e.target as HTMLSelectElement).value) as BlobRetentionDays;
     await setSetting('blobRetentionDays', blobRetentionDays);
   }
+  // 書き出しの区分は自動バックアップの選択から始めるが、ここでの変更は書き戻さない。
+  function openExportDialog() {
+    exportParts = [...backupParts];
+    exportDialogOpen = true;
+  }
 
-  async function onDownloadBackup() {
-    downloadSavedConfirmOpen = await backup.downloadBackup();
+  async function onExportProceed() {
+    exportDialogOpen = false;
+    downloadSavedConfirmOpen = await backup.downloadBackup(new Set(exportParts));
   }
 
   async function onDownloadSavedConfirm(dontAskAgain: boolean) {
@@ -264,7 +273,7 @@
 
     <button
       type="button"
-      onclick={onDownloadBackup}
+      onclick={openExportDialog}
       class="px-4 py-2 border rounded hover:bg-accent"
       class:bg-destructive={downloadStale}
       class:text-destructive-foreground={downloadStale}
@@ -274,30 +283,18 @@
     </button>
   </div>
 
-  <label class="flex items-start gap-2 text-sm border-t pt-4">
-    <input
-      type="checkbox"
-      checked={includeApiKeys}
-      onchange={onToggleIncludeApiKeys}
-      class="mt-0.5"
+  <div class="space-y-2 border-t pt-4">
+    <h4 class="text-sm font-medium">{m.backup_panel_parts_title()}</h4>
+    <p class="text-xs text-muted-foreground">{m.backup_panel_parts_hint()}</p>
+    <BackupPartsChecklist
+      available={BACKUP_PART_IDS}
+      selected={backupParts}
+      locked={['books']}
+      mode="export"
+      namePrefix="backup-parts"
+      onchange={onChangeBackupParts}
     />
-    <span>
-      {m.backup_panel_include_api_keys()}
-      <span class="block text-xs text-muted-foreground mt-1">
-        {m.backup_panel_include_api_keys_warning()}
-      </span>
-    </span>
-  </label>
-
-  <label class="flex items-start gap-2 text-sm">
-    <input
-      type="checkbox"
-      checked={includeFilerInfo}
-      onchange={onToggleIncludeFilerInfo}
-      class="mt-0.5"
-    />
-    <span>{m.backup_include_filer_info()}</span>
-  </label>
+  </div>
 
   <div class="text-sm border-t pt-4">
     <label class="flex items-center justify-between gap-2" for="backup-retention-count">
@@ -335,6 +332,30 @@
     </span>
   </div>
 </section>
+
+<AlertDialog.Root bind:open={exportDialogOpen}>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>{m.backup_export_dialog_title()}</AlertDialog.Title>
+    </AlertDialog.Header>
+    <BackupPartsChecklist
+      available={BACKUP_PART_IDS}
+      selected={exportParts}
+      mode="export"
+      namePrefix="export-parts"
+      onchange={(next) => (exportParts = next)}
+    />
+    <AlertDialog.Description class="text-xs">
+      {m.backup_export_dialog_old_version_note()}
+    </AlertDialog.Description>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel>{m.common_cancel()}</AlertDialog.Cancel>
+      <AlertDialog.Action onclick={onExportProceed} disabled={exportParts.length === 0}>
+        {m.backup_export_dialog_proceed()}
+      </AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
 
 <ConfirmDialog
   open={downloadSavedConfirmOpen}

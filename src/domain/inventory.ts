@@ -1,6 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { isReadableEntryDate } from './restore-validate';
 // 簡易在庫管理。最終仕入原価法（評価方法の届出を提出していない事業者に
 // 適用される法定デフォルト）のみ対応する。届出により他の評価方法（先入先出法・
 // 移動平均法等）を選んでいる利用者は Settings の inventoryAutoValuationEnabled を
@@ -31,7 +32,7 @@ export interface InventoryValuation {
 // 順序は厳密には決定不能。実務上の影響は軽微と判断）。
 export async function computeInventoryValuation(asOfDate: string): Promise<InventoryValuation> {
   const entries = (await db.journalEntries.where('date').belowOrEqual(asOfDate).toArray())
-    .filter(countsTowardTotals)
+    .filter((e) => countsTowardTotals(e) && isReadableEntryDate(e.date))
     .sort((a, b) => a.date.localeCompare(b.date));
   const entryIds = entries.map((e) => e.id);
   const lines =

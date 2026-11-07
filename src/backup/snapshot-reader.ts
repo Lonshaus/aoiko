@@ -72,6 +72,7 @@ export async function readLatestSnapshot(
       payload: {
         version: snapshot.payloadVersion,
         exportedAt: snapshot.exportedAt,
+        ...(Object.hasOwn(snapshot, 'parts') ? { parts: snapshot.parts } : {}),
         tables: snapshot.tables,
       },
       attachmentBlobs,

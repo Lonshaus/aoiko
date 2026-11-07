@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import {
   koa130AdditionalExpenseOverflow,
+  koa130DetailOverflow,
   mapKoa130RepeatedValues,
   mapKoa130Values,
 } from './xtx-mapping-koa130';
@@ -623,6 +624,44 @@ describe('mapKoa130RepeatedValues（第2頁の繰り返しブロック）', () =
     expect(repeats.AKH00010).toHaveLength(1);
     expect(repeats.AKH00010?.[0]?.AKH00030).toBe('東京都〇〇区');
     expect(repeats.AKH00010?.[0]?.AKH00170).toBe('960000');
+  });
+
+  test('物件明細の金額は全角数字・桁区切り・前後の空白を正規化して出力し、元の資産を変更しない', () => {
+    const asset = realEstateAsset({
+      realEstateDetail: {
+        propertyType: '貸家',
+        address: '東京都',
+        annualRent: '１２０００００',
+        keyMoneyEtc: '1,000',
+        otherIncome: '２,０００',
+        depositBalance: ' 3000 ',
+      },
+    });
+    const before = structuredClone(asset);
+    const row = mapKoa130RepeatedValues(ctx({ fixedAssets: [asset] })).AKH00010?.[0];
+    expect(row?.AKH00170).toBe('1200000');
+    expect(row?.AKH00180).toBe('1000');
+    expect(row?.AKH00210).toBe('2000');
+    expect(row?.AKH00220).toBe('3000');
+    expect(asset).toEqual(before);
+  });
+
+  test('明細欄の上限を超えた物件の溢れ金額も全角数字を正規化して返す', () => {
+    const assets = Array.from({ length: 20 }, (_, i) =>
+      realEstateAsset({
+        id: `p${i}`,
+        realEstateDetail: {
+          propertyType: '貸家',
+          address: `物件${i}`,
+          annualRent: '１２０００００',
+        },
+      }),
+    );
+    const overflow = koa130DetailOverflow(ctx({ fixedAssets: assets })).filter(
+      (r) => r.section === 'realEstateProperty',
+    );
+    expect(overflow.length).toBeGreaterThan(0);
+    expect(overflow.every((r) => r.amount === '1200000')).toBe(true);
   });
 
   test('減価償却明細（AKK00010）は incomeType: realEstate の資産のみ含める', () => {

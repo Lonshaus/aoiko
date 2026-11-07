@@ -12,6 +12,7 @@
   import { buildLedgerRows, ledger, type LedgerRow } from '../stores/ledger.svelte';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
+  import { safeAttachmentMimeType } from '../domain/restore-schema';
   import { m } from '../paraglide/messages';
   import type { Attachment, Vendor } from '../db/types';
   import FilePicker from '../components/FilePicker.svelte';
@@ -74,7 +75,14 @@
 
   $effect(() => {
     const atts = expandedAttachments;
-    const urls = new Map(atts.map((a) => [a.id, URL.createObjectURL(a.blob)]));
+    // 許可していない型の Blob URL は文書として開かれ得るので、型無しに付け替えてから渡す。
+    const urls = new Map(
+      atts.map((a) => {
+        const type = safeAttachmentMimeType(a.blob.type);
+        const blob = type === a.blob.type ? a.blob : a.blob.slice(0, a.blob.size, type);
+        return [a.id, URL.createObjectURL(blob)];
+      }),
+    );
     attachmentUrls = urls;
     return () => {
       for (const u of urls.values()) {
@@ -278,13 +286,13 @@
     confirmingReverseId = null;
     reverseError = '';
     const targetYear = rows.find((r) => r.entry.id === target)?.entry.year;
-    // 通常は展開中の行から確定した id なので必ず見つかる。念のための代替処理は
-    // ガードを経ずに reverseEntry 自身のロック判定に委ねる（既存の安全側の挙動を維持）。
-    if (targetYear !== undefined && !(await filedYearGuard.confirm([targetYear]))) {
+    // 行が見つからないときは確認を出さず、reverseEntry 自身のロック判定に委ねる。
+    const consent = await filedYearGuard.confirm(targetYear === undefined ? [] : [targetYear]);
+    if (!consent) {
       return;
     }
     try {
-      await reverseEntry(target, targetYear !== undefined ? { allowFiledYear: true } : undefined);
+      await reverseEntry(target, { allowedFiledYears: consent });
       expandedId = null;
     } catch (e) {
       reverseError = describeStorageError(e);

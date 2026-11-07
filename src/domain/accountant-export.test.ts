@@ -1,11 +1,15 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import Encoding from 'encoding-japanese';
-import { toIndexable } from '../lib/decimal';
+import { db } from '../db/db';
+import { parseCsv } from '../lib/csv';
+import { D, toIndexable } from '../lib/decimal';
 import {
   buildCorrectionHistoryRows,
   buildGenericCsvRows,
   buildYayoiCsvRows,
   encodeShiftJis,
+  exportGenericCsv,
+  exportYayoiCsv,
 } from './accountant-export';
 import type { Account, JournalEntry, JournalLine, SubAccount } from './../db/types';
 
@@ -466,16 +470,16 @@ describe('課税資産の譲渡等の行単位の印（taxableTransferConsiderat
     const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
     // l2（対象外）＋合成ペア（貸方=課税売上、借方=対象外）で振替伝票2行になる
     expect(rows).toHaveLength(2);
-    const debitTotal = rows.reduce((sum, r) => sum + Number(r[8] || 0), 0);
-    const creditTotal = rows.reduce((sum, r) => sum + Number(r[14] || 0), 0);
-    expect(debitTotal).toBe(creditTotal);
-    expect(debitTotal).toBe(220000);
+    const debitTotal = rows.reduce((sum, r) => sum.plus(D(r[8] || 0)), D(0));
+    const creditTotal = rows.reduce((sum, r) => sum.plus(D(r[14] || 0)), D(0));
+    expect(debitTotal.toString()).toBe(creditTotal.toString());
+    expect(debitTotal.toString()).toBe('220000');
     const taxLabels = rows.flatMap((r) => [r[7], r[13]]);
     expect(taxLabels).toContain('課税売上込10%');
     expect(taxLabels).toContain('対象外');
     expect(taxLabels).not.toContain('課対仕入込10%区分80%');
-    const taxAmounts = rows.map((r) => Number(r[9] || 0) + Number(r[15] || 0));
-    expect(taxAmounts.reduce((s, n) => s + n, 0)).toBe(10000);
+    const taxAmounts = rows.map((r) => D(r[9] || 0).plus(D(r[15] || 0)));
+    expect(taxAmounts.reduce((s, n) => s.plus(n), D(0)).toString()).toBe('10000');
   });
 
   test('簡易課税では合成ペアの課税売上区分に第四種（消基通13-2-9）が付く', () => {
@@ -520,5 +524,118 @@ describe('課税資産の譲渡等の行単位の印（taxableTransferConsiderat
     const rows = buildYayoiCsvRows(entries, lines, ACCOUNTS, [], CTX);
     expect(rows).toHaveLength(1);
     expect(rows[0]![13]).toBe('課税売上込10%');
+  });
+});
+
+describe('先頭が数式として読まれる値の CSV 出力', () => {
+  beforeEach(async () => {
+    await db.delete();
+    await db.open();
+    await db.accounts.bulkAdd(ACCOUNTS);
+    await db.subAccounts.add({ id: 'sub1', accountCode: '5130', name: '@SUM(1)' });
+  });
+
+  afterEach(async () => {
+    await db.delete();
+  });
+
+  async function seed(description: string, department?: string, memo?: string): Promise<void> {
+    await db.journalEntries.add(
+      entry({
+        id: 'e1',
+        date: '2026-04-15',
+        description,
+        ...(department === undefined ? {} : { department }),
+      }),
+    );
+    await db.journalLines.bulkAdd([
+      line({
+        id: 'l1',
+        entryId: 'e1',
+        side: 'debit',
+        accountCode: '5130',
+        amount: '3000',
+        amountIndexed: toIndexable('3000'),
+        subAccountId: 'sub1',
+        ...(memo === undefined ? {} : { memo }),
+      }),
+      line({
+        id: 'l2',
+        entryId: 'e1',
+        side: 'credit',
+        accountCode: '1130',
+        amount: '3000',
+        amountIndexed: toIndexable('3000'),
+      }),
+    ]);
+  }
+
+  async function yayoiRows(): Promise<string[][]> {
+    const bytes = await exportYayoiCsv(2026);
+    const text = Encoding.convert(Array.from(bytes), {
+      to: 'UNICODE',
+      from: 'SJIS',
+      type: 'string',
+    });
+    return parseCsv(text);
+  }
+
+  const HYPERLINK = '=HYPERLINK("http://example.com","x")';
+
+  test("汎用形式は摘要・部門・補助科目・メモの先頭に ' を付け、日付と金額は変えない", async () => {
+    await seed(HYPERLINK, ' +1', '－1');
+
+    const text = new TextDecoder().decode(await exportGenericCsv(2026));
+    expect(text).toContain(`"'=HYPERLINK(""http://example.com"",""x"")"`);
+    const rows = parseCsv(text);
+    expect(rows[1]).toEqual([
+      'e1',
+      '2026-04-15',
+      `'${HYPERLINK}`,
+      "' +1",
+      '借方',
+      '5130',
+      '水道光熱費',
+      "'@SUM(1)",
+      '3000',
+      '0',
+      '税込',
+      '',
+      "'－1",
+    ]);
+    expect(rows[2]?.[1]).toBe('2026-04-15');
+    expect(rows[2]?.[8]).toBe('3000');
+  });
+
+  test("弥生形式は摘要・補助科目・部門の先頭に ' を付け、日付と金額は変えない", async () => {
+    const yayoiHyperlink = '=HYPERLINK("http://example.com")';
+    await seed(yayoiHyperlink, ' +1');
+
+    const rows = await yayoiRows();
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    expect(row[3]).toBe('2026/04/15');
+    expect(row[5]).toBe("'@SUM(1)");
+    expect(row[6]).toBe("'+1");
+    expect(row[8]).toBe('3000');
+    expect(row[12]).toBe("'+1");
+    expect(row[14]).toBe('3000');
+    expect(row[16]).toBe("'=HYPERLINK(”http://example.com”)");
+  });
+
+  test("U+2212 で始まる摘要は、弥生形式で全角の － に変わっても先頭に ' が付く", async () => {
+    await seed('−1+1');
+
+    const rows = await yayoiRows();
+    expect(rows[0]?.[16]).toBe("'－1+1");
+  });
+
+  test('Shift_JIS にない文字で始まる摘要も、弥生形式の格は数式の記号で始まらない', async () => {
+    await seed('😀=1+1');
+
+    const rows = await yayoiRows();
+    const description = rows[0]?.[16];
+    expect(description).toBeDefined();
+    expect(description).not.toMatch(/^\s*[=+\-@＝＋－＠−]/u);
   });
 });

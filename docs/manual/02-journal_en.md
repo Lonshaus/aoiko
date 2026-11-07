@@ -60,7 +60,7 @@ Choosing a **仕入 (Purchases, 5020)** or **売上高 (Sales, 4110)** line reve
 
 The **"Department tag"** field next to the description lets you attach a free-text tag (e.g. `Tokyo branch`, `Online sales`) for lightly separating multiple locations, business lines, or channels. Previously used tags appear as autocomplete suggestions.
 
-> Department tags are a display label for aggregation only — they never affect tax calculations or `.xtx` export. In [06. Reports](06-reports_en.md), the **"Breakdown"** section can aggregate by department.
+> Department tags are a display label for aggregation only — they never affect tax calculations or `.xtx` export. In [06. Reports](06-reports_en.md), the **"Breakdown"** section can aggregate by department. The Yayoi-format CSV includes departments only when you check **"Export departments"** in Settings ([11. § 8](11-backup_en.md#8-handing-data-off-to-your-accountant)).
 
 ### 1-7. Attaching a receipt photo
 

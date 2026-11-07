@@ -226,6 +226,18 @@ describe('computeInventoryValuation', () => {
     expect(result.items).toHaveLength(0);
   });
 
+  test('日付が空の仕訳（旧バージョンの読み取り）は数量に含めない', async () => {
+    await addEntry({
+      date: '',
+      lines: [
+        { side: 'debit', accountCode: '5020', amount: '10000', itemId: 'item-a', quantity: '10' },
+        { side: 'credit', accountCode: '1130', amount: '10000' },
+      ],
+    });
+    const result = await computeInventoryValuation('2026-12-31');
+    expect(result.items).toHaveLength(0);
+  });
+
   test('在庫がマイナスになった場合は評価額を0とする', async () => {
     await addEntry({
       date: '2026-03-01',

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseCsv } from './csv';
+import { buildCsv, neutralizeFormula, parseCsv } from './csv';
 
 describe('parseCsv', () => {
   test('basic two-row CSV', () => {
@@ -65,5 +65,51 @@ describe('parseCsv', () => {
       ['a', 'b'],
       ['1', '2'],
     ]);
+  });
+});
+
+describe('neutralizeFormula', () => {
+  test.each([
+    '=1+1',
+    '+1',
+    '-1',
+    '@SUM(1)',
+    '＝1',
+    '＋1',
+    '－1',
+    '＠x',
+    '−1',
+    '\tabc',
+    '\rabc',
+    '\nabc',
+  ])('prefixes %j with a single quote', (value) => {
+    expect(neutralizeFormula(value)).toBe(`'${value}`);
+  });
+
+  test.each([' =1+1', '　＝1', '\u00a0@x'])(
+    'prefixes %j without trimming the leading whitespace',
+    (value) => {
+      expect(neutralizeFormula(value)).toBe(`'${value}`);
+    },
+  );
+
+  test.each(['テスト仕訳', ' abc', '1000', '2026-05-01', '2026/05/01', '', 'a=b'])(
+    'leaves %j unchanged',
+    (value) => {
+      expect(neutralizeFormula(value)).toBe(value);
+    },
+  );
+});
+
+describe('buildCsv', () => {
+  test('neutralizes before quoting', () => {
+    expect(buildCsv([['=A1,B1']])).toBe(`"'=A1,B1"\r\n`);
+  });
+
+  test.each([
+    ['a;b', '"a;b"\r\n'],
+    ['a\tb', '"a\tb"\r\n'],
+  ])('quotes %j', (value, expected) => {
+    expect(buildCsv([[value]])).toBe(expected);
   });
 });

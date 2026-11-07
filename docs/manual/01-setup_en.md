@@ -45,6 +45,8 @@ Open the **"Basic info"** section of Settings. These appear on the financial sta
 
 Press **"Save"** when done. Leave the invoice number blank if you haven't registered.
 
+On first launch, the "Current tax year" is the year you launched aoiko (the calendar year of the device's date). If the stored year can't be read, it is reset to the launch year and the Home screen shows a notice: "The stored working year couldn't be read, so it was set to N." To use a different year, change "Current tax year" under "Basic info".
+
 ## 3a. Register filer info and the blue-return deduction (required for `.xtx` submission)
 
 Required to load the `.xtx` into e-Tax software (download edition). Register these in the **"Filer info (for e-Tax submission)"** section of Settings.
@@ -238,8 +240,9 @@ The following Settings sections have their own dedicated chapters and are covere
 | Accounts | The standard chart of accounts, where you can hide or show each account with its "Active" checkbox (hidden accounts drop out of the journal-entry picker). There is no UI to add or delete accounts themselves (use the subaccounts in § 5 for finer detail) |
 | Home-office allocation default ratios | [02. Creating journal entries](02-journal_en.md#1-3-use-the-home-office-mixed-use-allocation) |
 | Qualified e-bookkeeping requirements | Self-check display for the search-capability requirements |
+| Stored data check | [11. Backup and restore § 5-5](11-backup_en.md#5-5-stored-data-check) |
 | Restore | [11. Backup and restore](11-backup_en.md) |
-| Backup | [11. Backup and restore](11-backup_en.md) (zip export, automatic backup folder) |
+| Backup | [11. Backup and restore](11-backup_en.md) (zip export, automatic backup folder, choosing the items to include) |
 | Export for your accountant | [11. Backup and restore § 8](11-backup_en.md#8-handing-data-off-to-your-accountant) |
 | Data management | Wipe all data ([11. Backup and restore](11-backup_en.md)) |
 

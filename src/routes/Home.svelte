@@ -3,6 +3,8 @@
   import { D, formatJPY } from '../lib/decimal';
   import JournalEntryForm from './JournalEntryForm.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
+  import DataCheckNotice from '../components/DataCheckNotice.svelte';
+  import ProcessingYearResetNotice from '../components/ProcessingYearResetNotice.svelte';
   import ScrollX from '../components/ScrollX.svelte';
   import { m } from '../paraglide/messages';
 
@@ -11,7 +13,9 @@
 </script>
 
 <div class="space-y-8">
+  <ProcessingYearResetNotice />
   <BackupNotice />
+  <DataCheckNotice />
 
   <section class="bg-card text-card-foreground rounded-2xl p-8 space-y-6 shadow-sm">
     <header class="flex items-end justify-between">
