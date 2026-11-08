@@ -1204,5 +1204,14 @@
   "error_chrome_ai_over_receipt": "這張收據沒辦法一次處理完，請分開讀取看看。",
   "error_chrome_ai_over_data": "超過一次能處理的量，請減少件數後再試一次。",
   "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。",
-  "common_scroll_more_right": "右邊還有內容"
+  "common_scroll_more_right": "右邊還有內容",
+  "analysis_busy_other": "另一項解析正在進行中，目前無法開始。",
+  "analysis_cancel": "停止解析",
+  "analysis_cancelling": "正在停止…",
+  "analysis_cancelling_hint": "這種方式無法中途停止，請稍候至處理結束。",
+  "analysis_badge_running": "解析中",
+  "analysis_badge_done": "待確認",
+  "analysis_badge_failed": "失敗",
+  "analysis_toast_done": "「{name}」解析完成，點選這裡即可查看結果。",
+  "analysis_toast_failed": "「{name}」解析失敗，點選這裡即可查看原因。"
 }

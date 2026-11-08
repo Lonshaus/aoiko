@@ -1,5 +1,5 @@
 import type { Account, AccountCategory } from '../db/types';
-import { LlmError, type LlmAdapter } from './llm';
+import { LlmError, type LlmAdapter, type LlmCallOptions } from './llm';
 import { m } from '../paraglide/messages';
 
 export interface ClassifyInput {
@@ -53,6 +53,12 @@ function counterpartCategories(
   }
   return knownSide === 'debit' ? ['revenue', 'asset'] : ['expense', 'asset'];
 }
+// LLM の提案を自動入力するかどうかの唯一の判定点（実行部からもテストからもここを通す）。
+export function shouldFillSuggestion<
+  T extends { accountCode: string | null; confidence: 'high' | 'low' | 'none' },
+>(s: T): s is T & { accountCode: string; confidence: 'high' | 'low' } {
+  return Boolean(s.accountCode) && s.confidence !== 'none';
+}
 
 interface ClassifyOptions {
   knownAccountCode: string;
@@ -66,13 +72,14 @@ export async function classifyWithLlm(
   adapter: LlmAdapter,
   inputs: ClassifyInput[],
   options: ClassifyOptions,
+  callOptions?: LlmCallOptions,
 ): Promise<ClassifySuggestion[]> {
   if (inputs.length === 0) {
     return [];
   }
   const raw = adapter.runDataTask
-    ? await adapter.runDataTask('classify', buildClassifyData(inputs, options))
-    : await adapter.generateJson(buildPrompt(inputs, options));
+    ? await adapter.runDataTask('classify', buildClassifyData(inputs, options), callOptions)
+    : await adapter.generateJson(buildPrompt(inputs, options), undefined, callOptions);
   return parseResponse(raw, inputs, options.candidateAccounts);
 }
 // データだけを渡す端末内経路用のペイロード。buildPrompt と違い会計コンテキストの説明文は

@@ -1,19 +1,18 @@
 <script lang="ts">
-  import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
+  import { onMount } from 'svelte';
   import { db } from '../db';
   import { validateLines } from '../domain/journal';
   import { shouldConfirmExternalSend } from '../domain/send-confirm';
   import { D, formatJPY, toIndexable } from '../lib/decimal';
   import { newId } from '../lib/id';
-  import { createOrderExtractor, type OrderExtractor } from '../lib/order-extractor';
-  import { describeLlmError } from '../domain/llm';
   import { getSetting, setSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { ledger } from '../stores/ledger.svelte';
+  import { analysis } from '../stores/analysis.svelte';
+  import { orderDraft, type PreparedOrder, type ReviewItem } from '../stores/order-draft.svelte';
   import type { JournalLine } from '../db/types';
-  import type { OrderExtracted, OrderItem } from '../domain/order-extract';
   import AccountSelect from '../components/AccountSelect.svelte';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
@@ -31,92 +30,53 @@
         ? 'Cmd'
         : uaModKey;
 
-  type ReviewItem = OrderItem & { accountCode: string; taxRate: number; rateTouched: boolean };
   const TAX_RATES = [0.1, 0.08];
 
-  let pastedText = $state('');
-  let processing = $state(false);
-  let error = $state('');
-  let success = $state('');
+  const draft = orderDraft;
+  // 貼り付けた本文と解析結果は確定するまで DB に無いが、store が持つので画面を離れても残る。
+  // 解析の準備はまだ実行権を取らない区間なので、ボタンの二度押しはここで防ぐ。
+  let preparing = $state(false);
+  const running = $derived(preparing || analysis.isRunning('order'));
+  const cancelling = $derived(analysis.isCancelling('order'));
+  const busyOther = $derived(analysis.isBusyWithOther('order'));
   // 保存中は再度押せないようにする（二度押しで同じ仕訳が2件作られる）
   let committing = $state(false);
 
-  let extracted = $state<OrderExtracted | null>(null);
-  // 貼り付けたテキストと解析結果は確定するまで DB に無い。
-  const isDirty = $derived(pastedText !== '' || extracted !== null);
-  const unsavedToken = {};
-  $effect(() => {
-    setUnsavedGuard(unsavedToken, isDirty);
-    return () => clearUnsavedGuard(unsavedToken);
-  });
-  let reviewItems = $state<ReviewItem[]>([]);
-  let paymentAccount = $state('2120'); // 未払金（クレカ既定）
-
   let confirmOpen = $state(false);
   let discardConfirmOpen = $state(false);
-  let pending = $state<{ extractor: OrderExtractor; text: string; host: string } | null>(null);
+  let pending = $state<PreparedOrder | null>(null);
 
   const accountGroups = $derived(ledger.groupedAccounts());
-  // 既定の経費科目 = 消耗品費（5200）。無ければ最初の expense を使う
-  function defaultExpenseAccount(): string {
-    for (const g of accountGroups) {
-      if (g.category === 'expense') {
-        for (const a of g.items) {
-          if (a.code === '5200') {
-            return '5200';
-          }
-        }
-        if (g.items[0]) {
-          return g.items[0].code;
-        }
-      }
-    }
-    return '5910'; // fallback: 雑費
-  }
+
+  onMount(() => {
+    analysis.enter('order');
+    return () => analysis.leave('order');
+  });
 
   async function analyze() {
-    if (!pastedText.trim()) {
-      error = m.order_text_required();
+    if (preparing) {
       return;
     }
-    processing = true;
-    error = '';
-    success = '';
+    preparing = true;
     try {
-      const extractor = await createOrderExtractor();
+      const prepared = await draft.prepare();
+      if (prepared === null) {
+        return;
+      }
       const skip = await getSetting('skipExternalSendConfirm');
       if (
         shouldConfirmExternalSend(
-          { external: extractor.external, host: extractor.destinationHost },
+          { external: prepared.extractor.external, host: prepared.host },
           skip,
         )
       ) {
-        pending = { extractor, text: pastedText, host: extractor.destinationHost };
+        pending = prepared;
         confirmOpen = true;
         return;
       }
-      await runExtract(extractor, pastedText);
-    } catch (e) {
-      error = describeLlmError(e);
-      processing = false;
-    }
-  }
-
-  async function runExtract(extractor: OrderExtractor, text: string) {
-    try {
-      const result = await extractor.extract(text);
-      extracted = result;
-      const def = defaultExpenseAccount();
-      reviewItems = result.items.map((it) => ({
-        ...it,
-        accountCode: def,
-        taxRate: 0.1,
-        rateTouched: false,
-      }));
-    } catch (e) {
-      error = describeLlmError(e);
+      await draft.run(prepared);
     } finally {
-      processing = false;
+      preparing = false;
     }
   }
 
@@ -125,32 +85,30 @@
     const p = pending;
     pending = null;
     if (!p) {
-      processing = false;
       return;
     }
     if (dontAskAgain) {
       await setSetting('skipExternalSendConfirm', true);
     }
-    await runExtract(p.extractor, p.text);
+    await draft.run(p);
   }
 
   function onCancelSend() {
     confirmOpen = false;
     pending = null;
-    processing = false;
   }
 
   function removeItem(idx: number) {
-    reviewItems = reviewItems.filter((_, i) => i !== idx);
+    draft.reviewItems = draft.reviewItems.filter((_, i) => i !== idx);
   }
 
   function addItem() {
-    reviewItems = [
-      ...reviewItems,
+    draft.reviewItems = [
+      ...draft.reviewItems,
       {
         description: '',
         amount: '0',
-        accountCode: defaultExpenseAccount(),
+        accountCode: draft.defaultExpenseAccount(),
         taxRate: 0.1,
         rateTouched: false,
       },
@@ -162,7 +120,7 @@
       return item.taxRate;
     }
     const rates = new Set(
-      reviewItems
+      draft.reviewItems
         .filter(
           (it) => it.description.trim() !== '' && /^\d+$/.test(it.amount) && D(it.amount).gt(0),
         )
@@ -177,25 +135,25 @@
   }
 
   async function commit() {
-    if (!extracted || committing) {
+    const data = draft.extracted;
+    if (!data || committing) {
       return;
     }
-    const data = extracted;
-    error = '';
-    success = '';
+    draft.error = '';
+    draft.success = '';
     if (!data.date || !/^\d{4}-\d{2}-\d{2}$/.test(data.date)) {
-      error = m.order_amount_required();
+      draft.error = m.order_amount_required();
       return;
     }
     if (!data.totalAmount || !/^\d+$/.test(data.totalAmount)) {
-      error = m.order_amount_required();
+      draft.error = m.order_amount_required();
       return;
     }
-    const validItems = reviewItems.filter(
+    const validItems = draft.reviewItems.filter(
       (it) => it.description.trim() !== '' && /^-?\d+$/.test(it.amount),
     );
     if (validItems.length === 0) {
-      error = m.order_no_items();
+      draft.error = m.order_no_items();
       return;
     }
     // 借方は品目、貸方は総額で組むため、両者が一致しないと validateLines が必ず
@@ -203,7 +161,7 @@
     // どちらの欄も画面上で編集できる。
     const itemsSum = validItems.reduce((s, it) => s.plus(D(it.amount)), D(0));
     if (!itemsSum.equals(D(data.totalAmount))) {
-      error = m.order_total_mismatch({
+      draft.error = m.order_total_mismatch({
         itemSum: formatJPY(itemsSum.toString()),
         total: formatJPY(data.totalAmount),
       });
@@ -238,7 +196,7 @@
         id: newId(),
         entryId,
         side: 'credit',
-        accountCode: paymentAccount,
+        accountCode: draft.paymentAccount,
         amount: data.totalAmount,
         amountIndexed: toIndexable(data.totalAmount),
         taxRate: 0,
@@ -274,24 +232,17 @@
         await db.journalLines.bulkAdd(lines);
       });
 
-      success = m.order_success({
+      draft.success = m.order_success({
         name: description,
         amount: formatJPY(data.totalAmount),
         count: String(validItems.length),
       });
-      reset();
+      draft.reset();
     } catch (e) {
-      error = describeStorageError(e);
+      draft.error = describeStorageError(e);
     } finally {
       committing = false;
     }
-  }
-
-  function reset() {
-    extracted = null;
-    reviewItems = [];
-    pastedText = '';
-    error = '';
   }
 
   function requestDiscard() {
@@ -300,7 +251,7 @@
 
   function confirmDiscard() {
     discardConfirmOpen = false;
-    reset();
+    draft.reset();
   }
 
   function cancelDiscard() {
@@ -320,7 +271,9 @@
     <label class="block">
       <span class="text-xs text-muted-foreground">{m.order_step_paste()}</span>
       <textarea
-        bind:value={pastedText}
+        value={draft.pastedText}
+        oninput={(e) => draft.setPastedText((e.target as HTMLTextAreaElement).value)}
+        readonly={draft.locked}
         name="orderPastedHonbun"
         autocomplete="off"
         placeholder={m.order_paste_placeholder({ mod: modKey })}
@@ -329,32 +282,50 @@
       ></textarea>
     </label>
 
-    {#if !extracted}
-      <button
-        type="button"
-        onclick={analyze}
-        disabled={processing}
-        class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
-      >
-        {processing ? m.order_analyze_running() : m.order_analyze_button()}
-      </button>
+    {#if !draft.extracted}
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onclick={analyze}
+          disabled={running || busyOther}
+          class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
+        >
+          {running ? m.order_analyze_running() : m.order_analyze_button()}
+        </button>
+        {#if analysis.isRunning('order')}
+          <button
+            type="button"
+            onclick={() => analysis.cancel()}
+            disabled={cancelling}
+            class="px-4 py-2 border rounded hover:bg-accent disabled:opacity-50"
+          >
+            {cancelling ? m.analysis_cancelling() : m.analysis_cancel()}
+          </button>
+        {:else if busyOther}
+          <span class="text-xs text-muted-foreground">{m.analysis_busy_other()}</span>
+        {/if}
+      </div>
+      {#if cancelling}
+        <p class="text-xs text-muted-foreground">{m.analysis_cancelling_hint()}</p>
+      {/if}
     {/if}
 
-    {#if error}
+    {#if draft.error}
       <div
         class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-3 py-2 text-sm"
       >
-        {error}
+        {draft.error}
       </div>
     {/if}
-    {#if success}
+    {#if draft.success}
       <div class="border border-primary bg-primary/10 text-foreground rounded-lg px-3 py-2 text-sm">
-        {success}
+        {draft.success}
       </div>
     {/if}
   </section>
 
-  {#if extracted}
+  {#if draft.extracted}
+    {@const ex = draft.extracted}
     <section class="bg-card text-card-foreground rounded-xl p-6 space-y-4 shadow-sm">
       <h3 class="text-lg font-semibold">{m.order_step_review()}</h3>
 
@@ -365,7 +336,7 @@
             type="date"
             name="orderDate"
             autocomplete="off"
-            bind:value={extracted.date}
+            bind:value={ex.date}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
           />
         </label>
@@ -375,7 +346,7 @@
             type="text"
             name="orderVendorTitle"
             autocomplete="off"
-            bind:value={extracted.vendor}
+            bind:value={ex.vendor}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
         </label>
@@ -385,7 +356,7 @@
             type="text"
             name="orderNumber"
             autocomplete="off"
-            bind:value={extracted.orderNumber}
+            bind:value={ex.orderNumber}
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono text-sm"
           />
         </label>
@@ -395,11 +366,9 @@
             type="number"
             name="orderTotalAmount"
             autocomplete="off"
-            value={extracted.totalAmount}
+            value={ex.totalAmount}
             oninput={(e) => {
-              if (extracted) {
-                extracted.totalAmount = (e.target as HTMLInputElement).value;
-              }
+              ex.totalAmount = (e.target as HTMLInputElement).value;
             }}
             min="0"
             step="1"
@@ -420,7 +389,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each reviewItems as item, i (i)}
+            {#each draft.reviewItems as item, i (i)}
               <tr class="border-b border-border/30">
                 <td class="px-2 py-2">
                   <input
@@ -496,7 +465,7 @@
         <label class="block max-w-md">
           <span class="text-xs text-muted-foreground">{m.order_label_payment_account()}</span>
           <select
-            bind:value={paymentAccount}
+            bind:value={draft.paymentAccount}
             name="orderPaymentAccount"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           >

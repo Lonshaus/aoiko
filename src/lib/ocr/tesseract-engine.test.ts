@@ -90,3 +90,56 @@ describe('createTesseractReceiptExtractor', () => {
     expect(close).toHaveBeenCalledOnce();
   });
 });
+
+describe('createTesseractReceiptExtractor の中止', () => {
+  // terminate された worker の getText は決して戻らない（tesseract-wasm の仕様）。
+  const neverSettles = () => new Promise<string>(() => {});
+
+  test('認識中に中止すると getText を待たず AbortError で拒否し、worker を破棄する', async () => {
+    getText.mockImplementationOnce(neverSettles);
+    const controller = new AbortController();
+    const pending = createTesseractReceiptExtractor().extract(
+      { base64: 'QUJD', mimeType: 'image/png' },
+      { signal: controller.signal },
+    );
+    await vi.waitFor(() => expect(getText).toHaveBeenCalledOnce());
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
+  test('モデル取得中に中止しても拒否され、worker を破棄する', async () => {
+    loadModel.mockImplementationOnce(() => new Promise<void>(() => {}));
+    const controller = new AbortController();
+    const pending = createTesseractReceiptExtractor().extract(
+      { base64: 'QUJD', mimeType: 'image/png' },
+      { signal: controller.signal },
+    );
+    await vi.waitFor(() => expect(loadModel).toHaveBeenCalledOnce());
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  test('中止済みの signal では worker を作らずに拒否する', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    await expect(
+      createTesseractReceiptExtractor().extract(
+        { base64: 'QUJD', mimeType: 'image/png' },
+        { signal: controller.signal },
+      ),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+    expect(constructed).toHaveLength(0);
+  });
+
+  test('中止されなければ従来どおり結果を返す', async () => {
+    const controller = new AbortController();
+    const result = await createTesseractReceiptExtractor().extract(
+      { base64: 'QUJD', mimeType: 'image/png' },
+      { signal: controller.signal },
+    );
+    expect(result.totalAmount).toBe('1500');
+  });
+});

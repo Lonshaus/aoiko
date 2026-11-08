@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
 import { db } from '../db/db';
 import { setLocale } from '../paraglide/runtime';
+import { receiptDraft } from '../stores/receipt-draft.svelte';
 import { setSetting } from '../lib/settings';
 import { m } from '../paraglide/messages';
 
@@ -42,6 +43,8 @@ afterEach(async () => {
     container = undefined;
   }
   await db.delete();
+  receiptDraft.reset();
+  receiptDraft.success = '';
 });
 
 async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {

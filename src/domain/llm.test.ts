@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   describeLlmError,
+  GeminiAdapter,
+  isAbortError,
   hostOf,
   isLocalHost,
   listGeminiModels,
@@ -289,5 +291,97 @@ describe('接続失敗の理由の併記', () => {
     );
     const a = new OpenAICompatibleAdapter('http://192.168.1.50:11434/v1', 'm');
     await expect(a.generateJson('x')).rejects.not.toThrow(/許可されていない/);
+  });
+});
+
+describe('signal の受け渡し', () => {
+  // abort されたら fetch 自身が AbortError で拒否する。モックも同じ振る舞いにして、
+  // アダプターが接続失敗の文言に包み直さないことを確かめる。
+  function abortableFetch(body: unknown) {
+    const seen: (AbortSignal | null | undefined)[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((resolve, reject) => {
+            seen.push(init?.signal);
+            if (init?.signal?.aborted) {
+              reject(new DOMException('aborted', 'AbortError'));
+              return;
+            }
+            init?.signal?.addEventListener('abort', () =>
+              reject(new DOMException('aborted', 'AbortError')),
+            );
+            if (body !== undefined) {
+              resolve({
+                ok: true,
+                status: 200,
+                json: async () => body,
+                text: async () => JSON.stringify(body),
+              } as unknown as Response);
+            }
+          }),
+      ),
+    );
+    return seen;
+  }
+
+  const geminiBody = { candidates: [{ content: { parts: [{ text: '{"a":1}' }] } }] };
+  const openaiBody = { choices: [{ message: { content: '{"a":1}' } }] };
+
+  test('Gemini：signal が fetch に渡り、中止すると AbortError のまま拒否される', async () => {
+    const seen = abortableFetch(undefined);
+    const controller = new AbortController();
+    const pending = new GeminiAdapter('key', 'gemini-2.5-flash').generateJson('p', undefined, {
+      signal: controller.signal,
+    });
+    controller.abort();
+    const error = await pending.catch((e: unknown) => e);
+    expect(seen[0]).toBe(controller.signal);
+    expect(isAbortError(error)).toBe(true);
+    expect(error).not.toBeInstanceOf(LlmError);
+  });
+
+  test('OpenAI 互換：signal が fetch に渡り、中止すると AbortError のまま拒否される', async () => {
+    const seen = abortableFetch(undefined);
+    const controller = new AbortController();
+    const pending = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm').generateJson(
+      'p',
+      undefined,
+      { signal: controller.signal },
+    );
+    controller.abort();
+    const error = await pending.catch((e: unknown) => e);
+    expect(seen[0]).toBe(controller.signal);
+    expect(isAbortError(error)).toBe(true);
+    expect(error).not.toBeInstanceOf(LlmError);
+  });
+
+  test('中止済みの signal では即座に拒否する', async () => {
+    abortableFetch(openaiBody);
+    const controller = new AbortController();
+    controller.abort();
+    const a = new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm');
+    await expect(
+      a.generateJson('p', undefined, { signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  test('signal を渡さなくても従来どおり動く', async () => {
+    abortableFetch(geminiBody);
+    await expect(new GeminiAdapter('key', 'm').generateJson('p')).resolves.toEqual({ a: 1 });
+    abortableFetch(openaiBody);
+    await expect(
+      new OpenAICompatibleAdapter('http://localhost:11434/v1', 'm').generateJson('p'),
+    ).resolves.toEqual({ a: 1 });
+  });
+});
+
+describe('isAbortError', () => {
+  test('name が AbortError の例外だけを取消しとみなす', () => {
+    expect(isAbortError(new DOMException('x', 'AbortError'))).toBe(true);
+    expect(isAbortError(new LlmError('x'))).toBe(false);
+    expect(isAbortError(null)).toBe(false);
+    expect(isAbortError('AbortError')).toBe(false);
   });
 });

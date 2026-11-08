@@ -131,6 +131,21 @@ If you set up a Gemini API key or an OpenAI-compatible endpoint in [01. Initial 
 
 Leaving AI off is fine — you just see more "no badge" rows that you fill in by hand.
 
+### Moving to another screen during AI classification, and stopping
+
+AI classification can take from a few seconds to several tens of seconds. In the meantime you can move to other screens and carry on, for example reviewing journal entries.
+
+- While it runs, a round mark appears next to **"Import"** in the navigation: yellow while it runs, blue when it finishes, and red if it fails. When the screen is narrow and the navigation is folded into a menu button, the button shows the mark too (if there are several, only one is shown, in the order red, blue, yellow). Opening the menu also shows the state in words: **"Analyzing"**, **"Ready to review"**, or **"Failed"**. A notice also appears at the bottom of the screen; select it to return to the Import screen. The notice disappears after a few seconds, but the mark stays until you open the Import screen
+- When you return, the loaded rows, the counter accounts you chose so far, and the AI suggestions are still there. They are kept until you import them or discard them with **"Cancel"**
+- Reloading the page, or closing the tab or app, loses the loaded rows and the accounts you chose (a confirmation appears when you try to close)
+- Only one analysis runs at a time. While any of Receipts, Orders, or the AI classification on the CSV import screen is analyzing, the analyze buttons on the other screens are disabled and show "Another analysis is already running, so this one can't start."
+- While classifying, you cannot change the import source or choose another CSV file. This keeps the suggestions from being written into the wrong rows
+- **"Stop analysis"** cancels it, and the suggestions of a cancelled classification are not used. Most engines stop right away
+<!-- only:apple -->
+- Apple Intelligence cannot be interrupted. After you cancel, "**Stopping…**" stays on screen until the processing ends, and then you can start the next analysis
+<!-- /only -->
+- Cancelling does not take back data that has already been sent to an external AI
+
 ## 5. Import history and batch reverse
 
 Click **"Import history"** in the navigation to open the import history screen. Past imports are listed chronologically.

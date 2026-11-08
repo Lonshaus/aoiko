@@ -73,12 +73,9 @@ vi.mock('../lib/llm-adapter', () => ({
   }),
 }));
 
-const {
-  default: Import,
-  computeInventoryLive,
-  shouldFillSuggestion,
-} = await import('./Import.svelte');
-const { counterpartCandidates } = await import('../domain/llm-classify');
+const { default: Import } = await import('./Import.svelte');
+const { computeInventoryLive, importDraft } = await import('../stores/import-draft.svelte');
+const { counterpartCandidates, shouldFillSuggestion } = await import('../domain/llm-classify');
 const { setSetting } = await import('../lib/settings');
 
 async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void> {
@@ -118,6 +115,10 @@ afterEach(async () => {
     container = undefined;
   }
   await db.delete();
+  importDraft.reset();
+  importDraft.selectedParserName = 'parser-a';
+  importDraft.success = '';
+  importDraft.llmStatus = '';
 });
 
 async function loadFile(c: HTMLElement): Promise<void> {

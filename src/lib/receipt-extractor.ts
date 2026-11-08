@@ -12,7 +12,7 @@
 // 表示要否判定に使う。tesseract と native と apple-ai は常に external=false。
 
 import { extractReceipt, type ReceiptExtracted } from '../domain/ocr';
-import type { LlmImageInput } from '../domain/llm';
+import type { LlmCallOptions, LlmImageInput } from '../domain/llm';
 import { createLlmAdapter } from './llm-adapter';
 import {
   defaultRuleEngine,
@@ -34,7 +34,7 @@ export interface ReceiptExtractor {
   readonly downscale: boolean;
   /** エンジンラベル（UI 表示・分岐用） */
   readonly engine: AiEngine | ReceiptRuleEngine;
-  extract(image: LlmImageInput): Promise<ReceiptExtracted>;
+  extract(image: LlmImageInput, options?: LlmCallOptions): Promise<ReceiptExtracted>;
 }
 
 export async function createReceiptExtractor(
@@ -53,7 +53,7 @@ export async function createReceiptExtractor(
           destinationHost: adapter.destinationHost,
           downscale: true,
           engine,
-          extract: (image) => extractReceipt(adapter, image),
+          extract: (image, options) => extractReceipt(adapter, image, options),
         };
       }
       case 'chrome-ai': {
@@ -69,7 +69,7 @@ export async function createReceiptExtractor(
           // コンテキストウィンドウを文字と分け合うため、原寸のままだと収まらない。
           downscale: true,
           engine,
-          extract: (image) => extractReceipt(adapter, image),
+          extract: (image, options) => extractReceipt(adapter, image, options),
         };
       }
       case 'apple-ai':
