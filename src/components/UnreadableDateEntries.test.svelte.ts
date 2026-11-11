@@ -1,8 +1,24 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { m } from '../paraglide/messages';
+
+const gate = vi.hoisted(() => ({ hold: null as Promise<void> | null, calls: 0 }));
+
+vi.mock('../domain/entry-date-fix', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../domain/entry-date-fix')>();
+  return {
+    ...actual,
+    correctEntryDate: async (...args: Parameters<typeof actual.correctEntryDate>) => {
+      gate.calls += 1;
+      if (gate.hold !== null) {
+        await gate.hold;
+      }
+      return actual.correctEntryDate(...args);
+    },
+  };
+});
 
 const { default: UnreadableDateEntries } = await import('./UnreadableDateEntries.svelte');
 
@@ -86,6 +102,8 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  gate.hold = null;
+  gate.calls = 0;
   if (component) {
     unmount(component);
     component = null;
@@ -164,5 +182,56 @@ describe('UnreadableDateEntries', () => {
     flushSync();
     expect(text()).toBe('');
     expect(target?.children).toHaveLength(0);
+  });
+
+  test('次の1件を保存している間は、前の完了メッセージを出さない', async () => {
+    await seedEntry('o1', '令和8年5月1日', NaN);
+    await seedEntry('o2', '令和8年6月1日', NaN);
+    render();
+    await waitFor(() => text().includes('レシート o1') && text().includes('レシート o2'));
+
+    function itemOf(id: string): HTMLLIElement {
+      const el = [...(target?.querySelectorAll<HTMLLIElement>('li') ?? [])].find(
+        (li) => li.textContent?.includes(`レシート ${id}`) && li.querySelector('input') !== null,
+      );
+      if (el === undefined) {
+        throw new Error(`${id} の項目が無い`);
+      }
+      return el;
+    }
+
+    async function register(id: string, date: string): Promise<void> {
+      const input = itemOf(id).querySelector<HTMLInputElement>('input[type="date"]')!;
+      input.value = date;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      flushSync();
+      const button = [...itemOf(id).querySelectorAll('button')].find(
+        (b) => b.textContent?.trim() === m.entry_date_fix_action(),
+      )!;
+      await waitFor(() => !button.disabled);
+      button.click();
+      flushSync();
+    }
+
+    await register('o1', '2026-05-01');
+    await waitFor(() => text().includes(m.entry_date_fix_done()));
+    expect(text()).not.toContain('レシート o1');
+    expect(text()).toContain('レシート o2');
+
+    let release: () => void = () => undefined;
+    gate.hold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const callsBefore = gate.calls;
+    await register('o2', '2026-06-01');
+    await waitFor(() => gate.calls === callsBefore + 1);
+    flushSync();
+    expect(text()).not.toContain(m.entry_date_fix_done());
+    expect((await db.journalEntries.get('o2'))?.status).toBe('confirmed');
+
+    release();
+    await waitFor(() => text().includes(m.entry_date_fix_done()));
+    expect(text()).not.toContain('レシート o2');
+    expect((await db.journalEntries.get('o2'))?.status).toBe('reversed');
   });
 });

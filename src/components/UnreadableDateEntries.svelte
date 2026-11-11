@@ -82,9 +82,10 @@
         busy = false;
         return;
       }
+      done = false;
       await correctEntryDate(id, date, { allowedFiledYears: consent });
-      done = true;
       await load();
+      done = true;
       void dataCheck.rerun();
     } catch (e) {
       errors.set(id, describeStorageError(e));

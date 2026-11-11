@@ -297,13 +297,16 @@
   </div>
 
   <div class="text-sm border-t pt-4">
-    <label class="flex items-center justify-between gap-2" for="backup-retention-count">
+    <label
+      class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+      for="backup-retention-count"
+    >
       <span>{m.backup_panel_retention_label()}</span>
       <select
         id="backup-retention-count"
         value={retentionCount}
         onchange={onChangeRetentionCount}
-        class="border rounded px-2 py-1 bg-background"
+        class="border rounded px-2 py-1 bg-background max-w-full"
       >
         {#each BACKUP_RETENTION_COUNTS as count (count)}
           <option value={count}>{retentionOptionLabel(count)}</option>
@@ -314,13 +317,16 @@
   </div>
 
   <div class="text-sm">
-    <label class="flex items-center justify-between gap-2" for="blob-retention-days">
+    <label
+      class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2"
+      for="blob-retention-days"
+    >
       <span>{m.backup_panel_blob_retention_label()}</span>
       <select
         id="blob-retention-days"
         value={blobRetentionDays}
         onchange={onChangeBlobRetentionDays}
-        class="border rounded px-2 py-1 bg-background"
+        class="border rounded px-2 py-1 bg-background max-w-full"
       >
         {#each BLOB_RETENTION_DAYS as days (days)}
           <option value={days}>{blobRetentionOptionLabel(days)}</option>

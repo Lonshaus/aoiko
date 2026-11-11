@@ -115,7 +115,17 @@ class BackupManager {
   }
   // 永続化ストレージはアダプタに関係なく要求する。IndexedDB（帳簿本体）が
   // 破棄対象かどうかの話であり、FSA を使える環境でも同じく必要。
-  private async requestPersistentStorage(): Promise<void> {
+  // Firefox の persist() は利用者が許可の確認に答えるまで返らないため、完了を待たずに実行する。
+  private persistRequest: Promise<void> | null = null;
+
+  private requestPersistentStorage(): Promise<void> {
+    this.persistRequest ??= this.askPersistentStorage().finally(() => {
+      this.persistRequest = null;
+    });
+    return this.persistRequest;
+  }
+
+  private async askPersistentStorage(): Promise<void> {
     if (typeof navigator === 'undefined' || !('storage' in navigator)) {
       return;
     }
@@ -136,7 +146,7 @@ class BackupManager {
   }
 
   private async initAdapter(): Promise<void> {
-    await this.requestPersistentStorage();
+    void this.requestPersistentStorage();
     // showDirectoryPicker が無い環境があるため、ラッパー版はネイティブ層を先に見る。
     // これが無いとそこでは opfs 止まりになり、同期フォルダへの
     // 自動書き出しに到達できない。
