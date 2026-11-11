@@ -21,7 +21,7 @@ import type {
 import { familyEmployeeExclusion } from './family-employee-deduction';
 import { D, type Decimal } from '../../lib/decimal';
 import {
-  isAmountInputInvalid,
+  isAmountInputMalformed,
   normalizeAmountInput,
   parseAmountInput,
 } from '../../lib/amount-input';
@@ -248,7 +248,7 @@ export function personalDeductionsToCtx(
           miscIncome: {
             // 読めない値も入力のまま保存しているため、ここで未記入に戻さないと ABB01060 に 0 が出る
             ...(stored.miscIncome.publicPensionAmount !== undefined &&
-            !isAmountInputInvalid(stored.miscIncome.publicPensionAmount)
+            !isAmountInputMalformed(stored.miscIncome.publicPensionAmount)
               ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
               : {}),
             ...(stored.miscIncome.otherIncome !== undefined

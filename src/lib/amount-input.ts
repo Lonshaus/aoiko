@@ -1,4 +1,5 @@
 import { D, type Decimal } from './decimal';
+import { m } from '../paraglide/messages';
 // 全角数字・全角カンマは IME の入力モードの差、桁区切りと前後の空白は書き方の差でしかないため吸収する
 export function normalizeAmountInput(raw: string): string {
   return raw.normalize('NFKC').replace(/,/g, '').trim();
@@ -15,12 +16,23 @@ export function parseAmountInput(
   const pattern = options.allowNegative === true ? /^-?\d+(\.\d+)?$/ : /^\d+(\.\d+)?$/;
   return pattern.test(s) ? D(s) : undefined;
 }
-
-export function isAmountInputInvalid(raw: unknown): boolean {
+// 書き方だけを見る。.xtx の「未記入」判定のように、読める値の大きさを問わない箇所はこちらを使う
+export function isAmountInputMalformed(raw: unknown): boolean {
   if (typeof raw !== 'string') {
     return true;
   }
   return normalizeAmountInput(raw) !== '' && parseAmountInput(raw) === undefined;
+}
+// 保存してはいけない値：書き方が正しくない、または 100 兆円以上（索引の 14 桁と .xtx の 15 桁に収まらない）
+export function isAmountInputInvalid(raw: unknown): boolean {
+  return isAmountInputMalformed(raw) || isJournalAmountTooLarge(raw);
+}
+// 欄に出す理由。有効なら空文字
+export function amountInputError(raw: unknown): string {
+  if (isAmountInputMalformed(raw)) {
+    return m.common_amount_invalid();
+  }
+  return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
 }
 // 保存済みの値（復元された値を含む）を読む。1e3・0x10 のような旧い書き方も読むが、
 // D() は長い 16 進文字列や巨大な指数で固まるため、長さと指数の範囲で先に弾く。投げない
@@ -74,4 +86,14 @@ export function storedToInputText(v: unknown): string {
     return v;
   }
   return typeof v === 'number' && Number.isFinite(v) ? String(v) : '';
+}
+// 保存済みの金額の表示。formatJPY は toNumber を通して大きな整数や小数を丸めるため、桁区切りと小数は文字列のまま組み立てる
+export function formatStoredAmount(v: unknown): string {
+  const d = readStoredAmount(v);
+  if (d === undefined) {
+    return m.common_stored_amount_unreadable();
+  }
+  const [int = '0', frac = ''] = d.abs().toFixed().split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${d.isNegative() ? '-' : ''}¥${grouped}${frac === '' ? '' : `.${frac}`}`;
 }

@@ -99,6 +99,22 @@ describe('年の欄（R12）', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(await db.personalDeductions.count()).toBe(0);
   });
+
+  test.each(['1999', '2100', '2026.5'])(
+    '年に %j を入れると保存を止めて案内し、2026 に戻すと保存できる',
+    async (bad) => {
+      await render('2026');
+      await waitFor(() => !saveButton().disabled);
+      setYear(bad);
+      expect(saveButton().disabled).toBe(true);
+      expect(container!.textContent).toContain(m.common_integer_invalid({ min: 2020, max: 2099 }));
+      setYear('2026');
+      await waitFor(() => !saveButton().disabled);
+      expect(container!.textContent).not.toContain(
+        m.common_integer_invalid({ min: 2020, max: 2099 }),
+      );
+    },
+  );
 });
 
 describe('年の帳簿を読み込めないとき（R20）', () => {

@@ -144,6 +144,24 @@ describe('復元された申告者情報の型（R1・R2・S8〜S10）', () => {
   });
 
   test.each([
+    ['氏名', 'userFilerName', {}],
+    ['住所', 'userFilerAddress', {}],
+    ['提出先税務署の名前', 'userZeimushoName', {}],
+    ['事業名', 'userBusinessName', {}],
+    ['インボイス登録番号', 'userInvoiceNumber', {}],
+    ['税務署コード（5 桁でない）', 'userZeimushoCode', '123'],
+    ['郵便番号（7 桁でない）', 'userFilerZip', '123'],
+    ['利用者識別番号（16 桁でない）', 'userRiyoshaId', '123'],
+  ])('%s が読めないか正しくないと、.xtx を作らずに案内する', async (_label, key, value) => {
+    await put(key, value);
+    await mountReports();
+    await clickXtx();
+    expect(text()).toContain(m.reports_xtx_filer_invalid());
+    expect(saveTextFile).not.toHaveBeenCalled();
+    expect(uncaught).toEqual([]);
+  });
+
+  test.each([
     m.reports_xtx_download(),
     m.reports_consumption_tax_xtx_simplified_download(),
     m.reports_consumption_tax_xtx_general_download(),

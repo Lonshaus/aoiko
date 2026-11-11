@@ -150,9 +150,10 @@ This is a **separate file and separate procedure** from the income-tax `.xtx` ab
 
 While the year on the Reports screen is outside 2020–2099, these buttons (including the ones for interim filing) cannot be pressed. After you press one, if any of the following applies, aoiko creates no `.xtx` and stops with the reason shown in the "Consumption tax" section.
 
-- The consumption tax actually paid as an interim payment this year holds an unreadable value: "Enter the amount as a number of 0 or more (e.g. 5000)" appears. This check is always made for the 20% special provision, and for general taxation and simplified taxation only when exporting the annual return (not when exporting an interim filing)
+- The consumption tax actually paid as an interim payment this year holds an unreadable value: "Enter the amount as a number of 0 or more (e.g. 5000)" appears. This check is always made for the 20% special provision, and for general taxation and simplified taxation only when exporting the annual return (not when exporting an interim filing). For an amount of ¥100 trillion or more, "The amount is too large. Enter an amount under ¥100 trillion" appears.
 - The filer info, business name or invoice registration number contains an incorrect or unreadable value ([§ 3-1](#3-1-pre-export-checklist))
 - The target year has an amount of ¥100 trillion or more or an unreadable amount, or the consumption tax settings hold an unreadable value: the list of the items or values concerned appears
+- The consumption tax settings hold an amount of ¥100 trillion or more: this covers the base-period and specified-period taxable sales, the consumption tax on sales returns and allowances (7.8% and 6.24% portions), and the tax on specified small-asset transfers. "Cannot export because the following saved amounts are ¥100 trillion or more. Fix them in Settings or on the input screen:" appears, followed by the list. If an unreadable value is also present, its notice appears alongside this one
 - Assembling the file failed: the cause appears
 
 ### Loading into e-Tax software (download edition)

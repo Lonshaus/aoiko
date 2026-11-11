@@ -56,7 +56,7 @@ In the list, a document that has a line whose quantity or unit price cannot be r
 
 ## 4. Converting a quote to an invoice
 
-From the quotes list, click **"Convert to invoice"** to create a new invoice draft with the line items copied over (transaction date defaults to today; the number isn't assigned yet). Quantities and unit prices containing full-width digits or thousands-separator commas are copied over converted to half-width digits with the commas removed. Review and adjust before issuing.
+From the quotes list, click **"Convert to invoice"** to open a new invoice draft with the line items copied over (transaction date defaults to today; the number isn't assigned yet). Nothing is saved until you press "Save draft" or "Issue". Quantities and unit prices containing full-width digits or thousands-separator commas are copied over converted to half-width digits with the commas removed. Review and adjust before issuing.
 
 ## 5. Printing to send
 

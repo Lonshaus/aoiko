@@ -89,6 +89,7 @@ If something is wrong:
 | A carryover entry already exists. Reverse it first with "Reverse existing carryover entry". | Already exists at `{year}-01-01`. See 3-4 |
 | No journal entries in the previous year — nothing to carry over | No prior-year journal entries at all (e.g. first year of use) |
 | Carryover for account {account}: {message} | The carryover for that account cannot be written into the entry. When the cause is the size of the amount, it reads "Carryover for account {account}: The amount is too large. Enter an amount under ¥100 trillion" |
+| {count} items have an amount of ¥100 trillion or more or an unreadable amount. Reverse them with correcting entries: … | The prior year has a line with an amount of ¥100 trillion or more or an unreadable amount. Both the preview and the creation stop and nothing is written. If a single line is ¥100 trillion or more, it stops even when the lines net out to less than ¥100 trillion |
 
 ## 4. First year (no prior data)
 
@@ -146,6 +147,7 @@ Settings > **"Prior-period carryover (opening balance)"** section, under "Revers
 ### 7-4. Behavior notes
 
 - Nothing to reverse (no addition booked in the prior year) → the button reports that and creates nothing
+- If the prior year has a line with an amount of ¥100 trillion or more or an unreadable amount ([§ 3-5](#3-5-errors)), the same notice is shown and no entry is created
 - Running it twice → the second run is refused; only one reversal entry per year
 - An addition entry that has been corrected via a reversing entry (訂正) is excluded from both the calculation and the duplicate check, so a mistaken reversal can be corrected and regenerated
 

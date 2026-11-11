@@ -113,7 +113,7 @@ Registering the opening entries and fixed assets and saving the business start a
 
 - The year you entered already has opening entries ([§ 7-1](#7-1-when-an-opening-entry-already-exists-for-the-year-you-entered))
 - The closing date was changed on another screen while you were confirming. "The business closing date was changed on another screen while you were confirming, so nothing was saved. Check the details and try again." appears
-- The write failed. "Nothing was changed because the data could not be saved (the opening entries, fixed assets, and saved business start and closing dates are as they were)." appears together with the reason
+- The write failed. "Nothing was changed because the data could not be saved (the opening entries, fixed assets, and saved business start and closing dates are as they were)." appears together with the reason. The English error text returned by the database (the error name and so on) is not shown; the reason reads "Failed to write the data. Please try again."
 
 Before the write, if the range from the earliest affected year (the earliest of the year you open, the year being reversed, and the year the closing date changes) through the Current tax year (or through the latest affected year, if that is later) includes a filed year, the "Writing to a filed year" confirmation appears ([06. § 8](06-reports_en.md#8-year-lock-filed)). Press **"Proceed"** to write.
 

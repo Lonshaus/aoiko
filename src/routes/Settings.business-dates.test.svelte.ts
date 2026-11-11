@@ -204,6 +204,156 @@ describe('償却額の表示と仕訳が同じ開業日を使う（G1）', () =>
     expect(text()).toContain(MOUNT_SENTINEL);
   });
 
+  test('計算に影響する問題のある資産があれば、開業日の読み込みに失敗していても減価償却を押せ、仕訳は作らず資産名と原因を示す', async () => {
+    const original = db.journalEntries.orderBy.bind(db.journalEntries);
+    vi.spyOn(db.journalEntries, 'orderBy').mockImplementation((index) => {
+      if (index === 'date') {
+        throw new Error('開業仕訳の読み込み失敗');
+      }
+      return original(index);
+    });
+    await db.fixedAssets.bulkAdd([
+      smallAsset(1),
+      smallAsset(2, { name: '壊れた資産', acquisitionCost: 'abc' }),
+    ]);
+    await mountSettings();
+    type('depreciationTargetNen', '2026');
+    await waitFor(() => text().includes('壊れた資産'));
+    const run = buttonByText(m.settings_asset_run_button())!;
+    expect(run.disabled).toBe(false);
+    run.click();
+    await waitFor(() => text().includes('⚠'));
+    expect(text()).toContain(m.fixed_asset_invalid({ name: '壊れた資産', reasons: '' }));
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test.each([
+    [
+      '開業仕訳の日付が日付として読めない',
+      async () => db.journalEntries.add(opening('op', '2026-02-30')),
+      () => m.business_date_invalid_opening_entry({ value: '2026-02-30' }),
+    ],
+    [
+      '保存された開業日が日付として読めない',
+      async () => setSetting('businessStartDate', '2026/07/01'),
+      () => m.business_date_invalid_setting_start({ value: '2026/07/01' }),
+    ],
+    [
+      '保存された廃業日が日付として読めない',
+      async () => setSetting('businessCloseDate', '2026/12/31'),
+      () => m.business_date_invalid_setting_close({ value: '2026/12/31' }),
+    ],
+  ])('%s とき、一覧の上の警告に理由を示し、減価償却を押せない', async (_label, seed, message) => {
+    await seed();
+    await db.fixedAssets.add(
+      smallAsset(1, { depreciationMethod: 'straight-line', acquisitionDate: '2025-01-01' }),
+    );
+    await mountSettings();
+    type('depreciationTargetNen', '2026');
+    await waitFor(() => cell('PC1', 4) === m.common_dash());
+    await waitFor(() => text().includes(m.settings_asset_calc_blocked({ reasons: '' })));
+    expect(text().split(m.settings_asset_calc_blocked({ reasons: '' }))[1]).toContain(message());
+    expect(buttonByText(m.settings_asset_run_button())!.disabled).toBe(true);
+  });
+
+  test('問題のある資産があるときは、開業日・廃業日を読み込み中でも警告を出す', async () => {
+    const original = db.journalEntries.orderBy.bind(db.journalEntries);
+    vi.spyOn(db.journalEntries, 'orderBy').mockImplementation((index) => {
+      if (index === 'date') {
+        return {
+          filter: () => ({ toArray: () => new Promise(() => {}) }),
+        } as unknown as ReturnType<typeof original>;
+      }
+      return original(index);
+    });
+    await db.fixedAssets.bulkAdd([
+      smallAsset(1),
+      smallAsset(2, { name: '壊れた資産', acquisitionCost: 'abc' }),
+    ]);
+    await mountSettings();
+    type('depreciationTargetNen', '2026');
+    await waitFor(() => text().includes(m.settings_asset_calc_blocked({ reasons: '' })));
+    expect(text().split(m.settings_asset_calc_blocked({ reasons: '' }))[1]).toContain('壊れた資産');
+    expect(cell('PC1', 4)).toBe(m.common_dash());
+  });
+
+  test('セクションの先頭に説明を示し、「開業日（設定値）」と「廃業日（空欄は廃業なし）」の 2 つの欄を並べる', async () => {
+    await db.fixedAssets.add(smallAsset(1));
+    await mountSettings();
+    await waitFor(() => section() !== null && field('businessStartDateSetting') !== null);
+    expect(sectionText()).toContain(m.settings_business_dates_intro());
+    expect(sectionText()).toContain(m.settings_business_dates_start_label());
+    expect(sectionText()).toContain(m.settings_business_dates_close_label());
+    expect(field('businessCloseDateSetting')).not.toBeNull();
+  });
+
+  test('読み込み中は「読み込み中…」、読み込めなかったときは理由つきの案内をセクションに示す', async () => {
+    const failure = new Error('開業仕訳の読み込み失敗');
+    const original = db.journalEntries.orderBy.bind(db.journalEntries);
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    vi.spyOn(db.journalEntries, 'orderBy').mockImplementation((index) => {
+      if (index === 'date') {
+        return {
+          filter: () => ({
+            toArray: async () => {
+              await gate;
+              throw failure;
+            },
+          }),
+        } as unknown as ReturnType<typeof original>;
+      }
+      return original(index);
+    });
+    await mountSettings();
+    await waitFor(() => section() !== null);
+    expect(sectionText()).toContain(m.settings_business_dates_loading());
+    release();
+    await waitFor(() =>
+      sectionText().includes(
+        m.settings_business_dates_load_failed({ reason: describeStorageError(failure) }),
+      ),
+    );
+    expect(sectionText()).not.toContain(m.settings_business_dates_loading());
+  });
+
+  test('開業仕訳のある年に、その年の廃業日の設定値があると、同じ年に廃業して再開業した期間として計算する旨を示す', async () => {
+    await db.journalEntries.add(opening('op', '2026-07-01'));
+    await setSetting('businessCloseDate', '2026-03-31');
+    await mountSettings();
+    await waitFor(() => section() !== null);
+    await waitFor(() => sectionText().includes(m.settings_business_dates_close_reopen()));
+  });
+
+  test('開業仕訳も設定値も無いときは「未設定（通年扱い）」を示す', async () => {
+    await mountSettings();
+    await waitFor(() => section() !== null);
+    await waitFor(() => sectionText().includes(m.settings_business_dates_effective_none()));
+  });
+
+  test('開業仕訳の無い年の設定値の開業日は「N 年の開業日として使います」と示す', async () => {
+    await setSetting('businessStartDate', '2026-05-20');
+    await mountSettings();
+    await waitFor(() =>
+      sectionText().includes(m.settings_business_dates_start_used({ year: 2026 })),
+    );
+  });
+
+  test('日付として読めない値を入れて保存すると「日付として読めない値があります」を示し、保存しない', async () => {
+    await setSetting('businessStartDate', '2026-05-20');
+    await mountSettings();
+    await waitFor(() => field('businessStartDateSetting') !== null);
+    await waitFor(() => field('businessStartDateSetting').value === '2026-05-20');
+    // 日付の欄に対応しないブラウザは文字として受け取るため、欄を文字の入力に切り替えて再現する
+    field('businessStartDateSetting').type = 'text';
+    type('businessStartDateSetting', '2026-02-30');
+    saveDates();
+    await waitFor(() => sectionText().includes(m.settings_business_dates_input_invalid()));
+    expect(await getSetting('businessStartDate')).toBe('2026-05-20');
+  });
+
   test('読み込み中は償却額を出さず、計算できない旨も出さず、減価償却を押せない', async () => {
     const original = db.journalEntries.orderBy.bind(db.journalEntries);
     vi.spyOn(db.journalEntries, 'orderBy').mockImplementation((index) => {

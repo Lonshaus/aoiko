@@ -116,6 +116,37 @@ describe('addArApEntry / recordPayment', () => {
     expect((await db.arApEntries.get('bad'))?.paidAmount).toBe('abc');
   });
 
+  test.each([
+    ['当初金額が 100 兆円', '100000000000000', '0'],
+    ['入金済みの額が 100 兆円', '100000000000001', '100000000000000'],
+  ])('保存済みの%sのときは名前付きの例外を投げ、書き込まない', async (_label, original, paid) => {
+    await db.arApEntries.add({
+      id: 'big',
+      type: 'receivable',
+      description: '巨額の売掛',
+      dueDate: '2026-08-01',
+      originalAmount: original,
+      paidAmount: paid,
+      createdAt: 0,
+    });
+    await expect(recordPayment('big', '100')).rejects.toThrow('巨額の売掛');
+    expect((await db.arApEntries.get('big'))?.paidAmount).toBe(paid);
+  });
+
+  test('入金額そのものが 100 兆円以上のときも書き込まない', async () => {
+    await db.arApEntries.add({
+      id: 'ok',
+      type: 'receivable',
+      description: '通常の売掛',
+      dueDate: '2026-08-01',
+      originalAmount: '10000',
+      paidAmount: '0',
+      createdAt: 0,
+    });
+    await expect(recordPayment('ok', '100000000000000')).rejects.toThrow();
+    expect((await db.arApEntries.get('ok'))?.paidAmount).toBe('0');
+  });
+
   test('全角・カンマ付きの額は値として消し込む', async () => {
     await addArApEntry({
       type: 'payable',

@@ -74,12 +74,15 @@ async function saveBlocked(el: HTMLElement): Promise<void> {
 }
 
 describe('所得控除の保存前の検査', () => {
-  test.each(['abc', '-5000', '1e3'])('社会保険料 %j は保存されず、件数が出る', async (bad) => {
-    const el = await render();
-    type(el, 'input[name="socialInsurancePaid"]', bad);
-    expect(el.textContent).toContain(m.income_deductions_invalid_count({ count: 1 }));
-    await saveBlocked(el);
-  });
+  test.each(['abc', '-5000', '1e3', '100000000000000'])(
+    '社会保険料 %j は保存されず、件数が出る',
+    async (bad) => {
+      const el = await render();
+      type(el, 'input[name="socialInsurancePaid"]', bad);
+      expect(el.textContent).toContain(m.income_deductions_invalid_count({ count: 1 }));
+      await saveBlocked(el);
+    },
+  );
 
   test('読める値に直すと保存できる', async () => {
     const el = await render();
@@ -90,6 +93,64 @@ describe('所得控除の保存前の検査', () => {
     save.click();
     await waitFor(() => (el.textContent ?? '').includes(m.income_deductions_saved()));
     expect((await db.personalDeductions.get(2026))?.socialInsurancePaid).toBe('５，０００');
+  });
+
+  test.each([
+    ['配偶者の年齢', 'input[name="spouseAge"]', ['-1', '121', '', '2.5'], ['0', '120']],
+    [
+      '専従者の年齢',
+      'input[name$="-age"][name^="familyEmployee-"]',
+      ['-1', '121', '', '2.5'],
+      ['0', '120'],
+    ],
+    [
+      '専従者の従事月数',
+      'input[name$="-monthsWorked"][name^="familyEmployee-"]',
+      ['-1', '13', '', '2.5'],
+      ['0', '12'],
+    ],
+  ])(
+    '%s は 0〜上限の整数だけを通し、範囲外は欄の下に案内を出して保存しない',
+    async (label, selector, bads, goods) => {
+      const el = await render();
+      if (label === '配偶者の年齢') {
+        const checkbox = Array.from(el.querySelectorAll('label'))
+          .find((l) => l.textContent?.includes(m.income_deductions_spouse_checkbox()))!
+          .querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+        checkbox.click();
+        flushSync();
+      } else {
+        addButtonUnder(el, m.income_deductions_family_employees_title()).click();
+        flushSync();
+      }
+      const max = label === '専従者の従事月数' ? 12 : 120;
+      for (const bad of bads) {
+        type(el, selector, bad);
+        expect(el.querySelector(selector)!.closest('label')!.textContent).toContain(
+          m.common_integer_invalid({ min: 0, max }),
+        );
+        expect(el.textContent).toContain(m.income_deductions_invalid_count({ count: 1 }));
+        expect(button(el, m.income_deductions_save()).disabled).toBe(true);
+      }
+      for (const good of goods) {
+        type(el, selector, good);
+        expect(el.querySelector(selector)!.closest('label')!.textContent).not.toContain(
+          m.common_integer_invalid({ min: 0, max }),
+        );
+      }
+    },
+  );
+
+  test('誤りのある欄が 2 つあれば件数は 2 件になり、直すと保存できる', async () => {
+    const el = await render();
+    type(el, 'input[name="socialInsurancePaid"]', 'abc');
+    type(el, 'input[name="donationAmount"]', '1e3');
+    expect(el.textContent).toContain(m.income_deductions_invalid_count({ count: 2 }));
+    expect(button(el, m.income_deductions_save()).disabled).toBe(true);
+    type(el, 'input[name="socialInsurancePaid"]', '0');
+    type(el, 'input[name="donationAmount"]', '0');
+    expect(el.textContent).not.toContain(m.income_deductions_invalid_count({ count: 2 }));
+    expect(button(el, m.income_deductions_save()).disabled).toBe(false);
   });
 
   test.each(['200', '', '2.5'])('扶養親族の年齢 %j は保存されない', async (bad) => {

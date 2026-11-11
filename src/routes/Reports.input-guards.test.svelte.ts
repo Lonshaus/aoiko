@@ -80,8 +80,8 @@ describe('期中申告の入力', () => {
   });
 });
 
-describe('報表年度と現金流量の整数欄', () => {
-  test.each(['1999', '2.5', '', '2100'])('報表年度 %j は誤りとして示す', (bad) => {
+describe('レポートの年と資金繰り予測の整数欄', () => {
+  test.each(['1999', '2.5', '', '2100'])('レポートの年 %j は誤りとして示す', (bad) => {
     type('reportNen', bad);
     expect(text()).toContain(m.common_integer_invalid({ min: 2020, max: 2099 }));
   });
@@ -92,14 +92,17 @@ describe('報表年度と現金流量の整数欄', () => {
     expect(text()).not.toContain(m.common_integer_invalid({ min: 2020, max: 2099 }));
   });
 
-  test.each(['0', '-1', '25', ''])('現金流量の月数 %j は誤りで、実行ボタンが使えない', (bad) => {
-    type('cashFlowHorizon', bad);
-    expect(text()).toContain(m.common_integer_invalid({ min: 1, max: 24 }));
-    const run = Array.from(container!.querySelectorAll('button')).find(
-      (b) => b.textContent?.trim() === m.reports_cashflow_run(),
-    )!;
-    expect(run.disabled).toBe(true);
-  });
+  test.each(['0', '-1', '25', ''])(
+    '資金繰り予測の月数 %j は誤りで、実行ボタンが使えない',
+    (bad) => {
+      type('cashFlowHorizon', bad);
+      expect(text()).toContain(m.common_integer_invalid({ min: 1, max: 24 }));
+      const run = Array.from(container!.querySelectorAll('button')).find(
+        (b) => b.textContent?.trim() === m.reports_cashflow_run(),
+      )!;
+      expect(run.disabled).toBe(true);
+    },
+  );
 
   test('基準日が空白なら実行ボタンが使えない', () => {
     type('cashFlowAsOfDate', '');

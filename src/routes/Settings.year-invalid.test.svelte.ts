@@ -91,4 +91,44 @@ describe('処理年度の欄が範囲外のとき（G5）', () => {
     }
     expect(text()).not.toContain(invalid);
   });
+  test.each(['1999', '2100', '2026.5', ''])(
+    '処理年度に %j を入れると欄の下に案内が出て、基本情報の「保存」を押せない',
+    async (bad) => {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      instance = mount(Settings, { target: container, props: {} });
+      await waitFor(() => text().includes(MOUNT_SENTINEL));
+      const yearField = container.querySelector<HTMLInputElement>('[name="currentTaxNen"]')!;
+      const save = yearField
+        .closest('form')!
+        .querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      expect(save.disabled).toBe(false);
+      typeYear(bad);
+      expect(yearField.closest('form')!.textContent).toContain(
+        m.common_integer_invalid({ min: 2020, max: 2099 }),
+      );
+      expect(save.disabled).toBe(true);
+      typeYear('2026');
+      expect(save.disabled).toBe(false);
+    },
+  );
+  test('「前期繰越（期首残高）」の中の「貸倒引当金の繰戻し（洗替）」に「貸倒引当金を繰り戻す」のボタンがある', async () => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Settings, { target: container, props: {} });
+    await waitFor(() => text().includes(MOUNT_SENTINEL));
+    const heading = Array.from(container.querySelectorAll('h3')).find(
+      (h) => h.textContent === m.settings_carryover_title(),
+    )!;
+    const section = heading.closest('section')!;
+    const sub = Array.from(section.querySelectorAll('h4')).find(
+      (h) => h.textContent === m.settings_bad_debt_reversal_title(),
+    )!;
+    expect(sub).toBeDefined();
+    expect(
+      Array.from(sub.parentElement!.querySelectorAll('button')).some(
+        (b) => b.textContent?.trim() === m.settings_bad_debt_reversal_button(),
+      ),
+    ).toBe(true);
+  });
 });

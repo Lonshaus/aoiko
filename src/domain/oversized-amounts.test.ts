@@ -105,6 +105,28 @@ describe('findOversizedAmounts', () => {
     ]);
   });
 
+  test('取得価額が 1e14 以上の固定資産は、取得日が別の年でも年度を指定した検査に出る', async () => {
+    await db.fixedAssets.add({
+      id: 'a-old',
+      name: '古い巨大な機械',
+      acquisitionDate: '2021-04-01',
+      acquisitionCost: '100000000000000',
+      usefulLifeYears: 4,
+      depreciationMethod: 'straight-line',
+      accountCode: '1510',
+    });
+    const r = await findOversizedAmounts({ year: 2026 });
+    expect(r.items).toEqual([
+      {
+        kind: 'asset',
+        date: '2021-04-01',
+        description: '古い巨大な機械',
+        amount: '100000000000000',
+      },
+    ]);
+    expect(r.total).toBe(1);
+  });
+
   test('金額は先頭 40 文字だけ、一覧は 20 件まで、件数は全部', async () => {
     for (let i = 0; i < 11; i++) {
       await seedEntry('1' + '0'.repeat(100));
@@ -141,6 +163,32 @@ describe('会計士向け CSV の出力前の検査', () => {
       await expect(exportCorrectionHistoryCsv(2026)).rejects.toThrow('壊れた原仕訳');
     },
   );
+
+  test('取得価額が 1e14 以上の固定資産があれば、弥生・汎用は止まる', async () => {
+    await db.fixedAssets.add({
+      id: 'a-big',
+      name: '巨大な機械',
+      acquisitionDate: '2021-04-01',
+      acquisitionCost: '100000000000000',
+      usefulLifeYears: 4,
+      depreciationMethod: 'straight-line',
+      accountCode: '1510',
+    });
+    await expect(exportYayoiCsv(2026)).rejects.toThrow('巨大な機械');
+    await expect(exportGenericCsv(2026)).rejects.toThrow('巨大な機械');
+  });
+
+  test('読めない金額の明細があれば、弥生・汎用は止まる', async () => {
+    await seedEntry('abc', { description: '壊れた取引' });
+    await expect(exportYayoiCsv(2026)).rejects.toThrow('壊れた取引');
+    await expect(exportGenericCsv(2026)).rejects.toThrow('壊れた取引');
+  });
+
+  test('消費税の設定に読めない値があっても、汎用 CSV は止まらない（弥生だけ止まる）', async () => {
+    await setSetting('basePeriodTaxableSales', 20000000 as unknown as string);
+    await expect(exportYayoiCsv(2026)).rejects.toThrow('基準期間');
+    await expect(exportGenericCsv(2026)).resolves.toBeInstanceOf(Uint8Array);
+  });
 
   test('基準期間の課税売上高が数値で保存されていれば弥生 CSV は設定名を示して止まる', async () => {
     await setSetting('basePeriodTaxableSales', 20000000 as unknown as string);

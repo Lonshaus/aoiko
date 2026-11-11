@@ -284,7 +284,7 @@ describe('申告時スナップショットを読めないとき', () => {
     ['BS の payload が null', { type: 'pl', data: pl }, null],
     ['BS の data が空', { type: 'pl', data: pl }, { type: 'bs', data: {} }],
   ])(
-    '%s：修正申告欄は「金額を読めません」、報表の数字は表示する',
+    '%s：修正申告欄は「金額を読めません」、レポートの数字は表示する',
     async (label, plPayload, bsPayload) => {
       await putSnapshot('pl', plPayload);
       if (label.startsWith('BS')) {
@@ -297,4 +297,140 @@ describe('申告時スナップショットを読めないとき', () => {
       expect(text()).toContain('¥1,100,000');
     },
   );
+});
+
+describe('.xtx を出す前の確認の順序と、出したあとの注意', () => {
+  function asset(overrides: Partial<FixedAsset>): FixedAsset {
+    return {
+      id: newId(),
+      name: '資産',
+      acquisitionDate: '2026-01-01',
+      acquisitionCost: '300000',
+      usefulLifeYears: 4,
+      depreciationMethod: 'straight-line',
+      accountCode: '1510',
+      ...overrides,
+    };
+  }
+  const deductions = (overrides: Record<string, unknown>) =>
+    ({
+      year: 2026,
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      updatedAt: 1,
+      ...overrides,
+    }) as PersonalDeductionInput;
+
+  test('100 兆円以上の明細と読めない所得控除が両方あれば、明細の案内だけを出し、所得控除の案内は出さない', async () => {
+    await seedEntry({
+      description: '桁あふれ取引',
+      amount: '1000000000000000',
+      debit: '5150',
+      credit: '1130',
+    });
+    await db.personalDeductions.put(deductions({ socialInsurancePaid: 'abc' }));
+    await mountReports();
+    buttonByText(m.reports_xtx_download())!.click();
+    await waitFor(() => text().split('桁あふれ取引').length - 1 >= 2);
+    expect(text()).not.toContain(m.stored_values_invalid({ items: '' }).slice(0, 12));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(saveTextFile).not.toHaveBeenCalled();
+  });
+
+  test('読めない所得控除と組み立てられない 16 桁の公的年金等が両方あれば、読めない所得控除の案内だけを出す', async () => {
+    await db.personalDeductions.put(
+      deductions({
+        socialInsurancePaid: 'abc',
+        miscIncome: {
+          publicPensionAmount: '1234567890123456',
+          otherIncome: '0',
+          otherExpenses: '0',
+        },
+      }),
+    );
+    await mountReports();
+    buttonByText(m.reports_xtx_download())!.click();
+    await waitFor(() => text().includes(m.income_deductions_social_insurance_paid()));
+    expect(text()).not.toContain(m.xtx_amount_out_of_range({ tag: '' }).slice(0, 10));
+    expect(saveTextFile).not.toHaveBeenCalled();
+  });
+
+  test('申告書の明細欄の行数を超える減価償却資産は .xtx に書かず、出力はしたうえで項目名つきの注意を画面上部に出す', async () => {
+    await db.fixedAssets.bulkAdd(
+      Array.from({ length: 8 }, (_, i) =>
+        asset({ name: `超過資産${i + 1}`, acquisitionDate: `2026-01-0${i + 1}` }),
+      ),
+    );
+    await mountReports();
+    buttonByText(m.reports_xtx_download())!.click();
+    await waitFor(() => saveTextFile.mock.calls.length > 0);
+    await waitFor(() =>
+      text().includes(m.reports_xtx_row_overflow({ list: '' }).split('{list}')[0]!.slice(0, 12)),
+    );
+    expect(text()).toContain('超過資産8（¥75,000）');
+    expect(text()).toContain('必要なら e-Tax 上で追記してください。');
+  });
+
+  test.each(CONSUMPTION_BUTTONS)(
+    '「%s」は、中間納付額が読めないとき .xtx を作らず、消費税の欄へ理由を示す',
+    async (label) => {
+      await mountReports();
+      const input = container!.querySelector<HTMLInputElement>(
+        'input[name="interimPaidNational"]',
+      )!;
+      input.value = '1e3';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 20));
+      const buttons = Array.from(container!.querySelectorAll('button')).filter(
+        (b) => b.textContent?.trim() === label,
+      );
+      buttons[0]!.click();
+      await new Promise((r) => setTimeout(r, 100));
+      const section = buttons[0]!.closest('section')!;
+      expect(section.textContent).toContain(m.common_amount_invalid());
+      expect(saveTextFile).not.toHaveBeenCalled();
+    },
+  );
+  test('中間納付額が読めなくても、中間申告の欄の .xtx は出力する（確定申告の .xtx は止まる）', async () => {
+    await db.reportSnapshots.add({
+      id: 'ct-2025',
+      year: 2025,
+      type: 'consumption-tax',
+      status: 'filed',
+      filedAt: 1,
+      payload: { type: 'consumption-tax', data: { method: 'general', netTaxNational: '600000' } },
+      generatedAt: 1,
+      generatedFromEntriesUpTo: '2025-12-31',
+    });
+    await mountReports();
+    await waitFor(() => container!.querySelector('[name="interimInstallment"]') !== null);
+    const input = container!.querySelector<HTMLInputElement>('input[name="interimPaidNational"]')!;
+    input.value = '1e3';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, 20));
+    const label = m.reports_consumption_tax_xtx_simplified_download();
+    const buttons = Array.from(container!.querySelectorAll('button')).filter(
+      (b) => b.textContent?.trim() === label,
+    );
+    expect(buttons).toHaveLength(2);
+    buttons[0]!.click();
+    await new Promise((r) => setTimeout(r, 100));
+    expect(saveTextFile).not.toHaveBeenCalled();
+    buttons[1]!.click();
+    await waitFor(() => saveTextFile.mock.calls.length > 0);
+    await new Promise((r) => setTimeout(r, 200));
+  });
 });

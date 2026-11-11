@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
-import { getSetting } from '../lib/settings';
+import { getSetting, setSetting } from '../lib/settings';
 import { m } from '../paraglide/messages';
 
 const { default: Settings } = await import('./Settings.svelte');
@@ -132,4 +132,37 @@ describe('申告者情報の番号欄の検査', () => {
     await submitFiler();
     expect(await getSetting('userRiyoshaId')).toBe('');
   });
+
+  test('保存されている税務署コードが 5 桁でないと欄の下に誤りが出て、「保存」を押せない', async () => {
+    await setSetting('userZeimushoCode', '123');
+    await renderSettings();
+    expect(container!.textContent).toContain(m.settings_filer_zeimusho_invalid());
+    const save = Array.from(
+      field('etaxRiyoshaId').closest('form')!.querySelectorAll('button'),
+    ).find((b) => b.textContent?.trim() === m.settings_basic_save());
+    expect(save?.disabled).toBe(true);
+  });
+  test.each([
+    ['etaxRiyoshaId', '123456789012345', () => m.settings_filer_riyosha_id_invalid()],
+    ['etaxRiyoshaId', '12345678901234567', () => m.settings_filer_riyosha_id_invalid()],
+    ['etaxRiyoshaId', '123456789012345a', () => m.settings_filer_riyosha_id_invalid()],
+    ['filerYubinBango', '123456', () => m.settings_filer_zip_invalid()],
+    ['filerYubinBango', '12345678', () => m.settings_filer_zip_invalid()],
+  ])(
+    '%s に %j を入れると欄の下に誤りが出て、「保存」を押せず、直すと押せる',
+    (name, bad, message) => {
+      return renderSettings().then(() => {
+        const save = Array.from(field(name).closest('form')!.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === m.settings_basic_save(),
+        )!;
+        expect(save.disabled).toBe(false);
+        typeInto(name, bad);
+        expect(field(name).closest('label')!.textContent).toContain(message());
+        expect(save.disabled).toBe(true);
+        typeInto(name, name === 'etaxRiyoshaId' ? '1234567890123456' : '1234567');
+        expect(field(name).closest('label')!.textContent).not.toContain(message());
+        expect(save.disabled).toBe(false);
+      });
+    },
+  );
 });

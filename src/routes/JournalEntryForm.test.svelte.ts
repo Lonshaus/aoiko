@@ -95,7 +95,7 @@ describe('仕訳フォームの金額欄', () => {
 });
 
 describe('在庫数量の欄（R13）', () => {
-  test('在庫数量 -5 は案内を出し、保存しない', async () => {
+  async function selectInventoryItem(): Promise<void> {
     await db.inventoryItems.add({ id: 'item1', name: '商品A' });
     for (const name of ['debit-account-0', 'credit-account-0']) {
       const select = container!.querySelector<HTMLSelectElement>(`select[name="${name}"]`)!;
@@ -122,6 +122,10 @@ describe('在庫数量の欄（R13）', () => {
     itemSelect!.value = 'item1';
     itemSelect!.dispatchEvent(new Event('change', { bubbles: true }));
     flushSync();
+  }
+
+  test('在庫数量 -5 は案内を出し、保存しない', async () => {
+    await selectInventoryItem();
     type('debit-amount-0', '1000');
     type('credit-amount-0', '1000');
     type('debit-quantity-0', '-5');
@@ -131,4 +135,19 @@ describe('在庫数量の欄（R13）', () => {
     await new Promise((r) => setTimeout(r, 100));
     expect(await db.journalLines.count()).toBe(0);
   });
+
+  test.each(['1e3', '.5e1'])(
+    '在庫数量 %j は金額と同じ案内を出し、「仕訳を追加」を押せず、保存しない',
+    async (bad) => {
+      await selectInventoryItem();
+      type('debit-amount-0', '1000');
+      type('credit-amount-0', '1000');
+      type('debit-quantity-0', bad);
+      expect(container!.textContent).toContain(m.common_amount_invalid());
+      expect(submitButton().disabled).toBe(true);
+      container!.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      await new Promise((r) => setTimeout(r, 100));
+      expect(await db.journalLines.count()).toBe(0);
+    },
+  );
 });

@@ -6,7 +6,7 @@
   import { m } from '../paraglide/messages';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import {
-    isAmountInputInvalid,
+    isAmountInputMalformed,
     isJournalAmountTooLarge,
     normalizeAmountInput,
     parseAmountInput,
@@ -1189,7 +1189,7 @@
             placeholder={m.opening_expense_custom_amount()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums w-40"
           />
-          {#if isAmountInputInvalid(customAmortizationAmount)}
+          {#if isAmountInputMalformed(customAmortizationAmount)}
             <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
           {:else if isJournalAmountTooLarge(customAmortizationAmount)}
             <p class="text-xs text-destructive">{m.common_amount_too_large()}</p>

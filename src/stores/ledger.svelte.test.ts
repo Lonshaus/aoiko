@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
-import { ledger } from './ledger.svelte';
-import type { Account, JournalEntry } from '../db/types';
+import { buildLedgerRows, ledger } from './ledger.svelte';
+import type { Account, JournalEntry, JournalLine } from '../db/types';
 
 function acc(code: string, year: number, name: string): Account {
   return { code, year, name, category: 'expense', displayOrder: Number(code) };
@@ -149,5 +149,81 @@ describe('computeRecentRows の年度フィルタ', () => {
       '2026 の仕訳が反映される',
     );
     expect(ledger.recentLedgerRows.some((r) => r.entry.id === 'e2027')).toBe(false);
+  });
+});
+
+function line(
+  id: string,
+  entryId: string,
+  side: 'debit' | 'credit',
+  code: string,
+  amount: unknown,
+) {
+  return {
+    id,
+    entryId,
+    side,
+    accountCode: code,
+    amount,
+    amountIndexed: '00000000000000.00',
+    taxRate: 0,
+    taxIncluded: true,
+    invoiceCompliant: false,
+  } as JournalLine;
+}
+
+describe('読めない金額の明細', () => {
+  test('buildLedgerRows は借方に読めない金額があるとき totalAmount が null になり、他の仕訳の合計は正しい', async () => {
+    const e1 = entry('e-ok', 2026, '2026-04-01');
+    const e2 = entry('e-bad', 2026, '2026-04-02');
+    const e3 = entry('e-half', 2026, '2026-04-03');
+    await db.journalEntries.bulkAdd([e1, e2, e3]);
+    await db.journalLines.bulkAdd([
+      line('l1', 'e-ok', 'debit', '5130', '1500'),
+      line('l2', 'e-ok', 'credit', '5140', '1500'),
+      line('l3', 'e-bad', 'debit', '5130', 'abc'),
+      line('l4', 'e-bad', 'credit', '5140', '1000'),
+      line('l5', 'e-half', 'debit', '5130', '0.5'),
+      line('l6', 'e-half', 'debit', '5130', '1e3'),
+      line('l7', 'e-half', 'credit', '5140', '1000.5'),
+    ]);
+    const rows = await buildLedgerRows([e1, e2, e3], 2026);
+    expect(rows.map((r) => r.totalAmount)).toEqual(['1500', null, '1000.5']);
+  });
+
+  test('借方が読めなくても lastError は設定されず、月次合計は読めない件数を返して他の明細を合計する', async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const date = `${year}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    await db.accounts.bulkAdd([
+      { code: '4110', year, name: '売上高', category: 'revenue', displayOrder: 1 },
+      { code: '5150', year, name: '雑費', category: 'expense', displayOrder: 2 },
+      { code: '1110', year, name: '現金', category: 'asset', displayOrder: 3 },
+    ]);
+    await db.journalEntries.bulkAdd([
+      entry('m-ok', year, date),
+      entry('m-bad', year, date),
+      entry('m-bad2', year, date),
+    ]);
+    await db.journalLines.bulkAdd([
+      line('m1', 'm-ok', 'debit', '1110', '3000'),
+      line('m2', 'm-ok', 'credit', '4110', '3000'),
+      line('m3', 'm-bad', 'debit', '5150', 'abc'),
+      line('m4', 'm-bad', 'credit', '1110', 'abc'),
+      line('m5', 'm-bad2', 'debit', '1110', '700'),
+      line('m6', 'm-bad2', 'credit', '4110', { nested: true }),
+    ]);
+    ledger.switchYear(year);
+    await waitFor(() => ledger.monthlyOverview.entryCount === 3, '月次合計の反映');
+    expect(ledger.lastError).toBeNull();
+    expect(ledger.monthlyOverview.unreadableCount).toBe(2);
+    expect(ledger.monthlyOverview.revenue).toBe('3000');
+    expect(ledger.monthlyOverview.expense).toBe('0');
+    await waitFor(() => ledger.recentLedgerRows.length === 3, '直近の仕訳の反映');
+    expect(ledger.lastError).toBeNull();
+    const totals = Object.fromEntries(
+      ledger.recentLedgerRows.map((r) => [r.entry.id, r.totalAmount]),
+    );
+    expect(totals).toEqual({ 'm-ok': '3000', 'm-bad': null, 'm-bad2': '700' });
   });
 });

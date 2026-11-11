@@ -433,6 +433,28 @@ describe('Import: CSV の金額検査', () => {
     const lines = await db.journalLines.toArray();
     expect(lines.map((l) => l.amount).sort()).toEqual(['1000', '1000', '2000', '2000']);
   });
+
+  test('除いた行の金額欄は読めない・過大の表示になり、登録後の上部に件数と取り込まなかった件数が続く', async () => {
+    await db.vendors.add({ id: 've', name: '店E', defaultAccountCode: '5300' });
+    const c = container as HTMLElement;
+    changeParser(c, parserE.name);
+    await loadFile(c);
+
+    const amountCells = Array.from(c.querySelectorAll('tbody tr')).map(
+      (row) => row.textContent ?? '',
+    );
+    expect(amountCells[1]).toContain(m.common_stored_amount_unreadable());
+    expect(amountCells[3]).toContain(m.common_amount_too_large());
+    expect(amountCells[0]).not.toContain(m.common_stored_amount_unreadable());
+    expect(amountCells[2]).not.toContain(m.common_amount_too_large());
+
+    button(c, m.import_submit({ count: 2 })).click();
+    await waitFor(() => (c.textContent ?? '').includes(m.import_amount_excluded({ count: 2 })));
+    const message = c.textContent ?? '';
+    expect(message).toContain(
+      `${m.import_success({ count: 2 })} ${m.import_amount_excluded({ count: 2 })}`,
+    );
+  });
 });
 
 describe('Import: 取引先の既定科目による分類', () => {

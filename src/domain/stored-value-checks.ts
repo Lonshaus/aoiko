@@ -1,5 +1,10 @@
 import { db } from '../db/db';
-import { normalizeAmountInput, parseAmountInput, parseIntegerInput } from '../lib/amount-input';
+import {
+  isJournalAmountTooLarge,
+  normalizeAmountInput,
+  parseAmountInput,
+  parseIntegerInput,
+} from '../lib/amount-input';
 import { getSetting } from '../lib/settings';
 import { describeInvalidFixedAssets, findInvalidFixedAssets } from './fixed-asset-check';
 import {
@@ -178,33 +183,40 @@ export function validatePersonalDeductions(stored: unknown): string[] {
   }
   return [...new Set(bad)];
 }
-// 消費税の判定・.xtx・弥生 CSV が settings.ts 経由で読む金額設定。読めない値は「未設定」として黙って判定を変えてしまう
-export async function findInvalidConsumptionTaxSettings(year: number): Promise<string[]> {
-  const bad: string[] = [];
-  if (isStoredAmountInvalid(await getSetting('basePeriodTaxableSales'))) {
-    bad.push(m.settings_ct_base_period_sales());
-  }
-  if (isStoredAmountInvalid(await getSetting('specifiedPeriodTaxableSales'))) {
-    bad.push(m.settings_ct_specified_period_sales());
-  }
+// 消費税の判定・.xtx・弥生 CSV が settings.ts 経由で読む金額設定。欄の名前と、その欄が持つ保存値（行の欄は複数）を並べる
+async function loadConsumptionTaxAmounts(
+  year: number,
+): Promise<{ label: string; values: unknown[] }[]> {
   const map: unknown = await getSetting('wariBaseAdjustments');
   const stored = isRecord(map) ? map[year] : undefined;
-  if (isRecord(stored)) {
-    if (isStoredAmountInvalid(stored.salesReturnTax78)) {
-      bad.push(m.reports_wari_sales_return_tax_78());
-    }
-    if (isStoredAmountInvalid(stored.salesReturnTax624)) {
-      bad.push(m.reports_wari_sales_return_tax_624());
-    }
-    const rows: unknown = stored.specifiedSmallAssetTransfers;
-    if (
-      Array.isArray(rows) &&
-      (rows as unknown[]).some((t) => isRecord(t) && isStoredAmountInvalid(t.netTax))
-    ) {
-      bad.push(m.reports_wari_specified_small_asset_transfers());
-    }
-  }
-  return bad;
+  const wari = isRecord(stored) ? stored : {};
+  const rows: unknown = wari.specifiedSmallAssetTransfers;
+  return [
+    {
+      label: m.settings_ct_base_period_sales(),
+      values: [await getSetting('basePeriodTaxableSales')],
+    },
+    {
+      label: m.settings_ct_specified_period_sales(),
+      values: [await getSetting('specifiedPeriodTaxableSales')],
+    },
+    { label: m.reports_wari_sales_return_tax_78(), values: [wari.salesReturnTax78] },
+    { label: m.reports_wari_sales_return_tax_624(), values: [wari.salesReturnTax624] },
+    {
+      label: m.reports_wari_specified_small_asset_transfers(),
+      values: Array.isArray(rows) ? (rows as unknown[]).filter(isRecord).map((t) => t.netTax) : [],
+    },
+  ];
+}
+// 読めない値は「未設定」として扱われ、気づかないうちに判定が変わってしまう
+export async function findInvalidConsumptionTaxSettings(year: number): Promise<string[]> {
+  const amounts = await loadConsumptionTaxAmounts(year);
+  return amounts.filter((a) => a.values.some(isStoredAmountInvalid)).map((a) => a.label);
+}
+// 読めても 100 兆円以上だと、.xtx の 15 桁や索引の 14 桁に収まらない値を気づかないうちに出力してしまう。読めない値は上の検査が受け持つ
+export async function findOversizedConsumptionTaxSettings(year: number): Promise<string[]> {
+  const amounts = await loadConsumptionTaxAmounts(year);
+  return amounts.filter((a) => a.values.some(isJournalAmountTooLarge)).map((a) => a.label);
 }
 // .xtx を出す前に、保存済みの値のうち出力が黙って 0・未記入・例外になるものを並べる。
 // income は所得税（所得控除・固定資産）、consumption は消費税の設定を見る
@@ -240,6 +252,13 @@ export async function findInvalidStoredAmounts(
     found.push(e instanceof Error ? e.message : String(e));
   }
   return found;
+}
+
+export class OversizedStoredValuesError extends Error {
+  constructor(items: readonly string[]) {
+    super(m.stored_values_too_large({ items: items.join('、') }));
+    this.name = 'OversizedStoredValuesError';
+  }
 }
 
 export class InvalidStoredValuesError extends Error {

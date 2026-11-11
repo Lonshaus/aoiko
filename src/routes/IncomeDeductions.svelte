@@ -3,7 +3,12 @@
   import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
-  import { isAmountInputInvalid, parseAmountInput, parseIntegerInput } from '../lib/amount-input';
+  import {
+    amountInputError,
+    isAmountInputInvalid,
+    parseAmountInput,
+    parseIntegerInput,
+  } from '../lib/amount-input';
   import { newId } from '../lib/id';
   import { assignInputNumberOrEmpty } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
@@ -636,7 +641,7 @@
 
 {#snippet amountError(value: string | undefined)}
   {#if typeof value === 'string' && isAmountInputInvalid(value)}
-    <span class="block mt-1 text-xs text-destructive">{m.common_amount_invalid()}</span>
+    <span class="block mt-1 text-xs text-destructive">{amountInputError(value)}</span>
   {/if}
 {/snippet}
 

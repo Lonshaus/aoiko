@@ -136,4 +136,28 @@ describe('findInvalidStoredAmounts', () => {
     expect(found[1]).toContain('壊れた資産');
     expect(await findInvalidStoredAmounts(2026, 'consumption')).toEqual([]);
   });
+  test('固定資産が無くても、読めない開業日・廃業日と、代わりの開業日が無い開業仕訳の日付は同じ一覧に出る', async () => {
+    await setSetting('businessStartDate', '2026/07/01');
+    await setSetting('businessCloseDate', '2026/12/31');
+    const found = await findInvalidStoredAmounts(2026, 'income');
+    expect(found.join(' ')).toContain(
+      m.business_date_invalid_setting_start({ value: '2026/07/01' }),
+    );
+    await db.settings.clear();
+    await db.journalEntries.add({
+      id: 'op',
+      date: '2026-02-30',
+      year: 2026,
+      description: '開業費計上（開業設定）',
+      status: 'confirmed',
+      source: 'opening',
+      createdAt: 1,
+      confirmedAt: 1,
+    });
+    expect((await findInvalidStoredAmounts(2026, 'income')).join(' ')).toContain(
+      m.business_date_invalid_opening_entry({ value: '2026-02-30' }),
+    );
+    await setSetting('businessStartDate', '2026-03-01');
+    expect(await findInvalidStoredAmounts(2026, 'income')).toEqual([]);
+  });
 });

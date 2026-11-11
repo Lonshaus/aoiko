@@ -142,6 +142,36 @@ describe('復元された申告者情報（R1）', () => {
     expect(text()).toContain(m.settings_filer_zip_invalid());
     expect(uncaught).toEqual([]);
   });
+
+  test.each([
+    ['userFilerName', 'filerShimei'],
+    ['userFilerAddress', 'filerJusho'],
+  ])(
+    '保存済みの %s がオブジェクトなら %s の欄の下に読めない値として示し、入力し直すまで「保存」を押せない',
+    async (key, name) => {
+      await db.settings.put({ key, value: {}, updatedAt: 1 });
+      await mountSettings();
+      const save = buttonByText(m.settings_basic_save(), field(name).closest('form')!)!;
+      expect(field(name).closest('label')!.textContent).toContain(
+        m.settings_filer_stored_unreadable(),
+      );
+      expect(save.disabled).toBe(true);
+      type(name, 'テスト');
+      expect(field(name).closest('label')!.textContent).not.toContain(
+        m.settings_filer_stored_unreadable(),
+      );
+      expect(save.disabled).toBe(false);
+    },
+  );
+
+  test('保存済みの提出先税務署の名前がオブジェクトなら読めない値として示し、選び直すまで「保存」を押せない', async () => {
+    await db.settings.put({ key: 'userZeimushoName', value: {}, updatedAt: 1 });
+    await mountSettings();
+    expect(text()).toContain(m.settings_filer_stored_unreadable());
+    expect(
+      buttonByText(m.settings_basic_save(), field('etaxRiyoshaId').closest('form')!)!.disabled,
+    ).toBe(true);
+  });
 });
 
 describe('不動産の明細の編集（R6）', () => {
@@ -195,6 +225,73 @@ describe('耐用年数・リース月数の修正（R4）', () => {
     buttonByText(m.settings_asset_run_button())!.click();
     await waitFor(() => text().includes(m.settings_asset_run_success({ created: 2 })));
     expect(await db.journalEntries.count()).toBe(2);
+  });
+
+  test('「修正」を押すと直せる範囲の説明が出て、登録時と同じ規則に合わない耐用年数・リース期間はエラーを示して保存しない', async () => {
+    await db.fixedAssets.bulkAdd([
+      lease(),
+      asset({
+        id: 'dec',
+        name: '定率の機械',
+        depreciationMethod: 'declining-balance',
+        usefulLifeYears: 25,
+      }),
+    ]);
+    await mountSettings();
+    await waitFor(() => text().includes('リース機械'));
+    buttonByText(m.settings_asset_fix_button(), rowOf('リース機械'))!.click();
+    flushSync();
+    expect(text()).toContain(m.settings_asset_fix_intro());
+    for (const bad of ['0', '1.5']) {
+      type('assetFixLeaseTermMonths', bad);
+      buttonByText(
+        m.settings_action_save(),
+        field('assetFixLeaseTermMonths').closest('td')!,
+      )!.click();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(field('assetFixLeaseTermMonths').closest('td')!.textContent).toContain(
+        m.fixed_asset_issue_lease_term(),
+      );
+      expect((await db.fixedAssets.get('lease'))?.leaseTermMonths).toBeUndefined();
+    }
+    buttonByText(
+      m.settings_action_cancel(),
+      field('assetFixLeaseTermMonths').closest('td')!,
+    )!.click();
+    flushSync();
+    buttonByText(m.settings_asset_fix_button(), rowOf('定率の機械'))!.click();
+    flushSync();
+    buttonByText(m.settings_action_save(), field('assetFixUsefulLife').closest('td')!)!.click();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(field('assetFixUsefulLife').closest('td')!.textContent).toContain(
+      m.fixed_asset_issue_useful_life(),
+    );
+    expect((await db.fixedAssets.get('dec'))?.usefulLifeYears).toBe(25);
+  });
+
+  test('名称・不動産の明細だけに関わる問題や、売却価格だけに関わる問題がある資産があっても、一覧全体は止まらない', async () => {
+    await db.fixedAssets.bulkAdd([
+      asset({ id: 'ok', name: '正常な資産' }),
+      asset({
+        id: 'sold',
+        name: '売却価格が壊れた資産',
+        acquisitionDate: `${Y - 2}-01-01`,
+        disposedDate: `${Y}-06-30`,
+        disposalType: 'sale',
+        salePrice: 'abc',
+      }),
+      asset({
+        id: 're',
+        name: '明細が壊れた貸家',
+        incomeType: 'realEstate',
+        realEstateDetail: { propertyType: '', address: '', annualRent: 'abc' } as never,
+      }),
+    ]);
+    await mountSettings();
+    await waitFor(() => text().includes('明細が壊れた貸家'));
+    expect(text()).not.toContain(m.settings_asset_calc_blocked({ reasons: '' }));
+    expect(cell('正常な資産', 4)).toContain('¥');
+    expect(cell('明細が壊れた貸家', 4)).toContain('¥');
   });
 
   test('確定した仕訳のある資産は、申告済みの年を含め確認してから直す', async () => {
@@ -298,6 +395,50 @@ describe('一覧の計算（S4・R3・S3・R23）', () => {
     expect(rowOf('16進の売却').querySelector('[role="alert"]')).not.toBeNull();
     expect(text()).toContain(m.settings_transfer_income_unavailable({ names: '16進の売却' }));
     expect(uncaught).toEqual([]);
+  });
+
+  test('少額特例の枠から落ちて計算できない資産が 1 つだけのとき、その行は「—」と名前の下の原因を示し、ほかの行には金額を出す', async () => {
+    await db.fixedAssets.bulkAdd([
+      ...capFillers(),
+      asset({
+        id: 'bad',
+        name: '落選した資産',
+        acquisitionDate: `${Y}-03-01`,
+        acquisitionCost: '200000',
+        usefulLifeYears: 1,
+        depreciationMethod: 'small-asset-special',
+        decliningBalanceElected: true,
+      }),
+      asset({ id: 'ok', name: '正常な資産' }),
+    ]);
+    await mountSettings();
+    await waitFor(() => text().includes('落選した資産'));
+    expect(cell('落選した資産', 4)).toBe(m.common_dash());
+    expect(cell('落選した資産', 5)).toBe(m.common_dash());
+    expect(rowOf('落選した資産').querySelector('[role="alert"]')).not.toBeNull();
+    expect(cell('正常な資産', 4)).not.toBe(m.common_dash());
+    expect(cell('正常な資産', 4)).toContain('¥');
+    expect(cell('枠0', 4)).toContain('¥');
+    expect(uncaught).toEqual([]);
+  });
+
+  test('取得価額が読めない資産は、取得価額の欄に「金額を読めません」と名前の下に原因を示し、一覧の上の警告に資産名が並ぶ', async () => {
+    await db.fixedAssets.bulkAdd([
+      asset({ id: 'bad', name: '壊れた資産', acquisitionCost: 'abc' }),
+      asset({ id: 'ok', name: '正常な資産' }),
+    ]);
+    await mountSettings();
+    await waitFor(() => text().includes('壊れた資産'));
+    const head = m.settings_asset_calc_blocked({ reasons: '' });
+    expect(text()).toContain(head);
+    expect(text().split(head)[1]).toContain('壊れた資産');
+    expect(cell('壊れた資産', 2)).toBe(m.common_stored_amount_unreadable());
+    expect(rowOf('壊れた資産').querySelector('[role="alert"]')?.textContent).toContain(
+      m.fixed_asset_issue_amount({ field: m.settings_asset_cost_placeholder() }),
+    );
+    expect(cell('壊れた資産', 4)).toBe(m.common_dash());
+    expect(cell('正常な資産', 4)).toBe(m.common_dash());
+    expect(cell('正常な資産', 5)).toBe(m.common_dash());
   });
 
   test('計算に効く問題の資産があると、償却額・帳簿価額・譲渡所得はすべて「—」にして理由を一覧の上に出す', async () => {
@@ -412,6 +553,27 @@ describe('数値の欄（R12・R13）', () => {
     expect(text()).toContain(m.settings_rule_priority_invalid());
     expect(await db.parserRules.count()).toBe(0);
   });
+
+  test.each(['-1', '1.5'])(
+    'ルールの優先度 %j は保存せず案内し、0 は優先度の検査を通る',
+    async (bad) => {
+      await mountSettings();
+      type('rulePattern', 'コンビニ');
+      type('rulePriority', bad);
+      field('rulePattern')
+        .closest('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await new Promise((r) => setTimeout(r, 50));
+      expect(text()).toContain(m.settings_rule_priority_invalid());
+      expect(await db.parserRules.count()).toBe(0);
+      type('rulePriority', '0');
+      field('rulePattern')
+        .closest('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      await waitFor(() => text().includes(m.settings_rule_error_required()));
+      expect(text()).not.toContain(m.settings_rule_priority_invalid());
+    },
+  );
 
   test.each(['-5', 'abc'])(
     '転用の一時所得 %j は案内を出し、譲渡所得の計算に入れない',

@@ -170,6 +170,71 @@ describe('OrderImport: 金額が読めない品目', () => {
     }
   });
 
+  test.each([
+    ['1e3', () => m.common_amount_invalid()],
+    ['1.5', () => m.common_amount_invalid()],
+    ['100000000000000', () => m.common_amount_too_large()],
+    ['-100000000000000', () => m.common_amount_too_large()],
+  ])(
+    '品目の金額 %j は、その行の下に誤りを示し、画面上部にも案内を出して登録しない',
+    async (bad, message) => {
+      state.extracted = {
+        date: '2026-03-01',
+        vendor: 'テスト商店',
+        items: [
+          { description: '品目A', amount: bad },
+          { description: '品目B', amount: '500' },
+        ],
+        totalAmount: '9000',
+      };
+      const c = container as HTMLElement;
+      await analyze(c);
+      await commit(c);
+      const rows = Array.from(c.querySelectorAll('tbody tr'));
+      expect(rows[0]?.textContent).toContain(message());
+      expect(rows[1]?.textContent).not.toContain(m.common_amount_invalid());
+      expect(rows[1]?.textContent).not.toContain(m.common_amount_too_large());
+      const topErrors = Array.from(c.querySelectorAll('.text-destructive')).filter(
+        (el) => el.closest('table') === null,
+      );
+      expect(topErrors.map((el) => el.textContent)).toContain(m.common_amount_invalid());
+      expect(await db.journalEntries.count()).toBe(0);
+    },
+  );
+
+  test('負の金額の品目は値引として使え、誤りにならない', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [
+        { description: '品目A', amount: '9500' },
+        { description: '値引', amount: '-500' },
+      ],
+      totalAmount: '9000',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    expect(c.textContent).not.toContain(m.common_amount_invalid());
+    expect(c.textContent).not.toContain(m.common_amount_too_large());
+    await commit(c);
+    expect(c.textContent).not.toContain(m.common_amount_invalid());
+    expect(await db.journalEntries.count()).toBe(1);
+  });
+
+  test('合計金額が 100 兆円以上なら登録せず、「金額が大きすぎます」を示す', async () => {
+    state.extracted = {
+      date: '2026-03-01',
+      vendor: 'テスト商店',
+      items: [{ description: '品目A', amount: '100000000000000' }],
+      totalAmount: '100000000000000',
+    };
+    const c = container as HTMLElement;
+    await analyze(c);
+    await commit(c);
+    expect(c.textContent).toContain(m.common_amount_too_large());
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
   test('桁区切りの品目金額は半角の整数に揃えて登録する', async () => {
     state.extracted = {
       date: '2026-03-01',

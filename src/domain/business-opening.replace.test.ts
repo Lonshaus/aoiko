@@ -58,6 +58,28 @@ async function reversals(): Promise<number> {
 }
 
 describe('replaceOpeningEntries（A 類・修正前は関数が無く実行できない）', () => {
+  it('作り直すのは指定した 1 つの年だけで、ほかの年の開業仕訳は変えない', async () => {
+    await generateOpeningEntries(input('2024-04-01'));
+    await generateOpeningEntries(input('2026-07-01'));
+    const other = await openings(2024);
+    expect(other.length).toBeGreaterThan(0);
+    const outcome = await replaceOpeningEntries(
+      {
+        reverseYear: 2026,
+        input: input('2026-08-01'),
+        formClose: '',
+        expectedStoredClose: undefined,
+      },
+      { allowFiledYear: true },
+    );
+    expect('entryIds' in outcome).toBe(true);
+    expect(await openings(2024)).toEqual(other);
+    expect(await openings(2024, 'reversed')).toHaveLength(0);
+    expect((await openings(2026)).map((e) => e.date)).toEqual(
+      (await openings(2026)).map(() => '2026-08-01'),
+    );
+  });
+
   it('R1：作成の明細の書き込みが失敗したら、打消しも資産の削除もせず設定値も変えない（画面層 R1 と対）', async () => {
     await generateOpeningEntries(withAsset('2026-07-01'));
     await setSetting('businessStartDate', '2026-07-01');

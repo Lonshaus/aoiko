@@ -546,6 +546,7 @@ describe('convertQuoteToInvoiceDraft', () => {
     expect(draft.documentType).toBe('invoice');
     expect(draft.status).toBe('draft');
     expect(draft.number).toBe('');
+    expect(draft.date).toBe('2026-07-08');
     expect(draft.vendorId).toBe('vendor-1');
     expect(draft.memo).toBe('メモ');
     expect(draft.lineItems).toHaveLength(1);

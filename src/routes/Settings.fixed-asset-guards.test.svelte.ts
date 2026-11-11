@@ -110,6 +110,55 @@ describe('固定資産の追加フォーム', () => {
     expect(await db.fixedAssets.count()).toBe(0);
   });
 
+  test.each([
+    ['assetAcquisitionCost', () => m.settings_asset_cost_placeholder()],
+    ['assetResidualGuarantee', () => m.fixed_asset_field_residual_guarantee()],
+  ])(
+    '%s に読めない値・100 兆円以上を入れると「欄名：メッセージ」の形で示して登録しない',
+    async (name, label) => {
+      await mountSettings();
+      type('assetTitle', '機械');
+      type('assetAcquisitionCost', '500000');
+      for (const [bad, message] of [
+        ['1e3', m.common_amount_invalid()],
+        ['100000000000000', m.common_amount_too_large()],
+      ] as const) {
+        type(name, bad);
+        expect(text()).toContain(`${label()}：${message}`);
+        await submitAsset();
+        expect(await db.fixedAssets.count()).toBe(0);
+        type(name, name === 'assetAcquisitionCost' ? '500000' : '');
+        expect(text()).not.toContain(`${label()}：${message}`);
+      }
+    },
+  );
+
+  test.each([
+    ['2007-03-31', true],
+    ['2007-04-01', false],
+  ])('取得日 %s のとき、旧定額法・旧定率法を選べる: %s', async (date, available) => {
+    await mountSettings();
+    type('assetAcquisitionDate', date);
+    const values = Array.from(field<HTMLSelectElement>('assetMethod').options).map((o) => o.value);
+    expect(values.includes('old-straight-line')).toBe(available);
+    expect(values.includes('old-declining-balance')).toBe(available);
+  });
+
+  test('耐用年数とリース期間の誤りも「欄名：メッセージ」の形で示す', async () => {
+    await mountSettings();
+    type('assetTitle', '機械');
+    type('assetAcquisitionCost', '500000');
+    choose('assetMethod', 'declining-balance');
+    type('assetUsefulLife', '25');
+    expect(text()).toContain(
+      `${m.settings_asset_life_title()}：${m.fixed_asset_issue_useful_life()}`,
+    );
+    choose('assetMethod', 'lease-period-straight-line');
+    expect(text()).toContain(
+      `${m.settings_asset_lease_term_months()}：${m.fixed_asset_issue_lease_term()}`,
+    );
+  });
+
   test('残価保証額 -5 は案内を出して登録しない', async () => {
     await mountSettings();
     type('assetTitle', '機械');
@@ -215,6 +264,47 @@ describe('保存済みの固定資産に読めない値があるとき', () => {
       expect(await db.journalEntries.count()).toBe(0);
     },
   );
+
+  test('.xtx の明細だけに関わる問題（不動産の明細の欠け）では、除却の仕訳を作る', async () => {
+    await db.fixedAssets.add(
+      asset({
+        id: 'detail',
+        name: '明細が欠けた貸家',
+        incomeType: 'realEstate',
+        realEstateDetail: { propertyType: '', address: '', annualRent: 'abc' } as never,
+        disposedDate: '2026-06-30',
+        disposalType: 'scrap',
+      }),
+    );
+    await mountSettings();
+    await waitFor(() => text().includes('明細が欠けた貸家'));
+    buttonByText(m.settings_asset_run_button()).click();
+    await waitFor(() => text().includes(m.settings_asset_run_success({ created: 1 })));
+    buttonByText(m.settings_asset_disposal_run_button()).click();
+    await waitFor(() => text().includes(m.settings_asset_disposal_run_success()));
+    expect(await db.journalEntries.count()).toBe(2);
+  });
+
+  test('固定資産の一覧から手で削除できる（印の無い転用資産を消す手段）', async () => {
+    await db.fixedAssets.add(asset({ id: 'manual', name: '手で消す資産' }));
+    await mountSettings();
+    await waitFor(() => text().includes('手で消す資産'));
+    const row = Array.from(container!.querySelectorAll('tbody tr')).find((tr) =>
+      tr.textContent?.includes('手で消す資産'),
+    )!;
+    Array.from(row.querySelectorAll('button'))
+      .find((b) => b.textContent?.trim() === m.settings_action_delete())!
+      .click();
+    await waitFor(
+      () => document.body.textContent?.includes(m.settings_delete_confirm_title()) === true,
+    );
+    Array.from(document.body.querySelectorAll('button'))
+      .filter((b) => b.textContent?.trim() === m.settings_action_delete())
+      .at(-1)!
+      .click();
+    await expect.poll(() => db.fixedAssets.count(), { timeout: 4000 }).toBe(0);
+    await new Promise((r) => setTimeout(r, 200));
+  });
 
   test('売却価格を読めない資産の売却仕訳は作らず理由を示す', async () => {
     await db.fixedAssets.add(

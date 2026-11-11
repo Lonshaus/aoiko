@@ -11,7 +11,12 @@ import {
   findUnreadableReversedAmounts,
   OversizedAmountsError,
 } from './oversized-amounts';
-import { findInvalidConsumptionTaxSettings, InvalidStoredValuesError } from './stored-value-checks';
+import {
+  findInvalidConsumptionTaxSettings,
+  findOversizedConsumptionTaxSettings,
+  InvalidStoredValuesError,
+  OversizedStoredValuesError,
+} from './stored-value-checks';
 import {
   classifyNonInvoicePurchases,
   taxExcludedPortion,
@@ -470,6 +475,10 @@ export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuff
   const invalidSettings = await findInvalidConsumptionTaxSettings(year);
   if (invalidSettings.length > 0) {
     throw new InvalidStoredValuesError(invalidSettings);
+  }
+  const oversizedSettings = await findOversizedConsumptionTaxSettings(year);
+  if (oversizedSettings.length > 0) {
+    throw new OversizedStoredValuesError(oversizedSettings);
   }
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   const rows = buildYayoiCsvRows(entries, lines, accounts, subAccounts, ctx);

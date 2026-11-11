@@ -61,6 +61,12 @@ export async function recordPayment(id: string, amount: string): Promise<void> {
   if (original === undefined || alreadyPaid === undefined) {
     throw new Error(m.error_arap_amount_unreadable({ description: entry.description }));
   }
+  if (paid.gte('1e14')) {
+    throw new Error(m.common_amount_too_large());
+  }
+  if (original.abs().gte('1e14') || alreadyPaid.abs().gte('1e14')) {
+    throw new Error(m.error_arap_amount_too_large({ description: entry.description }));
+  }
   const newPaid = alreadyPaid.plus(paid);
   if (newPaid.greaterThan(original)) {
     throw new OverpaymentError();

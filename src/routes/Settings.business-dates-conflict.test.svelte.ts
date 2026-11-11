@@ -202,6 +202,26 @@ describe('A 類：変えた欄だけを書き、ほかの画面での変更を�
     expect(conflictShown()).toBe(true);
   });
 
+  test('両方の欄を変え、両方が食い違ったら、どちらも書かず、欄名を「開業日と廃業日」にして最新の値を出す', async () => {
+    await setSetting('businessStartDate', '2026-01-01');
+    await setSetting('businessCloseDate', '2026-12-31');
+    await mountSettings();
+    type('businessStartDateSetting', '2026-03-01');
+    type('businessCloseDateSetting', '2026-11-30');
+    await setSetting('businessStartDate', '2026-02-01');
+    await setSetting('businessCloseDate', '2026-10-31');
+    await settle();
+    saveDates();
+    await waitSaveOutcome();
+    expect(await getSetting('businessStartDate')).toBe('2026-02-01');
+    expect(await getSetting('businessCloseDate')).toBe('2026-10-31');
+    expect(field('businessStartDateSetting').value).toBe('2026-02-01');
+    expect(field('businessCloseDateSetting').value).toBe('2026-10-31');
+    expect(sectionText()).toContain(
+      m.settings_business_dates_conflict({ fields: m.settings_business_dates_field_both() }),
+    );
+  });
+
   test('両方の欄を変え、片方だけ食い違ったら、どちらも書かず、もう片方の入力は残す', async () => {
     await setSetting('businessStartDate', '2026-01-01');
     await setSetting('businessCloseDate', '2026-12-31');
@@ -300,5 +320,28 @@ describe('A 類：作り直しの途中で止まった年の案内（H6）', () 
     const notice = section().querySelector('[data-testid="settings-interrupted-opening-years"]');
     expect(notice?.textContent ?? '').toContain('2026');
     expect(notice?.querySelector('a[href="/opening-setup"]')).not.toBeNull();
+  });
+
+  test('設定画面の案内に元に戻す操作は無く、同じ案内の文面を示す。開業設定で「表示しない」にした年は出ない', async () => {
+    await generateOpeningEntries({
+      businessStartDate: '2026-07-01',
+      expenses: [{ name: '名刺', amount: '10000' }],
+      expenseAmortization: 'immediate',
+      convertedAssets: [],
+      customItems: [],
+    });
+    await removeOpeningEntries(2026);
+    await mountSettings();
+    const selector = '[data-testid="settings-interrupted-opening-years"]';
+    await waitFor(() => section().querySelector(selector) !== null, 1000).catch(() => {});
+    const notice = section().querySelector(selector)!;
+    expect(notice.textContent).toContain(m.opening_interrupted_years({ years: '2026' }));
+    expect(section().querySelector('[data-testid^="opening-restore-"]')).toBeNull();
+    expect(section().querySelector('[data-testid^="opening-dismiss-"]')).toBeNull();
+    unmount(instance!);
+    container!.remove();
+    await setSetting('dismissedInterruptedOpeningYears', [2026]);
+    await mountSettings();
+    expect(section().querySelector(selector)).toBeNull();
   });
 });

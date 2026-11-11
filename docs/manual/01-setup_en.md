@@ -117,6 +117,8 @@ In the **"Consumption tax"** section, pick a method (`.xtx` output of the actual
 
 If a saved value in "Taxable sales in the base period (two years before) (¥)" or "Taxable sales in the specified period (January to June of the previous year) (¥)" cannot be read, that field shows "Cannot read the amount".
 
+If a saved value is ¥100 trillion or more, the field shows "The amount is too large. Enter an amount under ¥100 trillion". In both cases, saving other items does not delete or overwrite the saved value until you change the field.
+
 ### 4-2. Method (for taxable businesses)
 
 | Method | When it fits |

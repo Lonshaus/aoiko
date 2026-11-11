@@ -290,6 +290,9 @@ describe('A 類：作り直しの途中で止まった年を示す（H6）', () 
     expect(byTestId('opening-dismiss-2026')).not.toBeNull();
     byTestId('opening-dismiss-2026')!.click();
     await waitFor(() => bodyButton('opening-dismiss-confirm-action') !== null);
+    expect(document.body.textContent).toContain(
+      m.opening_interrupted_dismiss_confirm_title({ year: 2026 }),
+    );
     expect(document.body.textContent).toContain(m.opening_interrupted_dismiss_confirm_desc());
     bodyButton('opening-dismiss-confirm-action')!.click();
     await waitFor(() => notice() === null);
@@ -472,6 +475,31 @@ describe('A 類：止まった年の開業仕訳を元に戻す（H7）', () => 
   });
 });
 
+describe('元に戻す開業仕訳の金額が読めないとき', () => {
+  test('確かめる画面は金額を「—」と表示し、原文を出さず、確認の実行では書かない', async () => {
+    await interrupt('2026-07-01');
+    await db.journalLines.toCollection().modify((l) => {
+      l.amount = 'abc';
+    });
+    await renderAndWaitNotice();
+    byTestId('opening-restore-2026')!.click();
+    await waitFor(() => bodyButton('opening-restore-confirm-action') !== null);
+    const row = byTestId('opening-restore-confirm', document.body)!;
+    expect(row.textContent).toContain(
+      m.opening_restore_entry_row({
+        description: '開業費計上（開業設定）',
+        amount: m.common_dash(),
+      }),
+    );
+    expect(document.body.textContent).not.toContain('DecimalError');
+    const before = await db.journalEntries.count();
+    bodyButton('opening-restore-confirm-action')!.click();
+    await settle();
+    expect(await db.journalEntries.count()).toBe(before);
+    expect(text()).toContain(m.opening_restore_amount_invalid());
+  });
+});
+
 describe('A 類：元に戻した年の転用資産を登録し直す（H7）', () => {
   test('取得日・取得価額・耐用年数を入れると、仕訳の額を開業時の未償却残高として登録し、一覧から消え、年末の償却に使われる', async () => {
     await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
@@ -639,5 +667,196 @@ describe('A 類：元に戻した年の転用資産を登録し直す（H7）', 
     expect(await getSetting('dismissedMissingOpeningAssets')).toEqual([
       'restored-2026:restored-2026-d0',
     ]);
+  });
+});
+
+describe('案内の文面とボタン', () => {
+  test('案内の文面、「開業仕訳を元に戻す」と「表示しない」のボタン、元に戻す確認の見出しを年つきで示す', async () => {
+    await interrupt('2026-07-01');
+    await renderAndWaitNotice();
+    expect(notice()?.textContent ?? '').toContain(m.opening_interrupted_years({ years: '2026' }));
+    expect(byTestId('opening-restore-2026')!.textContent?.trim()).toBe(m.opening_restore_button());
+    expect(byTestId('opening-dismiss-2026')!.textContent?.trim()).toBe(
+      m.opening_interrupted_dismiss(),
+    );
+    byTestId('opening-restore-2026')!.click();
+    await waitFor(() => bodyButton('opening-restore-confirm-action') !== null);
+    expect(document.body.textContent).toContain(m.opening_restore_confirm_title({ year: 2026 }));
+  });
+});
+
+describe('元に戻した結果の表示', () => {
+  test('元に戻せたら「N 本の開業仕訳を元に戻しました。」を示し、新しい仕訳の入力日は今日になる', async () => {
+    await interrupt('2026-07-01', '私用PC');
+    await renderAndWaitNotice();
+    const started = Date.now();
+    await clickRestore(2026);
+    await waitFor(async () => (await restoredEntries(2026)).length > 0);
+    await settle();
+    expect(text()).toContain(m.opening_restore_success({ count: 3 }));
+    const restored = await restoredEntries(2026);
+    expect(restored.every((e) => e.description.startsWith('[再計上] '))).toBe(true);
+    expect(restored.every((e) => e.createdAt >= started)).toBe(true);
+    expect(await db.fixedAssets.count()).toBe(0);
+  });
+
+  test('元に戻しても、後の年の前期繰越の仕訳は自動では直らない', async () => {
+    await interrupt('2026-07-01');
+    await db.journalEntries.add({
+      id: 'carry-2027',
+      date: '2027-01-01',
+      year: 2027,
+      description: '前期繰越',
+      status: 'confirmed',
+      source: 'carryover',
+      createdAt: 1,
+      confirmedAt: 1,
+    });
+    await db.journalLines.add({
+      id: 'carry-2027-d',
+      entryId: 'carry-2027',
+      side: 'debit',
+      accountCode: '1110',
+      amount: '12345',
+      amountIndexed: '00000000012345.00',
+      taxRate: 0,
+      taxIncluded: true,
+      invoiceCompliant: false,
+    });
+    const before2027 = JSON.stringify([
+      await db.journalEntries.where('year').equals(2027).toArray(),
+      await db.journalLines.where('entryId').equals('carry-2027').toArray(),
+    ]);
+    await renderAndWaitNotice();
+    await clickRestore(2026);
+    await waitFor(async () => (await restoredEntries(2026)).length > 0);
+    await settle();
+    const after2027 = JSON.stringify([
+      await db.journalEntries.where('year').equals(2027).toArray(),
+      await db.journalLines.where('entryId').equals('carry-2027').toArray(),
+    ]);
+    expect(after2027).toBe(before2027);
+  });
+
+  test('確認している間に止まった年でなくなっていたら、何も変えずにその旨を示す', async () => {
+    await interrupt('2026-07-01');
+    await renderAndWaitNotice();
+    byTestId('opening-restore-2026')!.click();
+    await waitFor(() => bodyButton('opening-restore-confirm-action') !== null);
+    const reversals = (await db.journalEntries.where('year').equals(2026).toArray()).filter(
+      (e) => e.originalEntryId !== undefined,
+    );
+    await db.journalLines
+      .where('entryId')
+      .anyOf(reversals.map((e) => e.id))
+      .delete();
+    await db.journalEntries.bulkDelete(reversals.map((e) => e.id));
+    const before = await db.journalEntries.count();
+    bodyButton('opening-restore-confirm-action')!.click();
+    await settle();
+    expect(await db.journalEntries.count()).toBe(before);
+    expect(text()).toContain(m.opening_restore_not_interrupted());
+  });
+
+  test('確認している間に打消しの元の仕訳が開業設定で作ったものでなくなったら、何も変えずに示す', async () => {
+    await interrupt('2026-07-01');
+    await renderAndWaitNotice();
+    byTestId('opening-restore-2026')!.click();
+    await waitFor(() => bodyButton('opening-restore-confirm-action') !== null);
+    const originals = (await db.journalEntries.where('year').equals(2026).toArray()).filter(
+      (e) => e.originalEntryId === undefined,
+    );
+    for (const e of originals) {
+      await db.journalEntries.update(e.id, { source: 'manual' });
+    }
+    const before = await db.journalEntries.count();
+    bodyButton('opening-restore-confirm-action')!.click();
+    await settle();
+    expect(await db.journalEntries.count()).toBe(before);
+    expect(text()).toContain(m.opening_restore_target_invalid());
+  });
+});
+
+describe('登録し直す転用資産の表示と入力の検査', () => {
+  test('各行に名前・年・開業時の未償却残高を示し、開業日も示す', async () => {
+    await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+    await render();
+    await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+    const item = missingItem('私用PC')!;
+    expect(item.textContent).toContain(
+      m.opening_missing_assets_row({ name: '私用PC', year: 2026, amount: formatJPY('165540') }),
+    );
+    await openRegister('私用PC');
+    expect(item.textContent).toContain(
+      m.opening_missing_assets_opening_date({ date: '2026-07-01' }),
+    );
+  });
+
+  test.each([
+    ['blue', true],
+    ['white', false],
+  ] as const)(
+    '申告方法が %s のとき、少額減価償却資産の特例のチェックボックスが出る: %s',
+    async (filingType, shown) => {
+      await setSetting('filingType', filingType);
+      await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+      await render();
+      await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+      await openRegister('私用PC');
+      expect(
+        missingItem('私用PC')!.textContent?.includes(m.opening_small_asset_apply_label()),
+      ).toBe(shown);
+    },
+  );
+
+  test.each([
+    [
+      '取得価額が 100 兆円以上',
+      ['2024-01-01', '100000000000000', '4'],
+      () => m.common_amount_too_large(),
+    ],
+    ['耐用年数が 1', ['2024-01-01', '300000', '1'], () => m.opening_asset_life_unsupported()],
+    [
+      '取得日が日付として読めない',
+      ['2024-02-30', '300000', '4'],
+      () => m.fixed_asset_issue_date({ field: m.opening_converted_acq_date_title() }),
+    ],
+  ])('%s のとき、その理由を示して登録しない', async (_label, [acq, cost, life], message) => {
+    await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+    await render();
+    await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+    await openRegister('私用PC');
+    await fillAndSubmit(acq!, cost!, life!);
+    expect(await db.fixedAssets.count()).toBe(0);
+    expect(missingItem('私用PC')!.textContent).toContain(message());
+  });
+
+  test('仕訳の金額を読めないとき、登録できない旨を示し、登録の操作を出さない', async () => {
+    await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+    await db.journalLines.toCollection().modify((l) => {
+      if (l.side === 'debit') {
+        l.amount = 'abc';
+      }
+    });
+    await render();
+    await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+    const item = missingItem('私用PC')!;
+    expect(item.textContent).toContain(m.opening_missing_assets_basis_unreadable());
+    expect(byTestId('opening-missing-asset-register', item)).toBeNull();
+    expect(await db.fixedAssets.count()).toBe(0);
+  });
+
+  test('確認の間に元の仕訳が打ち消されたら、登録しなかった旨を示す', async () => {
+    const id = await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+    await lockYears(2026);
+    await render();
+    await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+    await openRegister('私用PC');
+    await fillAndSubmit('2024-01-01', '300000', '4');
+    await waitFor(() => filedYearGuard.pending !== null);
+    await reverseEntry(id, { allowFiledYear: true });
+    await filedYearGuard.resolve(true);
+    await settle();
+    expect(text()).toContain(m.opening_missing_assets_not_missing());
   });
 });

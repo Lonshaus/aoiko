@@ -173,6 +173,96 @@ afterEach(async () => {
   await db.delete();
 });
 
+describe('開業設定の画面を開いたときの開業日・廃業日の欄', () => {
+  test('読み込み中は「読み込み中…」を示して入力欄を出さず、読み込めたら欄が出る', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+    const original = db.journalEntries.orderBy.bind(db.journalEntries);
+    vi.spyOn(db.journalEntries, 'orderBy').mockImplementation((index) => {
+      if (index === 'date') {
+        return {
+          filter: (fn: Parameters<ReturnType<typeof original>['filter']>[0]) => ({
+            toArray: async () => {
+              await gate;
+              return original('date').filter(fn).toArray();
+            },
+          }),
+        } as unknown as ReturnType<typeof original>;
+      }
+      return original(index);
+    });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(OpeningSetup, { target: container, props: {} });
+    await waitFor(() => text().includes(m.opening_loading()));
+    expect(container.querySelector('input[name="jigyoStartDate"]')).toBeNull();
+    release();
+    await waitFor(() => container!.querySelector('input[name="jigyoStartDate"]') !== null);
+    expect(text()).not.toContain(m.opening_loading());
+  });
+
+  test('開業仕訳が無ければ設定の開業日、それも無ければ今日の日付が開業日の欄に入る', async () => {
+    await render();
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    expect(input('jigyoStartDate').value).toBe(iso);
+    unmount(instance!);
+    container!.remove();
+    await setSetting('businessStartDate', '2025-05-20');
+    await render();
+    expect(input('jigyoStartDate').value).toBe('2025-05-20');
+  });
+
+  test('同じ画面に「廃業日（未入力は廃業なし）」の欄があり、保存済みの廃業日が開業日と同じ日かそれより後のときだけ最初から入る', async () => {
+    await setSetting('businessStartDate', '2026-07-01');
+    await setSetting('businessCloseDate', '2026-06-30');
+    await render();
+    expect(text()).toContain(m.opening_business_close_date());
+    expect(input('jigyoCloseDate').value).toBe('');
+    unmount(instance!);
+    container!.remove();
+    await setSetting('businessCloseDate', '2026-07-01');
+    await render();
+    expect(input('jigyoCloseDate').value).toBe('2026-07-01');
+    unmount(instance!);
+    container!.remove();
+    await setSetting('businessCloseDate', '2026-12-31');
+    await render();
+    expect(input('jigyoCloseDate').value).toBe('2026-12-31');
+    unmount(instance!);
+    container!.remove();
+    await setSetting('businessCloseDate', 'abc');
+    await render();
+    expect(input('jigyoCloseDate').value).toBe('');
+  });
+
+  test('開業日より前の保存済みの廃業日を別の廃業日で置き換えて作ると、その廃業日の年は月割をせず通年で計算する', async () => {
+    await seedOpening('2023-04-01', '2023のPC');
+    await setSetting('businessCloseDate', '2024-03-31');
+    const before = await loadEffectiveBusinessDates();
+    expect(
+      smallAssetAnnualCap(2024, before.businessStartDates, before.businessCloseDate).toString(),
+    ).toBe('750000');
+    await render();
+    await setDates('2026-07-01', '2026-12-31');
+    await addExpense();
+    await preview();
+    confirmButton().click();
+    await waitFor(
+      () => buttonByText(document.body, m.opening_cross_year_restart({ year: 2023 })) !== undefined,
+    );
+    buttonByText(document.body, m.opening_cross_year_restart({ year: 2023 }))!.click();
+    await waitFor(() => text().includes(m.opening_done_message()));
+    const after = await loadEffectiveBusinessDates();
+    expect(after.businessCloseDate).toBe('2026-12-31');
+    expect(
+      smallAssetAnnualCap(2024, after.businessStartDates, after.businessCloseDate).toString(),
+    ).toBe('3000000');
+  });
+});
+
 describe('開業日より後に取得した転用資産（G4）', () => {
   test('追加の欄で取得日が開業日より後なら理由を示して追加しない', async () => {
     await render();
@@ -341,6 +431,7 @@ describe('ほかの年に開業仕訳があるときの作成（G9）', () => {
     buttonByText(document.body, m.opening_cross_year_change({ year: 2026 }))!.click();
     const desc = m.opening_redo_confirm_desc({ reverseYear: 2026, createYear: 2025 });
     await waitFor(() => bodyText().includes(desc));
+    expect(bodyText()).toContain(m.opening_redo_confirm_title());
     buttonByText(document.body, m.common_cancel())!.click();
     await waitFor(() => !bodyText().includes(desc));
     expect(await openingEntries(2026)).toHaveLength(seeded);

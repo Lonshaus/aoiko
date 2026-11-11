@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { db } from '../db/db';
 import { newId } from '../lib/id';
 import {
@@ -301,6 +301,46 @@ describe('generateYearEndDepreciation', () => {
     ]);
     await expect(generateYearEndDepreciation(2026)).rejects.toThrow('壊れた資産');
     expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('全資産分の仕訳は 1 つの書き込みトランザクションにまとめて書き、途中で失敗したら 1 件も残らない', async () => {
+    await db.fixedAssets.bulkAdd([
+      asset({
+        id: 'a1',
+        name: 'PC',
+        acquisitionCost: '300000',
+        usefulLifeYears: 4,
+        acquisitionDate: '2026-01-01',
+      }),
+      asset({
+        id: 'a2',
+        name: 'デスク',
+        acquisitionCost: '60000',
+        usefulLifeYears: 6,
+        acquisitionDate: '2026-01-01',
+      }),
+    ]);
+    const transaction = vi.spyOn(db, 'transaction');
+    const original = db.journalLines.bulkAdd.bind(db.journalLines);
+    let calls = 0;
+    const bulkAdd = vi.spyOn(db.journalLines, 'bulkAdd').mockImplementation(((
+      ...args: Parameters<typeof original>
+    ) => {
+      calls++;
+      if (calls === 2) {
+        return Promise.reject(new Error('2 件目の明細の書き込み失敗'));
+      }
+      return original(...args);
+    }) as never);
+    await expect(generateYearEndDepreciation(2026)).rejects.toThrow('2 件目の明細の書き込み失敗');
+    const writes = transaction.mock.calls.filter((c) =>
+      c.flat(2).includes(db.journalEntries as never),
+    );
+    expect(writes).toHaveLength(1);
+    expect(await db.journalEntries.count()).toBe(0);
+    expect(await db.journalLines.count()).toBe(0);
+    bulkAdd.mockRestore();
+    transaction.mockRestore();
   });
 
   test('全資産分の仕訳を作成し、件数を返す', async () => {
@@ -618,6 +658,21 @@ describe('既存データの既定の扱い（新しい項目が未設定なら�
 });
 
 describe('償却可能限度額（所令134条1項2号）', () => {
+  test.each([1, 2, 3, 4, 5, 6, 7, 9] as const)(
+    '2007 年 4 月以後に取得した資産の種類 %i（1〜7 号・9 号）は残存簿価 1 円まで償却する',
+    (assetCategory) => {
+      const a = asset({
+        acquisitionDate: '2026-01-01',
+        acquisitionCost: '300000',
+        usefulLifeYears: 3,
+        assetCategory,
+      });
+      const last = computeDepreciation(a, 2028);
+      expect(last.bookValueEnd).toBe('1');
+      expect(last.fullyDepreciated).toBe(true);
+    },
+  );
+
   test('8 号無形固定資産は期末簿価 0 まで償却する', () => {
     const a = asset({
       acquisitionDate: '2026-01-01',
@@ -736,6 +791,41 @@ describe('旧償却方法（所令134条1項1号・2項）', () => {
     expect(computeDepreciation(a, 2006).accumulatedEnd).toBe('950000');
     expect(computeDepreciation(a, 2007).amount).toBe('0');
     expect(computeDepreciation(a, 2008).amount).toBe('10000');
+  });
+
+  test.each([
+    [10, '90000'],
+    [21, '43200'],
+  ])(
+    '旧定額法の償却率（耐用年数 %i 年）で 100 万円の建物の年の償却額は %s 円',
+    (usefulLifeYears, expected) => {
+      const a = asset({
+        acquisitionDate: '2006-01-01',
+        acquisitionCost: '1000000',
+        usefulLifeYears,
+        depreciationMethod: 'old-straight-line',
+        assetCategory: 1,
+      });
+      expect(computeDepreciation(a, 2006).amount).toBe(expected);
+    },
+  );
+
+  test('旧定額法・旧定率法の償却率は耐用年数 2〜100 年のすべてで引け、初年度に償却する', () => {
+    for (let usefulLifeYears = 2; usefulLifeYears <= 100; usefulLifeYears++) {
+      for (const depreciationMethod of ['old-straight-line', 'old-declining-balance'] as const) {
+        const a = asset({
+          acquisitionDate: '2006-01-01',
+          acquisitionCost: '1000000',
+          usefulLifeYears,
+          depreciationMethod,
+          assetCategory: 1,
+        });
+        expect(
+          Number(computeDepreciation(a, 2006).amount),
+          `${depreciationMethod} ${usefulLifeYears}`,
+        ).toBeGreaterThan(0);
+      }
+    }
   });
 
   test('残存価額（耐用年数省令別表第十一）：有形 10%、無形・坑道 0、牛馬は 10 万円と比べて少ない方', () => {

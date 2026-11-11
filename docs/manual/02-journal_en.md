@@ -124,6 +124,8 @@ Use **"Reset"** to clear filters (year reverts to the "Current tax year" in Sett
 
 Click on a row to **expand** it. Each debit/credit line is shown with account, subaccount, tax rate, amount, and description. The `▾` / `▸` icon indicates expanded state.
 
+A line whose saved amount cannot be read shows "Cannot read the amount" instead of the amount. An entry with an unreadable amount on the debit side shows the same text in the amount (total) column of the list. An amount with decimals is shown as is, without rounding (for example ¥0.5 or ¥1,234.56). When you filter by amount range, a line with an unreadable amount does not match the range. "Recent entries" on the Home screen look the same. The monthly revenue and expense totals on the Home screen leave out the unreadable lines and show "〔count〕 entries with unreadable amounts are not included in the totals".
+
 Below the line details you'll find a list of **receipt photos** (click a thumbnail for full size) and a field to add more. Whether the entry came from CSV import, OCR, or manual entry, you can attach a receipt photo here after the fact (the same confirmation flow from 1-7 applies).
 
 ### 2-3. Pagination

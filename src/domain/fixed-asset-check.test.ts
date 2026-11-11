@@ -80,6 +80,42 @@ describe('validateFixedAsset', () => {
     expect(validateFixedAsset(asset(overrides))).toContainEqual({ kind: 'useful-life' });
   });
 
+  test.each([
+    { depreciationMethod: 'declining-balance' as const, usefulLifeYears: 2 },
+    { depreciationMethod: 'declining-balance' as const, usefulLifeYears: 20 },
+    { depreciationMethod: 'old-straight-line' as const, usefulLifeYears: 2 },
+    { depreciationMethod: 'old-straight-line' as const, usefulLifeYears: 100 },
+    { depreciationMethod: 'old-declining-balance' as const, usefulLifeYears: 2 },
+    { depreciationMethod: 'old-declining-balance' as const, usefulLifeYears: 100 },
+    { depreciationMethod: 'straight-line' as const, usefulLifeYears: 1 },
+    { depreciationMethod: 'straight-line' as const, usefulLifeYears: 70 },
+  ])('償却方法で使える耐用年数 %j は問題なし', (overrides) => {
+    expect(validateFixedAsset(asset(overrides))).toEqual([]);
+  });
+
+  test.each(['old-straight-line', 'old-declining-balance'] as const)(
+    '資産の種類が生物の資産に旧償却方法 %s は選べず useful-life の問題',
+    (depreciationMethod) => {
+      expect(validateFixedAsset(asset({ depreciationMethod, assetCategory: 9 }))).toContainEqual({
+        kind: 'useful-life',
+      });
+    },
+  );
+
+  test.each([1, 21])('定率法の耐用年数 %i は率表に無く useful-life の問題', (usefulLifeYears) => {
+    expect(
+      validateFixedAsset(asset({ depreciationMethod: 'declining-balance', usefulLifeYears })),
+    ).toContainEqual({ kind: 'useful-life' });
+  });
+
+  test('使用可能期間 1 年未満でも耐用年数は 1 以上の整数でなければならない', () => {
+    for (const usefulLifeYears of [0, 1.5]) {
+      expect(
+        validateFixedAsset(asset({ usefulLifeYears, usableLifeUnderOneYear: true })),
+      ).toContainEqual({ kind: 'useful-life' });
+    }
+  });
+
   test('使用可能期間 1 年未満は率表を使わないので耐用年数の範囲を問わない', () => {
     expect(
       validateFixedAsset(

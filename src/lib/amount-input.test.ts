@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
+import { m } from '../paraglide/messages';
 import {
+  amountInputError,
+  formatStoredAmount,
   isAmountInputInvalid,
+  isAmountInputMalformed,
   isJournalAmountTooLarge,
   normalizeAmountInput,
   parseAmountInput,
@@ -180,5 +184,54 @@ describe('保存済みの値を入力欄の文字列にする', () => {
     [true, ''],
   ])('%j は %j', (v, expected) => {
     expect(storedToInputText(v)).toBe(expected);
+  });
+});
+
+describe('isAmountInputInvalid は 100 兆円以上も不正とする', () => {
+  test.each(['100000000000000', '100000000000000.5', '１００，０００，０００，０００，０００'])(
+    '%j は書き方は正しいが不正',
+    (raw) => {
+      expect(isAmountInputMalformed(raw)).toBe(false);
+      expect(isAmountInputInvalid(raw)).toBe(true);
+      expect(amountInputError(raw)).toBe(m.common_amount_too_large());
+    },
+  );
+
+  test('99,999,999,999,999 は有効', () => {
+    expect(isAmountInputInvalid('99999999999999')).toBe(false);
+    expect(amountInputError('99999999999999')).toBe('');
+  });
+
+  test('書き方の誤りは書き方の誤りの文言、空欄は誤りなし', () => {
+    expect(amountInputError('1e3')).toBe(m.common_amount_invalid());
+    expect(amountInputError('abc')).toBe(m.common_amount_invalid());
+    expect(amountInputError('')).toBe('');
+    expect(isAmountInputMalformed('')).toBe(false);
+    expect(isAmountInputMalformed(5000)).toBe(true);
+  });
+});
+
+describe('formatStoredAmount', () => {
+  test.each([
+    ['abc', m.common_stored_amount_unreadable()],
+    [{}, m.common_stored_amount_unreadable()],
+    [null, m.common_stored_amount_unreadable()],
+    [undefined, m.common_stored_amount_unreadable()],
+    ['0.5', '¥0.5'],
+    ['1000', '¥1,000'],
+    ['1234.56', '¥1,234.56'],
+    ['-0.5', '-¥0.5'],
+    ['-1234.5', '-¥1,234.5'],
+    ['-1000', '-¥1,000'],
+    ['1e3', '¥1,000'],
+    ['0', '¥0'],
+    [1500.25, '¥1,500.25'],
+    ['1234567.125', '¥1,234,567.125'],
+    ['9007199254740993', '¥9,007,199,254,740,993'],
+    ['-9007199254740993', '-¥9,007,199,254,740,993'],
+    ['123456789012345678', '¥123,456,789,012,345,678'],
+    ['1e20', '¥100,000,000,000,000,000,000'],
+  ])('%j は %s と表示する', (stored, expected) => {
+    expect(formatStoredAmount(stored)).toBe(expected);
   });
 });

@@ -15,7 +15,9 @@
     type FilerFieldKind,
   } from '../lib/filer-fields';
   import {
+    amountInputError,
     isAmountInputInvalid,
+    isAmountInputMalformed,
     isJournalAmountTooLarge,
     normalizeAmountInput,
     parseAmountInput,
@@ -804,12 +806,21 @@
   type CtAmountKey = 'basePeriodTaxableSales' | 'specifiedPeriodTaxableSales';
   // 復元された設定は型を検証しないため数値などが入りうる。読む側（settings.ts）は文字列しか読まないので、
   // 数値は文字列にして見せつつ誤りとして示し、それ以外は空欄にして示す
+  // 読めない（または 100 兆円以上の）保存値は、利用者が欄を書き換えるまで保存時に消したり上書きしたりしない
+  const ctStoredUnreadable = new Map<string, { text: string; message: () => string }>();
   function loadCtAmount(name: string, stored: unknown): string {
+    ctStoredUnreadable.delete(name);
     if (stored === undefined || (typeof stored === 'string' && !isAmountInputInvalid(stored))) {
       return stored ?? '';
     }
-    ctErrors.set(name, m.common_stored_amount_unreadable);
-    return storedToInputText(stored);
+    const text = storedToInputText(stored);
+    const message =
+      typeof stored === 'string' && !isAmountInputMalformed(stored)
+        ? m.common_amount_too_large
+        : m.common_stored_amount_unreadable;
+    ctErrors.set(name, message);
+    ctStoredUnreadable.set(name, { text, message });
+    return text;
   }
   type CtFlagKey = 'foreignWithoutDomesticPe' | 'interimVoluntaryFiled' | 'interimVoluntaryLapsed';
   // 空欄・未チェックは未設定として消し、判定を従来どおりにする
@@ -823,11 +834,14 @@
       await setSetting(key, value.trim());
     }
   }
-  async function saveCtAmount(key: CtAmountKey, value: string) {
+  async function saveCtAmount(key: CtAmountKey, name: string, value: string) {
+    if (ctErrors.has(name)) {
+      return;
+    }
     const normalized = normalizeAmountInput(value);
     if (normalized === '') {
       await deleteSetting(key);
-    } else if (parseAmountInput(normalized) !== undefined) {
+    } else if (!isAmountInputInvalid(normalized)) {
       await setSetting(key, normalized);
     }
   }
@@ -905,8 +919,15 @@
       ['ctBasePeriodSales', ctBasePeriodSales],
       ['ctSpecifiedPeriodSales', ctSpecifiedPeriodSales],
     ] as const) {
-      if (isAmountInputInvalid(value)) {
-        errors.set(name, m.common_amount_invalid);
+      const stored = ctStoredUnreadable.get(name);
+      if (stored !== undefined && stored.text === value) {
+        errors.set(name, stored.message);
+        continue;
+      }
+      ctStoredUnreadable.delete(name);
+      const message = amountInputError(value);
+      if (message !== '') {
+        errors.set(name, () => message);
       }
     }
     return errors;
@@ -1001,8 +1022,12 @@
       'ctSimplifiedElectionFiledDate',
       ctSimplifiedElectionFiledDate,
     );
-    await saveCtAmount('basePeriodTaxableSales', ctBasePeriodSales);
-    await saveCtAmount('specifiedPeriodTaxableSales', ctSpecifiedPeriodSales);
+    await saveCtAmount('basePeriodTaxableSales', 'ctBasePeriodSales', ctBasePeriodSales);
+    await saveCtAmount(
+      'specifiedPeriodTaxableSales',
+      'ctSpecifiedPeriodSales',
+      ctSpecifiedPeriodSales,
+    );
     await saveCtFlag('foreignWithoutDomesticPe', ctForeignWithoutDomesticPe);
     await saveCtFlag('interimVoluntaryFiled', ctInterimVoluntaryFiled);
     await saveCtFlag('interimVoluntaryLapsed', ctInterimVoluntaryLapsed);
@@ -1109,6 +1134,11 @@
     await db.delete();
     location.reload();
   }
+  // 前年の明細から金額を取って書く操作は、読めない値や 100 兆円以上の明細が 1 件でもあれば始めない
+  async function priorYearAmountBlocker(): Promise<string> {
+    const found = await findOversizedAmounts({ year: currentYear - 1 });
+    return found.total > 0 ? describeFoundAmounts(found) : '';
+  }
 
   async function previewCarryover() {
     if (currentYearInvalid) {
@@ -1117,6 +1147,12 @@
     carryoverError = '';
     carryoverStatus = '';
     try {
+      const blocker = await priorYearAmountBlocker();
+      if (blocker !== '') {
+        carryoverPreview = null;
+        carryoverError = blocker;
+        return;
+      }
       carryoverPreview = await computeCarryover(currentYear);
     } catch (err) {
       carryoverError = describeStorageError(err);
@@ -1129,6 +1165,16 @@
     }
     carryoverError = '';
     carryoverStatus = '';
+    try {
+      const blocker = await priorYearAmountBlocker();
+      if (blocker !== '') {
+        carryoverError = blocker;
+        return;
+      }
+    } catch (err) {
+      carryoverError = describeStorageError(err);
+      return;
+    }
     if (!(await filedYearGuard.confirm([currentYear]))) {
       return;
     }
@@ -1153,6 +1199,16 @@
     }
     badDebtReversalError = '';
     badDebtReversalStatus = '';
+    try {
+      const blocker = await priorYearAmountBlocker();
+      if (blocker !== '') {
+        badDebtReversalError = blocker;
+        return;
+      }
+    } catch (err) {
+      badDebtReversalError = describeStorageError(err);
+      return;
+    }
     if (!(await filedYearGuard.confirm([currentYear]))) {
       return;
     }
@@ -1646,14 +1702,28 @@
   function canonicalAmount(raw: string): string {
     return (parseAmountInput(raw) ?? D(0)).toFixed();
   }
+  const propertyAreaError = $derived(amountInputError(propertyAreaSqm));
+  const propertyAnnualRentError = $derived(amountInputError(propertyAnnualRent));
+  const propertyKeyMoneyError = $derived(amountInputError(propertyKeyMoneyEtc));
+  const propertyOtherIncomeError = $derived(amountInputError(propertyOtherIncome));
+  const propertyDepositError = $derived(amountInputError(propertyDepositBalance));
   const propertyAmountsInvalid = $derived(
-    [propertyAreaSqm, propertyKeyMoneyEtc, propertyOtherIncome, propertyDepositBalance].some((v) =>
-      isAmountInputInvalid(v),
-    ) || isAmountInputInvalid(propertyAnnualRent),
+    [
+      propertyAreaError,
+      propertyAnnualRentError,
+      propertyKeyMoneyError,
+      propertyOtherIncomeError,
+      propertyDepositError,
+    ].some((e) => e !== ''),
+  );
+  const disposeSalePriceError = $derived(
+    disposeType === 'sale' ? amountInputError(disposeSalePrice) : '',
+  );
+  const disposeSaleExpensesError = $derived(
+    disposeType === 'sale' ? amountInputError(disposeSaleExpenses) : '',
   );
   const disposeAmountsInvalid = $derived(
-    disposeType === 'sale' &&
-      (isAmountInputInvalid(disposeSalePrice) || isAmountInputInvalid(disposeSaleExpenses)),
+    disposeSalePriceError !== '' || disposeSaleExpensesError !== '',
   );
 
   function startEditProperty(a: FixedAsset) {
@@ -1692,7 +1762,6 @@
       return;
     }
     if (propertyAmountsInvalid) {
-      propertyError = m.common_amount_invalid();
       return;
     }
     const a = await db.fixedAssets.get(propertyEditId);
@@ -1971,7 +2040,6 @@
       return;
     }
     if (disposeAmountsInvalid) {
-      disposeError = m.common_amount_invalid();
       return;
     }
     const a = await db.fixedAssets.get(disposeEditId);
@@ -4002,70 +4070,122 @@
                           title={m.settings_asset_property_rental_end_title()}
                           class="w-full min-w-0 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
                         />
-                        <input
-                          type="number"
-                          name="propertyMensekiSqm"
-                          autocomplete="off"
-                          aria-label={m.settings_asset_property_area_placeholder()}
-                          value={propertyAreaSqm}
-                          oninput={assignInputString((v) => (propertyAreaSqm = v))}
-                          min="0"
-                          placeholder={m.settings_asset_property_area_placeholder()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <input
-                          type="number"
-                          name="propertyAnnualRent"
-                          autocomplete="off"
-                          aria-label={m.settings_asset_property_annual_rent_placeholder()}
-                          value={propertyAnnualRent}
-                          oninput={assignInputString((v) => (propertyAnnualRent = v))}
-                          min="0"
-                          step="1"
-                          required
-                          placeholder={m.settings_asset_property_annual_rent_placeholder()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <input
-                          type="number"
-                          name="propertyKeyMoneyEtc"
-                          autocomplete="off"
-                          aria-label={m.settings_asset_property_key_money_placeholder()}
-                          value={propertyKeyMoneyEtc}
-                          oninput={assignInputString((v) => (propertyKeyMoneyEtc = v))}
-                          min="0"
-                          step="1"
-                          placeholder={m.settings_asset_property_key_money_placeholder()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <input
-                          type="number"
-                          name="propertyOtherIncome"
-                          autocomplete="off"
-                          aria-label={m.settings_asset_property_other_income_placeholder()}
-                          value={propertyOtherIncome}
-                          oninput={assignInputString((v) => (propertyOtherIncome = v))}
-                          min="0"
-                          step="1"
-                          placeholder={m.settings_asset_property_other_income_placeholder()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
-                        <input
-                          type="number"
-                          name="propertyDepositBalance"
-                          autocomplete="off"
-                          aria-label={m.settings_asset_property_deposit_placeholder()}
-                          value={propertyDepositBalance}
-                          oninput={assignInputString((v) => (propertyDepositBalance = v))}
-                          min="0"
-                          step="1"
-                          placeholder={m.settings_asset_property_deposit_placeholder()}
-                          class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                        />
+                        <div class="space-y-1">
+                          <input
+                            type="number"
+                            name="propertyMensekiSqm"
+                            aria-invalid={propertyAreaError !== '' ? 'true' : undefined}
+                            aria-describedby={propertyAreaError !== ''
+                              ? 'property-area-error'
+                              : undefined}
+                            autocomplete="off"
+                            aria-label={m.settings_asset_property_area_placeholder()}
+                            value={propertyAreaSqm}
+                            oninput={assignInputString((v) => (propertyAreaSqm = v))}
+                            min="0"
+                            placeholder={m.settings_asset_property_area_placeholder()}
+                            class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          {#if propertyAreaError !== ''}
+                            <p id="property-area-error" class="text-xs text-destructive">
+                              {propertyAreaError}
+                            </p>
+                          {/if}
+                        </div>
+                        <div class="space-y-1">
+                          <input
+                            type="number"
+                            name="propertyAnnualRent"
+                            aria-invalid={propertyAnnualRentError !== '' ? 'true' : undefined}
+                            aria-describedby={propertyAnnualRentError !== ''
+                              ? 'property-annual-rent-error'
+                              : undefined}
+                            autocomplete="off"
+                            aria-label={m.settings_asset_property_annual_rent_placeholder()}
+                            value={propertyAnnualRent}
+                            oninput={assignInputString((v) => (propertyAnnualRent = v))}
+                            min="0"
+                            step="1"
+                            required
+                            placeholder={m.settings_asset_property_annual_rent_placeholder()}
+                            class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          {#if propertyAnnualRentError !== ''}
+                            <p id="property-annual-rent-error" class="text-xs text-destructive">
+                              {propertyAnnualRentError}
+                            </p>
+                          {/if}
+                        </div>
+                        <div class="space-y-1">
+                          <input
+                            type="number"
+                            name="propertyKeyMoneyEtc"
+                            aria-invalid={propertyKeyMoneyError !== '' ? 'true' : undefined}
+                            aria-describedby={propertyKeyMoneyError !== ''
+                              ? 'property-key-money-error'
+                              : undefined}
+                            autocomplete="off"
+                            aria-label={m.settings_asset_property_key_money_placeholder()}
+                            value={propertyKeyMoneyEtc}
+                            oninput={assignInputString((v) => (propertyKeyMoneyEtc = v))}
+                            min="0"
+                            step="1"
+                            placeholder={m.settings_asset_property_key_money_placeholder()}
+                            class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          {#if propertyKeyMoneyError !== ''}
+                            <p id="property-key-money-error" class="text-xs text-destructive">
+                              {propertyKeyMoneyError}
+                            </p>
+                          {/if}
+                        </div>
+                        <div class="space-y-1">
+                          <input
+                            type="number"
+                            name="propertyOtherIncome"
+                            aria-invalid={propertyOtherIncomeError !== '' ? 'true' : undefined}
+                            aria-describedby={propertyOtherIncomeError !== ''
+                              ? 'property-other-income-error'
+                              : undefined}
+                            autocomplete="off"
+                            aria-label={m.settings_asset_property_other_income_placeholder()}
+                            value={propertyOtherIncome}
+                            oninput={assignInputString((v) => (propertyOtherIncome = v))}
+                            min="0"
+                            step="1"
+                            placeholder={m.settings_asset_property_other_income_placeholder()}
+                            class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          {#if propertyOtherIncomeError !== ''}
+                            <p id="property-other-income-error" class="text-xs text-destructive">
+                              {propertyOtherIncomeError}
+                            </p>
+                          {/if}
+                        </div>
+                        <div class="space-y-1">
+                          <input
+                            type="number"
+                            name="propertyDepositBalance"
+                            aria-invalid={propertyDepositError !== '' ? 'true' : undefined}
+                            aria-describedby={propertyDepositError !== ''
+                              ? 'property-deposit-error'
+                              : undefined}
+                            autocomplete="off"
+                            aria-label={m.settings_asset_property_deposit_placeholder()}
+                            value={propertyDepositBalance}
+                            oninput={assignInputString((v) => (propertyDepositBalance = v))}
+                            min="0"
+                            step="1"
+                            placeholder={m.settings_asset_property_deposit_placeholder()}
+                            class="w-full px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                          />
+                          {#if propertyDepositError !== ''}
+                            <p id="property-deposit-error" class="text-xs text-destructive">
+                              {propertyDepositError}
+                            </p>
+                          {/if}
+                        </div>
                       </div>
-                      {#if propertyAmountsInvalid}
-                        <div class="text-xs text-destructive">{m.common_amount_invalid()}</div>
-                      {/if}
                       {#if propertyError}
                         <div class="text-xs text-destructive">{propertyError}</div>
                       {/if}
@@ -4111,30 +4231,52 @@
                           {m.settings_asset_disposal_type_sale()}
                         </label>
                         {#if disposeType === 'sale'}
-                          <input
-                            type="number"
-                            name="disposeSalePrice"
-                            autocomplete="off"
-                            aria-label={m.settings_asset_disposal_sale_price_placeholder()}
-                            value={disposeSalePrice}
-                            oninput={assignInputString((v) => (disposeSalePrice = v))}
-                            min="0"
-                            step="1"
-                            placeholder={m.settings_asset_disposal_sale_price_placeholder()}
-                            class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                          />
-                          <input
-                            type="number"
-                            name="disposeSaleKeihi"
-                            autocomplete="off"
-                            aria-label={m.settings_asset_disposal_sale_expenses_placeholder()}
-                            value={disposeSaleExpenses}
-                            oninput={assignInputString((v) => (disposeSaleExpenses = v))}
-                            min="0"
-                            step="1"
-                            placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
-                            class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-                          />
+                          <div class="space-y-1">
+                            <input
+                              type="number"
+                              name="disposeSalePrice"
+                              aria-invalid={disposeSalePriceError !== '' ? 'true' : undefined}
+                              aria-describedby={disposeSalePriceError !== ''
+                                ? 'dispose-sale-price-error'
+                                : undefined}
+                              autocomplete="off"
+                              aria-label={m.settings_asset_disposal_sale_price_placeholder()}
+                              value={disposeSalePrice}
+                              oninput={assignInputString((v) => (disposeSalePrice = v))}
+                              min="0"
+                              step="1"
+                              placeholder={m.settings_asset_disposal_sale_price_placeholder()}
+                              class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                            />
+                            {#if disposeSalePriceError !== ''}
+                              <p id="dispose-sale-price-error" class="text-xs text-destructive">
+                                {disposeSalePriceError}
+                              </p>
+                            {/if}
+                          </div>
+                          <div class="space-y-1">
+                            <input
+                              type="number"
+                              name="disposeSaleKeihi"
+                              aria-invalid={disposeSaleExpensesError !== '' ? 'true' : undefined}
+                              aria-describedby={disposeSaleExpensesError !== ''
+                                ? 'dispose-sale-expenses-error'
+                                : undefined}
+                              autocomplete="off"
+                              aria-label={m.settings_asset_disposal_sale_expenses_placeholder()}
+                              value={disposeSaleExpenses}
+                              oninput={assignInputString((v) => (disposeSaleExpenses = v))}
+                              min="0"
+                              step="1"
+                              placeholder={m.settings_asset_disposal_sale_expenses_placeholder()}
+                              class="w-36 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums text-right"
+                            />
+                            {#if disposeSaleExpensesError !== ''}
+                              <p id="dispose-sale-expenses-error" class="text-xs text-destructive">
+                                {disposeSaleExpensesError}
+                              </p>
+                            {/if}
+                          </div>
                           <select
                             bind:value={disposeCashAccount}
                             name="disposeCashAccount"
@@ -4147,9 +4289,6 @@
                           </select>
                         {/if}
                       </div>
-                      {#if disposeAmountsInvalid}
-                        <div class="text-xs text-destructive">{m.common_amount_invalid()}</div>
-                      {/if}
                       {#if disposeError}
                         <div class="text-xs text-destructive">{disposeError}</div>
                       {/if}
@@ -4244,7 +4383,7 @@
             {/if}
           </p>
         {:else if transferOccasionalInvalid}
-          <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
+          <p class="text-xs text-destructive">{amountInputError(transferOccasionalIncome)}</p>
         {:else}
           <p class="text-xs text-muted-foreground">
             {m.settings_transfer_income_special_deduction({
