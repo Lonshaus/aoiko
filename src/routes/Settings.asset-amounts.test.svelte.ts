@@ -248,11 +248,14 @@ describe('譲渡所得の一時所得の金額', () => {
       container = document.createElement('div');
       document.body.appendChild(container);
       instance = mount(Settings, { target: container, props: {} });
-      await waitFor(() =>
-        (container!.textContent ?? '').includes(
-          m.settings_transfer_income_aggregate_title({ year }),
-        ),
-      );
+      // 画面の読み込みが終わる前にテストを終えると、後始末で閉じたデータベースを読んで未処理の rejection になる
+      await waitFor(() => {
+        const text = container!.textContent ?? '';
+        return (
+          text.includes(MOUNT_SENTINEL) &&
+          text.includes(m.settings_transfer_income_aggregate_title({ year }))
+        );
+      });
       type('transferOccasionalIncome', bad);
       expect(container!.textContent).toContain(message());
       type('transferOccasionalIncome', '10000');
