@@ -4,6 +4,7 @@ import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import type { JournalEntry, JournalLine } from '../db/types';
+import type { YearData } from './reports';
 
 export interface CarryoverPreview {
   year: number;
@@ -235,18 +236,26 @@ export interface StaleCarryover {
 // ズレている科目を返す。振替仕訳が存在しない、または一致していれば null。
 // #332 以降 removeCarryover は反対仕訳方式のため、集計対象の判定は countsTowardTotals に委ねる
 // （反転済みの原仕訳・反転仕訳自体は対象外、現に有効な 1 件だけを比較する）。
-export async function detectStaleCarryover(year: number): Promise<StaleCarryover | null> {
-  const entry = await db.journalEntries
-    .where('year')
-    .equals(year)
-    .filter((e) => e.source === 'carryover' && countsTowardTotals(e))
-    .first();
+// data を渡した場合は、読み込み済みの年度データから仕訳・明細・科目を取る。
+export async function detectStaleCarryover(
+  year: number,
+  data?: YearData,
+): Promise<StaleCarryover | null> {
+  const entry = data
+    ? data.entries.find((e) => e.source === 'carryover' && countsTowardTotals(e))
+    : await db.journalEntries
+        .where('year')
+        .equals(year)
+        .filter((e) => e.source === 'carryover' && countsTowardTotals(e))
+        .first();
   if (!entry) {
     return null;
   }
 
-  const lines = await db.journalLines.where('entryId').equals(entry.id).toArray();
-  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const lines = data
+    ? data.lines.filter((l) => l.entryId === entry.id)
+    : await db.journalLines.where('entryId').equals(entry.id).toArray();
+  const accounts = data ? data.accounts : await db.accounts.where('year').equals(year).toArray();
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
   const carried = new Map<string, Decimal>();

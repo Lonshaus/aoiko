@@ -8,6 +8,7 @@ import { setSetting } from '../lib/settings';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { markYearFiled } from '../domain/snapshots';
+import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
 import { ledger } from '../stores/ledger.svelte';
 import { m } from '../paraglide/messages';
 import type { Account } from '../db/types';
@@ -176,5 +177,167 @@ describe('レポート画面の年度データ読み込み回数', () => {
 
     expect(breakdownText()).not.toContain(VENDOR_NAME);
     expect(fullReads).toBe(1);
+  });
+});
+
+interface IdbRead {
+  store: string;
+  keys: unknown[];
+}
+
+// journalEntries と journalLines に対する IDB の読み取り呼び出しを、返した行（key）ごとに記録する。
+function installIdbRecorder(): { reads: IdbRead[]; restore: () => void } {
+  const reads: IdbRead[] = [];
+  const methods = ['getAll', 'getAllKeys', 'openCursor', 'openKeyCursor', 'get', 'getKey'];
+  const restores: Array<() => void> = [];
+  const wrap = (proto: Record<string, unknown>, storeOf: (self: unknown) => string): void => {
+    for (const method of methods) {
+      const orig = proto[method] as ((...a: unknown[]) => IDBRequest) | undefined;
+      if (typeof orig !== 'function') {
+        continue;
+      }
+      proto[method] = function (this: unknown, ...args: unknown[]) {
+        const store = storeOf(this);
+        const req = orig.apply(this, args);
+        if (store !== 'journalEntries' && store !== 'journalLines') {
+          return req;
+        }
+        const rec: IdbRead = { store, keys: [] };
+        reads.push(rec);
+        req.addEventListener('success', () => {
+          const r = req.result as unknown;
+          if (r === undefined || r === null) {
+            return;
+          }
+          if (method === 'getAll') {
+            rec.keys.push(...(r as Array<{ id: unknown }>).map((v) => v.id));
+          } else if (method === 'getAllKeys') {
+            rec.keys.push(...(r as unknown[]));
+          } else if (method === 'openCursor' || method === 'openKeyCursor') {
+            rec.keys.push((r as IDBCursor).primaryKey);
+          } else if (method === 'get') {
+            rec.keys.push((r as { id: unknown }).id);
+          } else {
+            rec.keys.push(r);
+          }
+        });
+        return req;
+      };
+      restores.push(() => {
+        proto[method] = orig;
+      });
+    }
+  };
+  wrap(
+    IDBObjectStore.prototype as unknown as Record<string, unknown>,
+    (self) => (self as IDBObjectStore).name,
+  );
+  wrap(
+    IDBIndex.prototype as unknown as Record<string, unknown>,
+    (self) => (self as IDBIndex).objectStore.name,
+  );
+  return { reads, restore: () => restores.forEach((f) => f()) };
+}
+
+// 1 回の呼び出しが返した行に、その年の行が 1 つでも含まれれば、その年の読み取り 1 回と数える。
+function readsOfYear(
+  reads: IdbRead[],
+  store: string,
+  yearOf: Map<unknown, number>,
+  year: number,
+): number {
+  return reads.filter((r) => r.store === store && r.keys.some((k) => yearOf.get(k) === year))
+    .length;
+}
+
+describe('在庫の自動評価が有効で繰越仕訳がある場合の年度データ読み込み回数', () => {
+  test('同じ年の仕訳と明細を 1 回ずつ読み、分析軸を切り替えても読まない', async () => {
+    const entryYear = new Map<unknown, number>();
+    const lineYear = new Map<unknown, number>();
+    for (const e of await db.journalEntries.toArray()) {
+      entryYear.set(e.id, e.year);
+    }
+    for (const l of await db.journalLines.toArray()) {
+      lineYear.set(l.id, entryYear.get(l.entryId) ?? 0);
+    }
+    const add = async (
+      id: string,
+      date: string,
+      year: number,
+      source: 'manual' | 'carryover',
+      lines: Array<{ side: 'debit' | 'credit'; code: string; withItem?: boolean }>,
+    ): Promise<void> => {
+      const now = Date.now();
+      await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+        allowFiledYearWriteInThisTransaction();
+        await db.journalEntries.add({
+          id,
+          date,
+          year,
+          description: '計数テスト',
+          status: 'confirmed',
+          source,
+          createdAt: now,
+          confirmedAt: now,
+        });
+        await db.journalLines.bulkAdd(
+          lines.map((l, i) => ({
+            id: `${id}-l${i}`,
+            entryId: id,
+            side: l.side,
+            accountCode: l.code,
+            amount: '50000',
+            amountIndexed: toIndexable('50000'),
+            taxRate: 0,
+            taxIncluded: true,
+            invoiceCompliant: false,
+            ...(l.withItem ? { itemId: 'item-a', quantity: '5' } : {}),
+          })),
+        );
+      });
+      entryYear.set(id, year);
+      for (let i = 0; i < lines.length; i++) {
+        lineYear.set(`${id}-l${i}`, year);
+      }
+    };
+    await db.accounts.bulkPut(ACCOUNTS_2026.map((a) => ({ ...a, year: 2025 }) as Account));
+    await add('a25-p', '2025-05-01', 2025, 'manual', [
+      { side: 'debit', code: '5020', withItem: true },
+      { side: 'credit', code: '1130' },
+    ]);
+    await add('b26-carry', '2026-01-01', 2026, 'carryover', [
+      { side: 'debit', code: '1130' },
+      { side: 'credit', code: '3110' },
+    ]);
+    await add('b26-p', '2026-02-01', 2026, 'manual', [
+      { side: 'debit', code: '5020', withItem: true },
+      { side: 'credit', code: '1130' },
+    ]);
+    await setSetting('inventoryAutoValuationEnabled', true);
+    await waitFor(() => ledger.inventoryAutoValuationEnabled === true);
+    await sleep(200);
+
+    const recorder = installIdbRecorder();
+    try {
+      container = document.createElement('div');
+      document.body.appendChild(container);
+      instance = mount(Reports, { target: container, props: {} });
+      await waitFor(() => breakdownText().includes(VENDOR_NAME));
+      await sleep(500);
+      expect(breakdownText()).toContain(m.reports_pl_inventory_suggestion_title());
+      expect(readsOfYear(recorder.reads, 'journalEntries', entryYear, YEAR)).toBe(1);
+      expect(readsOfYear(recorder.reads, 'journalLines', lineYear, YEAR)).toBe(1);
+
+      recorder.reads.length = 0;
+      const departmentButton = Array.from(container.querySelectorAll('button')).find((b) =>
+        (b.textContent ?? '').includes(m.reports_breakdown_by_department()),
+      )!;
+      departmentButton.click();
+      await waitFor(() => breakdownText().includes(DEPARTMENT_NAME));
+      await sleep(300);
+      expect(recorder.reads.filter((r) => r.keys.length > 0)).toHaveLength(0);
+    } finally {
+      recorder.restore();
+    }
   });
 });

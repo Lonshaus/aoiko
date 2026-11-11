@@ -37,7 +37,11 @@
   } from '../domain/snapshots';
   import { arApDisplayDescription } from '../domain/ar-ap-description';
   import { interimFilingObligation, type InterimVoluntaryInputs } from '../domain/interim-filing';
-  import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
+  import {
+    computeInventoryValuation,
+    loadYearDataWithInventory,
+    type InventoryValuation,
+  } from '../domain/inventory';
   import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
   import {
     addArApEntry,
@@ -607,11 +611,15 @@
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const filing = (await getSetting('filingType')) ?? 'blue';
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const yearData = await loadYearData(yr);
+      const asOf = `${yr}-12-31`;
+      const withInventory = ledger.inventoryAutoValuationEnabled
+        ? await loadYearDataWithInventory(yr, asOf)
+        : null;
+      const yearData = withInventory ? withInventory.yearData : await loadYearData(yr);
       const reports = await buildAll(yr, 'vendor', yearData, { skipBreakdown: true });
       const processed = await processYear(yr, undefined, { yearData });
-      const inventory = ledger.inventoryAutoValuationEnabled
-        ? await computeInventoryValuation(`${yr}-12-31`)
+      const inventory = withInventory
+        ? await computeInventoryValuation(asOf, withInventory.inventory)
         : null;
       const budget = await computeBudgetVsActual(yr, yearData);
       const yearAccounts = await db.accounts.where({ year: yr }).toArray();
@@ -626,7 +634,7 @@
         ...reports,
         yearData: { year: yr, data: yearData },
         amendment: await getAmendmentDiff(yr, yearData),
-        staleCarryover: await detectStaleCarryover(yr),
+        staleCarryover: await detectStaleCarryover(yr, yearData),
         consumptionTax: await compareAll(yr, cat, attributionMethod, {
           ...compareOptions,
           yearData,
