@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { D } from '../../lib/decimal';
 import {
+  maxOccursOf,
   stripClassificationSuffix,
   toKingaku,
   XtxAmountOutOfRangeError,
 } from './xtx-mapping-shared';
+import type { XtxSchema } from './xtx-schema';
+import koa020 from './xtx-schema-koa020.generated.json';
+import koa210 from './xtx-schema-koa210.generated.json';
 
 describe('stripClassificationSuffix', () => {
   it('末尾の全角括弧付き分類を取り除く', () => {
@@ -32,6 +36,25 @@ describe('stripClassificationSuffix', () => {
 
   it('括弧だけの名前は空文字になる', () => {
     expect(stripClassificationSuffix('（個別評価）')).toBe('');
+  });
+});
+
+describe('maxOccursOf', () => {
+  it('様式 schema の maxOccurs を返す', () => {
+    expect(maxOccursOf(koa020 as XtxSchema, 'ABE00010')).toBe(2);
+    expect(maxOccursOf(koa210 as XtxSchema, 'AMF01600')).toBe(7);
+    expect(maxOccursOf(koa210 as XtxSchema, 'AMG00465')).toBe(7);
+  });
+
+  it('unbounded は無限大として返す', () => {
+    const schema = {
+      refTree: [{ tag: 'X0001', maxOccurs: 'unbounded' }],
+    } as unknown as XtxSchema;
+    expect(maxOccursOf(schema, 'X0001')).toBe(Number.POSITIVE_INFINITY);
+  });
+
+  it('schema に無いタグは例外を投げる', () => {
+    expect(() => maxOccursOf(koa020 as XtxSchema, 'ZZZ99999')).toThrow('ZZZ99999');
   });
 });
 

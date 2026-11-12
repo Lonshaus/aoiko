@@ -1,4 +1,4 @@
-import { readStoredAmount } from '../lib/amount-input';
+import { normalizeAmountInput, readStoredAmount } from '../lib/amount-input';
 import { isValidIsoDate } from '../lib/date';
 import { hasOldStraightLineRate } from './business-opening';
 import { hasDecliningBalanceRate, oldDecliningBalanceRate } from './depreciation';
@@ -119,7 +119,12 @@ export function validateFixedAsset(asset: FixedAsset): FixedAssetIssue[] {
     if (absent) {
       continue;
     }
-    const v = readStoredAmount(value);
+    // 売却価格・処分費用は入力欄の書き方（全角数字・桁区切り）のまま保存されるため、正規化してから読む
+    const v = readStoredAmount(
+      DISPOSAL_AMOUNT_FIELDS.has(field) && typeof value === 'string'
+        ? normalizeAmountInput(value)
+        : value,
+    );
     if (v === undefined || v.isNegative()) {
       issues.push({ kind: 'amount', field });
     } else if (TOO_LARGE_FIELDS.has(field) && v.gte('1e14')) {

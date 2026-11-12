@@ -6,7 +6,7 @@
   import { m } from '../paraglide/messages';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import {
-    isAmountInputMalformed,
+    isAmountInputInvalid,
     isJournalAmountTooLarge,
     normalizeAmountInput,
     parseAmountInput,
@@ -333,10 +333,16 @@
   // 読めない額のまま作成に進むと内部のエラー文が出るか、償却 0 として作られてしまう。
   // 開業費の合計が 0 ならドメインは償却額を読まない
   function customAmortizationInvalid(): boolean {
+    if (expenseAmortization !== 'custom') {
+      return false;
+    }
     if (
-      expenseAmortization !== 'custom' ||
-      parseAmountInput(customAmortizationAmount) !== undefined
+      isAmountInputInvalid(customAmortizationAmount) &&
+      !isJournalAmountTooLarge(customAmortizationAmount)
     ) {
+      return true;
+    }
+    if (parseAmountInput(customAmortizationAmount) !== undefined) {
       return false;
     }
     try {
@@ -466,11 +472,14 @@
     writeFailed = true;
   }
   // 確認は呼出元で済ませておく。開業日・廃業日の設定値（少額特例の年合計上限の月割に使う）も同じ取引で書き、作らなかったときは書かない
-  async function createOpening(sources: BusinessDateSources): Promise<void> {
+  async function createOpening(
+    sources: BusinessDateSources,
+    options: { allowedFiledYears: readonly number[] },
+  ): Promise<void> {
     let result: Awaited<ReturnType<typeof generateOpeningEntries>>;
     try {
       result = await generateOpeningEntries(openingInput(), {
-        allowFiledYear: true,
+        ...options,
         dateSettings: {
           formClose: businessCloseDate,
           expectedStoredClose: sources.settingClose?.value,
@@ -514,10 +523,11 @@
   async function confirmAndCreate(sources: BusinessDateSources): Promise<void> {
     const year = Number(businessStartDate.slice(0, 4));
     const years = affectedYears([year, ...closeChangeYears(sources)]);
-    if (!(await filedYearGuard.confirm(years, { detail: openingDetail() }))) {
+    const consent = await filedYearGuard.confirm(years, { detail: openingDetail() });
+    if (!consent) {
       return;
     }
-    await createOpening(sources);
+    await createOpening(sources, { allowedFiledYears: consent });
   }
   // 入力の年に開業仕訳があれば作成（既存ありの案内へ）、無くてほかの年にあれば選んでもらい、どこにも無ければそのまま作る
   async function routeCreate(sources: BusinessDateSources, openingYears: number[]): Promise<void> {
@@ -582,7 +592,8 @@
       }
       const createYear = Number(businessStartDate.slice(0, 4));
       const years = affectedYears([reverseYear, createYear, ...closeChangeYears(sources)]);
-      if (!(await filedYearGuard.confirm(years, { detail: openingDetail() }))) {
+      const consent = await filedYearGuard.confirm(years, { detail: openingDetail() });
+      if (!consent) {
         return;
       }
       let result: Awaited<ReturnType<typeof replaceOpeningEntries>>;
@@ -594,7 +605,7 @@
             formClose: businessCloseDate,
             expectedStoredClose: sources.settingClose?.value,
           },
-          { allowFiledYear: true },
+          { allowedFiledYears: consent },
         );
       } catch (e) {
         showWriteFailure(e);
@@ -690,10 +701,13 @@
     }
     recoveryBusy = true;
     try {
-      if (!(await filedYearGuard.confirm(affectedYears([target.year])))) {
+      const consent = await filedYearGuard.confirm(affectedYears([target.year]));
+      if (!consent) {
         return;
       }
-      const result = await restoreInterruptedOpeningEntries(target.year, { allowFiledYear: true });
+      const result = await restoreInterruptedOpeningEntries(target.year, {
+        allowedFiledYears: consent,
+      });
       if ('reason' in result) {
         recoveryError = m.opening_restore_not_interrupted();
         return;
@@ -792,14 +806,18 @@
     }
     recoveryBusy = true;
     try {
-      if (!(await filedYearGuard.confirm(affectedYears([target.year])))) {
+      const consent = await filedYearGuard.confirm(affectedYears([target.year]));
+      if (!consent) {
         return;
       }
-      const result = await registerMissingOpeningAsset({
-        entryId: target.entryId,
-        lineId: target.lineId,
-        ...form,
-      });
+      const result = await registerMissingOpeningAsset(
+        {
+          entryId: target.entryId,
+          lineId: target.lineId,
+          ...form,
+        },
+        { allowedFiledYears: consent },
+      );
       registeringKey = null;
       if ('reason' in result) {
         recoveryError = m.opening_missing_assets_not_missing();
@@ -1189,7 +1207,7 @@
             placeholder={m.opening_expense_custom_amount()}
             class="px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums w-40"
           />
-          {#if isAmountInputMalformed(customAmortizationAmount)}
+          {#if isAmountInputInvalid(customAmortizationAmount) && !isJournalAmountTooLarge(customAmortizationAmount)}
             <p class="text-xs text-destructive">{m.common_amount_invalid()}</p>
           {:else if isJournalAmountTooLarge(customAmortizationAmount)}
             <p class="text-xs text-destructive">{m.common_amount_too_large()}</p>

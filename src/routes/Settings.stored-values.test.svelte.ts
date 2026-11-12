@@ -4,8 +4,9 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { setSetting } from '../lib/settings';
 import { buildPayload } from '../backup/payload';
-import { restoreFromPayload } from '../domain/restore';
+import { inspectBackupPayload, restoreFromPayload } from '../domain/restore';
 import { stashRestoreNotice } from '../lib/restore-notice';
+import { dataCheck } from '../stores/data-check.svelte';
 import { m } from '../paraglide/messages';
 
 const { default: Settings } = await import('./Settings.svelte');
@@ -43,6 +44,11 @@ async function mountSettings(): Promise<void> {
   document.body.appendChild(container);
   instance = mount(Settings, { target: container, props: {} });
   await waitFor(() => text().includes(MOUNT_SENTINEL));
+}
+// 点検の状態はシングルトンで前のテストの結果を持ち越すため、データを入れてから点検し直す
+async function runDataCheck(): Promise<void> {
+  await dataCheck.rerun();
+  flushSync();
 }
 
 async function seedLine(amount: unknown, description: string): Promise<void> {
@@ -85,48 +91,51 @@ afterEach(async () => {
   await db.delete();
 });
 
-describe('復元後の過大な明細の一覧', () => {
-  test('1e15 の明細を含むバックアップは戻せて、再読み込み後の設定画面に一覧が出る', async () => {
-    await seedLine('1e15', '桁あふれ取引');
+describe('復元後の過大な明細は保存データの点検が示す', () => {
+  async function restoreLine(amount: string, description: string): Promise<void> {
+    await seedLine(amount, description);
     const payload = await buildPayload();
     await db.delete();
     await db.open();
-    await restoreFromPayload(payload, new Map());
+    await restoreFromPayload(payload, new Map(), new Set(inspectBackupPayload(payload).parts));
     stashRestoreNotice({ tables: 1, rows: 1, missingBlobCount: 0 });
+  }
+
+  test('1e15 の明細を含むバックアップは戻せて、再読み込み後の点検に出る', async () => {
+    await restoreLine('1e15', '桁あふれ取引');
     await mountSettings();
-    expect(text()).toContain('桁あふれ取引');
+    await runDataCheck();
     expect(text()).toContain(m.settings_restore_success({ tables: 1, rows: 1 }));
+    expect(text()).toContain(m.settings_data_check_table({ table: 'journalLines', count: 1 }));
+    expect(text()).toContain('amount が 100 兆円以上です');
   });
 
-  test('復元結果の下に「⚠ 金額が 100 兆円以上か、読めない値の明細が N 件あります。訂正仕訳で取り消してください：」と明細の一覧が出る', async () => {
-    await seedLine('1e15', '桁あふれ取引');
-    const payload = await buildPayload();
-    await db.delete();
-    await db.open();
-    await restoreFromPayload(payload, new Map());
-    stashRestoreNotice({ tables: 1, rows: 1, missingBlobCount: 0 });
+  test('点検の例に出るのは復元で通常の表記に直した金額と仕訳の日付で、バックアップの 1e15 は出ない', async () => {
+    await restoreLine('1e15', '桁あふれ取引');
     await mountSettings();
-    const head = m.oversized_amounts_found({ count: 1, items: '' });
-    expect(text()).toContain(`⚠ ${head}`);
+    await runDataCheck();
+    expect((await db.journalLines.toArray()).map((l) => l.amount)).toEqual(['1000000000000000']);
     expect(text()).toContain(
-      m.oversized_amounts_item_line({
-        date: '2026-03-01',
-        description: '桁あふれ取引',
-        amount: '1e15',
-      }),
+      'amount が 100 兆円以上です（2026-03-01 の仕訳）：「1000000000000000」',
     );
+    expect(text()).not.toContain('1e15');
   });
 
-  test('文字列でない金額も一覧に出て、他の設定は読み終わる', async () => {
+  test('文字列でない金額も点検に出て、他の設定は読み終わる', async () => {
     await seedLine(5000, '数値の明細');
     stashRestoreNotice({ tables: 1, rows: 1, missingBlobCount: 0 });
     await mountSettings();
-    expect(text()).toContain('数値の明細');
+    await runDataCheck();
+    expect(text()).toContain('amount が非負の数値文字列ではありません：number');
+    expect(text()).toContain(m.settings_restore_success({ tables: 1, rows: 1 }));
   });
 
-  test('復元の通知が無ければ一覧を出さない', async () => {
-    await seedLine('1e15', '桁あふれ取引');
+  test('復元の通知の欄には過大な明細の一覧を別に出さない', async () => {
+    await restoreLine('1e15', '桁あふれ取引');
     await mountSettings();
+    await runDataCheck();
+    expect(text()).toContain(m.settings_restore_success({ tables: 1, rows: 1 }));
+    expect(text()).not.toContain(m.oversized_amounts_found({ count: 1, items: '' }));
     expect(text()).not.toContain('桁あふれ取引');
   });
 });

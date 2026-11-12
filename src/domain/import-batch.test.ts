@@ -80,13 +80,13 @@ describe('reverseImportBatch', () => {
     await expect(reverseImportBatch(result.batchId)).rejects.toThrow(/申告済み.*ロック/);
   });
 
-  test('allowFiledYear:true なら申告済み年度でも成功する', async () => {
+  test('allowedFiledYears に申告済みの年度を含めれば成功する', async () => {
     const result = await commitImport(KNOWN, [
       { transaction: tx({ date: '2026-04-15' }), counterpartAccountCode: '4110' },
     ]);
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
 
-    const r = await reverseImportBatch(result.batchId, { allowFiledYear: true });
+    const r = await reverseImportBatch(result.batchId, { allowedFiledYears: [2026] });
     expect(r).toEqual({ reversedCount: 1, alreadyReversedCount: 0 });
   });
 });
@@ -100,5 +100,20 @@ describe('importBatchYears', () => {
     ]);
 
     expect(await importBatchYears(result.batchId)).toEqual([2025, 2026]);
+  });
+
+  test('year が null の仕訳があっても整数の年度だけを返す', async () => {
+    const result = await commitImport(KNOWN, [
+      { transaction: tx({ date: '2026-04-15' }), counterpartAccountCode: '4110' },
+      { transaction: tx({ date: '2025-04-15' }), counterpartAccountCode: '4110' },
+    ]);
+    const entries = await db.journalEntries
+      .where('sourceImportId')
+      .equals(result.batchId)
+      .toArray();
+    const older = entries.find((e) => e.year === 2025)!;
+    await db.table('journalEntries').update(older.id, { year: null });
+
+    expect(await importBatchYears(result.batchId)).toEqual([2026]);
   });
 });

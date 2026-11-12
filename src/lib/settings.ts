@@ -5,6 +5,7 @@ import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
+import type { BackupPartId } from '../backup/parts';
 import type {
   SmallAmountSpecialInputs,
   WariBaseAdjustments,
@@ -70,11 +71,14 @@ export type SettingsMap = {
   openaiApiKey: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
-  // バックアップ・エクスポートに API キーを含めるか（既定 false）。
-  // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。
-  backupIncludeApiKeys: boolean;
+  // 自動バックアップに含める区分（backup/parts.ts）。読むときは normalizeAutoBackupParts を通す。
+  backupParts: BackupPartId[];
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
+  // 保存データの点検で「確認した」を押したときの点検結果の指紋。結果が変わればまた知らせる。
+  dataCheckAcknowledged: string;
+  // 保存されていた処理年度が読めず起動時に置き換えたときの年。ホームで知らせ、閉じるか基本設定の保存で消す。
+  processingYearResetTo: number;
   // 消費税関連設定
   taxRegistration: TaxRegistration;
   taxFilingMethod: TaxFilingMethod;
@@ -98,7 +102,7 @@ export type SettingsMap = {
   // 2割／3割特例の基礎調整（年分をキー）。金額は Decimal 文字列
   wariBaseAdjustments: Record<number, StoredWariBaseAdjustments>;
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対応する。
-  // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
+  // 個人情報のため、バックアップには既定で含めない（backupParts の filer）。
   userRiyoshaId: string; // 利用者識別番号（16桁）
   userFilerName: string; // 氏名・名称（NOZEISHA_NM）
   userFilerZip: string; // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
@@ -111,8 +115,6 @@ export type SettingsMap = {
   aoiroDeductionKind: AoiroDeductionKind;
   // 所得税法67条1項（小規模事業者の現金主義）の適用を受けるか（既定 false）
   cashBasisElection: boolean;
-  // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
-  backupIncludeFilerInfo: boolean;
   // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
   // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
   // 所得控除画面の不動産所得区分が表示される（切っている間は既存利用者の画面は変わらない）。
@@ -160,7 +162,8 @@ export type SettingsMap = {
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
 // v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
-export const DISCLAIMER_VERSION = 10;
+// v12: 送信前確認を省く設定は端末ごとで復元しても変わらない旨と、バックアップの項目選択に合わせた PRIVACY・SECURITY の記述を反映。11 は別の配布形態で使ったため飛ばし、両方を 12 に揃える。
+export const DISCLAIMER_VERSION = 12;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,

@@ -22,6 +22,7 @@ import {
   restoreInterruptedOpeningEntries,
 } from './business-opening';
 import type { JournalLine, ReportSnapshotData } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 beforeEach(async () => {
   await db.delete();
@@ -173,7 +174,7 @@ describe('findInterruptedOpeningYears（A 類・修正前は関数が無く実�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await findInterruptedOpeningYears()).toEqual([]);
     await later();
@@ -245,7 +246,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     });
     await later();
     await removeOpeningEntries(2026);
-    await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true });
+    await restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     const rows = await restored(2026);
     expect(rows).toHaveLength(2);
     const lines = await db.journalLines
@@ -281,9 +282,9 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     const rev = (await db.journalEntries.toArray()).find((e) => e.originalEntryId !== undefined)!;
     await corrupt(rev.id);
     const before = await db.journalEntries.count();
-    const outcome = await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true }).catch(
-      (e: unknown) => e,
-    );
+    const outcome = await restoreInterruptedOpeningEntries(2026, {
+      allowedFiledYears: ALL_YEARS,
+    }).catch((e: unknown) => e);
     expect(await db.journalEntries.count()).toBe(before);
     expect(outcome).toBeInstanceOf(OpeningRestoreAborted);
     expect((outcome as OpeningRestoreAborted).reason).toBe('target-invalid');
@@ -294,7 +295,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     for (const l of await db.journalLines.toArray()) {
       await db.journalLines.update(l.id, { amount: '1e3', amountIndexed: 'x' });
     }
-    await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true });
+    await restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     const rows = await restored(2026);
     const lines = await db.journalLines
       .where('entryId')
@@ -314,7 +315,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     }
     const before = await db.journalEntries.count();
     await expect(
-      restoreInterruptedOpeningEntries(2026, { allowFiledYear: true }),
+      restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS }),
     ).rejects.toThrow();
     expect(await db.journalEntries.count()).toBe(before);
   });
@@ -324,9 +325,9 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     const l = await originalLine();
     await db.journalLines.update(l.id, { amount: 'abc' });
     const before = await db.journalEntries.count();
-    const outcome = await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true }).catch(
-      (e: unknown) => e,
-    );
+    const outcome = await restoreInterruptedOpeningEntries(2026, {
+      allowedFiledYears: ALL_YEARS,
+    }).catch((e: unknown) => e);
     expect(await db.journalEntries.count()).toBe(before);
     expect((outcome as OpeningRestoreAborted).reason).toBe('amount-invalid');
   });
@@ -336,7 +337,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     await lockYears(2026);
     await expect(restoreInterruptedOpeningEntries(2026)).rejects.toThrow();
     expect(await restored(2026)).toHaveLength(0);
-    await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true });
+    await restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     expect(await restored(2026)).toHaveLength(2);
   });
 
@@ -344,7 +345,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
     await interrupt('2026-07-01');
     await seedOpening('2026-07-01');
     const before = await db.journalEntries.count();
-    expect(await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true })).toEqual({
+    expect(await restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS })).toEqual({
       reason: 'not-interrupted',
     });
     expect(await db.journalEntries.count()).toBe(before);
@@ -357,7 +358,7 @@ describe('restoreInterruptedOpeningEntries（A 類・修正前は関数が無く
       taxCategory: 'nontaxable',
       taxableTransferConsideration: '5000',
     });
-    await restoreInterruptedOpeningEntries(2026, { allowFiledYear: true });
+    await restoreInterruptedOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     const rows = await restored(2026);
     const lines = await db.journalLines
       .where('entryId')

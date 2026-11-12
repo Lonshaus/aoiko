@@ -10,6 +10,7 @@ import { smallAssetAnnualCap } from '../tax-schema/2026/limits';
 import { filedYearGuard } from '../lib/filed-year-guard.svelte';
 import { m } from '../paraglide/messages';
 import type { ReportSnapshotData } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 const { default: OpeningSetup } = await import('./OpeningSetup.svelte');
 
@@ -131,7 +132,7 @@ async function seedOpening(start: string, assetName?: string): Promise<void> {
         : [],
       customItems: [],
     },
-    { allowFiledYear: true },
+    { allowedFiledYears: ALL_YEARS },
   );
 }
 
@@ -455,7 +456,7 @@ describe('ほかの年に開業仕訳があるときの作成（G9）', () => {
 
   test('打ち消す年の資産に償却仕訳があれば、打ち消さずに作らない', async () => {
     await seedOpening('2026-07-01', '旧PC');
-    await generateYearEndDepreciation(2026, { allowFiledYear: true });
+    await generateYearEndDepreciation(2026, { allowedFiledYears: ALL_YEARS });
     const seeded = (await openingEntries(2026)).length;
     await render();
     await setDates('2025-10-01', '');
@@ -475,7 +476,7 @@ describe('ほかの年に開業仕訳があるときの作成（G9）', () => {
 
   test('再開業として作ると前の期間を残し、各年を自分の日付で月割する。のちの作り直しは打ち消す年だけ', async () => {
     await seedOpening('2023-04-01', '2023のPC');
-    await generateYearEndDepreciation(2023, { allowFiledYear: true });
+    await generateYearEndDepreciation(2023, { allowedFiledYears: ALL_YEARS });
     await setSetting('businessCloseDate', '2024-03-31');
     await render();
     expect(input('jigyoStartDate').value).toBe('2023-04-01');
@@ -564,7 +565,7 @@ describe('ほかの年に開業仕訳があるときの作成（G9）', () => {
         accountCode: '1510',
       })),
     );
-    const r = await generateYearEndDepreciation(2026, { allowFiledYear: true });
+    const r = await generateYearEndDepreciation(2026, { allowedFiledYears: ALL_YEARS });
     expect(r.created).toBe(8);
     expect(r.smallAssetCapExceeded).toBe(1);
   });

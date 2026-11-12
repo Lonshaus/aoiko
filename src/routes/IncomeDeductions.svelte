@@ -10,20 +10,24 @@
     parseIntegerInput,
   } from '../lib/amount-input';
   import { newId } from '../lib/id';
+  import {
+    isProcessingYear,
+    PROCESSING_YEAR_MAX,
+    PROCESSING_YEAR_MIN,
+  } from '../lib/initial-processing-year';
   import { assignInputNumberOrEmpty } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
+  import { computeIncomeDeductions, computeIncomeTax } from '../tax-schema/2026/income-deductions';
   import {
-    computeIncomeDeductions,
-    progressiveIncomeTax,
-    reconstructionSurtax,
-    totalTaxCredits,
-  } from '../tax-schema/2026/income-deductions';
-  import { totalWithholdingTax } from '../tax-schema/2026/other-income';
+    PENSION_SALARY_CAP_FIRST_YEAR,
+    totalWithholdingTax,
+  } from '../tax-schema/2026/other-income';
   import {
     businessFamilyEmployeeDeductionResultForOutput,
     combinedTotalIncomeAmount,
+    publicPensionIncomeOf,
     realEstateFamilyEmployeeDeductionResult,
     totalIncomeAmount,
   } from '../tax-schema/2026/xtx-mapping-koa020';
@@ -36,6 +40,7 @@
     RealEstateLoanInterestPaidDetail,
     RealEstateProfessionalFeeDetail,
     RealEstateRentPaidDetail,
+    RelativeDisability,
   } from '../db/types';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import { personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
@@ -67,6 +72,7 @@
   let hasSpouse = $state(false);
   let spouseIncome = $state('0');
   let spouseAge = $state<number | undefined>(40);
+  let spouseDisability = $state<RelativeDisability>('none');
   let dependents = $state<
     Array<{
       id: string;
@@ -74,6 +80,7 @@
       age: number | undefined;
       totalIncome: string;
       livesWithLinealAscendant: boolean;
+      disability: RelativeDisability;
     }>
   >([]);
   let familyEmployees = $state<
@@ -98,6 +105,9 @@
   let salaryWithholdingTax = $state('0');
   let salaryLastPaymentBeforeDecember = $state(false);
   let publicPensionAmount = $state('0');
+  let publicPensionMode = $state<'income' | 'revenue'>('income');
+  let publicPensionRevenue = $state('0');
+  let publicPensionAge65 = $state(false);
   let otherMiscIncomeAmount = $state('0');
   let otherMiscExpenses = $state('0');
   let otherWithholdingTaxPaid = $state('0');
@@ -146,7 +156,6 @@
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
   // 抱えたままなので保存を禁じる（新年度キーへの誤書き込み防止）。
   let loadedYear = $state<number | null>(null);
-  const YEAR_RANGE = { min: 2020, max: 2099 };
   // 年度欄が空・範囲外の間は year を直前の値のまま残し、保存だけを止める
   let yearInvalid = $state(false);
   // 年度の帳簿を読み込めなかったときの理由。この間は試算に前の年度の値を使わず、保存もしない
@@ -182,6 +191,7 @@
     hasSpouse = false;
     spouseIncome = '0';
     spouseAge = 40;
+    spouseDisability = 'none';
     dependents = [];
     familyEmployees = [];
     dividendDeductionAmount = '0';
@@ -196,6 +206,9 @@
     salaryWithholdingTax = '0';
     salaryLastPaymentBeforeDecember = false;
     publicPensionAmount = '0';
+    publicPensionMode = 'income';
+    publicPensionRevenue = '0';
+    publicPensionAge65 = false;
     otherMiscIncomeAmount = '0';
     otherMiscExpenses = '0';
     otherWithholdingTaxPaid = '0';
@@ -249,12 +262,14 @@
     hasSpouse = !!stored.spouse;
     spouseIncome = stored.spouse?.totalIncome ?? '0';
     spouseAge = stored.spouse?.age ?? 40;
+    spouseDisability = stored.spouse?.disability ?? 'none';
     dependents = stored.dependents.map((d) => ({
       id: d.id,
       name: d.name,
       age: d.age,
       totalIncome: d.totalIncome,
       livesWithLinealAscendant: d.livesWithLinealAscendant ?? false,
+      disability: d.disability ?? 'none',
     }));
     familyEmployees = (stored.familyEmployees ?? []).map((f) => ({
       id: f.id,
@@ -276,6 +291,9 @@
     salaryWithholdingTax = stored.salaryIncome?.withholdingTax ?? '0';
     salaryLastPaymentBeforeDecember = stored.salaryIncome?.lastPaymentBeforeDecember ?? false;
     publicPensionAmount = stored.miscIncome?.publicPensionAmount ?? '0';
+    publicPensionMode = stored.miscIncome?.publicPensionInputMode ?? 'income';
+    publicPensionRevenue = stored.miscIncome?.publicPensionRevenue ?? '0';
+    publicPensionAge65 = stored.miscIncome?.publicPensionAge65OrOver ?? false;
     otherMiscIncomeAmount = stored.miscIncome?.otherIncome ?? '0';
     otherMiscExpenses = stored.miscIncome?.otherExpenses ?? '0';
     otherWithholdingTaxPaid = stored.otherWithholdingTax ?? '0';
@@ -356,7 +374,14 @@
   function addDependent() {
     dependents = [
       ...dependents,
-      { id: newId(), name: '', age: 18, totalIncome: '0', livesWithLinealAscendant: false },
+      {
+        id: newId(),
+        name: '',
+        age: 18,
+        totalIncome: '0',
+        livesWithLinealAscendant: false,
+        disability: 'none',
+      },
     ];
   }
 
@@ -405,13 +430,22 @@
     isSingleParent,
     isWidow,
     isWorkingStudent,
-    ...(hasSpouse ? { spouse: { totalIncome: spouseIncome, age: spouseAge ?? 0 } } : {}),
+    ...(hasSpouse
+      ? {
+          spouse: {
+            totalIncome: spouseIncome,
+            age: spouseAge ?? 0,
+            disability: spouseDisability,
+          },
+        }
+      : {}),
     dependents: dependents.map((d): PersonalDeductionDependent => ({
       id: d.id,
       name: d.name,
       age: d.age ?? 0,
       totalIncome: d.totalIncome,
       livesWithLinealAscendant: d.livesWithLinealAscendant,
+      disability: d.disability,
     })),
     ...(familyEmployees.length > 0
       ? {
@@ -442,10 +476,16 @@
         }
       : {}),
     miscIncome: {
-      ...(isAmountInputInvalid(publicPensionAmount) ||
-      parseAmountInput(publicPensionAmount)?.greaterThan(0)
-        ? { publicPensionAmount }
-        : {}),
+      ...(publicPensionMode === 'revenue'
+        ? {
+            publicPensionInputMode: 'revenue' as const,
+            publicPensionRevenue,
+            publicPensionAge65OrOver: publicPensionAge65,
+          }
+        : isAmountInputInvalid(publicPensionAmount) ||
+            parseAmountInput(publicPensionAmount)?.greaterThan(0)
+          ? { publicPensionAmount }
+          : {}),
       otherIncome: otherMiscIncomeAmount,
       otherExpenses: otherMiscExpenses,
     },
@@ -497,6 +537,7 @@
       d.salaryIncome?.paidAmount,
       d.salaryIncome?.withholdingTax,
       d.miscIncome?.publicPensionAmount,
+      d.miscIncome?.publicPensionRevenue,
       d.miscIncome?.otherIncome,
       d.miscIncome?.otherExpenses,
       d.otherWithholdingTax,
@@ -566,6 +607,20 @@
         })
       : D(0),
   );
+  // 計算方式の公的年金等に係る雑所得（令和9年分以降は所法35条5項の調整後）。
+  const publicPension = $derived(
+    plCache
+      ? publicPensionIncomeOf({
+          year,
+          pl: plCache,
+          filingType: filingTypeCache,
+          aoiroDeductionKind: aoiroDeductionKindCache,
+          cashBasis: cashBasisCache,
+          ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
+          personalDeductions: ctx,
+        })
+      : null,
+  );
   // 事業専従者控除（白色申告のみ、続柄で決まる定額）。事業所得側・不動産所得側の合計を表示する。
   const familyEmployeeDeductionTotal = $derived.by(() => {
     if (!plCache) {
@@ -603,16 +658,9 @@
     const v = combinedTotalIncome.minus(result.total);
     return v.greaterThan(0) ? v : D(0);
   });
-  const incomeTax = $derived(progressiveIncomeTax(taxableIncome));
-  const credits = $derived(totalTaxCredits(ctx));
-  const afterCredits = $derived.by(() => {
-    const v = incomeTax.minus(credits);
-    return v.greaterThan(0) ? v : D(0);
-  });
-  const surtax = $derived(reconstructionSurtax(afterCredits));
-  const finalTax = $derived(afterCredits.plus(surtax));
   const withholding = $derived(totalWithholdingTax(ctx));
-  const netTaxDue = $derived(finalTax.minus(withholding));
+  const tax = $derived(computeIncomeTax(year, taxableIncome, ctx, withholding));
+  const foreignTaxCredit = $derived(ctx.foreignTaxCreditAmount ?? D(0));
 
   async function save() {
     if (loadedYear !== year || yearInvalid || loadError !== '' || invalidFieldCount > 0) {
@@ -645,6 +693,15 @@
   {/if}
 {/snippet}
 
+{#snippet disabilityOptions()}
+  <option value="none">{m.income_deductions_relative_disability_none()}</option>
+  <option value="disabled">{m.income_deductions_relative_disability_disabled()}</option>
+  <option value="special">{m.income_deductions_relative_disability_special()}</option>
+  <option value="specialCohabiting"
+    >{m.income_deductions_relative_disability_special_cohabiting()}</option
+  >
+{/snippet}
+
 <div class="space-y-8">
   <h2 class="text-2xl font-bold">{m.income_deductions_title()}</h2>
   <p class="text-xs text-muted-foreground">{m.income_deductions_intro()}</p>
@@ -666,20 +723,19 @@
         autocomplete="off"
         value={year}
         oninput={assignInputNumberOrEmpty((v) => {
-          const y = parseIntegerInput(v === undefined ? '' : String(v), YEAR_RANGE);
-          yearInvalid = y === undefined;
-          if (y !== undefined) {
-            year = y;
+          yearInvalid = !isProcessingYear(v);
+          if (isProcessingYear(v)) {
+            year = v;
           }
         })}
-        min="2020"
-        max="2099"
+        min={PROCESSING_YEAR_MIN}
+        max={PROCESSING_YEAR_MAX}
         step="1"
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
       {#if yearInvalid}
         <span class="block mt-1 text-xs text-destructive"
-          >{m.common_integer_invalid(YEAR_RANGE)}</span
+          >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
         >
       {/if}
     </label>
@@ -753,23 +809,81 @@
       </div>
     {/if}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_public_pension_amount()}</span
-        >
-        <input
-          type="text"
-          name="publicPensionAmount"
-          autocomplete="off"
-          inputmode="numeric"
-          bind:value={publicPensionAmount}
-          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
-        />
-        {@render amountError(publicPensionAmount)}
-        <span class="block mt-1 text-xs text-muted-foreground"
-          >{m.income_deductions_public_pension_hint()}</span
-        >
-      </label>
+      <div class="space-y-2 sm:col-span-2">
+        <div class="flex flex-wrap gap-x-6 gap-y-2">
+          <label class="flex items-center gap-2">
+            <input
+              type="radio"
+              name="publicPensionMode"
+              bind:group={publicPensionMode}
+              value="income"
+            />
+            <span class="text-sm">{m.income_deductions_public_pension_mode_income()}</span>
+          </label>
+          <label class="flex items-center gap-2">
+            <input
+              type="radio"
+              name="publicPensionMode"
+              bind:group={publicPensionMode}
+              value="revenue"
+            />
+            <span class="text-sm">{m.income_deductions_public_pension_mode_revenue()}</span>
+          </label>
+        </div>
+        {#if publicPensionMode === 'income'}
+          <label class="block sm:max-w-sm">
+            <span class="text-xs text-muted-foreground"
+              >{m.income_deductions_public_pension_amount()}</span
+            >
+            <input
+              type="text"
+              name="publicPensionAmount"
+              autocomplete="off"
+              inputmode="numeric"
+              bind:value={publicPensionAmount}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+            />
+            {@render amountError(publicPensionAmount)}
+            <span class="block mt-1 text-xs text-muted-foreground"
+              >{m.income_deductions_public_pension_hint()}</span
+            >
+          </label>
+          {#if year >= PENSION_SALARY_CAP_FIRST_YEAR && hasSalaryIncome}
+            <p class="text-xs text-muted-foreground" data-testid="public-pension-salary-cap-hint">
+              {m.income_deductions_public_pension_salary_cap_hint()}
+            </p>
+          {/if}
+        {:else}
+          <label class="block sm:max-w-sm">
+            <span class="text-xs text-muted-foreground"
+              >{m.income_deductions_public_pension_revenue()}</span
+            >
+            <input
+              type="text"
+              name="publicPensionRevenue"
+              autocomplete="off"
+              inputmode="numeric"
+              bind:value={publicPensionRevenue}
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+            />
+            {@render amountError(publicPensionRevenue)}
+          </label>
+          <label class="flex items-center gap-2 py-2">
+            <input type="checkbox" name="publicPensionAge65" bind:checked={publicPensionAge65} />
+            <span class="text-sm"
+              >{m.income_deductions_public_pension_age65({ birthYear: year - 64 })}</span
+            >
+          </label>
+          {#if publicPension}
+            <p class="text-sm">
+              {m.income_deductions_public_pension_computed()}：<span
+                class="font-mono"
+                data-testid="public-pension-computed">{formatJPY(publicPension.amount)}</span
+              >
+            </p>
+          {/if}
+        {/if}
+      </div>
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_deductions_other_misc_income()}</span>
         <input
@@ -1155,6 +1269,19 @@
           />
           {@render intError(spouseAge, 0, 120)}
         </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_relative_disability()}</span
+          >
+          <select
+            value={spouseDisability}
+            onchange={(e) => (spouseDisability = e.currentTarget.value as RelativeDisability)}
+            name="spouseDisability"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            {@render disabilityOptions()}
+          </select>
+        </label>
       </div>
     {/if}
     {#if spouseExcludedByFamilyEmployee}
@@ -1174,7 +1301,7 @@
       </button>
     </div>
     {#each dependents as dep (dep.id)}
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end border-t pt-3">
+      <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border-t pt-3">
         <label class="block sm:col-span-2">
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_name()}</span>
           <input
@@ -1212,6 +1339,19 @@
           />
           {@render amountError(dep.totalIncome)}
         </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_deductions_relative_disability()}</span
+          >
+          <select
+            value={dep.disability}
+            onchange={(e) => (dep.disability = e.currentTarget.value as RelativeDisability)}
+            name="dependent-{dep.id}-disability"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            {@render disabilityOptions()}
+          </select>
+        </label>
         <div class="flex items-center gap-3">
           <label class="flex items-center gap-1 text-xs py-2">
             <input type="checkbox" bind:checked={dep.livesWithLinealAscendant} />
@@ -1226,7 +1366,7 @@
           </button>
         </div>
         {#if familyEmployeeExclusionResult.excludedDependentIds.has(dep.id)}
-          <p class="md:col-span-5 text-xs text-amber-600">
+          <p class="md:col-span-6 text-xs text-amber-600">
             {m.income_deductions_family_employee_dependent_excluded_note()}
           </p>
         {/if}
@@ -1701,25 +1841,42 @@
         class="font-mono text-right">{formatJPY(taxableIncome)}</span
       >
       <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span
-        class="font-mono text-right">{formatJPY(afterCredits)}</span
+        class="font-mono text-right">{formatJPY(tax.baseIncomeTax)}</span
       >
       <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span
-        class="font-mono text-right">{formatJPY(surtax)}</span
+        class="font-mono text-right">{formatJPY(tax.reconstructionSurtax)}</span
       >
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_final_tax()}</span><span
-        class="font-mono text-right font-semibold border-t pt-1">{formatJPY(finalTax)}</span
+      {#if year >= 2027}
+        <span class="text-muted-foreground">{m.income_deductions_result_defense_surtax()}</span
+        ><span class="font-mono text-right">{formatJPY(tax.defenseSurtax)}</span>
+      {/if}
+      <span class="font-semibold border-t pt-1"
+        >{year >= 2027
+          ? m.income_deductions_result_tax_total_with_defense()
+          : m.income_deductions_result_final_tax()}</span
+      ><span class="font-mono text-right font-semibold border-t pt-1"
+        >{formatJPY(tax.taxTotal)}</span
       >
+      {#if foreignTaxCredit.greaterThan(0)}
+        <span class="text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span><span
+          class="font-mono text-right">{formatJPY(foreignTaxCredit)}</span
+        >
+      {/if}
       <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span
         class="font-mono text-right">{formatJPY(withholding)}</span
       >
       <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span
-      ><span class="font-mono text-right font-semibold border-t pt-1">{formatJPY(netTaxDue)}</span>
+      ><span class="font-mono text-right font-semibold border-t pt-1"
+        >{formatJPY(tax.filingTaxDue)}</span
+      >
     </div>
   </section>
 
   <div class="flex items-center gap-3 justify-end">
     {#if yearInvalid}
-      <span class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</span>
+      <span class="text-xs text-destructive"
+        >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
+      >
     {:else if loadError}
       <span class="text-xs text-destructive">{m.income_deductions_load_failed_short()}</span>
     {:else if invalidFieldCount > 0}

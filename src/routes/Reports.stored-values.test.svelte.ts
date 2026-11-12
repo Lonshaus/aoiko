@@ -368,22 +368,6 @@ describe('.xtx を出す前の確認の順序と、出したあとの注意', ()
     expect(saveTextFile).not.toHaveBeenCalled();
   });
 
-  test('申告書の明細欄の行数を超える減価償却資産は .xtx に書かず、出力はしたうえで項目名つきの注意を画面上部に出す', async () => {
-    await db.fixedAssets.bulkAdd(
-      Array.from({ length: 8 }, (_, i) =>
-        asset({ name: `超過資産${i + 1}`, acquisitionDate: `2026-01-0${i + 1}` }),
-      ),
-    );
-    await mountReports();
-    buttonByText(m.reports_xtx_download())!.click();
-    await waitFor(() => saveTextFile.mock.calls.length > 0);
-    await waitFor(() =>
-      text().includes(m.reports_xtx_row_overflow({ list: '' }).split('{list}')[0]!.slice(0, 12)),
-    );
-    expect(text()).toContain('超過資産8（¥75,000）');
-    expect(text()).toContain('必要なら e-Tax 上で追記してください。');
-  });
-
   test.each(CONSUMPTION_BUTTONS)(
     '「%s」は、中間納付額が読めないとき .xtx を作らず、消費税の欄へ理由を示す',
     async (label) => {

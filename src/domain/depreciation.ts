@@ -315,11 +315,15 @@ interface BusinessDateWrite {
   expected: unknown;
 }
 // 2 つの値は 1 つの取引で書く。どちらかがほかの画面で変わっていたら何も書かず、変わった欄を返す
-export async function saveBusinessDateSettings(writes: {
-  start: BusinessDateWrite;
-  close: BusinessDateWrite;
-}): Promise<{ conflicts: BusinessDateField[]; stored: Record<BusinessDateField, unknown> }> {
+export async function saveBusinessDateSettings(
+  writes: {
+    start: BusinessDateWrite;
+    close: BusinessDateWrite;
+  },
+  options?: { allowedFiledYears?: readonly number[] },
+): Promise<{ conflicts: BusinessDateField[]; stored: Record<BusinessDateField, unknown> }> {
   return db.transaction('rw', db.settings, async () => {
+    markConfirmedWrite(options);
     const stored = {
       start: await getSetting('businessStartDate'),
       close: await getSetting('businessCloseDate'),
@@ -1030,7 +1034,7 @@ async function hasYearEndDepreciationEntry(assetId: string, year: number): Promi
 export async function generateYearEndDepreciation(
   year: number,
   options?: {
-    allowFiledYear?: boolean;
+    allowedFiledYears?: readonly number[];
     /** 未指定は保存済みの値（loadEffectiveBusinessDates） */
     businessStartDates?: readonly string[];
     /** 未指定は保存済みの値（loadEffectiveBusinessDates） */
@@ -1147,19 +1151,23 @@ export async function generateYearEndDepreciation(
 
   let created = 0;
   if (planned.length > 0) {
-    await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
-      markConfirmedWrite(options);
-      // 同時に走った別の実行が先に書いていれば、ここで見えるので二重に書かない
-      for (const p of planned) {
-        if (await hasYearEndDepreciationEntry(p.assetId, year)) {
-          skipped++;
-          continue;
+    await db.transaction(
+      'rw',
+      [db.journalEntries, db.journalLines, db.reportSnapshots],
+      async () => {
+        markConfirmedWrite(options);
+        // 同時に走った別の実行が先に書いていれば、ここで見えるので二重に書かない
+        for (const p of planned) {
+          if (await hasYearEndDepreciationEntry(p.assetId, year)) {
+            skipped++;
+            continue;
+          }
+          await db.journalEntries.add(p.entry);
+          await db.journalLines.bulkAdd(p.lines);
+          created++;
         }
-        await db.journalEntries.add(p.entry);
-        await db.journalLines.bulkAdd(p.lines);
-        created++;
-      }
-    });
+      },
+    );
   }
 
   return { created, skipped, smallAssetCapExceeded, smallAssetIneligible };

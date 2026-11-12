@@ -2,6 +2,7 @@ import { Zip, ZipPassThrough, zipSync } from 'fflate';
 import { describe, expect, test } from 'vitest';
 import { BackupCorruptError, buildBackupZipStream, looksLikeZip, parseBackupZip } from './archive';
 import type { BackupPayload } from './types';
+import { m } from '../paraglide/messages';
 
 async function* asyncAttachments(
   entries: ReadonlyArray<readonly [string, Uint8Array]>,
@@ -597,5 +598,22 @@ describe('parseBackupZip（CRC32 照合）', () => {
       const parsedTampered = await parseBackupZip(new Blob([tampered]));
       expect(parsedTampered.corruptAttachmentNames).toEqual(['attachments/big']);
     });
+  });
+});
+
+describe('parseBackupZip（payload.json がバックアップの形でない）', () => {
+  test.each([
+    'null',
+    '[]',
+    '1',
+    '"x"',
+    '{"tables":{}}',
+    '{"version":1}',
+    '{"__proto__":{"version":1,"tables":{}}}',
+  ])('%s はバックアップ形式ではない', async (text) => {
+    const zip = zipSync({ 'payload.json': new TextEncoder().encode(text) }, { level: 0 });
+    await expect(parseBackupZip(new Blob([zip]))).rejects.toThrow(
+      m.error_backup_not_backup_format(),
+    );
   });
 });

@@ -7,9 +7,9 @@
 // family-employee-deduction.ts で算定する（personalDeductions.familyEmployees のうち
 // incomeType が 'realEstate' でないもののみ対象）。
 //
-// 固定欄に対応しない経費科目は追加科目欄（AIG00325、繰り返し・上限5、科目名
+// 固定欄に対応しない経費科目は追加科目欄（AIG00325、繰り返し、科目名
 // AIG00010 最大10文字）へ回す（issue#379、KOA220 の additionalExpenseRows と同じ方針）。
-// 5件を超える分・追加科目にも回せない科目は koa110AdditionalExpenseOverflow() で
+// 上限を超える分・追加科目にも回せない科目は koa110AdditionalExpenseOverflow() で
 // 利用者へ提示する（xtx.ts の xtxAdditionalExpenseOverflow 参照）。
 //
 // 貸倒引当金繰戻額（所得税法52条3項）は経費のマイナスではなく総収入金額に算入する
@@ -20,9 +20,10 @@
 // 収支内訳書に転記していない科目の分だけ所得が過小になる。補正は KOA020 側
 // （事業所得）とも共通のため white-return-income.ts に切り出している。
 //
-// mapKoa110RepeatedValues() は第2頁「減価償却費の計算」の明細行（AIM00010、
-// 公式 xsd で maxOccurs=6）と、事業専従者明細（AIJ00010、公式 xsd で maxOccurs=3）を
-// それぞれ FixedAsset/personalDeductions.familyEmployees から生成する。
+// mapKoa110RepeatedValues() は第2頁「減価償却費の計算」の明細行（AIM00010）と、
+// 事業専従者明細（AIJ00010）をそれぞれ FixedAsset/personalDeductions.familyEmployees
+// から生成する。行数の上限は schema の maxOccurs（maxOccursOf）を使う。
+// 上限を超えた行は koa110DetailOverflow() で利用者へ提示する。
 // xtx-document.ts の繰り返しブロック機構（XtxRepeatedValues）を利用。
 
 import koa110 from './xtx-schema-koa110.generated.json';
@@ -43,9 +44,10 @@ import {
   whiteReturnAdjustedNetIncome,
 } from './white-return-income';
 import {
+  maxOccursOf,
   stripClassificationSuffix,
   toKingaku,
-  type XtxRowOverflowItem,
+  type XtxDetailOverflowRow,
 } from './xtx-mapping-shared';
 import { homeWorkerAdjustment } from './xtx-mapping-koa020';
 
@@ -89,8 +91,7 @@ const EXPENSE_ALIAS: Record<string, string> = {
 const NEGATED_EXPENSE_ACCOUNTS = new Set(['期末商品棚卸高']);
 // 貸倒引当金繰戻額（52条3項、事業側）。収益科目だがその他の収入欄へ計上する。
 const BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME = '貸倒引当金繰戻額';
-// 追加科目欄（AIG00325）は maxOccurs 5、科目名（AIG00010）は最大10文字。
-const MAX_ADDITIONAL_EXPENSE_ROWS = 5;
+// 科目名（AIG00010）は最大10文字。
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function formAmount(accountName: string, amount: string): string {
@@ -124,7 +125,7 @@ export function koa110AdditionalExpenseOverflow(
   ctx: XtxContext,
 ): { accountName: string; amount: string }[] {
   return additionalExpenseCandidates(ctx)
-    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(maxOccursOf(SCHEMA, 'AIG00325'))
     .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
@@ -176,10 +177,8 @@ export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
   }
   return out;
 }
-// 第2頁「減価償却費の計算」の明細行（AIM00010）は公式 xsd で maxOccurs=6。
-// 7件目以降は取得日が新しい順に切り捨てる（対応不可分は摘要欄・別紙等での
-// 補完を利用者に委ねる）。
-const MAX_DEPRECIATION_ROWS = 6;
+// 第2頁「減価償却費の計算」の明細行（AIM00010）。上限を超える分は取得日が新しい順に
+// 切り捨てる（対応不可分は摘要欄・別紙等での補完を利用者に委ねる）。
 const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
   'straight-line': '定額法',
   'declining-balance': '定率法',
@@ -217,8 +216,8 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
-// 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
-// KOA210（青色・一般用）と同じ扱い。措法28の2は青色限定のためまとめ行は無い（KOA110は白色専用）。
+// 減価償却明細の候補。mapKoa110RepeatedValues（先頭から上限まで）と
+// koa110DetailOverflow（上限を超えた分）が同じ並びを共有する。
 function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
@@ -227,6 +226,8 @@ function depreciationCandidates(ctx: XtxContext) {
     ctx.businessStartDates,
     ctx.businessCloseDate,
   );
+  // 不動産所得の資産は収支内訳書(不動産所得用) KOA130 側で出力するため除く。
+  // KOA210（青色・一般用）と同じ扱い。措法28の2は青色限定のためまとめ行は無い（KOA110は白色専用）。
   const candidates = ctx.fixedAssets
     .filter((a) => a.incomeType !== 'realEstate')
     .map((asset) => ({
@@ -237,23 +238,10 @@ function depreciationCandidates(ctx: XtxContext) {
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
   return { detailYear, statuses, candidates };
 }
-// 明細欄に入りきらない減価償却資産・専従者（xtx.ts の xtxRowOverflow 参照）
-export function koa110RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
-  const { candidates } = depreciationCandidates(ctx);
-  return [
-    ...candidates.slice(MAX_DEPRECIATION_ROWS).map(({ asset, result }) => ({
-      name: asset.name,
-      amount: result.amount,
-    })),
-    ...familyEmployeeEntries(ctx)
-      .slice(MAX_FAMILY_EMPLOYEE_ROWS)
-      .map((e) => ({ name: e.name, amount: e.amount.toString() })),
-  ];
-}
 
 export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const { detailYear, statuses, candidates } = depreciationCandidates(ctx);
-  const rows = candidates.slice(0, MAX_DEPRECIATION_ROWS).map(({ asset, result }) => {
+  const rows = candidates.slice(0, maxOccursOf(SCHEMA, 'AIM00010')).map(({ asset, result }) => {
     const row: XtxLeafValues = {};
     const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
     if (name) {
@@ -277,7 +265,7 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   });
   const familyEmployeeRows = mapFamilyEmployeeRows(ctx);
   const additionalExpenseRows = additionalExpenseCandidates(ctx)
-    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(0, maxOccursOf(SCHEMA, 'AIG00325'))
     .map((row) => {
       const item: XtxLeafValues = {};
       const name = stripClassificationSuffix(row.accountName).slice(
@@ -300,36 +288,52 @@ export function mapKoa110RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
 function sanitizeLine(s: string): string {
   return s.replace(/[\n\r\t]+/g, ' ').trim();
 }
-// AIJ00010 事業専従者明細は公式 xsd で maxOccurs=3。
-const MAX_FAMILY_EMPLOYEE_ROWS = 3;
 const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<FamilyEmployeeRelation, string> = {
   spouse: '配偶者',
   other: '親族',
 };
 
-function familyEmployeeEntries(ctx: XtxContext) {
+function familyEmployeeCandidates(ctx: XtxContext) {
   const preDeductionIncome = whiteReturnAdjustedNetIncome(ctx.pl);
   const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
-  return familyEmployeeDeduction(ctx.year, preDeductionIncome, employees).entries;
+  const ageById = new Map(employees.map((e) => [e.id, e.age]));
+  const deduction = familyEmployeeDeduction(ctx.year, preDeductionIncome, employees);
+  return { ageById, entries: deduction.entries };
 }
 
 function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
-  const employees = businessFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
-  const ageById = new Map(employees.map((e) => [e.id, e.age]));
-  return familyEmployeeEntries(ctx)
-    .slice(0, MAX_FAMILY_EMPLOYEE_ROWS)
-    .map((entry) => {
-      const row: XtxLeafValues = {};
-      const name = sanitizeLine(entry.name);
-      if (name) {
-        row.AIJ00020 = name;
-      }
-      const age = ageById.get(entry.id);
-      if (age !== undefined) {
-        row.AIJ00030 = String(age);
-      }
-      row.AIJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
-      row.AIJ00050 = String(entry.monthsWorked);
-      return row;
-    });
+  const { ageById, entries } = familyEmployeeCandidates(ctx);
+  return entries.slice(0, maxOccursOf(SCHEMA, 'AIJ00010')).map((entry) => {
+    const row: XtxLeafValues = {};
+    const name = sanitizeLine(entry.name);
+    if (name) {
+      row.AIJ00020 = name;
+    }
+    const age = ageById.get(entry.id);
+    if (age !== undefined) {
+      row.AIJ00030 = String(age);
+    }
+    row.AIJ00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+    row.AIJ00050 = String(entry.monthsWorked);
+    return row;
+  });
+}
+// 明細欄（AIM00010・AIJ00010）の上限を超えて .xtx へ出せなかった行。
+// 出力側と同じ候補の並びの、上限より後ろを返す。
+export function koa110DetailOverflow(ctx: XtxContext): XtxDetailOverflowRow[] {
+  const depreciation = depreciationCandidates(ctx)
+    .candidates.slice(maxOccursOf(SCHEMA, 'AIM00010'))
+    .map(({ asset, result }) => ({
+      section: 'depreciation' as const,
+      label: asset.name.trim(),
+      amount: result.amount,
+    }));
+  const familyEmployee = familyEmployeeCandidates(ctx)
+    .entries.slice(maxOccursOf(SCHEMA, 'AIJ00010'))
+    .map((entry) => ({
+      section: 'familyEmployee' as const,
+      label: sanitizeLine(entry.name),
+      amount: entry.amount.toString(),
+    }));
+  return [...depreciation, ...familyEmployee];
 }

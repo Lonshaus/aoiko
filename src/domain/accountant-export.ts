@@ -2,10 +2,13 @@
 // PL/BS等の決算書は対象外（仕訳データのみ、C9-2）。
 import Encoding from 'encoding-japanese';
 import { D, Decimal } from '../lib/decimal';
-import { buildCsv } from '../lib/csv';
+import { buildCsv, neutralizeFormula } from '../lib/csv';
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { getSetting, loadSmallAmountSpecialInputs } from '../lib/settings';
+import { isProcessingYear } from '../lib/initial-processing-year';
 import { countsTowardTotals, readTransferConsideration } from './journal';
+import { usesLegacyPurchaseAssetRule } from './snapshots';
 import {
   findOversizedAmounts,
   findUnreadableReversedAmounts,
@@ -19,12 +22,15 @@ import {
 } from './stored-value-checks';
 import {
   classifyNonInvoicePurchases,
+  countsAsPurchaseInput,
   taxExcludedPortion,
   type SmallAmountSpecialInputs,
 } from './consumption-tax';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
+import { DEPRECIABLE_ASSET_ACCOUNTS } from '../tax-schema/2026/accounts';
 import type {
   Account,
+  FixedAsset,
   JournalEntry,
   JournalLine,
   SubAccount,
@@ -47,6 +53,11 @@ interface YayoiExportContext {
   taxFilingMethod: TaxFilingMethod;
   simplifiedTaxCategory: SimplifiedTaxCategory;
   smallAmountSpecial?: SmallAmountSpecialInputs;
+  /** 仕訳 id → 売却した資産の科目コード */
+  saleAssetAccounts?: ReadonlyMap<string, string>;
+  /** 申告済みの年分で、現金預金・金銭債権の借方も仕入に含めていた時期の判定で出す */
+  legacyPurchaseAssets?: boolean;
+  omitDepartment?: boolean;
 }
 
 interface YayoiSideCell {
@@ -57,6 +68,19 @@ interface YayoiSideCell {
   amount: string;
   taxAmount: string;
 }
+
+const OWNER_CONTRIBUTION_CODE = '3120';
+const SALE_DESCRIPTION_PREFIX = '固定資産売却 ';
+const DEPRECIABLE_ASSET_CODES = new Set(DEPRECIABLE_ASSET_ACCOUNTS.map((a) => a.code));
+// やよいの青色申告 オンラインは科目名の 10 文字を超える部分を切り捨てるため、弥生形式でだけ短くする
+const YAYOI_ACCOUNT_NAMES: ReadonlyMap<string, string> = new Map([
+  ['5810', '貸倒引当金繰入一括'],
+  ['5811', '貸倒引当金繰入個別'],
+  ['5410', '貸倒引当金繰入不動産'],
+  ['4230', '貸倒引当金繰戻不動産'],
+  ['4220', '礼金・権利金等不動産'],
+]);
+const YAYOI_NAME_COLUMNS = [4, 5, 6, 10, 11, 12];
 
 const SIMPLIFIED_KANJI: Record<SimplifiedTaxCategory, string> = {
   1: '一',
@@ -69,6 +93,19 @@ const SIMPLIFIED_KANJI: Record<SimplifiedTaxCategory, string> = {
 
 function rateSuffix(taxRate: number): string {
   return taxRate === 0.08 ? '軽減8%' : '10%';
+}
+// 簡易課税の税区分一覧（18111・27165）には用途区分が無く、課対仕入・課対輸税だけが載っている
+function usagePrefix(line: JournalLine, ctx: YayoiExportContext): '課対' | '共対' | '非対' {
+  if (ctx.taxFilingMethod === 'simplified') {
+    return '課対';
+  }
+  if (line.inputUsageCategory === 'common') {
+    return '共対';
+  }
+  if (line.inputUsageCategory === 'nonTaxableOnly') {
+    return '非対';
+  }
+  return '課対';
 }
 // 弥生形式CSVの税区分文字列・税金額を組み立てる。
 // 出典：弥生会計サポート情報「インポートデータの税区分」「課税方式別税区分・税計算区分一覧」
@@ -119,8 +156,9 @@ function yayoiTaxInfo(
   }
   // 以下、費用・資産（仕入側）
   if (effectiveTaxCategory === 'importTax10' || effectiveTaxCategory === 'importTax8') {
-    // 輸入消費税：金額そのものが税額として扱われる（db/types.ts のコメント参照）
-    return { label: '課税対応輸入消費税', taxAmount: D(line.amount).toFixed(0) };
+    // 弥生の入力例（29507）では国税分の行の税額欄が空欄
+    const rate = effectiveTaxCategory === 'importTax10' ? '7.8%' : '軽減6.24%';
+    return { label: `${usagePrefix(line, ctx)}輸税${rate}`, taxAmount: '' };
   }
   if (effectiveTaxCategory === 'reverseCharge') {
     // 特定課税仕入れは弥生側の公式手順で「対象外」を指定する運用のため、税額も出力しない
@@ -132,15 +170,10 @@ function yayoiTaxInfo(
       taxAmount: computeTaxAmount(line),
     };
   }
-  if (line.taxRate === 0) {
-    return { label: effectiveTaxCategory === 'exempt' ? '非課仕入' : '対象外', taxAmount: '' };
+  if (line.taxRate === 0 || !countsAsPurchaseInput(line, account, ctx.legacyPurchaseAssets)) {
+    return { label: '対象外', taxAmount: '' };
   }
-  const base =
-    line.inputUsageCategory === 'common'
-      ? '共対仕入'
-      : line.inputUsageCategory === 'nonTaxableOnly'
-        ? '非対仕入'
-        : '課対仕入';
+  const base = `${usagePrefix(line, ctx)}仕入`;
   // 控除上限（附則52条1項）を超えた取引先の行、経過措置終了後（令和13年10月以後）の行は
   // 控除できないため「区分控不」にする
   const creditRate = capExceeded ? 0 : transitionalCreditRate(entryDate);
@@ -192,6 +225,7 @@ function capExceededLineIds(
   lines: JournalLine[],
   accountMap: ReadonlyMap<string, Account>,
   smallAmountSpecial: SmallAmountSpecialInputs = {},
+  legacy = false,
 ): Set<string> {
   const counted = entries.filter((e) => countsTowardTotals(e));
   const result = new Set<string>();
@@ -204,6 +238,7 @@ function capExceededLineIds(
       yearLines,
       accountMap,
       smallAmountSpecial,
+      legacy,
     );
     for (const lineId of capExcess.keys()) {
       result.add(lineId);
@@ -231,11 +266,58 @@ export function buildYayoiCsvRows(
   subAccounts: SubAccount[],
   ctx: YayoiExportContext,
 ): string[][] {
+  return buildYayoiEntryRows(entries, lines, accounts, subAccounts, ctx).flatMap((g) => g.rows);
+}
+
+interface YayoiEntryRows {
+  entry: JournalEntry;
+  lines: JournalLine[];
+  rows: string[][];
+  transferWithoutAsset: boolean;
+  legacyPurchase: boolean;
+}
+
+function yayoiCell(value: string): string {
+  return value
+    .replaceAll(',', '，')
+    .replaceAll('"', '”')
+    .replaceAll(';', '；')
+    .replace(/[\r\n\t]/g, ' ');
+}
+
+function yayoiAccountName(account: Account | undefined, code: string): string {
+  if (account === undefined) {
+    return code;
+  }
+  return YAYOI_ACCOUNT_NAMES.get(account.code) ?? account.name;
+}
+
+function buildYayoiEntryRows(
+  entries: JournalEntry[],
+  lines: JournalLine[],
+  accounts: Account[],
+  subAccounts: SubAccount[],
+  ctx: YayoiExportContext,
+): YayoiEntryRows[] {
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const subAccountMap = new Map(subAccounts.map((s) => [s.id, s.name]));
   const linesByEntry = groupLinesByEntry(lines);
-  const capExceeded = capExceededLineIds(entries, lines, accountMap, ctx.smallAmountSpecial);
-  const rows: string[][] = [];
+  const legacy = ctx.legacyPurchaseAssets === true;
+  const capExceeded = capExceededLineIds(
+    entries,
+    lines,
+    accountMap,
+    ctx.smallAmountSpecial,
+    legacy,
+  );
+  // 申告時の判定で出す年分は、今の判定と税区分が変わる行を知らせるため、今の判定でも組み立てる
+  const currentRule = legacy
+    ? {
+        ctx: { ...ctx, legacyPurchaseAssets: false },
+        capExceeded: capExceededLineIds(entries, lines, accountMap, ctx.smallAmountSpecial),
+      }
+    : undefined;
+  const groups: YayoiEntryRows[] = [];
   let voucherNo = 0;
 
   for (const entry of entries) {
@@ -249,6 +331,8 @@ export function buildYayoiCsvRows(
       continue;
     }
     voucherNo++;
+    let transferWithoutAsset = false;
+    const department = ctx.omitDepartment === true ? '' : (entry.department ?? '');
     for (const line of entryLines) {
       if (line.taxableTransferConsideration !== undefined) {
         readTransferConsideration(line, entry);
@@ -261,9 +345,9 @@ export function buildYayoiCsvRows(
         ? yayoiTaxInfo(line, account, entry.date, ctx, capExceeded.has(line.id))
         : { label: '対象外', taxAmount: '' };
       return {
-        account: account?.name ?? line.accountCode,
+        account: yayoiAccountName(account, line.accountCode),
         sub: line.subAccountId ? (subAccountMap.get(line.subAccountId) ?? '') : '',
-        dept: entry.department ?? '',
+        dept: department,
         tax: info.label,
         amount: D(line.amount).toFixed(0),
         taxAmount: info.taxAmount,
@@ -271,6 +355,23 @@ export function buildYayoiCsvRows(
     };
     const debitCells = debits.map(buildSide);
     const creditCells = credits.map(buildSide);
+    const legacyPurchase =
+      currentRule !== undefined &&
+      entryLines.some((line) => {
+        const account = accountMap.get(line.accountCode);
+        if (account === undefined) {
+          return false;
+        }
+        const filed = yayoiTaxInfo(line, account, entry.date, ctx, capExceeded.has(line.id));
+        const current = yayoiTaxInfo(
+          line,
+          account,
+          entry.date,
+          currentRule.ctx,
+          currentRule.capExceeded.has(line.id),
+        );
+        return filed.label !== current.label;
+      });
     // 課税資産の譲渡等の行単位の印：収入科目でない行は本来の貸借だけでは課税売上を表現
     // できないため、印の付いた行自身の科目で対価分の合成ペア（貸方＝課税売上、借方＝対象外）
     // を追加する。両側とも同額のため元の仕訳の貸借バランスは変わらない
@@ -282,14 +383,24 @@ export function buildYayoiCsvRows(
       if (account?.category === 'revenue') {
         continue;
       }
+      let target = account;
+      // 弥生の売却の記帳例は課税売上を資産科目に付けるため、事業主借の行は売却した資産の科目で合成する
+      if (line.accountCode === OWNER_CONTRIBUTION_CODE) {
+        const assetCode = ctx.saleAssetAccounts?.get(entry.id);
+        const assetAccount = assetCode === undefined ? undefined : accountMap.get(assetCode);
+        if (assetAccount === undefined) {
+          transferWithoutAsset = true;
+        } else {
+          target = assetAccount;
+        }
+      }
       const info = markedTransferTaxInfo(line, ctx);
       const amount = readTransferConsideration(line, entry).toFixed(0);
-      const dept = entry.department ?? '';
-      const accountName = account?.name ?? line.accountCode;
+      const accountName = yayoiAccountName(target, line.accountCode);
       creditCells.push({
         account: accountName,
         sub: '',
-        dept,
+        dept: department,
         tax: info.label,
         amount,
         taxAmount: info.taxAmount,
@@ -297,7 +408,7 @@ export function buildYayoiCsvRows(
       debitCells.push({
         account: accountName,
         sub: '',
-        dept,
+        dept: department,
         tax: '対象外',
         amount,
         taxAmount: '',
@@ -310,17 +421,17 @@ export function buildYayoiCsvRows(
       account: '',
       sub: '',
       dept: '',
-      tax: '',
-      amount: '',
+      tax: '対象外',
+      amount: '0',
       taxAmount: '',
     };
-
+    const rows: string[][] = [];
     for (let i = 0; i < rowCount; i++) {
       const flag = isSingle ? '2000' : i === 0 ? '2110' : i === rowCount - 1 ? '2101' : '2100';
       const type = isSingle ? '0' : '3';
       const d = debitCells[i] ?? emptyCell;
       const c = creditCells[i] ?? emptyCell;
-      rows.push([
+      const cells = [
         flag,
         String(voucherNo),
         '',
@@ -346,10 +457,17 @@ export function buildYayoiCsvRows(
         '0',
         '0',
         '',
-      ]);
+      ];
+      // 弥生は先頭・末尾に空白やタブのある名前を受け付けない（26726）
+      rows.push(
+        cells.map((cell, col) =>
+          YAYOI_NAME_COLUMNS.includes(col) ? yayoiCell(cell).trim() : yayoiCell(cell),
+        ),
+      );
     }
+    groups.push({ entry, lines: entryLines, rows, transferWithoutAsset, legacyPurchase });
   }
-  return rows;
+  return groups;
 }
 
 const GENERIC_HEADER = [
@@ -439,6 +557,30 @@ interface ExportData {
   subAccounts: SubAccount[];
   ctx: YayoiExportContext;
 }
+// generateDisposalEntry が付けた摘要（`固定資産売却 ${name} #${id の先頭 8 文字}`）から資産を引く。
+// 名前にも同じ形の文字列が入りうるため末尾で照合し、1 件に決まらないものは使わない
+function findSaleAssetAccounts(
+  entries: JournalEntry[],
+  assets: FixedAsset[],
+  accounts: Account[],
+): Map<string, string> {
+  const yearCodes = new Set(accounts.map((a) => a.code));
+  const result = new Map<string, string>();
+  for (const entry of entries) {
+    if (!entry.description.startsWith(SALE_DESCRIPTION_PREFIX)) {
+      continue;
+    }
+    const matched = assets.filter((a) => entry.description.endsWith(` #${a.id.slice(0, 8)}`));
+    const [asset] = matched;
+    if (matched.length !== 1 || asset === undefined) {
+      continue;
+    }
+    if (DEPRECIABLE_ASSET_CODES.has(asset.accountCode) && yearCodes.has(asset.accountCode)) {
+      result.set(entry.id, asset.accountCode);
+    }
+  }
+  return result;
+}
 
 async function loadExportData(year: number): Promise<ExportData> {
   const entries = await db.journalEntries.where('year').equals(year).toArray();
@@ -449,17 +591,26 @@ async function loadExportData(year: number): Promise<ExportData> {
           .where('entryId')
           .anyOf(entries.map((e) => e.id))
           .toArray();
-  const accounts = await db.accounts.where({ year }).toArray();
+  const accounts = await loadAccountsForYear(year);
   const subAccounts = await db.subAccounts.toArray();
   const taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
   const simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
   const smallAmountSpecial = await loadSmallAmountSpecialInputs();
+  const assets = await db.fixedAssets.toArray();
+  const saleAssetAccounts = findSaleAssetAccounts(entries, assets, accounts);
+  const legacyPurchaseAssets = await usesLegacyPurchaseAssetRule(year);
   return {
     entries,
     lines,
     accounts,
     subAccounts,
-    ctx: { taxFilingMethod, simplifiedTaxCategory, smallAmountSpecial },
+    ctx: {
+      taxFilingMethod,
+      simplifiedTaxCategory,
+      smallAmountSpecial,
+      saleAssetAccounts,
+      legacyPurchaseAssets,
+    },
   };
 }
 // 1e14 以上・読めない明細は toFixed(0) で桁数の多い文字列や例外になるため、出力前に止めて一覧を示す
@@ -469,8 +620,8 @@ async function assertAmountsExportable(year: number): Promise<void> {
     throw new OversizedAmountsError(found);
   }
 }
-
-export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+// 弥生 CSV は消費税の設定値も読むため、明細の金額に加えて設定値も出力前に確かめる
+async function assertYayoiExportable(year: number): Promise<void> {
   await assertAmountsExportable(year);
   const invalidSettings = await findInvalidConsumptionTaxSettings(year);
   if (invalidSettings.length > 0) {
@@ -480,9 +631,133 @@ export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuff
   if (oversizedSettings.length > 0) {
     throw new OversizedStoredValuesError(oversizedSettings);
   }
+}
+
+export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  await assertYayoiExportable(year);
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   const rows = buildYayoiCsvRows(entries, lines, accounts, subAccounts, ctx);
   return encodeShiftJis(buildCsv(rows));
+}
+
+export type YayoiNoticeReason =
+  'rows' | 'capital' | 'amount' | 'transfer' | 'legacyPurchase' | 'length';
+
+export interface YayoiExportNotice {
+  date: string;
+  description: string;
+  rows: number;
+  reasons: YayoiNoticeReason[];
+}
+
+export interface YayoiCsvParts {
+  parts: Uint8Array<ArrayBuffer>[];
+  notices: YayoiExportNotice[];
+}
+
+const YAYOI_MAX_ROWS_PER_FILE = 1000;
+// 「1.0MB」が 1,000,000 と 1,048,576 のどちらを指すか読み取れないため、小さい方に合わせる
+const YAYOI_MAX_BYTES_PER_FILE = 1_000_000;
+const YAYOI_MAX_ROWS_PER_ENTRY = 20;
+const YAYOI_MAX_AMOUNT = D('999999999');
+const CAPITAL_CODE = '3110';
+const YAYOI_AMOUNT_COLUMNS = [8, 9, 14, 15];
+const YAYOI_MAX_NAME_BYTES = 24;
+// オンラインは科目 10 文字（やよいの青色申告、27183）・補助科目 15 文字を超える部分を切り捨てる
+const YAYOI_ONLINE_MAX_NAME_CHARS: ReadonlyMap<number, number> = new Map([
+  [4, 10],
+  [10, 10],
+  [5, 15],
+  [11, 15],
+]);
+// 書き出す値は buildCsv が付ける ' を含むため、付けた後の値で測る
+function yayoiNameTooLong(row: string[]): boolean {
+  return YAYOI_NAME_COLUMNS.some((col) => {
+    const value = neutralizeFormula(row[col] ?? '');
+    const maxChars = YAYOI_ONLINE_MAX_NAME_CHARS.get(col);
+    return (
+      encodeShiftJis(value).length > YAYOI_MAX_NAME_BYTES ||
+      (maxChars !== undefined && [...value].length > maxChars)
+    );
+  });
+}
+
+function yayoiNotice(group: YayoiEntryRows): YayoiExportNotice | undefined {
+  const reasons: YayoiNoticeReason[] = [];
+  if (group.rows.length > YAYOI_MAX_ROWS_PER_ENTRY) {
+    reasons.push('rows');
+  }
+  if (group.lines.some((l) => l.accountCode === CAPITAL_CODE)) {
+    reasons.push('capital');
+  }
+  const overAmount = group.rows.some((row) =>
+    YAYOI_AMOUNT_COLUMNS.some((col) => {
+      const cell = row[col] ?? '';
+      return cell !== '' && D(cell).abs().greaterThan(YAYOI_MAX_AMOUNT);
+    }),
+  );
+  if (overAmount) {
+    reasons.push('amount');
+  }
+  if (group.transferWithoutAsset) {
+    reasons.push('transfer');
+  }
+  if (group.legacyPurchase) {
+    reasons.push('legacyPurchase');
+  }
+  if (group.rows.some(yayoiNameTooLong)) {
+    reasons.push('length');
+  }
+  if (reasons.length === 0) {
+    return undefined;
+  }
+  return {
+    date: group.entry.date,
+    description: group.entry.description,
+    rows: group.rows.length,
+    reasons,
+  };
+}
+
+export async function exportYayoiCsvParts(
+  year: number,
+  options: { includeDepartment?: boolean } = {},
+): Promise<YayoiCsvParts> {
+  await assertYayoiExportable(year);
+  const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
+  // スタンダードとやよいの青色申告は部門を取り込めないため、選ばれたときだけ書き出す
+  const groups = buildYayoiEntryRows(entries, lines, accounts, subAccounts, {
+    ...ctx,
+    omitDepartment: options.includeDepartment !== true,
+  });
+  const parts: Uint8Array<ArrayBuffer>[] = [];
+  let current: string[][] = [];
+  let currentBytes = 0;
+  const flush = (): void => {
+    if (current.length > 0) {
+      parts.push(encodeShiftJis(buildCsv(current)));
+      current = [];
+      currentBytes = 0;
+    }
+  };
+  // 1 件の仕訳を 2 つのファイルに分けると、どちらのファイルも貸借が合わなくなるため分けない
+  for (const group of groups) {
+    const groupBytes = group.rows.reduce(
+      (sum, row) => sum + encodeShiftJis(buildCsv([row])).length,
+      0,
+    );
+    if (
+      current.length + group.rows.length > YAYOI_MAX_ROWS_PER_FILE ||
+      currentBytes + groupBytes > YAYOI_MAX_BYTES_PER_FILE
+    ) {
+      flush();
+    }
+    current.push(...group.rows);
+    currentBytes += groupBytes;
+  }
+  flush();
+  const notices = groups.map(yayoiNotice).filter((n): n is YayoiExportNotice => n !== undefined);
+  return { parts, notices };
 }
 
 export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
@@ -491,20 +766,69 @@ export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBu
   const rows = buildGenericCsvRows(entries, lines, accounts, subAccounts);
   return encodeUtf8WithBom(buildCsv([GENERIC_HEADER, ...rows]));
 }
+// 年度が処理年度の範囲外の原仕訳は、どの年度の CSV にも載らないため打消し仕訳の年度に載せる。
+async function loadOutOfRangeOriginals(entries: JournalEntry[]): Promise<JournalEntry[]> {
+  const inEntries = new Set(entries.map((e) => e.id));
+  const firstReversalAt = new Map<string, number>();
+  for (const e of entries) {
+    if (e.originalEntryId === undefined || inEntries.has(e.originalEntryId)) {
+      continue;
+    }
+    const prev = firstReversalAt.get(e.originalEntryId);
+    if (prev === undefined || e.createdAt < prev) {
+      firstReversalAt.set(e.originalEntryId, e.createdAt);
+    }
+  }
+  if (firstReversalAt.size === 0) {
+    return [];
+  }
+  const found = await db.journalEntries.bulkGet([...firstReversalAt.keys()]);
+  return found
+    .filter(
+      (e): e is JournalEntry =>
+        e !== undefined && e.status === 'reversed' && !isProcessingYear(e.year),
+    )
+    .sort((a, b) => (firstReversalAt.get(a.id) ?? 0) - (firstReversalAt.get(b.id) ?? 0));
+}
+// 打消し仕訳が別の年度にある原仕訳の日付を引くためだけに読む。行を作らないよう訂正済みのものは除く。
+async function loadReversalsForDate(
+  originals: JournalEntry[],
+  entries: JournalEntry[],
+): Promise<JournalEntry[]> {
+  const inEntries = new Set(entries.map((e) => e.id));
+  const ids = new Set<string>();
+  for (const e of originals) {
+    if (
+      e.status === 'reversed' &&
+      e.reversedByEntryId !== undefined &&
+      !inEntries.has(e.reversedByEntryId)
+    ) {
+      ids.add(e.reversedByEntryId);
+    }
+  }
+  if (ids.size === 0) {
+    return [];
+  }
+  const found = await db.journalEntries.bulkGet([...ids]);
+  return found.filter((e): e is JournalEntry => e !== undefined && e.status !== 'reversed');
+}
 // 訂正で打ち消すことが過大な明細の直し方なので、1e14 以上では止めない。読めない明細だけ止める
 export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
-  const unreadable = await findUnreadableReversedAmounts(year);
+  const entries = await db.journalEntries.where('year').equals(year).toArray();
+  const extraOriginals = isProcessingYear(year) ? await loadOutOfRangeOriginals(entries) : [];
+  const unreadable = await findUnreadableReversedAmounts(year, extraOriginals);
   if (unreadable.total > 0) {
     throw new OversizedAmountsError(unreadable, 'unreadable');
   }
-  const entries = await db.journalEntries.where('year').equals(year).toArray();
+  const listed = [...entries, ...extraOriginals];
+  const reversalsForDate = await loadReversalsForDate(listed, entries);
   const lines =
-    entries.length === 0
+    listed.length === 0
       ? []
       : await db.journalLines
           .where('entryId')
-          .anyOf(entries.map((e) => e.id))
+          .anyOf(listed.map((e) => e.id))
           .toArray();
-  const rows = buildCorrectionHistoryRows(entries, lines);
+  const rows = buildCorrectionHistoryRows([...listed, ...reversalsForDate], lines);
   return encodeUtf8WithBom(buildCsv([CORRECTION_HISTORY_HEADER, ...rows]));
 }

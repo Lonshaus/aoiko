@@ -65,19 +65,31 @@ describe('assertYearsWritable', () => {
     expect((err as FiledYearError).years).toEqual([2024, 2026]);
   });
 
-  test('確認を通った呼出だけ allowFiledYear で開ける', async () => {
+  test('確認で見た年度を allowedFiledYears に渡した呼出は開ける', async () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
-    await expect(assertYearsWritable([2026], { allowFiledYear: true })).resolves.toBeUndefined();
+    await expect(
+      assertYearsWritable([2026], { allowedFiledYears: [2026] }),
+    ).resolves.toBeUndefined();
   });
-  // 省略・undefined・false のどれも「開けない」側に倒す。allowFiledYear は
-  // 明示的に true を渡したときだけ効く門であって、既定で開いてはいけない。
-  test('allowFiledYear は明示的な true 以外では開かない', async () => {
+  // 省略・undefined・空配列のどれも「開けない」側に倒す。allowedFiledYears は
+  // 渡した年度だけを開ける門であって、既定で開いてはいけない。
+  test('申告済みの年度が allowedFiledYears に無ければ開かない', async () => {
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
     await expect(assertYearsWritable([2026], {})).rejects.toThrow(FiledYearError);
-    await expect(assertYearsWritable([2026], { allowFiledYear: false })).rejects.toThrow(
+    await expect(assertYearsWritable([2026], { allowedFiledYears: [] })).rejects.toThrow(
       FiledYearError,
     );
     await expect(assertYearsWritable([2026], undefined)).rejects.toThrow(FiledYearError);
+  });
+
+  test('allowedFiledYears に無い申告済みの年度では止める', async () => {
+    await markYearFiled(2024, { monthlySales, pl }, '2024-12-31');
+    await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
+    const err = await assertYearsWritable([2024, 2026], { allowedFiledYears: [2026] }).catch(
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(FiledYearError);
+    expect((err as FiledYearError).years).toEqual([2024]);
   });
 
   test('年度が空なら何も止めない', async () => {

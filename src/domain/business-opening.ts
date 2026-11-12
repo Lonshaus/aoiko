@@ -480,7 +480,7 @@ export interface OpeningDateSettings {
 // dateSettings を渡すと、開業日・廃業日の設定値も同じ取引で書く（作らなかったときは書かない）。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
-  options?: { allowFiledYear?: boolean; dateSettings?: OpeningDateSettings },
+  options?: { allowedFiledYears?: readonly number[]; dateSettings?: OpeningDateSettings },
 ): Promise<OpeningSetupResult | { reason: 'already-exists' } | { reason: 'dates-changed' }> {
   const date = input.businessStartDate;
   const year = Number(date.slice(0, 4));
@@ -492,6 +492,7 @@ export async function generateOpeningEntries(
       db.journalLines,
       db.fixedAssets,
       db.settings,
+      db.reportSnapshots,
       async () => {
         markConfirmedWrite(options);
         const created = await createOpeningInTx(input, date, Date.now());
@@ -611,13 +612,20 @@ async function reverseOpeningYearInTx(
 // 開業設定のやり直しのうち、打消しだけを行う。
 export async function removeOpeningEntries(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
   await assertYearsWritable([year], options);
-  return db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
-    markConfirmedWrite(options);
-    return reverseOpeningYearInTx(year, Date.now());
-  });
+  return db.transaction(
+    'rw',
+    db.journalEntries,
+    db.journalLines,
+    db.fixedAssets,
+    db.reportSnapshots,
+    async () => {
+      markConfirmedWrite(options);
+      return reverseOpeningYearInTx(year, Date.now());
+    },
+  );
 }
 export type OpeningReplaceResult =
   | OpeningSetupResult
@@ -636,7 +644,7 @@ export async function replaceOpeningEntries(
     formClose: string;
     expectedStoredClose: unknown;
   },
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<OpeningReplaceResult> {
   const { reverseYear, input } = args;
   const date = input.businessStartDate;
@@ -649,6 +657,7 @@ export async function replaceOpeningEntries(
       db.journalLines,
       db.fixedAssets,
       db.settings,
+      db.reportSnapshots,
       async (): Promise<OpeningReplaceResult> => {
         markConfirmedWrite(options);
         if (!(await hasOpeningEntries(reverseYear))) {
@@ -845,10 +854,10 @@ export async function previewInterruptedOpeningRestore(
 // 転用資産の固定資産は記録が残っていないので、利用者が登録し直す（findMissingOpeningAssets）
 export async function restoreInterruptedOpeningEntries(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ entryIds: string[] } | { reason: 'not-interrupted' }> {
   await assertYearsWritable([year], options);
-  return db.transaction('rw', db.journalEntries, db.journalLines, async () => {
+  return db.transaction('rw', db.journalEntries, db.journalLines, db.reportSnapshots, async () => {
     markConfirmedWrite(options);
     if (!(await scanInterruptedYears()).includes(year)) {
       return { reason: 'not-interrupted' as const };
@@ -1090,6 +1099,7 @@ export function buildMissingOpeningAsset(
 // 取引の中で数え直し、その明細がまだ足りず元の仕訳が有効なときだけ登録する
 export async function registerMissingOpeningAsset(
   args: { entryId: string; lineId: string } & MissingOpeningAssetForm,
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ assetId: string } | { reason: 'not-missing' }> {
   return db.transaction(
     'rw',
@@ -1097,7 +1107,9 @@ export async function registerMissingOpeningAsset(
     db.journalLines,
     db.fixedAssets,
     db.settings,
+    db.reportSnapshots,
     async () => {
+      markConfirmedWrite(options);
       const { missing } = await findMissingOpeningAssets();
       const target = missing.find((x) => x.entryId === args.entryId && x.lineId === args.lineId);
       if (target === undefined) {

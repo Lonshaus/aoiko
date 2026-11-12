@@ -280,7 +280,7 @@ describe('reverseEntry', () => {
     }
   });
 
-  test('allowFiledYear:true でロック済み原仕訳年度でも訂正できる（#339 の修正申告フロー向けオプトイン）', async () => {
+  test('allowedFiledYears でロック済み原仕訳年度でも訂正できる（#339 の修正申告フロー向けオプトイン）', async () => {
     const origId = await seedEntry({
       description: 'テスト',
       date: '2026-04-15',
@@ -303,9 +303,39 @@ describe('reverseEntry', () => {
     };
     await markYearFiled(2026, { monthlySales, pl }, '2026-12-31');
 
-    const reversalId = await reverseEntry(origId, { allowFiledYear: true });
+    const reversalId = await reverseEntry(origId, { allowedFiledYears: [2026] });
     const reversal = await db.journalEntries.get(reversalId);
     expect(reversal).toBeDefined();
+  });
+
+  test('allowedFiledYears に原仕訳の年度が無ければ、申告済みの原仕訳は訂正できない', async () => {
+    const origId = await seedEntry({
+      description: 'テスト',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: { rows: [], totalRevenue: '0', totalExpense: '0', netIncome: '0' },
+        },
+      },
+      '2026-12-31',
+    );
+
+    await expect(reverseEntry(origId, { allowedFiledYears: [] })).rejects.toThrow(
+      /申告済み.*ロック/,
+    );
+    await expect(reverseEntry(origId, { allowedFiledYears: [2025] })).rejects.toThrow(
+      /申告済み.*ロック/,
+    );
+    expect(await db.journalEntries.where('originalEntryId').equals(origId).count()).toBe(0);
+    expect((await db.journalEntries.get(origId))?.status).toBe('confirmed');
   });
 
   test('今日の年度がロック済みでも訂正できる（訂正仕訳は countsTowardTotals 対象外のため無関係）', async () => {
@@ -337,6 +367,23 @@ describe('reverseEntry', () => {
     const reversalId = await reverseEntry(origId);
     const reversal = await db.journalEntries.get(reversalId);
     expect(reversal).toBeDefined();
+  });
+
+  test('year が null の原仕訳も DataError を出さずに訂正する', async () => {
+    const origId = await seedEntry({
+      description: 'レシート',
+      date: '2026-04-15',
+      debitAccount: '5130',
+      creditAccount: '1130',
+      amount: '1000',
+    });
+    await db.table('journalEntries').update(origId, { date: '令和8年4月15日', year: null });
+
+    const reversalId = await reverseEntry(origId);
+    expect((await db.journalEntries.get(reversalId))?.originalEntryId).toBe(origId);
+    const orig = await db.journalEntries.get(origId);
+    expect(orig?.status).toBe('reversed');
+    expect(orig?.reversedByEntryId).toBe(reversalId);
   });
 });
 

@@ -10,6 +10,7 @@ import {
   replaceOpeningEntries,
   type OpeningSetupInput,
 } from './business-opening';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 beforeEach(async () => {
   await db.delete();
@@ -70,7 +71,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect('entryIds' in outcome).toBe(true);
     expect(await openings(2024)).toEqual(other);
@@ -91,7 +92,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     ).catch((e: unknown) => e);
     expect(await openings(2026)).toHaveLength(3);
     expect(await openings(2026, 'reversed')).toHaveLength(0);
@@ -132,7 +133,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(injected).toBe(true);
     expect(await openings(2026)).toHaveLength(seeded);
@@ -150,7 +151,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await reversals()).toBe(0);
     expect(await openings(2026)).toHaveLength(2);
@@ -167,7 +168,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: '2026-12-31',
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await reversals()).toBe(0);
     expect(await getSetting('businessCloseDate')).toBe('2027-03-31');
@@ -192,7 +193,7 @@ describe('replaceOpeningEntries（A 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     ).catch((e: unknown) => e);
     expect(await reversals()).toBe(0);
     expect(await openings(2026)).toHaveLength(2);
@@ -212,7 +213,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: '2026-12-31',
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect('entryIds' in result).toBe(true);
     expect(await openings(2026)).toHaveLength(0);
@@ -236,7 +237,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(result).toEqual({ reason: 'nothing-to-reverse' });
     expect(await db.journalEntries.count()).toBe(0);
@@ -253,7 +254,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(result).toEqual({ reason: 'already-exists', year: 2025 });
     expect(await reversals()).toBe(0);
@@ -261,7 +262,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
 
   it('打ち消す年の資産に償却仕訳があれば何も書かない', async () => {
     await generateOpeningEntries(withAsset('2026-07-01'));
-    await generateYearEndDepreciation(2026, { allowFiledYear: true });
+    await generateYearEndDepreciation(2026, { allowedFiledYears: ALL_YEARS });
     const before = await db.journalEntries.count();
     const result = await replaceOpeningEntries(
       {
@@ -270,7 +271,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: undefined,
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(result).toEqual({ reason: 'has-depreciation', assetNames: ['私用PC'] });
     expect(await db.journalEntries.count()).toBe(before);
@@ -287,7 +288,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: '2024-03-31',
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await getSetting('businessCloseDate')).toBe('2024-03-31');
     await db.settings.put({ key: 'businessCloseDate', value: '2026/12/31', updatedAt: 1 });
@@ -298,7 +299,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '',
         expectedStoredClose: '2026/12/31',
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await getSetting('businessCloseDate')).toBe('2026/12/31');
     await replaceOpeningEntries(
@@ -308,7 +309,7 @@ describe('replaceOpeningEntries（B 類・修正前は関数が無く実行で�
         formClose: '2027-06-30',
         expectedStoredClose: '2026/12/31',
       },
-      { allowFiledYear: true },
+      { allowedFiledYears: ALL_YEARS },
     );
     expect(await getSetting('businessCloseDate')).toBe('2027-06-30');
   });
@@ -325,7 +326,7 @@ describe('generateOpeningEntries の日付設定（dateSettings）', () => {
         ? Promise.reject(new Error('書き込み失敗（試験）'))
         : original(row, key)) as typeof original);
     const outcome = await generateOpeningEntries(withAsset('2026-07-01'), {
-      allowFiledYear: true,
+      allowedFiledYears: ALL_YEARS,
       dateSettings: { formClose: '', expectedStoredClose: undefined },
     }).catch((e: unknown) => e);
     expect(await db.journalEntries.count()).toBe(0);
@@ -336,7 +337,7 @@ describe('generateOpeningEntries の日付設定（dateSettings）', () => {
   it('A 類：確認の前に読んだ廃業日と取引の中の廃業日が違えば作らない', async () => {
     await setSetting('businessCloseDate', '2027-03-31');
     const result = await generateOpeningEntries(input('2026-07-01'), {
-      allowFiledYear: true,
+      allowedFiledYears: ALL_YEARS,
       dateSettings: { formClose: '', expectedStoredClose: '2026-12-31' },
     });
     expect(await db.journalEntries.count()).toBe(0);
@@ -347,7 +348,7 @@ describe('generateOpeningEntries の日付設定（dateSettings）', () => {
   it('A 類：作成と同じ取引で開業日を書き、開業日以後の保存済みの廃業日は消す', async () => {
     await setSetting('businessCloseDate', '2026-12-31');
     await generateOpeningEntries(input('2026-07-01'), {
-      allowFiledYear: true,
+      allowedFiledYears: ALL_YEARS,
       dateSettings: { formClose: '', expectedStoredClose: '2026-12-31' },
     });
     expect(await getSetting('businessStartDate')).toBe('2026-07-01');
@@ -357,7 +358,7 @@ describe('generateOpeningEntries の日付設定（dateSettings）', () => {
   it('B 類：既に開業仕訳がある年は作らず、設定値も書かない', async () => {
     await generateOpeningEntries(input('2026-07-01'));
     const result = await generateOpeningEntries(input('2026-08-01'), {
-      allowFiledYear: true,
+      allowedFiledYears: ALL_YEARS,
       dateSettings: { formClose: '2026-12-31', expectedStoredClose: undefined },
     });
     expect(result).toEqual({ reason: 'already-exists' });
@@ -368,7 +369,7 @@ describe('generateOpeningEntries の日付設定（dateSettings）', () => {
   it('B 類：保存済みの値が空文字列でも、未設定と同じとして比べる', async () => {
     await db.settings.put({ key: 'businessCloseDate', value: '', updatedAt: 1 });
     const result = await generateOpeningEntries(input('2026-07-01'), {
-      allowFiledYear: true,
+      allowedFiledYears: ALL_YEARS,
       dateSettings: { formClose: '', expectedStoredClose: undefined },
     });
     expect('entryIds' in result).toBe(true);

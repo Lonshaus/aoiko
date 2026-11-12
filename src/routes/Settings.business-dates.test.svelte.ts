@@ -9,6 +9,7 @@ import { smallAssetAnnualCap } from '../tax-schema/2026/limits';
 import { filedYearGuard } from '../lib/filed-year-guard.svelte';
 import { m } from '../paraglide/messages';
 import type { FixedAsset, JournalEntry, ReportSnapshotData } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 const { default: Settings } = await import('./Settings.svelte');
 
@@ -482,7 +483,7 @@ describe('開業日・廃業日の欄（G7）', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(await getSetting('businessStartDate')).toBe('2026-07-01');
 
-    await generateYearEndDepreciation(2026, { allowFiledYear: true });
+    await generateYearEndDepreciation(2026, { allowedFiledYears: ALL_YEARS });
     saveDates();
     await waitFor(() => filedYearGuard.pending !== null);
     await filedYearGuard.resolve(true);

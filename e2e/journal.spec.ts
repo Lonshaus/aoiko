@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { acceptDisclaimer } from './helpers';
+import { acceptDisclaimer, setProcessingYear } from './helpers';
 // 仕訳の新規作成 → 直近一覧に反映までのゴールデンパス。
 test('新規仕訳作成 → 直近一覧に表示される', async ({ page }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
-
-  const today = new Date().toISOString().slice(0, 10);
+  await setProcessingYear(page, 2026);
+  // 仕訳日は、処理年度の既定（2026 年）に含まれる固定日にする。
+  const today = '2026-06-30';
   await page.locator('input[type="date"]').first().fill(today);
   await page.getByPlaceholder('例：電気代').fill('テスト売上 e2e');
   // 科目 select だけが required 属性を持つ（税率・税区分・用途区分等は無し）ため、

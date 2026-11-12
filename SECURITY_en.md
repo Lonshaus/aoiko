@@ -97,7 +97,11 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- /only -->
 - Personal information, transaction history, and API keys can be read directly
 - Using a business-only device and enabling full-disk encryption are recommended
-- With "Include API keys in backups" on, API keys are written to backup files in plain text; the same applies to filer info with "Include filer info (user identification number, name, address, tax office)" on. If the backup destination is inside a synced folder, they reach the sync service as they are
+- When "API keys" is selected in "Items to include in backups" or "Choose what to export", API keys are written to backup files unencrypted; the same applies when "Filer info (user identification number, name, address, tax office)" is selected. Neither is selected by default. If selected in "Items to include in backups", they are written on every automatic backup, and if you deselect them later, they stay in the backups already written until those are removed by "Delete old backups" or you delete them by hand. If the backup destination is inside a synced folder, they reach the sync service as they are, and a sync service that keeps earlier versions of files may hold them even longer. If you cannot confirm that every backup containing API keys is gone, revoke the keys with the issuer as described under "Hardening recommendations" below
+<!-- only:browser -->
+- Backups saved in OPFS cannot be viewed as files or deleted by hand. They are removed only by the "Delete old backups" and "Delete unused receipt photos" settings, by "Delete all data" in Settings, or by clearing the browser's site data
+<!-- /only -->
+- Selecting "AI and external sending settings" on restore replaces the AI engine and destination (baseURL) with the backup's. If you do not select "API keys", the keys on this device stay, so when you later send with the OpenAI-compatible engine, this device's OpenAI-compatible API key goes in the `Authorization` header to the restored baseURL. Pressing "Fetch model list" or "Test connection" in Settings sends it without a confirmation dialog, and if this device has the pre-send confirmation turned off, ordinary sends are not confirmed either. Select "AI and external sending settings" only when restoring a backup you made yourself
 
 ### 3. AI API transmission content risk
 
@@ -121,7 +125,7 @@ A response within 7 days is the goal but cannot be guaranteed (volunteer-based).
 <!-- /only -->
 - Receipt images are downscaled and re-encoded as JPEG before sending only when their long edge exceeds 2048px (and only if that makes them smaller); otherwise the original file is sent as is, so any Exif data such as the shooting date and location reaches the destination too
 - The Gemini API key is sent as a URL query parameter, which is how Google's API takes it. The connection is encrypted with HTTPS, but if your workplace network or security software inspects HTTPS traffic, the full URL, API key included, may be logged there
-- Review highly sensitive data before sending it (a pre-send confirmation dialog is shown for external engines; the setting that skips it is a single one that covers all three features and any engine or destination you switch to later, and it is carried over when you restore a backup)
+- Review highly sensitive data before sending it (a pre-send confirmation dialog is shown for external engines; the setting that skips it is a single one that covers all three features and any engine or destination you switch to later; it belongs to each device, is not included in backups, and restoring does not change its value on this device)
 - Generative AI classification, OCR, order import, and the "Fetch model list" (for Gemini, also saves the API key) and "Test connection" buttons in Settings send only as **actions you take** (UI buttons) — no automatic transmission (the OpenAI-compatible "Save" button sends nothing)
 <!-- only:browser -->
 

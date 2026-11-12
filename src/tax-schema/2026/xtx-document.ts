@@ -6,7 +6,7 @@
 // 構造は e-Tax 自身が書き出した実ファイルに準拠する。実機取込が SC00X010 で
 // fail した根本原因＝旧エンベロープの構造誤りを修正：
 //   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
-//     <RKO0010 VR="25.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
+//     <RKO0010 VR="25.0.1" id="RKO0010">          手続ID 要素（id＝手続コード）
 //       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）
 //         <rdf:RDF><rdf:description id="REPORT">
 //           SEND_DATA / IT_SEC(#IT) / FORM_SEC(各様式) / …各 SEC / SOFUSHO_SEC(#TEA060-1)
@@ -52,7 +52,7 @@ export interface XtxDocumentOptions {
   procedureTag?: string;
   /**
    * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書の表1-1-1：2005 年度以降の
-   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.0」）が必須。
+   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.1」）が必須。
    */
   procedureVersion?: string;
   /** 手続名称（IT部 TETSUZUKI/procedure_NM）。既定は所得税確定申告の名称 */
@@ -84,8 +84,8 @@ export interface XtxDocumentOptions {
 // e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
 const DEFAULT_PROCEDURE_TAG = 'RKO0010';
-// RKO0010 の手続バージョン。e-tax07「手続一覧」Ver250x で RKO0010＝25.0.0。
-const DEFAULT_PROCEDURE_VERSION = '25.0.0';
+// RKO0010 の手続バージョン。国税庁 e-Tax ksk2 バージョン e-tax07（2026-08-28）の「手続一覧（申告）Ver250x」で RKO0010＝25.0.1。
+const DEFAULT_PROCEDURE_VERSION = '25.0.1';
 // IT部 TETSUZUKI/procedure_NM（参照ファイル準拠）。
 const DEFAULT_PROCEDURE_NAME = '所得税及び復興特別所得税申告';
 // e-Tax 共通名前空間（参照ファイル準拠）。既定 ns は様式 schema の meta.namespace。

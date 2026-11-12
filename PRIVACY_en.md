@@ -41,24 +41,26 @@ The following is stored in the app's managed storage (database `aoiko`):
 |---|---|---|
 | Journal entries, lines, chart of accounts, vendors, subaccounts | IndexedDB | Not sent |
 | Fixed assets | IndexedDB | Not sent |
-| Receipt photos (attached images) | IndexedDB | Not sent (no screen to update or delete them; always included in backups) |
-| Per-account home-office allocation ratios (in settings) | IndexedDB | Not sent |
+| Receipt photos (attached images) | IndexedDB | Not sent (no screen to update or delete them; included in backups only when "Receipt photos" is selected, which it is by default and which is available only together with "Bookkeeping data") |
+| Per-account home-office allocation ratios (in settings) | IndexedDB | Not sent (in backups, part of "Business and filing settings", included by default) |
 | Invoices and quotes | IndexedDB | Not sent |
 | Simple inventory item master | IndexedDB | Not sent |
 | Budgets | IndexedDB | Not sent |
 | Receivables and payables | IndexedDB | Not sent |
-| Income and tax deduction inputs (names, ages, and income of dependents and family employees; the spouse's income and age; disability, single-parent, and similar statuses; salary, pension, and other income; medical expenses and insurance premiums; names and addresses of real-estate payees, etc.) | IndexedDB | Not sent (always included in backups) |
+| Income and tax deduction inputs (names, ages, and income of dependents and family employees; the spouse's income and age; disability, single-parent, and similar statuses; salary, pension, and other income; medical expenses and insurance premiums; names and addresses of real-estate payees, etc.) | IndexedDB | Not sent (in backups, part of "Bookkeeping data": always in automatic backups, and left out of a manual export only when you deselect "Bookkeeping data") |
 | CSV-import classification rules | IndexedDB | Not sent |
 | Filed-year snapshots | IndexedDB | Not sent |
 <!-- only:native -->
 | Stamps (design and purchase date/time) and the supporter-badge purchase date | IndexedDB | Not sent (excluded from backup; kept as-is across restore) |
 <!-- /only -->
-| Gemini API key | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you press "Fetch model list" (which also saves the key) or "Test connection" in Settings (these two skip the dialog), sent to the Gemini API as a URL query parameter. Not included in backups by default (turning on "Include API keys in backups" writes it in plain text; restoring a backup without it removes the key from the device, so you need to enter it again) |
-| OpenAI-compatible API key, baseURL | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you press "Fetch model list" or "Test connection" in Settings (these two skip the dialog; "Save" sends nothing), sent to your specified baseURL via an `Authorization: Bearer` header (not sent off-device when localhost is specified). In backups the API key is handled like the Gemini API key (the baseURL is always included) |
-| Business profile (trade name, invoice registration number) | IndexedDB | Not sent |
-| Filer info (user identification number, name, address, tax office) | IndexedDB | Not sent (whether backups include it is set by "Include filer info (user identification number, name, address, tax office)", off by default; restoring a backup without it keeps the filer info already on the device) |
+| Gemini API key | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you press "Fetch model list" (which also saves the key) or "Test connection" in Settings (these two skip the dialog), sent to the Gemini API as a URL query parameter. Not included in backups by default. It is written unencrypted only when "API keys" is selected in "Items to include in backups" or in "Choose what to export". If you select it in "Items to include in backups", it is written to the backup folder on every automatic backup (and uploaded to the sync service if that folder is synced), and "Export backup" also starts with it selected. Deselecting it later does not remove the key from backups already written: it stays until those backups are removed by "Delete old backups" or you delete them by hand (a sync service that keeps earlier versions of files may hold it even longer). If you had turned on the earlier setting that put API keys into backups in an earlier version, "API keys" is already selected. On restore, the key is replaced only when you select "API keys"; otherwise the key on this device is kept |
+| OpenAI-compatible API key, baseURL | IndexedDB | When you start generative AI classification, OCR, or order import (via the confirmation dialog), and also when you press "Fetch model list" or "Test connection" in Settings (these two skip the dialog; "Save" sends nothing), sent to your specified baseURL via an `Authorization: Bearer` header (not sent off-device when localhost is specified). In backups and on restore the API key is handled like the Gemini API key. The baseURL is part of "AI and external sending settings", included by default in both automatic backups and exports (you can deselect it); on restore it is replaced only when you select "AI and external sending settings" yourself |
+| Business profile (trade name, invoice registration number) | IndexedDB | Not sent (in backups, part of "Business and filing settings", included by default) |
+| Filer info (user identification number, name, address, tax office) | IndexedDB | Not sent (whether backups include it is chosen with the "Filer info (user identification number, name, address, tax office)" item, not included by default. If you had turned on the earlier setting that put filer info into backups in an earlier version, it is already selected. When you restore a backup that contains filer info, it starts selected; restoring without selecting it keeps the filer info already on the device) |
 | Backup folder handle | IndexedDB | Not sent |
 | Import history (file hashes) | IndexedDB | Not sent |
+
+The record of your consent to the disclaimer, confirmations you turned off with "Don't ask again" and similar, the backup folder, the choice of items to include in backups, and the like stay on this device only. They are not included in backups, and restoring does not change their values on this device.
 <!-- only:browser -->
 
 Besides these, the display language is kept in localStorage, and short-lived hand-offs such as the result notice right after a backup restore and the destination when moving between screens are kept in sessionStorage. sessionStorage is cleared when the tab is closed, but if the browser restores a closed tab or a previous session, its contents may come back as well. None of this is sent.
@@ -135,7 +137,7 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 <!-- only:native -->
 - Requests go **directly** from the app to the destination — aoiko has no management server in the path
 <!-- /only -->
-- For **cloud (external) engines, a pre-send confirmation dialog** is shown. You can turn it off with the setting's checkbox or "Don't ask again" in each dialog, but this is a single setting: it applies to generative AI classification, receipt OCR, and order import alike, and also to sending after you later change the engine or destination. The setting is included in backups and carried over on restore. "Restore hidden confirmations" in Settings turns the dialog back on
+- For **cloud (external) engines, a pre-send confirmation dialog** is shown. You can turn it off with the setting's checkbox or "Don't ask again" in each dialog, but this is a single setting: it applies to generative AI classification, receipt OCR, and order import alike, and also to sending after you later change the engine or destination. The setting belongs to each device and is not included in backups. Restoring does not change its value on this device, so a device where you turned the dialog off still skips it after a restore; on another device, you set it on that device. "Restore hidden confirmations" in Settings turns the dialog back on
 - Gemini: data handling follows Google's privacy policy and your API plan contract; whether data is used for training depends on your plan (free vs. paid)
 - When using a local engine (e.g. Ollama on localhost), data stays on the device (vision-capable model required for OCR). The engines that run entirely on the device send nothing either
 - Tesseract: no generative AI is used. Extraction from WASM OCR text is rule-based (T+13-digit registration number, date, total only). Vendor and items are not guessed. Manual verification by the user is required
@@ -168,7 +170,11 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 | Manual export | On a Mac, the location you choose. On iPhone and iPad there is no location picker; the file is saved to this app's Documents folder (you can get it from the Files app) |
 <!-- /only -->
 
-**Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. Backups contain your receipt photos and, if you chose to include them, your API keys (in plain text) and filer info.
+**Nothing** is sent to any aoiko server. However, if the backup destination is inside a folder synced by Google Drive, iCloud Drive, Dropbox, OneDrive, or a similar service, that service's sync app uploads the backup to the service. By default, backups contain bookkeeping data (including third parties' personal information, such as the names and income of dependents and the names and addresses of real-estate payees), receipt photos, business and filing settings, and AI and external sending settings (including the destination). API keys (unencrypted) and filer info are included only when you select them. Deselecting an item does not change backups already written. Receipt photos already written to the backup folder also stay until "Delete unused receipt photos" removes them or you delete them by hand. That setting removes a photo in the cleanup that runs with a backup when at least 24 hours have passed since the last completed cleanup, after the given number of days has passed since the newest backup that references it, or, when "Delete old backups" is on, after every backup that references it has been deleted.
+<!-- only:browser -->
+
+Backups saved in OPFS cannot be viewed as files or deleted by hand. They are removed only by the "Delete old backups" and "Delete unused receipt photos" settings, by "Delete all data" in Settings, or by clearing the browser's site data.
+<!-- /only -->
 
 ## Cookies and trackers
 

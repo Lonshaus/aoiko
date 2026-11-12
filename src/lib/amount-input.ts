@@ -23,42 +23,71 @@ export function isAmountInputMalformed(raw: unknown): boolean {
   }
   return normalizeAmountInput(raw) !== '' && parseAmountInput(raw) === undefined;
 }
+// 円単位の金額欄なので小数部分のある値は書き方が正しくても誤りとする（1234.0 のように小数部分が 0 なら整数として通す）
+function hasFraction(raw: unknown): boolean {
+  const parsed = parseAmountInput(raw);
+  return parsed !== undefined && !parsed.isInteger();
+}
 // 保存してはいけない値：書き方が正しくない、または 100 兆円以上（索引の 14 桁と .xtx の 15 桁に収まらない）
 export function isAmountInputInvalid(raw: unknown): boolean {
-  return isAmountInputMalformed(raw) || isJournalAmountTooLarge(raw);
+  return isAmountInputMalformed(raw) || hasFraction(raw) || isJournalAmountTooLarge(raw);
 }
 // 欄に出す理由。有効なら空文字
 export function amountInputError(raw: unknown): string {
   if (isAmountInputMalformed(raw)) {
     return m.common_amount_invalid();
   }
-  return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
+  if (isJournalAmountTooLarge(raw)) {
+    return m.common_amount_too_large();
+  }
+  return hasFraction(raw) ? m.common_amount_invalid() : '';
 }
-// 保存済みの値（復元された値を含む）を読む。1e3・0x10 のような旧い書き方も読むが、
-// D() は長い 16 進文字列や巨大な指数で固まるため、長さと指数の範囲で先に弾く。投げない
-export function readStoredAmount(v: unknown): Decimal | undefined {
+// 有効 28 桁の toString() は指数 -1000〜1000 なら 35 文字以内に収まる
+const MAX_NON_PLAIN_LENGTH = 64;
+const EXPONENT_LIMIT = 1000;
+// 保存済みの文字列を数として読む。1e3・0x10 のような書き方も D() に任せるが、D() は長い 16 進文字列で
+// 時間がかかり、巨大な指数は toFixed で桁数分の文字列を作るため、長さと指数の範囲で弾く。投げない
+export function parseStoredDecimal(
+  v: unknown,
+  options: { allowNegative: boolean },
+): Decimal | undefined {
+  if (typeof v !== 'string') {
+    return undefined;
+  }
+  if (!/^-?\d+(\.\d+)?$/.test(v) && v.length > MAX_NON_PLAIN_LENGTH) {
+    return undefined;
+  }
   let d: Decimal;
   try {
-    if (typeof v === 'string') {
-      if (/^-?\d+(\.\d+)?$/.test(v)) {
-        d = D(v);
-      } else if (v.length <= 64) {
-        d = D(v);
-      } else {
-        return undefined;
-      }
-    } else if (typeof v === 'number' && Number.isFinite(v)) {
-      d = D(v);
-    } else {
-      return undefined;
-    }
+    d = D(v);
   } catch {
     return undefined;
   }
-  if (!d.isFinite() || !(d.e >= -1000 && d.e <= 1000)) {
+  if (!d.isFinite() || !(d.e >= -EXPONENT_LIMIT && d.e <= EXPONENT_LIMIT)) {
+    return undefined;
+  }
+  if (!options.allowNegative && d.isNegative()) {
     return undefined;
   }
   return d;
+}
+// 保存済みの値（復元された値を含む）を読む。投げない
+export function readStoredAmount(v: unknown): Decimal | undefined {
+  if (typeof v === 'number' && Number.isFinite(v)) {
+    return D(v);
+  }
+  return parseStoredDecimal(v, { allowNegative: true });
+}
+// 旧バージョンの仕訳明細の金額は type="number" の欄の値をそのまま保存していた（1e3・.5 など）。
+// 読むのはその書き方だけ。長さを先に見るのは、この正規表現が長い数字列で後戻りを繰り返すため
+export function parseLegacyLineAmount(v: string): Decimal | undefined {
+  if (v.length > MAX_NON_PLAIN_LENGTH) {
+    return undefined;
+  }
+  if (!/^(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(v)) {
+    return undefined;
+  }
+  return parseStoredDecimal(v, { allowNegative: false });
 }
 // 仕訳明細の金額は toIndexable の範囲（14 桁）に収める必要がある
 export function isJournalAmountTooLarge(raw: unknown): boolean {

@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import { getSetting } from '../lib/settings';
 import { computeConvertedAssetBasis, generateOpeningEntries } from './business-opening';
 import { m } from '../paraglide/messages';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 beforeEach(async () => {
   await db.delete();
@@ -55,7 +56,7 @@ describe('開業日より後に取得した転用資産', () => {
           ],
           customItems: [],
         },
-        { allowFiledYear: true },
+        { allowedFiledYears: ALL_YEARS },
       ),
     ).rejects.toThrow('未来PC');
     expect(await db.journalEntries.count()).toBe(0);

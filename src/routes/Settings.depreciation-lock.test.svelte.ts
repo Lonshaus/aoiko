@@ -99,7 +99,7 @@ describe('runDepreciation: 申告済み年度のロック', () => {
     await filedYearGuard.resolve(true);
     await waitFor(() => generateYearEndDepreciationMock.mock.calls.length > 0);
     expect(generateYearEndDepreciationMock).toHaveBeenCalledWith(CURRENT_YEAR, {
-      allowFiledYear: true,
+      allowedFiledYears: [CURRENT_YEAR],
     });
   });
 

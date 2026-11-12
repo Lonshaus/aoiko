@@ -12,6 +12,7 @@ import { filedYearGuard } from '../lib/filed-year-guard.svelte';
 import { formatJPY, toIndexable } from '../lib/decimal';
 import { m } from '../paraglide/messages';
 import type { FixedAsset, JournalLine, ReportSnapshotData } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 const { default: OpeningSetup } = await import('./OpeningSetup.svelte');
 
@@ -98,14 +99,14 @@ async function seedOpening(start: string, assetName?: string): Promise<void> {
         : [],
       customItems: [],
     },
-    { allowFiledYear: true },
+    { allowedFiledYears: ALL_YEARS },
   );
 }
 // 修正前の作り直しが作成で止まった後の形（R1 の結果）：開業仕訳は打ち消され、開業資産は消え、作り直した仕訳が無い
 async function interrupt(start: string, assetName?: string): Promise<void> {
   await seedOpening(start, assetName);
   await later();
-  await removeOpeningEntries(Number(start.slice(0, 4)), { allowFiledYear: true });
+  await removeOpeningEntries(Number(start.slice(0, 4)), { allowedFiledYears: ALL_YEARS });
   await later();
 }
 
@@ -264,7 +265,7 @@ describe('A 類：作り直しの途中で止まった年を示す（H6）', () 
     await seedOpening('2025-10-01');
     await setCreatedAt(2025, await reversalTime(2026));
     await later();
-    await removeOpeningEntries(2025, { allowFiledYear: true });
+    await removeOpeningEntries(2025, { allowedFiledYears: ALL_YEARS });
     await renderAndWaitNotice();
     expect(byTestId('opening-interrupted-year-2025')).not.toBeNull();
     expect(byTestId('opening-interrupted-year-2026')).toBeNull();
@@ -319,7 +320,7 @@ describe('B 類：止まっていない年は示さない（H6）', () => {
   test('仕訳一覧で打ち消した開業仕訳（打消しの source は manual）は示さない', async () => {
     await seedOpening('2026-07-01');
     for (const e of await db.journalEntries.toArray()) {
-      await reverseEntry(e.id, { allowFiledYear: true });
+      await reverseEntry(e.id, { allowedFiledYears: ALL_YEARS });
     }
     await render();
     await settle();
@@ -333,7 +334,7 @@ describe('B 類：止まっていない年は示さない（H6）', () => {
       (e) => e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
     );
     for (const e of created) {
-      await reverseEntry(e.id, { allowFiledYear: true });
+      await reverseEntry(e.id, { allowedFiledYears: ALL_YEARS });
     }
     await render();
     await settle();
@@ -522,7 +523,7 @@ describe('A 類：元に戻した年の転用資産を登録し直す（H7）', 
       conversionBasis: '165540',
     });
     await waitFor(() => missingItem('私用PC') === undefined);
-    await generateYearEndDepreciation(2026, { allowFiledYear: true });
+    await generateYearEndDepreciation(2026, { allowedFiledYears: ALL_YEARS });
     const dep = (await db.journalEntries.toArray()).find((e) =>
       e.description.includes(`#${asset.id.slice(0, 8)}`),
     );
@@ -613,7 +614,7 @@ describe('A 類：元に戻した年の転用資産を登録し直す（H7）', 
     await openRegister('私用PC');
     await fillAndSubmit('2024-01-01', '300000', '4');
     await waitFor(() => filedYearGuard.pending !== null);
-    await reverseEntry(id, { allowFiledYear: true });
+    await reverseEntry(id, { allowedFiledYears: ALL_YEARS });
     await filedYearGuard.resolve(true);
     await settle();
     expect(await db.fixedAssets.count()).toBe(0);
@@ -854,7 +855,7 @@ describe('登録し直す転用資産の表示と入力の検査', () => {
     await openRegister('私用PC');
     await fillAndSubmit('2024-01-01', '300000', '4');
     await waitFor(() => filedYearGuard.pending !== null);
-    await reverseEntry(id, { allowFiledYear: true });
+    await reverseEntry(id, { allowedFiledYears: ALL_YEARS });
     await filedYearGuard.resolve(true);
     await settle();
     expect(text()).toContain(m.opening_missing_assets_not_missing());

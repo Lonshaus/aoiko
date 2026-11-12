@@ -31,40 +31,40 @@ import koa110 from './xtx-schema-koa110.generated.json';
 import koa220 from './xtx-schema-koa220.generated.json';
 import koa130 from './xtx-schema-koa130.generated.json';
 import type { XtxSchema } from './xtx-schema';
-import type { XtxRowOverflowItem } from './xtx-mapping-shared';
 import { buildXtxBundle, type XtxFilerInfo, type XtxFormInput } from './xtx-document';
 import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
 import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
+import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
 import {
+  koa020DetailOverflow,
   mapKoa020LeafValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
-  koa020RowOverflow,
 } from './xtx-mapping-koa020';
 import {
   koa210AdditionalExpenseOverflow,
-  koa210RowOverflow,
+  koa210DetailOverflow,
   mapKoa210RepeatedValues,
   mapKoa210Values,
 } from './xtx-mapping-koa210';
 import {
   koa110AdditionalExpenseOverflow,
-  koa110RowOverflow,
+  koa110DetailOverflow,
   mapKoa110Values,
   mapKoa110RepeatedValues,
 } from './xtx-mapping-koa110';
 import {
   koa220AdditionalExpenseOverflow,
-  koa220RowOverflow,
+  koa220DetailOverflow,
   mapKoa220RepeatedValues,
   mapKoa220Values,
 } from './xtx-mapping-koa220';
 import {
   koa130AdditionalExpenseOverflow,
-  koa130RowOverflow,
+  koa130DetailOverflow,
   mapKoa130RepeatedValues,
   mapKoa130Values,
 } from './xtx-mapping-koa130';
@@ -77,6 +77,17 @@ export class RealEstateIncomeInputMissingError extends Error {
       '不動産所得の損益があるのに、所得控除画面の不動産所得欄が未入力です。所得控除画面で不動産所得のセクションを入力・保存してください。',
     );
     this.name = 'RealEstateIncomeInputMissingError';
+  }
+}
+// 令和9年分の確定申告書と防衛特別所得税申告書の様式が未公表で、現行の様式には
+// 防衛特別所得税の欄がない。税額が合わない申告書を作らないよう、これより後の年分は出力しない。
+export const INCOME_TAX_XTX_LAST_YEAR = 2026;
+export class IncomeTaxXtxYearUnsupportedError extends Error {
+  readonly year: number;
+  constructor(year: number) {
+    super(`${year} 年分の所得税 .xtx 出力は未対応です（${INCOME_TAX_XTX_LAST_YEAR} 年分まで）。`);
+    this.name = 'IncomeTaxXtxYearUnsupportedError';
+    this.year = year;
   }
 }
 // 申告者情報（e-Tax 提出用）。IT部の定義側の必須・任意項目に対応する。
@@ -136,6 +147,20 @@ const KOA130_SCHEMA = koa130 as XtxSchema;
 // フォーム入力の生文字列がそのまま保存されているため、読めない値・負の値は例外を投げず 0 扱いにする。
 function toDec(s: string): Decimal {
   return parseAmountInput(s) ?? D(0);
+}
+// 収入金額から計算する方式の公的年金等。読めない収入と 0 円以下の収入は未入力として扱う。
+function publicPensionRevenueToCtx(misc: NonNullable<PersonalDeductionInput['miscIncome']>): {
+  publicPensionRevenue?: Decimal;
+  publicPensionAge65OrOver?: boolean;
+} {
+  const revenue = parseAmountInput(misc.publicPensionRevenue);
+  if (!revenue?.greaterThan(0)) {
+    return {};
+  }
+  return {
+    publicPensionRevenue: revenue,
+    publicPensionAge65OrOver: misc.publicPensionAge65OrOver ?? false,
+  };
 }
 // 支払先明細の金額は文字列のまま様式へ転記されるため、ここで toDec と同じ読み方にそろえる。
 function toRowAmount(s: string): string {
@@ -199,7 +224,15 @@ export function personalDeductionsToCtx(
     isWidow: stored.isWidow,
     isWorkingStudent: stored.isWorkingStudent,
     ...(stored.spouse && !exclusion.spouseExcluded
-      ? { spouse: { totalIncome: toDec(stored.spouse.totalIncome), age: stored.spouse.age } }
+      ? {
+          spouse: {
+            totalIncome: toDec(stored.spouse.totalIncome),
+            age: stored.spouse.age,
+            ...(stored.spouse.disability !== undefined
+              ? { disability: stored.spouse.disability }
+              : {}),
+          },
+        }
       : {}),
     dependents: stored.dependents
       .filter((d) => !exclusion.excludedDependentIds.has(d.id))
@@ -210,6 +243,7 @@ export function personalDeductionsToCtx(
         ...(d.livesWithLinealAscendant !== undefined
           ? { livesWithLinealAscendant: d.livesWithLinealAscendant }
           : {}),
+        ...(d.disability !== undefined ? { disability: d.disability } : {}),
       })),
     ...(stored.dividendDeductionAmount !== undefined
       ? { dividendDeductionAmount: toDec(stored.dividendDeductionAmount) }
@@ -247,10 +281,12 @@ export function personalDeductionsToCtx(
       ? {
           miscIncome: {
             // 読めない値も入力のまま保存しているため、ここで未記入に戻さないと ABB01060 に 0 が出る
-            ...(stored.miscIncome.publicPensionAmount !== undefined &&
-            !isAmountInputMalformed(stored.miscIncome.publicPensionAmount)
-              ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
-              : {}),
+            ...(stored.miscIncome.publicPensionInputMode === 'revenue'
+              ? publicPensionRevenueToCtx(stored.miscIncome)
+              : stored.miscIncome.publicPensionAmount !== undefined &&
+                  !isAmountInputMalformed(stored.miscIncome.publicPensionAmount)
+                ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
+                : {}),
             ...(stored.miscIncome.otherIncome !== undefined
               ? { otherIncome: toDec(stored.miscIncome.otherIncome) }
               : {}),
@@ -336,16 +372,35 @@ export function xtxAdditionalExpenseOverflow(ctx: XtxContext): XtxAdditionalExpe
     ...(ctx.realEstatePl ? koa220AdditionalExpenseOverflow(ctx) : []),
   ];
 }
-// 明細欄の行数を超えて書かなかった項目。追加科目欄と同じく出力は止めず、利用者へ示す
-export function xtxRowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
-  const statements =
-    ctx.filingType === 'white'
-      ? [...koa110RowOverflow(ctx), ...(ctx.realEstatePl ? koa130RowOverflow(ctx) : [])]
-      : [...koa210RowOverflow(ctx), ...(ctx.realEstatePl ? koa220RowOverflow(ctx) : [])];
-  return [...koa020RowOverflow(ctx), ...statements];
+// 明細欄（減価償却・貸家等の状況・支払先・事業専従者）は上限を超えた行を .xtx へ出さない。
+// buildXtx2026 と同じ ctx で呼び、出せなかった行を利用者へ提示する。
+export interface XtxDetailOverflowItem extends XtxDetailOverflowRow {
+  formId: 'KOA020' | 'KOA110' | 'KOA130' | 'KOA210' | 'KOA220';
+}
+
+export function xtxDetailOverflow(ctx: XtxContext): XtxDetailOverflowItem[] {
+  const withForm = (
+    formId: XtxDetailOverflowItem['formId'],
+    rows: XtxDetailOverflowRow[],
+  ): XtxDetailOverflowItem[] => rows.map((row) => ({ formId, ...row }));
+  if (ctx.filingType === 'white') {
+    return [
+      ...withForm('KOA020', koa020DetailOverflow(ctx)),
+      ...withForm('KOA110', koa110DetailOverflow(ctx)),
+      ...(ctx.realEstatePl ? withForm('KOA130', koa130DetailOverflow(ctx)) : []),
+    ];
+  }
+  return [
+    ...withForm('KOA020', koa020DetailOverflow(ctx)),
+    ...withForm('KOA210', koa210DetailOverflow(ctx)),
+    ...(ctx.realEstatePl ? withForm('KOA220', koa220DetailOverflow(ctx)) : []),
+  ];
 }
 
 export function buildXtx2026(ctx: XtxContext): string {
+  if (ctx.year > INCOME_TAX_XTX_LAST_YEAR) {
+    throw new IncomeTaxXtxYearUnsupportedError(ctx.year);
+  }
   const creatorName = ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   // 事業用の決算書・収支内訳書は常に載る。不動産所得用（KOA220/KOA130）は
   // ctx.realEstatePl がある場合のみ追加で載せる（B7 part2、両方同時申告に対応）。

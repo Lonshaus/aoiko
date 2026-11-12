@@ -3,7 +3,7 @@
   import { liveQuery } from 'dexie';
   import { SvelteSet } from 'svelte/reactivity';
   import { clearUnsavedGuard, setUnsavedGuard } from '../router.svelte';
-  import { D, formatJPY } from '../lib/decimal';
+  import { D, formatJPY, type Decimal } from '../lib/decimal';
   import { toISODateLocal, todayISO } from '../lib/date';
   import {
     assignInputNumber,
@@ -12,19 +12,26 @@
   } from '../lib/number-input';
   import { readStoredFiler } from '../lib/filer-fields';
   import {
+    isProcessingYear,
+    PROCESSING_YEAR_MAX,
+    PROCESSING_YEAR_MIN,
+  } from '../lib/initial-processing-year';
+  import {
     amountInputError,
     isAmountInputInvalid,
+    isJournalAmountTooLarge,
     normalizeAmountInput,
     parseAmountInput,
     parseIntegerInput,
-    readStoredAmount,
     storedToInputText,
   } from '../lib/amount-input';
   import {
     buildAll,
+    buildBreakdown,
     buildMultiYearBS,
     buildMultiYearPL,
     buildPL,
+    loadYearData,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -33,6 +40,7 @@
     type MultiYearBSReport,
     type MultiYearPLReport,
     type PLReport,
+    type YearData,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
   import { saveTextFile } from '../lib/save-file';
@@ -40,15 +48,21 @@
     getConsumptionTaxSnapshot,
     isYearLocked,
     markYearFiled,
+    runFilingTransaction,
     unlockYear,
   } from '../domain/snapshots';
   import { arApDisplayDescription } from '../domain/ar-ap-description';
   import { interimFilingObligation, type InterimVoluntaryInputs } from '../domain/interim-filing';
-  import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
+  import {
+    computeInventoryValuation,
+    loadYearDataWithInventory,
+    type InventoryValuation,
+  } from '../domain/inventory';
   import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
   import {
     addArApEntry,
     forecastCashFlow,
+    isPaymentAmountInvalid,
     recordPayment,
     remainingBalance,
     type CashFlowForecast,
@@ -73,9 +87,15 @@
     personalDeductionsToCtx,
     RealEstateIncomeInputMissingError,
     xtxAdditionalExpenseOverflow,
-    xtxRowOverflow,
+    xtxDetailOverflow,
     type FilingType,
+    type XtxDetailOverflowItem,
   } from '../tax-schema/2026/xtx';
+  import { BsExtraAccountOverflowError } from '../tax-schema/2026/xtx-mapping-koa210';
+  import {
+    hasInvalidXtxAmounts,
+    hasInvalidXtxPropertyText,
+  } from '../tax-schema/2026/xtx-amount-check';
   import {
     getSetting,
     setSetting,
@@ -108,10 +128,13 @@
     ArApEntry,
     ArApType,
     ConsumptionTaxSnapshotData,
+    FixedAsset,
+    PersonalDeductionInput,
     TaxRegistration,
     Vendor,
   } from '../db/types';
   import { db } from '../db/db';
+  import { loadAccountsForYear } from '../db/year-accounts';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
   import type { AmendmentChecklistKey } from '../domain/amended';
@@ -149,7 +172,7 @@
   const now = new Date();
   // 処理年度に追従（writable derived：セレクタ選択で上書き、設定画面の変更で追従に戻る）。
   let year = $derived(ledger.currentYear);
-  const YEAR_RANGE = { min: 2020, max: 2099 };
+  const YEAR_RANGE = { min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX };
   // 入力欄の値が読めない間も year は直前の有効な年のまま残り、保存だけを止める
   let yearInvalid = $state(false);
 
@@ -162,6 +185,8 @@
   let monthlyPL = $state<MonthlyPLReport | null>(null);
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
+  // 主 liveQuery が読んだ年度データ。大きい配列を深くプロキシ化しないよう raw で持つ
+  let loadedYearData = $state.raw<{ year: number; data: YearData } | null>(null);
   let amendment = $state<AmendmentDiff | null>(null);
   let staleCarryover = $state<StaleCarryover | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
@@ -177,14 +202,16 @@
   let lockNotice = $state('');
   let lockMethod = $state<ConsumptionTaxResult['method'] | ''>('');
   let reportsError = $state('');
+  let breakdownError = $state('');
   // 保存済みの読めない金額が原因で集計が失敗したときの案内。found は金額の位置、invalid は欄の点検結果
   let storedUnreadable = $state<{ found: FoundAmounts; invalid: string[] } | null>(null);
   let storedUnreadableSeq = 0;
   // 申告年度に .xtx・会計士向け CSV へ出せない明細があるあいだは常に示す
-  let oversizedAmounts = $state<FoundAmounts | null>(null);
+  let oversizedAmounts = $state<{ year: number; found: FoundAmounts } | null>(null);
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
   let xtxOverflowWarning = $state('');
+  let xtxDetailOverflowWarning = $state('');
   let consumptionTaxXtxError = $state('');
   // 中間申告：前年確定消費税額（国税分）。ロック済みの前年スナップショットがあれば自動入力、
   // 無ければ利用者が手入力する（値を作らない——監査履歴を不変に保つため）
@@ -286,7 +313,9 @@
   }
 
   function numberInputError(value: string, badInput: boolean): string {
-    return badInput ? m.common_amount_invalid() : amountInputError(value);
+    return badInput
+      ? m.common_amount_invalid()
+      : amountInputError(value) || m.common_amount_invalid();
   }
 
   async function saveBudgets() {
@@ -387,7 +416,24 @@
   }
 
   function isPaymentInvalid(id: string): boolean {
-    return isNumberInputInvalid(paymentDrafts[id] ?? '', paymentBadInput[id] === true);
+    if (paymentBadInput[id] === true) {
+      return true;
+    }
+    const draft = paymentDrafts[id] ?? '';
+    const entry = arApEntries.find((e) => e.id === id);
+    return (
+      normalizeAmountInput(draft) !== '' &&
+      entry !== undefined &&
+      (isPaymentAmountInvalid(draft, entry) || isJournalAmountTooLarge(draft))
+    );
+  }
+  // formatJPY は整数に丸めるため、小数の残高は Decimal の文字列のまま表示する
+  function formatRemaining(remaining: Decimal): string {
+    if (remaining.isInteger()) {
+      return formatJPY(remaining.toString());
+    }
+    const [intPart = '0', fracPart = ''] = remaining.abs().toFixed().split('.');
+    return `${remaining.isNegative() ? '-' : ''}${formatJPY(intPart)}.${fracPart}`;
   }
 
   async function submitPayment(id: string) {
@@ -424,7 +470,9 @@
     isAmountInputInvalid(interimPaidNationalInput) || isAmountInputInvalid(interimPaidLocalInput),
   );
   const interimPaidError = $derived(
-    amountInputError(interimPaidNationalInput) || amountInputError(interimPaidLocalInput),
+    amountInputError(interimPaidNationalInput) ||
+      amountInputError(interimPaidLocalInput) ||
+      m.common_amount_invalid(),
   );
 
   function parseMonths(s: string): number | undefined {
@@ -922,18 +970,21 @@
 
   $effect(() => {
     const yr = year;
-    const ax = breakdownAxis;
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const filing = (await getSetting('filingType')) ?? 'blue';
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const reports = await buildAll(yr, ax);
-      const processed = await processYear(yr);
-      const inventory = ledger.inventoryAutoValuationEnabled
-        ? await computeInventoryValuation(`${yr}-12-31`)
+      const asOf = `${yr}-12-31`;
+      const inventoryEnabled = (await getSetting('inventoryAutoValuationEnabled')) !== false;
+      const withInventory = inventoryEnabled ? await loadYearDataWithInventory(yr, asOf) : null;
+      const yearData = withInventory ? withInventory.yearData : await loadYearData(yr);
+      const reports = await buildAll(yr, 'vendor', yearData, { skipBreakdown: true });
+      const processed = await processYear(yr, undefined, { yearData });
+      const inventory = withInventory
+        ? await computeInventoryValuation(asOf, withInventory.inventory)
         : null;
-      const budget = await computeBudgetVsActual(yr);
-      const yearAccounts = await db.accounts.where({ year: yr }).toArray();
+      const budget = await computeBudgetVsActual(yr, yearData);
+      const yearAccounts = await loadAccountsForYear(yr);
       const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
       const salesRatio = computeTaxableSalesRatio(
         processed.taxableBase10,
@@ -943,9 +994,13 @@
       );
       return {
         ...reports,
-        amendment: await getAmendmentDiff(yr),
-        staleCarryover: await detectStaleCarryover(yr),
-        consumptionTax: await compareAll(yr, cat, attributionMethod, compareOptions),
+        yearData: { year: yr, data: yearData },
+        amendment: await getAmendmentDiff(yr, yearData),
+        staleCarryover: await detectStaleCarryover(yr, yearData),
+        consumptionTax: await compareAll(yr, cat, attributionMethod, {
+          ...compareOptions,
+          yearData,
+        }),
         interimVoluntary: await loadInterimVoluntaryInputs(),
         taxRegistration: reg,
         simplifiedCategory: cat,
@@ -968,7 +1023,7 @@
         hasRealEstate = v.hasRealEstate;
         inventoryValuation = v.inventory;
         monthlyPL = v.monthlyPL;
-        breakdown = v.breakdown;
+        loadedYearData = v.yearData;
         amendment = v.amendment;
         staleCarryover = v.staleCarryover;
         consumptionTax = v.consumptionTax;
@@ -991,6 +1046,7 @@
       // 申告に使う画面のため、失敗時は前年度の数字を残さず全部クリアする
       // （見出しの年度だけ進んで数字が古いまま、という誤表示を避ける）。
       error: (e: unknown) => {
+        breakdownError = '';
         if (isDecimalError(e)) {
           reportsError = '';
           void locateUnreadable(yr);
@@ -1004,6 +1060,7 @@
         bs = null;
         inventoryValuation = null;
         monthlyPL = null;
+        loadedYearData = null;
         breakdown = null;
         amendment = null;
         staleCarryover = null;
@@ -1031,15 +1088,44 @@
       return;
     }
   }
-  // 読めない金額の案内は、まさにその金額で集計が失敗したときにこそ要るため、集計とは別に購読する
+  // 読めない金額の案内は、まさにその金額で集計が失敗したときにこそ要るため、集計とは別に購読する。
+  // 集計が読み込んだ年度データがあるあいだはそれを使い、仕訳を二度読まない
   $effect(() => {
     const yr = year;
-    const sub = liveQuery(() => findOversizedAmounts({ year: yr })).subscribe({
+    const loaded = loadedYearData;
+    const data = loaded !== null && loaded.year === yr ? loaded.data : undefined;
+    if (data === undefined && reportsError === '') {
+      return;
+    }
+    const sub = liveQuery(() =>
+      findOversizedAmounts(data === undefined ? { year: yr } : { year: yr, data }),
+    ).subscribe({
       next: (v) => {
-        oversizedAmounts = v;
+        oversizedAmounts = { year: yr, found: v };
       },
       error: () => {
         oversizedAmounts = null;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+
+  $effect(() => {
+    const yr = year;
+    const ax = breakdownAxis;
+    const loaded = loadedYearData;
+    if (!loaded || loaded.year !== yr) {
+      return;
+    }
+    // 取引先・補助科目は別テーブルなので、年度データを渡しても liveQuery で購読して変更に追従する
+    const sub = liveQuery(() => buildBreakdown(yr, ax, loaded.data)).subscribe({
+      next: (v) => {
+        breakdownError = '';
+        breakdown = v;
+      },
+      error: (e: unknown) => {
+        breakdownError = describeStorageError(e);
+        breakdown = null;
       },
     });
     return () => sub.unsubscribe();
@@ -1099,7 +1185,10 @@
     }
     try {
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const results = await compareAll(yr, cat, attributionMethod, compareOptions);
+      const results = await compareAll(yr, cat, attributionMethod, {
+        ...compareOptions,
+        sequential: true,
+      });
       const method = chosen || bestMethod(results);
       const picked = results.find((r) => r.method === method);
       if (!picked) {
@@ -1130,65 +1219,70 @@
         lockError = describeFoundAmounts(found);
         return;
       }
-      const { monthly, pl, bs } = await buildAll(lockYearTarget, breakdownAxis);
-      // return だけで終えると確認ダイアログが閉じるだけで何も表示されず、ロックされたと誤解される
-      if (!monthly || !pl) {
-        lockError = m.reports_no_data_for_year({ year: lockYearTarget });
-        return;
-      }
-      const consumptionTaxPayload = await buildConsumptionTaxPayload(lockYearTarget, lockMethod);
-      await markYearFiled(
-        lockYearTarget,
-        {
-          monthlySales: {
-            type: 'monthly-sales',
-            data: {
-              months: monthly.months.map((m) => ({
-                month: m.month,
-                sales: m.sales,
-              })),
+      const outcome = await runFilingTransaction(async () => {
+        const { monthly, pl, bs } = await buildAll(lockYearTarget, 'department');
+        // 裸で return すると確認ダイアログだけ閉じて、バッジもエラーも出ないまま
+        // 利用者はロックされたと思い込む。
+        if (!monthly || !pl) {
+          return 'no-data' as const;
+        }
+        const consumptionTaxPayload = await buildConsumptionTaxPayload(lockYearTarget, lockMethod);
+        await markYearFiled(
+          lockYearTarget,
+          {
+            monthlySales: {
+              type: 'monthly-sales',
+              data: {
+                months: monthly.months.map((m) => ({
+                  month: m.month,
+                  sales: m.sales,
+                })),
+              },
             },
-          },
-          pl: {
-            type: 'pl',
-            data: {
-              rows: [...pl.revenue, ...pl.expense].map((r) => ({
-                accountCode: r.accountCode,
-                amount: r.amount,
-              })),
-              totalRevenue: pl.totalRevenue,
-              totalExpense: pl.totalExpense,
-              netIncome: pl.netIncome,
+            pl: {
+              type: 'pl',
+              data: {
+                rows: [...pl.revenue, ...pl.expense].map((r) => ({
+                  accountCode: r.accountCode,
+                  amount: r.amount,
+                })),
+                totalRevenue: pl.totalRevenue,
+                totalExpense: pl.totalExpense,
+                netIncome: pl.netIncome,
+              },
             },
-          },
-          ...(bs
-            ? {
-                bs: {
-                  type: 'bs' as const,
-                  data: {
-                    assets: bs.assets.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
-                    liabilities: bs.liabilities.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
-                    equity: bs.equity.map((r) => ({
-                      accountCode: r.accountCode,
-                      amount: r.balance,
-                    })),
+            ...(bs
+              ? {
+                  bs: {
+                    type: 'bs' as const,
+                    data: {
+                      assets: bs.assets.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                      liabilities: bs.liabilities.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                      equity: bs.equity.map((r) => ({
+                        accountCode: r.accountCode,
+                        amount: r.balance,
+                      })),
+                    },
                   },
-                },
-              }
-            : {}),
-          ...(consumptionTaxPayload !== null && consumptionTaxPayload !== 'failed'
-            ? { consumptionTax: consumptionTaxPayload }
-            : {}),
-        },
-        `${lockYearTarget}-12-31`,
-      );
-      if (consumptionTaxPayload === 'failed') {
+                }
+              : {}),
+            ...(consumptionTaxPayload !== null && consumptionTaxPayload !== 'failed'
+              ? { consumptionTax: consumptionTaxPayload }
+              : {}),
+          },
+          `${lockYearTarget}-12-31`,
+        );
+        return consumptionTaxPayload === 'failed' ? ('ct-failed' as const) : ('ok' as const);
+      });
+      if (outcome === 'no-data') {
+        lockError = m.reports_no_data_for_year({ year: lockYearTarget });
+      } else if (outcome === 'ct-failed') {
         lockNotice = m.reports_lock_ct_not_saved();
       }
     } catch (e) {
@@ -1248,6 +1342,36 @@
       ...(oversized.length > 0 ? [new OversizedStoredValuesError(oversized).message] : []),
     ].join('\n');
   }
+  // 所得税 .xtx の出力前検査。物件明細の文字欄 → 保存値（読めない・100 兆円以上）→ 入力値の小数の順に見て、最初の理由だけを返す
+  async function incomeXtxBlocker(
+    y: number,
+    storedDeductions: PersonalDeductionInput | undefined,
+    fixedAssets: FixedAsset[],
+  ): Promise<string> {
+    if (hasInvalidXtxPropertyText(fixedAssets, ledger.realEstateIncomeEnabled)) {
+      return m.reports_xtx_property_text_invalid();
+    }
+    const blocker = await xtxBlocker(y, 'income');
+    if (blocker !== '') {
+      return blocker;
+    }
+    return hasInvalidXtxAmounts(storedDeductions, fixedAssets, ledger.realEstateIncomeEnabled)
+      ? m.reports_xtx_amount_invalid()
+      : '';
+  }
+  const DETAIL_OVERFLOW_SECTION_LABEL = {
+    depreciation: () => m.reports_xtx_detail_overflow_depreciation(),
+    realEstateProperty: () => m.reports_xtx_detail_overflow_real_estate_property(),
+    rentPaid: () => m.reports_xtx_detail_overflow_rent_paid(),
+    loanInterestPaid: () => m.reports_xtx_detail_overflow_loan_interest_paid(),
+    professionalFee: () => m.reports_xtx_detail_overflow_professional_fee(),
+    familyEmployee: () => m.reports_xtx_detail_overflow_family_employee(),
+  } satisfies Record<XtxDetailOverflowItem['section'], () => string>;
+  function detailOverflowText(item: XtxDetailOverflowItem): string {
+    const amount = formatJPY(item.amount);
+    const subject = item.label === '' ? amount : `${item.label}（${amount}）`;
+    return `${item.formId} ${DETAIL_OVERFLOW_SECTION_LABEL[item.section]()}：${subject}`;
+  }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
   // 令和7年分（NENBUN=7）で行う。.xtx のファイル構造は年分に依存しない（同一コード生成）。
   async function downloadXtx(testReiwa7 = false) {
@@ -1261,38 +1385,44 @@
     if (!monthly || !pl || !bs) {
       lockError = m.reports_no_data_for_year({ year: filingYear });
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     if (filingYear !== 2026) {
       lockError = m.reports_xtx_unsupported_year({ year: filingYear });
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     const { filer, businessName, invoiceNumber, missing, invalid } = await loadFiler();
     if (invalid) {
       lockError = m.reports_xtx_filer_invalid();
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
     if (missing) {
       lockError = m.reports_xtx_filer_incomplete();
       xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
       return;
     }
-    const blocker = await xtxBlocker(filingYear, 'income');
-    if (blocker !== '') {
-      lockError = blocker;
-      xtxOverflowWarning = '';
-      return;
-    }
-    lockError = '';
-    xtxOverflowWarning = '';
     const filingType = (await getSetting('filingType')) ?? 'blue';
     const aoiroDeductionKind = (await getSetting('aoiroDeductionKind')) ?? 'electronic';
     const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
     const fixedAssets = await db.fixedAssets.toArray();
     const exportYear = testReiwa7 ? 2025 : filingYear;
     const storedDeductions = await db.personalDeductions.get(filingYear);
+    const blocker = await incomeXtxBlocker(filingYear, storedDeductions, fixedAssets);
+    if (blocker !== '') {
+      lockError = blocker;
+      xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
+      return;
+    }
+    lockError = '';
+    xtxOverflowWarning = '';
+    xtxDetailOverflowWarning = '';
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(filingYear, undefined, 'realEstate')
       : undefined;
@@ -1322,6 +1452,14 @@
       };
       xml = buildXtx2026(xtxCtx);
     } catch (e) {
+      if (e instanceof BsExtraAccountOverflowError) {
+        lockError = m.reports_xtx_bs_extra_overflow({
+          list: e.accountNames.join('、'),
+          assetMax: e.assetMax,
+          liabilityEquityMax: e.liabilityEquityMax,
+        });
+        return;
+      }
       lockError =
         e instanceof RealEstateIncomeInputMissingError
           ? m.reports_xtx_real_estate_input_missing()
@@ -1329,28 +1467,23 @@
       return;
     }
     const overflow = xtxAdditionalExpenseOverflow(xtxCtx);
-    const rowOverflow = xtxRowOverflow(xtxCtx);
     xtxOverflowWarning = [
       overflow.length > 0
         ? m.reports_xtx_additional_expense_overflow({
             list: overflow.map((o) => `${o.accountName}（${formatJPY(o.amount)}）`).join('、'),
           })
         : '',
-      rowOverflow.length > 0
-        ? m.reports_xtx_row_overflow({
-            list: rowOverflow.map((o) => overflowItemLabel(o.name, o.amount)).join('、'),
-          })
-        : '',
       describeConversionBasisOverCost(fixedAssets),
     ]
       .filter((t) => t !== '')
       .join(' ');
+    const detailOverflow = xtxDetailOverflow(xtxCtx);
+    if (detailOverflow.length > 0) {
+      xtxDetailOverflowWarning = m.reports_xtx_detail_overflow({
+        list: detailOverflow.map(detailOverflowText).join('、'),
+      });
+    }
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
-  }
-  function overflowItemLabel(name: unknown, amount: unknown): string {
-    const label = String(name ?? '').slice(0, 40);
-    const value = readStoredAmount(amount);
-    return value === undefined ? label : `${label}（${formatJPY(value)}）`;
   }
   async function downloadXml(xml: string, filename: string): Promise<void> {
     await saveTextFile(xml, filename, 'application/xml');
@@ -1381,6 +1514,14 @@
     const blocker = await xtxBlocker(year, 'consumption');
     if (blocker !== '') {
       consumptionTaxXtxError = blocker;
+      return;
+    }
+    if (
+      isAmountInputInvalid(wariSalesReturnTax78Input) ||
+      isAmountInputInvalid(wariSalesReturnTax624Input) ||
+      wariSpecifiedSmallAssetTransfers.some((t) => isAmountInputInvalid(t.netTax))
+    ) {
+      consumptionTaxXtxError = m.common_amount_invalid();
       return;
     }
     consumptionTaxXtxError = '';
@@ -1566,14 +1707,13 @@
         autocomplete="off"
         value={year}
         oninput={assignInputNumberOrEmpty((v) => {
-          const y = parseIntegerInput(v === undefined ? '' : String(v), YEAR_RANGE);
-          yearInvalid = y === undefined;
-          if (y !== undefined) {
-            year = y;
+          yearInvalid = !isProcessingYear(v);
+          if (isProcessingYear(v)) {
+            year = v;
           }
         })}
-        min="2020"
-        max="2099"
+        min={PROCESSING_YEAR_MIN}
+        max={PROCESSING_YEAR_MAX}
         step="1"
         class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
       />
@@ -1620,12 +1760,12 @@
       {/if}
     </div>
   {/if}
-  {#if oversizedAmounts && oversizedAmounts.total > 0 && !storedUnreadable}
+  {#if oversizedAmounts && oversizedAmounts.year === year && oversizedAmounts.found.total > 0 && !storedUnreadable}
     <div
       class="border border-destructive bg-destructive/10 text-foreground rounded-lg px-4 py-2 text-sm"
       role="alert"
     >
-      {describeFoundAmounts(oversizedAmounts)}
+      {describeFoundAmounts(oversizedAmounts.found)}
     </div>
   {/if}
 
@@ -2014,7 +2154,7 @@
     </section>
   {/if}
 
-  {#if breakdown && breakdown.groups.length > 0}
+  {#if pl && (breakdownError || (breakdown && breakdown.groups.length > 0))}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_breakdown_title()}</h3>
@@ -2051,34 +2191,42 @@
           </button>
         </div>
       </header>
-      <div class="space-y-4">
-        {#each breakdown.groups as g (g.accountCode)}
-          <div>
-            <header
-              class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
-            >
-              <span
-                ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
-                >{g.accountName}</span
+      {#if breakdownError}
+        <div
+          class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+        >
+          {m.reports_breakdown_load_error({ message: breakdownError })}
+        </div>
+      {:else if breakdown}
+        <div class="space-y-4">
+          {#each breakdown.groups as g (g.accountCode)}
+            <div>
+              <header
+                class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
               >
-              <span class="tabular-nums">{formatJPY(g.total)}</span>
-            </header>
-            <ul class="space-y-0.5 text-sm pl-4">
-              {#each g.entries as e (e.key)}
-                <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
-                  <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                  <span class="text-xs text-muted-foreground tabular-nums"
-                    >{m.reports_breakdown_count({ n: e.count })}</span
-                  >
-                  <span class="tabular-nums whitespace-nowrap w-28 text-right"
-                    >{formatJPY(e.amount)}</span
-                  >
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/each}
-      </div>
+                <span
+                  ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
+                  >{g.accountName}</span
+                >
+                <span class="tabular-nums">{formatJPY(g.total)}</span>
+              </header>
+              <ul class="space-y-0.5 text-sm pl-4">
+                {#each g.entries as e (e.key)}
+                  <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
+                    <span class:text-muted-foreground={!e.key}>{e.label}</span>
+                    <span class="text-xs text-muted-foreground tabular-nums"
+                      >{m.reports_breakdown_count({ n: e.count })}</span
+                    >
+                    <span class="tabular-nums whitespace-nowrap w-28 text-right"
+                      >{formatJPY(e.amount)}</span
+                    >
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
@@ -2460,7 +2608,7 @@
                   </td>
                 {:else}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(e.originalAmount)}</td>
-                  <td class="px-3 py-1 text-right tabular-nums">{formatJPY(remaining)}</td>
+                  <td class="px-3 py-1 text-right tabular-nums">{formatRemaining(remaining)}</td>
                 {/if}
                 <td class="px-3 py-1">
                   {#if remaining?.isPositive() === true}
@@ -3144,6 +3292,11 @@
       {#if xtxOverflowWarning}
         <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
           {xtxOverflowWarning}
+        </div>
+      {/if}
+      {#if xtxDetailOverflowWarning}
+        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+          {xtxDetailOverflowWarning}
         </div>
       {/if}
     </section>

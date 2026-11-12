@@ -4,6 +4,7 @@ import { db } from '../db/db';
 import { generateOpeningEntries, removeOpeningEntries } from '../domain/business-opening';
 import { filedYearGuard } from '../lib/filed-year-guard.svelte';
 import { m } from '../paraglide/messages';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 const { default: OpeningSetup } = await import('./OpeningSetup.svelte');
 
@@ -91,7 +92,7 @@ async function seedOpening(start: string): Promise<void> {
       convertedAssets: [],
       customItems: [],
     },
-    { allowFiledYear: true },
+    { allowedFiledYears: ALL_YEARS },
   );
 }
 
@@ -150,7 +151,7 @@ describe('作り直しで打ち消す年は、そのときのデータから決�
   test('作り直しを押した時点でその年の開業仕訳が無くなっていれば、打ち消す確認を出さずにそのまま作る', async () => {
     await seedOpening('2026-07-01');
     await reachAlreadyExists('2026-07-01');
-    await removeOpeningEntries(2026, { allowFiledYear: true });
+    await removeOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     buttonByText(container!, m.opening_redo_button())!.click();
     await waitFor(() => text().includes(m.opening_done_message()));
     expect(bodyText()).not.toContain(

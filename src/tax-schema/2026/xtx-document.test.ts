@@ -52,7 +52,7 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
     expect(xml).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
     expect(xml).toContain('<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"');
     expect(xml).toContain('xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general"');
-    expect(xml).toContain('<RKO0010 VR="25.0.0" id="RKO0010">');
+    expect(xml).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
     expect(xml).toContain('<CATALOG id="CATALOG"><rdf:RDF');
     expect(xml).toContain('<CONTENTS id="CONTENTS">');
     expect(xml).toContain('<IT VR="1.5" id="IT">');
@@ -207,9 +207,9 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
     expect(xml).toContain('<RSH0001 VR="12.0.0" id="RSH0001">');
   });
 
-  test('手続バージョンの既定は 25.0.0（RKO0010・令和8年分）', () => {
+  test('手続バージョンの既定は 25.0.1（RKO0010）', () => {
     const xml = buildXtxDocument(k210, { NENBUN: '08' });
-    expect(xml).toContain('<RKO0010 VR="25.0.0" id="RKO0010">');
+    expect(xml).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
   });
 });
 

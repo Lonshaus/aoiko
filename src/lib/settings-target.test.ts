@@ -11,6 +11,16 @@ describe('settings-target', () => {
     expect(takeSettingsTarget()).toBe('backup');
   });
 
+  test('保存データの点検も預けて取り出せる', () => {
+    stashSettingsTarget('dataCheck');
+    expect(takeSettingsTarget()).toBe('dataCheck');
+  });
+
+  test('基本設定も預けて取り出せる', () => {
+    stashSettingsTarget('basic');
+    expect(takeSettingsTarget()).toBe('basic');
+  });
+
   test('取り出したら消える', () => {
     stashSettingsTarget('backup');
     takeSettingsTarget();

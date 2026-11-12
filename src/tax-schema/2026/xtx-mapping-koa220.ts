@@ -7,7 +7,7 @@
 // で表現する。
 //
 // KOA220 には貸倒金・貸倒引当金繰入額の専用欄が無いため、EXPENSE_ALIAS 未対応の
-// 不動産経費科目は「追加科目　繰り返し」（ANF00195、上限5）へ出力する
+// 不動産経費科目は「追加科目　繰り返し」（ANF00195）へ出力する
 // （additionalExpenseRows 参照）。
 //
 // 対応しない項目（対応不可分・低優先度、e-Tax 上で利用者が補完）：
@@ -21,11 +21,12 @@
 
 import koa220 from './xtx-schema-koa220.generated.json';
 import { D } from '../../lib/decimal';
-import { toKingaku, type XtxRowOverflowItem } from './xtx-mapping-shared';
+import { normalizeAmountInput } from '../../lib/amount-input';
 import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
-import type { DepreciationMethod } from '../../db/types';
+import type { DepreciationMethod, FixedAsset, RealEstatePropertyDetail } from '../../db/types';
+import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
 import {
   computeDepreciation,
   isImmediateExpenseAsset,
@@ -200,13 +201,6 @@ function effectiveMethodLabel(
   }
   return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
 }
-// 各繰り返しブロックの公式 maxOccurs（実際の xsd 上限）
-const MAX_PROPERTY_ROWS = 15;
-const MAX_DEPRECIATION_ROWS = 13;
-const MAX_RENT_PAID_ROWS = 2;
-const MAX_LOAN_INTEREST_PAID_ROWS = 3;
-const MAX_PROFESSIONAL_FEE_ROWS = 2;
-const MAX_ADDITIONAL_EXPENSE_ROWS = 5;
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
@@ -215,16 +209,33 @@ function putRow(row: XtxLeafValues, tag: string, amount: string): void {
     row[tag] = v;
   }
 }
+// 保存値の全角数字は toKingaku が読めず、桁区切りは明細溢れの金額表示（formatJPY）が読めないため、候補にする時点で正規化する
+function normalizeDetailAmounts(d: RealEstatePropertyDetail): RealEstatePropertyDetail {
+  const out: RealEstatePropertyDetail = { ...d, annualRent: normalizeAmountInput(d.annualRent) };
+  if (d.keyMoneyEtc) {
+    out.keyMoneyEtc = normalizeAmountInput(d.keyMoneyEtc);
+  }
+  if (d.otherIncome) {
+    out.otherIncome = normalizeAmountInput(d.otherIncome);
+  }
+  if (d.depositBalance) {
+    out.depositBalance = normalizeAmountInput(d.depositBalance);
+  }
+  return out;
+}
+// 貸家等の状況の候補。propertyRows（先頭から上限まで）と koa220DetailOverflow
+// （上限を超えた分）が同じ並びを共有する。
+function propertyCandidates(ctx: XtxContext): FixedAsset[] {
+  return ctx.fixedAssets
+    .filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail)
+    .map((a) => ({ ...a, realEstateDetail: normalizeDetailAmounts(a.realEstateDetail!) }));
+}
 // 第2頁「貸家等の状況」（ANF00340）。incomeType: 'realEstate' の FixedAsset の
 // realEstateDetail から生成する（物件＝資産という1:1の単純化、複数棟をまたぐ
 // 按分等は対象外）。
-function propertyAssets(ctx: XtxContext) {
-  return ctx.fixedAssets.filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail);
-}
-
 function propertyRows(ctx: XtxContext): XtxLeafValues[] {
-  return propertyAssets(ctx)
-    .slice(0, MAX_PROPERTY_ROWS)
+  return propertyCandidates(ctx)
+    .slice(0, maxOccursOf(SCHEMA, 'ANF00340'))
     .map((a) => {
       const d = a.realEstateDetail!;
       const row: XtxLeafValues = {};
@@ -261,6 +272,8 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
 }
 // 第3頁「減価償却費の計算」（ANF00890）。incomeType: 'realEstate' の FixedAsset のみ、
 // 事業所得側（xtx-mapping-koa110.ts の mapKoa110RepeatedValues）と同じロジックを使う。
+// 候補は depreciationRows（先頭から上限まで）と koa220DetailOverflow（上限を超えた分）が
+// 共有する。まとめ行（措法28の2）があるときは 1 格を占めるため、個別行の上限は 1 つ少ない。
 function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
@@ -278,46 +291,6 @@ function depreciationCandidates(ctx: XtxContext) {
       statuses.get(a.id) === 'applicable',
   );
   const applicableIds = new Set(applicableThisYear.map((a) => a.id));
-  const individual = realEstateAssets
-    .filter((a) => !applicableIds.has(a.id))
-    .map((asset) => ({
-      asset,
-      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
-    }))
-    .filter(({ result }) => !D(result.amount).isZero())
-    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
-  // まとめ行があると個別行に使える行が 1 つ減る
-  const individualMax = MAX_DEPRECIATION_ROWS - (applicableThisYear.length > 0 ? 1 : 0);
-  return { detailYear, pools, statuses, applicableThisYear, individual, individualMax };
-}
-// 明細欄に入りきらない物件・減価償却資産・支払先（xtx.ts の xtxRowOverflow 参照）
-export function koa220RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
-  const { individual, individualMax } = depreciationCandidates(ctx);
-  const input = ctx.personalDeductions?.realEstateIncome;
-  return [
-    ...propertyAssets(ctx)
-      .slice(MAX_PROPERTY_ROWS)
-      .map((a) => ({ name: a.name, amount: a.realEstateDetail?.annualRent ?? '' })),
-    ...individual
-      .slice(individualMax)
-      .map(({ asset, result }) => ({ name: asset.name, amount: result.amount })),
-    ...payeeOverflow(input?.rentPaid, MAX_RENT_PAID_ROWS),
-    ...payeeOverflow(input?.loanInterestPaid, MAX_LOAN_INTEREST_PAID_ROWS),
-    ...payeeOverflow(input?.professionalFeesPaid, MAX_PROFESSIONAL_FEE_ROWS),
-  ];
-}
-
-type PayeeItem = { payeeName?: string; payeeAddress?: string; amount: string };
-
-function payeeOverflow(items: readonly PayeeItem[] | undefined, max: number): XtxRowOverflowItem[] {
-  return (items ?? [])
-    .slice(max)
-    .map((item) => ({ name: item.payeeName || item.payeeAddress || '', amount: item.amount }));
-}
-
-function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
-  const { detailYear, pools, statuses, applicableThisYear, individual, individualMax } =
-    depreciationCandidates(ctx);
   const summaryRow: XtxLeafValues | undefined = (() => {
     if (applicableThisYear.length === 0) {
       return undefined;
@@ -350,7 +323,22 @@ function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
     row.ANF01080 = SMALL_ASSET_SUMMARY_NOTE;
     return row;
   })();
-  const individualRows = individual.slice(0, individualMax).map(({ asset, result }) => {
+  const candidates = realEstateAssets
+    .filter((a) => !applicableIds.has(a.id))
+    .map((asset) => ({
+      asset,
+      result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
+    }))
+    .filter(({ result }) => !D(result.amount).isZero())
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
+  const individualMax = maxOccursOf(SCHEMA, 'ANF00890') - (summaryRow ? 1 : 0);
+  return { detailYear, statuses, summaryRow, individualMax, candidates };
+}
+
+function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
+  const { detailYear, statuses, summaryRow, individualMax, candidates } =
+    depreciationCandidates(ctx);
+  const individualRows = candidates.slice(0, individualMax).map(({ asset, result }) => {
     const row: XtxLeafValues = {};
     const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
     if (name) {
@@ -407,8 +395,8 @@ function payeeRows<
   });
 }
 // KOA220 第1頁の必要経費区分（EXPENSE_ALIAS）に専用欄が無い科目（例：貸倒金（不動産）・
-// 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、上限5・科目名10文字）
-// へ出力する。5件を超える分は koa220AdditionalExpenseOverflow() で利用者へ提示する（issue#379）。
+// 貸倒引当金繰入額（不動産））を「追加科目　繰り返し」（ANF00195、科目名10文字）
+// へ出力する。上限を超える分は koa220AdditionalExpenseOverflow() で利用者へ提示する（issue#379）。
 // 専従者給与（不動産）は事業的規模なら専用欄（差引金額の次）へ出すため常に除外。
 // 所得計算で加算し直す科目（realEstateDisallowedExpenseAccounts、非事業的規模の
 // 引当金・専従者給与）は同じ理由でここでも転記しない（唯一の判定元、issue#379）。
@@ -429,7 +417,7 @@ function additionalExpenseCandidates(ctx: XtxContext): { accountName: string; am
 
 function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
   return additionalExpenseCandidates(ctx)
-    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(0, maxOccursOf(SCHEMA, 'ANF00195'))
     .map((row) => {
       const name = row.accountName
         .replace('（不動産）', '')
@@ -439,13 +427,13 @@ function additionalExpenseRows(ctx: XtxContext): XtxLeafValues[] {
       return item;
     });
 }
-// 追加科目欄（ANF00195、上限5）に入りきらなかった経費科目。利用者への警告表示用
+// 追加科目欄（ANF00195）に入りきらなかった経費科目。利用者への警告表示用
 // （xtx.ts の xtxAdditionalExpenseOverflow 参照）。
 export function koa220AdditionalExpenseOverflow(
   ctx: XtxContext,
 ): { accountName: string; amount: string }[] {
   return additionalExpenseCandidates(ctx)
-    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(maxOccursOf(SCHEMA, 'ANF00195'))
     .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
@@ -466,7 +454,7 @@ export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   const rentPaid = payeeRows(
     realEstateInput?.rentPaid,
-    MAX_RENT_PAID_ROWS,
+    maxOccursOf(SCHEMA, 'ANF01160'),
     'ANF01180',
     'ANF01190',
     'ANF01240',
@@ -477,7 +465,7 @@ export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   }
   const loanInterestPaid = payeeRows(
     realEstateInput?.loanInterestPaid,
-    MAX_LOAN_INTEREST_PAID_ROWS,
+    maxOccursOf(SCHEMA, 'ANF01260'),
     'ANF01280',
     'ANF01290',
     'ANF01310',
@@ -493,7 +481,7 @@ export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   }
   const professionalFeesPaid = payeeRows(
     realEstateInput?.professionalFeesPaid,
-    MAX_PROFESSIONAL_FEE_ROWS,
+    maxOccursOf(SCHEMA, 'ANF01330'),
     'ANF01350',
     'ANF01360',
     'ANF01370',
@@ -508,4 +496,37 @@ export function mapKoa220RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     out.ANF01330 = professionalFeesPaid;
   }
   return out;
+}
+// 明細欄（貸家等の状況・減価償却・支払先）の上限を超えて .xtx へ出せなかった行。
+// 出力側と同じ候補の並びの、上限より後ろを返す。
+export function koa220DetailOverflow(ctx: XtxContext): XtxDetailOverflowRow[] {
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  const payee = (
+    section: 'rentPaid' | 'loanInterestPaid' | 'professionalFee',
+    items: { payeeName?: string; amount: string }[] | undefined,
+    tag: string,
+  ): XtxDetailOverflowRow[] =>
+    (items ?? []).slice(maxOccursOf(SCHEMA, tag)).map((item) => ({
+      section,
+      label: (item.payeeName ?? '').trim(),
+      amount: item.amount,
+    }));
+  const { individualMax, candidates } = depreciationCandidates(ctx);
+  return [
+    ...propertyCandidates(ctx)
+      .slice(maxOccursOf(SCHEMA, 'ANF00340'))
+      .map((a) => ({
+        section: 'realEstateProperty' as const,
+        label: a.realEstateDetail!.address.trim(),
+        amount: a.realEstateDetail!.annualRent,
+      })),
+    ...candidates.slice(individualMax).map(({ asset, result }) => ({
+      section: 'depreciation' as const,
+      label: asset.name.trim(),
+      amount: result.amount,
+    })),
+    ...payee('rentPaid', realEstateInput?.rentPaid, 'ANF01160'),
+    ...payee('loanInterestPaid', realEstateInput?.loanInterestPaid, 'ANF01260'),
+    ...payee('professionalFee', realEstateInput?.professionalFeesPaid, 'ANF01330'),
+  ];
 }

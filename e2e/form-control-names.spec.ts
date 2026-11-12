@@ -17,7 +17,7 @@ async function restoreSeed(page: Page): Promise<void> {
     mimeType: 'application/json',
     buffer: Buffer.from(buildFormAuditBackup(readDisclaimerVersion())),
   });
-  await page.getByRole('button', { name: '全データを置換して復元' }).click();
+  await page.getByRole('button', { name: '選んだ項目を置換して復元' }).click();
   await page.getByRole('button', { name: '置換して復元', exact: true }).click();
   await expect(page.getByText('テーブル / ')).toBeVisible();
 }

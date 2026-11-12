@@ -3,6 +3,7 @@ import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   koa220AdditionalExpenseOverflow,
+  koa220DetailOverflow,
   mapKoa220RepeatedValues,
   mapKoa220Values,
 } from './xtx-mapping-koa220';
@@ -306,6 +307,44 @@ describe('mapKoa220RepeatedValues（第2〜3頁の繰り返しブロック）', 
     expect(repeats.ANF00340).toHaveLength(1);
     expect(repeats.ANF00340?.[0]?.ANF00360).toBe('東京都武蔵野市〇〇1-2-3');
     expect(repeats.ANF00340?.[0]?.ANF00500).toBe('1200000');
+  });
+
+  test('物件明細の金額は全角数字・桁区切り・前後の空白を正規化して出力し、元の資産を変更しない', () => {
+    const asset = realEstateAsset({
+      realEstateDetail: {
+        propertyType: '貸家',
+        address: '東京都',
+        annualRent: '１２０００００',
+        keyMoneyEtc: '1,000',
+        otherIncome: '２,０００',
+        depositBalance: ' 3000 ',
+      },
+    });
+    const before = structuredClone(asset);
+    const row = mapKoa220RepeatedValues(ctx({ fixedAssets: [asset] })).ANF00340?.[0];
+    expect(row?.ANF00500).toBe('1200000');
+    expect(row?.ANF00510).toBe('1000');
+    expect(row?.ANF00540).toBe('2000');
+    expect(row?.ANF00550).toBe('3000');
+    expect(asset).toEqual(before);
+  });
+
+  test('明細欄の上限を超えた物件の溢れ金額も全角数字を正規化して返す', () => {
+    const assets = Array.from({ length: 20 }, (_, i) =>
+      realEstateAsset({
+        id: `p${i}`,
+        realEstateDetail: {
+          propertyType: '貸家',
+          address: `物件${i}`,
+          annualRent: '１２０００００',
+        },
+      }),
+    );
+    const overflow = koa220DetailOverflow(ctx({ fixedAssets: assets })).filter(
+      (r) => r.section === 'realEstateProperty',
+    );
+    expect(overflow.length).toBeGreaterThan(0);
+    expect(overflow.every((r) => r.amount === '1200000')).toBe(true);
   });
 
   test('incomeType business の資産は物件明細に含めない', () => {

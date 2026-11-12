@@ -16,6 +16,8 @@ export interface Snapshot {
   // BackupPayload のバージョンを検査できず、IncompatibleBackupError の防壁が効かなくなる。
   payloadVersion: number;
   exportedAt: string;
+  // payload の parts をそのまま運ぶ。中身は復元側（inspectBackupPayload）だけが確かめる。
+  parts?: unknown;
   tables: Record<string, unknown[]>;
   attachments: SnapshotAttachmentRef[];
 }
@@ -28,6 +30,7 @@ export function buildSnapshot(
     format: SNAPSHOT_FORMAT,
     payloadVersion: payload.version,
     exportedAt: payload.exportedAt,
+    ...(Object.hasOwn(payload, 'parts') ? { parts: payload.parts } : {}),
     tables: payload.tables,
     attachments: [...attachments],
   };
@@ -94,10 +97,13 @@ export function parseSnapshot(text: string): Snapshot | null {
   if (!Array.isArray(obj.attachments) || !obj.attachments.every(isValidAttachmentRef)) {
     return null;
   }
+  // parts はここで確かめない。ここで弾くと黙って古いスナップショットへ落ち、証憑の掃除も
+  // 止まる。無いときは parts という欄自体を作らない（旧スナップショットとして扱わせる）。
   return {
     format: obj.format,
     payloadVersion: obj.payloadVersion,
     exportedAt: obj.exportedAt,
+    ...(Object.hasOwn(obj, 'parts') ? { parts: obj.parts } : {}),
     tables: obj.tables as Record<string, unknown[]>,
     attachments: obj.attachments,
   };

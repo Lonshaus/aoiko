@@ -21,7 +21,7 @@ describe('金額欄の入力の読み取り', () => {
     ['5,000', '5000'],
     [' 5000 ', '5000'],
     ['　5000　', '5000'],
-    ['1234.5', '1234.5'],
+    ['1234.0', '1234'],
     ['０', '0'],
   ])('%j は %s として読む', (raw, expected) => {
     expect(parseAmountInput(raw)?.toString()).toBe(expected);
@@ -32,6 +32,15 @@ describe('金額欄の入力の読み取り', () => {
     '%j は金額として読まず、入力の誤りとして扱う',
     (raw) => {
       expect(parseAmountInput(raw)).toBeUndefined();
+      expect(isAmountInputInvalid(raw)).toBe(true);
+    },
+  );
+
+  test.each(['1234.5', '0.5', '1,234.5', '１２３４．５'])(
+    '%j は小数として読めるが、円単位の金額欄では入力の誤りとして扱う',
+    (raw) => {
+      expect(parseAmountInput(raw)).toBeDefined();
+      expect(parseAmountInput(raw)?.isInteger()).toBe(false);
       expect(isAmountInputInvalid(raw)).toBe(true);
     },
   );
@@ -168,6 +177,15 @@ describe('isAmountInputInvalid', () => {
   test('文字列以外は投げずに不正とする', () => {
     expect(isAmountInputInvalid(5000)).toBe(true);
     expect(isAmountInputInvalid({})).toBe(true);
+  });
+
+  test('円単位の欄なので、文字列でも小数部分があれば不正、整数として読めれば正しい', () => {
+    expect(isAmountInputMalformed('100.5')).toBe(false);
+    expect(isAmountInputInvalid('100.5')).toBe(true);
+    expect(amountInputError('100.5')).toBe(m.common_amount_invalid());
+    expect(amountInputError('100000000000000.5')).toBe(m.common_amount_too_large());
+    expect(isAmountInputInvalid('100.0')).toBe(false);
+    expect(amountInputError('100.0')).toBe('');
   });
 });
 

@@ -12,6 +12,7 @@ import { generateDisposalEntry } from './asset-disposal';
 import { findInvalidStoredAmounts } from './stored-value-checks';
 import { m } from '../paraglide/messages';
 import type { FixedAsset } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 function asset(overrides: Partial<FixedAsset> = {}): FixedAsset {
   return {
@@ -54,7 +55,7 @@ async function entriesFor(id: string): Promise<number> {
   return all.filter((e) => e.description.includes(`#${id.slice(0, 8)}`)).length;
 }
 
-const opts = { allowFiledYear: true } as const;
+const opts = { allowedFiledYears: ALL_YEARS } as const;
 
 beforeEach(async () => {
   await db.delete();

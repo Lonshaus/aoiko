@@ -21,11 +21,17 @@
 
 import koa130 from './xtx-schema-koa130.generated.json';
 import { D } from '../../lib/decimal';
-import { toKingaku, type XtxRowOverflowItem } from './xtx-mapping-shared';
+import { normalizeAmountInput } from '../../lib/amount-input';
 import type { XtxSchema } from './xtx-schema';
+import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
-import type { DepreciationMethod, FamilyEmployeeRelation } from '../../db/types';
+import type {
+  DepreciationMethod,
+  FamilyEmployeeRelation,
+  FixedAsset,
+  RealEstatePropertyDetail,
+} from '../../db/types';
 import {
   computeDepreciation,
   lumpSumPoolShares,
@@ -251,26 +257,37 @@ function effectiveMethodLabel(
   }
   return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
 }
-const MAX_PROPERTY_ROWS = 10;
-const MAX_DEPRECIATION_ROWS = 8;
-const MAX_RENT_PAID_ROWS = 2;
-const MAX_LOAN_INTEREST_PAID_ROWS = 2;
-const MAX_PROFESSIONAL_FEE_ROWS = 2;
-
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
   const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
 }
-
-function propertyAssets(ctx: XtxContext) {
-  return ctx.fixedAssets.filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail);
+// 保存値の全角数字は toKingaku が読めず、桁区切りは明細溢れの金額表示（formatJPY）が読めないため、候補にする時点で正規化する
+function normalizeDetailAmounts(d: RealEstatePropertyDetail): RealEstatePropertyDetail {
+  const out: RealEstatePropertyDetail = { ...d, annualRent: normalizeAmountInput(d.annualRent) };
+  if (d.keyMoneyEtc) {
+    out.keyMoneyEtc = normalizeAmountInput(d.keyMoneyEtc);
+  }
+  if (d.otherIncome) {
+    out.otherIncome = normalizeAmountInput(d.otherIncome);
+  }
+  if (d.depositBalance) {
+    out.depositBalance = normalizeAmountInput(d.depositBalance);
+  }
+  return out;
+}
+// 貸付不動産明細の候補。propertyRows（先頭から上限まで）と koa130DetailOverflow
+// （上限を超えた分）が同じ並びを共有する。
+function propertyCandidates(ctx: XtxContext): FixedAsset[] {
+  return ctx.fixedAssets
+    .filter((a) => a.incomeType === 'realEstate' && a.realEstateDetail)
+    .map((a) => ({ ...a, realEstateDetail: normalizeDetailAmounts(a.realEstateDetail!) }));
 }
 
 function propertyRows(ctx: XtxContext): XtxLeafValues[] {
-  return propertyAssets(ctx)
-    .slice(0, MAX_PROPERTY_ROWS)
+  return propertyCandidates(ctx)
+    .slice(0, maxOccursOf(SCHEMA, 'AKH00010'))
     .map((a) => {
       const d = a.realEstateDetail!;
       const row: XtxLeafValues = {};
@@ -305,7 +322,8 @@ function propertyRows(ctx: XtxContext): XtxLeafValues[] {
       return row;
     });
 }
-
+// 減価償却明細の候補。depreciationRows（先頭から上限まで）と koa130DetailOverflow
+// （上限を超えた分）が同じ並びを共有する。
 function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
@@ -324,36 +342,10 @@ function depreciationCandidates(ctx: XtxContext) {
     .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
   return { detailYear, statuses, candidates };
 }
-// 明細欄に入りきらない物件・減価償却資産・支払先・専従者（xtx.ts の xtxRowOverflow 参照）
-export function koa130RowOverflow(ctx: XtxContext): XtxRowOverflowItem[] {
-  const input = ctx.personalDeductions?.realEstateIncome;
-  return [
-    ...propertyAssets(ctx)
-      .slice(MAX_PROPERTY_ROWS)
-      .map((a) => ({ name: a.name, amount: a.realEstateDetail?.annualRent ?? '' })),
-    ...depreciationCandidates(ctx)
-      .candidates.slice(MAX_DEPRECIATION_ROWS)
-      .map(({ asset, result }) => ({ name: asset.name, amount: result.amount })),
-    ...payeeOverflow(input?.rentPaid, MAX_RENT_PAID_ROWS),
-    ...payeeOverflow(input?.loanInterestPaid, MAX_LOAN_INTEREST_PAID_ROWS),
-    ...payeeOverflow(input?.professionalFeesPaid, MAX_PROFESSIONAL_FEE_ROWS),
-    ...realEstateFamilyEmployeeDeductionResult(ctx)
-      .entries.slice(MAX_FAMILY_EMPLOYEE_ROWS)
-      .map((e) => ({ name: e.name, amount: e.amount.toString() })),
-  ];
-}
-
-type PayeeItem = { payeeName?: string; payeeAddress?: string; amount: string };
-
-function payeeOverflow(items: readonly PayeeItem[] | undefined, max: number): XtxRowOverflowItem[] {
-  return (items ?? [])
-    .slice(max)
-    .map((item) => ({ name: item.payeeName || item.payeeAddress || '', amount: item.amount }));
-}
 
 function depreciationRows(ctx: XtxContext): XtxLeafValues[] {
   const { detailYear, statuses, candidates } = depreciationCandidates(ctx);
-  return candidates.slice(0, MAX_DEPRECIATION_ROWS).map(({ asset, result }) => {
+  return candidates.slice(0, maxOccursOf(SCHEMA, 'AKK00010')).map(({ asset, result }) => {
     const row: XtxLeafValues = {};
     const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
     if (name) {
@@ -422,7 +414,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   const realEstateInput = ctx.personalDeductions?.realEstateIncome;
   const rentPaid = payeeRows(
     realEstateInput?.rentPaid,
-    MAX_RENT_PAID_ROWS,
+    maxOccursOf(SCHEMA, 'AKO00000'),
     'AKO00020',
     'AKO00030',
     'AKO00080',
@@ -433,7 +425,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   }
   const loanInterestPaid = payeeRows(
     realEstateInput?.loanInterestPaid,
-    MAX_LOAN_INTEREST_PAID_ROWS,
+    maxOccursOf(SCHEMA, 'AKL00000'),
     'AKL00020',
     'AKL00030',
     'AKL00050',
@@ -449,7 +441,7 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
   }
   const professionalFeesPaid = payeeRows(
     realEstateInput?.professionalFeesPaid,
-    MAX_PROFESSIONAL_FEE_ROWS,
+    maxOccursOf(SCHEMA, 'AKP00000'),
     'AKP00020',
     'AKP00030',
     'AKP00040',
@@ -473,18 +465,20 @@ export function mapKoa130RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
 function sanitizeLine(s: string): string {
   return s.replace(/[\n\r\t]+/g, ' ').trim();
 }
-// AKJ00010 事業専従者明細は公式 xsd で maxOccurs=2。
-const MAX_FAMILY_EMPLOYEE_ROWS = 2;
 const FAMILY_EMPLOYEE_ZOKUGARA_LABEL: Record<FamilyEmployeeRelation, string> = {
   spouse: '配偶者',
   other: '親族',
 };
 
-function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
+function familyEmployeeCandidates(ctx: XtxContext) {
   const employees = realEstateFamilyEmployees(ctx.personalDeductions?.familyEmployees ?? []);
   const ageById = new Map(employees.map((e) => [e.id, e.age]));
-  const deduction = realEstateFamilyEmployeeDeductionResult(ctx);
-  return deduction.entries.slice(0, MAX_FAMILY_EMPLOYEE_ROWS).map((entry) => {
+  return { ageById, entries: realEstateFamilyEmployeeDeductionResult(ctx).entries };
+}
+
+function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
+  const { ageById, entries } = familyEmployeeCandidates(ctx);
+  return entries.slice(0, maxOccursOf(SCHEMA, 'AKJ00010')).map((entry) => {
     const row: XtxLeafValues = {};
     const name = sanitizeLine(entry.name);
     if (name) {
@@ -498,4 +492,45 @@ function mapFamilyEmployeeRows(ctx: XtxContext): XtxLeafValues[] {
     row.AKJ00050 = String(entry.monthsWorked);
     return row;
   });
+}
+// 明細欄（貸付不動産・減価償却・支払先・事業専従者）の上限を超えて .xtx へ出せなかった行。
+// 出力側と同じ候補の並びの、上限より後ろを返す。
+export function koa130DetailOverflow(ctx: XtxContext): XtxDetailOverflowRow[] {
+  const realEstateInput = ctx.personalDeductions?.realEstateIncome;
+  const payee = (
+    section: 'rentPaid' | 'loanInterestPaid' | 'professionalFee',
+    items: { payeeName?: string; amount: string }[] | undefined,
+    tag: string,
+  ): XtxDetailOverflowRow[] =>
+    (items ?? []).slice(maxOccursOf(SCHEMA, tag)).map((item) => ({
+      section,
+      label: (item.payeeName ?? '').trim(),
+      amount: item.amount,
+    }));
+  return [
+    ...propertyCandidates(ctx)
+      .slice(maxOccursOf(SCHEMA, 'AKH00010'))
+      .map((a) => ({
+        section: 'realEstateProperty' as const,
+        label: a.realEstateDetail!.address.trim(),
+        amount: a.realEstateDetail!.annualRent,
+      })),
+    ...depreciationCandidates(ctx)
+      .candidates.slice(maxOccursOf(SCHEMA, 'AKK00010'))
+      .map(({ asset, result }) => ({
+        section: 'depreciation' as const,
+        label: asset.name.trim(),
+        amount: result.amount,
+      })),
+    ...payee('rentPaid', realEstateInput?.rentPaid, 'AKO00000'),
+    ...payee('loanInterestPaid', realEstateInput?.loanInterestPaid, 'AKL00000'),
+    ...payee('professionalFee', realEstateInput?.professionalFeesPaid, 'AKP00000'),
+    ...familyEmployeeCandidates(ctx)
+      .entries.slice(maxOccursOf(SCHEMA, 'AKJ00010'))
+      .map((entry) => ({
+        section: 'familyEmployee' as const,
+        label: sanitizeLine(entry.name),
+        amount: entry.amount.toString(),
+      })),
+  ];
 }

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
-import { D } from '../../lib/decimal';
+import { D, Decimal } from '../../lib/decimal';
 import {
   combinedTotalIncomeAmount,
   mapKoa020LeafValues,
@@ -177,10 +177,10 @@ describe('mapKoa020LeafValues（第一表の直接値）', () => {
         },
       }),
     );
-    const diffTax = Number(out.ABB00670);
-    const saiSashihiki = Number(out.ABB01010);
+    const diffTax = D(out.ABB00670!);
+    const saiSashihiki = D(out.ABB01010!);
     // 再差引所得税額は災害減免額のみ控除（外国税額控除は復興税算定後に控除するため含めない）
-    expect(diffTax - saiSashihiki).toBe(2000);
+    expect(diffTax.minus(saiSashihiki).toString()).toBe('2000');
   });
 
   test('外国税額控除は復興税算定後：ABB01010/01020/01030 に影響せず申告納税額(ABB00720)で控除', () => {
@@ -195,18 +195,21 @@ describe('mapKoa020LeafValues（第一表の直接値）', () => {
         },
       }),
     );
-    const taxAmount = Number(out.ABB00590);
-    const foreignCredit = 10_000;
+    const taxAmount = D(out.ABB00590!);
+    const foreignCredit = D(10_000);
     // ABB01010（再差引）＝税額（外国税額控除は含めない）
-    expect(Number(out.ABB01010)).toBe(taxAmount);
+    expect(D(out.ABB01010!).toString()).toBe(taxAmount.toString());
     // ABB01020（復興税）＝ABB01010×2.1%（1円未満切捨て）
-    expect(Number(out.ABB01020)).toBe(Math.floor(taxAmount * 0.021));
+    expect(D(out.ABB01020!).toString()).toBe(
+      taxAmount.times('0.021').toDecimalPlaces(0, Decimal.ROUND_DOWN).toString(),
+    );
     // ABB01030（合計）＝ABB01010＋ABB01020
-    expect(Number(out.ABB01030)).toBe(Number(out.ABB01010) + Number(out.ABB01020));
+    expect(D(out.ABB01030!).toString()).toBe(D(out.ABB01010!).plus(D(out.ABB01020!)).toString());
     // ABB01040（外国税額控除の欄）は控除額そのものを維持
     expect(out.ABB01040).toBe('10000');
-    // ABB00720（申告納税額）＝ABB01030 − 外国税額控除 − 源泉(0)
-    expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - foreignCredit);
+    // ABB00720（申告納税額）＝ABB01030(1,296,777) − 外国税額控除 − 源泉(0)＝1,296,777 の百円未満切捨て
+    expect(D(out.ABB01030!).minus(foreignCredit).toString()).toBe('1296777');
+    expect(out.ABB00720).toBe('1296700');
   });
 
   test('給与所得：収入金額等(ABB00080)は税引前、所得金額等(ABB00370)は給与所得控除後', () => {
@@ -276,7 +279,160 @@ describe('mapKoa020LeafValues（第一表の直接値）', () => {
       }),
     );
     expect(out.ABB00710).toBe('35000');
-    expect(Number(out.ABB00720)).toBe(Number(out.ABB01030) - 35000);
+    // ABB01030 − 35,000 = 24,728 の百円未満切捨て
+    expect(D(out.ABB01030!).minus(35000).toString()).toBe('24728');
+    expect(out.ABB00720).toBe('24700');
+  });
+
+  test('還付（申告納税額がマイナス）は百円未満も切り捨てない', () => {
+    const out = mapKoa020LeafValues(
+      ctx({
+        pl: { ...plBase, netIncome: '3000000' },
+        aoiroDeductionKind: 'electronic',
+        personalDeductions: {
+          ...emptyPersonalDeductions,
+          otherWithholdingTax: D(100_001),
+        },
+      }),
+    );
+    expect(D(out.ABB00720!).toString()).toBe(D(out.ABB01030!).minus(100_001).toString());
+    expect(D(out.ABB00720!).isNegative()).toBe(true);
+  });
+
+  describe('所得金額調整控除（措法41条の3の11、税務解答 No.1411）', () => {
+    const noBusiness = {
+      year: 2026,
+      revenue: [],
+      expense: [],
+      totalRevenue: '0',
+      totalExpense: '0',
+      netIncome: '0',
+      entryCount: 0,
+    };
+
+    test('①：給与収入900万円・20歳で所得0の扶養親族 → 給与所得から5万円を差し引く', () => {
+      const salaryOnly = {
+        ...emptyPersonalDeductions,
+        salaryIncome: { paidAmount: D(9_000_000), withholdingTax: D(0) },
+      };
+      const out = mapKoa020LeafValues(
+        ctx({
+          pl: noBusiness,
+          aoiroDeductionKind: 'electronic',
+          personalDeductions: {
+            ...salaryOnly,
+            dependents: [{ id: 'd1', age: 20, totalIncome: D(0) }],
+          },
+        }),
+      );
+      // 9,000,000 − 1,950,000(給与所得控除) − 50,000(①)
+      expect(out.ABB00370).toBe('7000000');
+      expect(out.ABB00775).toBe('7000000');
+      // 7,000,000 − (基礎控除62万 + 社会保険料40万 + 扶養控除63万)
+      expect(out.ABB00580).toBe('5350000');
+      const control = mapKoa020LeafValues(
+        ctx({ pl: noBusiness, aoiroDeductionKind: 'electronic', personalDeductions: salaryOnly }),
+      );
+      expect(control.ABB00370).toBe('7050000');
+    });
+
+    test('②：給与収入100万円＋公的年金等30万円 → 給与所得から10万円を差し引く', () => {
+      const out = mapKoa020LeafValues(
+        ctx({
+          pl: { ...plBase, netIncome: '3000000' },
+          aoiroDeductionKind: 'electronic',
+          personalDeductions: {
+            ...emptyPersonalDeductions,
+            salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(0) },
+            miscIncome: { publicPensionAmount: D(300_000) },
+          },
+        }),
+      );
+      // 1,000,000 − 740,000 − 100,000(②)
+      expect(out.ABB00370).toBe('160000');
+      expect(out.ABB01060).toBe('300000');
+      // 事業所得 2,350,000 + 所得金額調整控除②を引く前の給与所得 260,000（所基通35-8）
+      expect(out.ABB00775).toBe('2610000');
+      // 2,810,000 − (基礎控除104万 + 社会保険料40万)
+      expect(out.ABB00580).toBe('1370000');
+    });
+
+    describe('公的年金等を収入金額から計算する方式', () => {
+      const computed = (
+        revenue: number,
+        age65: boolean,
+        salary?: number,
+        pl: PLReport = noBusiness,
+      ) =>
+        mapKoa020LeafValues(
+          ctx({
+            pl,
+            aoiroDeductionKind: 'electronic',
+            personalDeductions: {
+              ...emptyPersonalDeductions,
+              ...(salary !== undefined
+                ? { salaryIncome: { paidAmount: D(salary), withholdingTax: D(0) } }
+                : {}),
+              miscIncome: {
+                publicPensionRevenue: D(revenue),
+                publicPensionAge65OrOver: age65,
+              },
+            },
+          }),
+        );
+
+      test('収入(ABB00100)・計算結果(ABB01060)・公的年金等以外の合計所得金額(ABB00775)を出力する', () => {
+        const out = computed(2_000_000, false);
+        expect(out.ABB00100).toBe('2000000');
+        expect(out.ABB01060).toBe('1225000');
+        expect(out.ABB00775).toBe('0');
+      });
+
+      test('公的年金等以外の合計所得金額が1,000万円超なら公的年金等控除額が10万円減る', () => {
+        const out = computed(2_000_000, false, undefined, {
+          ...noBusiness,
+          totalRevenue: '12000000',
+          netIncome: '12000000',
+        });
+        expect(D(out.ABB00775!).greaterThan(10_000_000)).toBe(true);
+        expect(out.ABB01060).toBe('1325000');
+      });
+
+      test('収入が0円なら ABB00100・ABB01060 を出力しない', () => {
+        const out = computed(0, true);
+        expect(out.ABB00100).toBeUndefined();
+        expect(out.ABB01060).toBeUndefined();
+      });
+
+      test('合計所得金額に年金所得が入り、②にも使われる（ABB00370・ABB00580）', () => {
+        const out = computed(3_000_000, true, 1_000_000);
+        expect(out.ABB00100).toBe('3000000');
+        expect(out.ABB01060).toBe('1900000');
+        // 260,000 − ②(min(260,000, 10万) + min(1,900,000, 10万) − 10万 = 100,000)
+        expect(out.ABB00370).toBe('160000');
+        expect(out.ABB00775).toBe('260000');
+        // 合計所得 160,000 + 1,900,000 = 2,060,000 − (基礎控除104万 + 社会保険料40万)
+        expect(out.ABB00580).toBe('620000');
+      });
+    });
+
+    test('納税者の所得が1,000万円超でも、所得0の特別障害者の配偶者は障害者控除と①の対象', () => {
+      const out = mapKoa020LeafValues(
+        ctx({
+          pl: noBusiness,
+          aoiroDeductionKind: 'electronic',
+          personalDeductions: {
+            ...emptyPersonalDeductions,
+            salaryIncome: { paidAmount: D(13_000_000), withholdingTax: D(0) },
+            spouse: { totalIncome: D(0), age: 40, disability: 'special' },
+          },
+        }),
+      );
+      // 13,000,000 − 1,950,000 − 150,000(①は収入1,000万円で頭打ち)
+      expect(out.ABB00370).toBe('10900000');
+      expect(out.ABB00520).toBe('0');
+      expect(out.ABB00510).toBe('400000');
+    });
   });
 
   test('給与所得・雑所得は合計所得金額（基礎控除の区分判定）にも加算される', () => {

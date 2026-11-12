@@ -34,7 +34,7 @@ function restoreInput(): HTMLInputElement {
 
 function applyButton(): HTMLButtonElement | undefined {
   return [...container!.querySelectorAll('button')].find((b) =>
-    (b.textContent ?? '').includes('全データを置換して復元'),
+    (b.textContent ?? '').includes('選んだ項目を置換して復元'),
   );
 }
 

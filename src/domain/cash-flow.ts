@@ -2,7 +2,7 @@ import { db } from '../db/db';
 import { D, type Decimal, toAmountString } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { isValidIsoDate } from '../lib/date';
-import { parseAmountInput, readStoredAmount } from '../lib/amount-input';
+import { normalizeAmountInput, parseAmountInput, readStoredAmount } from '../lib/amount-input';
 import type { ArApEntry, ArApType } from '../db/types';
 import { m } from '../paraglide/messages';
 // 復元された補助簿は金額を検査していないため、読めない行は undefined を返し表全体を巻き込まない
@@ -46,12 +46,17 @@ export class InvalidPaymentAmountError extends Error {
     this.name = 'InvalidPaymentAmountError';
   }
 }
+// 請求書の単価に小数があると残高にも小数が出るため、小数の金額は残高ちょうどの消込のときだけ認める
+export function isPaymentAmountInvalid(raw: string, entry: ArApEntry): boolean {
+  const paid = parseAmountInput(raw);
+  const remaining = remainingBalance(entry);
+  if (paid === undefined || remaining === undefined) {
+    return true;
+  }
+  return !paid.isInteger() && !paid.equals(remaining);
+}
 
 export async function recordPayment(id: string, amount: string): Promise<void> {
-  const paid = parseAmountInput(amount);
-  if (paid === undefined) {
-    throw new InvalidPaymentAmountError();
-  }
   const entry = await db.arApEntries.get(id);
   if (!entry) {
     throw new Error(m.error_receivable_not_found());
@@ -61,6 +66,10 @@ export async function recordPayment(id: string, amount: string): Promise<void> {
   if (original === undefined || alreadyPaid === undefined) {
     throw new Error(m.error_arap_amount_unreadable({ description: entry.description }));
   }
+  if (isPaymentAmountInvalid(amount, entry)) {
+    throw new InvalidPaymentAmountError();
+  }
+  const paid = D(normalizeAmountInput(amount));
   if (paid.gte('1e14')) {
     throw new Error(m.common_amount_too_large());
   }

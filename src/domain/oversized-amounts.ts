@@ -1,13 +1,11 @@
 import { db } from '../db/db';
-import { D, type Decimal } from '../lib/decimal';
-import { readStoredAmount } from '../lib/amount-input';
+import { parseStoredDecimal, readStoredAmount } from '../lib/amount-input';
 import { countsTowardTotals } from './journal';
 import type { JournalEntry, JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 
 const LIST_LIMIT = 20;
 const ECHO_LIMIT = 40;
-const MAX_NON_PLAIN_LENGTH = 64;
 
 export interface FoundAmount {
   kind: 'line' | 'asset';
@@ -27,19 +25,8 @@ export interface FoundAmounts {
 type AmountProblem = 'unreadable' | 'too-large' | undefined;
 
 function lineAmountProblem(amount: unknown, includeLarge: boolean): AmountProblem {
-  if (typeof amount !== 'string') {
-    return 'unreadable';
-  }
-  if (!/^\d+(\.\d+)?$/.test(amount) && amount.length > MAX_NON_PLAIN_LENGTH) {
-    return 'unreadable';
-  }
-  let d: Decimal;
-  try {
-    d = D(amount);
-  } catch {
-    return 'unreadable';
-  }
-  if (!d.isFinite() || !(d.e >= -1000 && d.e <= 1000)) {
+  const d = parseStoredDecimal(amount, { allowNegative: true });
+  if (d === undefined) {
     return 'unreadable';
   }
   return includeLarge && d.abs().gte('1e14') ? 'too-large' : undefined;
@@ -93,15 +80,25 @@ function limited(found: FoundAmount[]): FoundAmounts {
   return { items: found.slice(0, LIST_LIMIT), total: found.length };
 }
 // 集計に入る仕訳（訂正で打ち消したものは除く）の 1e14 以上・読めない明細と、取得価額が 1e14 以上の固定資産。
-// year を渡すとその年度の仕訳だけを見る。値が壊れていても投げない
-export async function findOversizedAmounts(options: { year?: number } = {}): Promise<FoundAmounts> {
-  const all =
-    options.year === undefined
-      ? await db.journalEntries.toArray()
-      : await db.journalEntries.where('year').equals(options.year).toArray();
-  const entries = all.filter(countsTowardTotals);
+// year を渡すとその年度の仕訳だけを見る。data を渡すと仕訳と明細は読み直さず、それを見る（報告画面が読み込み済みの年度データ）。
+// 値が壊れていても投げない
+export async function findOversizedAmounts(
+  options: {
+    year?: number;
+    data?: { entries: readonly JournalEntry[]; lines: readonly JournalLine[] };
+  } = {},
+): Promise<FoundAmounts> {
   const found: FoundAmount[] = [];
-  scanLines(entries, await loadLines(entries), true, found);
+  if (options.data !== undefined) {
+    scanLines(options.data.entries.filter(countsTowardTotals), options.data.lines, true, found);
+  } else {
+    const all =
+      options.year === undefined
+        ? await db.journalEntries.toArray()
+        : await db.journalEntries.where('year').equals(options.year).toArray();
+    const entries = all.filter(countsTowardTotals);
+    scanLines(entries, await loadLines(entries), true, found);
+  }
   for (const asset of await db.fixedAssets.toArray()) {
     const cost = readStoredAmount(asset.acquisitionCost);
     if (cost !== undefined && cost.abs().gte('1e14')) {
@@ -115,11 +112,16 @@ export async function findOversizedAmounts(options: { year?: number } = {}): Pro
   }
   return limited(found);
 }
-// 訂正履歴 CSV は打ち消し済みの原仕訳を出力する。1e14 以上は toFixed(0) で出せるので止めず、読めない明細だけを返す
-export async function findUnreadableReversedAmounts(year: number): Promise<FoundAmounts> {
-  const entries = (await db.journalEntries.where('year').equals(year).toArray()).filter(
-    (e) => e.status === 'reversed',
-  );
+// 訂正履歴 CSV は打ち消し済みの原仕訳を出力する。1e14 以上は toFixed(0) で出せるので止めず、読めない明細だけを返す。
+// extra はその年度の CSV に併せて載せる、年度が範囲外の原仕訳
+export async function findUnreadableReversedAmounts(
+  year: number,
+  extra: readonly JournalEntry[] = [],
+): Promise<FoundAmounts> {
+  const entries = [
+    ...(await db.journalEntries.where('year').equals(year).toArray()),
+    ...extra,
+  ].filter((e) => e.status === 'reversed');
   const found: FoundAmount[] = [];
   scanLines(entries, await loadLines(entries), false, found);
   return limited(found);

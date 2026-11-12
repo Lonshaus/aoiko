@@ -6,7 +6,7 @@
 // 仕訳分類：
 //   売上税額 = revenue category、taxRate > 0。貸方がプラス、借方（売上値引・返品）はマイナス
 //   仕入税額 = expense category（借方プラス / 貸方＝返金はマイナス）
-//            + asset category の借方側（事業主貸 1610 を除外）、taxRate > 0
+//            + asset category の借方側（事業主貸 1610・現金預金と金銭債権の科目を除外）、taxRate > 0
 //
 // 各 ConsumptionTaxResult は 2 系統の数値を持つ：
 //   円単位（outputTax/inputTax/netTax 等）：方式比較用の概算。円未満切捨てのみ
@@ -14,13 +14,19 @@
 //     千円未満切捨て・税額は1円未満切捨て・差引/地方税額は百円未満切捨て）を模した
 //     「申告書相当額」。ただし付表 2-3 等の正式な申告書そのものは生成しない。
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { D, Decimal } from '../lib/decimal';
 import { countsTowardTotals, readTransferConsideration } from './journal';
+import { usesLegacyPurchaseAssetRule } from './snapshots';
+import type { YearData } from './reports';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
 import { deemedInputRate, type SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { Account, JournalLine, TaxFilingMethod } from '../db/types';
 
 const OWNER_WITHDRAW_CODE = '1610'; // 事業主貸
+// 支払手段・金銭債権の譲受けは相手方で非課税（消法別表第二第二号・消令9条1項4号）のため
+// 課税仕入れにならない（消法2条1項12号）。収集用の貨幣、ゴルフ会員権の預託金など課税になるものは別の科目で記帳する
+const NON_PURCHASE_ASSET_CODES = new Set(['1110', '1120', '1130', '1140', '1310', '1320', '1420']);
 // 国税分の率（消費税法第 29 条・第 72 条）
 // 10% 標準：国税 7.8% + 地方 2.2%（地方は国税 × 22/78）
 // 8% 軽減：国税 6.24% + 地方 1.76%（地方は国税 × 22/78）
@@ -239,6 +245,7 @@ export interface SmallAmountSpecialInputs {
 
 export interface ProcessYearOptions {
   smallAmountSpecial?: SmallAmountSpecialInputs;
+  yearData?: YearData;
 }
 // 附則53条の2：五年施行日から6年を経過する日まで
 const SMALL_AMOUNT_SPECIAL_START = '2023-10-01';
@@ -270,7 +277,19 @@ export function taxInclusiveAmount(line: JournalLine): Decimal {
   const amount = D(line.amount);
   return line.taxIncluded ? amount : amount.times(1 + line.taxRate);
 }
-export function isNonInvoicePurchaseLine(line: JournalLine, acc: Account): boolean {
+// 仕入：expense は両建てネット（貸方＝返金は仕入対価の返還）、
+// asset は借方側のみ（事業主貸・現金預金・金銭債権を除外。貸方側は通常は決済行や資産譲渡で、仕入控除の対象外）。
+// legacy は除外を入れる前に申告した年分用で、現金預金・金銭債権も含める
+export function countsAsPurchaseInput(line: JournalLine, acc: Account, legacy = false): boolean {
+  return (
+    acc.category === 'expense' ||
+    (acc.category === 'asset' &&
+      line.side === 'debit' &&
+      acc.code !== OWNER_WITHDRAW_CODE &&
+      (legacy || !NON_PURCHASE_ASSET_CODES.has(acc.code)))
+  );
+}
+export function isNonInvoicePurchaseLine(line: JournalLine, acc: Account, legacy = false): boolean {
   if (line.taxableTransferConsideration !== undefined) {
     return false;
   }
@@ -290,9 +309,7 @@ export function isNonInvoicePurchaseLine(line: JournalLine, acc: Account): boole
   if (line.side !== 'debit') {
     return false;
   }
-  return (
-    acc.category === 'expense' || (acc.category === 'asset' && acc.code !== OWNER_WITHDRAW_CODE)
-  );
+  return countsAsPurchaseInput(line, acc, legacy);
 }
 
 export interface TransitionalCapItem {
@@ -344,10 +361,11 @@ export function classifyNonInvoicePurchases(
   lines: readonly JournalLine[],
   accountMap: ReadonlyMap<string, Account>,
   smallAmountSpecial: SmallAmountSpecialInputs = {},
+  legacy = false,
 ): NonInvoicePurchaseClassification {
   const candidates = lines.filter((line) => {
     const acc = accountMap.get(line.accountCode);
-    return acc !== undefined && isNonInvoicePurchaseLine(line, acc);
+    return acc !== undefined && isNonInvoicePurchaseLine(line, acc, legacy);
   });
   const smallAmountLineIds = new Set<string>();
   if (isSmallAmountSpecialPeriod(smallAmountSpecial)) {
@@ -392,25 +410,31 @@ export async function processYear(
   period?: ConsumptionTaxPeriod,
   options: ProcessYearOptions = {},
 ): Promise<ProcessedYearLines> {
+  // 申告済みの年分は申告時の仕入判定を保つ。reportSnapshots を読むため、トランザクションの中で呼ぶときはこの表を含めること
+  const legacy = await usesLegacyPurchaseAssetRule(year);
   // 控除上限は年単位の累計なので、期間集計でも年間の仕訳から判定する
-  const yearEntries = await db.journalEntries
-    .where('year')
-    .equals(year)
-    .filter((e) => countsTowardTotals(e))
-    .toArray();
+  const yearEntries =
+    options.yearData?.entries ??
+    (await db.journalEntries
+      .where('year')
+      .equals(year)
+      .filter((e) => countsTowardTotals(e))
+      .toArray());
   const entries = period
     ? yearEntries.filter((e) => e.date >= period.start && e.date <= period.end)
     : yearEntries;
   if (entries.length === 0) {
     return emptyProcessedYearLines();
   }
-  const yearLines = await db.journalLines
-    .where('entryId')
-    .anyOf(yearEntries.map((e) => e.id))
-    .toArray();
+  const yearLines =
+    options.yearData?.lines ??
+    (await db.journalLines
+      .where('entryId')
+      .anyOf(yearEntries.map((e) => e.id))
+      .toArray());
   const inPeriod = new Set(entries.map((e) => e.id));
   const lines = yearLines.filter((l) => inPeriod.has(l.entryId));
-  const accounts = await db.accounts.where('year').equals(year).toArray();
+  const accounts = options.yearData?.accounts ?? (await loadAccountsForYear(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryDateMap = new Map(yearEntries.map((e) => [e.id, e.date]));
   const entryById = new Map(yearEntries.map((e) => [e.id, e]));
@@ -420,6 +444,7 @@ export async function processYear(
     yearLines,
     accountMap,
     options.smallAmountSpecial,
+    legacy,
   );
 
   const acc0 = emptyProcessedYearLines();
@@ -578,12 +603,7 @@ export async function processYear(
     if (line.taxRate === 0) {
       continue;
     }
-    // 仕入：expense は両建てネット（貸方＝返金は仕入対価の返還）、
-    // asset は借方側のみ（事業主貸を除外。貸方側は通常は決済行や資産譲渡で、仕入控除の対象外）
-    const isInput =
-      acc.category === 'expense' ||
-      (acc.category === 'asset' && line.side === 'debit' && acc.code !== OWNER_WITHDRAW_CODE);
-    if (isInput) {
+    if (countsAsPurchaseInput(line, acc, legacy)) {
       const national = nationalPortion(D(line.amount), line.taxRate, line.taxIncluded);
       const signed = line.side === 'debit' ? national : national.negated();
       inputRaw = inputRaw.plus(signed);
@@ -920,8 +940,9 @@ export async function computeSimplified(
   year: number,
   category: SimplifiedTaxCategory,
   period?: ConsumptionTaxPeriod,
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  const processed = await processYear(year, period);
+  const processed = await processYear(year, period, yearData ? { yearData } : {});
   const {
     output,
     inputRaw,
@@ -1042,9 +1063,10 @@ async function computeWariException(
   inputDeductionRate: string,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
   const netRate = D(1).minus(inputDeductionRate);
-  const processed = await processYear(year, period);
+  const processed = await processYear(year, period, yearData ? { yearData } : {});
   const { output, inputRaw, taxableBase10, taxableBase8 } = processed;
   const { tax: badDebtTax, recovery: badDebtRecovery } = badDebtTotals(processed);
   const salesReturnTax = combinedSalesReturnTax(adjustments);
@@ -1086,15 +1108,17 @@ export function computeTwoWari(
   year: number,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'two-wari', '0.8', period, adjustments);
+  return computeWariException(year, 'two-wari', '0.8', period, adjustments, yearData);
 }
 export function computeThreeWari(
   year: number,
   period?: ConsumptionTaxPeriod,
   adjustments: WariBaseAdjustments = {},
+  yearData?: YearData,
 ): Promise<ConsumptionTaxResult> {
-  return computeWariException(year, 'three-wari', '0.7', period, adjustments);
+  return computeWariException(year, 'three-wari', '0.7', period, adjustments, yearData);
 }
 // 未設定の項目は除外事由なしとして扱う（公開済みの利用者を入力欠落で不適用にしない）
 export interface WariEligibilityInputs {
@@ -1211,6 +1235,9 @@ export interface CompareAllOptions {
   simplifiedElectionFiledDate?: string;
   priorYearMethod?: TaxFilingMethod;
   wariAdjustments?: WariBaseAdjustments;
+  yearData?: YearData;
+  // 取引の中で同時に年度全体を読むと互いに遅くなるため、申告時は 1 方式ずつ計算する
+  sequential?: boolean;
 }
 // 適用できない方式は提示しない（誤選択させない）。簡易課税は届出日が未入力なら従来どおり常に含める
 export async function compareAll(
@@ -1220,13 +1247,12 @@ export async function compareAll(
   options: CompareAllOptions = {},
 ): Promise<ConsumptionTaxResult[]> {
   const eligibility = options.eligibility ?? {};
-  const tasks: Promise<ConsumptionTaxResult>[] = [
-    computeGeneral(
-      year,
-      attributionMethod,
-      undefined,
-      options.smallAmountSpecial ? { smallAmountSpecial: options.smallAmountSpecial } : {},
-    ),
+  const tasks: (() => Promise<ConsumptionTaxResult>)[] = [
+    () =>
+      computeGeneral(year, attributionMethod, undefined, {
+        ...(options.smallAmountSpecial ? { smallAmountSpecial: options.smallAmountSpecial } : {}),
+        ...(options.yearData ? { yearData: options.yearData } : {}),
+      }),
   ];
   if (
     options.simplifiedElectionFiledDate === undefined ||
@@ -1236,13 +1262,24 @@ export async function compareAll(
       options.priorYearMethod,
     )
   ) {
-    tasks.push(computeSimplified(year, simplifiedCategory));
+    tasks.push(() => computeSimplified(year, simplifiedCategory, undefined, options.yearData));
   }
   if (isTwoWariEligibleYear(year, eligibility)) {
-    tasks.push(computeTwoWari(year, undefined, options.wariAdjustments ?? {}));
+    tasks.push(() =>
+      computeTwoWari(year, undefined, options.wariAdjustments ?? {}, options.yearData),
+    );
   }
   if (isThreeWariEligibleYear(year, eligibility)) {
-    tasks.push(computeThreeWari(year, undefined, options.wariAdjustments ?? {}));
+    tasks.push(() =>
+      computeThreeWari(year, undefined, options.wariAdjustments ?? {}, options.yearData),
+    );
   }
-  return Promise.all(tasks);
+  if (!options.sequential) {
+    return Promise.all(tasks.map((task) => task()));
+  }
+  const results: ConsumptionTaxResult[] = [];
+  for (const task of tasks) {
+    results.push(await task());
+  }
+  return results;
 }

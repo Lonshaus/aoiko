@@ -43,7 +43,7 @@ export class DuplicateImportError extends Error {
 export async function commitImport(
   info: ImportBatchInfo,
   rows: ImportRow[],
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ batchId: string; entryCount: number }> {
   const existing = await db.importBatches.where('fileHash').equals(info.fileHash).first();
   if (existing) {
@@ -66,62 +66,66 @@ export async function commitImport(
   const batchId = newId();
   const now = Date.now();
 
-  await db.transaction('rw', [db.journalEntries, db.journalLines, db.importBatches], async () => {
-    markConfirmedWrite(options);
-    await db.importBatches.add({
-      id: batchId,
-      parserName: info.parserName,
-      fileName: info.fileName,
-      fileHash: info.fileHash,
-      importedAt: now,
-      rowCount: validRows.length,
-    });
-
-    for (const row of validRows) {
-      const tx = row.transaction;
-      const entryId = newId();
-
-      await db.journalEntries.add({
-        id: entryId,
-        date: tx.date,
-        year: Number(tx.date.slice(0, 4)),
-        description:
-          row.description && row.description.length > 0 ? row.description : tx.description,
-        status: 'confirmed',
-        source: 'csv',
-        sourceImportId: batchId,
-        createdAt: now,
-        confirmedAt: now,
+  await db.transaction(
+    'rw',
+    [db.journalEntries, db.journalLines, db.importBatches, db.reportSnapshots],
+    async () => {
+      markConfirmedWrite(options);
+      await db.importBatches.add({
+        id: batchId,
+        parserName: info.parserName,
+        fileName: info.fileName,
+        fileHash: info.fileHash,
+        importedAt: now,
+        rowCount: validRows.length,
       });
 
-      const knownLine: JournalLine = {
-        id: newId(),
-        entryId,
-        side: tx.side,
-        accountCode: info.knownAccountCode,
-        ...(info.knownSubAccountId ? { subAccountId: info.knownSubAccountId } : {}),
-        amount: tx.amount,
-        amountIndexed: toIndexable(tx.amount),
-        taxRate: 0,
-        taxIncluded: true,
-        invoiceCompliant: false,
-      };
-      const counterpartLine: JournalLine = {
-        id: newId(),
-        entryId,
-        side: tx.side === 'debit' ? 'credit' : 'debit',
-        accountCode: row.counterpartAccountCode,
-        ...(row.counterpartSubAccountId ? { subAccountId: row.counterpartSubAccountId } : {}),
-        amount: tx.amount,
-        amountIndexed: toIndexable(tx.amount),
-        taxRate: row.counterpartTaxRate ?? 0,
-        taxIncluded: true,
-        invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
-      };
+      for (const row of validRows) {
+        const tx = row.transaction;
+        const entryId = newId();
 
-      await db.journalLines.bulkAdd([knownLine, counterpartLine]);
-    }
-  });
+        await db.journalEntries.add({
+          id: entryId,
+          date: tx.date,
+          year: Number(tx.date.slice(0, 4)),
+          description:
+            row.description && row.description.length > 0 ? row.description : tx.description,
+          status: 'confirmed',
+          source: 'csv',
+          sourceImportId: batchId,
+          createdAt: now,
+          confirmedAt: now,
+        });
+
+        const knownLine: JournalLine = {
+          id: newId(),
+          entryId,
+          side: tx.side,
+          accountCode: info.knownAccountCode,
+          ...(info.knownSubAccountId ? { subAccountId: info.knownSubAccountId } : {}),
+          amount: tx.amount,
+          amountIndexed: toIndexable(tx.amount),
+          taxRate: 0,
+          taxIncluded: true,
+          invoiceCompliant: false,
+        };
+        const counterpartLine: JournalLine = {
+          id: newId(),
+          entryId,
+          side: tx.side === 'debit' ? 'credit' : 'debit',
+          accountCode: row.counterpartAccountCode,
+          ...(row.counterpartSubAccountId ? { subAccountId: row.counterpartSubAccountId } : {}),
+          amount: tx.amount,
+          amountIndexed: toIndexable(tx.amount),
+          taxRate: row.counterpartTaxRate ?? 0,
+          taxIncluded: true,
+          invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
+        };
+
+        await db.journalLines.bulkAdd([knownLine, counterpartLine]);
+      }
+    },
+  );
 
   return { batchId, entryCount: validRows.length };
 }

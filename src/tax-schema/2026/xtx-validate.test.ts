@@ -296,6 +296,75 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
     expect(r.status, out).toBe(0);
   });
 
+  maybe('KOA020 実 mapping 経路（年金を収入から計算、ABB00100 含む）が公式 xsd に適合する', () => {
+    const pl: PLReport = {
+      year: 2026,
+      revenue: [],
+      expense: [],
+      totalRevenue: '0',
+      totalExpense: '0',
+      netIncome: '0',
+      entryCount: 0,
+    };
+    const ctx = {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl,
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: { riyoshaId: '', name: '', zip: '', address: '', zeimushoCode: '', zeimushoName: '' },
+      filingType: 'blue' as const,
+      aoiroDeductionKind: 'electronic' as const,
+      fixedAssets: [],
+      personalDeductions: {
+        socialInsurancePaid: D(400_000),
+        smallBusinessMutualAidPaid: D(0),
+        lifeInsurance: {},
+        earthquakeInsurancePaid: D(0),
+        oldLongTermInsurancePaid: D(0),
+        medicalExpensePaid: D(0),
+        medicalInsuranceReimbursement: D(0),
+        donationAmount: D(0),
+        casualtyLossDeduction: D(0),
+        isDisabled: false,
+        isSpecialDisabled: false,
+        isSingleParent: false,
+        isWidow: false,
+        isWorkingStudent: false,
+        dependents: [],
+        salaryIncome: { paidAmount: D(1_000_000), withholdingTax: D(0) },
+        miscIncome: { publicPensionRevenue: D(3_000_000), publicPensionAge65OrOver: true },
+      },
+    };
+    const leafValues = mapKoa020LeafValues(ctx);
+    expect(leafValues.ABB00100).toBe('3000000');
+    expect(leafValues.ABB01060).toBe('1900000');
+    const frag = buildFormFragment(
+      koa020 as XtxSchema,
+      mapKoa020Values(ctx),
+      { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+      leafValues,
+    );
+    const doc =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+    const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA020.xsd'), doc);
+    const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+    expect(out).not.toContain('Schemas parser error');
+    expect(r.status, out).toBe(0);
+  });
+
   maybe(
     'KOA210 実 mapping 経路（PL/BS/月別、貸倒引当金・追加科目含む）が公式 xsd に適合する',
     () => {

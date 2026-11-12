@@ -9,6 +9,7 @@ import { generateOpeningEntries, removeOpeningEntries } from '../domain/business
 import { filedYearGuard } from '../lib/filed-year-guard.svelte';
 import { m } from '../paraglide/messages';
 import type { ReportSnapshotData } from '../db/types';
+const ALL_YEARS = Array.from({ length: 80 }, (_, i) => 2020 + i);
 
 const { default: OpeningSetup } = await import('./OpeningSetup.svelte');
 
@@ -109,7 +110,7 @@ async function seedOpening(start: string, withAsset = false): Promise<void> {
         : [],
       customItems: [],
     },
-    { allowFiledYear: true },
+    { allowedFiledYears: ALL_YEARS },
   );
 }
 
@@ -331,7 +332,7 @@ describe('B 類：作り直しの回帰', () => {
     await waitFor(() => buttonByText(container!, m.opening_redo_button()) !== undefined);
     await clickRedoConfirm();
     await waitFor(() => filedYearGuard.pending !== null);
-    await removeOpeningEntries(2026, { allowFiledYear: true });
+    await removeOpeningEntries(2026, { allowedFiledYears: ALL_YEARS });
     await filedYearGuard.resolve(true);
     await waitFor(
       async () => text().includes(m.opening_done_message()) || filedYearGuard.pending !== null,

@@ -39,7 +39,10 @@ beforeEach(async () => {
   await db.accounts.bulkAdd([acc('5130', 2026, '水道光熱費'), acc('5140', 2027, '通信費')]);
   // 各テストの1回目の switchYear が確実に再購読するよう、対象と異なる年度を基準に置く
   ledger.switchYear(1900);
-  await waitFor(() => ledger.accounts.length === 0, '初期化');
+  await waitFor(
+    () => ledger.currentYear === 1900 && ledger.accounts.every((a) => a.year === 1900),
+    '初期化',
+  );
 });
 
 afterEach(async () => {
@@ -149,6 +152,23 @@ describe('computeRecentRows の年度フィルタ', () => {
       '2026 の仕訳が反映される',
     );
     expect(ledger.recentLedgerRows.some((r) => r.entry.id === 'e2027')).toBe(false);
+  });
+});
+
+describe('departments', () => {
+  test('空白だけの部門は候補に含めない', async () => {
+    const withDepartment = (id: string, department: string): JournalEntry => ({
+      ...entry(id, 2026, '2026-04-01'),
+      department,
+    });
+    await db.journalEntries.bulkAdd([
+      withDepartment('d1', '  '),
+      withDepartment('d2', '\u3000'),
+      withDepartment('d3', ''),
+      withDepartment('d4', '営業'),
+    ]);
+    await waitFor(() => ledger.departments.includes('営業'), '部門の反映');
+    expect(ledger.departments).toEqual(['営業']);
   });
 });
 

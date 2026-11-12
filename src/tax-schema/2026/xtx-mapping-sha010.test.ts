@@ -230,7 +230,7 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.shb017.DSF00030).toBe('416666');
     expect(result.shb017.DSF00040).toBe('516666');
     expect(result.shb017.DSF00040).toBe(
-      (Number(result.shb017.DSF00020) + Number(result.shb017.DSF00030)).toString(),
+      D(result.shb017.DSF00020!).plus(D(result.shb017.DSF00030!)).toString(),
     );
     // 申告書④ 控除対象仕入税額・控除税額小計（貸倒れ税額0）も同じ値
     expect(result.sha010.AAJ00050).toBe('516666');

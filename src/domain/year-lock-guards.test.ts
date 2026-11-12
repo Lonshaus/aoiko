@@ -128,10 +128,10 @@ describe('未申告年度と、確認を通った呼出は通す', () => {
     });
   });
 
-  test('allowFiledYear を明示した呼出は通す', async () => {
+  test('allowedFiledYears に申告済みの年度を明示した呼出は通す', async () => {
     const date = `${LOCKED}-05-01`;
     await expect(
-      commitImport(importInfo(date), [importRow(date)], { allowFiledYear: true }),
+      commitImport(importInfo(date), [importRow(date)], { allowedFiledYears: [LOCKED] }),
     ).resolves.toMatchObject({ entryCount: 1 });
     expect(await db.journalEntries.count()).toBe(1);
   });

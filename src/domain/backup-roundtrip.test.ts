@@ -49,7 +49,7 @@ describe('実際の書き込み関数で作った仕訳はバックアップか�
     await expectPayloadRestorable();
   });
 
-  test('売却価格に多桁の小数を含む資産の売却', async () => {
+  test('売却価格が整数の資産の売却', async () => {
     await db.fixedAssets.add({
       id: newId(),
       name: '売却する機械',
@@ -60,7 +60,7 @@ describe('実際の書き込み関数で作った仕訳はバックアップか�
       accountCode: '1510',
       disposedDate: '2026-06-30',
       disposalType: 'sale',
-      salePrice: '123456.0000000001',
+      salePrice: '123456',
     });
     await generateYearEndDepreciation(2026);
     const [asset] = await db.fixedAssets.toArray();
