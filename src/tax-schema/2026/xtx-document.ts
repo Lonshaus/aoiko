@@ -22,6 +22,7 @@
 import type { XtxSchema } from './xtx-schema';
 import { todayISO } from '../../lib/date';
 import { m } from '../../paraglide/messages';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 /** 定義名（例 NENBUN, ZEIMUSHO）→ 値文字列。Sub C/D の mapping が生成する */
 export type XtxValues = Record<string, string>;
 // 申告者情報（IT部の定義側の必須・任意項目）。複合型（ZEIMUSHO・NOZEISHA_ZIP）を
@@ -526,7 +527,38 @@ export interface XtxFormInput {
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
 // 様式で共通）。各様式の参照側を順に出力し、CATALOG・送信票を付してエンベロープする。
+const KINGAKU_PATTERN = /^-?\d{1,15}$/;
+// 各様式の toKingaku を通らずに入った値も、gen:kingaku（15 桁までの整数）でなければ出力しない
+function assertKingakuValues(forms: readonly XtxFormInput[]): void {
+  for (const f of forms) {
+    const repeatEntries = Object.values(f.repeats ?? {}).flat();
+    for (const node of f.schema.refTree) {
+      if (node.kind !== 'leaf' || node.idref || node.refType !== 'gen:kingaku') {
+        continue;
+      }
+      for (const values of [f.leafValues ?? {}, ...repeatEntries]) {
+        const v = values[node.tag];
+        if (v !== undefined && v !== '' && !KINGAKU_PATTERN.test(v)) {
+          throw new XtxAmountOutOfRangeError(node.tag);
+        }
+      }
+    }
+    for (const def of f.schema.definitions) {
+      const v = f.values[def.name];
+      if (
+        def.baseType === 'gen:kingaku' &&
+        v !== undefined &&
+        v !== '' &&
+        !KINGAKU_PATTERN.test(v)
+      ) {
+        throw new XtxAmountOutOfRangeError(def.name);
+      }
+    }
+  }
+}
+
 export function buildXtxBundle(forms: XtxFormInput[], options: XtxDocumentOptions = {}): string {
+  assertKingakuValues(forms);
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureVersion = options.procedureVersion ?? DEFAULT_PROCEDURE_VERSION;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;

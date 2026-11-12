@@ -3,9 +3,19 @@
   import { untrack } from 'svelte';
   import { db } from '../db';
   import { D, formatJPY } from '../lib/decimal';
-  import { isAmountInputInvalid, parseAmountInput } from '../lib/amount-input';
+  import {
+    amountInputError,
+    isAmountInputInvalid,
+    parseAmountInput,
+    parseIntegerInput,
+  } from '../lib/amount-input';
   import { newId } from '../lib/id';
-  import { assignInputNumber } from '../lib/number-input';
+  import {
+    isProcessingYear,
+    PROCESSING_YEAR_MAX,
+    PROCESSING_YEAR_MIN,
+  } from '../lib/initial-processing-year';
+  import { assignInputNumberOrEmpty } from '../lib/number-input';
   import { getSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
@@ -34,6 +44,7 @@
   } from '../db/types';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import { personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
+  import { validatePersonalDeductions } from '../domain/stored-value-checks';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
 
@@ -60,13 +71,13 @@
   let isWorkingStudent = $state(false);
   let hasSpouse = $state(false);
   let spouseIncome = $state('0');
-  let spouseAge = $state(40);
+  let spouseAge = $state<number | undefined>(40);
   let spouseDisability = $state<RelativeDisability>('none');
   let dependents = $state<
     Array<{
       id: string;
       name: string;
-      age: number;
+      age: number | undefined;
       totalIncome: string;
       livesWithLinealAscendant: boolean;
       disability: RelativeDisability;
@@ -77,8 +88,8 @@
       id: string;
       name: string;
       relation: FamilyEmployeeRelation;
-      age: number;
-      monthsWorked: number;
+      age: number | undefined;
+      monthsWorked: number | undefined;
       incomeType: 'business' | 'realEstate';
     }>
   >([]);
@@ -137,12 +148,18 @@
   }
 
   let saved = $state(false);
+  // 保存済みの値のうち読めない欄。.xtx は同じ判定で止まるため、ここでも名前を示す
+  let storedIssues = $state<string[]>([]);
   let saveError = $state('');
   // 最後に保存した内容の署名。null の間は読み込み前なので未保存扱いにしない。
   let savedSnapshot = $state<string | null>(null);
   // 年度切替の非同期ロードが完了した年度。loadedYear !== year の間は旧年度の編集値を
   // 抱えたままなので保存を禁じる（新年度キーへの誤書き込み防止）。
   let loadedYear = $state<number | null>(null);
+  // 年度欄が空・範囲外の間は year を直前の値のまま残し、保存だけを止める
+  let yearInvalid = $state(false);
+  // 年度の帳簿を読み込めなかったときの理由。この間は試算に前の年度の値を使わず、保存もしない
+  let loadError = $state('');
   // 素早い年度往復で後着の旧 promise が新年度の表示を上書きしないための世代トークン。
   let loadToken = 0;
   // 年度ごとに DB/設定から読み込む値（利用者の入力欄とは独立、年度切替時のみ再取得）。
@@ -203,6 +220,24 @@
     realEstateRentPaid = [];
     realEstateLoanInterestPaid = [];
     realEstateProfessionalFeesPaid = [];
+  }
+
+  function isLoadableShape(stored: PersonalDeductionInput): boolean {
+    const v = stored as unknown as Record<string, unknown>;
+    const isObj = (x: unknown) => typeof x === 'object' && x !== null && !Array.isArray(x);
+    const isObjArray = (x: unknown) => Array.isArray(x) && x.every(isObj);
+    const re = v.realEstateIncome as Record<string, unknown> | null | undefined;
+    return (
+      isObj(v.lifeInsurance) &&
+      isObjArray(v.dependents) &&
+      (v.familyEmployees == null || isObjArray(v.familyEmployees)) &&
+      (!v.spouse || isObj(v.spouse)) &&
+      (!re ||
+        (isObj(re) &&
+          ['rentPaid', 'loanInterestPaid', 'professionalFeesPaid'].every(
+            (k) => !re[k] || isObjArray(re[k]),
+          )))
+    );
   }
 
   function loadFromStored(stored: PersonalDeductionInput) {
@@ -267,15 +302,15 @@
     priorPriorRealEstateRevenue = stored.priorPriorRealEstateRevenue ?? '0';
     realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
     realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
-    realEstateRentPaid = (stored.realEstateIncome?.rentPaid ?? []).map((r) => ({
+    realEstateRentPaid = (stored.realEstateIncome?.rentPaid || []).map((r) => ({
       ...r,
       id: newId(),
     }));
-    realEstateLoanInterestPaid = (stored.realEstateIncome?.loanInterestPaid ?? []).map((r) => ({
+    realEstateLoanInterestPaid = (stored.realEstateIncome?.loanInterestPaid || []).map((r) => ({
       ...r,
       id: newId(),
     }));
-    realEstateProfessionalFeesPaid = (stored.realEstateIncome?.professionalFeesPaid ?? []).map(
+    realEstateProfessionalFeesPaid = (stored.realEstateIncome?.professionalFeesPaid || []).map(
       (r) => ({
         ...r,
         id: newId(),
@@ -288,37 +323,53 @@
     const gen = ++loadToken;
     saved = false;
     loadedYear = null;
+    loadError = '';
     (async () => {
-      const stored = await db.personalDeductions.get(yr);
-      if (gen !== loadToken) {
-        return;
+      try {
+        await loadYear(yr, gen);
+      } catch (e) {
+        if (gen !== loadToken) {
+          return;
+        }
+        plCache = null;
+        realEstatePlCache = undefined;
+        loadError = describeStorageError(e);
       }
-      if (stored) {
-        loadFromStored(stored);
-      } else {
-        resetForm();
-      }
-      const pl = await buildPL(yr);
-      const filingType = ((await getSetting('filingType')) ?? 'blue') as FilingType;
-      const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ??
-        'electronic') as AoiroDeductionKind;
-      const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
-      const realEstatePl = ledger.realEstateIncomeEnabled
-        ? await buildPL(yr, undefined, 'realEstate')
-        : undefined;
-      if (gen !== loadToken) {
-        return;
-      }
-      plCache = pl;
-      filingTypeCache = filingType;
-      aoiroDeductionKindCache = aoiroDeductionKind;
-      cashBasisCache = cashBasisElection;
-      realEstatePlCache = realEstatePl;
-      loadedYear = yr;
-      // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
-      savedSnapshot = untrack(() => draftSignature);
     })();
   });
+
+  async function loadYear(yr: number, gen: number): Promise<void> {
+    const stored = await db.personalDeductions.get(yr);
+    if (gen !== loadToken) {
+      return;
+    }
+    storedIssues = stored ? validatePersonalDeductions(stored) : [];
+    // 形が壊れた記録（復元データ）は欄へ写すと例外になるため、写さずに空の入力から始める
+    if (stored && isLoadableShape(stored)) {
+      loadFromStored(stored);
+    } else {
+      resetForm();
+    }
+    const pl = await buildPL(yr);
+    const filingType = ((await getSetting('filingType')) ?? 'blue') as FilingType;
+    const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ??
+      'electronic') as AoiroDeductionKind;
+    const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
+    const realEstatePl = ledger.realEstateIncomeEnabled
+      ? await buildPL(yr, undefined, 'realEstate')
+      : undefined;
+    if (gen !== loadToken) {
+      return;
+    }
+    plCache = pl;
+    filingTypeCache = filingType;
+    aoiroDeductionKindCache = aoiroDeductionKind;
+    cashBasisCache = cashBasisElection;
+    realEstatePlCache = realEstatePl;
+    loadedYear = yr;
+    // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
+    savedSnapshot = untrack(() => draftSignature);
+  }
 
   function addDependent() {
     dependents = [
@@ -380,12 +431,18 @@
     isWidow,
     isWorkingStudent,
     ...(hasSpouse
-      ? { spouse: { totalIncome: spouseIncome, age: spouseAge, disability: spouseDisability } }
+      ? {
+          spouse: {
+            totalIncome: spouseIncome,
+            age: spouseAge ?? 0,
+            disability: spouseDisability,
+          },
+        }
       : {}),
     dependents: dependents.map((d): PersonalDeductionDependent => ({
       id: d.id,
       name: d.name,
-      age: d.age,
+      age: d.age ?? 0,
       totalIncome: d.totalIncome,
       livesWithLinealAscendant: d.livesWithLinealAscendant,
       disability: d.disability,
@@ -396,8 +453,8 @@
             id: f.id,
             name: f.name,
             relation: f.relation,
-            age: f.age,
-            monthsWorked: f.monthsWorked,
+            age: f.age ?? 0,
+            monthsWorked: f.monthsWorked ?? 0,
             incomeType: f.incomeType,
           })),
         }
@@ -450,6 +507,66 @@
   });
 
   const draftSignature = $derived(JSON.stringify(recordDraft));
+  const AGE_RANGE = { min: 0, max: 120 };
+  const MONTHS_RANGE = { min: 0, max: 12 };
+  // 復元された記録では年齢が文字列のこともあるため、数値以外は誤りとして数える
+  const intInvalid = (v: unknown, range: { min: number; max: number }): boolean =>
+    typeof v !== 'number' || parseIntegerInput(String(v), range) === undefined;
+  // 画面に出ている欄だけを数える。保存は 1 件でも誤りがあれば行わない
+  const invalidFieldCount = $derived.by(() => {
+    const d = recordDraft;
+    const raws: Array<string | undefined> = [
+      d.socialInsurancePaid,
+      d.smallBusinessMutualAidPaid,
+      ...Object.values(d.lifeInsurance),
+      d.earthquakeInsurancePaid,
+      d.oldLongTermInsurancePaid,
+      d.medicalExpensePaid,
+      d.medicalInsuranceReimbursement,
+      d.donationAmount,
+      d.casualtyLossDeduction,
+      d.spouse?.totalIncome,
+      ...d.dependents.map((x) => x.totalIncome),
+      d.dividendDeductionAmount,
+      d.mortgageDeductionAmount,
+      d.politicalDonationCreditAmount,
+      d.housingRenovationCreditAmount,
+      d.foreignTaxCreditAmount,
+      d.otherTaxCreditAmount,
+      d.disasterExemptionAmount,
+      d.salaryIncome?.paidAmount,
+      d.salaryIncome?.withholdingTax,
+      d.miscIncome?.publicPensionAmount,
+      d.miscIncome?.publicPensionRevenue,
+      d.miscIncome?.otherIncome,
+      d.miscIncome?.otherExpenses,
+      d.otherWithholdingTax,
+      d.priorPriorBusinessRevenue,
+      d.priorPriorRealEstateRevenue,
+      d.realEstateIncome?.landLoanInterestAmount,
+      ...(d.realEstateIncome?.rentPaid ?? []).flatMap((r) => [r.amount, r.deductibleAmount]),
+      ...(d.realEstateIncome?.loanInterestPaid ?? []).flatMap((r) => [
+        r.amount,
+        r.deductibleAmount,
+        r.yearEndBalance,
+      ]),
+      ...(d.realEstateIncome?.professionalFeesPaid ?? []).flatMap((r) => [
+        r.amount,
+        r.deductibleAmount,
+        r.withholdingTax,
+      ]),
+    ];
+    let count = raws.filter((v) => v !== undefined && isAmountInputInvalid(v)).length;
+    if (hasSpouse && intInvalid(spouseAge, AGE_RANGE)) {
+      count += 1;
+    }
+    count += dependents.filter((x) => intInvalid(x.age, AGE_RANGE)).length;
+    for (const f of familyEmployees) {
+      count +=
+        Number(intInvalid(f.age, AGE_RANGE)) + Number(intInvalid(f.monthsWorked, MONTHS_RANGE));
+    }
+    return count;
+  });
   // 保存済みの内容と一致しなくなったら未保存。約40項目あり、失うと打ち直しになる。
   const isDirty = $derived(savedSnapshot !== null && draftSignature !== savedSnapshot);
   // タブを閉じる操作も App 内の画面遷移も router 側の 1 つの判定でカバーされる。
@@ -527,7 +644,7 @@
   // ローカルの入力値（配偶者チェック・扶養親族一覧）に対して再度行う。
   const familyEmployeeExclusionResult = $derived(
     familyEmployeeExclusion(
-      familyEmployees,
+      familyEmployees.map((f) => ({ ...f, age: f.age ?? 0, monthsWorked: f.monthsWorked ?? 0 })),
       dependents.map((d) => ({ id: d.id, name: d.name })),
     ),
   );
@@ -546,7 +663,7 @@
   const foreignTaxCredit = $derived(ctx.foreignTaxCreditAmount ?? D(0));
 
   async function save() {
-    if (loadedYear !== year) {
+    if (loadedYear !== year || yearInvalid || loadError !== '' || invalidFieldCount > 0) {
       return;
     }
     // 書けなかったのに「保存しました」を出すと、未保存の警告も止まってしまう。
@@ -563,9 +680,16 @@
   }
 </script>
 
+{#snippet intError(value: number | undefined, min: number, max: number)}
+  {#if intInvalid(value, { min, max })}
+    <span class="block mt-1 text-xs text-destructive">{m.common_integer_invalid({ min, max })}</span
+    >
+  {/if}
+{/snippet}
+
 {#snippet amountError(value: string | undefined)}
   {#if typeof value === 'string' && isAmountInputInvalid(value)}
-    <span class="block mt-1 text-xs text-destructive">{m.common_amount_invalid()}</span>
+    <span class="block mt-1 text-xs text-destructive">{amountInputError(value)}</span>
   {/if}
 {/snippet}
 
@@ -581,6 +705,14 @@
 <div class="space-y-8">
   <h2 class="text-2xl font-bold">{m.income_deductions_title()}</h2>
   <p class="text-xs text-muted-foreground">{m.income_deductions_intro()}</p>
+  {#if storedIssues.length > 0}
+    <p
+      class="text-sm text-destructive border border-destructive bg-destructive/10 rounded px-3 py-2"
+      role="alert"
+    >
+      {m.income_deductions_stored_invalid({ fields: storedIssues.join('、') })}
+    </p>
+  {/if}
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <label class="block sm:max-w-xs">
@@ -590,13 +722,28 @@
         name="deductionNen"
         autocomplete="off"
         value={year}
-        oninput={assignInputNumber((v) => (year = v))}
-        min="2020"
-        max="2099"
+        oninput={assignInputNumberOrEmpty((v) => {
+          yearInvalid = !isProcessingYear(v);
+          if (isProcessingYear(v)) {
+            year = v;
+          }
+        })}
+        min={PROCESSING_YEAR_MIN}
+        max={PROCESSING_YEAR_MAX}
         step="1"
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
+      {#if yearInvalid}
+        <span class="block mt-1 text-xs text-destructive"
+          >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
+        >
+      {/if}
     </label>
+    {#if loadError}
+      <p class="text-sm text-destructive" role="alert">
+        {m.income_deductions_load_failed({ message: loadError })}
+      </p>
+    {/if}
     <p class="text-sm">
       {m.income_deductions_total_income_label()}：<span class="font-mono"
         >{formatJPY(businessTotalIncome)}</span
@@ -1115,11 +1262,12 @@
             name="spouseAge"
             autocomplete="off"
             value={spouseAge}
-            oninput={assignInputNumber((v) => (spouseAge = v))}
+            oninput={assignInputNumberOrEmpty((v) => (spouseAge = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
+          {@render intError(spouseAge, 0, 120)}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1171,11 +1319,12 @@
             name="dependent-{dep.id}-age"
             autocomplete="off"
             value={dep.age}
-            oninput={assignInputNumber((v) => (dep.age = v))}
+            oninput={assignInputNumberOrEmpty((v) => (dep.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
+          {@render intError(dep.age, 0, 120)}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_income()}</span
@@ -1270,11 +1419,12 @@
             name="familyEmployee-{employee.id}-age"
             autocomplete="off"
             value={employee.age}
-            oninput={assignInputNumber((v) => (employee.age = v))}
+            oninput={assignInputNumberOrEmpty((v) => (employee.age = v))}
             min="0"
             max="120"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
+          {@render intError(employee.age, 0, 120)}
         </label>
         <label class="block">
           <span class="text-xs text-muted-foreground"
@@ -1285,11 +1435,12 @@
             name="familyEmployee-{employee.id}-monthsWorked"
             autocomplete="off"
             value={employee.monthsWorked}
-            oninput={assignInputNumber((v) => (employee.monthsWorked = v))}
+            oninput={assignInputNumberOrEmpty((v) => (employee.monthsWorked = v))}
             min="0"
             max="12"
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
+          {@render intError(employee.monthsWorked, 0, 12)}
         </label>
         {#if ledger.realEstateIncomeEnabled}
           <label class="block">
@@ -1722,7 +1873,17 @@
   </section>
 
   <div class="flex items-center gap-3 justify-end">
-    {#if saveError}
+    {#if yearInvalid}
+      <span class="text-xs text-destructive"
+        >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
+      >
+    {:else if loadError}
+      <span class="text-xs text-destructive">{m.income_deductions_load_failed_short()}</span>
+    {:else if invalidFieldCount > 0}
+      <span class="text-xs text-destructive"
+        >{m.income_deductions_invalid_count({ count: invalidFieldCount })}</span
+      >
+    {:else if saveError}
       <span class="text-xs text-destructive">{saveError}</span>
     {:else if saved && !isDirty}
       <span class="text-xs text-green-600">{m.income_deductions_saved()}</span>
@@ -1730,7 +1891,7 @@
     <button
       type="button"
       onclick={save}
-      disabled={loadedYear !== year}
+      disabled={loadedYear !== year || yearInvalid || loadError !== '' || invalidFieldCount > 0}
       class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {m.income_deductions_save()}

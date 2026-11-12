@@ -450,3 +450,24 @@ describe('backupManager（区分の選択）', () => {
     expect(parsed.attachmentBlobs.size).toBe(0);
   });
 });
+
+describe('backupManager.configure（保存先フォルダの選択）', () => {
+  test('選択の取消（AbortError）はエラーにせず、状態も変えない', async () => {
+    const injectable = backupManager as unknown as Injectable;
+    injectable.adapterKind = 'fsa';
+    vi.spyOn(fake, 'configure').mockRejectedValue(new DOMException('cancel', 'AbortError'));
+    await backupManager.configure();
+    expect(backupManager.lastError).toBe('');
+    expect(injectable.status).toBe('idle');
+    expect(fake.calls).toBe(0);
+  });
+
+  test('取消以外の失敗はエラーとして残す', async () => {
+    const injectable = backupManager as unknown as Injectable;
+    injectable.adapterKind = 'fsa';
+    vi.spyOn(fake, 'configure').mockRejectedValue(new Error('権限がありません'));
+    await backupManager.configure();
+    expect(backupManager.lastError).toBe('権限がありません');
+    expect(injectable.status).toBe('error');
+  });
+});

@@ -16,7 +16,7 @@
 import { db } from '../db/db';
 import { loadAccountsForYear } from '../db/year-accounts';
 import { D, Decimal } from '../lib/decimal';
-import { countsTowardTotals } from './journal';
+import { countsTowardTotals, readTransferConsideration } from './journal';
 import { usesLegacyPurchaseAssetRule } from './snapshots';
 import type { YearData } from './reports';
 import { transitionalCreditRate } from '../tax-schema/2026/invoice-transitional';
@@ -437,6 +437,7 @@ export async function processYear(
   const accounts = options.yearData?.accounts ?? (await loadAccountsForYear(year));
   const accountMap = new Map(accounts.map((a) => [a.code, a]));
   const entryDateMap = new Map(yearEntries.map((e) => [e.id, e.date]));
+  const entryById = new Map(yearEntries.map((e) => [e.id, e]));
   const { smallAmountLineIds, capExcess } = classifyNonInvoicePurchases(
     year,
     entryDateMap,
@@ -498,7 +499,7 @@ export async function processYear(
     // 課税資産の譲渡等の行単位の印：科目区分を問わずこの対価を課税売上として集計する
     // （固定資産の譲渡等）。収入科目の売上経路とは重複させず、仕入としても扱わない
     if (line.taxableTransferConsideration !== undefined && line.taxRate !== 0) {
-      const consideration = D(line.taxableTransferConsideration);
+      const consideration = readTransferConsideration(line, entryById.get(line.entryId));
       const national = nationalPortion(consideration, line.taxRate, line.taxIncluded);
       const base = taxExcludedPortion(consideration, line.taxRate, line.taxIncluded);
       output = output.plus(national);

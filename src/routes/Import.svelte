@@ -50,6 +50,7 @@
   import ScrollX from '../components/ScrollX.svelte';
   import { PARSERS, findParser } from '../parsers';
   import type { ParsedTransaction } from '../parsers/types';
+  import { checkParsedAmounts, type ParsedAmountIssue } from '../parsers/_helpers';
   import { ledger } from '../stores/ledger.svelte';
   import { taxRateForCategory } from '../lib/tax-category';
   import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
@@ -72,6 +73,7 @@
     llmConfidence: '' | 'high' | 'low'; // LLM 分類の信頼度、'' = LLM 未適用
     taxRate: number; // 相手科目の消費税率（科目の税区分から既定値を設定、上書き可）
     invoiceCompliant: boolean; // 適格請求書あり（仕入税額控除 100%）
+    amountIssue?: ParsedAmountIssue; // 金額を読めない行は取り込まない
   };
   // 相手科目コードから税区分由来の既定税率を引く。
   function defaultTaxRateFor(accountCode: string): number {
@@ -86,6 +88,7 @@
   let page = $state(0);
   let knownSubAccountId = $state('');
   let duplicateNotice = $state('');
+  let amountIssues = $state<ParsedAmountIssue[]>([]);
   let parserChangedNotice = $state('');
   let importing = $state(false);
   // 解析済みの行は取込を押すまで DB に無い。画面を離れると読み直しになる。
@@ -167,6 +170,7 @@
     success = '';
     parserChangedNotice = '';
     rows = [];
+    amountIssues = [];
     page = 0;
     if (!currentParser) {
       return;
@@ -194,7 +198,9 @@
         return;
       }
 
-      const txs = currentParser.parse(text);
+      const checked = checkParsedAmounts(currentParser.parse(text));
+      const txs = checked.transactions;
+      const issueByIndex = new Map(checked.issues.map((issue) => [issue.row - 1, issue]));
       // 期間が重なる過去のインポートと重複する行を検出し、既定でスキップにする（誤検知に備え解除可能）。
       const overlapping = await findOverlappingRows(txs, currentParser.accountCode);
       const rules = await loadRules();
@@ -203,19 +209,22 @@
         const rule = findMatchingRule(rules, t.description);
         const vendor = rule ? null : findVendorByDefaultAccount(vendors, t.description);
         const code = rule?.accountCode ?? vendor?.defaultAccountCode ?? '';
+        const issue = issueByIndex.get(i);
         return {
           transaction: t,
           counterpartAccountCode: code,
           counterpartSubAccountId: '',
           description: t.description,
-          skip: overlapping.has(i),
+          skip: overlapping.has(i) || issue !== undefined,
           matchedRuleId: rule?.id ?? '',
           vendorMatched: vendor !== null,
           llmConfidence: '',
           taxRate: defaultTaxRateFor(code),
           invoiceCompliant: false,
+          ...(issue ? { amountIssue: issue } : {}),
         };
       });
+      amountIssues = checked.issues;
       duplicateNotice =
         overlapping.size > 0 ? m.import_overlap_notice({ count: overlapping.size }) : '';
       // 同じファイルを選び直しても change が発火するように、成功時も input をクリアする
@@ -377,6 +386,7 @@
     fileHash = '';
     knownSubAccountId = '';
     duplicateNotice = '';
+    amountIssues = [];
     parserChangedNotice = '';
     error = '';
   }
@@ -427,6 +437,7 @@
     error = '';
     success = '';
     try {
+      const excludedCount = rows.filter((r) => r.amountIssue !== undefined).length;
       const importRows: ImportRow[] = rows.map((r) => ({
         transaction: r.transaction,
         counterpartAccountCode: r.counterpartAccountCode,
@@ -434,7 +445,7 @@
           ? { counterpartSubAccountId: r.counterpartSubAccountId }
           : {}),
         ...(r.description !== r.transaction.description ? { description: r.description } : {}),
-        skip: r.skip,
+        skip: r.skip || r.amountIssue !== undefined,
         counterpartTaxRate: r.taxRate,
         counterpartInvoiceCompliant: r.invoiceCompliant,
       }));
@@ -465,7 +476,10 @@
       for (const id of ruleIds) {
         await recordRuleHit(id);
       }
-      success = m.import_success({ count: result.entryCount });
+      success =
+        excludedCount > 0
+          ? `${m.import_success({ count: result.entryCount })} ${m.import_amount_excluded({ count: excludedCount })}`
+          : m.import_success({ count: result.entryCount });
       reset();
     } catch (e) {
       if (e instanceof DuplicateImportError) {
@@ -548,6 +562,24 @@
         ✓ {success}
       </div>
     {/if}
+    {#if amountIssues.length > 0}
+      <div
+        class="border border-destructive bg-destructive/10 text-foreground rounded-lg px-4 py-2 text-sm space-y-1"
+        role="alert"
+      >
+        {#each amountIssues as issue (issue.row)}
+          <p>
+            {(issue.reason === 'too_large'
+              ? m.import_amount_row_too_large
+              : m.import_amount_row_invalid)({
+              date: issue.date,
+              description: issue.description.slice(0, 40),
+              value: issue.raw.slice(0, 40),
+            })}
+          </p>
+        {/each}
+      </div>
+    {/if}
     {#if duplicateNotice}
       <div
         class="border border-amber-500 bg-amber-500/10 text-foreground rounded-lg px-4 py-2 text-sm"
@@ -619,11 +651,19 @@
                   />
                 </td>
                 <td class="px-3 py-2 text-right tabular-nums whitespace-nowrap">
-                  <span class:text-destructive={row.transaction.side === 'credit'}>
-                    {row.transaction.side === 'debit' ? '+' : '-'}{formatJPY(
-                      row.transaction.amount,
-                    )}
-                  </span>
+                  {#if row.amountIssue}
+                    <span class="text-destructive text-xs whitespace-normal">
+                      {row.amountIssue.reason === 'too_large'
+                        ? m.common_amount_too_large()
+                        : m.common_stored_amount_unreadable()}
+                    </span>
+                  {:else}
+                    <span class:text-destructive={row.transaction.side === 'credit'}>
+                      {row.transaction.side === 'debit' ? '+' : '-'}{formatJPY(
+                        row.transaction.amount,
+                      )}
+                    </span>
+                  {/if}
                 </td>
                 <td class="px-3 py-2 space-y-1">
                   <div class="flex items-center gap-1">
@@ -701,7 +741,11 @@
                   {/if}
                 </td>
                 <td class="px-3 py-2 text-center">
-                  <input type="checkbox" bind:checked={row.skip} />
+                  <input
+                    type="checkbox"
+                    bind:checked={row.skip}
+                    disabled={row.amountIssue !== undefined}
+                  />
                 </td>
               </tr>
             {/each}

@@ -1,4 +1,5 @@
-import { D } from '../lib/decimal';
+import { toAmountString } from '../lib/decimal';
+import { parseLegacyLineAmount, parseStoredDecimal } from '../lib/amount-input';
 import { isProcessingYear } from '../lib/initial-processing-year';
 import type {
   AccountCategory,
@@ -127,11 +128,7 @@ function child(path: string, name: string): string {
 }
 
 function isDecimal(v: string): boolean {
-  try {
-    return D(v).isFinite();
-  } catch {
-    return false;
-  }
+  return parseStoredDecimal(v, { allowNegative: true }) !== undefined;
 }
 
 function checkValue(spec: Spec, v: unknown, path: string): string | null {
@@ -786,6 +783,17 @@ function toStringIfFinite(row: Record<string, unknown>, key: string): void {
     row[key] = String(v);
   }
 }
+// 旧バージョンの 1e3 のような書き方を通常の表記に直す。値は変えない（読めない値は journalLineProblem が先に弾く）
+function toPlainAmount(row: Record<string, unknown>, key: string): void {
+  const v = own(row, key);
+  if (typeof v !== 'string' || /^\d+(\.\d+)?$/.test(v)) {
+    return;
+  }
+  const parsed = parseLegacyLineAmount(v);
+  if (parsed !== undefined) {
+    row[key] = toAmountString(parsed);
+  }
+}
 /**
  * 旧バージョンが書いていた形を今の型へ直す（渡された複製を書き換える）。
  * 行ごと捨てるべきときは false を返す。
@@ -799,6 +807,8 @@ export function upgradeLegacyRow(table: string, row: Record<string, unknown>): b
     toStringIfFinite(row, 'paidAmount');
   } else if (table === 'journalLines') {
     toStringIfFinite(row, 'quantity');
+    toPlainAmount(row, 'amount');
+    toPlainAmount(row, 'taxableTransferConsideration');
   } else if (table === 'settings' && own(row, 'key') === 'currentYear') {
     // 年度の null と範囲外の整数は未設定として扱う。整数でない値は checkRow が弾く。
     const v = own(row, 'value');

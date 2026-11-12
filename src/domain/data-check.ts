@@ -1,7 +1,10 @@
 import { db } from '../db/db';
 import { isRestorableSettingKey } from '../backup/parts';
+import { readStoredAmount } from '../lib/amount-input';
 import { sha256Hex } from '../lib/sha256';
-import { checkRow, clip, upgradeLegacyRow } from './restore-schema';
+import type { JournalEntry } from '../db/types';
+import { countsTowardTotals } from './journal';
+import { checkRow, clip, describeValue, upgradeLegacyRow } from './restore-schema';
 import {
   isReadableEntryDate,
   journalEntryProblem,
@@ -10,6 +13,7 @@ import {
   primaryKeyProblem,
 } from './restore-validate';
 // 端末に保存済みのデータを、バックアップの復元と同じ規則で確かめる。読むだけで直さない。
+// 金額は、復元では通しても集計や出力で扱えない値（読めない値・100 兆円以上）も挙げる。
 // 値は画面に文字として出すだけで、console には出さない。
 
 export interface DataCheckTable {
@@ -86,6 +90,45 @@ function lineReferenceProblem(raw: unknown, entryIds: ReadonlySet<string>): stri
   return null;
 }
 
+const TOO_LARGE = '1e14';
+// 読めない金額は全ての明細で、100 兆円以上は集計に入る仕訳の明細だけで挙げる（訂正で打ち消したものは直す必要が無い）
+function lineAmountProblem(
+  raw: unknown,
+  counted: ReadonlySet<string>,
+  entryDates: ReadonlyMap<string, string>,
+): string | null {
+  if (!isObject(raw)) {
+    return null;
+  }
+  const entryId = typeof raw.entryId === 'string' ? raw.entryId : '';
+  const date = entryDates.get(entryId);
+  const where = date === undefined ? '' : `（${date} の仕訳）`;
+  for (const field of ['amount', 'taxableTransferConsideration']) {
+    const v = Object.hasOwn(raw, field) ? raw[field] : undefined;
+    if (v === undefined && field !== 'amount') {
+      continue;
+    }
+    const d = readStoredAmount(v);
+    if (d === undefined) {
+      return `${field} を金額として読めません${where}：${describeValue(v)}`;
+    }
+    if (counted.has(entryId) && d.abs().gte(TOO_LARGE)) {
+      return `${field} が 100 兆円以上です${where}：${describeValue(v)}`;
+    }
+  }
+  return null;
+}
+
+function assetCostProblem(raw: unknown): string | null {
+  if (!isObject(raw) || !Object.hasOwn(raw, 'acquisitionCost')) {
+    return null;
+  }
+  const cost = readStoredAmount(raw.acquisitionCost);
+  return cost !== undefined && cost.abs().gte(TOO_LARGE)
+    ? `acquisitionCost が 100 兆円以上です：${describeValue(raw.acquisitionCost)}`
+    : null;
+}
+
 class Findings {
   private readonly byTable = new Map<string, DataCheckTable>();
   private readonly lines: string[] = [];
@@ -120,7 +163,8 @@ async function checkTable(name: string, key: KeyPath, findings: Findings): Promi
     let position = 0;
     await table.each((raw: unknown) => {
       position += 1;
-      const detail = rowProblem(name, key, raw);
+      const detail =
+        rowProblem(name, key, raw) ?? (name === 'fixedAssets' ? assetCostProblem(raw) : null);
       if (detail !== null) {
         findings.add(name, showKey(key, raw, position), detail);
       }
@@ -131,11 +175,19 @@ async function checkTable(name: string, key: KeyPath, findings: Findings): Promi
 async function checkJournal(findings: Findings): Promise<void> {
   await db.transaction('r', [db.journalEntries, db.journalLines], async () => {
     const entryIds = new Set<string>();
+    const counted = new Set<string>();
+    const entryDates = new Map<string, string>();
     let position = 0;
     await db.journalEntries.each((raw: unknown) => {
       position += 1;
       if (isObject(raw) && typeof raw.id === 'string') {
         entryIds.add(raw.id);
+        if (countsTowardTotals(raw as Pick<JournalEntry, 'status' | 'originalEntryId'>)) {
+          counted.add(raw.id);
+        }
+        if (isReadableEntryDate(raw.date)) {
+          entryDates.set(raw.id, raw.date as string);
+        }
       }
       const detail = rowProblem('journalEntries', PRIMARY_KEY.journalEntries!, raw);
       if (detail !== null) {
@@ -147,7 +199,8 @@ async function checkJournal(findings: Findings): Promise<void> {
       position += 1;
       const detail =
         rowProblem('journalLines', PRIMARY_KEY.journalLines!, raw) ??
-        lineReferenceProblem(raw, entryIds);
+        lineReferenceProblem(raw, entryIds) ??
+        lineAmountProblem(raw, counted, entryDates);
       if (detail !== null) {
         findings.add('journalLines', showKey('id', raw, position), detail);
       }

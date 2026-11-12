@@ -104,8 +104,8 @@ describe('isSmallAssetEligible（措法28の2第1項括弧・措令18条の5）'
 
 describe('少額特例の年合計上限の月割（措法28の2第1項後段・2項）', () => {
   test('開業日 2026-07-01 は 6 か月で 1,500,000', () => {
-    expect(businessMonthsInYear(2026, '2026-07-01')).toBe(6);
-    expect(smallAssetAnnualCap(2026, '2026-07-01').toString()).toBe('1500000');
+    expect(businessMonthsInYear(2026, ['2026-07-01'])).toBe(6);
+    expect(smallAssetAnnualCap(2026, ['2026-07-01']).toString()).toBe('1500000');
   });
 
   test('廃業日 2026-09-30 は 9 か月で 2,250,000', () => {
@@ -115,13 +115,13 @@ describe('少額特例の年合計上限の月割（措法28の2第1項後段・
 
   test('開業日・廃業日が無い年、別の年の日付は 12 か月で 300 万円', () => {
     expect(smallAssetAnnualCap(2026).toString()).toBe('3000000');
-    expect(smallAssetAnnualCap(2027, '2026-07-01', '2028-03-31').toString()).toBe('3000000');
+    expect(smallAssetAnnualCap(2027, ['2026-07-01'], '2028-03-31').toString()).toBe('3000000');
   });
 
   test('1 月未満の端数は 1 月とする', () => {
-    expect(businessMonthsInYear(2026, '2026-07-15')).toBe(6);
-    expect(businessMonthsInYear(2026, '2026-03-15', '2026-09-10')).toBe(6);
-    expect(businessMonthsInYear(2026, '2026-03-15', '2026-09-15')).toBe(7);
+    expect(businessMonthsInYear(2026, ['2026-07-15'])).toBe(6);
+    expect(businessMonthsInYear(2026, ['2026-03-15'], '2026-09-10')).toBe(6);
+    expect(businessMonthsInYear(2026, ['2026-03-15'], '2026-09-15')).toBe(7);
     expect(calendarMonthsCeil('2026-12-31', '2027-01-01')).toBe(1);
     expect(calendarMonthsCeil('2026-01-01', '2026-01-01')).toBe(0);
   });

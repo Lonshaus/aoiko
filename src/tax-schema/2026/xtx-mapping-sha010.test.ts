@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import { mapGeneral } from './xtx-mapping-sha010';
 // 課税売上割合100%（免税・非課税売上なし）を前提とするテスト用の既定値
@@ -355,5 +356,19 @@ describe('mapGeneral（本則課税）', () => {
     expect(result.sha010.AAJ00110).toBe('100000');
     expect(result.sha010.AAJ00120).toBeUndefined();
     expect(result.sha010.AAJ00130).toBe('72000');
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test('1e21 の課税標準額は省かずに例外にする', () => {
+    expect(() =>
+      mapGeneral({
+        taxableBase10: D('1e21'),
+        taxableBase8: D('0'),
+        input10: D('0'),
+        input8: D('0'),
+        ...zeroExtras(),
+      }),
+    ).toThrow(XtxAmountOutOfRangeError);
   });
 });

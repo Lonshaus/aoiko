@@ -32,6 +32,7 @@ import type { BSRow } from '../../domain/reports';
 import {
   maxOccursOf,
   stripClassificationSuffix,
+  toKingaku,
   type XtxDetailOverflowRow,
 } from './xtx-mapping-shared';
 
@@ -167,27 +168,12 @@ const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 function formAmount(accountName: string, amount: string): string {
   return NEGATED_EXPENSE_ACCOUNTS.has(accountName) ? D(amount).negated().toString() : amount;
 }
-// gen:kingaku は xsd:long（整数・小数不可・先頭マイナス可）。
-// Decimal 文字列を整数円へ（小数部切捨て、カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string) {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -330,7 +316,7 @@ const DEPRECIATION_METHOD_LABEL: Record<DepreciationMethod, string> = {
 const SMALL_ASSET_SUMMARY_NOTE = '措法28の2（明細は別途保管）';
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
@@ -357,7 +343,7 @@ function depreciationCandidates(ctx: XtxContext) {
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
   const businessAssets = ctx.fixedAssets.filter((a) => a.incomeType !== 'realEstate');

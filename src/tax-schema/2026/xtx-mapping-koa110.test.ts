@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   koa110AdditionalExpenseOverflow,
@@ -592,5 +593,11 @@ describe('措法28の2は青色限定のため白色（KOA110）はまとめ行�
     const rows = out.AIM00010 ?? [];
     expect(rows.some((r) => r.AIM00210 === '措法28の2（明細は別途保管）')).toBe(false);
     expect(rows.find((r) => r.AIM00020 === 'A')).toBeDefined();
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test.each(['abc', '1e+21', 'NaN', '1000000000000000'])('%j は省かずに例外にする', (v) => {
+    expect(() => mapKoa110Values(ctx({ totalRevenue: v }))).toThrow(XtxAmountOutOfRangeError);
   });
 });

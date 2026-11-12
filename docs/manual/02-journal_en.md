@@ -30,6 +30,8 @@ The bottom half of the **"Home"** screen contains the **New journal entry** form
 6. **"Difference"** at the bottom shows the gap between the debit and credit totals (in red while they don't match). When they match, **"✓ Balanced"** appears
 7. Click **"Add entry"** → it appears immediately in the **"Recent journal entries"** list on the Home screen
 
+If you enter an unreadable value in an amount field, "Enter the amount as a number of 0 or more (e.g. 5000)" appears below that line. If you enter a value of ¥100 trillion or more, the message is "The amount is too large. Enter an amount under ¥100 trillion". In both cases, **"Add entry"** cannot be pressed while the error is showing.
+
 ### 1-2. Recording real estate income entries (only if enabled in Settings)
 
 Once **Settings > Use real estate income** is turned on, a **"Business" / "Real estate"** toggle appears at the top of the form. Choosing "Real estate" narrows the account dropdown to real-estate-only accounts (named with a "（不動産）" suffix). The toggle keeps its state while you stay on the Home screen entering further entries, so you don't need to reselect it for every entry when recording a batch of similar transactions. It resets to "Business" once you navigate to another screen.
@@ -53,6 +55,8 @@ Use **"Clear"** to reset everything mid-entry.
 ### 1-5. Recording item and quantity (simple inventory)
 
 Choosing a **仕入 (Purchases, 5020)** or **売上高 (Sales, 4110)** line reveals an **Item** dropdown and a **Quantity** field. Register items in the **"Items (simple inventory)"** section of Settings. Once recorded, the [06. Reports](06-reports_en.md) profit and loss statement shows an **estimated ending inventory value** using the statutory default (most-recent-purchase-cost method) — for reference only, it is not posted automatically.
+
+If you enter an unreadable value in Quantity on a line with an item selected, the same "Enter the amount as a number of 0 or more (e.g. 5000)" appears as for amounts, and **"Add entry"** cannot be pressed.
 
 > This is on by default. If you've filed for a valuation method other than most-recent-purchase-cost, untick **Settings > Auto-calculate ending inventory (most-recent-purchase-cost method)** to disable this estimate and go back to journaling ending inventory manually.
 
@@ -119,6 +123,8 @@ Use **"Reset"** to clear filters (year reverts to the "Current tax year" in Sett
 ### 2-2. View entry details
 
 Click on a row to **expand** it. Each debit/credit line is shown with account, subaccount, tax rate, amount, and description. The `▾` / `▸` icon indicates expanded state.
+
+A line whose saved amount cannot be read shows "Cannot read the amount" instead of the amount. An entry with an unreadable amount on the debit side shows the same text in the amount (total) column of the list. An amount with decimals is shown as is, without rounding (for example ¥0.5 or ¥1,234.56). When you filter by amount range, a line with an unreadable amount does not match the range. "Recent entries" on the Home screen look the same. The monthly revenue and expense totals on the Home screen leave out the unreadable lines and show "〔count〕 entries with unreadable amounts are not included in the totals".
 
 Below the line details you'll find a list of **receipt photos** (click a thumbnail for full size) and a field to add more. Whether the entry came from CSV import, OCR, or manual entry, you can attach a receipt photo here after the fact (the same confirmation flow from 1-7 applies).
 

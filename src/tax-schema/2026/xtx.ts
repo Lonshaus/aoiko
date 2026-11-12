@@ -21,7 +21,7 @@ import type {
 import { familyEmployeeExclusion } from './family-employee-deduction';
 import { D, type Decimal } from '../../lib/decimal';
 import {
-  isAmountInputInvalid,
+  isAmountInputMalformed,
   normalizeAmountInput,
   parseAmountInput,
 } from '../../lib/amount-input';
@@ -118,8 +118,8 @@ export interface XtxContext {
   cashBasis?: boolean;
   /** 白色申告の収支内訳書第2頁（減価償却資産の明細）用。青色申告時は未使用 */
   fixedAssets: FixedAsset[];
-  /** 少額特例の年合計上限の月割に使う開業日。未指定は最も古い開業仕訳の日付 */
-  businessStartDate?: string;
+  /** 少額特例の年合計上限の月割に使う年ごとの開業日（loadEffectiveBusinessDates の値）。未指定は開業日なし（全年扱い） */
+  businessStartDates?: readonly string[];
   /** 少額特例の年合計上限の月割に使う廃業日。未指定は廃業なし（全年扱い） */
   businessCloseDate?: string;
   /** 不動産所得のPL（incomeType: 'realEstate' の仕訳から buildPL で算出）。無ければ不動産所得なし */
@@ -284,7 +284,7 @@ export function personalDeductionsToCtx(
             ...(stored.miscIncome.publicPensionInputMode === 'revenue'
               ? publicPensionRevenueToCtx(stored.miscIncome)
               : stored.miscIncome.publicPensionAmount !== undefined &&
-                  !isAmountInputInvalid(stored.miscIncome.publicPensionAmount)
+                  !isAmountInputMalformed(stored.miscIncome.publicPensionAmount)
                 ? { publicPensionAmount: toDec(stored.miscIncome.publicPensionAmount) }
                 : {}),
             ...(stored.miscIncome.otherIncome !== undefined

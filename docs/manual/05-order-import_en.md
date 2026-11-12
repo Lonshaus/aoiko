@@ -79,6 +79,8 @@ Each item is one row:
 
 A **"Add row"** button below the table lets you add items the AI missed.
 
+If the amount of a row that has an item name is not an integer (negative values are allowed as discounts), or its absolute value is ¥100 trillion or more, "Enter the amount as a number of 0 or more (e.g. 5000)" or "The amount is too large. Enter an amount under ¥100 trillion" appears below that row. If you press **"Save entry"** with the error still there, nothing is registered, and "Enter the amount as a number of 0 or more (e.g. 5000)" appears at the top of the screen.
+
 #### Payment source
 
 Below the table, **"Payment source (default: 未払金)"** dropdown. For credit card payment, `2120 未払金` (Other payables) (use a subaccount per card if you have them). For PayPay balance, `1110 現金` (Cash) or your configured account.
@@ -90,6 +92,8 @@ When you press **"Save entry"**, aoiko checks whether the item subtotal matches 
 > Item subtotal does not match the total (items ¥4,280 / total ¥4,580). Correct one of them before saving.
 
 Because each item becomes a debit line and the total becomes the single payable credit line, the entry can't balance while the two disagree. Fix either the item amounts (common causes: the AI missed a "point use −¥300" line, shipping wasn't included as an item, tax rounding differs) or the "Total amount" field, then press **"Save entry"** again.
+
+If the "Total amount" is ¥100 trillion or more, pressing **"Save entry"** also registers nothing, and "The amount is too large. Enter an amount under ¥100 trillion" appears.
 
 ### 2-5. What entry is created
 

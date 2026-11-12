@@ -194,6 +194,11 @@ describe('hasInvalidXtxAmounts: 所得控除の金額欄', () => {
     expect(hasInvalidXtxAmounts(withValue(path, 'abc'), [], true)).toBe(true);
   });
 
+  test.each(DEDUCTION_PATHS)('%s が 100 兆円以上の小数なら true、整数なら false', (path) => {
+    expect(hasInvalidXtxAmounts(withValue(path, '123456789012345.5'), [], true)).toBe(true);
+    expect(hasInvalidXtxAmounts(withValue(path, '123456789012345'), [], true)).toBe(false);
+  });
+
   test('収入金額方式の公的年金は publicPensionRevenue の小数だけを見る', () => {
     expect(invalidWith('miscIncome.publicPensionRevenue', '100.5', 'revenue')).toBe(true);
     expect(invalidWith('miscIncome.publicPensionRevenue', 'abc', 'revenue')).toBe(true);

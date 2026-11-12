@@ -19,7 +19,7 @@ test('開業費・転用資産を登録 → 仕訳一覧に反映される', asy
   await page.getByPlaceholder('名前（例：MacBook Pro）').fill('パソコン');
   await page.getByTitle('購入日', { exact: true }).fill('2020-11-01');
   await page.getByPlaceholder('取得価額').fill('300000');
-  await page.locator('input[type=number][min="1"][max="50"]').fill('4');
+  await page.locator('input[name="convertedAssetUsefulLife"]').fill('4');
   await page.getByRole('button', { name: '追加' }).nth(1).click();
   await expect(page.getByText('私用期間の減価額 ¥44,820／開業時未償却残高 ¥255,180')).toBeVisible();
 

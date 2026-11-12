@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import { db } from '../db/db';
-import { getSetting } from '../lib/settings';
+import { getSetting, setSetting } from '../lib/settings';
 import { m } from '../paraglide/messages';
 
 const { default: Settings } = await import('./Settings.svelte');
@@ -79,9 +79,9 @@ afterEach(async () => {
 describe('申告者情報の番号欄', () => {
   test('全角の利用者識別番号は前後の空白を除いた半角で保存される', async () => {
     await renderSettings();
-    typeInto('etaxRiyoshaId', '　１２３４　');
+    typeInto('etaxRiyoshaId', '　１２３４５６７８９０１２３４５６　');
     await submitFiler();
-    expect(await getSetting('userRiyoshaId')).toBe('1234');
+    expect(await getSetting('userRiyoshaId')).toBe('1234567890123456');
   });
 
   test.each([
@@ -94,4 +94,75 @@ describe('申告者情報の番号欄', () => {
     await submitFiler();
     expect(await getSetting('userFilerZip')).toBe(expected);
   });
+});
+
+describe('申告者情報の番号欄の検査', () => {
+  test.each(['123456789012345', '123456789012345a', '12345678901234567'])(
+    '利用者識別番号 %j は保存されず、欄の下に誤りが出る',
+    async (typed) => {
+      await renderSettings();
+      typeInto('etaxRiyoshaId', typed);
+      expect(container!.textContent).toContain(m.settings_filer_riyosha_id_invalid());
+      field('etaxRiyoshaId')
+        .closest('form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      flushSync();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(await getSetting('userRiyoshaId')).toBeUndefined();
+      expect(container!.textContent).not.toContain(m.settings_basic_saved());
+    },
+  );
+
+  test('郵便番号 123 は保存されず、欄の下に誤りが出る', async () => {
+    await renderSettings();
+    typeInto('filerYubinBango', '123');
+    expect(container!.textContent).toContain(m.settings_filer_zip_invalid());
+    field('filerYubinBango')
+      .closest('form')!
+      .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    flushSync();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(await getSetting('userFilerZip')).toBeUndefined();
+  });
+
+  test('空欄は保存できる（任意項目）', async () => {
+    await renderSettings();
+    typeInto('etaxRiyoshaId', '');
+    typeInto('filerYubinBango', '');
+    await submitFiler();
+    expect(await getSetting('userRiyoshaId')).toBe('');
+  });
+
+  test('保存されている税務署コードが 5 桁でないと欄の下に誤りが出て、「保存」を押せない', async () => {
+    await setSetting('userZeimushoCode', '123');
+    await renderSettings();
+    expect(container!.textContent).toContain(m.settings_filer_zeimusho_invalid());
+    const save = Array.from(
+      field('etaxRiyoshaId').closest('form')!.querySelectorAll('button'),
+    ).find((b) => b.textContent?.trim() === m.settings_basic_save());
+    expect(save?.disabled).toBe(true);
+  });
+  test.each([
+    ['etaxRiyoshaId', '123456789012345', () => m.settings_filer_riyosha_id_invalid()],
+    ['etaxRiyoshaId', '12345678901234567', () => m.settings_filer_riyosha_id_invalid()],
+    ['etaxRiyoshaId', '123456789012345a', () => m.settings_filer_riyosha_id_invalid()],
+    ['filerYubinBango', '123456', () => m.settings_filer_zip_invalid()],
+    ['filerYubinBango', '12345678', () => m.settings_filer_zip_invalid()],
+  ])(
+    '%s に %j を入れると欄の下に誤りが出て、「保存」を押せず、直すと押せる',
+    (name, bad, message) => {
+      return renderSettings().then(() => {
+        const save = Array.from(field(name).closest('form')!.querySelectorAll('button')).find(
+          (b) => b.textContent?.trim() === m.settings_basic_save(),
+        )!;
+        expect(save.disabled).toBe(false);
+        typeInto(name, bad);
+        expect(field(name).closest('label')!.textContent).toContain(message());
+        expect(save.disabled).toBe(true);
+        typeInto(name, name === 'etaxRiyoshaId' ? '1234567890123456' : '1234567');
+        expect(field(name).closest('label')!.textContent).not.toContain(message());
+        expect(save.disabled).toBe(false);
+      });
+    },
+  );
 });

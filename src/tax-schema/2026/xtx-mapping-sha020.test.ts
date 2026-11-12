@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import { mapSimplified, mapTwoWari } from './xtx-mapping-sha020';
 
@@ -234,5 +235,13 @@ describe('mapSimplified（簡易課税）', () => {
     expect(result.shb067.DVE00020).toBeUndefined();
     expect(result.shb067.DVD00030).toBeUndefined();
     expect(result.sha020Raw.ABL00210).toBeUndefined();
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test('1e21 の課税標準額は省かずに例外にする', () => {
+    expect(() =>
+      mapTwoWari({ taxableBase10: D('1e21'), taxableBase8: D('0'), ...zeroExtras() }),
+    ).toThrow(XtxAmountOutOfRangeError);
   });
 });

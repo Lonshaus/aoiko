@@ -40,7 +40,7 @@ import {
 import { homeWorkerNecessaryExpenses } from './home-worker-expense';
 import type { AoiroDeductionOptions } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
-import { maxOccursOf, type XtxDetailOverflowRow } from './xtx-mapping-shared';
+import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
 import type { XtxContext } from './xtx';
 import type { XtxValues, XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { PLReport } from '../../domain/reports';
@@ -50,20 +50,6 @@ const SCHEMA = koa020 as XtxSchema;
 function toReiwa(year: number): string {
   const r = year - 2018;
   return r >= 1 ? String(r) : '';
-}
-// gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
 }
 // KOA020 第一表（KOA020-1）内で、日本語名が完全一致する最初の直接値 leaf tag を返す。
 function firstTableLeafTagByJa(ja: string): string | undefined {
@@ -112,7 +98,7 @@ function put(out: XtxLeafValues, ja: string, amount: string): void {
 // tag を直接指定して書き込む。「合計」「控除額」等、KOA020-1 内に同名 leaf が複数存在し
 // firstTableLeafTagByJa の文書順一致では取り違えうる項目に使う。
 function putTag(out: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }

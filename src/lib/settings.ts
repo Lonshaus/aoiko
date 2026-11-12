@@ -137,10 +137,14 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
-  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定が書き込む）。
-  // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定と設定画面が書き込む）。
+  // 開業日は開業仕訳の無い年にだけ使う（depreciation.ts の selectEffectiveBusinessDates）。
   businessStartDate: string;
   businessCloseDate: string;
+  // 作り直しの途中で止まった年の案内を利用者が「表示しない」にした年
+  dismissedInterruptedOpeningYears: number[];
+  // 開業設定で登録し直す転用資産のうち「登録しない」にした明細（`${仕訳 id}:${明細 id}`）
+  dismissedMissingOpeningAssets: string[];
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
@@ -283,6 +287,52 @@ export interface StoredWariBaseAdjustments {
 function isTransferRate(value: unknown): value is 0.1 | 0.08 {
   return value === 0.1 || value === 0.08;
 }
+function readTransferRows(stored: Record<string, unknown>) {
+  const rows: unknown[] = Array.isArray(stored.specifiedSmallAssetTransfers)
+    ? stored.specifiedSmallAssetTransfers
+    : [];
+  return rows.flatMap((t, index) => {
+    const date = isRecord(t) ? nonEmpty(t.date) : undefined;
+    if (!isRecord(t) || date === undefined || !isTransferRate(t.rate)) {
+      return [];
+    }
+    return [{ date, rate: t.rate, rawNetTax: t.netTax, index }];
+  });
+}
+// 欄に出すための保存値。読めない値も消さずに見せる。行の並びは loadWariBaseAdjustments と同じ
+export async function loadWariStoredAmounts(year: number): Promise<{
+  salesReturnTax78: unknown;
+  salesReturnTax624: unknown;
+  netTaxes: unknown[];
+  rowIndexes: number[];
+  hiddenIndexes: number[];
+}> {
+  const map: unknown = await getSetting('wariBaseAdjustments');
+  const stored = isRecord(map) ? map[year] : undefined;
+  if (!isRecord(stored)) {
+    return {
+      salesReturnTax78: undefined,
+      salesReturnTax624: undefined,
+      netTaxes: [],
+      rowIndexes: [],
+      hiddenIndexes: [],
+    };
+  }
+  const shown = readTransferRows(stored);
+  const rowIndexes = shown.map((t) => t.index);
+  const count = Array.isArray(stored.specifiedSmallAssetTransfers)
+    ? stored.specifiedSmallAssetTransfers.length
+    : 0;
+  return {
+    salesReturnTax78: stored.salesReturnTax78,
+    salesReturnTax624: stored.salesReturnTax624,
+    netTaxes: shown.map((t) => t.rawNetTax),
+    rowIndexes,
+    hiddenIndexes: Array.from({ length: count }, (_, i) => i).filter(
+      (i) => !rowIndexes.includes(i),
+    ),
+  };
+}
 // 記録が無い年分は空（除外事由なし、従来どおり）
 export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdjustments> {
   const map: unknown = await getSetting('wariBaseAdjustments');
@@ -292,17 +342,12 @@ export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdj
   }
   const salesReturnTax78 = parseAmount(stored.salesReturnTax78);
   const salesReturnTax624 = parseAmount(stored.salesReturnTax624);
-  const rows: unknown[] = Array.isArray(stored.specifiedSmallAssetTransfers)
-    ? stored.specifiedSmallAssetTransfers
-    : [];
-  const transfers = rows.flatMap((t) => {
-    const date = isRecord(t) ? nonEmpty(t.date) : undefined;
-    if (!isRecord(t) || date === undefined || !isTransferRate(t.rate)) {
-      return [];
-    }
-    // 金額欄は未検証の文字列で保存されるため、壊れた値は0として読み例外にしない
-    return [{ date, rate: t.rate, netTax: parseAmount(t.netTax) ?? D(0) }];
-  });
+  // 金額欄は未検証の文字列で保存されるため、読めない値は0として読み例外にしない
+  const transfers = readTransferRows(stored).map(({ date, rate, rawNetTax }) => ({
+    date,
+    rate,
+    netTax: parseAmount(rawNetTax) ?? D(0),
+  }));
   return {
     ...(salesReturnTax78 !== undefined ? { salesReturnTax78 } : {}),
     ...(salesReturnTax624 !== undefined ? { salesReturnTax624 } : {}),

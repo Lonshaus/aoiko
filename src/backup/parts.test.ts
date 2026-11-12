@@ -98,6 +98,8 @@ const ALL_SETTING_KEYS: Record<keyof SettingsMap, true> = {
   businessCloseDate: true,
   dataCheckAcknowledged: true,
   processingYearResetTo: true,
+  dismissedInterruptedOpeningYears: true,
+  dismissedMissingOpeningAssets: true,
 };
 
 const SETTING_PARTS: readonly (readonly string[])[] = [

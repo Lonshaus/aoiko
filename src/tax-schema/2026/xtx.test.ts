@@ -749,6 +749,33 @@ describe('所得控除画面の金額（全角・カンマ・負の値）', () =
     expect(r?.publicPensionRevenue).toBeUndefined();
   });
 
+  test('公的年金等が 100 兆円以上でも読める値は未記入に戻さない：16 桁は出力を止め、15 桁は ABB01060 に値のまま載る', () => {
+    const build = (publicPensionAmount: string) => {
+      const ctx = makeCtx();
+      ctx.personalDeductions = personalDeductionsToCtx(
+        storedWith({ miscIncome: { publicPensionAmount, otherIncome: '0', otherExpenses: '0' } }),
+      );
+      return buildXtx2026(ctx);
+    };
+    expect(() => build('1234567890123456')).toThrow();
+    expect(build('123456789012345')).toContain('<ABB01060>123456789012345</ABB01060>');
+  });
+
+  test.each([
+    ['5000.9', '5000'],
+    ['5000.1', '5000'],
+    ['1234.56', '1234'],
+  ])(
+    '読める小数の公的年金等 %s は小数点以下を切り捨てた %s で出力し、止まらない',
+    (publicPensionAmount, expected) => {
+      const ctx = makeCtx();
+      ctx.personalDeductions = personalDeductionsToCtx(
+        storedWith({ miscIncome: { publicPensionAmount, otherIncome: '0', otherExpenses: '0' } }),
+      );
+      expect(buildXtx2026(ctx)).toContain(`<ABB01060>${expected}</ABB01060>`);
+    },
+  );
+
   test('文字列以外の支払先明細の金額が保存されていても、試算用の変換は例外を投げない', () => {
     const rentPaid = [{ payeeName: '地主', amount: 600000 as unknown as string }];
     expect(() =>

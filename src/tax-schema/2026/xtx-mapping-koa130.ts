@@ -23,7 +23,7 @@ import koa130 from './xtx-schema-koa130.generated.json';
 import { D } from '../../lib/decimal';
 import { normalizeAmountInput } from '../../lib/amount-input';
 import type { XtxSchema } from './xtx-schema';
-import { maxOccursOf, type XtxDetailOverflowRow } from './xtx-mapping-shared';
+import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type {
@@ -88,25 +88,12 @@ const EXPENSE_ALIAS: Record<string, string> = {
 };
 // 追加科目（AKG00010）は xsd で最大10文字。
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string): void {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -271,7 +258,7 @@ function effectiveMethodLabel(
   return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
 }
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
@@ -342,7 +329,7 @@ function depreciationCandidates(ctx: XtxContext) {
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
   const candidates = ctx.fixedAssets

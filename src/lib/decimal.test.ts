@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { D, formatJPY, toIndexable } from './decimal';
+import { AmountTooLargeError, D, formatJPY, toAmountString, toIndexable } from './decimal';
 
 describe('toIndexable', () => {
   test('zero', () => {
@@ -22,6 +22,19 @@ describe('toIndexable', () => {
 
   test('max range 14 integer digits', () => {
     expect(toIndexable('99999999999999.99')).toBe('99999999999999.99');
+  });
+
+  test('14 桁を超える値と進位で 15 桁になる値は AmountTooLargeError', () => {
+    expect(() => toIndexable('100000000000000')).toThrow(AmountTooLargeError);
+    expect(() => toIndexable('99999999999999.995')).toThrow(AmountTooLargeError);
+    expect(() => toIndexable('Infinity')).toThrow(AmountTooLargeError);
+    expect(() => toIndexable('NaN')).toThrow(AmountTooLargeError);
+  });
+
+  test('極端な指数でも 1 秒以内に投げる', () => {
+    const start = Date.now();
+    expect(() => toIndexable('1e9000000000000000')).toThrow(AmountTooLargeError);
+    expect(Date.now() - start).toBeLessThan(1000);
   });
 
   test('rejects negative', () => {
@@ -57,5 +70,26 @@ describe('formatJPY', () => {
 
   test('accepts Decimal instance', () => {
     expect(formatJPY(D('98765'))).toBe('¥98,765');
+  });
+});
+
+describe('toAmountString', () => {
+  test('一般の値は toFixed と同じ（指数表記にならない）', () => {
+    expect(toAmountString(D('1000'))).toBe('1000');
+    expect(toAmountString(D('1e21'))).toBe('1000000000000000000000');
+    expect(toAmountString(D('0.0000001'))).toBe('0.0000001');
+    expect(toAmountString(D(0))).toBe('0');
+  });
+
+  test('有限でない値と指数が範囲外の値は AmountTooLargeError', () => {
+    for (const v of ['NaN', 'Infinity', '-Infinity', '1e1001', '1e-1001']) {
+      expect(() => toAmountString(D(v)), v).toThrow(AmountTooLargeError);
+    }
+  });
+
+  test('極端な指数でも即座に投げる', () => {
+    const start = Date.now();
+    expect(() => toAmountString(D('1e-9000000000000000'))).toThrow(AmountTooLargeError);
+    expect(Date.now() - start).toBeLessThan(1000);
   });
 });

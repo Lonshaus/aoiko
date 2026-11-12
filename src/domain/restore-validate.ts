@@ -11,6 +11,8 @@ import {
   sortBackupParts,
   type BackupPartId,
 } from '../backup/parts';
+import type { Decimal } from '../lib/decimal';
+import { parseLegacyLineAmount } from '../lib/amount-input';
 import { m } from '../paraglide/messages';
 import { checkRow, clip, describeValue, upgradeLegacyRow } from './restore-schema';
 // 復元前のスキーマ検証。全消去の前に呼び、不正なバックアップで既存データを失うのを防ぐ。
@@ -85,6 +87,13 @@ export function journalEntryProblem(r: unknown): string | null {
   return null;
 }
 
+const PLAIN_AMOUNT = /^\d+(\.\d+)?$/;
+// 旧バージョンの toIndexable と同じ形（小数 2 桁、整数部を 14 桁にゼロ詰め、それより長くても切らない）。投げない
+function legacyIndex(d: Decimal): string {
+  const [i = '0', f = ''] = d.toFixed(2).split('.');
+  return `${i.padStart(14, '0')}.${f.padEnd(2, '0')}`;
+}
+
 export function journalLineProblem(r: unknown): string | null {
   if (!isObject(r)) {
     return 'オブジェクトではありません';
@@ -103,13 +112,34 @@ export function journalLineProblem(r: unknown): string | null {
   }
   // 負の金額は validateLines も toIndexable も禁じている。ここだけ通すと、改竄または
   // 破損したバックアップ経由でしか作れない負金額の明細が DB に入る。
-  if (typeof r.amount !== 'string' || !/^\d+(\.\d+)?$/.test(r.amount)) {
-    return `amount が非負の数値文字列ではありません：${describeValue(r.amount)}`;
+  // 旧バージョンが保存した 1e3・.5 のような書き方は、読めて範囲内なら受け入れる。
+  const amount = Object.hasOwn(r, 'amount') ? r.amount : undefined;
+  const legacy =
+    typeof amount === 'string' && !PLAIN_AMOUNT.test(amount)
+      ? parseLegacyLineAmount(amount)
+      : undefined;
+  if (typeof amount !== 'string' || (!PLAIN_AMOUNT.test(amount) && legacy === undefined)) {
+    return `amount が非負の数値文字列ではありません：${describeValue(amount)}`;
+  }
+  // 課税資産の譲渡等の対価も消費税の計算と会計士向け CSV が金額として読む。対応する索引は無い
+  if (Object.hasOwn(r, 'taxableTransferConsideration')) {
+    const c = r.taxableTransferConsideration;
+    if (
+      c !== undefined &&
+      (typeof c !== 'string' || (!PLAIN_AMOUNT.test(c) && parseLegacyLineAmount(c) === undefined))
+    ) {
+      return `taxableTransferConsideration が非負の数値文字列ではありません：${describeValue(c)}`;
+    }
   }
   // toIndexable の出力形式（整数部ゼロ詰め + 小数部固定長）。索引の並びが壊れると
   // 金額範囲検索が黙って誤った結果を返すため、形式まで見る。
-  if (typeof r.amountIndexed !== 'string' || !/^\d+\.\d+$/.test(r.amountIndexed)) {
-    return `amountIndexed が不正：${describeValue(r.amountIndexed)}`;
+  const amountIndexed = Object.hasOwn(r, 'amountIndexed') ? r.amountIndexed : undefined;
+  if (typeof amountIndexed !== 'string' || !/^\d+\.\d+$/.test(amountIndexed)) {
+    return `amountIndexed が不正：${describeValue(amountIndexed)}`;
+  }
+  // 通常の表記以外は、索引が金額と食い違っていないかも確かめる
+  if (legacy !== undefined && amountIndexed !== legacyIndex(legacy)) {
+    return `amountIndexed が amount と一致しません：${describeValue(amountIndexed)}`;
   }
   if (typeof r.taxRate !== 'number') {
     return 'taxRate が数値ではありません';

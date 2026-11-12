@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   applySign,
   buildRawRow,
+  checkParsedAmounts,
   findHeaderRow,
   isDateLike,
   normalizeDate,
@@ -9,6 +10,7 @@ import {
   requireColumns,
   stripComma,
 } from './_helpers';
+import { mufgParser } from './mufg';
 
 describe('normalizeDate', () => {
   test('YYYY/MM/DD / YYYY-MM-DD / YYYY.MM.DD', () => {
@@ -149,5 +151,39 @@ describe('isDateLike', () => {
     expect(isDateLike('合計')).toBe(false);
     expect(isDateLike('')).toBe(false);
     expect(isDateLike('05/01')).toBe(false);
+  });
+});
+
+describe('checkParsedAmounts', () => {
+  // 匿名化した三菱UFJ 銀行形式。2 行目は「円」付き、3 行目は全角数字、4 行目は 100 兆円
+  const csv = [
+    '日付,摘要,摘要内容,支払い金額,預かり金額,差引残高',
+    '2026/1/5,振込,テスト商店,"1,000",,50000',
+    '2026/1/6,振込,テスト商店,"1,234円",,48766',
+    '2026/1/7,入金,テスト入金,,５０００,53766',
+    '2026/1/8,振込,テスト商店,100000000000000,,0',
+  ].join('\n');
+
+  test('読めない行と 1e14 以上の行を順番付きで返し、他の行は標準の書き方で残す', () => {
+    const { transactions, issues } = checkParsedAmounts(mufgParser.parse(csv));
+    expect(issues).toEqual(
+      [
+        { row: 2, date: '2026-01-06', raw: '1234円', reason: 'invalid' },
+        { row: 4, date: '2026-01-08', raw: '100000000000000', reason: 'too_large' },
+      ].map((issue, i) => ({ ...issue, description: transactions[i * 2 + 1]!.description })),
+    );
+    expect(transactions.map((t) => t.amount)).toEqual([
+      '1000',
+      '1234円',
+      '5000',
+      '100000000000000',
+    ]);
+  });
+
+  test.each(['1e3', '0x10', '-5', '', 'abc'])('%j は読めない金額', (amount) => {
+    const { issues } = checkParsedAmounts([
+      { date: '2026-01-01', description: '', amount, side: 'debit', rawRow: {} },
+    ]);
+    expect(issues[0]?.reason).toBe('invalid');
   });
 });

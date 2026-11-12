@@ -26,7 +26,7 @@ import type { XtxSchema } from './xtx-schema';
 import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod, FixedAsset, RealEstatePropertyDetail } from '../../db/types';
-import { maxOccursOf, type XtxDetailOverflowRow } from './xtx-mapping-shared';
+import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
 import {
   computeDepreciation,
   isImmediateExpenseAsset,
@@ -86,26 +86,12 @@ const EXPENSE_ALIAS: Record<string, string> = {
   '給料賃金（不動産）': '給料賃金',
   '雑費（不動産）': 'その他の経費',
 };
-// gen:kingaku は xsd:long（整数円）。Decimal 文字列 → 整数円（小数切捨て・カンマ除去）
-function toKingaku(s: string): string {
-  const t = s.replace(/,/g, '').trim();
-  const m = /^(-?)(\d+)(?:\.\d+)?$/.exec(t);
-  if (!m) {
-    return '';
-  }
-  const sign = m[1] === '-' ? '-' : '';
-  const digits = m[2]!.replace(/^0+(?=\d)/, '');
-  if (digits === '0') {
-    return '0';
-  }
-  return `${sign}${digits}`;
-}
 
 function put(out: XtxLeafValues, tag: string | undefined, amount: string): void {
   if (!tag) {
     return;
   }
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     out[tag] = v;
   }
@@ -218,7 +204,7 @@ function effectiveMethodLabel(
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function putRow(row: XtxLeafValues, tag: string, amount: string): void {
-  const v = toKingaku(amount);
+  const v = toKingaku(amount, tag);
   if (v !== '') {
     row[tag] = v;
   }
@@ -293,7 +279,7 @@ function depreciationCandidates(ctx: XtxContext) {
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
     ctx.fixedAssets,
-    ctx.businessStartDate,
+    ctx.businessStartDates,
     ctx.businessCloseDate,
   );
   const realEstateAssets = ctx.fixedAssets.filter((a) => a.incomeType === 'realEstate');

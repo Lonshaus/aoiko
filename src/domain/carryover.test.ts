@@ -12,6 +12,7 @@ import {
 import { reverseEntry } from './reverse';
 import { buildBS, loadYearData } from './reports';
 import { todayISO } from '../lib/date';
+import { m } from '../paraglide/messages';
 import type { Account, EntrySource, LineSide } from '../db/types';
 
 async function seedAccounts(year: number): Promise<void> {
@@ -641,5 +642,42 @@ describe('detectStaleCarryover', () => {
       await applyCarryover(2026);
       expect(await detectStaleCarryover(2026, await loadYearData(2026))).toBeNull();
     });
+  });
+});
+
+describe('繰越の金額は指数表記にならない', () => {
+  test('1e-7 の残高も一般の書き方で返る', async () => {
+    await seedAccounts(2025);
+    await seedEntry({
+      date: '2025-01-01',
+      description: '開業',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '0.0000001' },
+        { side: 'credit', accountCode: '3110', amount: '0.0000001' },
+      ],
+    });
+    const p = await computeCarryover(2026);
+    expect(p.assets.map((a) => a.amount)).toEqual(['0.0000001']);
+  });
+});
+
+describe('繰越額が大きすぎるとき', () => {
+  test('個々の明細は 100 兆円未満でも同じ科目の差引が 100 兆円以上なら、科目コードつきの理由で止まり、何も書かない', async () => {
+    await seedAccounts(2025);
+    await seedAccounts(2026);
+    for (const date of ['2025-03-01', '2025-04-01']) {
+      await seedEntry({
+        date,
+        description: '大きな取引',
+        pairs: [
+          { side: 'debit', accountCode: '1130', amount: '99999999999999' },
+          { side: 'credit', accountCode: '3110', amount: '99999999999999' },
+        ],
+      });
+    }
+    await expect(applyCarryover(2026)).rejects.toThrow(
+      m.carryover_amount_failed({ account: '1130', message: m.common_amount_too_large() }),
+    );
+    expect(await db.journalEntries.where('year').equals(2026).count()).toBe(0);
   });
 });

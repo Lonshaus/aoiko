@@ -2,7 +2,8 @@
   import { liveQuery } from 'dexie';
   import { db } from '../db';
   import { assignInputNumber } from '../lib/number-input';
-  import { D, formatJPY, type Decimal } from '../lib/decimal';
+  import { D, type Decimal } from '../lib/decimal';
+  import { formatStoredAmount, readStoredAmount } from '../lib/amount-input';
   import { reverseEntry } from '../domain/reverse';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
@@ -143,7 +144,10 @@
         .where('entryId')
         .anyOf(entryIds)
         .filter((l) => {
-          const v = D(l.amount);
+          const v = readStoredAmount(l.amount);
+          if (v === undefined) {
+            return false;
+          }
           if (min !== null && v.lessThan(min)) {
             return false;
           }
@@ -635,7 +639,7 @@
                 {/if}
               </td>
               <td class="px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap">
-                {formatJPY(row.totalAmount)}
+                {formatStoredAmount(row.totalAmount)}
               </td>
             </tr>
             {#if expanded}
@@ -660,7 +664,7 @@
                                 >
                               </span>
                               <span class="tabular-nums whitespace-nowrap"
-                                >{formatJPY(l.amount)}</span
+                                >{formatStoredAmount(l.amount)}</span
                               >
                             </li>
                             {#if l.memo}
@@ -686,7 +690,7 @@
                                 >
                               </span>
                               <span class="tabular-nums whitespace-nowrap"
-                                >{formatJPY(l.amount)}</span
+                                >{formatStoredAmount(l.amount)}</span
                               >
                             </li>
                             {#if l.memo}

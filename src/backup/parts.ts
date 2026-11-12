@@ -97,6 +97,8 @@ export const DEVICE_ONLY_SETTING_KEYS = [
   'skipDownloadSavedConfirm',
   'dataCheckAcknowledged',
   'processingYearResetTo',
+  'dismissedInterruptedOpeningYears',
+  'dismissedMissingOpeningAssets',
 ] as const satisfies readonly (keyof SettingsMap)[];
 
 export const RESTORABLE_TABLES: ReadonlySet<string> = new Set([

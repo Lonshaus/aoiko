@@ -254,6 +254,7 @@ If a backup folder is already configured, click **"Restore from backup folder"**
 - **Device-specific settings do not move**: the disclaimer consent, confirmations you turned off with "Don't ask again" and similar, the backup folder and the choice of items to include in backups, the "Got it" of the stored data check, and the like are not in backups, and restoring leaves this device's values unchanged
 - **Always export manually first** if work is in progress
 - After restoring, do the BS consistency check ([06. § 4-1](06-reports_en.md#4-1-mismatch-warning))
+- If the restored data has an amount of ¥100 trillion or more, or an unreadable amount, the stored data check ([§ 5-5](#5-5-stored-data-check)) lists the items concerned after the app reloads
 
 ### 5-5. Stored data check
 
@@ -312,7 +313,13 @@ Three layers:
 | Generic CSV | UTF-8, one row per journal line | Fallback for accounting software that doesn't support Yayoi format |
 | Reversal (cancellation) history CSV | UTF-8 | List of reversing entries (original + reversal). The two main CSVs exclude correction pairs from totals, so use this if you need to see what was canceled |
 
-The target year is whichever year is currently selected under "Basic info" in Settings.
+The target year is whichever year is currently selected under "Basic info" in Settings. While that year is outside 2020–2099, none of the three export buttons can be pressed ([01. Initial setup § 3](01-setup_en.md#3-register-basic-information)).
+
+When an export stops, it depends on the file.
+
+- Yayoi-format CSV and generic CSV: if the target year has an amount of ¥100 trillion or more or an unreadable amount, or if a fixed asset has an acquisition cost of ¥100 trillion or more, the export stops and a list of the items is shown
+- Yayoi-format CSV only: it also stops when the consumption tax settings hold an unreadable value or an amount of ¥100 trillion or more, and when an entry's "taxable transfer consideration" cannot be read ([07. Consumption tax § 4-5](07-consumption-tax_en.md#4-5-consumption-tax-on-selling-a-fixed-asset))
+- Reversal (cancellation) history CSV: it stops only when a reversed entry has an item whose amount cannot be read, showing "Cannot export: {count} items in reversed entries have unreadable amounts:" followed by the items. An amount of ¥100 trillion or more does not stop it
 
 **How the export behaves**
 

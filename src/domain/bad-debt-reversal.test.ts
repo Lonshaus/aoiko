@@ -223,3 +223,13 @@ describe('applyBadDebtReversal', () => {
     expect('entryId' in y2027).toBe(true);
   });
 });
+
+describe('戻入れの金額は指数表記にならない', () => {
+  test('1e-7 の繰入れも一般の書き方で返る', async () => {
+    await seedAccounts(2025);
+    await seedAccrual(2025, '5810', '0.0000001');
+    const p = await computeBadDebtReversal(2026);
+    expect(p.reversals).toEqual([{ accountCode: '4120', amount: '0.0000001' }]);
+    expect(p.total).toBe('0.0000001');
+  });
+});

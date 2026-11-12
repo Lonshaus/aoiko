@@ -1,5 +1,5 @@
 import { db } from '../db/db';
-import { D, type Decimal, toIndexable } from '../lib/decimal';
+import { D, type Decimal, toAmountString, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
@@ -67,11 +67,11 @@ export async function computeBadDebtReversal(year: number): Promise<BadDebtRever
     if (!amount.isPositive()) {
       continue;
     }
-    reversals.push({ accountCode, amount: amount.toString() });
+    reversals.push({ accountCode, amount: toAmountString(amount) });
     total = total.plus(amount);
   }
 
-  return { year, priorYear, date: `${year}-01-01`, reversals, total: total.toString() };
+  return { year, priorYear, date: `${year}-01-01`, reversals, total: toAmountString(total) };
 }
 
 export async function applyBadDebtReversal(

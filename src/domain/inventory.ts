@@ -2,6 +2,7 @@ import { db } from '../db/db';
 import { loadAccountsForYear } from '../db/year-accounts';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { readStoredAmount } from '../lib/amount-input';
 import { isReadableEntryDate } from './restore-validate';
 import type { YearData } from './reports';
 import type { JournalEntry, JournalLine } from '../db/types';
@@ -28,6 +29,8 @@ interface ItemValuation {
 export interface InventoryValuation {
   items: ItemValuation[];
   totalValue: Decimal;
+  // 数量を読めず在庫に数えなかった明細の仕訳
+  unreadable: { date: string; description: string }[];
 }
 export interface InventorySource {
   entries: JournalEntry[];
@@ -98,12 +101,18 @@ export async function computeInventoryValuation(
 
   const quantity = new Map<string, Decimal>();
   const unitCost = new Map<string, Decimal>();
+  const unreadable: InventoryValuation['unreadable'] = [];
   for (const entry of entries) {
     for (const line of linesByEntry.get(entry.id) ?? []) {
       if (!line.itemId || !line.quantity) {
         continue;
       }
-      const qty = D(line.quantity);
+      // 復元された明細は数量を検査していないため、読めない明細は在庫に数えず一覧に出す
+      const qty = readStoredAmount(line.quantity);
+      if (qty === undefined || qty.isNegative()) {
+        unreadable.push({ date: entry.date, description: entry.description });
+        continue;
+      }
       // 両建ては side で正味集計する（plContribution と同じ考え方）。仕入の貸方は
       // 仕入返品・返金で在庫が減り、売上の借方は売上返品で在庫が戻る。
       if (line.accountCode === PURCHASE_ACCOUNT_CODE) {
@@ -129,5 +138,5 @@ export async function computeInventoryValuation(
     items.push({ itemId, quantity: qty, unitCost: cost, value });
     totalValue = totalValue.plus(value);
   }
-  return { items, totalValue };
+  return { items, totalValue, unreadable };
 }

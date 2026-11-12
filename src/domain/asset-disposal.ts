@@ -1,20 +1,28 @@
 import { D, Decimal } from '../lib/decimal';
-import { toIndexable } from '../lib/decimal';
+import { toAmountString, toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { isAmountInputInvalid, normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
 import { db } from '../db/db';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
 import {
+  buildDepreciationInputs,
   computeDepreciation,
   depreciableCost,
   isImmediateExpenseAsset,
-  smallAssetSpecialStatuses,
+  loadEffectiveBusinessDates,
   type LumpSumPoolShare,
   type SmallAssetStatus,
 } from './depreciation';
 import { SMALL_ASSET_MIN } from '../tax-schema/2026/limits';
-import { loadBusinessDates } from '../lib/settings';
+import {
+  affectsSmallAssetCap,
+  findInvalidFixedAssets,
+  fixedAssetIssueScope,
+  fixedAssetLabel,
+  InvalidFixedAssetError,
+  validateFixedAsset,
+} from './fixed-asset-check';
 import type { DisposalType, FixedAsset, JournalEntry, JournalLine } from '../db/types';
 import { m } from '../paraglide/messages';
 // 固定資産の除却・売却（B6）。
@@ -110,7 +118,7 @@ function buildLumpSumDisposalLines(asset: FixedAsset, cashAccountCode: string): 
   if (!asset.salePrice) {
     throw new Error(m.error_sale_price_required());
   }
-  const salePrice = D(normalizeAmountInput(asset.salePrice)).toString();
+  const salePrice = toAmountString(D(normalizeAmountInput(asset.salePrice)));
   if (asset.essentialToBusiness === true) {
     return [
       { side: 'debit', accountCode: cashAccountCode, amount: salePrice },
@@ -158,7 +166,7 @@ export function buildDisposalLines(
     const salePrice = D(normalizeAmountInput(asset.salePrice));
     const diff = salePrice.minus(bookValueEnd);
     const lines: DisposalLineSpec[] = [
-      { side: 'debit', accountCode: cashAccountCode, amount: salePrice.toString() },
+      { side: 'debit', accountCode: cashAccountCode, amount: toAmountString(salePrice) },
     ];
     if (D(accumulatedEnd).greaterThan(0)) {
       lines.push({
@@ -171,17 +179,21 @@ export function buildDisposalLines(
       lines.push({
         side: 'credit',
         accountCode: OWNER_CONTRIBUTION_ACCOUNT,
-        amount: diff.toString(),
+        amount: toAmountString(diff),
       });
     } else if (diff.lessThan(0)) {
-      lines.push({ side: 'debit', accountCode: OWNER_DRAW_ACCOUNT, amount: diff.abs().toString() });
+      lines.push({
+        side: 'debit',
+        accountCode: OWNER_DRAW_ACCOUNT,
+        amount: toAmountString(diff.abs()),
+      });
     }
     // 事業用資産の売却は付随行為として課税資産の譲渡等（消令2条3項・消法28条1項、課税標準は税込対価）。
     lines.push({
       side: 'credit',
       accountCode: asset.accountCode,
-      amount: cost.toString(),
-      taxableTransferConsideration: salePrice.toString(),
+      amount: toAmountString(cost),
+      taxableTransferConsideration: toAmountString(salePrice),
       taxRate: 0.1,
       taxIncluded: true,
     });
@@ -199,7 +211,7 @@ export function buildDisposalLines(
       amount: accumulatedEnd,
     });
   }
-  lines.push({ side: 'credit', accountCode: asset.accountCode, amount: cost.toString() });
+  lines.push({ side: 'credit', accountCode: asset.accountCode, amount: toAmountString(cost) });
   return lines;
 }
 
@@ -227,6 +239,11 @@ export async function generateDisposalEntry(
   }
   // 書く年度は除却日で決まる。引数からは分からないので資産を引いた後で判定する。
   await assertYearsWritable([Number(disposedDate.slice(0, 4))], options);
+  // .xtx の明細だけに効く問題は除却の仕訳を変えないので止めない
+  const issues = validateFixedAsset(asset).filter((i) => fixedAssetIssueScope(i) !== 'output');
+  if (issues.length > 0) {
+    throw new InvalidFixedAssetError([{ asset, issues }]);
+  }
   const disposalType: DisposalType = asset.disposalType ?? 'scrap';
   if (asset.depreciationMethod === 'lump-sum' && disposalType === 'scrap') {
     return { created: false, reason: 'lump-sum-scrap-no-entry' };
@@ -246,30 +263,51 @@ export async function generateDisposalEntry(
   const tag = `#${asset.id.slice(0, 8)}`;
   const marker = DISPOSAL_MARKER[disposalType];
 
-  const existing = await db.journalEntries
-    .where('[year+date]')
-    .equals([year, disposedDate])
-    .filter(
-      (e) => countsTowardTotals(e) && e.description.includes(tag) && e.description.includes(marker),
-    )
-    .first();
-  if (existing) {
+  const hasExisting = async (): Promise<boolean> =>
+    (await db.journalEntries
+      .where('[year+date]')
+      .equals([year, disposedDate])
+      .filter(
+        (e) =>
+          countsTowardTotals(e) && e.description.includes(tag) && e.description.includes(marker),
+      )
+      .first()) !== undefined;
+  if (await hasExisting()) {
     return { created: false, reason: 'already-exists' };
   }
   // 少額特例の落選判定（上限超過・要件外）は全資産・開業日／廃業日に依るので、ここで DB から読んで算出する。
-  const [allAssets, businessDates] = await Promise.all([
-    db.fixedAssets.toArray(),
-    loadBusinessDates(),
-  ]);
-  const statuses = smallAssetSpecialStatuses(
+  const allAssets = await db.fixedAssets.toArray();
+  // 少額特例の枠は全資産で決まるため、ほかの資産でも枠の計算が読む欄に問題があれば止める
+  const invalidAssets = findInvalidFixedAssets(
+    allAssets.filter((a) => a.id !== asset.id),
+    affectsSmallAssetCap,
+  );
+  if (invalidAssets.length > 0) {
+    throw new InvalidFixedAssetError(invalidAssets);
+  }
+  const businessDates = await loadEffectiveBusinessDates();
+  const { statuses } = buildDepreciationInputs(
     allAssets,
-    businessDates.businessStartDate,
+    businessDates.businessStartDates,
     businessDates.businessCloseDate,
   );
   // 除却仕訳は当年の月按分を含む累計償却額を貸方で落とすが、その当年分は 12/31 の
   // 年末一括償却仕訳の借方があって初めて釣り合う。順序が逆だと累計償却額が負残高になり、
   // 費用も同額少なくなる。両者は設定画面の独立したボタンなので、ここで順序を担保する。
-  const currentYearDepreciation = computeDepreciation(asset, year, undefined, statuses);
+  let currentYearDepreciation: ReturnType<typeof computeDepreciation>;
+  let lines: DisposalLineSpec[];
+  try {
+    currentYearDepreciation = computeDepreciation(asset, year, undefined, statuses);
+    lines = buildDisposalLines(asset, cashAccountCode, statuses);
+  } catch (e) {
+    throw new Error(
+      m.fixed_asset_invalid({
+        name: fixedAssetLabel(asset),
+        reasons: e instanceof Error ? e.message : String(e),
+      }),
+      { cause: e },
+    );
+  }
   // 一括償却資産は除却後も償却を続け、売却仕訳は累計償却額に触れないので順序の制約が無い。
   if (asset.depreciationMethod !== 'lump-sum' && !D(currentYearDepreciation.amount).isZero()) {
     const yearEnd = await db.journalEntries
@@ -287,42 +325,50 @@ export async function generateDisposalEntry(
     }
   }
 
-  const lines = buildDisposalLines(asset, cashAccountCode, statuses);
   const entryId = newId();
   const now = Date.now();
-  const description = `${marker} ${asset.name} ${tag}`;
+  const description = `${marker} ${fixedAssetLabel(asset)} ${tag}`;
 
-  await db.transaction('rw', [db.journalEntries, db.journalLines, db.reportSnapshots], async () => {
-    markConfirmedWrite(options);
-    await db.journalEntries.add({
-      id: entryId,
-      date: disposedDate,
-      year,
-      description,
-      status: 'confirmed',
-      source: 'manual',
-      createdAt: now,
-      confirmedAt: now,
-    } satisfies JournalEntry);
+  const created = await db.transaction(
+    'rw',
+    [db.journalEntries, db.journalLines, db.reportSnapshots],
+    async () => {
+      markConfirmedWrite(options);
+      // 同時に走った別の実行が先に書いていれば、ここで見えるので二重に書かない
+      if (await hasExisting()) {
+        return false;
+      }
+      await db.journalEntries.add({
+        id: entryId,
+        date: disposedDate,
+        year,
+        description,
+        status: 'confirmed',
+        source: 'manual',
+        createdAt: now,
+        confirmedAt: now,
+      } satisfies JournalEntry);
 
-    const journalLines: JournalLine[] = lines.map((l) => ({
-      id: newId(),
-      entryId,
-      side: l.side,
-      accountCode: l.accountCode,
-      amount: l.amount,
-      amountIndexed: toIndexable(l.amount),
-      taxRate: l.taxRate ?? 0,
-      taxIncluded: l.taxIncluded ?? true,
-      invoiceCompliant: false,
-      ...(l.taxableTransferConsideration !== undefined
-        ? { taxableTransferConsideration: l.taxableTransferConsideration }
-        : {}),
-    }));
-    await db.journalLines.bulkAdd(journalLines);
-  });
+      const journalLines: JournalLine[] = lines.map((l) => ({
+        id: newId(),
+        entryId,
+        side: l.side,
+        accountCode: l.accountCode,
+        amount: l.amount,
+        amountIndexed: toIndexable(l.amount),
+        taxRate: l.taxRate ?? 0,
+        taxIncluded: l.taxIncluded ?? true,
+        invoiceCompliant: false,
+        ...(l.taxableTransferConsideration !== undefined
+          ? { taxableTransferConsideration: l.taxableTransferConsideration }
+          : {}),
+      }));
+      await db.journalLines.bulkAdd(journalLines);
+      return true;
+    },
+  );
 
-  return { created: true };
+  return created ? { created: true } : { created: false, reason: 'already-exists' };
 }
 
 interface TransferIncomeEstimate {

@@ -81,6 +81,8 @@ Each CSV row appears as a **candidate** in the table. Per row:
 | Tax | Choose Out of scope / Reduced 8% / Standard 10%. Taxable rows also show a "Qualified" checkbox |
 | Skip | Tick to exclude this row from the import |
 
+For a row whose amount cannot be read, or is ¥100 trillion or more, a message per row appears above the table: `<date> "<description>": the amount "<value>" cannot be read, so this row will not be imported` (for a row of ¥100 trillion or more: `<date> "<description>": the amount "<value>" is ¥100 trillion or more, so this row will not be imported`). In place of the amount, that row's amount field shows "Cannot read the amount" (for a row of ¥100 trillion or more: "The amount is too large. Enter an amount under ¥100 trillion"), and "Skip" is always ticked and cannot be cleared.
+
 #### Auto-fill badges
 
 The header shows a count such as **"48 / 50 rows will be registered"** and each row may show one of these badges:
@@ -108,7 +110,7 @@ Click the button with the row count (e.g. **"Register 48"**) to convert all unti
 
 > Double-check the count and badges before submitting. Corrections are possible afterward but tedious if many entries are wrong. For bulk mistakes, the import history's **"Reverse batch"** is far more efficient (see [§ 5](#5-import-history-and-batch-reverse)).
 
-A message such as **"Created 48 journal entries"** appears at the top.
+A message such as **"Created 48 journal entries"** appears at the top. If there were rows with unreadable amounts or amounts of ¥100 trillion or more, the number of rows that were not imported, including the rows of ¥100 trillion or more, is appended to the message, as in "2 rows with unreadable amounts were not imported".
 
 ## 4. AI classification (optional)
 <!-- only:browser -->
@@ -166,7 +168,7 @@ The **"Auto-classification rules"** section of Settings lets you register rules 
 | Match type | `Description contains` / `Vendor name equals` / `Regex` |
 | Pattern | String to match (e.g. `amazon`, `^Electricity`) |
 | Counterpart account | Account to fill (e.g. `5200 消耗品費` (Consumables)) |
-| Priority | Higher priorities are evaluated first; on multiple matches, highest priority wins |
+| Priority | Higher priorities are evaluated first; on multiple matches, highest priority wins. Only a whole number of 0 or more is accepted; otherwise "Enter the priority as a whole number of 0 or more" appears and the rule cannot be registered |
 
 ### 6-2. Examples
 

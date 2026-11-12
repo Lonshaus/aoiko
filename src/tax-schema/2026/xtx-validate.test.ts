@@ -127,6 +127,27 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
     });
   }
 
+  maybe('gen:kingaku は 15 桁まで公式 xsd に適合し、16 桁は拒否される', () => {
+    const schema = koa020 as XtxSchema;
+    const tag = schema.refTree.find(
+      (e) => e.kind === 'leaf' && !e.idref && e.refType === 'gen:kingaku',
+    )!.tag;
+    const run = (v: string) => {
+      const frag = buildFormFragment(
+        schema,
+        { NENBUN: '08', ZEIMUSHO: '渋谷' },
+        { creatorName: '青井事務所', creationDate: '2026-05-13' },
+        { [tag]: v },
+      );
+      const doc =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+      return runXmllint(join(SPEC_DIR, '_valwrap-KOA020.xsd'), doc);
+    };
+    expect(run('999999999999999').status).toBe(0);
+    expect(run('1000000000000000').status).not.toBe(0);
+  });
+
   maybe('KOA210 参照側が公式 xsd に適合する', () => {
     const { ok, out } = validate(koa210 as XtxSchema, '_valwrap-KOA210.xsd');
     expect(out).not.toContain('Schemas parser error');

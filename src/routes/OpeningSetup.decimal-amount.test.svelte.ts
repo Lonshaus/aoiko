@@ -62,6 +62,7 @@ describe('開業費の任意の償却額は円単位の整数だけを受け付�
     document.body.appendChild(container);
     instance = mount(OpeningSetup, { target: container, props: {} });
     await waitFor(() => container!.querySelector('h2') !== null);
+    await waitFor(() => container!.querySelector('input[type="date"]') !== null);
 
     setValue(container.querySelector<HTMLInputElement>('input[type="date"]')!, '2026-07-01');
     await tick();

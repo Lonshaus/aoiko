@@ -77,23 +77,26 @@ describe('仕訳を書く取引の範囲', () => {
     expect(missing.map((c) => c.at)).toEqual([]);
   });
   // 取引の数え漏れ（書き方を変えて判定から外れた取引）が無いことを、場所の一覧で押さえる。
-  test('仕訳を書く取引はこの 15 箇所', () => {
+  test('仕訳を書く取引はこの 18 箇所', () => {
     expect(journalWrites.map((c) => c.at).sort()).toEqual(
       [
-        'domain/asset-disposal.ts:295',
+        'domain/asset-disposal.ts:332',
         'domain/bad-debt-reversal.ts:90',
-        'domain/business-opening.ts:294',
-        'domain/business-opening.ts:444',
-        'domain/carryover.ts:221',
-        'domain/carryover.ts:320',
-        'domain/depreciation.ts:861',
+        'domain/business-opening.ts:489',
+        'domain/business-opening.ts:618',
+        'domain/business-opening.ts:654',
+        'domain/business-opening.ts:860',
+        'domain/business-opening.ts:1104',
+        'domain/carryover.ts:236',
+        'domain/carryover.ts:335',
+        'domain/depreciation.ts:1154',
         'domain/entry-date-fix.ts:88',
-        'domain/import.ts:68',
-        'domain/invoice.ts:185',
+        'domain/import.ts:69',
+        'domain/invoice.ts:208',
         'domain/reverse.ts:49',
         'domain/snapshots.ts:6',
-        'routes/JournalEntryForm.svelte:340',
-        'routes/OrderImport.svelte:264',
+        'routes/JournalEntryForm.svelte:382',
+        'routes/OrderImport.svelte:284',
         'routes/Receipt.svelte:309',
       ].sort(),
     );
@@ -123,10 +126,10 @@ describe('画面の確認で得た年度の受け渡し', () => {
     return sites;
   }
 
-  test('確認はすべて const consent で受け、全部で 14 箇所', () => {
+  test('確認はすべて const consent で受け、全部で 18 箇所', () => {
     const sites = confirmSites();
     expect(sites.filter((s) => !s.declared).map((s) => s.at)).toEqual([]);
-    expect(sites).toHaveLength(14);
+    expect(sites).toHaveLength(18);
   });
 
   test('確認の後で consent を書き込みの印か allowedFiledYears へ渡す', () => {

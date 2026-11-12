@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ledger } from '../stores/ledger.svelte';
   import { D, formatJPY } from '../lib/decimal';
+  import { formatStoredAmount } from '../lib/amount-input';
   import JournalEntryForm from './JournalEntryForm.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
   import DataCheckNotice from '../components/DataCheckNotice.svelte';
@@ -45,6 +46,11 @@
         </div>
       </div>
     </div>
+    {#if overview.unreadableCount > 0}
+      <p class="text-xs text-destructive" role="status">
+        {m.home_overview_unreadable({ count: overview.unreadableCount })}
+      </p>
+    {/if}
   </section>
 
   <JournalEntryForm />
@@ -111,7 +117,7 @@
                   {/if}
                 </td>
                 <td class="px-4 py-3 text-right tabular-nums font-medium whitespace-nowrap">
-                  {formatJPY(row.totalAmount)}
+                  {formatStoredAmount(row.totalAmount)}
                 </td>
               </tr>
             {/each}

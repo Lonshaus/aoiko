@@ -1,9 +1,13 @@
 import type { FixedAsset, PersonalDeductionInput } from '../../db/types';
-import { isAmountInputInvalid } from '../../lib/amount-input';
+import { isAmountInputMalformed, parseAmountInput } from '../../lib/amount-input';
 import { familyEmployeeExclusion } from './family-employee-deduction';
-// 手編集されたバックアップの文字列以外の値は、personalDeductionsToCtx が 0 扱いかそのまま通すため誤りに数える
+// 手編集されたバックアップの文字列以外の値は、personalDeductionsToCtx が 0 扱いかそのまま通すため誤りに数える。
+// 小数は大きさを問わず誤りに数える。100 兆円以上の整数は 15 桁以内なら .xtx に書けるので数えない
 function invalid(value: unknown): boolean {
-  return typeof value !== 'string' || isAmountInputInvalid(value);
+  if (typeof value !== 'string' || isAmountInputMalformed(value)) {
+    return true;
+  }
+  return parseAmountInput(value)?.isInteger() === false;
 }
 
 function invalidIfPresent(value: unknown): boolean {

@@ -79,7 +79,9 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 
 ### 3-1. Pre-export checklist
 
-1. **Settings > Filer info** has tax office, user identification number, name, address (export is blocked if missing)
+1. **Settings > Filer info** has tax office, user identification number, name, address (export is blocked if missing). Export is also blocked when a value you entered is incorrect or a saved value cannot be read, and "The filer info, business name or invoice registration number contains an incorrect or unreadable value. Fix it under Filer info and Basic info in Settings." appears. The items checked are as follows.
+   - The format of the user identification number, postal code, and tax office code
+   - Whether the name, address, tax office name, business name, and invoice registration number can be read
 2. **Settings > Filing type** matches your actual filing (blue or white return)
 3. For blue return, **Settings > Filer info (for e-Tax submission) > Deduction type** is correct (three tiers from tax year 2027 (Reiwa 9) on — ¥750,000 / ¥650,000 / ¥100,000; ¥650,000 / ¥550,000 / ¥100,000 for tax year 2026)
 4. All journal entries for the year are **confirmed**
@@ -90,6 +92,18 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 9. The amounts on the Deductions screen and in the fixed assets (real estate) in Settings are whole numbers of yen (the `.xtx` cannot be exported if an amount cannot be read or has a decimal part; correct it to a whole number of yen and save. Fixed assets (real estate) count only when real estate income is enabled in Settings)
 10. When real estate income is enabled, no property detail of the fixed assets (real estate) in Settings has an item that cannot be read as text (the `.xtx` cannot be exported otherwise; open the property detail, check it, and save)
 11. For a blue return, no balance sheet account is left over from the additional-account fields (accounts without a field on the form, such as accumulated depreciation or your own custom accounts, go into the additional-account fields, with a limit of 7 asset accounts and 14 liability and equity accounts. Beyond that the `.xtx` cannot be exported, and the accounts that don't fit are listed)
+
+When you press the export button, if any of the following applies, aoiko creates no `.xtx` and stops with the reason shown at the top of the screen. They are checked in this order.
+
+- The target year has an amount of ¥100 trillion or more, or an unreadable amount: "{count} items have an amount of ¥100 trillion or more or an unreadable amount. Reverse them with correcting entries:" appears, followed by the list of items
+- A saved income-deduction field or fixed asset holds a value that cannot be read, or cannot be calculated: "Cannot export because the following saved values cannot be read. Fix them in Settings or on the input screen:" appears, followed by the list
+- A saved business start or closing date, or the date of an opening entry with no substitute start date in that year, cannot be read: export stops even if there are no fixed assets. The list under "Cannot export because the following saved values cannot be read…" above includes a message such as "The saved business start date "…" cannot be read as a date, so the annual limit for the small depreciable asset special rule cannot be calculated. Fix it under "Business start and closing dates" in Settings."
+- When assembling the file, an amount cannot be read or has 16 digits or more: "Cannot export: an amount cannot be written to the .xtx file (item <tag>). Check that it has 15 digits or fewer" appears. A calculated amount with a decimal part is output as an integer with the fractional part dropped and does not stop the export (a decimal in an amount saved on the Deductions screen or in fixed assets (real estate) stops the export before this, as in item 9)
+
+After a successful export, a notice appears at the top of the screen if any of the following applies.
+
+- Family employees, depreciable assets, properties, or payees that exceeded the row limit of a detail field: they are not written to the .xtx details but are included in the totals. "Some detail rows exceeded the row limit of their field and were not written to the .xtx: <list of forms, fields and items>. Please add them manually in e-Tax." appears
+- An asset whose undepreciated balance when put into business use exceeds its acquisition cost: the asset name and how to fix it are shown ([08. Depreciation § 2-3](08-depreciation_en.md#2-3-converted-assets-personal-use-converted-to-business-use))
 
 ### 3-2. File name
 
@@ -138,6 +152,14 @@ This is a **separate file and separate procedure** from the income-tax `.xtx` ab
 3. On the Reports page > **"Consumption tax"** section, confirm the desired method appears in the method list
 4. Click **"Export general-taxation .xtx"**, **"Export 20% special provision .xtx"**, or **"Export simplified-taxation .xtx"** (filename `aoiko-shohi-{year}.xtx`; for general taxation and simplified taxation, an interim filing is `aoiko-shohi-{year}-interim.xtx`)
 
+While the year on the Reports screen is outside 2020–2099, these buttons (including the ones for interim filing) cannot be pressed. After you press one, if any of the following applies, aoiko creates no `.xtx` and stops with the reason shown in the "Consumption tax" section.
+
+- The consumption tax actually paid as an interim payment this year holds an unreadable value: "Enter the amount as a number of 0 or more (e.g. 5000)" appears. This check is always made for the 20% special provision, and for general taxation and simplified taxation only when exporting the annual return (not when exporting an interim filing). For an amount of ¥100 trillion or more, "The amount is too large. Enter an amount under ¥100 trillion" appears.
+- The filer info, business name or invoice registration number contains an incorrect or unreadable value ([§ 3-1](#3-1-pre-export-checklist))
+- The target year has an amount of ¥100 trillion or more or an unreadable amount, or the consumption tax settings hold an unreadable value: the list of the items or values concerned appears
+- The consumption tax settings hold an amount of ¥100 trillion or more: this covers the base-period and specified-period taxable sales, the consumption tax on sales returns and allowances (7.8% and 6.24% portions), and the tax on specified small-asset transfers. "Cannot export because the following saved amounts are ¥100 trillion or more. Fix them in Settings or on the input screen:" appears, followed by the list. If an unreadable value is also present, its notice appears alongside this one
+- Assembling the file failed: the cause appears
+
 ### Loading into e-Tax software (download edition)
 
 Separately from income tax, install the **consumption tax year module** first, then load it. The steps mirror [§ 4](#4-loading-into-e-tax-software-download-edition) ("load" → select file → review the numbers in form editing).
@@ -149,7 +171,7 @@ Separately from income tax, install the **consumption tax year module** first, t
 | An error saying the file cannot be loaded | Filer info not entered, or loaded into the wrong year module |
 | Wrong file format | A non-`.xtx` file was loaded |
 | Form mismatch | aoiko's built-in form definitions (generated from the XSD) are out of date for the current year |
-| Wrong digit/format | Negative amounts, etc.; review journal entries |
+| Wrong digit/format | A negative amount, etc.; review journal entries. If there is an unreadable amount or one with 16 digits or more, aoiko stops before exporting and shows "Cannot export: an amount cannot be written to the .xtx file" ([§ 3-1](#3-1-pre-export-checklist)) |
 
 ## 7. Next steps
 

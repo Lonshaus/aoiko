@@ -7,8 +7,19 @@ import { db } from '../db/db';
 import { loadAccountsForYear } from '../db/year-accounts';
 import { getSetting, loadSmallAmountSpecialInputs } from '../lib/settings';
 import { isProcessingYear } from '../lib/initial-processing-year';
-import { countsTowardTotals } from './journal';
+import { countsTowardTotals, readTransferConsideration } from './journal';
 import { usesLegacyPurchaseAssetRule } from './snapshots';
+import {
+  findOversizedAmounts,
+  findUnreadableReversedAmounts,
+  OversizedAmountsError,
+} from './oversized-amounts';
+import {
+  findInvalidConsumptionTaxSettings,
+  findOversizedConsumptionTaxSettings,
+  InvalidStoredValuesError,
+  OversizedStoredValuesError,
+} from './stored-value-checks';
 import {
   classifyNonInvoicePurchases,
   countsAsPurchaseInput,
@@ -322,6 +333,11 @@ function buildYayoiEntryRows(
     voucherNo++;
     let transferWithoutAsset = false;
     const department = ctx.omitDepartment === true ? '' : (entry.department ?? '');
+    for (const line of entryLines) {
+      if (line.taxableTransferConsideration !== undefined) {
+        readTransferConsideration(line, entry);
+      }
+    }
 
     const buildSide = (line: JournalLine): YayoiSideCell => {
       const account = accountMap.get(line.accountCode);
@@ -379,7 +395,7 @@ function buildYayoiEntryRows(
         }
       }
       const info = markedTransferTaxInfo(line, ctx);
-      const amount = D(line.taxableTransferConsideration).toFixed(0);
+      const amount = readTransferConsideration(line, entry).toFixed(0);
       const accountName = yayoiAccountName(target, line.accountCode);
       creditCells.push({
         account: accountName,
@@ -597,8 +613,28 @@ async function loadExportData(year: number): Promise<ExportData> {
     },
   };
 }
+// 1e14 以上・読めない明細は toFixed(0) で桁数の多い文字列や例外になるため、出力前に止めて一覧を示す
+async function assertAmountsExportable(year: number): Promise<void> {
+  const found = await findOversizedAmounts({ year });
+  if (found.total > 0) {
+    throw new OversizedAmountsError(found);
+  }
+}
+// 弥生 CSV は消費税の設定値も読むため、明細の金額に加えて設定値も出力前に確かめる
+async function assertYayoiExportable(year: number): Promise<void> {
+  await assertAmountsExportable(year);
+  const invalidSettings = await findInvalidConsumptionTaxSettings(year);
+  if (invalidSettings.length > 0) {
+    throw new InvalidStoredValuesError(invalidSettings);
+  }
+  const oversizedSettings = await findOversizedConsumptionTaxSettings(year);
+  if (oversizedSettings.length > 0) {
+    throw new OversizedStoredValuesError(oversizedSettings);
+  }
+}
 
 export async function exportYayoiCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  await assertYayoiExportable(year);
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   const rows = buildYayoiCsvRows(entries, lines, accounts, subAccounts, ctx);
   return encodeShiftJis(buildCsv(rows));
@@ -687,6 +723,7 @@ export async function exportYayoiCsvParts(
   year: number,
   options: { includeDepartment?: boolean } = {},
 ): Promise<YayoiCsvParts> {
+  await assertYayoiExportable(year);
   const { entries, lines, accounts, subAccounts, ctx } = await loadExportData(year);
   // スタンダードとやよいの青色申告は部門を取り込めないため、選ばれたときだけ書き出す
   const groups = buildYayoiEntryRows(entries, lines, accounts, subAccounts, {
@@ -724,11 +761,11 @@ export async function exportYayoiCsvParts(
 }
 
 export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
+  await assertAmountsExportable(year);
   const { entries, lines, accounts, subAccounts } = await loadExportData(year);
   const rows = buildGenericCsvRows(entries, lines, accounts, subAccounts);
   return encodeUtf8WithBom(buildCsv([GENERIC_HEADER, ...rows]));
 }
-
 // 年度が処理年度の範囲外の原仕訳は、どの年度の CSV にも載らないため打消し仕訳の年度に載せる。
 async function loadOutOfRangeOriginals(entries: JournalEntry[]): Promise<JournalEntry[]> {
   const inEntries = new Set(entries.map((e) => e.id));
@@ -775,10 +812,14 @@ async function loadReversalsForDate(
   const found = await db.journalEntries.bulkGet([...ids]);
   return found.filter((e): e is JournalEntry => e !== undefined && e.status !== 'reversed');
 }
-
+// 訂正で打ち消すことが過大な明細の直し方なので、1e14 以上では止めない。読めない明細だけ止める
 export async function exportCorrectionHistoryCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
   const entries = await db.journalEntries.where('year').equals(year).toArray();
   const extraOriginals = isProcessingYear(year) ? await loadOutOfRangeOriginals(entries) : [];
+  const unreadable = await findUnreadableReversedAmounts(year, extraOriginals);
+  if (unreadable.total > 0) {
+    throw new OversizedAmountsError(unreadable, 'unreadable');
+  }
   const listed = [...entries, ...extraOriginals];
   const reversalsForDate = await loadReversalsForDate(listed, entries);
   const lines =
