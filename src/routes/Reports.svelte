@@ -612,9 +612,8 @@
       const filing = (await getSetting('filingType')) ?? 'blue';
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
       const asOf = `${yr}-12-31`;
-      const withInventory = ledger.inventoryAutoValuationEnabled
-        ? await loadYearDataWithInventory(yr, asOf)
-        : null;
+      const inventoryEnabled = (await getSetting('inventoryAutoValuationEnabled')) !== false;
+      const withInventory = inventoryEnabled ? await loadYearDataWithInventory(yr, asOf) : null;
       const yearData = withInventory ? withInventory.yearData : await loadYearData(yr);
       const reports = await buildAll(yr, 'vendor', yearData, { skipBreakdown: true });
       const processed = await processYear(yr, undefined, { yearData });
