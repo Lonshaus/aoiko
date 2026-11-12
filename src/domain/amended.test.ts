@@ -4,6 +4,7 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { amendmentChecklist, getAmendmentDiff } from './amended';
+import { loadYearData } from './reports';
 import { markYearFiled, unlockYear } from './snapshots';
 import type { Account, LineSide } from '../db/types';
 
@@ -260,6 +261,57 @@ describe('getAmendmentDiff', () => {
       filedAmount: '100000',
       currentAmount: '70000',
     });
+  });
+});
+
+describe('getAmendmentDiff：年度データの共有', () => {
+  test('PL と BS の申告済みスナップショットがあっても、年度データを渡した結果は渡さない場合と同じ', async () => {
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: {
+            rows: [{ accountCode: '4110', amount: '100000' }],
+            totalRevenue: '100000',
+            totalExpense: '0',
+            netIncome: '100000',
+          },
+        },
+        bs: {
+          type: 'bs',
+          data: {
+            assets: [{ accountCode: '1130', amount: '100000' }],
+            liabilities: [],
+            equity: [],
+          },
+        },
+      },
+      '2026-12-31',
+    );
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '20000' },
+        { side: 'credit', accountCode: '1130', amount: '20000' },
+      ],
+    });
+    const data = await loadYearData(2026);
+
+    const shared = await getAmendmentDiff(2026, data);
+
+    expect(shared).toEqual(await getAmendmentDiff(2026));
+    expect(shared?.hasChange).toBe(true);
+    expect(shared?.bsChanges).not.toBeNull();
+    expect(shared?.bsChanges?.length).toBeGreaterThan(0);
   });
 });
 
