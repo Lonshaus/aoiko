@@ -188,6 +188,7 @@ export async function issueInvoice(invoice: Invoice, prefix: string): Promise<In
     db.journalLines,
     db.arApEntries,
     db.invoices,
+    db.reportSnapshots,
     async () => {
       // 未保存の新規下書きは DB に無い。存在する場合だけ現在値で判定する。
       const current = await db.invoices.get(invoice.id);

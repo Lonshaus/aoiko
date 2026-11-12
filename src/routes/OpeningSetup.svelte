@@ -184,10 +184,13 @@
   // 読めない額のまま作成に進むと内部のエラー文が出るか、償却 0 として作られてしまう。
   // 開業費の合計が 0 ならドメインは償却額を読まない
   function customAmortizationInvalid(): boolean {
-    if (
-      expenseAmortization !== 'custom' ||
-      parseAmountInput(customAmortizationAmount) !== undefined
-    ) {
+    if (expenseAmortization !== 'custom') {
+      return false;
+    }
+    if (isAmountInputInvalid(customAmortizationAmount)) {
+      return true;
+    }
+    if (parseAmountInput(customAmortizationAmount) !== undefined) {
       return false;
     }
     try {
@@ -218,7 +221,8 @@
         assets: convertedAssets.length,
         custom: customItems.length,
       });
-      if (!(await filedYearGuard.confirm([year], { detail }))) {
+      const consent = await filedYearGuard.confirm([year], { detail });
+      if (!consent) {
         return;
       }
       const result = await generateOpeningEntries(
@@ -243,7 +247,7 @@
           })),
           customItems: items,
         },
-        { allowFiledYear: true },
+        { allowedFiledYears: consent },
       );
       // 少額特例の年合計上限の月割（措法28の2）に使う。仕訳が1件も作られない場合も書く。
       await setSetting('businessStartDate', businessStartDate);
@@ -276,10 +280,11 @@
     try {
       // 作り直しは既存の開業仕訳を打ち消す書き込み。生成と同じく申告済み年度の確認を通す。
       const redoYear = Number(businessStartDate.slice(0, 4));
-      if (!(await filedYearGuard.confirm([redoYear]))) {
+      const consent = await filedYearGuard.confirm([redoYear]);
+      if (!consent) {
         return;
       }
-      const removal = await removeOpeningEntries(redoYear, { allowFiledYear: true });
+      const removal = await removeOpeningEntries(redoYear, { allowedFiledYears: consent });
       if ('reason' in removal) {
         error = m.opening_redo_blocked({ assets: removal.assetNames.join('、') });
         return;

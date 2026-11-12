@@ -797,7 +797,7 @@ async function earliestOpeningDate(): Promise<string | undefined> {
 export async function generateYearEndDepreciation(
   year: number,
   options?: {
-    allowFiledYear?: boolean;
+    allowedFiledYears?: readonly number[];
     /** 未指定は開業仕訳の日付（無ければ全年扱い） */
     businessStartDate?: string;
     /** 未指定は廃業なし（全年扱い） */
@@ -858,45 +858,49 @@ export async function generateYearEndDepreciation(
         : isImmediateExpenseAsset(asset)
           ? `減価償却（所令138）${tag}`
           : `減価償却 ${tag}`;
-    await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
-      markConfirmedWrite(options);
-      await db.journalEntries.add({
-        id: entryId,
-        date,
-        year,
-        description,
-        status: 'confirmed',
-        source: 'manual',
-        createdAt: now,
-        confirmedAt: now,
-      } satisfies JournalEntry);
+    await db.transaction(
+      'rw',
+      [db.journalEntries, db.journalLines, db.reportSnapshots],
+      async () => {
+        markConfirmedWrite(options);
+        await db.journalEntries.add({
+          id: entryId,
+          date,
+          year,
+          description,
+          status: 'confirmed',
+          source: 'manual',
+          createdAt: now,
+          confirmedAt: now,
+        } satisfies JournalEntry);
 
-      const lines: JournalLine[] = [
-        {
-          id: newId(),
-          entryId,
-          side: 'debit',
-          accountCode: DEPRECIATION_EXPENSE,
-          amount: result.amount,
-          amountIndexed: toIndexable(result.amount),
-          taxRate: 0,
-          taxIncluded: true,
-          invoiceCompliant: false,
-        },
-        {
-          id: newId(),
-          entryId,
-          side: 'credit',
-          accountCode: ACCUMULATED_DEPRECIATION,
-          amount: result.amount,
-          amountIndexed: toIndexable(result.amount),
-          taxRate: 0,
-          taxIncluded: true,
-          invoiceCompliant: false,
-        },
-      ];
-      await db.journalLines.bulkAdd(lines);
-    });
+        const lines: JournalLine[] = [
+          {
+            id: newId(),
+            entryId,
+            side: 'debit',
+            accountCode: DEPRECIATION_EXPENSE,
+            amount: result.amount,
+            amountIndexed: toIndexable(result.amount),
+            taxRate: 0,
+            taxIncluded: true,
+            invoiceCompliant: false,
+          },
+          {
+            id: newId(),
+            entryId,
+            side: 'credit',
+            accountCode: ACCUMULATED_DEPRECIATION,
+            amount: result.amount,
+            amountIndexed: toIndexable(result.amount),
+            taxRate: 0,
+            taxIncluded: true,
+            invoiceCompliant: false,
+          },
+        ];
+        await db.journalLines.bulkAdd(lines);
+      },
+    );
     created++;
   }
 

@@ -23,7 +23,7 @@ async function addEntry(opts: {
   const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
     // 申告後に漏れていた経費を足す（修正申告）は、画面の確認を通った書き込み。
-    allowFiledYearWriteInThisTransaction();
+    allowFiledYearWriteInThisTransaction([Number(opts.date.slice(0, 4))]);
     await db.journalEntries.add({
       id,
       date: opts.date,

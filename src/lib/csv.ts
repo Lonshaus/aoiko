@@ -58,15 +58,26 @@ export function parseCsv(text: string): string[][] {
   // 完全に空の行は除外
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }
-// CSV 出力用のフィールドエスケープ（RFC 4180）。カンマ・ダブルクォート・改行を
+// 表計算ソフトで開いたときに数式として実行されないよう、先頭に ' を付ける。
+export function neutralizeFormula(value: string): string {
+  if (/^(\s*[=+\-@＝＋－＠−]|[\t\r\n])/u.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+// CSV 出力用のフィールドエスケープ（RFC 4180）。カンマ・セミコロン・タブ・ダブルクォート・改行を
 // 含む場合のみ "" でクォートし、内部の " は "" にエスケープする。
 function csvField(value: string): string {
-  if (/[",\r\n]/.test(value)) {
+  if (/[",;\t\r\n]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
   return value;
 }
 // 複数行の CSV テキストを組み立てる。lineEnding は既定で CRLF（弥生形式が要求する改行）。
 export function buildCsv(rows: string[][], lineEnding: '\r\n' | '\n' = '\r\n'): string {
-  return rows.map((row) => row.map(csvField).join(',')).join(lineEnding) + lineEnding;
+  return (
+    rows
+      .map((row) => row.map((cell) => csvField(neutralizeFormula(cell))).join(','))
+      .join(lineEnding) + lineEnding
+  );
 }

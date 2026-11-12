@@ -1,6 +1,8 @@
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { D, type Decimal } from '../lib/decimal';
 import { countsTowardTotals } from './journal';
+import { isReadableEntryDate } from './restore-validate';
 import type { YearData } from './reports';
 import type { JournalEntry, JournalLine } from '../db/types';
 // 簡易在庫管理。最終仕入原価法（評価方法の届出を提出していない事業者に
@@ -61,7 +63,7 @@ export async function loadYearDataWithInventory(
     const own = new Set(entries.map((e) => e.id));
     return lines.filter((l) => own.has(l.entryId));
   };
-  const accounts = yearEntries.length > 0 ? await db.accounts.where({ year }).toArray() : [];
+  const accounts = yearEntries.length > 0 ? await loadAccountsForYear(year) : [];
   return {
     yearData: { entries: yearEntries, lines: pick(yearEntries), accounts },
     inventory: { entries: inventoryEntries, lines: pick(inventoryEntries) },
@@ -79,7 +81,7 @@ export async function computeInventoryValuation(
   const entries = (
     source ? source.entries : await db.journalEntries.where('date').belowOrEqual(asOfDate).toArray()
   )
-    .filter(countsTowardTotals)
+    .filter((e) => countsTowardTotals(e) && isReadableEntryDate(e.date))
     .sort((a, b) => a.date.localeCompare(b.date));
   const entryIds = entries.map((e) => e.id);
   const lines = source

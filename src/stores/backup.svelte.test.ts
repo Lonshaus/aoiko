@@ -9,6 +9,9 @@ import { getSetting, setSetting } from '../lib/settings';
 import * as saveFileModule from '../lib/save-file';
 import type { BackupAdapter } from '../backup/types';
 import type { SaveFileResult } from '../lib/save-file';
+import { Blob as NodeBlob } from 'node:buffer';
+import { parseBackupZip } from '../backup/archive';
+import { parseSnapshot } from '../backup/content-store';
 
 interface Pending {
   resolve: () => void;
@@ -349,5 +352,101 @@ describe('backupManager.downloadBackup（issue#390：保存できたかの確認
     await backupManager.confirmDownloadSaved();
     expect(backupManager.lastDownloadAt).not.toBeNull();
     expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
+  });
+});
+// 区分の選択。帳簿データを含まないファイルで「端末外のバックアップが無い」警告が
+// 消えると、帳簿の控えが無いまま安心させてしまう。
+describe('backupManager（区分の選択）', () => {
+  // 書かれた中身を読み戻せるよう、すぐ完了して中身を覚える保存先。
+  class RecordingAdapter extends FakeAdapter {
+    files = new Map<string, Uint8Array>();
+    override async backup(
+      stream: ReadableStream<Uint8Array>,
+      fileName: string,
+    ): Promise<{ fileName: string }> {
+      this.calls++;
+      this.files.set(fileName, new Uint8Array(await new Response(stream).arrayBuffer()));
+      return { fileName };
+    }
+  }
+
+  let recording: RecordingAdapter;
+
+  beforeEach(async () => {
+    recording = new RecordingAdapter();
+    (backupManager as unknown as Injectable).adapter = recording;
+    await db.attachments.add({
+      id: 'a1',
+      entryId: 'e1',
+      blob: new NodeBlob([new Uint8Array([1, 2, 3])]) as unknown as Blob,
+      mimeType: 'image/png',
+      fileName: 'a.png',
+      createdAt: 1,
+    });
+  });
+
+  function writtenSnapshot() {
+    const [name] = [...recording.files.keys()].filter((p) => p.startsWith('snapshots/'));
+    return parseSnapshot(new TextDecoder().decode(recording.files.get(name!)));
+  }
+
+  test('backupParts に証憑写真が無ければ、自動バックアップは証憑を参照も保存もしない', async () => {
+    await setSetting('backupParts', ['books', 'business', 'ai']);
+    await backupManager.backup();
+    const snapshot = writtenSnapshot();
+    expect(snapshot?.attachments).toEqual([]);
+    expect(snapshot?.payloadVersion).toBe(2);
+    expect(snapshot?.parts).toEqual(['books', 'business', 'ai']);
+    expect([...recording.files.keys()].filter((p) => p.startsWith('attachments/'))).toEqual([]);
+  });
+
+  test('backupParts が配列でなければ書き出しの既定で保存する', async () => {
+    await db.settings.put({ key: 'backupParts', value: 'x', updatedAt: 1 });
+    await backupManager.backup();
+    const snapshot = writtenSnapshot();
+    expect(snapshot?.payloadVersion).toBe(1);
+    expect(snapshot?.parts).toEqual(['books', 'attachments', 'business', 'ai']);
+    expect(snapshot?.attachments).toHaveLength(1);
+  });
+
+  function captureSavedZip(result: SaveFileResult): () => Uint8Array | null {
+    let bytes: Uint8Array | null = null;
+    vi.spyOn(saveFileModule, 'saveFile').mockImplementation(async (data) => {
+      const resolved = typeof data === 'function' ? await data() : data;
+      bytes = new Uint8Array(await new Response(resolved).arrayBuffer());
+      return result;
+    });
+    return () => bytes;
+  }
+
+  test('帳簿データを含まない書き出しは payload.json だけの v2 で、時刻を刻まず確認もしない', async () => {
+    const saved = captureSavedZip('saved');
+    const needsConfirm = await backupManager.downloadBackup(new Set(['business']));
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBeUndefined();
+    const parsed = await parseBackupZip(new Blob([saved()!.slice()]));
+    expect(parsed.payload.version).toBe(2);
+    expect(parsed.payload.parts).toEqual(['business']);
+    expect(parsed.attachmentBlobs.size).toBe(0);
+  });
+
+  test('帳簿データを含まない書き出しは、警告が出ていても保存の確認を求めない', async () => {
+    (backupManager as unknown as { adapterKind: string }).adapterKind = 'opfs';
+    mockSaveFile('unknown');
+    const needsConfirm = await backupManager.downloadBackup(new Set(['business', 'ai']));
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).toBeNull();
+  });
+
+  test('帳簿データを含む書き出しは従来どおり時刻を刻む', async () => {
+    const saved = captureSavedZip('saved');
+    const needsConfirm = await backupManager.downloadBackup(new Set(['books', 'business']));
+    expect(needsConfirm).toBe(false);
+    expect(backupManager.lastDownloadAt).not.toBeNull();
+    expect(await getSetting('lastDownloadAt')).toBe(backupManager.lastDownloadAt);
+    const parsed = await parseBackupZip(new Blob([saved()!.slice()]));
+    expect(parsed.payload.parts).toEqual(['books', 'business']);
+    expect(parsed.attachmentBlobs.size).toBe(0);
   });
 });

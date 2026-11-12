@@ -332,29 +332,34 @@
         attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
       );
 
-      if (!(await filedYearGuard.confirm([Number(date.slice(0, 4))]))) {
+      const consent = await filedYearGuard.confirm([Number(date.slice(0, 4))]);
+      if (!consent) {
         return;
       }
 
-      await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
-        // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
-        allowFiledYearWriteInThisTransaction();
-        await db.journalEntries.add({
-          id: entryId,
-          date,
-          year: Number(date.slice(0, 4)),
-          description,
-          ...(department ? { department } : {}),
-          status: 'confirmed',
-          source: 'manual',
-          createdAt: now,
-          confirmedAt: now,
-        });
-        await db.journalLines.bulkAdd(lines);
-        if (attachmentRecords.length > 0) {
-          await db.attachments.bulkAdd(attachmentRecords);
-        }
-      });
+      await db.transaction(
+        'rw',
+        [db.journalEntries, db.journalLines, db.attachments, db.reportSnapshots],
+        async () => {
+          // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
+          allowFiledYearWriteInThisTransaction(consent);
+          await db.journalEntries.add({
+            id: entryId,
+            date,
+            year: Number(date.slice(0, 4)),
+            description,
+            ...(department ? { department } : {}),
+            status: 'confirmed',
+            source: 'manual',
+            createdAt: now,
+            confirmedAt: now,
+          });
+          await db.journalLines.bulkAdd(lines);
+          if (attachmentRecords.length > 0) {
+            await db.attachments.bulkAdd(attachmentRecords);
+          }
+        },
+      );
 
       reset();
       date = today();

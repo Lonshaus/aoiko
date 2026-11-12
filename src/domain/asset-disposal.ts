@@ -1,6 +1,7 @@
 import { D, Decimal } from '../lib/decimal';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
+import { isAmountInputInvalid, normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
 import { db } from '../db/db';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
@@ -109,7 +110,7 @@ function buildLumpSumDisposalLines(asset: FixedAsset, cashAccountCode: string): 
   if (!asset.salePrice) {
     throw new Error(m.error_sale_price_required());
   }
-  const salePrice = D(asset.salePrice).toString();
+  const salePrice = D(normalizeAmountInput(asset.salePrice)).toString();
   if (asset.essentialToBusiness === true) {
     return [
       { side: 'debit', accountCode: cashAccountCode, amount: salePrice },
@@ -154,7 +155,7 @@ export function buildDisposalLines(
     if (!asset.salePrice) {
       throw new Error(m.error_sale_price_required());
     }
-    const salePrice = D(asset.salePrice);
+    const salePrice = D(normalizeAmountInput(asset.salePrice));
     const diff = salePrice.minus(bookValueEnd);
     const lines: DisposalLineSpec[] = [
       { side: 'debit', accountCode: cashAccountCode, amount: salePrice.toString() },
@@ -208,6 +209,7 @@ interface DisposalEntryResult {
     | 'no-disposal'
     | 'already-exists'
     | 'missing-sale-price'
+    | 'invalid-sale-price'
     | 'lump-sum-scrap-no-entry'
     | 'needs-year-end-depreciation';
 }
@@ -216,7 +218,7 @@ interface DisposalEntryResult {
 export async function generateDisposalEntry(
   assetId: string,
   cashAccountCode: string = DEFAULT_CASH_ACCOUNT,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<DisposalEntryResult> {
   const asset = await db.fixedAssets.get(assetId);
   const disposedDate = asset?.disposedDate;
@@ -231,6 +233,13 @@ export async function generateDisposalEntry(
   }
   if (disposalType === 'sale' && !asset.salePrice) {
     return { created: false, reason: 'missing-sale-price' };
+  }
+  if (
+    disposalType === 'sale' &&
+    asset.salePrice &&
+    (typeof asset.salePrice !== 'string' || isAmountInputInvalid(asset.salePrice))
+  ) {
+    return { created: false, reason: 'invalid-sale-price' };
   }
 
   const year = Number(disposedDate.slice(0, 4));
@@ -283,7 +292,7 @@ export async function generateDisposalEntry(
   const now = Date.now();
   const description = `${marker} ${asset.name} ${tag}`;
 
-  await db.transaction('rw', [db.journalEntries, db.journalLines], async () => {
+  await db.transaction('rw', [db.journalEntries, db.journalLines, db.reportSnapshots], async () => {
     markConfirmedWrite(options);
     await db.journalEntries.add({
       id: entryId,
@@ -351,8 +360,11 @@ export function estimateTransferIncome(
   if (isExcludedFromTransferIncome(asset)) {
     return null;
   }
-  const proceeds = D(asset.salePrice);
-  const saleExpenses = D(asset.saleExpenses ?? '0');
+  const proceeds = parseAmountInput(asset.salePrice);
+  const saleExpenses = parseAmountInput(asset.saleExpenses ?? '0');
+  if (proceeds === undefined || saleExpenses === undefined) {
+    return null;
+  }
   const acquisitionExpense =
     asset.depreciationMethod === 'lump-sum'
       ? '0'

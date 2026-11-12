@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { acceptDisclaimer } from './helpers';
-
-const today = new Date().toISOString().slice(0, 10);
+import { acceptDisclaimer, setProcessingYear } from './helpers';
+// 仕訳日は、処理年度の既定（2026 年）に含まれる固定日にする。
+const today = '2026-06-30';
 
 async function addEntry(page: import('@playwright/test').Page, description: string): Promise<void> {
   await page.locator('input[type="date"]').first().fill(today);
@@ -17,6 +17,7 @@ async function addEntry(page: import('@playwright/test').Page, description: stri
 test('申告済み年度への記帳は警告後に続行できる', async ({ page }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
+  await setProcessingYear(page, 2026);
   await addEntry(page, 'ロック前の売上 e2e');
   await expect(page.getByText('ロック前の売上 e2e').first()).toBeVisible({ timeout: 5000 });
 
@@ -29,6 +30,23 @@ test('申告済み年度への記帳は警告後に続行できる', async ({ pa
   await addEntry(page, 'ロック後の売上 e2e');
 
   await expect(page.getByText('申告済みの年度に記帳します')).toBeVisible({ timeout: 5000 });
+  // 自動バックアップの結果の通知が「続行する」を押している間に出ると、押した位置の要素がずれてクリックにならないため、先にバックアップが終わるのを待つ。
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const path = '/src/stores/backup.svelte.ts';
+          const { backup } = (await import(/* @vite-ignore */ path)) as {
+            backup: { lastBackupAt: number | null; status: string };
+          };
+          return (
+            backup.lastBackupAt !== null ||
+            (backup.status !== 'idle' && backup.status !== 'writing')
+          );
+        }),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
   await page.getByRole('button', { name: '続行する' }).click();
   await expect(page.getByText('ロック後の売上 e2e').first()).toBeVisible({ timeout: 5000 });
 });

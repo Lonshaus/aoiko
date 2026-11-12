@@ -555,6 +555,34 @@ describe('compareAll - 方式比較', () => {
     const all = await compareAll(2029, 4);
     expect(all.map((r) => r.method)).toEqual(['general', 'simplified']);
   });
+
+  test('sequential を指定しても方式の順序と金額は同じ', async () => {
+    await seedEntry({
+      date: '2026-04-01',
+      pairs: [
+        { side: 'debit', accountCode: '1130', amount: '1100000' },
+        { side: 'credit', accountCode: '4110', amount: '1100000', taxRate: 0.1, taxIncluded: true },
+      ],
+    });
+    await seedEntry({
+      date: '2026-05-01',
+      pairs: [
+        {
+          side: 'debit',
+          accountCode: '5200',
+          amount: '5500',
+          taxRate: 0.1,
+          taxIncluded: true,
+          invoiceCompliant: true,
+        },
+        { side: 'credit', accountCode: '1130', amount: '5500' },
+      ],
+    });
+    const parallel = await compareAll(2026, 4, 'proportional', {});
+    const sequential = await compareAll(2026, 4, 'proportional', { sequential: true });
+    expect(parallel.length).toBeGreaterThanOrEqual(3);
+    expect(sequential).toEqual(parallel);
+  });
 });
 
 describe('免税・非課税売上と課税売上割合', () => {

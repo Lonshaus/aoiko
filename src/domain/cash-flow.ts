@@ -1,7 +1,7 @@
 import { db } from '../db/db';
 import { D, type Decimal } from '../lib/decimal';
 import { newId } from '../lib/id';
-import { parseAmountInput } from '../lib/amount-input';
+import { normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
 import type { ArApEntry, ArApType } from '../db/types';
 import { m } from '../paraglide/messages';
 
@@ -40,16 +40,24 @@ export class InvalidPaymentAmountError extends Error {
     this.name = 'InvalidPaymentAmountError';
   }
 }
+// 請求書の単価に小数があると残高にも小数が出るため、小数の金額は残高ちょうどの消込のときだけ認める
+export function isPaymentAmountInvalid(raw: string, entry: ArApEntry): boolean {
+  const paid = parseAmountInput(raw);
+  if (paid === undefined) {
+    return true;
+  }
+  return !paid.isInteger() && !paid.equals(remainingBalance(entry));
+}
 
 export async function recordPayment(id: string, amount: string): Promise<void> {
-  const paid = parseAmountInput(amount);
-  if (paid === undefined) {
-    throw new InvalidPaymentAmountError();
-  }
   const entry = await db.arApEntries.get(id);
   if (!entry) {
     throw new Error(m.error_receivable_not_found());
   }
+  if (isPaymentAmountInvalid(amount, entry)) {
+    throw new InvalidPaymentAmountError();
+  }
+  const paid = D(normalizeAmountInput(amount));
   const newPaid = D(entry.paidAmount).plus(paid);
   if (newPaid.greaterThan(entry.originalAmount)) {
     throw new OverpaymentError();

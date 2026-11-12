@@ -1,5 +1,6 @@
 import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
+import { loadAccountsForYear } from '../db/year-accounts';
 import { D } from '../lib/decimal';
 import { countsTowardTotals, plContribution } from '../domain/journal';
 // 現状の勘定科目スキーマは 2026 年分のみ。年度セレクタ／翌年分スキーマ追加までの既定値。
@@ -66,7 +67,7 @@ export async function buildLedgerRows(entries: JournalEntry[], year: number): Pr
     .where('entryId')
     .anyOf(entries.map((e) => e.id))
     .toArray();
-  const accounts = await db.accounts.where({ year }).toArray();
+  const accounts = await loadAccountsForYear(year);
   const subAccounts = await db.subAccounts.toArray();
 
   const accountMap = new Map(accounts.map((a) => [a.code, a.name]));
@@ -182,7 +183,7 @@ class LedgerStore {
       this.sub(
         () => db.journalEntries.orderBy('department').uniqueKeys(),
         (v) => {
-          this.departments = v.filter((d): d is string => typeof d === 'string' && d !== '');
+          this.departments = v.filter((d): d is string => typeof d === 'string' && d.trim() !== '');
         },
       ),
       // 復元（restore.ts）が settings を書き換えても追従できるよう liveQuery で購読する。
@@ -227,7 +228,7 @@ class LedgerStore {
     const year = this.currentYear;
     this.yearSubs = [
       this.sub(
-        () => db.accounts.where({ year }).sortBy('code'),
+        async () => (await loadAccountsForYear(year)).sort((a, b) => (a.code < b.code ? -1 : 1)),
         (v) => {
           this.allAccounts = v;
           this.accounts = v.filter((a) => a.isActive !== false);
@@ -295,7 +296,7 @@ class LedgerStore {
       .where('entryId')
       .anyOf(confirmed.map((e) => e.id))
       .toArray();
-    const accounts = await db.accounts.where({ year }).toArray();
+    const accounts = await loadAccountsForYear(year);
     const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
     let revenue = D(0);

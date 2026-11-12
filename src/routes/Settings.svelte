@@ -2,14 +2,10 @@
   import { onMount, tick } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { clearUnsavedGuard, link, setUnsavedGuard } from '../router.svelte';
-  import { db } from '../db';
+  import { db, ensureAccountsForYears } from '../db';
   import { newId } from '../lib/id';
   import { assignInputNumber, assignInputString } from '../lib/number-input';
-  import {
-    isAmountInputInvalid,
-    normalizeAmountInput,
-    parseAmountInput,
-  } from '../lib/amount-input';
+  import { isAmountInputInvalid, normalizeAmountInput } from '../lib/amount-input';
   import { toISODateLocal, todayISO } from '../lib/date';
   import { nativeBridge } from '../lib/native-bridge';
   import { readPreviewPlatform, writePreviewPlatform } from '../lib/doc-preview';
@@ -31,14 +27,27 @@
   import { saveFile } from '../lib/save-file';
   import { backup } from '../stores/backup.svelte';
   import { isValidDefaultRatio } from '../domain/home-office';
-  import { BackupCorruptError } from '../backup';
-  import { BackupTooLargeError, parseBackupFile, restoreFromPayload } from '../domain/restore';
+  import { BackupCorruptError, type BackupPayload } from '../backup';
+  import {
+    BackupTooLargeError,
+    inspectBackupPayload,
+    parseBackupFile,
+    restoreFromPayload,
+  } from '../domain/restore';
+  import { IMPORT_DEFAULT_PARTS, type BackupPartId } from '../backup/parts';
+  import BackupPartsChecklist from '../components/BackupPartsChecklist.svelte';
+  import UnreadableDateEntries from '../components/UnreadableDateEntries.svelte';
   import { stashRestoreNotice, takeRestoreNotice } from '../lib/restore-notice';
   import { takeSettingsTarget } from '../lib/settings-target';
+  import { isProcessingYear } from '../lib/initial-processing-year';
+  import { dataCheck } from '../stores/data-check.svelte';
+  import { zipSync } from 'fflate';
   import {
     exportCorrectionHistoryCsv,
     exportGenericCsv,
-    exportYayoiCsv,
+    exportYayoiCsvParts,
+    type YayoiExportNotice,
+    type YayoiNoticeReason,
   } from '../domain/accountant-export';
   import {
     computeDepreciation,
@@ -131,6 +140,8 @@
   }
 
   let currentYear = $state(2026);
+  // HTML に埋め込むので整数だけを渡す。保存値が壊れていても読込時の既定と同じ 2026 にする。
+  const carryoverIntroYear = $derived(Number.isInteger(currentYear) ? currentYear : 2026);
   let userBusinessName = $state('');
   let userInvoiceNumber = $state('');
   let skipAttachmentConfirm = $state(false);
@@ -203,6 +214,12 @@
   let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
   let restoreAttachmentCount = $state(0);
   let restoreAttachmentBlobs: Map<string, Blob> = new Map();
+  let restoreAvailableParts = $state<BackupPartId[]>([]);
+  let restoreSelectedParts = $state<BackupPartId[]>([]);
+  // 帳簿は置き換えて証憑写真は置き換えないとき、残る証憑の範囲を先に伝える。
+  const restoreKeepsAttachments = $derived(
+    restoreSelectedParts.includes('books') && !restoreSelectedParts.includes('attachments'),
+  );
   let restoreFileName = $state('');
   let restoreError = $state('');
   let restoreSuccess = $state('');
@@ -214,8 +231,13 @@
   let restoreSection = $state<HTMLElement | null>(null);
   let restoreApplyButton = $state<HTMLButtonElement | null>(null);
   let backupSection = $state<HTMLElement | null>(null);
+  let dataCheckSection = $state<HTMLElement | null>(null);
+  let basicSection = $state<HTMLFormElement | null>(null);
 
   let accountantExportError = $state('');
+  let yayoiExportStatus = $state('');
+  let yayoiNotices = $state<YayoiExportNotice[]>([]);
+  let yayoiIncludeDepartment = $state(false);
 
   let newSubParent = $state('');
   let newSubName = $state('');
@@ -471,6 +493,7 @@
     // 復元直後の再読み込みで持ち越された結果（issue#387）。await より先に読んで消す。
     const notice = takeRestoreNotice();
     const target = takeSettingsTarget();
+    void dataCheck.ensureStarted();
     if (notice) {
       restoreSuccess = m.settings_restore_success({ tables: notice.tables, rows: notice.rows });
       restoreWarning =
@@ -478,7 +501,9 @@
           ? m.settings_restore_missing_blobs({ count: notice.missingBlobCount })
           : '';
     }
-    currentYear = (await getSetting('currentYear')) ?? 2026;
+    // 起動時と同じ判定。範囲外や型の違う値は欄に出さない。
+    const storedYear = await getSetting('currentYear');
+    currentYear = isProcessingYear(storedYear) ? storedYear : 2026;
     userBusinessName = (await getSetting('userBusinessName')) ?? '';
     userInvoiceNumber = (await getSetting('userInvoiceNumber')) ?? '';
     invoiceNumberPrefix = (await getSetting('invoiceNumberPrefix')) ?? DEFAULT_INVOICE_PREFIX;
@@ -554,7 +579,8 @@
     skipExternalSendConfirm = (await getSetting('skipExternalSendConfirm')) ?? false;
     homeOfficeRatios = (await getSetting('homeOfficeAccountRatios')) ?? {};
     // 復元の結果もバックアップ欄も設定画面のかなり下にあり、着いた先は先頭。
-    // 復元は全置換という取り消せない操作の唯一の確認なので、そちらを優先する。
+    // 復元は選んだ区分を置き換える取り消せない操作（処理年度だけは、バックアップに使える値が
+    // 無ければこの端末の値を残す）で、結果はここでしか確かめられないので、そちらを優先する。
     // 上の読み込みで高さが変わるため、すべて終わってから測る。
     if (notice) {
       await tick();
@@ -564,6 +590,12 @@
       // center だと画面より高い欄は見出しが上へ外れる。start と scroll-mt で、
       // 貼り付いたヘッダの下に見出しが来る位置へ寄せる。
       backupSection?.scrollIntoView({ block: 'start' });
+    } else if (target === 'dataCheck') {
+      await tick();
+      dataCheckSection?.scrollIntoView({ block: 'start' });
+    } else if (target === 'basic') {
+      await tick();
+      basicSection?.scrollIntoView({ block: 'start' });
     }
   });
 
@@ -612,7 +644,7 @@
     const normalized = normalizeAmountInput(value);
     if (normalized === '') {
       await deleteSetting(key);
-    } else if (parseAmountInput(normalized) !== undefined) {
+    } else if (!isAmountInputInvalid(normalized)) {
       await setSetting(key, normalized);
     }
   }
@@ -856,7 +888,13 @@
 
   async function saveBasic(e: Event) {
     e.preventDefault();
+    // 欄の min / max はブラウザの検査を通さない送信では効かないため、ここでも止める。
+    if (!isProcessingYear(currentYear)) {
+      return;
+    }
+    await ensureAccountsForYears([currentYear]);
     await setSetting('currentYear', currentYear);
+    await deleteSetting('processingYearResetTo');
     // 保存した処理年度を全画面（概況・仕訳一覧・帳票）へ即時反映する
     ledger.switchYear(currentYear);
     await setSetting('userBusinessName', userBusinessName);
@@ -900,11 +938,12 @@
   async function runCarryover() {
     carryoverError = '';
     carryoverStatus = '';
-    if (!(await filedYearGuard.confirm([currentYear]))) {
+    const consent = await filedYearGuard.confirm([currentYear]);
+    if (!consent) {
       return;
     }
     try {
-      const r = await applyCarryover(currentYear, { allowFiledYear: true });
+      const r = await applyCarryover(currentYear, { allowedFiledYears: consent });
       if ('entryId' in r) {
         carryoverStatus = m.settings_carryover_applied();
         carryoverPreview = null;
@@ -921,11 +960,12 @@
   async function runBadDebtReversal() {
     badDebtReversalError = '';
     badDebtReversalStatus = '';
-    if (!(await filedYearGuard.confirm([currentYear]))) {
+    const consent = await filedYearGuard.confirm([currentYear]);
+    if (!consent) {
       return;
     }
     try {
-      const r = await applyBadDebtReversal(currentYear, { allowFiledYear: true });
+      const r = await applyBadDebtReversal(currentYear, { allowedFiledYears: consent });
       if ('entryId' in r) {
         badDebtReversalStatus = m.settings_bad_debt_reversal_applied({
           amount: formatJPY(r.total),
@@ -943,15 +983,14 @@
   async function deleteCarryover() {
     carryoverError = '';
     carryoverStatus = '';
-    if (
-      !(await filedYearGuard.confirm([currentYear], {
-        detail: m.filed_year_warning_detail_carryover({ year: currentYear }),
-      }))
-    ) {
+    const consent = await filedYearGuard.confirm([currentYear], {
+      detail: m.filed_year_warning_detail_carryover({ year: currentYear }),
+    });
+    if (!consent) {
       return;
     }
     try {
-      const r = await removeCarryover(currentYear, { allowFiledYear: true });
+      const r = await removeCarryover(currentYear, { allowedFiledYears: consent });
       carryoverStatus = r.removed
         ? m.settings_carryover_deleted()
         : m.settings_carryover_no_target();
@@ -984,6 +1023,7 @@
 
   async function toggleAccountActive(account: Account) {
     const next = account.isActive === false ? true : false;
+    await ensureAccountsForYears([account.year]);
     await db.accounts
       .where('[code+year]')
       .equals([account.code, account.year])
@@ -1221,22 +1261,32 @@
   async function deleteAsset(id: string) {
     await db.fixedAssets.delete(id);
   }
+  // バックアップの手編集などで文字列以外が入っていても、編集画面を開いて保存し直せるようにする。
+  function toInputText(v: unknown): string {
+    if (typeof v === 'string') {
+      return v;
+    }
+    if (typeof v === 'number') {
+      return String(v);
+    }
+    return '';
+  }
 
   function startEditProperty(a: FixedAsset) {
     propertyEditId = a.id;
     const d = a.realEstateDetail;
-    propertyType = d?.propertyType ?? '';
+    propertyType = toInputText(d?.propertyType);
     propertyIsResidential = d?.isResidential ?? true;
-    propertyAddress = d?.address ?? '';
-    propertyTenantName = d?.tenantName ?? '';
-    propertyTenantAddress = d?.tenantAddress ?? '';
-    propertyRentalStart = d?.rentalPeriodStart ?? '';
-    propertyRentalEnd = d?.rentalPeriodEnd ?? '';
-    propertyAreaSqm = d?.areaSqm ?? '';
-    propertyAnnualRent = d?.annualRent ?? '';
-    propertyKeyMoneyEtc = d?.keyMoneyEtc ?? '';
-    propertyOtherIncome = d?.otherIncome ?? '';
-    propertyDepositBalance = d?.depositBalance ?? '';
+    propertyAddress = toInputText(d?.address);
+    propertyTenantName = toInputText(d?.tenantName);
+    propertyTenantAddress = toInputText(d?.tenantAddress);
+    propertyRentalStart = toInputText(d?.rentalPeriodStart);
+    propertyRentalEnd = toInputText(d?.rentalPeriodEnd);
+    propertyAreaSqm = toInputText(d?.areaSqm);
+    propertyAnnualRent = toInputText(d?.annualRent);
+    propertyKeyMoneyEtc = toInputText(d?.keyMoneyEtc);
+    propertyOtherIncome = toInputText(d?.otherIncome);
+    propertyDepositBalance = toInputText(d?.depositBalance);
     propertyError = '';
   }
 
@@ -1254,23 +1304,35 @@
       propertyError = m.settings_asset_property_error_required();
       return;
     }
+    if (
+      [propertyAnnualRent, propertyKeyMoneyEtc, propertyOtherIncome, propertyDepositBalance].some(
+        isAmountInputInvalid,
+      )
+    ) {
+      propertyError = m.common_amount_invalid();
+      return;
+    }
     const a = await db.fixedAssets.get(propertyEditId);
     if (!a) {
       return;
     }
+    const annualRent = normalizeAmountInput(propertyAnnualRent);
+    const keyMoneyEtc = normalizeAmountInput(propertyKeyMoneyEtc);
+    const otherIncome = normalizeAmountInput(propertyOtherIncome);
+    const depositBalance = normalizeAmountInput(propertyDepositBalance);
     const detail: RealEstatePropertyDetail = {
       propertyType: propertyType.trim(),
       isResidential: propertyIsResidential,
       address: propertyAddress.trim(),
-      annualRent: propertyAnnualRent.trim(),
+      annualRent,
       ...(propertyTenantName.trim() ? { tenantName: propertyTenantName.trim() } : {}),
       ...(propertyTenantAddress.trim() ? { tenantAddress: propertyTenantAddress.trim() } : {}),
       ...(propertyRentalStart ? { rentalPeriodStart: propertyRentalStart } : {}),
       ...(propertyRentalEnd ? { rentalPeriodEnd: propertyRentalEnd } : {}),
       ...(propertyAreaSqm.trim() ? { areaSqm: propertyAreaSqm.trim() } : {}),
-      ...(propertyKeyMoneyEtc.trim() ? { keyMoneyEtc: propertyKeyMoneyEtc.trim() } : {}),
-      ...(propertyOtherIncome.trim() ? { otherIncome: propertyOtherIncome.trim() } : {}),
-      ...(propertyDepositBalance.trim() ? { depositBalance: propertyDepositBalance.trim() } : {}),
+      ...(keyMoneyEtc ? { keyMoneyEtc } : {}),
+      ...(otherIncome ? { otherIncome } : {}),
+      ...(depositBalance ? { depositBalance } : {}),
     };
     await db.fixedAssets.put({ ...a, realEstateDetail: detail });
     propertyEditId = null;
@@ -1280,8 +1342,8 @@
     disposeEditId = a.id;
     disposeDate = a.disposedDate ?? todayISO();
     disposeType = a.disposalType ?? 'scrap';
-    disposeSalePrice = a.salePrice ?? '';
-    disposeSaleExpenses = a.saleExpenses ?? '';
+    disposeSalePrice = toInputText(a.salePrice);
+    disposeSaleExpenses = toInputText(a.saleExpenses);
     disposeCashAccount = '1110';
     disposeError = '';
   }
@@ -1301,11 +1363,19 @@
       disposeError = m.settings_asset_disposal_error_sale_price();
       return;
     }
+    if (
+      disposeType === 'sale' &&
+      (isAmountInputInvalid(disposeSalePrice) || isAmountInputInvalid(disposeSaleExpenses))
+    ) {
+      disposeError = m.common_amount_invalid();
+      return;
+    }
     const a = await db.fixedAssets.get(disposeEditId);
     if (!a) {
       return;
     }
-    const trimmedSaleExpenses = disposeSaleExpenses.trim();
+    const normalizedSalePrice = normalizeAmountInput(disposeSalePrice);
+    const normalizedSaleExpenses = normalizeAmountInput(disposeSaleExpenses);
     const { salePrice: _sp, saleExpenses: _se, ...base } = a;
     const updated: FixedAsset = {
       ...base,
@@ -1313,8 +1383,8 @@
       disposalType: disposeType,
       ...(disposeType === 'sale'
         ? {
-            salePrice: trimmedSalePrice,
-            ...(trimmedSaleExpenses ? { saleExpenses: trimmedSaleExpenses } : {}),
+            salePrice: normalizedSalePrice,
+            ...(normalizedSaleExpenses ? { saleExpenses: normalizedSaleExpenses } : {}),
           }
         : {}),
     };
@@ -1334,21 +1404,25 @@
 
   async function runDisposalEntry(id: string) {
     const asset = await db.fixedAssets.get(id);
-    if (asset?.disposedDate) {
-      const year = Number(asset.disposedDate.slice(0, 4));
-      if (
-        !(await filedYearGuard.confirm([year], {
-          detail: m.filed_year_warning_detail_disposal({
-            name: asset.name,
-            cost: formatJPY(asset.acquisitionCost),
-            date: asset.disposedDate,
-          }),
-        }))
-      ) {
-        return;
-      }
+    const disposedDate = asset?.disposedDate;
+    const consent = await filedYearGuard.confirm(
+      disposedDate ? [Number(disposedDate.slice(0, 4))] : [],
+      asset && disposedDate
+        ? {
+            detail: m.filed_year_warning_detail_disposal({
+              name: asset.name,
+              cost: formatJPY(asset.acquisitionCost),
+              date: disposedDate,
+            }),
+          }
+        : {},
+    );
+    if (!consent) {
+      return;
     }
-    const result = await generateDisposalEntry(id, disposeCashAccount, { allowFiledYear: true });
+    const result = await generateDisposalEntry(id, disposeCashAccount, {
+      allowedFiledYears: consent,
+    });
     if (result.created) {
       disposeStatus = { ...disposeStatus, [id]: m.settings_asset_disposal_run_success() };
       return;
@@ -1357,6 +1431,7 @@
       'no-disposal': m.settings_asset_disposal_run_error_no_disposal(),
       'already-exists': m.settings_asset_disposal_run_error_exists(),
       'missing-sale-price': m.settings_asset_disposal_error_sale_price(),
+      'invalid-sale-price': m.common_amount_invalid(),
       'lump-sum-scrap-no-entry': m.settings_asset_disposal_run_error_lump_sum(),
       'needs-year-end-depreciation': m.settings_asset_disposal_run_error_needs_depreciation(),
     };
@@ -1365,12 +1440,13 @@
 
   async function runDepreciation() {
     depreciationStatus = '';
-    if (!(await filedYearGuard.confirm([depreciationYear]))) {
+    const consent = await filedYearGuard.confirm([depreciationYear]);
+    if (!consent) {
       return;
     }
     try {
       const r = await generateYearEndDepreciation(depreciationYear, {
-        allowFiledYear: true,
+        allowedFiledYears: consent,
         ...businessDates,
       });
       const parts: string[] = [];
@@ -1528,6 +1604,15 @@
     restorePayload = null;
     restoreAttachmentBlobs = new Map();
     restoreAttachmentCount = 0;
+    restoreAvailableParts = [];
+    restoreSelectedParts = [];
+  }
+  // 選んだ時点で検証して含まれる区分を出す。失敗は復元ボタンを出さずにその場で伝える
+  // （復元時にも restoreFromPayload がもう一度確かめる）。
+  function setRestoreParts(payload: BackupPayload): void {
+    const { parts } = inspectBackupPayload(payload);
+    restoreAvailableParts = parts;
+    restoreSelectedParts = parts.filter((p) => IMPORT_DEFAULT_PARTS.has(p));
   }
   // 保存先フォルダから直接読む経路。同期フォルダには個別のファイルで置かれていて、
   // 利用者が「どのファイルか」を選べる形になっていないため、選ばせずに一番新しい
@@ -1549,6 +1634,7 @@
         restoreError = m.settings_restore_folder_empty();
         return;
       }
+      setRestoreParts(found.payload);
       restorePayload = found.payload;
       restoreAttachmentBlobs = found.attachmentBlobs;
       restoreAttachmentCount = found.attachmentBlobs.size;
@@ -1581,6 +1667,7 @@
     try {
       // zip（帳簿データ + 証憑写真）と旧形式の純 JSON を自動判定して読む。
       const parsed = await parseBackupFile(file);
+      setRestoreParts(parsed.payload);
       restorePayload = parsed.payload;
       restoreAttachmentBlobs = parsed.attachmentBlobs;
       restoreAttachmentCount = parsed.attachmentBlobs.size;
@@ -1620,6 +1707,7 @@
       const result = await restoreFromPayload(
         $state.snapshot(restorePayload),
         restoreAttachmentBlobs,
+        new Set(restoreSelectedParts),
       );
       // 画面に残った復元前の設定でどれか1つでも「保存」を押されると、復元した設定が
       // 上書きされる。DB を丸ごと置き換える clearAll と同じく、直後に読み直す。
@@ -1637,12 +1725,59 @@
 
   async function downloadYayoiCsv() {
     accountantExportError = '';
+    yayoiExportStatus = '';
+    yayoiNotices = [];
+    const year = currentYear;
     try {
-      const bytes = await exportYayoiCsv(currentYear);
-      await saveFile(bytes, `aoiko-yayoi-${currentYear}.csv`, 'text/csv');
+      const { parts, notices } = await exportYayoiCsvParts(year, {
+        includeDepartment: ledger.departments.length > 0 && yayoiIncludeDepartment,
+      });
+      const [first] = parts;
+      if (first === undefined) {
+        yayoiExportStatus = m.settings_accountant_export_yayoi_empty({ year });
+        return;
+      }
+      if (parts.length === 1) {
+        const result = await saveFile(first, `aoiko-yayoi-${year}.csv`, 'text/csv');
+        if (result !== 'cancelled') {
+          yayoiNotices = notices;
+        }
+        return;
+      }
+      const files: Record<string, Uint8Array> = {};
+      parts.forEach((part, i) => {
+        files[`aoiko-yayoi-${year}-${i + 1}.csv`] = part;
+      });
+      const result = await saveFile(zipSync(files), `aoiko-yayoi-${year}.zip`, 'application/zip');
+      if (result !== 'cancelled') {
+        yayoiExportStatus = m.settings_accountant_export_yayoi_split({ count: parts.length });
+        yayoiNotices = notices;
+      }
     } catch (err) {
       accountantExportError = err instanceof Error ? err.message : String(err);
     }
+  }
+
+  function yayoiReasonLabel(reason: YayoiNoticeReason, rows: number): string {
+    if (reason === 'rows') {
+      return m.settings_accountant_export_yayoi_reason_rows({ rows });
+    }
+    if (reason === 'capital') {
+      return m.settings_accountant_export_yayoi_reason_capital();
+    }
+    if (reason === 'amount') {
+      return m.settings_accountant_export_yayoi_reason_amount();
+    }
+    if (reason === 'transfer') {
+      return m.settings_accountant_export_yayoi_reason_transfer();
+    }
+    if (reason === 'legacyPurchase') {
+      return m.settings_accountant_export_yayoi_reason_legacy_purchase();
+    }
+    if (reason === 'length') {
+      return m.settings_accountant_export_yayoi_reason_length();
+    }
+    return reason satisfies never;
   }
 
   async function downloadGenericCsv() {
@@ -1731,7 +1866,11 @@
     </label>
   </section>
 
-  <form onsubmit={saveBasic} class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
+  <form
+    bind:this={basicSection}
+    onsubmit={saveBasic}
+    class="scroll-mt-20 space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
     <h3 class="text-lg font-semibold">{m.settings_basic_title()}</h3>
     <p class="text-xs text-muted-foreground">
       {@html m.settings_basic_intro_html()}
@@ -2316,7 +2455,7 @@
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
     <h3 class="text-lg font-semibold">{m.settings_carryover_title()}</h3>
     <p class="text-xs text-muted-foreground">
-      {@html m.settings_carryover_intro_html({ year: currentYear })}
+      {@html m.settings_carryover_intro_html({ year: carryoverIntroYear })}
     </p>
     <div class="flex flex-wrap gap-2">
       <button
@@ -3696,6 +3835,17 @@
     <p class="text-xs text-muted-foreground">
       {m.settings_accountant_export_intro({ year: currentYear })}
     </p>
+    {#if ledger.departments.length > 0}
+      <div class="space-y-1">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
+          <input type="checkbox" bind:checked={yayoiIncludeDepartment} />
+          {m.settings_accountant_export_yayoi_department()}
+        </label>
+        <p class="text-xs text-muted-foreground">
+          {m.settings_accountant_export_yayoi_department_help()}
+        </p>
+      </div>
+    {/if}
     <div class="flex flex-wrap gap-2">
       <button
         type="button"
@@ -3725,6 +3875,25 @@
     {#if accountantExportError}
       <div class="text-sm text-destructive">{accountantExportError}</div>
     {/if}
+    {#if yayoiExportStatus}
+      <p class="text-sm" role="status">{yayoiExportStatus}</p>
+    {/if}
+    {#if yayoiNotices.length > 0}
+      <div class="space-y-2 text-sm border rounded p-3" data-testid="yayoi-export-notices">
+        <p>{m.settings_accountant_export_yayoi_notice_intro()}</p>
+        <ul class="space-y-1">
+          {#each yayoiNotices as notice, i (i)}
+            <li class="flex flex-wrap gap-x-3">
+              <span class="tabular-nums">{notice.date}</span>
+              <span class="break-all">{notice.description}</span>
+              {#each notice.reasons as reason (reason)}
+                <span class="text-muted-foreground">{yayoiReasonLabel(reason, notice.rows)}</span>
+              {/each}
+            </li>
+          {/each}
+        </ul>
+      </div>
+    {/if}
   </section>
 
   <section class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground">
@@ -3753,6 +3922,54 @@
     <p class="text-xs text-muted-foreground border-t pt-2">
       {@html m.settings_qualified_book_caveat_html()}
     </p>
+  </section>
+
+  <section
+    bind:this={dataCheckSection}
+    class="scroll-mt-20 space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+  >
+    <h3 class="text-lg font-semibold">{m.settings_data_check_title()}</h3>
+    <p class="text-xs text-muted-foreground">{m.settings_data_check_intro()}</p>
+    {#if dataCheck.status === 'error'}
+      <p class="text-sm text-destructive">
+        {m.settings_data_check_error({ message: dataCheck.error ?? '' })}
+      </p>
+    {:else if dataCheck.status !== 'done' || dataCheck.result === null}
+      <p class="text-sm text-muted-foreground">{m.settings_data_check_running()}</p>
+    {:else if dataCheck.result.total === 0}
+      <p class="text-sm">{m.settings_data_check_ok()}</p>
+    {:else}
+      <p class="text-sm text-destructive">
+        {m.settings_data_check_found({ count: dataCheck.result.total })}
+      </p>
+      <ul class="space-y-3 text-sm">
+        {#each dataCheck.result.tables as found (found.table)}
+          <li class="space-y-1">
+            <div class="font-medium">
+              {m.settings_data_check_table({ table: found.table, count: found.count })}
+            </div>
+            <ul class="space-y-0.5 text-xs text-muted-foreground break-all">
+              {#each found.samples as sample, i (i)}
+                <li>{sample}</li>
+              {/each}
+              {#if found.count > found.samples.length}
+                <li>{m.settings_data_check_more({ count: found.count - found.samples.length })}</li>
+              {/if}
+            </ul>
+          </li>
+        {/each}
+      </ul>
+      <p class="text-xs text-muted-foreground">{m.settings_data_check_cannot_fix()}</p>
+    {/if}
+    <UnreadableDateEntries />
+    <button
+      type="button"
+      onclick={() => void dataCheck.rerun()}
+      disabled={dataCheck.status === 'running'}
+      class="px-4 py-2 border rounded hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+    >
+      {m.settings_data_check_rerun()}
+    </button>
   </section>
 
   <section
@@ -3818,11 +4035,26 @@
           {m.settings_restore_summary_attachments({ count: restoreAttachmentCount })}
         </div>
       {/if}
+      <div class="space-y-2">
+        <h4 class="text-sm font-medium">{m.settings_restore_parts_title()}</h4>
+        <p class="text-xs text-muted-foreground">{m.settings_restore_parts_hint()}</p>
+        <BackupPartsChecklist
+          available={restoreAvailableParts}
+          selected={restoreSelectedParts}
+          mode="import"
+          namePrefix="restore-parts"
+          onchange={(next) => (restoreSelectedParts = next)}
+        />
+        {#if restoreKeepsAttachments}
+          <p class="text-xs text-muted-foreground">{m.settings_restore_attachments_kept_note()}</p>
+        {/if}
+      </div>
       <button
         bind:this={restoreApplyButton}
         type="button"
         onclick={() => (confirmingRestore = true)}
-        class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90"
+        disabled={restoreSelectedParts.length === 0}
+        class="px-4 py-2 bg-destructive text-destructive-foreground rounded hover:opacity-90 disabled:opacity-50"
       >
         {m.settings_restore_apply()}
       </button>

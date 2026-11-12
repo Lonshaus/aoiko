@@ -245,6 +245,50 @@ describe('generateDisposalEntry', () => {
     expect(result).toEqual({ created: false, reason: 'missing-sale-price' });
   });
 
+  test.each(['100.5', 'abc'])(
+    '売却で salePrice が %s なら invalid-sale-price で仕訳を作らない',
+    async (salePrice) => {
+      const a = asset({ disposedDate: '2023-06-30', disposalType: 'sale', salePrice });
+      await db.fixedAssets.add(a);
+      const result = await generateDisposalEntry(a.id);
+      expect(result).toEqual({ created: false, reason: 'invalid-sale-price' });
+      expect(await db.journalEntries.count()).toBe(0);
+    },
+  );
+
+  test('一括償却資産・業務上基本的に重要な資産の売却で salePrice が数値なら invalid-sale-price で仕訳を作らない', async () => {
+    const a = asset({
+      depreciationMethod: 'lump-sum',
+      essentialToBusiness: true,
+      acquisitionCost: '150000',
+      disposedDate: '2022-06-01',
+      disposalType: 'sale',
+      salePrice: 1000 as unknown as string,
+    });
+    await db.fixedAssets.add(a);
+    const result = await generateDisposalEntry(a.id);
+    expect(result).toEqual({ created: false, reason: 'invalid-sale-price' });
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  test('salePrice が全角数字・桁区切りでも正規化して仕訳の金額にする', async () => {
+    const a = asset({
+      depreciationMethod: 'lump-sum',
+      acquisitionCost: '150000',
+      disposedDate: '2022-06-01',
+      disposalType: 'sale',
+      salePrice: '１,０００,０００',
+    });
+    await db.fixedAssets.add(a);
+    const result = await generateDisposalEntry(a.id);
+    expect(result).toEqual({ created: true });
+    const lines = await db.journalLines.toArray();
+    expect(lines.map((l) => `${l.side}:${l.accountCode}:${l.amount}`).sort()).toEqual([
+      'credit:4910:1000000',
+      'debit:1110:1000000',
+    ]);
+  });
+
   test('一括償却資産の除却は仕訳を作らない', async () => {
     const a = asset({
       depreciationMethod: 'lump-sum',
@@ -295,6 +339,38 @@ describe('estimateTransferIncome', () => {
       asset({ ...a, disposalType: 'sale', salePrice, saleExpenses: '30000' }),
     );
     expect(est!.estimate).toBe('170000');
+  });
+
+  test('売価と譲渡費用の全角数字・桁区切り・空白を正規化して試算する', () => {
+    const est = estimateTransferIncome(
+      asset({
+        disposedDate: '2023-06-30',
+        disposalType: 'sale',
+        salePrice: '1,000,000',
+        saleExpenses: '３０,０００',
+      }),
+    );
+    expect(est!.proceeds).toBe('1000000');
+    expect(est!.saleExpenses).toBe('30000');
+  });
+
+  test('売価が読めない値なら試算を返さない', () => {
+    const est = estimateTransferIncome(
+      asset({ disposedDate: '2023-06-30', disposalType: 'sale', salePrice: 'abc' }),
+    );
+    expect(est).toBeNull();
+  });
+
+  test('譲渡費用が読めない値なら試算を返さない', () => {
+    const est = estimateTransferIncome(
+      asset({
+        disposedDate: '2023-06-30',
+        disposalType: 'sale',
+        salePrice: '1000000',
+        saleExpenses: 'abc',
+      }),
+    );
+    expect(est).toBeNull();
   });
 
   test('除却（scrap）なら null', () => {
@@ -605,7 +681,7 @@ describe('落選資産（8番目の資産）を2027年に売却する（ドメ�
     expect(accDep?.side).toBe('debit');
     expect(accDep?.amount).toBe('81250');
 
-    const result = await generateDisposalEntry(asset.id, '1110', { allowFiledYear: true });
+    const result = await generateDisposalEntry(asset.id, '1110', { allowedFiledYears: [2027] });
     expect(result.created).toBe(true);
     const disposalEntries = await db.journalEntries.where('year').equals(2027).toArray();
     const disposalEntry = disposalEntries.find((e) => e.description.includes('固定資産売却'));

@@ -29,7 +29,11 @@ import type { XtxContext } from './xtx';
 import type { XtxLeafValues, XtxRepeatedValues } from './xtx-document';
 import type { DepreciationMethod } from '../../db/types';
 import type { BSRow } from '../../domain/reports';
-import { stripClassificationSuffix } from './xtx-mapping-shared';
+import {
+  maxOccursOf,
+  stripClassificationSuffix,
+  type XtxDetailOverflowRow,
+} from './xtx-mapping-shared';
 
 const SCHEMA = koa210 as XtxSchema;
 
@@ -90,18 +94,22 @@ const BS_ALIAS: Record<string, string> = {
   工具器具備品: '工具　器具　備品',
 };
 // 貸借対照表の欄に無い科目（減価償却累計額・利用者独自科目）を収める追加科目の繰り返し枠。
-// 資産の部は AMG00025（maxOccurs 7）の 1 枠のみ。
-// 負債・資本の部は用紙の 2 列分 AMG00465・AMG00475（各 maxOccurs 7）が並び、
-// 1 枠目が埋まったら 2 枠目へ続ける（計 14 件）。
-const BS_EXTRA_BLOCK_MAX = 7;
-const BS_LIABILITY_EQUITY_EXTRA_MAX = BS_EXTRA_BLOCK_MAX * 2;
-
+// 資産の部は AMG00025 の 1 枠のみ。
+// 負債・資本の部は用紙の 2 列分 AMG00465・AMG00475 が並び、
+// 1 枠目が埋まったら 2 枠目へ続ける（上限は両枠の maxOccurs の合計）。
 export class BsExtraAccountOverflowError extends Error {
-  constructor(accountNames: string[]) {
+  readonly accountNames: string[];
+  readonly assetMax: number;
+  readonly liabilityEquityMax: number;
+
+  constructor(accountNames: string[], assetMax: number, liabilityEquityMax: number) {
     super(
       `貸借対照表の追加科目欄（資産または負債・資本）に入りきらない科目があります: ${accountNames.join('、')}`,
     );
     this.name = 'BsExtraAccountOverflowError';
+    this.accountNames = accountNames;
+    this.assetMax = assetMax;
+    this.liabilityEquityMax = liabilityEquityMax;
   }
 }
 function bsTag(accountName: string): string | undefined {
@@ -111,15 +119,7 @@ function bsTag(accountName: string): string | undefined {
 function unmatchedBsRows(rows: BSRow[]): BSRow[] {
   return rows.filter((r) => bsTag(r.accountName) === undefined);
 }
-function extraAccountRows(
-  rows: BSRow[],
-  nameTag: string,
-  amountTag: string,
-  max: number,
-): XtxLeafValues[] {
-  if (rows.length > max) {
-    throw new BsExtraAccountOverflowError(rows.map((r) => r.accountName));
-  }
+function extraAccountRows(rows: BSRow[], nameTag: string, amountTag: string): XtxLeafValues[] {
   return rows.map((r) => {
     const row: XtxLeafValues = {};
     row[nameTag] = r.accountName;
@@ -161,9 +161,7 @@ const AMF00470_RESERVE_ACCRUAL = 'AMF00470';
 const AMF01010_INDIVIDUAL_ACCRUAL = 'AMF01010';
 const AMF01050_LUMP_SUM_ACCRUAL = 'AMF01050';
 const AMF01060_TOTAL_ACCRUAL = 'AMF01060';
-// 経費の追加科目の繰り返し枠（AMF00355、公式 xsd で maxOccurs 6）。
-// 科目名（AMF00060）は最大10文字。
-const MAX_ADDITIONAL_EXPENSE_ROWS = 6;
+// 経費の追加科目の繰り返し枠（AMF00355）。科目名（AMF00060）は最大10文字。
 const ADDITIONAL_EXPENSE_NAME_MAX_LENGTH = 10;
 
 function formAmount(accountName: string, amount: string): string {
@@ -212,7 +210,7 @@ export function koa210AdditionalExpenseOverflow(
   ctx: XtxContext,
 ): { accountName: string; amount: string }[] {
   return additionalExpenseCandidates(ctx)
-    .slice(MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(maxOccursOf(SCHEMA, 'AMF00355'))
     .map((row) => ({ accountName: row.accountName, amount: row.amount }));
 }
 
@@ -309,11 +307,10 @@ export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
 
   return out;
 }
-// 第3頁「減価償却費の計算」（AMF01590 → 明細 AMF01600、公式 xsd で maxOccurs=7）。
+// 第3頁「減価償却費の計算」（AMF01590 → 明細 AMF01600）。
 // KOA110（白色・AIM00010）/ KOA220（不動産・ANF00890）と同じく FixedAsset +
 // computeDepreciation() から生成する。KOA210 は事業所得用のため incomeType が
 // 'realEstate' の資産（KOA220 で出力済み）を除外する（未指定は 'business' 扱い）。
-const MAX_DEPRECIATION_ROWS = 7;
 const ASSET_NAME_MAX_LENGTH = 16;
 const USEFUL_LIFE_MIN = 2;
 const USEFUL_LIFE_MAX = 100;
@@ -352,8 +349,10 @@ function effectiveMethodLabel(
   }
   return DEPRECIATION_METHOD_LABEL[asset.depreciationMethod];
 }
-
-export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+// 減価償却明細の候補。mapKoa210RepeatedValues（先頭から上限まで）と
+// koa210DetailOverflow（上限を超えた分）が同じ並びを共有する。
+// まとめ行（措法28の2）があるときは 1 格を占めるため、個別行の上限は 1 つ少ない。
+function depreciationCandidates(ctx: XtxContext) {
   const detailYear = ctx.dataYear ?? ctx.year;
   const pools = lumpSumPoolShares(ctx.fixedAssets);
   const statuses = smallAssetSpecialStatuses(
@@ -402,63 +401,83 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     row.AMF01790 = SMALL_ASSET_SUMMARY_NOTE;
     return row;
   })();
-  const individualRows = businessAssets
+  const candidates = businessAssets
     .filter((a) => !applicableIds.has(a.id))
     .map((asset) => ({
       asset,
       result: computeDepreciation(asset, detailYear, pools.get(asset.id), statuses),
     }))
     .filter(({ result }) => !D(result.amount).isZero())
-    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate))
-    .slice(0, MAX_DEPRECIATION_ROWS - (summaryRow ? 1 : 0))
-    .map(({ asset, result }) => {
-      const row: XtxLeafValues = {};
-      const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
-      if (name) {
-        row.AMF01610 = name;
-      }
-      // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
-      // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
-      putRow(row, 'AMF01640', asset.acquisitionCost);
-      putRow(row, 'AMF01650', result.depreciationBase);
-      row.AMF01660 = effectiveMethodLabel(asset, statuses.get(asset.id));
-      if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
-        row.AMF01670 = String(asset.usefulLifeYears);
-      }
-      putRow(row, 'AMF01730', result.amount);
-      putRow(row, 'AMF01750', result.amount);
-      row.AMF01760 = BUSINESS_USE_RATIO;
-      putRow(row, 'AMF01770', result.amount);
-      putRow(row, 'AMF01780', result.bookValueEnd);
-      if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
-        row.AMF01790 = asset.disposalType === 'sale' ? '売却' : '除却';
-      }
-      return row;
-    });
+    .sort((a, b) => a.asset.acquisitionDate.localeCompare(b.asset.acquisitionDate));
+  const individualMax = maxOccursOf(SCHEMA, 'AMF01600') - (summaryRow ? 1 : 0);
+  return { detailYear, statuses, summaryRow, individualMax, candidates };
+}
+
+export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const { detailYear, statuses, summaryRow, individualMax, candidates } =
+    depreciationCandidates(ctx);
+  const individualRows = candidates.slice(0, individualMax).map(({ asset, result }) => {
+    const row: XtxLeafValues = {};
+    const name = asset.name.trim().slice(0, ASSET_NAME_MAX_LENGTH);
+    if (name) {
+      row.AMF01610 = name;
+    }
+    // AMF01630 取得年月（gen:yymm 複合型）は繰り返しブロックの単純文字列 leaf では
+    // 表現できない（renderNode が値をエスケープするため生 XML を挿入不可）ため省略する。
+    putRow(row, 'AMF01640', asset.acquisitionCost);
+    putRow(row, 'AMF01650', result.depreciationBase);
+    row.AMF01660 = effectiveMethodLabel(asset, statuses.get(asset.id));
+    if (asset.usefulLifeYears >= USEFUL_LIFE_MIN && asset.usefulLifeYears <= USEFUL_LIFE_MAX) {
+      row.AMF01670 = String(asset.usefulLifeYears);
+    }
+    putRow(row, 'AMF01730', result.amount);
+    putRow(row, 'AMF01750', result.amount);
+    row.AMF01760 = BUSINESS_USE_RATIO;
+    putRow(row, 'AMF01770', result.amount);
+    putRow(row, 'AMF01780', result.bookValueEnd);
+    if (asset.disposedDate && Number(asset.disposedDate.slice(0, 4)) === detailYear) {
+      row.AMF01790 = asset.disposalType === 'sale' ? '売却' : '除却';
+    }
+    return row;
+  });
   const rows = summaryRow ? [summaryRow, ...individualRows] : individualRows;
   const repeats: XtxRepeatedValues = rows.length > 0 ? { AMF01600: rows } : {};
   const { bs } = ctx;
+  const assetMax = maxOccursOf(SCHEMA, 'AMG00025');
+  const firstBlockMax = maxOccursOf(SCHEMA, 'AMG00465');
+  const liabilityEquityMax = firstBlockMax + maxOccursOf(SCHEMA, 'AMG00475');
   const extraAssets = unmatchedBsRows(bs.assets);
+  if (extraAssets.length > assetMax) {
+    throw new BsExtraAccountOverflowError(
+      extraAssets.map((r) => r.accountName),
+      assetMax,
+      liabilityEquityMax,
+    );
+  }
   if (extraAssets.length > 0) {
-    repeats.AMG00025 = extraAccountRows(extraAssets, 'AMG00030', 'AMG00420', BS_EXTRA_BLOCK_MAX);
+    repeats.AMG00025 = extraAccountRows(extraAssets, 'AMG00030', 'AMG00420');
   }
   const extraLiabilitiesAndEquity = [
     ...unmatchedBsRows(bs.liabilities),
     ...unmatchedBsRows(bs.equity),
   ];
-  if (extraLiabilitiesAndEquity.length > BS_LIABILITY_EQUITY_EXTRA_MAX) {
-    throw new BsExtraAccountOverflowError(extraLiabilitiesAndEquity.map((r) => r.accountName));
+  if (extraLiabilitiesAndEquity.length > liabilityEquityMax) {
+    throw new BsExtraAccountOverflowError(
+      extraLiabilitiesAndEquity.map((r) => r.accountName),
+      assetMax,
+      liabilityEquityMax,
+    );
   }
   if (extraLiabilitiesAndEquity.length > 0) {
-    const firstBlock = extraLiabilitiesAndEquity.slice(0, BS_EXTRA_BLOCK_MAX);
-    const secondBlock = extraLiabilitiesAndEquity.slice(BS_EXTRA_BLOCK_MAX);
-    repeats.AMG00465 = extraAccountRows(firstBlock, 'AMG00470', 'AMG00700', BS_EXTRA_BLOCK_MAX);
+    const firstBlock = extraLiabilitiesAndEquity.slice(0, firstBlockMax);
+    const secondBlock = extraLiabilitiesAndEquity.slice(firstBlockMax);
+    repeats.AMG00465 = extraAccountRows(firstBlock, 'AMG00470', 'AMG00700');
     if (secondBlock.length > 0) {
-      repeats.AMG00475 = extraAccountRows(secondBlock, 'AMG00480', 'AMG00720', BS_EXTRA_BLOCK_MAX);
+      repeats.AMG00475 = extraAccountRows(secondBlock, 'AMG00480', 'AMG00720');
     }
   }
   const additionalExpenseRows = additionalExpenseCandidates(ctx)
-    .slice(0, MAX_ADDITIONAL_EXPENSE_ROWS)
+    .slice(0, maxOccursOf(SCHEMA, 'AMF00355'))
     .map((row) => {
       const item: XtxLeafValues = {};
       const name = stripClassificationSuffix(row.accountName).slice(
@@ -475,4 +494,14 @@ export function mapKoa210RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
     repeats.AMF00355 = additionalExpenseRows;
   }
   return repeats;
+}
+// 減価償却明細（AMF01600）の上限を超えて .xtx へ出せなかった行。
+// 出力側と同じ候補の並びの、上限より後ろを返す。
+export function koa210DetailOverflow(ctx: XtxContext): XtxDetailOverflowRow[] {
+  const { individualMax, candidates } = depreciationCandidates(ctx);
+  return candidates.slice(individualMax).map(({ asset, result }) => ({
+    section: 'depreciation' as const,
+    label: asset.name.trim(),
+    amount: result.amount,
+  }));
 }

@@ -70,11 +70,12 @@
     lastError = '';
     lastSuccess = '';
     const years = await importBatchYears(id);
-    if (!(await filedYearGuard.confirm(years))) {
+    const consent = await filedYearGuard.confirm(years);
+    if (!consent) {
       return;
     }
     try {
-      const r = await reverseImportBatch(id, { allowFiledYear: true });
+      const r = await reverseImportBatch(id, { allowedFiledYears: consent });
       lastSuccess =
         r.alreadyReversedCount > 0
           ? m.import_history_reverse_success_with_skipped({

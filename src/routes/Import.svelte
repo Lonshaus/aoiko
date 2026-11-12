@@ -55,6 +55,7 @@
   import { formatBytes, MAX_CSV_BYTES } from '../lib/file-limit';
   import { CsvEncodingError, decodeCsv } from '../lib/encoding';
   import { clampPage, pageBounds, pageCount } from '../lib/pagination';
+  import { escapeHtml } from '../lib/html-escape';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
@@ -438,7 +439,8 @@
         counterpartInvoiceCompliant: r.invoiceCompliant,
       }));
       const years = new Set(importRows.map((r) => Number(r.transaction.date.slice(0, 4))));
-      if (!(await filedYearGuard.confirm(years))) {
+      const consent = await filedYearGuard.confirm(years);
+      if (!consent) {
         return;
       }
       const result = await commitImport(
@@ -450,7 +452,7 @@
           ...(knownSubAccountId ? { knownSubAccountId } : {}),
         },
         importRows,
-        { allowFiledYear: true },
+        { allowedFiledYears: consent },
       );
       // 採用されたルールの hitCount をインクリメント
       const ruleIds = new Set(
@@ -767,7 +769,7 @@
 <ConfirmDialog
   open={llmConfirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: llmPending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(llmPending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onLlmConfirm}

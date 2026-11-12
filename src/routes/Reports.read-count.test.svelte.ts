@@ -269,7 +269,7 @@ describe('在庫の自動評価が有効で繰越仕訳がある場合の年度�
     ): Promise<void> => {
       const now = Date.now();
       await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
-        allowFiledYearWriteInThisTransaction();
+        allowFiledYearWriteInThisTransaction([year]);
         await db.journalEntries.add({
           id,
           date,

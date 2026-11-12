@@ -282,7 +282,7 @@ function newEntry(date: string, description: string): JournalEntry {
 // 未償却残高を計上する開業仕訳のみを作る。
 export async function generateOpeningEntries(
   input: OpeningSetupInput,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<OpeningSetupResult | { reason: 'already-exists' }> {
   const entryIds: string[] = [];
   const assetIds: string[] = [];
@@ -291,114 +291,128 @@ export async function generateOpeningEntries(
   await assertYearsWritable([year], options);
   let alreadyExists = false;
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
-    markConfirmedWrite(options);
-    // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
-    // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
-    const existing = await db.journalEntries
-      .where('year')
-      .equals(year)
-      .filter(
-        (e) =>
-          e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
-      )
-      .first();
-    if (existing) {
-      alreadyExists = true;
-      return;
-    }
-    // 開業費（繰延資産）
-    const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
-    if (!expenseTotal.isZero()) {
-      const entry = newEntry(date, '開業費計上（開業設定）');
-      const lines = [
-        newLine(entry.id, 'debit', KAIGYOHI_CODE, expenseTotal, '開業費'),
-        newLine(entry.id, 'credit', CAPITAL_CODE, expenseTotal, '開業費（元入金）'),
-      ];
-      await db.journalEntries.add(entry);
-      await db.journalLines.bulkAdd(lines);
-      entryIds.push(entry.id);
-
-      const amortized = openingExpenseAmortization(
-        expenseTotal,
-        date,
-        input.expenseAmortization,
-        input.customAmortizationAmount,
-      );
-      if (!amortized.isZero()) {
-        const amortEntry = newEntry(date, '開業費償却（開業設定）');
-        const amortLines = [
-          newLine(amortEntry.id, 'debit', DEPRECIATION_EXPENSE_CODE, amortized, '繰延資産償却'),
-          newLine(amortEntry.id, 'credit', KAIGYOHI_CODE, amortized, '開業費償却'),
-        ];
-        await db.journalEntries.add(amortEntry);
-        await db.journalLines.bulkAdd(amortLines);
-        entryIds.push(amortEntry.id);
+  await db.transaction(
+    'rw',
+    db.journalEntries,
+    db.journalLines,
+    db.fixedAssets,
+    db.reportSnapshots,
+    async () => {
+      markConfirmedWrite(options);
+      // 二度押しで開業費・転用資産が倍になり、固定資産ももう一組登録されるのを防ぐ。
+      // 書き込みと同一トランザクション内で判定する（applyCarryover と同じ既存判定）。
+      const existing = await db.journalEntries
+        .where('year')
+        .equals(year)
+        .filter(
+          (e) =>
+            e.source === 'opening' && e.status === 'confirmed' && e.originalEntryId === undefined,
+        )
+        .first();
+      if (existing) {
+        alreadyExists = true;
+        return;
       }
-    }
-    // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
-    const assetLines: Array<{
-      side: 'debit' | 'credit';
-      accountCode: string;
-      amount: Decimal;
-      memo: string;
-    }> = [];
-    for (const asset of input.convertedAssets) {
-      const basis = computeConvertedAssetBasis(
-        asset.acquisitionDate,
-        date,
-        asset.acquisitionCost,
-        asset.usefulLifeYears,
-      );
-      const fixedAsset: FixedAsset = {
-        id: newId(),
-        name: asset.name,
-        acquisitionDate: asset.acquisitionDate,
-        acquisitionCost: asset.acquisitionCost,
-        usefulLifeYears: asset.usefulLifeYears,
-        depreciationMethod: asset.depreciationMethod,
-        accountCode: asset.accountCode,
-        source: 'opening',
-        conversionBasis: basis.businessStartBasis.toString(),
-        serviceStartDate: date,
-        openingYear: year,
-      };
-      await db.fixedAssets.add(fixedAsset);
-      assetIds.push(fixedAsset.id);
-      if (!basis.businessStartBasis.isZero()) {
-        assetLines.push({
-          side: 'debit',
+      // 開業費（繰延資産）
+      const expenseTotal = input.expenses.reduce((sum, e) => sum.plus(D(e.amount)), D(0));
+      if (!expenseTotal.isZero()) {
+        const entry = newEntry(date, '開業費計上（開業設定）');
+        const lines = [
+          newLine(entry.id, 'debit', KAIGYOHI_CODE, expenseTotal, '開業費'),
+          newLine(entry.id, 'credit', CAPITAL_CODE, expenseTotal, '開業費（元入金）'),
+        ];
+        await db.journalEntries.add(entry);
+        await db.journalLines.bulkAdd(lines);
+        entryIds.push(entry.id);
+
+        const amortized = openingExpenseAmortization(
+          expenseTotal,
+          date,
+          input.expenseAmortization,
+          input.customAmortizationAmount,
+        );
+        if (!amortized.isZero()) {
+          const amortEntry = newEntry(date, '開業費償却（開業設定）');
+          const amortLines = [
+            newLine(amortEntry.id, 'debit', DEPRECIATION_EXPENSE_CODE, amortized, '繰延資産償却'),
+            newLine(amortEntry.id, 'credit', KAIGYOHI_CODE, amortized, '開業費償却'),
+          ];
+          await db.journalEntries.add(amortEntry);
+          await db.journalLines.bulkAdd(amortLines);
+          entryIds.push(amortEntry.id);
+        }
+      }
+      // 転用資産・自由項目 → 1本の開業仕訳にまとめ、元入金で貸借を合わせる
+      const assetLines: Array<{
+        side: 'debit' | 'credit';
+        accountCode: string;
+        amount: Decimal;
+        memo: string;
+      }> = [];
+      for (const asset of input.convertedAssets) {
+        const basis = computeConvertedAssetBasis(
+          asset.acquisitionDate,
+          date,
+          asset.acquisitionCost,
+          asset.usefulLifeYears,
+        );
+        const fixedAsset: FixedAsset = {
+          id: newId(),
+          name: asset.name,
+          acquisitionDate: asset.acquisitionDate,
+          acquisitionCost: asset.acquisitionCost,
+          usefulLifeYears: asset.usefulLifeYears,
+          depreciationMethod: asset.depreciationMethod,
           accountCode: asset.accountCode,
-          amount: basis.businessStartBasis,
-          memo: `転用資産：${asset.name}`,
+          source: 'opening',
+          conversionBasis: basis.businessStartBasis.toString(),
+          serviceStartDate: date,
+          openingYear: year,
+        };
+        await db.fixedAssets.add(fixedAsset);
+        assetIds.push(fixedAsset.id);
+        if (!basis.businessStartBasis.isZero()) {
+          assetLines.push({
+            side: 'debit',
+            accountCode: asset.accountCode,
+            amount: basis.businessStartBasis,
+            memo: `転用資産：${asset.name}`,
+          });
+        }
+      }
+      for (const item of input.customItems) {
+        const amount = D(item.amount);
+        if (amount.isZero()) {
+          continue;
+        }
+        assetLines.push({
+          side: item.side,
+          accountCode: item.accountCode,
+          amount,
+          memo: item.name,
         });
       }
-    }
-    for (const item of input.customItems) {
-      const amount = D(item.amount);
-      if (amount.isZero()) {
-        continue;
+      if (assetLines.length > 0) {
+        const entry = newEntry(date, '開業時資産計上（開業設定）');
+        const netDebit = assetLines.reduce(
+          (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
+          D(0),
+        );
+        const lines = assetLines.map((l) =>
+          newLine(entry.id, l.side, l.accountCode, l.amount, l.memo),
+        );
+        if (!netDebit.isZero()) {
+          const capitalSide = netDebit.isPositive() ? 'credit' : 'debit';
+          lines.push(
+            newLine(entry.id, capitalSide, CAPITAL_CODE, netDebit.abs(), '開業（元入金）'),
+          );
+        }
+        await db.journalEntries.add(entry);
+        await db.journalLines.bulkAdd(lines);
+        entryIds.push(entry.id);
       }
-      assetLines.push({ side: item.side, accountCode: item.accountCode, amount, memo: item.name });
-    }
-    if (assetLines.length > 0) {
-      const entry = newEntry(date, '開業時資産計上（開業設定）');
-      const netDebit = assetLines.reduce(
-        (sum, l) => (l.side === 'debit' ? sum.plus(l.amount) : sum.minus(l.amount)),
-        D(0),
-      );
-      const lines = assetLines.map((l) =>
-        newLine(entry.id, l.side, l.accountCode, l.amount, l.memo),
-      );
-      if (!netDebit.isZero()) {
-        const capitalSide = netDebit.isPositive() ? 'credit' : 'debit';
-        lines.push(newLine(entry.id, capitalSide, CAPITAL_CODE, netDebit.abs(), '開業（元入金）'));
-      }
-      await db.journalEntries.add(entry);
-      await db.journalLines.bulkAdd(lines);
-      entryIds.push(entry.id);
-    }
-  });
+    },
+  );
   if (alreadyExists) {
     return { reason: 'already-exists' };
   }
@@ -422,80 +436,87 @@ interface OpeningRemovalBlocked {
 // 資産は判別できないので削除対象にせず、呼出側が手で消すよう案内する。
 export async function removeOpeningEntries(
   year: number,
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ removed: boolean } | OpeningRemovalBlocked> {
   await assertYearsWritable([year], options);
   let result: { removed: boolean } | OpeningRemovalBlocked = { removed: false };
 
-  await db.transaction('rw', db.journalEntries, db.journalLines, db.fixedAssets, async () => {
-    markConfirmedWrite(options);
-    const originals = await db.journalEntries
-      .where('year')
-      .equals(year)
-      .filter((e) => e.source === 'opening' && countsTowardTotals(e))
-      .toArray();
-    if (originals.length === 0) {
-      return;
-    }
-    // openingYear の無い旧データは取得日＝開業日で登録されているので取得日の年で絞れる。
-    const targets = await db.fixedAssets
-      .filter(
-        (a) =>
-          a.source === 'opening' &&
-          (a.openingYear ?? Number(a.acquisitionDate.slice(0, 4))) === year,
-      )
-      .toArray();
-    if (targets.length > 0) {
-      const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
-      const referenced = new Set<string>();
-      await db.journalEntries.each((e) => {
-        if (!countsTowardTotals(e)) {
-          return;
-        }
-        for (const [tag, name] of byTag) {
-          if (e.description.includes(tag)) {
-            referenced.add(name);
-          }
-        }
-      });
-      if (referenced.size > 0) {
-        result = { reason: 'has-depreciation', assetNames: [...referenced] };
+  await db.transaction(
+    'rw',
+    db.journalEntries,
+    db.journalLines,
+    db.fixedAssets,
+    db.reportSnapshots,
+    async () => {
+      markConfirmedWrite(options);
+      const originals = await db.journalEntries
+        .where('year')
+        .equals(year)
+        .filter((e) => e.source === 'opening' && countsTowardTotals(e))
+        .toArray();
+      if (originals.length === 0) {
         return;
       }
-    }
+      // openingYear の無い旧データは取得日＝開業日で登録されているので取得日の年で絞れる。
+      const targets = await db.fixedAssets
+        .filter(
+          (a) =>
+            a.source === 'opening' &&
+            (a.openingYear ?? Number(a.acquisitionDate.slice(0, 4))) === year,
+        )
+        .toArray();
+      if (targets.length > 0) {
+        const byTag = new Map(targets.map((a) => [`#${a.id.slice(0, 8)}`, a.name]));
+        const referenced = new Set<string>();
+        await db.journalEntries.each((e) => {
+          if (!countsTowardTotals(e)) {
+            return;
+          }
+          for (const [tag, name] of byTag) {
+            if (e.description.includes(tag)) {
+              referenced.add(name);
+            }
+          }
+        });
+        if (referenced.size > 0) {
+          result = { reason: 'has-depreciation', assetNames: [...referenced] };
+          return;
+        }
+      }
 
-    const now = Date.now();
-    for (const orig of originals) {
-      const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
-      const reversalId = newId();
-      await db.journalEntries.add({
-        id: reversalId,
-        // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
-        date: orig.date,
-        year: orig.year,
-        description: `[訂正] ${orig.description}`,
-        status: 'confirmed',
-        originalEntryId: orig.id,
-        source: 'opening',
-        createdAt: now,
-        confirmedAt: now,
-      });
-      for (const line of lines) {
-        await db.journalLines.add({
-          ...line,
-          id: newId(),
-          entryId: reversalId,
-          side: line.side === 'debit' ? 'credit' : 'debit',
+      const now = Date.now();
+      for (const orig of originals) {
+        const lines = await db.journalLines.where('entryId').equals(orig.id).toArray();
+        const reversalId = newId();
+        await db.journalEntries.add({
+          id: reversalId,
+          // 打消し仕訳は原仕訳と同じ開業日に記帳する。年をまたぐと開業年度が変わってしまう。
+          date: orig.date,
+          year: orig.year,
+          description: `[訂正] ${orig.description}`,
+          status: 'confirmed',
+          originalEntryId: orig.id,
+          source: 'opening',
+          createdAt: now,
+          confirmedAt: now,
+        });
+        for (const line of lines) {
+          await db.journalLines.add({
+            ...line,
+            id: newId(),
+            entryId: reversalId,
+            side: line.side === 'debit' ? 'credit' : 'debit',
+          });
+        }
+        await db.journalEntries.update(orig.id, {
+          status: 'reversed',
+          reversedByEntryId: reversalId,
         });
       }
-      await db.journalEntries.update(orig.id, {
-        status: 'reversed',
-        reversedByEntryId: reversalId,
-      });
-    }
-    await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
-    result = { removed: true };
-  });
+      await db.fixedAssets.bulkDelete(targets.map((a) => a.id));
+      result = { removed: true };
+    },
+  );
 
   return result;
 }

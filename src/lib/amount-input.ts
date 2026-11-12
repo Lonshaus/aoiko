@@ -15,7 +15,11 @@ export function parseAmountInput(
   const pattern = options.allowNegative === true ? /^-?\d+(\.\d+)?$/ : /^\d+(\.\d+)?$/;
   return pattern.test(s) ? D(s) : undefined;
 }
-
+// 円単位の金額欄では小数部分のある値も誤りとする（1234.0 のように小数部分が 0 なら整数として通す）
 export function isAmountInputInvalid(raw: string): boolean {
-  return normalizeAmountInput(raw) !== '' && parseAmountInput(raw) === undefined;
+  if (normalizeAmountInput(raw) === '') {
+    return false;
+  }
+  const parsed = parseAmountInput(raw);
+  return parsed === undefined || !parsed.isInteger();
 }
