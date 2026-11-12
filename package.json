@@ -59,7 +59,7 @@
     "clsx": "^2.1.1",
     "esbuild": "^0.28.1",
     "fake-indexeddb": "^6.2.6",
-    "fast-xml-parser": "^5.11.2",
+    "fast-xml-parser": "^5.12.0",
     "happy-dom": "^21.0.4",
     "prettier": "^3.9.10",
     "prettier-plugin-svelte": "^4.1.1",
