@@ -12,9 +12,11 @@
   } from '../lib/amount-input';
   import {
     buildAll,
+    buildBreakdown,
     buildMultiYearBS,
     buildMultiYearPL,
     buildPL,
+    loadYearData,
     type BreakdownAxis,
     type BreakdownReport,
     type BSReport,
@@ -23,6 +25,7 @@
     type MultiYearBSReport,
     type MultiYearPLReport,
     type PLReport,
+    type YearData,
   } from '../domain/reports';
   import { ledger } from '../stores/ledger.svelte';
   import { saveTextFile } from '../lib/save-file';
@@ -35,7 +38,11 @@
   } from '../domain/snapshots';
   import { arApDisplayDescription } from '../domain/ar-ap-description';
   import { interimFilingObligation, type InterimVoluntaryInputs } from '../domain/interim-filing';
-  import { computeInventoryValuation, type InventoryValuation } from '../domain/inventory';
+  import {
+    computeInventoryValuation,
+    loadYearDataWithInventory,
+    type InventoryValuation,
+  } from '../domain/inventory';
   import { computeBudgetVsActual, setBudget, type BudgetVsActualReport } from '../domain/budget';
   import {
     addArApEntry,
@@ -145,6 +152,8 @@
   let monthlyPL = $state<MonthlyPLReport | null>(null);
   let breakdown = $state<BreakdownReport | null>(null);
   let breakdownAxis = $state<BreakdownAxis>('vendor');
+  // 主 liveQuery が読んだ年度データ。大きい配列を深くプロキシ化しないよう raw で持つ
+  let loadedYearData = $state.raw<{ year: number; data: YearData } | null>(null);
   let amendment = $state<AmendmentDiff | null>(null);
   let staleCarryover = $state<StaleCarryover | null>(null);
   let consumptionTax = $state<ConsumptionTaxResult[] | null>(null);
@@ -160,6 +169,7 @@
   let lockNotice = $state('');
   let lockMethod = $state<ConsumptionTaxResult['method'] | ''>('');
   let reportsError = $state('');
+  let breakdownError = $state('');
   // 追加科目欄に入りきらず .xtx へ転記できなかった経費科目（issue#379）。
   // ブロッキングではない（ファイルは書き出される）ため lockError とは別枠で warning 表示する。
   let xtxOverflowWarning = $state('');
@@ -625,17 +635,20 @@
 
   $effect(() => {
     const yr = year;
-    const ax = breakdownAxis;
     const sub = liveQuery(async () => {
       const reg = (await getSetting('taxRegistration')) ?? 'tax-free';
       const filing = (await getSetting('filingType')) ?? 'blue';
       const { cat, attributionMethod, compareOptions } = await loadCompareContext(yr);
-      const reports = await buildAll(yr, ax);
-      const processed = await processYear(yr);
-      const inventory = ledger.inventoryAutoValuationEnabled
-        ? await computeInventoryValuation(`${yr}-12-31`)
+      const asOf = `${yr}-12-31`;
+      const inventoryEnabled = (await getSetting('inventoryAutoValuationEnabled')) !== false;
+      const withInventory = inventoryEnabled ? await loadYearDataWithInventory(yr, asOf) : null;
+      const yearData = withInventory ? withInventory.yearData : await loadYearData(yr);
+      const reports = await buildAll(yr, 'vendor', yearData, { skipBreakdown: true });
+      const processed = await processYear(yr, undefined, { yearData });
+      const inventory = withInventory
+        ? await computeInventoryValuation(asOf, withInventory.inventory)
         : null;
-      const budget = await computeBudgetVsActual(yr);
+      const budget = await computeBudgetVsActual(yr, yearData);
       const yearAccounts = await loadAccountsForYear(yr);
       const hasRealEstate = yearAccounts.some((a) => a.incomeType === 'realEstate');
       const salesRatio = computeTaxableSalesRatio(
@@ -646,9 +659,13 @@
       );
       return {
         ...reports,
-        amendment: await getAmendmentDiff(yr),
-        staleCarryover: await detectStaleCarryover(yr),
-        consumptionTax: await compareAll(yr, cat, attributionMethod, compareOptions),
+        yearData: { year: yr, data: yearData },
+        amendment: await getAmendmentDiff(yr, yearData),
+        staleCarryover: await detectStaleCarryover(yr, yearData),
+        consumptionTax: await compareAll(yr, cat, attributionMethod, {
+          ...compareOptions,
+          yearData,
+        }),
         interimVoluntary: await loadInterimVoluntaryInputs(),
         taxRegistration: reg,
         simplifiedCategory: cat,
@@ -669,7 +686,7 @@
         hasRealEstate = v.hasRealEstate;
         inventoryValuation = v.inventory;
         monthlyPL = v.monthlyPL;
-        breakdown = v.breakdown;
+        loadedYearData = v.yearData;
         amendment = v.amendment;
         staleCarryover = v.staleCarryover;
         consumptionTax = v.consumptionTax;
@@ -693,16 +710,39 @@
       // （見出しの年度だけ進んで数字が古いまま、という誤表示を避ける）。
       error: (e: unknown) => {
         reportsError = describeStorageError(e);
+        breakdownError = '';
         monthly = null;
         pl = null;
         bs = null;
         inventoryValuation = null;
         monthlyPL = null;
+        loadedYearData = null;
         breakdown = null;
         amendment = null;
         staleCarryover = null;
         consumptionTax = null;
         budgetVsActual = null;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+
+  $effect(() => {
+    const yr = year;
+    const ax = breakdownAxis;
+    const loaded = loadedYearData;
+    if (!loaded || loaded.year !== yr) {
+      return;
+    }
+    // 取引先・補助科目は別テーブルなので、年度データを渡しても liveQuery で購読して変更に追従する
+    const sub = liveQuery(() => buildBreakdown(yr, ax, loaded.data)).subscribe({
+      next: (v) => {
+        breakdownError = '';
+        breakdown = v;
+      },
+      error: (e: unknown) => {
+        breakdownError = describeStorageError(e);
+        breakdown = null;
       },
     });
     return () => sub.unsubscribe();
@@ -1569,7 +1609,7 @@
     </section>
   {/if}
 
-  {#if breakdown && breakdown.groups.length > 0}
+  {#if pl && (breakdownError || (breakdown && breakdown.groups.length > 0))}
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-4 shadow-sm">
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_breakdown_title()}</h3>
@@ -1606,34 +1646,42 @@
           </button>
         </div>
       </header>
-      <div class="space-y-4">
-        {#each breakdown.groups as g (g.accountCode)}
-          <div>
-            <header
-              class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
-            >
-              <span
-                ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
-                >{g.accountName}</span
+      {#if breakdownError}
+        <div
+          class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
+        >
+          {m.reports_breakdown_load_error({ message: breakdownError })}
+        </div>
+      {:else if breakdown}
+        <div class="space-y-4">
+          {#each breakdown.groups as g (g.accountCode)}
+            <div>
+              <header
+                class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
               >
-              <span class="tabular-nums">{formatJPY(g.total)}</span>
-            </header>
-            <ul class="space-y-0.5 text-sm pl-4">
-              {#each g.entries as e (e.key)}
-                <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
-                  <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                  <span class="text-xs text-muted-foreground tabular-nums"
-                    >{m.reports_breakdown_count({ n: e.count })}</span
-                  >
-                  <span class="tabular-nums whitespace-nowrap w-28 text-right"
-                    >{formatJPY(e.amount)}</span
-                  >
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/each}
-      </div>
+                <span
+                  ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
+                  >{g.accountName}</span
+                >
+                <span class="tabular-nums">{formatJPY(g.total)}</span>
+              </header>
+              <ul class="space-y-0.5 text-sm pl-4">
+                {#each g.entries as e (e.key)}
+                  <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
+                    <span class:text-muted-foreground={!e.key}>{e.label}</span>
+                    <span class="text-xs text-muted-foreground tabular-nums"
+                      >{m.reports_breakdown_count({ n: e.count })}</span
+                    >
+                    <span class="tabular-nums whitespace-nowrap w-28 text-right"
+                      >{formatJPY(e.amount)}</span
+                    >
+                  </li>
+                {/each}
+              </ul>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </section>
   {/if}
 
