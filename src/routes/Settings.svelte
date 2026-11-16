@@ -1441,10 +1441,7 @@
     if (normalizeAmountInput(raw) === '') {
       return required ? m.settings_asset_error_required() : '';
     }
-    if (parseAmountInput(raw) === undefined) {
-      return m.common_amount_invalid();
-    }
-    return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
+    return amountInputError(raw);
   }
   const newAssetCostError = $derived(assetAmountError(newAssetCost, false));
   const newAssetResidualError = $derived(assetAmountError(newAssetResidualGuarantee, false));
@@ -4553,7 +4550,7 @@
     <p class="text-xs text-muted-foreground">
       {m.settings_rule_intro()}
     </p>
-    <form onsubmit={addRule} class="flex flex-wrap gap-3 items-center">
+    <form onsubmit={addRule} novalidate class="flex flex-wrap gap-3 items-center">
       <select
         bind:value={newRuleMatchType}
         name="ruleMatchType"

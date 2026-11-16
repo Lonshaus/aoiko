@@ -575,6 +575,23 @@ describe('A 類：元に戻した年の転用資産を登録し直す（H7）', 
     expect((await db.fixedAssets.toArray())[0]!.conversionBasis).toBe('170000');
   });
 
+  test('取得価額に小数があれば欄の下に案内を出し、確認も登録もしない', async () => {
+    await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
+    await render();
+    await waitFor(() => missingItem('私用PC') !== undefined, 1000).catch(() => {});
+    await openRegister('私用PC');
+    await fillAndSubmit('2024-01-01', '300000.5', '4');
+    expect(text()).toContain(m.common_amount_invalid());
+    expect(byTestId('opening-missing-asset-basis-differs')).toBeNull();
+    expect(byTestId('opening-missing-asset-error')?.textContent).toContain(
+      m.common_amount_invalid(),
+    );
+    expect(filedYearGuard.pending).toBeNull();
+    expect(await db.fixedAssets.count()).toBe(0);
+    await fillAndSubmit('2024-01-01', '300000.0', '4');
+    expect(text()).not.toContain(m.common_amount_invalid());
+  });
+
   test('開業年が申告済みなら確かめてから登録する', async () => {
     await seedRestored(2026, '2026-07-01', [{ name: '私用PC', amount: '165540' }]);
     await lockYears(2026);

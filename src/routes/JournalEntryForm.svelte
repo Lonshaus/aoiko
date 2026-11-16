@@ -5,11 +5,7 @@
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
   import { AmountTooLargeError, D, formatJPY, toAmountString, toIndexable } from '../lib/decimal';
-  import {
-    isJournalAmountTooLarge,
-    normalizeAmountInput,
-    parseAmountInput,
-  } from '../lib/amount-input';
+  import { amountInputError, normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
   import { todayISO } from '../lib/date';
   import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
@@ -130,16 +126,6 @@
   function sumAmount(lines: DraftLine[]): string {
     return lines.reduce((s, l) => s.plus(parseAmountInput(l.amount) ?? 0), D(0)).toString();
   }
-  // 空欄は required に任せるため、ここでは入力があって読めない場合だけを返す
-  function amountError(raw: string): string {
-    if (normalizeAmountInput(raw) === '') {
-      return '';
-    }
-    if (parseAmountInput(raw) === undefined) {
-      return m.common_amount_invalid();
-    }
-    return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
-  }
   function quantityError(l: DraftLine): string {
     if (!l.itemId || normalizeAmountInput(l.quantity) === '') {
       return '';
@@ -147,7 +133,9 @@
     return parseAmountInput(l.quantity) === undefined ? m.common_amount_invalid() : '';
   }
   const hasInputError = $derived(
-    [...debits, ...credits].some((l) => amountError(l.amount) !== '' || quantityError(l) !== ''),
+    [...debits, ...credits].some(
+      (l) => amountInputError(l.amount) !== '' || quantityError(l) !== '',
+    ),
   );
 
   const debitTotal = $derived(sumAmount(debits));
@@ -602,8 +590,8 @@
           ×
         </button>
       </div>
-      {#if amountError(line.amount)}
-        <p class="text-xs text-destructive text-right">{amountError(line.amount)}</p>
+      {#if amountInputError(line.amount)}
+        <p class="text-xs text-destructive text-right">{amountInputError(line.amount)}</p>
       {/if}
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
@@ -781,8 +769,8 @@
           ×
         </button>
       </div>
-      {#if amountError(line.amount)}
-        <p class="text-xs text-destructive text-right">{amountError(line.amount)}</p>
+      {#if amountInputError(line.amount)}
+        <p class="text-xs text-destructive text-right">{amountInputError(line.amount)}</p>
       {/if}
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">

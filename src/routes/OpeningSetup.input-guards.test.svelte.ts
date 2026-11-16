@@ -85,6 +85,15 @@ describe('開業設定の金額入力', () => {
     expect(container!.querySelector('ul')).toBeNull();
   });
 
+  test('開業費の 1000.5 は小数の誤りとして追加されず、1000.0 は追加される', async () => {
+    await render();
+    await addExpense('名刺', '1000.5');
+    expect(container!.querySelector('ul')).toBeNull();
+    expect(container!.textContent).toContain(m.common_amount_invalid());
+    await addExpense('名刺', '1000.0');
+    expect(container!.querySelector('ul')).not.toBeNull();
+  });
+
   test.each(['1e3', '100000000000000'])('開業費 %j は追加されず案内が出る', async (bad) => {
     await render();
     await addExpense('名刺', bad);
@@ -154,6 +163,7 @@ describe('開業設定の金額入力', () => {
 
     test.each([
       ['1e3', () => m.common_amount_invalid()],
+      ['1000.5', () => m.common_amount_invalid()],
       ['100000000000000', () => m.common_amount_too_large()],
       ['', () => m.common_amount_invalid()],
     ])('金額 %j は、開業費と同じ案内を出して追加しない', async (bad, message) => {
@@ -294,6 +304,7 @@ describe('転用資産の入力（R13・R15）', () => {
 
   test.each([
     ['-5', '4', m.common_amount_invalid()],
+    ['300000.5', '4', m.common_amount_invalid()],
     ['100000000000000', '4', m.common_amount_too_large()],
     ['300000', '1', m.opening_asset_life_unsupported()],
     ['300000', '68', m.opening_asset_life_unsupported()],

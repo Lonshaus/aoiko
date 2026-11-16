@@ -35,12 +35,27 @@ function lineAmountProblem(amount: unknown, includeLarge: boolean): AmountProble
 function echo(v: unknown): string {
   return String(v).slice(0, ECHO_LIMIT);
 }
+// 課税資産の譲渡等の対価の検査：both は読めない値も 100 兆円以上も、largeOnly は 100 兆円以上だけ、skip は検査しない
+export type ConsiderationCheck = 'both' | 'largeOnly' | 'skip';
+
+function considerationProblem(
+  amount: unknown,
+  check: ConsiderationCheck,
+  includeLarge: boolean,
+): AmountProblem {
+  if (check === 'skip') {
+    return undefined;
+  }
+  const problem = lineAmountProblem(amount, includeLarge);
+  return check === 'largeOnly' && problem === 'unreadable' ? undefined : problem;
+}
 
 function scanLines(
   entries: readonly JournalEntry[],
   lines: readonly JournalLine[],
   includeLarge: boolean,
   found: FoundAmount[],
+  consideration: ConsiderationCheck = 'both',
 ): void {
   const entryById = new Map(entries.map((e) => [e.id, e]));
   for (const line of lines) {
@@ -48,12 +63,16 @@ function scanLines(
     if (!entry) {
       continue;
     }
-    // 課税資産の譲渡等の対価も消費税の計算と会計士向け CSV が金額として読む
-    const consideration = line.taxableTransferConsideration;
-    for (const amount of consideration === undefined
-      ? [line.amount]
-      : [line.amount, consideration]) {
-      if (lineAmountProblem(amount, includeLarge) === undefined) {
+    // 課税資産の譲渡等の対価も消費税の計算と弥生 CSV が金額として読む
+    const transfer = line.taxableTransferConsideration;
+    const candidates: [unknown, AmountProblem][] = [
+      [line.amount, lineAmountProblem(line.amount, includeLarge)],
+    ];
+    if (transfer !== undefined) {
+      candidates.push([transfer, considerationProblem(transfer, consideration, includeLarge)]);
+    }
+    for (const [amount, problem] of candidates) {
+      if (problem === undefined) {
         continue;
       }
       found.push({
@@ -81,23 +100,31 @@ function limited(found: FoundAmount[]): FoundAmounts {
 }
 // 集計に入る仕訳（訂正で打ち消したものは除く）の 1e14 以上・読めない明細と、取得価額が 1e14 以上の固定資産。
 // year を渡すとその年度の仕訳だけを見る。data を渡すと仕訳と明細は読み直さず、それを見る（報告画面が読み込み済みの年度データ）。
-// 値が壊れていても投げない
+// consideration は課税資産の譲渡等の対価の検査方法（既定は both）。値を読めなくても例外を投げない
 export async function findOversizedAmounts(
   options: {
     year?: number;
     data?: { entries: readonly JournalEntry[]; lines: readonly JournalLine[] };
+    consideration?: ConsiderationCheck;
   } = {},
 ): Promise<FoundAmounts> {
   const found: FoundAmount[] = [];
+  const consideration = options.consideration ?? 'both';
   if (options.data !== undefined) {
-    scanLines(options.data.entries.filter(countsTowardTotals), options.data.lines, true, found);
+    scanLines(
+      options.data.entries.filter(countsTowardTotals),
+      options.data.lines,
+      true,
+      found,
+      consideration,
+    );
   } else {
     const all =
       options.year === undefined
         ? await db.journalEntries.toArray()
         : await db.journalEntries.where('year').equals(options.year).toArray();
     const entries = all.filter(countsTowardTotals);
-    scanLines(entries, await loadLines(entries), true, found);
+    scanLines(entries, await loadLines(entries), true, found, consideration);
   }
   for (const asset of await db.fixedAssets.toArray()) {
     const cost = readStoredAmount(asset.acquisitionCost);

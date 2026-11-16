@@ -3,7 +3,14 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { ACCOUNTS_2026 } from '../tax-schema/2026';
 import { processYear } from './consumption-tax';
-import { buildYayoiCsvRows, exportYayoiCsv } from './accountant-export';
+import {
+  buildYayoiCsvRows,
+  exportGenericCsv,
+  exportYayoiCsv,
+  exportYayoiCsvParts,
+} from './accountant-export';
+import { UnreadableConsiderationError } from './journal';
+import { OversizedAmountsError } from './oversized-amounts';
 import { findOversizedAmounts } from './oversized-amounts';
 import { m } from '../paraglide/messages';
 import type { Account } from '../db/types';
@@ -75,7 +82,7 @@ describe('課税資産の譲渡等の対価の読み取り（R18）', () => {
     });
     await expect(processYear(2026)).rejects.toThrow(expected);
     expect((await findOversizedAmounts({ year: 2026 })).total).toBe(1);
-    await expect(exportYayoiCsv(2026)).rejects.toThrow();
+    await expect(exportYayoiCsv(2026)).rejects.toThrow(expected);
     const entries = await db.journalEntries.toArray();
     const lines = await db.journalLines.toArray();
     expect(() =>
@@ -90,5 +97,30 @@ describe('課税資産の譲渡等の対価の読み取り（R18）', () => {
         } as never,
       ),
     ).toThrow(expected);
+  });
+});
+
+describe('読めない対価の会計士向け CSV', () => {
+  const unreadable = '1' + '0'.repeat(1500);
+
+  test('弥生 CSV は専用の文言で止まり、通常の一覧には出さない', async () => {
+    await seedSale(unreadable);
+    const expected = m.error_consideration_unreadable({
+      date: '2026-05-01',
+      description: '固定資産売却 車',
+    });
+    await expect(exportYayoiCsv(2026)).rejects.toThrow(UnreadableConsiderationError);
+    await expect(exportYayoiCsvParts(2026)).rejects.toThrow(expected);
+  });
+
+  test('汎用 CSV は対価を読まないので、そのまま出力できる', async () => {
+    await seedSale(unreadable);
+    await expect(exportGenericCsv(2026)).resolves.toBeInstanceOf(Uint8Array);
+  });
+
+  test('対価が 100 兆円以上なら、弥生 CSV は通常の一覧で止まる', async () => {
+    await seedSale('100000000000000');
+    await expect(exportYayoiCsv(2026)).rejects.toThrow(OversizedAmountsError);
+    await expect(exportYayoiCsvParts(2026)).rejects.toThrow(OversizedAmountsError);
   });
 });

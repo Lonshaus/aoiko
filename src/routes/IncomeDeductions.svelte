@@ -1790,87 +1790,89 @@
     </div>
   </section>
 
-  <section class="space-y-2 border rounded-lg p-6 bg-card text-card-foreground">
-    <h3 class="text-lg font-semibold">{m.income_deductions_result_title()}</h3>
-    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-      <span class="text-muted-foreground">{m.income_deductions_result_basic()}</span><span
-        class="font-mono text-right">{formatJPY(result.basicDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_social_insurance()}</span
-      ><span class="font-mono text-right">{formatJPY(result.socialInsuranceDeduction)}</span>
-      <span class="text-muted-foreground"
-        >{m.income_deductions_result_small_business_mutual_aid()}</span
-      ><span class="font-mono text-right">{formatJPY(result.smallBusinessMutualAidDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_life_insurance()}</span><span
-        class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_earthquake_insurance()}</span
-      ><span class="font-mono text-right">{formatJPY(result.earthquakeInsuranceDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_medical_expense()}</span><span
-        class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_donation()}</span><span
-        class="font-mono text-right">{formatJPY(result.donationDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_casualty_loss()}</span><span
-        class="font-mono text-right">{formatJPY(result.casualtyLossDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_disability()}</span><span
-        class="font-mono text-right">{formatJPY(result.disabilityDeduction)}</span
-      >
-      <span class="text-muted-foreground"
-        >{m.income_deductions_result_single_parent_or_widow()}</span
-      ><span class="font-mono text-right">{formatJPY(result.singleParentOrWidowDeduction)}</span>
-      <span class="text-muted-foreground">{m.income_deductions_result_working_student()}</span><span
-        class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_spouse()}</span><span
-        class="font-mono text-right">{formatJPY(result.spouseDeduction)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_dependent()}</span><span
-        class="font-mono text-right">{formatJPY(result.dependentDeduction)}</span
-      >
-      <span class="text-muted-foreground"
-        >{m.income_deductions_result_specific_relative_special()}</span
-      ><span class="font-mono text-right">{formatJPY(result.specificRelativeSpecialDeduction)}</span
-      >
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_total()}</span><span
-        class="font-mono text-right font-semibold border-t pt-1">{formatJPY(result.total)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_taxable_income()}</span><span
-        class="font-mono text-right">{formatJPY(taxableIncome)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span
-        class="font-mono text-right">{formatJPY(tax.baseIncomeTax)}</span
-      >
-      <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span
-        class="font-mono text-right">{formatJPY(tax.reconstructionSurtax)}</span
-      >
-      {#if year >= 2027}
-        <span class="text-muted-foreground">{m.income_deductions_result_defense_surtax()}</span
-        ><span class="font-mono text-right">{formatJPY(tax.defenseSurtax)}</span>
-      {/if}
-      <span class="font-semibold border-t pt-1"
-        >{year >= 2027
-          ? m.income_deductions_result_tax_total_with_defense()
-          : m.income_deductions_result_final_tax()}</span
-      ><span class="font-mono text-right font-semibold border-t pt-1"
-        >{formatJPY(tax.taxTotal)}</span
-      >
-      {#if foreignTaxCredit.greaterThan(0)}
-        <span class="text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span><span
-          class="font-mono text-right">{formatJPY(foreignTaxCredit)}</span
+  {#if loadError === ''}
+    <section class="space-y-2 border rounded-lg p-6 bg-card text-card-foreground">
+      <h3 class="text-lg font-semibold">{m.income_deductions_result_title()}</h3>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+        <span class="text-muted-foreground">{m.income_deductions_result_basic()}</span><span
+          class="font-mono text-right">{formatJPY(result.basicDeduction)}</span
         >
-      {/if}
-      <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span
-        class="font-mono text-right">{formatJPY(withholding)}</span
-      >
-      <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span
-      ><span class="font-mono text-right font-semibold border-t pt-1"
-        >{formatJPY(tax.filingTaxDue)}</span
-      >
-    </div>
-  </section>
+        <span class="text-muted-foreground">{m.income_deductions_result_social_insurance()}</span
+        ><span class="font-mono text-right">{formatJPY(result.socialInsuranceDeduction)}</span>
+        <span class="text-muted-foreground"
+          >{m.income_deductions_result_small_business_mutual_aid()}</span
+        ><span class="font-mono text-right"
+          >{formatJPY(result.smallBusinessMutualAidDeduction)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_life_insurance()}</span
+        ><span class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span>
+        <span class="text-muted-foreground"
+          >{m.income_deductions_result_earthquake_insurance()}</span
+        ><span class="font-mono text-right">{formatJPY(result.earthquakeInsuranceDeduction)}</span>
+        <span class="text-muted-foreground">{m.income_deductions_result_medical_expense()}</span
+        ><span class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span>
+        <span class="text-muted-foreground">{m.income_deductions_result_donation()}</span><span
+          class="font-mono text-right">{formatJPY(result.donationDeduction)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_casualty_loss()}</span><span
+          class="font-mono text-right">{formatJPY(result.casualtyLossDeduction)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_disability()}</span><span
+          class="font-mono text-right">{formatJPY(result.disabilityDeduction)}</span
+        >
+        <span class="text-muted-foreground"
+          >{m.income_deductions_result_single_parent_or_widow()}</span
+        ><span class="font-mono text-right">{formatJPY(result.singleParentOrWidowDeduction)}</span>
+        <span class="text-muted-foreground">{m.income_deductions_result_working_student()}</span
+        ><span class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span>
+        <span class="text-muted-foreground">{m.income_deductions_result_spouse()}</span><span
+          class="font-mono text-right">{formatJPY(result.spouseDeduction)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_dependent()}</span><span
+          class="font-mono text-right">{formatJPY(result.dependentDeduction)}</span
+        >
+        <span class="text-muted-foreground"
+          >{m.income_deductions_result_specific_relative_special()}</span
+        ><span class="font-mono text-right"
+          >{formatJPY(result.specificRelativeSpecialDeduction)}</span
+        >
+        <span class="font-semibold border-t pt-1">{m.income_deductions_result_total()}</span><span
+          class="font-mono text-right font-semibold border-t pt-1">{formatJPY(result.total)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_taxable_income()}</span
+        ><span class="font-mono text-right">{formatJPY(taxableIncome)}</span>
+        <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span
+          class="font-mono text-right">{formatJPY(tax.baseIncomeTax)}</span
+        >
+        <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span
+          class="font-mono text-right">{formatJPY(tax.reconstructionSurtax)}</span
+        >
+        {#if year >= 2027}
+          <span class="text-muted-foreground">{m.income_deductions_result_defense_surtax()}</span
+          ><span class="font-mono text-right">{formatJPY(tax.defenseSurtax)}</span>
+        {/if}
+        <span class="font-semibold border-t pt-1"
+          >{year >= 2027
+            ? m.income_deductions_result_tax_total_with_defense()
+            : m.income_deductions_result_final_tax()}</span
+        ><span class="font-mono text-right font-semibold border-t pt-1"
+          >{formatJPY(tax.taxTotal)}</span
+        >
+        {#if foreignTaxCredit.greaterThan(0)}
+          <span class="text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span><span
+            class="font-mono text-right">{formatJPY(foreignTaxCredit)}</span
+          >
+        {/if}
+        <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span
+          class="font-mono text-right">{formatJPY(withholding)}</span
+        >
+        <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span
+        ><span class="font-mono text-right font-semibold border-t pt-1"
+          >{formatJPY(tax.filingTaxDue)}</span
+        >
+      </div>
+    </section>
+  {/if}
 
   <div class="flex items-center gap-3 justify-end">
     {#if yearInvalid}

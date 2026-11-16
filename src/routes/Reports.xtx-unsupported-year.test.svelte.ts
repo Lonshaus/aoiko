@@ -107,7 +107,7 @@ async function mountAndDownload(): Promise<HTMLElement> {
   downloadButton()!.click();
   return el;
 }
-// lockError はページ上部と出力欄の 2 か所に同じ文言で出るため重複を除く
+// 同じ文言の枠が複数あっても 1 つにまとめて比べる
 const errorTexts = (el: HTMLElement): string[] => [
   ...new Set(
     Array.from(el.querySelectorAll('.border-destructive')).map((e) => (e.textContent ?? '').trim()),
