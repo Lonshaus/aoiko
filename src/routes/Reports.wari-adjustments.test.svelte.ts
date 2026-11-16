@@ -9,6 +9,7 @@ import { m } from '../paraglide/messages';
 import { hasUnsavedChanges } from '../router.svelte';
 import type { Account } from '../db/types';
 
+vi.mock('../lib/tax-reform-2027-ui', () => ({ TAX_REFORM_2027_UI: true }));
 vi.mock('../lib/save-file', () => ({
   saveTextFile: vi.fn(async () => 'saved' as const),
 }));

@@ -50,6 +50,7 @@
     type AiEngine,
   } from '../lib/settings';
   import { m } from '../paraglide/messages';
+  import { TAX_REFORM_2027_UI } from '../lib/tax-reform-2027-ui';
   import { getLocale, setLocale, locales, type Locale } from '../paraglide/runtime';
   import { ledger } from '../stores/ledger.svelte';
   import { saveFile } from '../lib/save-file';
@@ -409,6 +410,7 @@
 
   let taxRegistration = $state<TaxRegistration>('tax-free');
   let taxFilingMethod = $state<TaxFilingMethod>('general');
+  let loadedTaxFilingMethod = $state<TaxFilingMethod>('general');
   let simplifiedTaxCategory = $state<SimplifiedTaxCategory>(4);
   let consumptionTaxAttributionMethod = $state<'individual' | 'proportional'>('proportional');
   let ctRegistrationStartDate = $state('');
@@ -732,6 +734,7 @@
     disclaimerAcceptedVersion = (await getSetting('disclaimerAcceptedVersion')) ?? null;
     taxRegistration = (await getSetting('taxRegistration')) ?? 'tax-free';
     taxFilingMethod = (await getSetting('taxFilingMethod')) ?? 'general';
+    loadedTaxFilingMethod = taxFilingMethod;
     simplifiedTaxCategory = (await getSetting('simplifiedTaxCategory')) ?? 4;
     consumptionTaxAttributionMethod =
       (await getSetting('consumptionTaxAttributionMethod')) ?? 'proportional';
@@ -2787,7 +2790,9 @@
             <option value="general">{m.settings_consumption_tax_method_general()}</option>
             <option value="simplified">{m.settings_consumption_tax_method_simplified()}</option>
             <option value="two-wari">{m.settings_consumption_tax_method_two_wari()}</option>
-            <option value="three-wari">{m.settings_consumption_tax_method_three_wari()}</option>
+            {#if TAX_REFORM_2027_UI || loadedTaxFilingMethod === 'three-wari'}
+              <option value="three-wari">{m.settings_consumption_tax_method_three_wari()}</option>
+            {/if}
           </select>
         </label>
         {#if taxFilingMethod === 'simplified'}

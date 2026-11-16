@@ -1,7 +1,7 @@
 // 家内労働者等の特例（homeWorker）・前々年分収入・現金主義（cashBasisCache）の
 // 新規入力が保存・再読込で保持されるか、および試算プレビューへ反映されるかを見る。
 
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { setSetting } from '../lib/settings';
@@ -10,6 +10,7 @@ import { D, formatJPY, toIndexable } from '../lib/decimal';
 import { totalIncomeAmount } from '../tax-schema/2026/xtx-mapping-koa020';
 import { buildPL } from '../domain/reports';
 import type { Account, JournalLine } from '../db/types';
+vi.mock('../lib/tax-reform-2027-ui', () => ({ TAX_REFORM_2027_UI: true }));
 
 const { default: IncomeDeductions } = await import('./IncomeDeductions.svelte');
 
