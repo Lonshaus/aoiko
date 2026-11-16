@@ -143,6 +143,9 @@ export default defineConfig(({ command }) => {
         // 食い違うと同じ src/paraglide/ を違う意味で上書きし合う（runtime.js の
         // TREE_SHAKE_*_STRATEGY_USED が変わる）。ずれは locale-strategy.test.ts が止める。
         strategy: LOCALE_STRATEGY,
+        // 生成物は実際のファイルとして出す。e2e は Node から src/paraglide/messages を読み込むが、
+        // 仮想モジュールは Node では読めない。paraglide:compile（CLI）の出力方式ともそろう。
+        outputStructure: 'message-modules',
       }),
       svelte(),
       VitePWA({
