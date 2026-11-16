@@ -97,6 +97,14 @@ describe('所得控除画面：保存済みの金額を読めない・100 兆円
     expect(el.textContent).not.toContain('DecimalError');
     expect(saveButton(el).disabled).toBe(true);
     expect(el.textContent).toContain(m.income_deductions_load_failed_short());
+    expect(el.textContent).not.toContain(m.income_deductions_result_title());
+  });
+
+  test('読み込みに成功した年度では試算結果を示す', async () => {
+    const el = await render();
+    setYear(el, '2026');
+    await waitFor(() => !saveButton(el).disabled);
+    expect(el.textContent).toContain(m.income_deductions_result_title());
   });
 
   test.each([

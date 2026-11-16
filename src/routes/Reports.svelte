@@ -1381,7 +1381,21 @@
     // 年度切替直後は画面 $state（pl/monthly/bs）が旧年度値を保持しうるため、実行時に
     // 対象年度をその場再計算して .xtx を組み立てる（消費税側の processYear 方式と統一）
     const filingYear = year;
-    const { monthly, pl, bs } = await buildAll(filingYear, breakdownAxis);
+    let built: Awaited<ReturnType<typeof buildAll>>;
+    try {
+      built = await buildAll(filingYear, breakdownAxis);
+    } catch (e) {
+      // 画面を開いたあとに読めない明細が入ると集計が例外を投げる。原因の明細を示して止める
+      const found = await findOversizedAmounts({ year: filingYear });
+      if (found.total === 0) {
+        throw e;
+      }
+      lockError = describeFoundAmounts(found);
+      xtxOverflowWarning = '';
+      xtxDetailOverflowWarning = '';
+      return;
+    }
+    const { monthly, pl, bs } = built;
     if (!monthly || !pl || !bs) {
       lockError = m.reports_no_data_for_year({ year: filingYear });
       xtxOverflowWarning = '';
@@ -1730,6 +1744,17 @@
       class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
     >
       {lockError}
+    </div>
+  {/if}
+
+  {#if xtxOverflowWarning}
+    <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {xtxOverflowWarning}
+    </div>
+  {/if}
+  {#if xtxDetailOverflowWarning}
+    <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
+      {xtxDetailOverflowWarning}
     </div>
   {/if}
 
@@ -3281,23 +3306,6 @@
       </div>
       {#if yearInvalid}
         <p class="text-xs text-destructive">{m.common_integer_invalid(YEAR_RANGE)}</p>
-      {/if}
-      {#if lockError}
-        <div
-          class="border border-destructive bg-destructive/10 text-destructive rounded-lg px-4 py-2 text-sm"
-        >
-          {lockError}
-        </div>
-      {/if}
-      {#if xtxOverflowWarning}
-        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
-          {xtxOverflowWarning}
-        </div>
-      {/if}
-      {#if xtxDetailOverflowWarning}
-        <div class="border border-amber-500 rounded-lg px-4 py-2 text-sm text-amber-600">
-          {xtxDetailOverflowWarning}
-        </div>
       {/if}
     </section>
   {/if}

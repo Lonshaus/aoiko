@@ -6,6 +6,7 @@
   import { m } from '../paraglide/messages';
   import { D, formatJPY, type Decimal } from '../lib/decimal';
   import {
+    amountInputError,
     isAmountInputInvalid,
     isJournalAmountTooLarge,
     normalizeAmountInput,
@@ -100,10 +101,7 @@
     if (normalizeAmountInput(raw) === '') {
       return emptyIsError ? m.common_amount_invalid() : '';
     }
-    if (parseAmountInput(raw) === undefined) {
-      return m.common_amount_invalid();
-    }
-    return isJournalAmountTooLarge(raw) ? m.common_amount_too_large() : '';
+    return amountInputError(raw);
   }
   const expenseAmountHint = $derived(
     amountHint(expenseAmount, expenseAddAttempted && expenseName.trim() !== ''),
@@ -141,15 +139,7 @@
   let newAssetCost = $state('');
   let newAssetLife = $state<number | undefined>(4);
   let newAssetAccount = $state('1510');
-  const newAssetCostError = $derived.by(() => {
-    if (normalizeAmountInput(newAssetCost) === '') {
-      return '';
-    }
-    if (parseAmountInput(newAssetCost) === undefined) {
-      return m.common_amount_invalid();
-    }
-    return isJournalAmountTooLarge(newAssetCost) ? m.common_amount_too_large() : '';
-  });
+  const newAssetCostError = $derived(amountInputError(newAssetCost));
   // 開業時に登録する資産も減価償却・.xtx の検査（validateFixedAsset）を通る形に限る
   const newAssetLifeError = $derived(
     validateFixedAsset({
@@ -752,6 +742,7 @@
   let regSmallAsset = $state(false);
   let regError = $state('');
   let regDiffers = $state('');
+  const regCostError = $derived(amountInputError(regCost));
   function openRegister(target: MissingOpeningAsset): void {
     registeringKey = target.key;
     regAcqDate = '';
@@ -773,6 +764,9 @@
       return;
     }
     regError = '';
+    if (regCostError !== '') {
+      return;
+    }
     const form = {
       acquisitionDate: regAcqDate,
       acquisitionCost: normalizeAmountInput(regCost),
@@ -1023,6 +1017,14 @@
                     class="w-20 px-3 py-2 bg-background border rounded text-foreground text-sm tabular-nums"
                   />
                 </div>
+                {#if regCostError}
+                  <p
+                    data-testid="opening-missing-asset-error"
+                    class="text-xs text-destructive text-right"
+                  >
+                    {regCostError}
+                  </p>
+                {/if}
                 {#if filingType === 'blue'}
                   <label class="flex items-start gap-2 text-xs">
                     <input

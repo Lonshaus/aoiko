@@ -132,7 +132,38 @@ afterEach(async () => {
   vi.clearAllMocks();
 });
 
+function precedesFirstSection(el: HTMLElement, notice: string): boolean {
+  const warning = Array.from(el.querySelectorAll('.border-amber-500')).find((e) =>
+    (e.textContent ?? '').includes(notice),
+  );
+  const first = el.querySelector('section');
+  return (
+    warning !== undefined &&
+    first !== null &&
+    (first.compareDocumentPosition(warning) & Node.DOCUMENT_POSITION_PRECEDING) !== 0
+  );
+}
+
 describe('明細欄が上限を超えたときの .xtx 書き出し', () => {
+  test('追加科目と明細の上限を超えたときの注意は、最初のセクションより前（画面の上方）に出る', async () => {
+    await db.accounts.bulkAdd(TEST_ACCOUNTS);
+    await addEntryWithExtraExpenses();
+    await db.fixedAssets.bulkAdd(businessAssets(9));
+    await setUpFiler();
+
+    const el = await mountAndDownload();
+
+    expect(
+      precedesFirstSection(
+        el,
+        m.reports_xtx_additional_expense_overflow({ list: '' }).split('：')[0]!,
+      ),
+    ).toBe(true);
+    expect(
+      precedesFirstSection(el, m.reports_xtx_detail_overflow({ list: '' }).split('：')[0]!),
+    ).toBe(true);
+  });
+
   test('追加科目欄の提示と明細の提示が両方表示され、ファイルは書き出す', async () => {
     await db.accounts.bulkAdd(TEST_ACCOUNTS);
     await addEntryWithExtraExpenses();

@@ -138,6 +138,37 @@ describe('findOversizedAmounts', () => {
   });
 });
 
+describe('findOversizedAmounts：課税資産の譲渡等の対価の検査方法', () => {
+  async function seedConsideration(consideration: string): Promise<void> {
+    await seedEntry('1000');
+    const line = (await db.journalLines.toArray())[0]!;
+    await db.journalLines.update(line.id, { taxableTransferConsideration: consideration });
+  }
+
+  test.each([
+    ['both', '1' + '0'.repeat(1500), 1],
+    ['both', '100000000000000', 1],
+    ['largeOnly', '1' + '0'.repeat(1500), 0],
+    ['largeOnly', 'abc', 0],
+    ['largeOnly', '100000000000000', 1],
+    ['skip', '1' + '0'.repeat(1500), 0],
+    ['skip', '100000000000000', 0],
+  ] as const)('%s・対価 %j は %i 件', async (consideration, value, total) => {
+    await seedConsideration(value);
+    expect((await findOversizedAmounts({ year: 2026, consideration })).total).toBe(total);
+  });
+
+  test('指定しなければ読めない対価も返す', async () => {
+    await seedConsideration('abc');
+    expect((await findOversizedAmounts({ year: 2026 })).total).toBe(1);
+  });
+
+  test('対価の検査方法を変えても、金額そのものの検査は変わらない', async () => {
+    await seedEntry('abc');
+    expect((await findOversizedAmounts({ year: 2026, consideration: 'skip' })).total).toBe(2);
+  });
+});
+
 describe('会計士向け CSV の出力前の検査', () => {
   test('打ち消していない 1e15 の明細があれば弥生・汎用は止まり、打ち消すと出力できる', async () => {
     const id = await seedEntry('1000000000000000');

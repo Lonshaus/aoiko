@@ -19,9 +19,9 @@ export function readFilerField(v: unknown, kind: FilerFieldKind): string | undef
 export function normalizeRiyoshaId(raw: unknown): string {
   return (readFilerField(raw, 'code') ?? '').normalize('NFKC').trim();
 }
-// 全角の数字や〒・ハイフンの混じりを許すため、揃えてから数字以外を除く
+// 全角の数字や〒・ハイフン・空白の混じりは許すが、それ以外の文字は残す（残った文字が誤りの判定になる）
 export function normalizeFilerZip(raw: unknown): string {
-  return (readFilerField(raw, 'zip') ?? '').normalize('NFKC').replace(/[^0-9]/g, '');
+  return (readFilerField(raw, 'zip') ?? '').normalize('NFKC').replace(/[〒\-ー‐−\s]/g, '');
 }
 
 export function isRiyoshaIdInvalid(raw: unknown): boolean {

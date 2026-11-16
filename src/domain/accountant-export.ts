@@ -13,6 +13,7 @@ import {
   findOversizedAmounts,
   findUnreadableReversedAmounts,
   OversizedAmountsError,
+  type ConsiderationCheck,
 } from './oversized-amounts';
 import {
   findInvalidConsumptionTaxSettings,
@@ -613,16 +614,20 @@ async function loadExportData(year: number): Promise<ExportData> {
     },
   };
 }
-// 1e14 以上・読めない明細は toFixed(0) で桁数の多い文字列や例外になるため、出力前に止めて一覧を示す
-async function assertAmountsExportable(year: number): Promise<void> {
-  const found = await findOversizedAmounts({ year });
+// 1e14 以上・読めない明細は toFixed(0) で桁数の多い文字列や例外になるため、出力前に止めて一覧を示す。
+// 課税資産の譲渡等の対価は弥生 CSV だけが読む。読めない対価は buildYayoiEntryRows が仕訳を示して止める
+async function assertAmountsExportable(
+  year: number,
+  consideration: ConsiderationCheck,
+): Promise<void> {
+  const found = await findOversizedAmounts({ year, consideration });
   if (found.total > 0) {
     throw new OversizedAmountsError(found);
   }
 }
 // 弥生 CSV は消費税の設定値も読むため、明細の金額に加えて設定値も出力前に確かめる
 async function assertYayoiExportable(year: number): Promise<void> {
-  await assertAmountsExportable(year);
+  await assertAmountsExportable(year, 'largeOnly');
   const invalidSettings = await findInvalidConsumptionTaxSettings(year);
   if (invalidSettings.length > 0) {
     throw new InvalidStoredValuesError(invalidSettings);
@@ -761,7 +766,7 @@ export async function exportYayoiCsvParts(
 }
 
 export async function exportGenericCsv(year: number): Promise<Uint8Array<ArrayBuffer>> {
-  await assertAmountsExportable(year);
+  await assertAmountsExportable(year, 'skip');
   const { entries, lines, accounts, subAccounts } = await loadExportData(year);
   const rows = buildGenericCsvRows(entries, lines, accounts, subAccounts);
   return encodeUtf8WithBom(buildCsv([GENERIC_HEADER, ...rows]));

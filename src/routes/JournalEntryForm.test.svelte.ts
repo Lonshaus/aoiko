@@ -73,6 +73,28 @@ describe('仕訳フォームの金額欄', () => {
     },
   );
 
+  test.each(['debit-amount-0', 'credit-amount-0'])(
+    '%s の小数 1000.5 は欄の下に誤りが出て、保存しない',
+    async (name) => {
+      fillAccounts();
+      type('debit-amount-0', '1000');
+      type('credit-amount-0', '1000');
+      type(name, '1000.5');
+      expect(container!.textContent).toContain(m.common_amount_invalid());
+      expect(submitButton().disabled).toBe(true);
+      container!.querySelector('form')!.dispatchEvent(new Event('submit', { cancelable: true }));
+      await new Promise((r) => setTimeout(r, 100));
+      expect(await db.journalLines.count()).toBe(0);
+    },
+  );
+
+  test.each(['1000.0', '1000'])('%j は小数の誤りにならない', (ok) => {
+    type('debit-amount-0', ok);
+    type('credit-amount-0', ok);
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+    expect(submitButton().disabled).toBe(false);
+  });
+
   test('桁区切りの金額は合計に数え、例外を投げない', () => {
     type('debit-amount-0', '1,000');
     type('credit-amount-0', '1,000');

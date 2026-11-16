@@ -41,12 +41,20 @@ describe('郵便番号', () => {
     },
   );
 
-  test.each(['123', '123-456', '12345678', '１２３'])('%j は誤り', (raw) => {
-    expect(isFilerZipInvalid(raw)).toBe(true);
-  });
+  test.each(['123', '123-456', '12345678', '１２３', 'abcdefg', '12a4567', '〒abc'])(
+    '%j は誤り',
+    (raw) => {
+      expect(isFilerZipInvalid(raw)).toBe(true);
+    },
+  );
 
   test('数字以外を除いた形に揃える', () => {
     expect(normalizeFilerZip('〒１２３ー４５６７')).toBe('1234567');
+    expect(normalizeFilerZip('123 4567')).toBe('1234567');
+  });
+
+  test('数字以外の文字は取り除かず残す', () => {
+    expect(normalizeFilerZip('abcdefg')).toBe('abcdefg');
   });
 });
 

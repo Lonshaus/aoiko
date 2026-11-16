@@ -18,6 +18,7 @@ import {
   exportYayoiCsv,
   exportYayoiCsvParts,
 } from './accountant-export';
+import { UnreadableConsiderationError } from './journal';
 import { OversizedAmountsError } from './oversized-amounts';
 import { InvalidStoredValuesError } from './stored-value-checks';
 
@@ -490,10 +491,11 @@ describe('書き出しの前に止める', () => {
     await expect(exportGenericCsv(2026)).rejects.toThrow(OversizedAmountsError);
   });
 
-  test('読めない対価があれば、弥生（分割）CSV は止まる', async () => {
+  test('読めない対価があれば、弥生（分割）CSV は仕訳を示して止まり、汎用 CSV は出力できる', async () => {
     await seedEntry('e1');
     await seedLine('l1', 'e1', { taxableTransferConsideration: '1' + '0'.repeat(1500) });
-    await expect(exportYayoiCsvParts(2026)).rejects.toThrow(OversizedAmountsError);
+    await expect(exportYayoiCsvParts(2026)).rejects.toThrow(UnreadableConsiderationError);
+    await expect(exportGenericCsv(2026)).resolves.toBeInstanceOf(Uint8Array);
   });
 
   test('消費税の設定に読めない値があれば、弥生（分割）CSV は設定名を示して止まる', async () => {
