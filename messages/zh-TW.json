@@ -877,7 +877,7 @@
   "settings_qualified_book_req3_status": "△ 日期（年・月）・金額範圍・摘要・交易對象可在傳票列表中組合搜尋",
   "settings_qualified_book_req4": "相關文件保存",
   "settings_qualified_book_req4_status": "⚠ aoiko 範圍外（收據 OCR 僅用於輔助建立傳票，原件保存・電子交易資料保存需另行處理）",
-  "settings_qualified_book_caveat_html": "申請 75 萬圓控除尚須向稅務署事前提交<strong>「優良な電子帳簿の保存等に係る届出書」</strong>。詳情參考<a href=\"https://www.nta.go.jp/law/joho-zeikaishaku/sonota/jirei/tokusetsu/index.htm\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline hover:text-foreground\">國稅廳的電子帳簿等保存制度特設網站</a>。",
+  "settings_qualified_book_caveat_html": "申請 75 萬圓控除，尚須在適用年分的確定申告期限前向稅務署提交報備書。以優良電子帳簿保存者，提交<strong>「国税関係帳簿の電磁的記録等による保存等に係る75万円の青色申告特別控除・過少申告加算税の特例の適用を受ける旨の届出書」</strong>或<strong>「国税関係帳簿の電磁的記録等による保存等に係る過少申告加算税の特例の適用を受ける旨の届出書」</strong>（令和 9 年 3 月左右之前，前者名稱中的金額是 65 萬圓，之後改為 75 萬圓；已以優良電子帳簿保存適用 65 萬圓控除者，不需重新提交）。以符合國稅廳基準的系統保存電子交易資料者，提交<strong>「電子取引の取引情報に係る電磁的記録に係る重加算税の加重措置の不適用の特例及び75万円の青色申告特別控除(個人事業者)の適用を受ける旨の届出書」</strong>。詳情參考<a href=\"https://www.nta.go.jp/law/joho-zeikaishaku/sonota/jirei/tokusetsu/index.htm\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"underline hover:text-foreground\">國稅廳的電子帳簿等保存制度特設網站</a>。",
   "settings_consumption_tax_title": "消費稅",
   "settings_consumption_tax_intro": "課稅事業者時，選擇消費稅申告書的計算方式。申告書的 .xtx 輸出支援本則課稅・2 割特例・簡易課稅。簡易課稅支援所設定的事業區分，以及有固定資產出售（第四種）並存時的兩區分計算；實際經營多種事業時的簡易課稅與 3 割特例僅提供概算與比較。",
   "settings_consumption_tax_registration": "納稅義務",
