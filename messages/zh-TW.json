@@ -1145,6 +1145,8 @@
   "income_deductions_is_single_parent": "符合單親",
   "income_deductions_is_widow": "符合寡婦",
   "income_deductions_is_working_student": "符合勤勞學生",
+  "income_deductions_single_parent_widow_hint": "寡婦扣除・單親扣除的要件之一，是本人合計所得金額在 500 萬圓以下。合計所得金額的條件會自動判斷，其他要件（婚姻狀況、有無扶養親屬或生計相同的子女、沒有事實婚關係的人等）請自行確認。",
+  "income_deductions_single_parent_widow_over_limit": "合計所得金額超過 {limit}，因此不適用寡婦扣除・單親扣除。",
   "income_deductions_working_student_hint": "適用對象是合計所得金額在 89 萬圓以下（令和 7 年分為 85 萬圓以下），且其中給與所得等（自己勞動所得的事業所得・給與所得・退職所得・雜所得）以外的所得在 10 萬圓以下的學生等。合計所得金額的條件會自動判斷，10 萬圓的條件請自行確認。",
   "income_deductions_working_student_over_limit": "合計所得金額超過 {limit}，因此不適用勤勞學生扣除。",
   "income_deductions_credits_title": "稅額扣抵",

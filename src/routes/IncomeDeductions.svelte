@@ -22,6 +22,7 @@
   import {
     computeIncomeDeductions,
     computeIncomeTax,
+    singleParentOrWidowIncomeLimit,
     workingStudentIncomeLimit,
   } from '../tax-schema/2026/income-deductions';
   import {
@@ -1690,6 +1691,18 @@
         <input type="checkbox" bind:checked={isWidow} />
         {m.income_deductions_is_widow()}
       </label>
+      <div class="sm:col-span-2 space-y-1">
+        <p class="pl-6 text-xs text-muted-foreground">
+          {m.income_deductions_single_parent_widow_hint()}
+        </p>
+        {#if (isSingleParent || isWidow) && result.singleParentOrWidowDeduction.isZero()}
+          <p class="pl-6 text-xs text-amber-600">
+            {m.income_deductions_single_parent_widow_over_limit({
+              limit: formatJPY(singleParentOrWidowIncomeLimit()),
+            })}
+          </p>
+        {/if}
+      </div>
       <div class="sm:col-span-2 space-y-1">
         <label class="flex items-center gap-2 text-sm py-2">
           <input type="checkbox" bind:checked={isWorkingStudent} />

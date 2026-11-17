@@ -20,6 +20,7 @@ import {
   workingStudentDeduction,
   workingStudentIncomeLimit,
   singleParentOrWidowDeduction,
+  singleParentOrWidowIncomeLimit,
   disabilityDeduction,
   type IncomeDeductionInput,
 } from './income-deductions';
@@ -256,14 +257,27 @@ describe('その他の単純控除', () => {
   });
 
   test('寡婦控除27万円・ひとり親控除35万円（令和8年分）はいずれか一方', () => {
-    expect(singleParentOrWidowDeduction(2026, true, true).toString()).toBe('350000');
-    expect(singleParentOrWidowDeduction(2026, false, true).toString()).toBe('270000');
-    expect(singleParentOrWidowDeduction(2026, false, false).toString()).toBe('0');
+    const income = D(3_000_000);
+    expect(singleParentOrWidowDeduction(2026, true, true, income).toString()).toBe('350000');
+    expect(singleParentOrWidowDeduction(2026, false, true, income).toString()).toBe('270000');
+    expect(singleParentOrWidowDeduction(2026, false, false, income).toString()).toBe('0');
   });
 
   test('ひとり親控除は令和9年分以後38万円、寡婦控除は据え置き', () => {
-    expect(singleParentOrWidowDeduction(2027, true, false).toString()).toBe('380000');
-    expect(singleParentOrWidowDeduction(2027, false, true).toString()).toBe('270000');
+    const income = D(3_000_000);
+    expect(singleParentOrWidowDeduction(2027, true, false, income).toString()).toBe('380000');
+    expect(singleParentOrWidowDeduction(2027, false, true, income).toString()).toBe('270000');
+  });
+
+  test('合計所得金額が500万円以下のときだけ計上し、超えると0', () => {
+    expect(singleParentOrWidowIncomeLimit().toString()).toBe('5000000');
+    expect(singleParentOrWidowDeduction(2026, true, false, D(5_000_000)).toString()).toBe('350000');
+    expect(singleParentOrWidowDeduction(2026, true, false, D(5_000_001)).toString()).toBe('0');
+    expect(singleParentOrWidowDeduction(2027, true, false, D(5_000_000)).toString()).toBe('380000');
+    expect(singleParentOrWidowDeduction(2027, true, false, D(5_000_001)).toString()).toBe('0');
+    expect(singleParentOrWidowDeduction(2026, false, true, D(5_000_000)).toString()).toBe('270000');
+    expect(singleParentOrWidowDeduction(2026, false, true, D(5_000_001)).toString()).toBe('0');
+    expect(singleParentOrWidowDeduction(2026, true, true, D(5_000_001)).toString()).toBe('0');
   });
 
   test('障害者控除27万円・特別障害者控除40万円', () => {
@@ -327,6 +341,33 @@ describe('computeIncomeDeductions', () => {
     expect(within.total.minus(over.total).toString()).toBe(
       within.basicDeduction.minus(over.basicDeduction).plus(270_000).toString(),
     );
+  });
+
+  test('ひとり親は合計所得金額が500万円を超えると控除額0で total にも含まれない', () => {
+    const base: IncomeDeductionInput = {
+      totalIncome: D(5_000_001),
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: true,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
+    const over = computeIncomeDeductions(2026, base);
+    const without = computeIncomeDeductions(2026, { ...base, isSingleParent: false });
+    const within = computeIncomeDeductions(2026, { ...base, totalIncome: D(5_000_000) });
+    expect(over.singleParentOrWidowDeduction.toString()).toBe('0');
+    expect(over.total.toString()).toBe(without.total.toString());
+    expect(within.singleParentOrWidowDeduction.toString()).toBe('350000');
   });
 });
 
