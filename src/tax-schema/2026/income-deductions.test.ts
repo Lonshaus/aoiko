@@ -18,6 +18,7 @@ import {
   spouseDeduction,
   totalTaxCredits,
   workingStudentDeduction,
+  workingStudentIncomeLimit,
   singleParentOrWidowDeduction,
   disabilityDeduction,
   type IncomeDeductionInput,
@@ -242,9 +243,16 @@ describe('dependentDeductions', () => {
 });
 
 describe('その他の単純控除', () => {
-  test('勤労学生控除27万円', () => {
-    expect(workingStudentDeduction(true).toString()).toBe('270000');
-    expect(workingStudentDeduction(false).toString()).toBe('0');
+  test('勤労学生控除27万円（合計所得金額が令和8年分以後89万円・令和7年分85万円以下）', () => {
+    expect(workingStudentIncomeLimit(2025).toString()).toBe('850000');
+    expect(workingStudentIncomeLimit(2026).toString()).toBe('890000');
+    expect(workingStudentDeduction(2026, true, D(890_000)).toString()).toBe('270000');
+    expect(workingStudentDeduction(2026, true, D(890_001)).toString()).toBe('0');
+    expect(workingStudentDeduction(2026, false, D(0)).toString()).toBe('0');
+    expect(workingStudentDeduction(2025, true, D(850_000)).toString()).toBe('270000');
+    expect(workingStudentDeduction(2025, true, D(850_001)).toString()).toBe('0');
+    expect(workingStudentDeduction(2027, true, D(890_000)).toString()).toBe('270000');
+    expect(workingStudentDeduction(2027, true, D(890_001)).toString()).toBe('0');
   });
 
   test('寡婦控除27万円・ひとり親控除35万円（令和8年分）はいずれか一方', () => {
@@ -291,6 +299,34 @@ describe('computeIncomeDeductions', () => {
     const result = computeIncomeDeductions(2026, input);
     // 基礎控除104万円（489万円以下） + 社会保険料控除40万円
     expect(result.total.toString()).toBe('1440000');
+  });
+
+  test('勤労学生は合計所得金額が上限を超えると控除額0で total にも含まれない', () => {
+    const base: IncomeDeductionInput = {
+      totalIncome: D(890_000),
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: true,
+      dependents: [],
+    };
+    const within = computeIncomeDeductions(2026, base);
+    const over = computeIncomeDeductions(2026, { ...base, totalIncome: D(890_001) });
+    expect(within.workingStudentDeduction.toString()).toBe('270000');
+    expect(over.workingStudentDeduction.toString()).toBe('0');
+    expect(within.total.minus(over.total).toString()).toBe(
+      within.basicDeduction.minus(over.basicDeduction).plus(270_000).toString(),
+    );
   });
 });
 

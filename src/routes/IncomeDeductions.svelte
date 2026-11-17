@@ -19,7 +19,11 @@
   import { getSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
-  import { computeIncomeDeductions, computeIncomeTax } from '../tax-schema/2026/income-deductions';
+  import {
+    computeIncomeDeductions,
+    computeIncomeTax,
+    workingStudentIncomeLimit,
+  } from '../tax-schema/2026/income-deductions';
   import {
     PENSION_SALARY_CAP_FIRST_YEAR,
     totalWithholdingTax,
@@ -1686,10 +1690,22 @@
         <input type="checkbox" bind:checked={isWidow} />
         {m.income_deductions_is_widow()}
       </label>
-      <label class="flex items-center gap-2 text-sm py-2">
-        <input type="checkbox" bind:checked={isWorkingStudent} />
-        {m.income_deductions_is_working_student()}
-      </label>
+      <div class="sm:col-span-2 space-y-1">
+        <label class="flex items-center gap-2 text-sm py-2">
+          <input type="checkbox" bind:checked={isWorkingStudent} />
+          {m.income_deductions_is_working_student()}
+        </label>
+        <p class="pl-6 text-xs text-muted-foreground">
+          {m.income_deductions_working_student_hint()}
+        </p>
+        {#if isWorkingStudent && result.workingStudentDeduction.isZero()}
+          <p class="pl-6 text-xs text-amber-600">
+            {m.income_deductions_working_student_over_limit({
+              limit: formatJPY(workingStudentIncomeLimit(year)),
+            })}
+          </p>
+        {/if}
+      </div>
     </div>
   </section>
 

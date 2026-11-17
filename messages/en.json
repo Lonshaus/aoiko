@@ -1145,6 +1145,8 @@
   "income_deductions_is_single_parent": "Single parent",
   "income_deductions_is_widow": "Widow",
   "income_deductions_is_working_student": "Working student",
+  "income_deductions_working_student_hint": "For students and similar whose total income is ¥890,000 or less (¥850,000 for tax year 2025) and whose income other than earned income (business, salary, retirement, or miscellaneous income from their own work) is ¥100,000 or less. aoiko checks the total-income condition automatically; please check the ¥100,000 condition yourself.",
+  "income_deductions_working_student_over_limit": "Your total income exceeds {limit}, so the working student deduction does not apply.",
   "income_deductions_credits_title": "Tax credits",
   "income_deductions_credits_hint": "Housing loan special tax credit / foreign tax credit etc. require complex calculations including classification codes. Only the final amount is reflected here — complete the classification codes in e-Tax yourself.",
   "income_deductions_dividend_credit": "Dividend tax credit",

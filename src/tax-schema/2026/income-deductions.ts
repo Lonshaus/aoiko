@@ -318,9 +318,20 @@ export function singleParentOrWidowDeduction(
   }
   return D(0);
 }
+// 所得税法2条1項32号・令和8年法律第12号附則2条により合計所得金額の上限は令和8年分から89万円（令和7年分は85万円）。
+// 給与所得等以外の所得が10万円以下という要件は、雑所得が本人の勤労によるものか判別できないため入力側に委ねる。
+export function workingStudentIncomeLimit(year: number): Decimal {
+  return D(year <= 2025 ? 850_000 : 890_000);
+}
 
-export function workingStudentDeduction(isWorkingStudent: boolean): Decimal {
-  return isWorkingStudent ? D(270_000) : D(0);
+export function workingStudentDeduction(
+  year: number,
+  isWorkingStudent: boolean,
+  totalIncome: Decimal,
+): Decimal {
+  return isWorkingStudent && totalIncome.lessThanOrEqualTo(workingStudentIncomeLimit(year))
+    ? D(270_000)
+    : D(0);
 }
 
 function isElderly(age: number): boolean {
@@ -477,7 +488,11 @@ export function computeIncomeDeductions(
       input.isSingleParent,
       input.isWidow,
     ),
-    workingStudentDeduction: workingStudentDeduction(input.isWorkingStudent),
+    workingStudentDeduction: workingStudentDeduction(
+      year,
+      input.isWorkingStudent,
+      input.totalIncome,
+    ),
     spouseDeduction: spouseDeduction(year, input.totalIncome, input.spouse),
     dependentDeduction,
     specificRelativeSpecialDeduction,
