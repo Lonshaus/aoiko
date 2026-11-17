@@ -284,3 +284,21 @@ describe('findOverlappingRows', () => {
     expect(flagged.size).toBe(0);
   });
 });
+
+describe('findOverlappingRows の金額の書き方（R8）', () => {
+  test('既存の明細が 1234.00 で保存されていても、取り込む 1234 と重複とみなす', async () => {
+    await commitImport({ ...KNOWN_INFO, fileHash: 'legacy' }, [
+      {
+        transaction: tx({ date: '2026-03-30', amount: '1234', side: 'credit' }),
+        counterpartAccountCode: '5130',
+      },
+    ]);
+    const lines = await db.journalLines.where('accountCode').equals('1130').toArray();
+    await db.journalLines.update(lines[0]!.id, { amount: '1234.00' });
+    const flagged = await findOverlappingRows(
+      [tx({ date: '2026-03-30', amount: '1234', side: 'credit' })],
+      KNOWN_INFO.knownAccountCode,
+    );
+    expect(flagged.has(0)).toBe(true);
+  });
+});

@@ -10,10 +10,14 @@
 // セルフメディケーション税制は医療費控除との選択制のため対象外（通常の医療費控除のみ）。
 
 import { D, Decimal } from '../../lib/decimal';
+import type { RelativeDisability } from '../../db/types';
+import type { SalaryAdjustmentEligibility } from './other-income';
 
 interface SpouseInput {
   totalIncome: Decimal;
   age: number;
+  /** 未設定は障害なし */
+  disability?: RelativeDisability;
 }
 
 interface DependentInput {
@@ -23,6 +27,8 @@ interface DependentInput {
   totalIncome: Decimal;
   /** 老人扶養親族のうち、納税者又は配偶者と同居している直系尊属か */
   livesWithLinealAscendant?: boolean;
+  /** 未設定は障害なし */
+  disability?: RelativeDisability;
 }
 
 interface LifeInsurancePayments {
@@ -229,8 +235,8 @@ export function donationDeduction(donationAmount: Decimal, totalIncome: Decimal)
   const deduction = eligible.minus(2_000);
   return deduction.greaterThan(0) ? deduction : D(0);
 }
-// 障害者控除（27万円）・特別障害者控除（40万円）。本人のみが対象
-// （配偶者・扶養親族の障害者控除、同居特別障害者加算75万円は稀なケースのため対象外）。
+// 障害者控除（27万円）・特別障害者控除（40万円）の本人分。同一生計配偶者・扶養親族の分は
+// relativeDisabilityDeduction()。
 export function disabilityDeduction(
   input: Pick<IncomeDeductionInput, 'isDisabled' | 'isSpecialDisabled'>,
 ): Decimal {
@@ -241,6 +247,55 @@ export function disabilityDeduction(
     return D(270_000);
   }
   return D(0);
+}
+
+const RELATIVE_DISABILITY_AMOUNTS: Record<RelativeDisability, number> = {
+  none: 0,
+  disabled: 270_000,
+  special: 400_000,
+  specialCohabiting: 750_000,
+};
+// 同一生計配偶者：合計所得金額が扶養親族等の所得要件以下の配偶者。納税者本人の所得が
+// 1,000万円を超えて配偶者控除が受けられなくても、障害者控除と所得金額調整控除の対象にはなる。
+// 事業専従者の除外は personalDeductionsToCtx() で済んでいる前提。
+function livelihoodSpouse(year: number, spouse: SpouseInput | undefined): SpouseInput | undefined {
+  if (spouse && spouse.totalIncome.lessThanOrEqualTo(dependentIncomeCeiling(year))) {
+    return spouse;
+  }
+  return undefined;
+}
+// 扶養親族：合計所得金額が扶養親族等の所得要件以下の親族。年齢は問わない（16歳未満も含む）。
+// 19〜22歳で所得要件を超える親族は特定親族特別控除の対象であり、扶養親族ではない。
+function dependentRelatives(year: number, dependents: DependentInput[]): DependentInput[] {
+  return dependents.filter((d) => d.totalIncome.lessThanOrEqualTo(dependentIncomeCeiling(year)));
+}
+// 同一生計配偶者・扶養親族の障害者控除（27万円／特別障害者40万円／同居特別障害者75万円）。
+export function relativeDisabilityDeduction(
+  year: number,
+  spouse: SpouseInput | undefined,
+  dependents: DependentInput[],
+): Decimal {
+  const levels = [
+    livelihoodSpouse(year, spouse)?.disability,
+    ...dependentRelatives(year, dependents).map((d) => d.disability),
+  ];
+  return sum(...levels.map((level) => D(RELATIVE_DISABILITY_AMOUNTS[level ?? 'none'])));
+}
+// 所得金額調整控除①（措法41条の3の11第1項）の要件。
+export function salaryAdjustmentEligibility(
+  year: number,
+  input: Pick<IncomeDeductionInput, 'isSpecialDisabled' | 'spouse' | 'dependents'>,
+): SalaryAdjustmentEligibility {
+  const relatives = dependentRelatives(year, input.dependents);
+  const isSpecial = (level: RelativeDisability | undefined) =>
+    level === 'special' || level === 'specialCohabiting';
+  return {
+    selfSpecialDisabled: input.isSpecialDisabled,
+    hasDependentUnder23: relatives.some((d) => d.age < 23),
+    hasSpecialDisabledRelative:
+      isSpecial(livelihoodSpouse(year, input.spouse)?.disability) ||
+      relatives.some((d) => isSpecial(d.disability)),
+  };
 }
 // 寡婦控除（27万円）・ひとり親控除（35万円、令和8年分。令和9年分以後38万円）はいずれか一方のみ適用。
 // ひとり親控除は令和9年分以後 35万円→38万円（令和8年度税制改正の大綱(3)、国税庁 Q&A Q3-2。
@@ -414,7 +469,9 @@ export function computeIncomeDeductions(
     ),
     donationDeduction: donationDeduction(input.donationAmount, input.totalIncome),
     casualtyLossDeduction: input.casualtyLossDeduction,
-    disabilityDeduction: disabilityDeduction(input),
+    disabilityDeduction: disabilityDeduction(input).plus(
+      relativeDisabilityDeduction(year, input.spouse, input.dependents),
+    ),
     singleParentOrWidowDeduction: singleParentOrWidowDeduction(
       year,
       input.isSingleParent,
@@ -483,7 +540,73 @@ export function progressiveIncomeTax(taxableIncome: Decimal): Decimal {
   }
   return D(0);
 }
-// 復興特別所得税＝基準所得税額×2.1%（1円未満切捨て）。
-export function reconstructionSurtax(baseIncomeTax: Decimal): Decimal {
-  return baseIncomeTax.times(0.021).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+// 復興特別所得税＝基準所得税額×率（1円未満切捨て）。令和9年分から1.1%（復興財確法附則88条）。
+// 乗算後の端数処理は条文に定めがなく、令和9年分の申告書公表後に確認する。
+export function reconstructionSurtax(year: number, baseIncomeTax: Decimal): Decimal {
+  const rate = year >= 2027 ? 0.011 : 0.021;
+  return baseIncomeTax.times(rate).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+}
+// 防衛特別所得税＝基準所得税額×1%（防衛財確法5条の9）。令和9年分から課される。
+// 端数処理は reconstructionSurtax と同じ扱いで、申告書公表後に確認する。
+export function defenseSurtax(year: number, baseIncomeTax: Decimal): Decimal {
+  if (year < 2027) {
+    return D(0);
+  }
+  return baseIncomeTax.times(0.01).toDecimalPlaces(0, Decimal.ROUND_DOWN);
+}
+// 申告納税額（第一表 ABB00720）は納付になる場合のみ100円未満を切り捨てる
+// （KOA020 項目仕様の計算説明「黒字の情況は百円未満切捨て」、通則法119条1項）。還付は切り捨てない。
+export function filingTaxDue(amount: Decimal): Decimal {
+  if (amount.lessThanOrEqualTo(0)) {
+    return amount;
+  }
+  return amount.dividedBy(100).toDecimalPlaces(0, Decimal.ROUND_DOWN).times(100);
+}
+
+export interface IncomeTaxComputation {
+  /** 課税される所得金額に対する所得税額（ABB00590） */
+  incomeTax: Decimal;
+  /** 差引所得税額（ABB00670）。外国税額控除と災害減免額を除く税額控除の後 */
+  diffTax: Decimal;
+  /** 再差引所得税額＝基準所得税額（ABB01010）。災害減免額の後 */
+  baseIncomeTax: Decimal;
+  reconstructionSurtax: Decimal;
+  defenseSurtax: Decimal;
+  /** 所得税及び復興特別所得税の額（ABB01030）。令和9年分以降は防衛特別所得税を含む */
+  taxTotal: Decimal;
+  /** 申告納税額（ABB00720）。マイナスは還付 */
+  filingTaxDue: Decimal;
+}
+// 外国税額控除は復興特別所得税の算定後に控除する（第一表の欄順：再差引所得税額→
+// 復興特別所得税→合計→外国税額控除等→源泉徴収税額）。KOA020 の出力と所得控除画面の
+// 試算はどちらもこの関数を使い、値の食い違いを防ぐ。
+// 令和9年分以降は三税の合計から控除する。外国税額控除を防衛特別所得税へ按分するか
+// （防衛財確法5条の11）は、申告書の欄が公表されてから確認する。
+export function computeIncomeTax(
+  year: number,
+  taxableIncome: Decimal,
+  credits: TaxCreditInput,
+  withholdingTax: Decimal,
+): IncomeTaxComputation {
+  const incomeTax = progressiveIncomeTax(taxableIncome);
+  const foreignTaxCredit = credits.foreignTaxCreditAmount ?? D(0);
+  const stage1Credits = totalTaxCredits(credits).minus(foreignTaxCredit);
+  const diffTax = maxZero(incomeTax.minus(stage1Credits));
+  const baseIncomeTax = maxZero(diffTax.minus(credits.disasterExemptionAmount ?? D(0)));
+  const surtax = reconstructionSurtax(year, baseIncomeTax);
+  const defense = defenseSurtax(year, baseIncomeTax);
+  const taxTotal = baseIncomeTax.plus(surtax).plus(defense);
+  return {
+    incomeTax,
+    diffTax,
+    baseIncomeTax,
+    reconstructionSurtax: surtax,
+    defenseSurtax: defense,
+    taxTotal,
+    filingTaxDue: filingTaxDue(taxTotal.minus(foreignTaxCredit).minus(withholdingTax)),
+  };
+}
+
+function maxZero(v: Decimal): Decimal {
+  return v.greaterThan(0) ? v : D(0);
 }

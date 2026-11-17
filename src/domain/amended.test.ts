@@ -4,6 +4,7 @@ import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { newId } from '../lib/id';
 import { amendmentChecklist, getAmendmentDiff } from './amended';
+import { loadYearData } from './reports';
 import { markYearFiled, unlockYear } from './snapshots';
 import type { Account, LineSide } from '../db/types';
 
@@ -22,7 +23,7 @@ async function addEntry(opts: {
   const now = Date.now();
   await db.transaction('rw', db.journalEntries, db.journalLines, async () => {
     // 申告後に漏れていた経費を足す（修正申告）は、画面の確認を通った書き込み。
-    allowFiledYearWriteInThisTransaction();
+    allowFiledYearWriteInThisTransaction([Number(opts.date.slice(0, 4))]);
     await db.journalEntries.add({
       id,
       date: opts.date,
@@ -260,6 +261,114 @@ describe('getAmendmentDiff', () => {
       filedAmount: '100000',
       currentAmount: '70000',
     });
+  });
+});
+
+describe('getAmendmentDiff：年度データの共有', () => {
+  test('PL と BS の申告済みスナップショットがあっても、年度データを渡した結果は渡さない場合と同じ', async () => {
+    await addEntry({
+      date: '2026-04-01',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '100000' },
+        { side: 'credit', accountCode: '4110', amount: '100000' },
+      ],
+    });
+    await markYearFiled(
+      2026,
+      {
+        monthlySales: { type: 'monthly-sales', data: { months: [] } },
+        pl: {
+          type: 'pl',
+          data: {
+            rows: [{ accountCode: '4110', amount: '100000' }],
+            totalRevenue: '100000',
+            totalExpense: '0',
+            netIncome: '100000',
+          },
+        },
+        bs: {
+          type: 'bs',
+          data: {
+            assets: [{ accountCode: '1130', amount: '100000' }],
+            liabilities: [],
+            equity: [],
+          },
+        },
+      },
+      '2026-12-31',
+    );
+    await addEntry({
+      date: '2026-05-01',
+      lines: [
+        { side: 'debit', accountCode: '5150', amount: '20000' },
+        { side: 'credit', accountCode: '1130', amount: '20000' },
+      ],
+    });
+    const data = await loadYearData(2026);
+
+    const shared = await getAmendmentDiff(2026, data);
+
+    expect(shared).toEqual(await getAmendmentDiff(2026));
+    expect(shared?.hasChange).toBe(true);
+    expect(shared?.bsChanges).not.toBeNull();
+    expect(shared?.bsChanges?.length).toBeGreaterThan(0);
+  });
+});
+
+describe('getAmendmentDiff：復元されたスナップショットを読めないとき', () => {
+  const pl = {
+    rows: [],
+    totalRevenue: '100000',
+    totalExpense: '0',
+    netIncome: '100000',
+  };
+  async function putSnapshot(type: 'pl' | 'bs', payload: unknown): Promise<void> {
+    await db.reportSnapshots.add({
+      id: newId(),
+      year: 2026,
+      type,
+      status: 'filed',
+      filedAt: 1,
+      payload: payload as never,
+      generatedAt: 1,
+      generatedFromEntriesUpTo: '2026-12-31',
+    });
+  }
+
+  test.each([
+    ['PL の totalRevenue が abc', { type: 'pl', data: { ...pl, totalRevenue: 'abc' } }],
+    ['PL の netIncome が abc', { type: 'pl', data: { ...pl, netIncome: 'abc' } }],
+    ['PL の payload が null', null],
+    ['PL の data が null', { type: 'pl', data: null }],
+  ])('%s：例外にせず「読めない」状態を返し、変更なしとは扱わない', async (_label, payload) => {
+    await putSnapshot('pl', payload);
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(true);
+    expect(r?.hasChange).toBe(false);
+  });
+
+  test.each([
+    ['BS の payload が null', null],
+    ['BS の data が空オブジェクト', { type: 'bs', data: {} }],
+    [
+      'BS の行の金額が abc',
+      {
+        type: 'bs',
+        data: { assets: [{ accountCode: '1130', amount: 'abc' }], liabilities: [], equity: [] },
+      },
+    ],
+  ])('%s：例外にせず「読めない」状態を返す', async (_label, payload) => {
+    await putSnapshot('pl', { type: 'pl', data: pl });
+    await putSnapshot('bs', payload);
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(true);
+  });
+
+  test('数値で保存された金額は読む', async () => {
+    await putSnapshot('pl', { type: 'pl', data: { ...pl, netIncome: 100000 } });
+    const r = await getAmendmentDiff(2026);
+    expect(r?.unreadable).toBe(false);
+    expect(r?.filedNetIncome).toBe('100000');
   });
 });
 

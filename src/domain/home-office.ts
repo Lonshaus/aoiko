@@ -1,4 +1,4 @@
-import { D } from '../lib/decimal';
+import { D, toAmountString } from '../lib/decimal';
 import { newId } from '../lib/id';
 import type { InputUsageCategory, TaxCategory } from '../db/types';
 import { m } from '../paraglide/messages';
@@ -93,7 +93,7 @@ export function expandHomeOffice(debits: SplittableLine[]): SplittableLine[] {
 
     result.push({
       ...line,
-      amount: businessAmount.toString(),
+      amount: toAmountString(businessAmount),
     });
     drawingTotal = drawingTotal.plus(personalAmount);
   }
@@ -104,7 +104,7 @@ export function expandHomeOffice(debits: SplittableLine[]): SplittableLine[] {
       side: 'debit',
       accountCode: DRAWING_ACCOUNT_CODE,
       subAccountId: '',
-      amount: drawingTotal.toString(),
+      amount: toAmountString(drawingTotal),
       taxRate: 0,
       taxIncluded: true,
       homeOfficeRatio: '',

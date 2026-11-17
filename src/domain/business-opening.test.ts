@@ -9,6 +9,7 @@ import {
 } from './business-opening';
 import { computeDepreciation } from './depreciation';
 import { D } from '../lib/decimal';
+import { m } from '../paraglide/messages';
 import type { OpeningSetupInput, OpeningSetupResult } from './business-opening';
 
 beforeEach(async () => {
@@ -492,5 +493,62 @@ describe('openingExpenseAmortization（所令137条）', () => {
     }
     const lines = await db.journalLines.where('entryId').anyOf(result.entryIds).toArray();
     expect(lines.find((l) => l.accountCode === '5210')?.amount).toBe('120000');
+  });
+});
+
+describe('転用資産の耐用年数（R15）', () => {
+  it.each([
+    [1, false],
+    [2, true],
+    [67, true],
+    [68, false],
+  ])('耐用年数 %i の扱い：%s', async (life, ok) => {
+    const { isConvertedAssetLifeSupported } = await import('./business-opening');
+    expect(isConvertedAssetLifeSupported(life)).toBe(ok);
+  });
+
+  it('率表に無い耐用年数の転用資産は、資産名を示して何も書かない', async () => {
+    await expect(
+      generateOpeningEntries({
+        businessStartDate: '2026-07-01',
+        expenses: [],
+        expenseAmortization: 'immediate',
+        convertedAssets: [
+          {
+            name: '古い機械',
+            acquisitionDate: '2020-01-01',
+            acquisitionCost: '300000',
+            usefulLifeYears: 68,
+            accountCode: '1510',
+            depreciationMethod: 'straight-line',
+          },
+        ],
+        customItems: [],
+      }),
+    ).rejects.toThrow('古い機械');
+    expect(await db.fixedAssets.count()).toBe(0);
+    expect(await db.journalEntries.count()).toBe(0);
+  });
+
+  it('減価償却が読めない形の転用資産（名前なし）は書かない', async () => {
+    await expect(
+      generateOpeningEntries({
+        businessStartDate: '2026-07-01',
+        expenses: [],
+        expenseAmortization: 'immediate',
+        convertedAssets: [
+          {
+            name: '',
+            acquisitionDate: '2020-01-01',
+            acquisitionCost: '300000',
+            usefulLifeYears: 4,
+            accountCode: '1510',
+            depreciationMethod: 'straight-line',
+          },
+        ],
+        customItems: [],
+      }),
+    ).rejects.toThrow(m.fixed_asset_issue_name());
+    expect(await db.fixedAssets.count()).toBe(0);
   });
 });

@@ -329,6 +329,16 @@ async function computeEntryCrc32(blob: Blob, inflated: Uint8Array | undefined): 
   }
   return hash.digest();
 }
+// JSON のバックアップと同じく、version と tables を自分の欄に持つ素のオブジェクトだけを通す。
+function isBackupShaped(v: unknown): v is BackupPayload {
+  return (
+    typeof v === 'object' &&
+    v !== null &&
+    !Array.isArray(v) &&
+    Object.hasOwn(v, 'version') &&
+    Object.hasOwn(v, 'tables')
+  );
+}
 // 復元は他ツールが書いた zip も受け取る（aoiko 自身の書き出しは data descriptor を使わないが、
 // 他のストリーミング書き出しは使う）。data descriptor 付きの zip を先頭から逐次読みすると、
 // サイズも CRC も分からないまま次の PK\x07\x08 シグネチャを探すしかなく、添付のバイナリ中に
@@ -363,11 +373,17 @@ export async function parseBackupZip(file: Blob): Promise<ParsedBackupZip> {
       continue;
     }
     if (isPayload) {
+      let parsed: unknown;
       try {
-        payload = JSON.parse(await blob.text()) as BackupPayload;
+        parsed = JSON.parse(await blob.text());
       } catch {
         throw new Error(m.error_backup_payload_unreadable({ name: PAYLOAD_ENTRY_NAME }));
       }
+      // JSON の読み込み失敗とは別の訳文にするため、try の外で形を見る。
+      if (!isBackupShaped(parsed)) {
+        throw new Error(m.error_backup_not_backup_format());
+      }
+      payload = parsed;
     } else {
       attachmentBlobs.set(record.name.slice(ATTACHMENT_PREFIX.length), blob);
     }

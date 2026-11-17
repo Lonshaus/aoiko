@@ -3,6 +3,8 @@
 // 末尾に時刻（' HH:MM:SS' 等）が付く形式（PayPay 等）は日付部分のみ採用。
 // 月を m という名前で分解しているので、こちらは別名で受ける。
 import { m as msg } from '../paraglide/messages';
+import { parseAmountInput } from '../lib/amount-input';
+import type { ParsedTransaction } from './types';
 export function normalizeDate(s: string): string {
   const dateOnly = (s.trim().split(/[ \t]/)[0] ?? '').replace(/年|月/g, '/').replace(/日/g, '');
   const parts = dateOnly.split(/[/\-.]/).map((p) => p.trim());
@@ -104,4 +106,51 @@ export function isDateLike(s: string): boolean {
     /^\d{4}\s*[/\-.]\s*\d{1,2}\s*[/\-.]\s*\d{1,2}/.test(t) ||
     /^\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日/.test(t)
   );
+}
+
+export type ParsedAmountIssueReason = 'invalid' | 'too_large';
+
+export interface ParsedAmountIssue {
+  // 取込一覧での順番（1 始まり）。画面には出さず、一覧の行との対応づけにだけ使う
+  row: number;
+  date: string;
+  description: string;
+  raw: string;
+  reason: ParsedAmountIssueReason;
+}
+// 仕訳明細の金額は 0 以上・14 桁以内しか保存できない。「1,234円」のような書き方を
+// そのまま通すと、一覧の表示と取込の両方で例外になる
+export function checkParsedAmount(
+  raw: string,
+): { ok: true; amount: string } | { ok: false; reason: ParsedAmountIssueReason } {
+  const d = parseAmountInput(raw);
+  if (d === undefined) {
+    return { ok: false, reason: 'invalid' };
+  }
+  if (d.gte('1e14')) {
+    return { ok: false, reason: 'too_large' };
+  }
+  return { ok: true, amount: d.toFixed() };
+}
+// 読める行は金額を標準の書き方に揃え、読めない行は issues に順番付きで返す（行は除かない）
+export function checkParsedAmounts(txs: readonly ParsedTransaction[]): {
+  transactions: ParsedTransaction[];
+  issues: ParsedAmountIssue[];
+} {
+  const issues: ParsedAmountIssue[] = [];
+  const transactions = txs.map((t, i) => {
+    const r = checkParsedAmount(t.amount);
+    if (r.ok) {
+      return r.amount === t.amount ? t : { ...t, amount: r.amount };
+    }
+    issues.push({
+      row: i + 1,
+      date: t.date,
+      description: t.description,
+      raw: t.amount,
+      reason: r.reason,
+    });
+    return t;
+  });
+  return { transactions, issues };
 }

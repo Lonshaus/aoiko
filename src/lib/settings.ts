@@ -5,6 +5,7 @@ import type { FilingType } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
+import type { BackupPartId } from '../backup/parts';
 import type {
   SmallAmountSpecialInputs,
   WariBaseAdjustments,
@@ -70,11 +71,14 @@ export type SettingsMap = {
   openaiApiKey: string;
   // OCR/LLM の外部送信前確認をスキップ（利用者が「次回から確認しない」を選択）
   skipExternalSendConfirm: boolean;
-  // バックアップ・エクスポートに API キーを含めるか（既定 false）。
-  // クラウド同期フォルダへ平文の API キーが書き出されるのを防ぐため、明示的に有効化した場合のみ含める。
-  backupIncludeApiKeys: boolean;
+  // 自動バックアップに含める区分（backup/parts.ts）。読むときは normalizeAutoBackupParts を通す。
+  backupParts: BackupPartId[];
   disclaimerAcceptedAt: number | null;
   disclaimerAcceptedVersion: number | null;
+  // 保存データの点検で「確認した」を押したときの点検結果の指紋。結果が変わればまた知らせる。
+  dataCheckAcknowledged: string;
+  // 保存されていた処理年度が読めず起動時に置き換えたときの年。ホームで知らせ、閉じるか基本設定の保存で消す。
+  processingYearResetTo: number;
   // 消費税関連設定
   taxRegistration: TaxRegistration;
   taxFilingMethod: TaxFilingMethod;
@@ -98,7 +102,7 @@ export type SettingsMap = {
   // 2割／3割特例の基礎調整（年分をキー）。金額は Decimal 文字列
   wariBaseAdjustments: Record<number, StoredWariBaseAdjustments>;
   // 申告者情報（e-Tax 提出用）。.xtx の IT部（定義側）必須項目に対応する。
-  // 個人情報のため、バックアップには既定で含めない（backupIncludeFilerInfo）。
+  // 個人情報のため、バックアップには既定で含めない（backupParts の filer）。
   userRiyoshaId: string; // 利用者識別番号（16桁）
   userFilerName: string; // 氏名・名称（NOZEISHA_NM）
   userFilerZip: string; // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
@@ -111,8 +115,6 @@ export type SettingsMap = {
   aoiroDeductionKind: AoiroDeductionKind;
   // 所得税法67条1項（小規模事業者の現金主義）の適用を受けるか（既定 false）
   cashBasisElection: boolean;
-  // 申告者情報をバックアップ・エクスポートに含めるか（既定 false）。
-  backupIncludeFilerInfo: boolean;
   // 不動産所得を使うか（既定 false）。freee/MF と同じくオプトイン。
   // true にすると初めて、記帳フォームの事業/不動産切替・不動産用固定資産欄・
   // 所得控除画面の不動産所得区分が表示される（切っている間は既存利用者の画面は変わらない）。
@@ -135,10 +137,14 @@ export type SettingsMap = {
   // DEFAULT_INVOICE_PREFIX/DEFAULT_QUOTE_PREFIX）を使う。
   invoiceNumberPrefix: string;
   quoteNumberPrefix: string;
-  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定が書き込む）。
-  // 未設定はそれぞれ最も古い開業仕訳の日付・廃業なし（従来どおり）。
+  // 少額特例（措法28の2）の年合計上限の月割に使う開業日・廃業日（開業設定と設定画面が書き込む）。
+  // 開業日は開業仕訳の無い年にだけ使う（depreciation.ts の selectEffectiveBusinessDates）。
   businessStartDate: string;
   businessCloseDate: string;
+  // 作り直しの途中で止まった年の案内を利用者が「表示しない」にした年
+  dismissedInterruptedOpeningYears: number[];
+  // 開業設定で登録し直す転用資産のうち「登録しない」にした明細（`${仕訳 id}:${明細 id}`）
+  dismissedMissingOpeningAssets: string[];
 };
 // DISCLAIMER.md の内容が本質的に変わったらインクリメントする。
 // バージョン mismatch で再同意を要求する。
@@ -156,7 +162,8 @@ export type SettingsMap = {
 // v8: 同意画面の送信先の一文と、同画面から開く 3 文書を実態へ修正。どちらの本文にも
 // 出る内容なので両方を 8 に揃える。次に片側だけの改訂が来たらまた分岐へ戻す。
 // v10: 送信内容（注文取込・CSV）・バックアップ・保存先などの記述を実態へ修正。どちらの本文にも出る内容なので両方を 10 に揃える。
-export const DISCLAIMER_VERSION = 10;
+// v12: 送信前確認を省く設定は端末ごとで復元しても変わらない旨と、バックアップの項目選択に合わせた PRIVACY・SECURITY の記述を反映。11 は別の配布形態で使ったため飛ばし、両方を 12 に揃える。
+export const DISCLAIMER_VERSION = 12;
 
 export async function getSetting<K extends keyof SettingsMap>(
   key: K,
@@ -280,6 +287,52 @@ export interface StoredWariBaseAdjustments {
 function isTransferRate(value: unknown): value is 0.1 | 0.08 {
   return value === 0.1 || value === 0.08;
 }
+function readTransferRows(stored: Record<string, unknown>) {
+  const rows: unknown[] = Array.isArray(stored.specifiedSmallAssetTransfers)
+    ? stored.specifiedSmallAssetTransfers
+    : [];
+  return rows.flatMap((t, index) => {
+    const date = isRecord(t) ? nonEmpty(t.date) : undefined;
+    if (!isRecord(t) || date === undefined || !isTransferRate(t.rate)) {
+      return [];
+    }
+    return [{ date, rate: t.rate, rawNetTax: t.netTax, index }];
+  });
+}
+// 欄に出すための保存値。読めない値も消さずに見せる。行の並びは loadWariBaseAdjustments と同じ
+export async function loadWariStoredAmounts(year: number): Promise<{
+  salesReturnTax78: unknown;
+  salesReturnTax624: unknown;
+  netTaxes: unknown[];
+  rowIndexes: number[];
+  hiddenIndexes: number[];
+}> {
+  const map: unknown = await getSetting('wariBaseAdjustments');
+  const stored = isRecord(map) ? map[year] : undefined;
+  if (!isRecord(stored)) {
+    return {
+      salesReturnTax78: undefined,
+      salesReturnTax624: undefined,
+      netTaxes: [],
+      rowIndexes: [],
+      hiddenIndexes: [],
+    };
+  }
+  const shown = readTransferRows(stored);
+  const rowIndexes = shown.map((t) => t.index);
+  const count = Array.isArray(stored.specifiedSmallAssetTransfers)
+    ? stored.specifiedSmallAssetTransfers.length
+    : 0;
+  return {
+    salesReturnTax78: stored.salesReturnTax78,
+    salesReturnTax624: stored.salesReturnTax624,
+    netTaxes: shown.map((t) => t.rawNetTax),
+    rowIndexes,
+    hiddenIndexes: Array.from({ length: count }, (_, i) => i).filter(
+      (i) => !rowIndexes.includes(i),
+    ),
+  };
+}
 // 記録が無い年分は空（除外事由なし、従来どおり）
 export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdjustments> {
   const map: unknown = await getSetting('wariBaseAdjustments');
@@ -289,17 +342,12 @@ export async function loadWariBaseAdjustments(year: number): Promise<WariBaseAdj
   }
   const salesReturnTax78 = parseAmount(stored.salesReturnTax78);
   const salesReturnTax624 = parseAmount(stored.salesReturnTax624);
-  const rows: unknown[] = Array.isArray(stored.specifiedSmallAssetTransfers)
-    ? stored.specifiedSmallAssetTransfers
-    : [];
-  const transfers = rows.flatMap((t) => {
-    const date = isRecord(t) ? nonEmpty(t.date) : undefined;
-    if (!isRecord(t) || date === undefined || !isTransferRate(t.rate)) {
-      return [];
-    }
-    // 金額欄は未検証の文字列で保存されるため、壊れた値は0として読み例外にしない
-    return [{ date, rate: t.rate, netTax: parseAmount(t.netTax) ?? D(0) }];
-  });
+  // 金額欄は未検証の文字列で保存されるため、読めない値は0として読み例外にしない
+  const transfers = readTransferRows(stored).map(({ date, rate, rawNetTax }) => ({
+    date,
+    rate,
+    netTax: parseAmount(rawNetTax) ?? D(0),
+  }));
   return {
     ...(salesReturnTax78 !== undefined ? { salesReturnTax78 } : {}),
     ...(salesReturnTax624 !== undefined ? { salesReturnTax624 } : {}),

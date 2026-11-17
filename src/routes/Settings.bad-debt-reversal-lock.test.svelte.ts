@@ -95,7 +95,9 @@ describe('runBadDebtReversal: 申告済み年度のロック', () => {
     expect(applyBadDebtReversalMock).not.toHaveBeenCalled();
     await filedYearGuard.resolve(true);
     await waitFor(() => applyBadDebtReversalMock.mock.calls.length > 0);
-    expect(applyBadDebtReversalMock).toHaveBeenCalledWith(CURRENT_YEAR, { allowFiledYear: true });
+    expect(applyBadDebtReversalMock).toHaveBeenCalledWith(CURRENT_YEAR, {
+      allowedFiledYears: [CURRENT_YEAR],
+    });
   });
 
   test('確認で取消を選ぶと生成されない', async () => {
@@ -112,6 +114,6 @@ describe('runBadDebtReversal: 申告済み年度のロック', () => {
     reversalButton()!.click();
     await waitFor(() => applyBadDebtReversalMock.mock.calls.length > 0);
     expect(filedYearGuard.pending).toBeNull();
-    expect(applyBadDebtReversalMock).toHaveBeenCalledWith(CURRENT_YEAR, { allowFiledYear: true });
+    expect(applyBadDebtReversalMock).toHaveBeenCalledWith(CURRENT_YEAR, { allowedFiledYears: [] });
   });
 });

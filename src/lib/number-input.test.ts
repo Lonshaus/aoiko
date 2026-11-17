@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { assignInputNumber, assignInputString } from './number-input';
+import { assignInputNumber, assignInputNumberOrEmpty, assignInputString } from './number-input';
 
 function fireInput(
   value: string,
@@ -37,5 +37,19 @@ describe('assignInputNumber', () => {
     const assign = vi.fn();
     fireInput('abc', assignInputNumber(assign));
     expect(assign).not.toHaveBeenCalled();
+  });
+});
+
+describe('assignInputNumberOrEmpty', () => {
+  it('数値入力で代入する', () => {
+    const assign = vi.fn();
+    fireInput('42', assignInputNumberOrEmpty(assign));
+    expect(assign).toHaveBeenCalledWith(42);
+  });
+
+  it('空欄では undefined を代入する', () => {
+    const assign = vi.fn();
+    fireInput('', assignInputNumberOrEmpty(assign));
+    expect(assign).toHaveBeenCalledWith(undefined);
   });
 });

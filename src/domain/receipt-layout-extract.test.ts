@@ -65,7 +65,7 @@ function toLayout(rows: Row[], separator = ' '): OcrLayout {
 function receipt(over: { invoice?: Cell; items?: { y: number; cells: Cell[] }[] } = {}): OcrLayout {
   return toLayout([
     { y: 0.287, height: 0.023, cells: [{ text: 'お問合せ先/Help', x: 0.242 }] },
-    { y: 0.301, height: 0.068, cells: [{ text: 'あおい薬局', x: 0.177 }] },
+    { y: 0.301, height: 0.068, cells: [{ text: 'テスト薬局', x: 0.177 }] },
     { y: 0.367, height: 0.031, cells: [{ text: '【領収証】', x: 0.331 }] },
     {
       y: 0.4,
@@ -234,7 +234,7 @@ describe('語の区切り文字', () => {
 describe('extractFromOcrLayout', () => {
   test('雛形から 5 項目すべてを取り出せる', () => {
     const r = extractFromOcrLayout(receipt());
-    expect(r.vendorName).toBe('あおい薬局');
+    expect(r.vendorName).toBe('テスト薬局');
     expect(r.date).toBe('2026-05-14');
     expect(r.totalAmount).toBe('248');
     expect(r.invoiceNumber).toBe('T1234567890123');
@@ -246,7 +246,7 @@ describe('店名', () => {
   // 位置の比率では決めない。近接で撮ると伝票が紙面の下寄りに写り、実測では店名が
   // 上から 30% の位置に来ていた。雛形もその配置を保っている。
   test('紙面の上から 30% にあっても拾える', () => {
-    const line = receipt().lines.find((l) => l.text.includes('あおい薬局'));
+    const line = receipt().lines.find((l) => l.text.includes('テスト薬局'));
     expect(line!.y).toBeGreaterThan(0.25);
   });
   // 「【領収証】」は店名より下だが大きく刷られる。除かないと字の大きさで競り勝つ。
@@ -568,7 +568,7 @@ describe('品目', () => {
           y: 0.625,
           cells: [
             { text: '伝票番号', x: 0.09 },
-            { text: '店No00499', x: 0.143 },
+            { text: '店No00123', x: 0.143 },
           ],
         },
       ],
@@ -579,8 +579,8 @@ describe('品目', () => {
   // 見出しを早く閉じてはいけない。閉じると店名の探索範囲から外れて店名を失う。
   test('見出し内の文字と数字が繋がった単語があっても店名を取れる', () => {
     const layout = toLayout([
-      { y: 0.3, height: 0.06, cells: [{ text: 'あおい薬局', x: 0.09 }] },
-      { y: 0.35, height: 0.02, cells: [{ text: '店No00499', x: 0.09 }] },
+      { y: 0.3, height: 0.06, cells: [{ text: 'テスト薬局', x: 0.09 }] },
+      { y: 0.35, height: 0.02, cells: [{ text: '店No00123', x: 0.09 }] },
       {
         y: 0.5,
         height: 0.02,
@@ -590,7 +590,7 @@ describe('品目', () => {
         ],
       },
     ]);
-    expect(extractFromOcrLayout(layout).vendorName).toBe('あおい薬局');
+    expect(extractFromOcrLayout(layout).vendorName).toBe('テスト薬局');
   });
   // 1 単語 = 1 文字で返す環境がある。単語から品名を組み立てると一文字ずつ空白が入り、
   // 「最後の単語」で見る電話番号の判定も数字の断片しか見ないので通ってしまう（実測）。
@@ -599,8 +599,8 @@ describe('品目', () => {
       [...t].map((c, i) => ({ text: c, x: x0 + i * step }));
     const layout = toLayout([
       { y: 0.05, height: 0.02, cells: chars('登録番号T1234567890123', 0.1) },
-      { y: 0.2, height: 0.02, cells: chars('吉祥寺南町店0499ー99ー9999', 0.11) },
-      { y: 0.25, height: 0.02, cells: chars('責No00891337', 0.1) },
+      { y: 0.2, height: 0.02, cells: chars('みどり町店0499ー99ー9999', 0.11) },
+      { y: 0.25, height: 0.02, cells: chars('責No00123456', 0.1) },
       { y: 0.3, height: 0.02, cells: chars('＊#！ミネラルウォーター\\248', 0.14) },
       { y: 0.5, height: 0.02, cells: chars('合計/1点\\248', 0.09) },
     ]);
@@ -644,7 +644,7 @@ describe('品目', () => {
         height: 0.02,
         cells: [
           { text: '責No', x: 0.1 },
-          { text: '00891337', x: 0.6 },
+          { text: '00123456', x: 0.6 },
         ],
       },
       {
@@ -685,7 +685,7 @@ describe('品目', () => {
   });
   test('値引合計の行を合計と取らない', () => {
     const layout = toLayout([
-      { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: 'テスト薬局', x: 0.09 }] },
       {
         y: 0.4,
         height: 0.02,
@@ -709,7 +709,7 @@ describe('品目', () => {
   test('1 単語 = 1 文字で返る環境でも合計を取れる', () => {
     const layout = toLayout(
       [
-        { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+        { y: 0.3, height: 0.02, cells: [{ text: 'テスト薬局', x: 0.09 }] },
         {
           y: 0.5,
           height: 0.02,
@@ -723,7 +723,7 @@ describe('品目', () => {
 
   test('店名の行に数字が混じっても店名を取れる', () => {
     const layout = toLayout([
-      { y: 0.3, height: 0.06, cells: [{ text: '3あおい薬局', x: 0.09 }] },
+      { y: 0.3, height: 0.06, cells: [{ text: '3テスト薬局', x: 0.09 }] },
       { y: 0.4, height: 0.02, cells: [{ text: 'みどり町店', x: 0.09 }] },
       {
         y: 0.5,
@@ -734,7 +734,7 @@ describe('品目', () => {
         ],
       },
     ]);
-    expect(extractFromOcrLayout(layout).vendorName).toBe('3あおい薬局');
+    expect(extractFromOcrLayout(layout).vendorName).toBe('3テスト薬局');
   });
 
   test('値引きの行は符号を保つ', () => {
@@ -872,7 +872,7 @@ describe('品目', () => {
   });
   test('案内文を合計の行と取り違えない', () => {
     const layout = toLayout([
-      { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+      { y: 0.3, height: 0.02, cells: [{ text: 'テスト薬局', x: 0.09 }] },
       {
         y: 0.5,
         height: 0.02,
@@ -946,7 +946,7 @@ describe('品目', () => {
   test('合計の語が読めなくても、集計欄から合計を拾う', () => {
     const layout = toLayout(
       [
-        { y: 0.3, height: 0.02, cells: [{ text: 'あおい薬局', x: 0.09 }] },
+        { y: 0.3, height: 0.02, cells: [{ text: 'テスト薬局', x: 0.09 }] },
         {
           y: 0.4,
           height: 0.02,

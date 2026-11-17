@@ -29,7 +29,7 @@ Choosing a method, transitional credit, input tax credit, deemed input rate.
 
 > **National / local breakdown**: aoiko separates national (7.8% or 6.24%) and local (2.2% or 1.76%) consumption tax internally and shows totals. The method comparison in the Reports' "Consumption tax" section displays totals.
 >
-> You can adjust the base for the 20% and 30% special provisions in the per-year inputs in the "Consumption tax" section. For "Tax on sales returns/discounts not yet offset (7.8% rate)" and "Tax on sales returns/discounts not yet offset (6.24% rate)", enter only the national consumption tax portion of returns/discounts that have not already been offset against sales on the debit side of a journal entry (offset amounts are already reflected in the taxable base). For the 30% special provision, also enter "Specified small-asset transfers (deducted from the 30% special provision base)" with the transfer date and its national consumption tax portion; only transfers falling outside the Suppl. Prov. Art. 90 Para. 2 window above (October 1, 2026 – March 31, 2028) — i.e. on or after April 1, 2028 — are automatically excluded from the base. Transfers within that window stay in the base.
+> You can adjust the base for the 20% and 30% special provisions in the per-year inputs in the "Consumption tax" section. For "Tax on sales returns/discounts not yet offset (7.8% rate)" and "Tax on sales returns/discounts not yet offset (6.24% rate)", enter only the national consumption tax portion of returns/discounts that have not already been offset against sales on the debit side of a journal entry (offset amounts are already reflected in the taxable base). For the 30% special provision, also enter "Specified small-asset transfers (deducted from the 30% special provision base)" with the transfer date and its national consumption tax portion; only transfers falling outside the Suppl. Prov. Art. 90 Para. 2 window above (October 1, 2026 – March 31, 2028) — i.e. on or after April 1, 2028 — are automatically excluded from the base. Transfers within that window stay in the base. For a row of "Specified small-asset transfers" whose consumption tax amount cannot be read, the date and rate are saved while the saved tax amount stays as it is if a saved row exists, and the row is not saved if there is no saved row. Rows that can be read are saved as usual. If a saved value in one of these fields cannot be read, an error appears below the field. Until you change that field, saving other fields does not remove or overwrite the saved value.
 
 ## 2. Deemed input rates (simplified taxation)
 
@@ -87,7 +87,7 @@ Navigation **"Reports"** > **"Consumption tax"** section. The year's actuals are
 |---|---|
 | Filing method | General and simplified taxation, plus the special provision that applies to the year (simplified shows the registered category) |
 | Output tax | Tax on taxable sales (4xxx accounts) for the year, plus the tax on journal lines carrying a taxable-transfer marker (e.g. a fixed-asset sale), whatever their account — including asset-account and `事業主借` (Owner's contributions) lines |
-| Input tax (before transitional rule) | Tax on taxable purchases (5xxx + 1xxx, excluding `1610 事業主貸` (owner's draws)) — informational |
+| Input tax (before transitional rule) | Tax on taxable purchases (5xxx + 1xxx; see [§ 4-3](#4-3-what-aoiko-aggregates-for-input-tax) for what is counted) — informational |
 | Creditable input tax | Post-transitional credit amount |
 | Tax payable | Output − creditable (simplified / 20% / 30% special provision use separate formulas) |
 | Filing-form equivalent (est.) | An estimate that mimics the actual return's rounding (taxable base rounded down to the nearest ¥1,000, tax amounts rounded down to ¥100, etc.) |
@@ -96,7 +96,8 @@ Navigation **"Reports"** > **"Consumption tax"** section. The year's actuals are
 
 ### 4-3. What aoiko aggregates for input tax
 
-- Debit side with **expense** or **asset** category (5xxx + 1xxx excluding `1610 事業主貸`)
+- **Expense** category (5xxx; refunds entered on the credit side are subtracted) and the debit side of **asset** category accounts (1xxx). The following asset accounts are not counted: `1610 事業主貸` (owner's draws), `1110 現金` (cash), `1120 当座預金` (checking account), `1130 普通預金` (ordinary deposit), `1140 定期預金` (time deposit), `1310 売掛金` (accounts receivable), `1320 未収入金` (other receivables), and `1420 貸付金` (loans receivable). Acquiring these is not a taxable purchase (Consumption Tax Act Art. 2(1)(xii), Appended Table 2 item 2, and Enforcement Order Art. 9(1)(iv)). The tax rate you enter on the debit side of these accounts does not affect the calculation. Things that are taxable purchases, such as collector coins or golf club memberships, should be recorded in other accounts
+- A year that you locked as filed before cash, bank deposits, and monetary claims were removed from this aggregation keeps the rule used at filing. In that year, the debit side of these 7 accounts is also counted as purchases: `1110 現金`, `1120 当座預金`, `1130 普通預金`, `1140 定期預金`, `1310 売掛金`, `1320 未収入金`, and `1420 貸付金`. `1610 事業主貸` is not counted under either rule. Unlocking and locking the year again does not change this
 - Tax rate > 0 (10% / 8%)
 - If **Tax included** is ticked, the inclusive amount is back-calculated; if not, exclusive is used
 
@@ -109,6 +110,7 @@ Whether interim filing is required, and how many installments, is based on last 
 - **Months in the immediately preceding taxable period**: entered per tax year (1–12; blank = 12)
 - **Prior year's confirmed tax**: auto-filled from the consumption tax saved when that year was locked in aoiko; enter it manually if the year is not locked or its consumption tax could not be calculated at lock time
 - Based on the amount entered, aoiko shows whether filing is required, how many installments (1 / 3 / 11 per year), each period, its due date, and the prorated payment amount
+- While the prior year's confirmed tax or the number of months holds an unreadable value, aoiko does not make the determination and shows "Enter last year's confirmed tax and the number of months correctly to see the interim filing result."
 - For individuals using the installment method (予定申告, prorated from last year), a filing is deemed to have been submitted on the filing deadline itself (Consumption Tax Act Art. 44). The payment obligation itself arises under Art. 48, and late payment triggers delinquency tax under Act on General Rules for National Taxes Art. 60 Para. 1. The tax office mailing a payment slip is an administrative convenience, not the reason filing is deemed done
 - To compute from this period's actual results instead (**仮決算**, actual-results method), pick a period and export a `.xtx` for general or simplified taxation (the return-type field 「申告の種類」 is marked as interim, with the period included). The 20% special provision is an attachment to the final return and does not support interim filing
 - If you made interim payments this year, enter the amount in the annual `.xtx` export panel — it's credited against the balance due (treated as ¥0 if left blank)
@@ -116,6 +118,8 @@ Whether interim filing is required, and how many installments, is based on last 
 ### 4-5. Consumption tax on selling a fixed asset
 
 Selling a business fixed asset is an act incidental to the business and counts as a taxable transfer of taxable assets (Consumption Tax Act Basic Directive 5-1-7(3)). The taxable base is the tax-exclusive sale price (Consumption Tax Act Art. 28 Para. 1). Retirement without consideration is not taxed. Under simplified taxation, a fixed-asset sale is always treated as 4th-category business regardless of the category you set (Consumption Tax Act Basic Directive 13-2-9). See [08. Depreciation](08-depreciation_en.md) for details.
+
+If the "taxable transfer consideration" saved on an entry cannot be read, the consumption tax calculation and the Yayoi-format CSV export ([11. Backup and restore § 8](11-backup_en.md#8-handing-data-off-to-your-accountant)) stop, and "The taxable transfer consideration of <date> "<description>" cannot be read. Cancel the entry with a correcting entry." appears with that entry's date and description.
 
 ## 5. Practical flow for choosing a method
 

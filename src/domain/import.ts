@@ -1,5 +1,6 @@
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
+import { readStoredAmount } from '../lib/amount-input';
 import { newId } from '../lib/id';
 import { countsTowardTotals } from './journal';
 import { assertYearsWritable, markConfirmedWrite } from './year-lock';
@@ -42,7 +43,7 @@ export class DuplicateImportError extends Error {
 export async function commitImport(
   info: ImportBatchInfo,
   rows: ImportRow[],
-  options?: { allowFiledYear?: boolean },
+  options?: { allowedFiledYears?: readonly number[] },
 ): Promise<{ batchId: string; entryCount: number }> {
   const existing = await db.importBatches.where('fileHash').equals(info.fileHash).first();
   if (existing) {
@@ -65,64 +66,72 @@ export async function commitImport(
   const batchId = newId();
   const now = Date.now();
 
-  await db.transaction('rw', [db.journalEntries, db.journalLines, db.importBatches], async () => {
-    markConfirmedWrite(options);
-    await db.importBatches.add({
-      id: batchId,
-      parserName: info.parserName,
-      fileName: info.fileName,
-      fileHash: info.fileHash,
-      importedAt: now,
-      rowCount: validRows.length,
-    });
-
-    for (const row of validRows) {
-      const tx = row.transaction;
-      const entryId = newId();
-
-      await db.journalEntries.add({
-        id: entryId,
-        date: tx.date,
-        year: Number(tx.date.slice(0, 4)),
-        description:
-          row.description && row.description.length > 0 ? row.description : tx.description,
-        status: 'confirmed',
-        source: 'csv',
-        sourceImportId: batchId,
-        createdAt: now,
-        confirmedAt: now,
+  await db.transaction(
+    'rw',
+    [db.journalEntries, db.journalLines, db.importBatches, db.reportSnapshots],
+    async () => {
+      markConfirmedWrite(options);
+      await db.importBatches.add({
+        id: batchId,
+        parserName: info.parserName,
+        fileName: info.fileName,
+        fileHash: info.fileHash,
+        importedAt: now,
+        rowCount: validRows.length,
       });
 
-      const knownLine: JournalLine = {
-        id: newId(),
-        entryId,
-        side: tx.side,
-        accountCode: info.knownAccountCode,
-        ...(info.knownSubAccountId ? { subAccountId: info.knownSubAccountId } : {}),
-        amount: tx.amount,
-        amountIndexed: toIndexable(tx.amount),
-        taxRate: 0,
-        taxIncluded: true,
-        invoiceCompliant: false,
-      };
-      const counterpartLine: JournalLine = {
-        id: newId(),
-        entryId,
-        side: tx.side === 'debit' ? 'credit' : 'debit',
-        accountCode: row.counterpartAccountCode,
-        ...(row.counterpartSubAccountId ? { subAccountId: row.counterpartSubAccountId } : {}),
-        amount: tx.amount,
-        amountIndexed: toIndexable(tx.amount),
-        taxRate: row.counterpartTaxRate ?? 0,
-        taxIncluded: true,
-        invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
-      };
+      for (const row of validRows) {
+        const tx = row.transaction;
+        const entryId = newId();
 
-      await db.journalLines.bulkAdd([knownLine, counterpartLine]);
-    }
-  });
+        await db.journalEntries.add({
+          id: entryId,
+          date: tx.date,
+          year: Number(tx.date.slice(0, 4)),
+          description:
+            row.description && row.description.length > 0 ? row.description : tx.description,
+          status: 'confirmed',
+          source: 'csv',
+          sourceImportId: batchId,
+          createdAt: now,
+          confirmedAt: now,
+        });
+
+        const knownLine: JournalLine = {
+          id: newId(),
+          entryId,
+          side: tx.side,
+          accountCode: info.knownAccountCode,
+          ...(info.knownSubAccountId ? { subAccountId: info.knownSubAccountId } : {}),
+          amount: tx.amount,
+          amountIndexed: toIndexable(tx.amount),
+          taxRate: 0,
+          taxIncluded: true,
+          invoiceCompliant: false,
+        };
+        const counterpartLine: JournalLine = {
+          id: newId(),
+          entryId,
+          side: tx.side === 'debit' ? 'credit' : 'debit',
+          accountCode: row.counterpartAccountCode,
+          ...(row.counterpartSubAccountId ? { subAccountId: row.counterpartSubAccountId } : {}),
+          amount: tx.amount,
+          amountIndexed: toIndexable(tx.amount),
+          taxRate: row.counterpartTaxRate ?? 0,
+          taxIncluded: true,
+          invoiceCompliant: row.counterpartInvoiceCompliant ?? false,
+        };
+
+        await db.journalLines.bulkAdd([knownLine, counterpartLine]);
+      }
+    },
+  );
 
   return { batchId, entryCount: validRows.length };
+}
+// 既存の明細は 1234.00 のような旧い書き方で保存されていることがあり、取り込む側は標準の書き方なので、両方を揃えて比べる
+function amountKey(amount: string): string {
+  return readStoredAmount(amount)?.toFixed() ?? amount;
 }
 // 期間が重複する明細ファイル（例：「1〜3月」と「2〜4月」を別々にダウンロード）を
 // 二重計上しないよう、既存の CSV 由来仕訳と (日付・既知側科目・側・金額) でゆるく突き合わせる。
@@ -152,11 +161,11 @@ export async function findOverlappingRows(
     if (!e) {
       continue;
     }
-    const key = `${e.date}|${l.side}|${l.amount}`;
+    const key = `${e.date}|${l.side}|${amountKey(l.amount)}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   transactions.forEach((tx, i) => {
-    const key = `${tx.date}|${tx.side}|${tx.amount}`;
+    const key = `${tx.date}|${tx.side}|${amountKey(tx.amount)}`;
     const remaining = counts.get(key) ?? 0;
     if (remaining > 0) {
       flagged.add(i);

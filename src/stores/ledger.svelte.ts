@@ -1,6 +1,8 @@
 import { liveQuery, type Subscription } from 'dexie';
 import { db } from '../db/db';
-import { D } from '../lib/decimal';
+import { loadAccountsForYear } from '../db/year-accounts';
+import { D, type Decimal } from '../lib/decimal';
+import { readStoredAmount } from '../lib/amount-input';
 import { countsTowardTotals, plContribution } from '../domain/journal';
 // 現状の勘定科目スキーマは 2026 年分のみ。年度セレクタ／翌年分スキーマ追加までの既定値。
 const DEFAULT_YEAR = 2026;
@@ -45,7 +47,8 @@ export interface LedgerRow {
   entry: JournalEntry;
   debits: LedgerRowSide[];
   credits: LedgerRowSide[];
-  totalAmount: string;
+  // 借方に読めない金額があると合計できないため null
+  totalAmount: string | null;
 }
 
 interface MonthlyOverview {
@@ -55,6 +58,8 @@ interface MonthlyOverview {
   expense: string;
   netIncome: string;
   entryCount: number;
+  // 金額を読めず、合計に含めなかった明細の数
+  unreadableCount: number;
 }
 // 仕訳一覧 / 直近の仕訳で共通利用する LedgerRow 構築ヘルパー。
 // 与えられた entries に対して lines / accounts / subAccounts を一括取得して結合する。
@@ -66,7 +71,7 @@ export async function buildLedgerRows(entries: JournalEntry[], year: number): Pr
     .where('entryId')
     .anyOf(entries.map((e) => e.id))
     .toArray();
-  const accounts = await db.accounts.where({ year }).toArray();
+  const accounts = await loadAccountsForYear(year);
   const subAccounts = await db.subAccounts.toArray();
 
   const accountMap = new Map(accounts.map((a) => [a.code, a.name]));
@@ -91,7 +96,12 @@ export async function buildLedgerRows(entries: JournalEntry[], year: number): Pr
 
     const debits = buildSide('debit');
     const credits = buildSide('credit');
-    const totalAmount = debits.reduce((sum, l) => sum.plus(l.amount), D(0)).toString();
+    let total: Decimal | null = D(0);
+    for (const l of debits) {
+      const amount = readStoredAmount(l.amount);
+      total = amount === undefined || total === null ? null : total.plus(amount);
+    }
+    const totalAmount = total === null ? null : total.toString();
     return { entry, debits, credits, totalAmount };
   });
 }
@@ -105,6 +115,7 @@ function emptyOverview(): MonthlyOverview {
     expense: '0',
     netIncome: '0',
     entryCount: 0,
+    unreadableCount: 0,
   };
 }
 // Dexie の liveQuery を Svelte 5 のルーンへ橋渡しするシングルトン。
@@ -182,7 +193,7 @@ class LedgerStore {
       this.sub(
         () => db.journalEntries.orderBy('department').uniqueKeys(),
         (v) => {
-          this.departments = v.filter((d): d is string => typeof d === 'string' && d !== '');
+          this.departments = v.filter((d): d is string => typeof d === 'string' && d.trim() !== '');
         },
       ),
       // 復元（restore.ts）が settings を書き換えても追従できるよう liveQuery で購読する。
@@ -227,7 +238,7 @@ class LedgerStore {
     const year = this.currentYear;
     this.yearSubs = [
       this.sub(
-        () => db.accounts.where({ year }).sortBy('code'),
+        async () => (await loadAccountsForYear(year)).sort((a, b) => (a.code < b.code ? -1 : 1)),
         (v) => {
           this.allAccounts = v;
           this.accounts = v.filter((a) => a.isActive !== false);
@@ -288,21 +299,37 @@ class LedgerStore {
     const confirmed = entries.filter(countsTowardTotals);
 
     if (confirmed.length === 0) {
-      return { year, month, revenue: '0', expense: '0', netIncome: '0', entryCount: 0 };
+      return {
+        year,
+        month,
+        revenue: '0',
+        expense: '0',
+        netIncome: '0',
+        entryCount: 0,
+        unreadableCount: 0,
+      };
     }
 
     const lines = await db.journalLines
       .where('entryId')
       .anyOf(confirmed.map((e) => e.id))
       .toArray();
-    const accounts = await db.accounts.where({ year }).toArray();
+    const accounts = await loadAccountsForYear(year);
     const accountMap = new Map(accounts.map((a) => [a.code, a]));
 
     let revenue = D(0);
     let expense = D(0);
+    let unreadableCount = 0;
     for (const line of lines) {
       const acc = accountMap.get(line.accountCode);
       if (!acc) {
+        continue;
+      }
+      if (
+        (acc.category === 'revenue' || acc.category === 'expense') &&
+        readStoredAmount(line.amount) === undefined
+      ) {
+        unreadableCount += 1;
         continue;
       }
       const contrib = plContribution(acc.category, line);
@@ -322,6 +349,7 @@ class LedgerStore {
       expense: expense.toString(),
       netIncome: revenue.minus(expense).toString(),
       entryCount: confirmed.length,
+      unreadableCount,
     };
   }
 }

@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildXtx2026,
+  INCOME_TAX_XTX_LAST_YEAR,
+  IncomeTaxXtxYearUnsupportedError,
   personalDeductionsToCtx,
   RealEstateIncomeInputMissingError,
   type XtxContext,
@@ -92,7 +94,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
     expect(x).toContain('<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"');
-    expect(x).toContain('<RKO0010 VR="25.0.0" id="RKO0010">');
+    expect(x).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
     expect(x).toContain('<IT VR="1.5" id="IT">');
   });
@@ -199,6 +201,22 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     ctx.businessName = '';
     const x = buildXtx2026(ctx);
     expect(x).not.toContain('NOZEISHA_YAGO');
+  });
+});
+
+describe('buildXtx2026（年分の防護）', () => {
+  test('令和9年分は未対応として拒否する', () => {
+    const ctx = makeCtx();
+    ctx.year = 2027;
+    expect(() => buildXtx2026(ctx)).toThrow(IncomeTaxXtxYearUnsupportedError);
+  });
+
+  test('令和8年分と令和7年分（実機検証用）は出力する', () => {
+    for (const year of [INCOME_TAX_XTX_LAST_YEAR, 2025]) {
+      const ctx = makeCtx();
+      ctx.year = year;
+      expect(buildXtx2026(ctx)).toContain('<?xml');
+    }
   });
 });
 
@@ -324,6 +342,57 @@ describe('personalDeductionsToCtx（issue #183: 空文字・空白は例外を�
     expect(ctx.salaryIncome?.paidAmount.toString()).toBe('0');
     expect(ctx.miscIncome?.publicPensionAmount?.toString()).toBe('0');
     expect(ctx.realEstateIncome?.landLoanInterestAmount?.toString()).toBe('0');
+  });
+});
+
+describe('personalDeductionsToCtx（配偶者・扶養親族の障害の区分）', () => {
+  function storedWithRelatives(
+    spouseDisability: 'special' | undefined,
+    dependentDisability: 'specialCohabiting' | undefined,
+  ): Omit<PersonalDeductionInput, 'year' | 'updatedAt'> {
+    return {
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: {
+        totalIncome: '0',
+        age: 40,
+        ...(spouseDisability ? { disability: spouseDisability } : {}),
+      },
+      dependents: [
+        {
+          id: 'd1',
+          name: '子',
+          age: 15,
+          totalIncome: '0',
+          ...(dependentDisability ? { disability: dependentDisability } : {}),
+        },
+      ],
+    };
+  }
+
+  test('disability が ctx の配偶者と扶養親族に渡る', () => {
+    const ctx = personalDeductionsToCtx(storedWithRelatives('special', 'specialCohabiting'));
+    expect(ctx.spouse?.disability).toBe('special');
+    expect(ctx.dependents[0]?.disability).toBe('specialCohabiting');
+  });
+
+  test('未設定なら ctx にキーが現れない', () => {
+    const ctx = personalDeductionsToCtx(storedWithRelatives(undefined, undefined));
+    expect(ctx.spouse).toBeDefined();
+    expect('disability' in ctx.spouse!).toBe(false);
+    expect('disability' in ctx.dependents[0]!).toBe(false);
   });
 });
 
@@ -636,6 +705,76 @@ describe('所得控除画面の金額（全角・カンマ・負の値）', () =
     }
     expect(build({ publicPensionAmount: '5,000' })).toContain('<ABB01060>5000</ABB01060>');
   });
+
+  test('公的年金等を収入金額から計算する方式：収入と65歳以上の区分を渡し、確定額は渡さない', () => {
+    const misc = (m: NonNullable<PersonalDeductionInput['miscIncome']>) =>
+      personalDeductionsToCtx(storedWith({ miscIncome: m })).miscIncome;
+    const r = misc({
+      publicPensionInputMode: 'revenue',
+      publicPensionRevenue: '3,000,000',
+      publicPensionAge65OrOver: true,
+      publicPensionAmount: '999',
+    });
+    expect(r?.publicPensionRevenue?.toString()).toBe('3000000');
+    expect(r?.publicPensionAge65OrOver).toBe(true);
+    expect(r?.publicPensionAmount).toBeUndefined();
+    expect(
+      misc({ publicPensionInputMode: 'revenue', publicPensionRevenue: '1000000' })
+        ?.publicPensionAge65OrOver,
+    ).toBe(false);
+  });
+
+  test('公的年金等の収入が読めない・負・0 なら未入力と同じ', () => {
+    for (const bad of ['abc', '-5000', '0', '']) {
+      const r = personalDeductionsToCtx(
+        storedWith({
+          miscIncome: {
+            publicPensionInputMode: 'revenue',
+            publicPensionRevenue: bad,
+            publicPensionAge65OrOver: true,
+          },
+        }),
+      ).miscIncome;
+      expect(r?.publicPensionRevenue).toBeUndefined();
+      expect(r?.publicPensionAge65OrOver).toBeUndefined();
+      expect(r?.publicPensionAmount).toBeUndefined();
+    }
+  });
+
+  test('方式の指定が無い既存データは直接入力方式として読む', () => {
+    const r = personalDeductionsToCtx(
+      storedWith({ miscIncome: { publicPensionAmount: '5,000', publicPensionRevenue: '9' } }),
+    ).miscIncome;
+    expect(r?.publicPensionAmount?.toString()).toBe('5000');
+    expect(r?.publicPensionRevenue).toBeUndefined();
+  });
+
+  test('公的年金等が 100 兆円以上でも読める値は未記入に戻さない：16 桁は出力を止め、15 桁は ABB01060 に値のまま載る', () => {
+    const build = (publicPensionAmount: string) => {
+      const ctx = makeCtx();
+      ctx.personalDeductions = personalDeductionsToCtx(
+        storedWith({ miscIncome: { publicPensionAmount, otherIncome: '0', otherExpenses: '0' } }),
+      );
+      return buildXtx2026(ctx);
+    };
+    expect(() => build('1234567890123456')).toThrow();
+    expect(build('123456789012345')).toContain('<ABB01060>123456789012345</ABB01060>');
+  });
+
+  test.each([
+    ['5000.9', '5000'],
+    ['5000.1', '5000'],
+    ['1234.56', '1234'],
+  ])(
+    '読める小数の公的年金等 %s は小数点以下を切り捨てた %s で出力し、止まらない',
+    (publicPensionAmount, expected) => {
+      const ctx = makeCtx();
+      ctx.personalDeductions = personalDeductionsToCtx(
+        storedWith({ miscIncome: { publicPensionAmount, otherIncome: '0', otherExpenses: '0' } }),
+      );
+      expect(buildXtx2026(ctx)).toContain(`<ABB01060>${expected}</ABB01060>`);
+    },
+  );
 
   test('文字列以外の支払先明細の金額が保存されていても、試算用の変換は例外を投げない', () => {
     const rentPaid = [{ payeeName: '地主', amount: 600000 as unknown as string }];

@@ -1,5 +1,30 @@
 import { D, type Decimal } from '../lib/decimal';
+import { readStoredAmount } from '../lib/amount-input';
 import type { AccountCategory, JournalEntry, JournalLine } from '../db/types';
+import { m } from '../paraglide/messages';
+
+export class UnreadableConsiderationError extends Error {
+  constructor(entry: { date: string; description: string } | undefined) {
+    super(
+      m.error_consideration_unreadable({
+        date: entry?.date ?? '',
+        description: String(entry?.description ?? '').slice(0, 40),
+      }),
+    );
+    this.name = 'UnreadableConsiderationError';
+  }
+}
+// 課税資産の譲渡等の対価。復元の検査は桁数の大きい通常の表記を通すため、読めない値は 0 にせず仕訳を示して投げる
+export function readTransferConsideration(
+  line: Pick<JournalLine, 'taxableTransferConsideration'>,
+  entry: { date: string; description: string } | undefined,
+): Decimal {
+  const d = readStoredAmount(line.taxableTransferConsideration);
+  if (d === undefined) {
+    throw new UnreadableConsiderationError(entry);
+  }
+  return d;
+}
 // 収益・費用は両建てで正味集計する：収益は貸方プラス・借方マイナス（売上値引・返品）、
 // 費用は借方プラス・貸方マイナス（経費の返金）。null は損益集計の対象外の行。
 export function plContribution(category: AccountCategory, line: JournalLine): Decimal | null {

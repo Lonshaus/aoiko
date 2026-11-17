@@ -3,6 +3,7 @@ import { db } from '../db/db';
 import { newId } from '../lib/id';
 import { toIndexable } from '../lib/decimal';
 import { computeBudgetVsActual, getBudgets, setBudget } from './budget';
+import { loadYearData } from './reports';
 import type { Account } from '../db/types';
 
 const TEST_ACCOUNTS: Account[] = [
@@ -102,5 +103,28 @@ describe('computeBudgetVsActual', () => {
     expect(jan.revenueBudget).toBe('0');
     expect(jan.expenseBudget).toBe('0');
     expect(jan.revenueDiff).toBe('0');
+  });
+
+  test('読み込み済みの年度データを渡しても、渡さない場合と同じ結果になる', async () => {
+    await setBudget({ year: 2026, month: 4, revenueBudget: '100000', expenseBudget: '3000' });
+    await addEntry('2026-04-15', [
+      { side: 'debit', accountCode: '1130', amount: '120000' },
+      { side: 'credit', accountCode: '4110', amount: '120000' },
+    ]);
+    await addEntry('2026-04-20', [
+      { side: 'debit', accountCode: '5150', amount: '5000' },
+      { side: 'credit', accountCode: '1130', amount: '5000' },
+    ]);
+    const data = await loadYearData(2026);
+
+    expect(await computeBudgetVsActual(2026, data)).toEqual(await computeBudgetVsActual(2026));
+  });
+
+  test('保存済みの予算を読めない月は差異を空にし、例外にしない', async () => {
+    await db.budgets.put({ year: 2026, month: 3, revenueBudget: 'abc', expenseBudget: '1e3' });
+    const r = await computeBudgetVsActual(2026);
+    const mar = r.months[2]!;
+    expect(mar.revenueDiff).toBe('');
+    expect(mar.expenseDiff).toBe('-1000');
   });
 });

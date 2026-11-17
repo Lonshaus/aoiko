@@ -3,6 +3,7 @@ import { Blob as NodeBlob } from 'node:buffer';
 import { db } from '../db/db';
 import { toIndexable } from '../lib/decimal';
 import { buildPayload, iterateAttachmentBlobs, PAYLOAD_VERSION } from './payload';
+import { EXPORT_DEFAULT_PARTS } from './parts';
 // happy-dom の Blob は Node 組込みの structuredClone（fake-indexeddb が内部で使う）に
 // 認識されず保存時にプレーンオブジェクトへ潰れてしまうため、実体バイトを読み戻す
 // テストだけ Node 組込みの Blob を使う。
@@ -52,13 +53,13 @@ describe('buildPayload', () => {
   });
 
   test('backupFolderHandle は常に除外（シリアライズ不可）', async () => {
-    const p = await buildPayload({ includeApiKeys: true });
+    const p = await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'apiKeys']) });
     expect(settingKeys(p.tables)).not.toContain('backupFolderHandle');
   });
   // シリアライズはできてしまうため、除外を外すと端末固有のパスや bookmark が
   // バックアップに混ざり、別端末で復元したときに存在しない場所や他人のフォルダを指す。
   test('nativeBackupFolder は常に除外（端末固有）', async () => {
-    const p = await buildPayload({ includeApiKeys: true });
+    const p = await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'apiKeys']) });
     expect(settingKeys(p.tables)).not.toContain('nativeBackupFolder');
   });
 
@@ -72,14 +73,14 @@ describe('buildPayload', () => {
   });
 
   test('includeApiKeys=false でも API キーを除外', async () => {
-    const p = await buildPayload({ includeApiKeys: false });
+    const p = await buildPayload({ parts: new Set(EXPORT_DEFAULT_PARTS) });
     const keys = settingKeys(p.tables);
     expect(keys).not.toContain('geminiApiKey');
     expect(keys).not.toContain('openaiApiKey');
   });
 
   test('includeApiKeys=true のときだけ API キーを含める', async () => {
-    const p = await buildPayload({ includeApiKeys: true });
+    const p = await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'apiKeys']) });
     const rows = p.tables.settings as SettingRow[];
     const gemini = rows.find((r) => r.key === 'geminiApiKey');
     expect(gemini?.value).toBe('secret-gemini');
@@ -97,7 +98,8 @@ describe('buildPayload', () => {
   });
 
   test('includeFilerInfo=true のときだけ申告者情報を含める', async () => {
-    const rows = (await buildPayload({ includeFilerInfo: true })).tables.settings as SettingRow[];
+    const rows = (await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'filer']) })).tables
+      .settings as SettingRow[];
     expect(rows.find((r) => r.key === 'userRiyoshaId')?.value).toBe('1234567890123456');
     expect(rows.find((r) => r.key === 'userFilerName')?.value).toBe('青井 太郎');
   });
@@ -120,18 +122,114 @@ describe('buildPayload', () => {
     expect(() => JSON.stringify(p)).not.toThrow();
   });
 });
+describe('buildPayload（区分の選択）', () => {
+  const DEVICE_ONLY_SAMPLES = [
+    'disclaimerAcceptedAt',
+    'disclaimerAcceptedVersion',
+    'skipExternalSendConfirm',
+    'skipAttachmentConfirm',
+    'skipFiledYearWarning',
+    'skipDownloadSavedConfirm',
+    'lastBackupAt',
+    'lastDownloadAt',
+    'backupRetentionCount',
+    'backupParts',
+    'supporterBadgeAt',
+  ];
+
+  beforeEach(async () => {
+    const now = Date.now();
+    await db.settings.bulkPut([
+      { key: 'disclaimerAcceptedAt', value: 1, updatedAt: now },
+      { key: 'disclaimerAcceptedVersion', value: 10, updatedAt: now },
+      { key: 'skipExternalSendConfirm', value: true, updatedAt: now },
+      { key: 'skipAttachmentConfirm', value: true, updatedAt: now },
+      { key: 'skipFiledYearWarning', value: true, updatedAt: now },
+      { key: 'skipDownloadSavedConfirm', value: true, updatedAt: now },
+      { key: 'lastBackupAt', value: 1, updatedAt: now },
+      { key: 'lastDownloadAt', value: 1, updatedAt: now },
+      { key: 'backupRetentionCount', value: 5, updatedAt: now },
+      { key: 'backupParts', value: ['books', 'apiKeys'], updatedAt: now },
+      { key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: now },
+      { key: 'aiEngine', value: 'gemini', updatedAt: now },
+    ]);
+    await db.vendors.add({ id: 'v1', name: '業者' });
+    await db.attachments.add({
+      id: 'a1',
+      entryId: 'e1',
+      blob: new Blob([new Uint8Array([1])], { type: 'image/jpeg' }),
+      mimeType: 'image/jpeg',
+      fileName: 'x.jpg',
+      createdAt: 1,
+    });
+  });
+
+  test('省略時は version 1・既定の区分で、⑤ ⑥ と端末専用のキーを含めない', async () => {
+    const p = await buildPayload();
+    expect(p.version).toBe(1);
+    expect(p.parts).toEqual(['books', 'attachments', 'business', 'ai']);
+    const keys = settingKeys(p.tables);
+    for (const key of [
+      'geminiApiKey',
+      'openaiApiKey',
+      'userRiyoshaId',
+      'userFilerName',
+      ...DEVICE_ONLY_SAMPLES,
+    ]) {
+      expect(keys, key).not.toContain(key);
+    }
+    expect(keys).toEqual(expect.arrayContaining(['userBusinessName', 'aiEngine']));
+  });
+
+  test('業務と申告の設定だけなら version 2・settings だけで、③ のキーだけ', async () => {
+    const p = await buildPayload({ parts: new Set(['business']) });
+    expect(p.version).toBe(2);
+    expect(p.parts).toEqual(['business']);
+    expect(Object.keys(p.tables)).toEqual(['settings']);
+    expect(settingKeys(p.tables)).toEqual(['userBusinessName']);
+  });
+
+  test('帳簿データだけで証憑写真なしなら version 2・attachments 表なし', async () => {
+    const p = await buildPayload({ parts: new Set(['books', 'business', 'ai']) });
+    expect(p.version).toBe(2);
+    expect(p.tables.attachments).toBeUndefined();
+    expect(p.tables.vendors).toHaveLength(1);
+  });
+
+  test('6 区分すべてなら version 1・⑤ ⑥ のキーも入る', async () => {
+    const p = await buildPayload({
+      parts: new Set(['books', 'attachments', 'business', 'ai', 'apiKeys', 'filer']),
+    });
+    expect(p.version).toBe(1);
+    expect(p.parts).toEqual(['books', 'attachments', 'business', 'ai', 'apiKeys', 'filer']);
+    const keys = settingKeys(p.tables);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        'geminiApiKey',
+        'openaiApiKey',
+        'userRiyoshaId',
+        'userFilerName',
+        'userFilerAddress',
+        'userZeimushoCode',
+      ]),
+    );
+    for (const key of DEVICE_ONLY_SAMPLES) {
+      expect(keys, key).not.toContain(key);
+    }
+  });
+});
 // スタンプ帳はこの端末だけの記録だと画面で言っている。バックアップに入れると
 // 別端末での復元で引き継がれてしまい、その説明が嘘になる。
 describe('支援の記録は持ち出さない', () => {
   test('stamps テーブルは payload に入らない', async () => {
     await db.stamps.put({ id: 's1', shape: 'bell', color: 'blue', at: '2026-08-18', createdAt: 1 });
-    const p = await buildPayload({ includeApiKeys: true });
+    const p = await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'apiKeys']) });
     expect(p.tables.stamps).toBeUndefined();
   });
 
   test('supporterBadgeAt は常に除外（ストアから復元するもの）', async () => {
     await db.settings.put({ key: 'supporterBadgeAt', value: '2026-08-18', updatedAt: Date.now() });
-    const p = await buildPayload({ includeApiKeys: true });
+    const p = await buildPayload({ parts: new Set([...EXPORT_DEFAULT_PARTS, 'apiKeys']) });
     expect(settingKeys(p.tables)).not.toContain('supporterBadgeAt');
   });
 });

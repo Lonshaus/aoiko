@@ -9,7 +9,7 @@ import { mount, unmount } from 'svelte';
 import { db } from '../db/db';
 import { setSetting } from '../lib/settings';
 import { newId } from '../lib/id';
-import { toIndexable } from '../lib/decimal';
+import { D, toIndexable } from '../lib/decimal';
 import { saveTextFile } from '../lib/save-file';
 import type { Account, JournalLine } from '../db/types';
 import type { XtxContext } from '../tax-schema/2026/xtx';
@@ -176,9 +176,9 @@ describe('cashBasisElection・priorPriorBusinessRevenue が Reports の .xtx ctx
 
     const koa020 = mapKoa020LeafValues(ctx);
     expect(koa020.ABB00800).toBe('100000');
-    const koa210Deduction = Number(mapKoa210Values(ctx).AMF00510 ?? '0');
-    const koa220Deduction = Number(mapKoa220Values(ctx).ANF00260 ?? '0');
-    expect(koa210Deduction + koa220Deduction).toBe(100000);
+    const koa210Deduction = D(mapKoa210Values(ctx).AMF00510 ?? '0');
+    const koa220Deduction = D(mapKoa220Values(ctx).ANF00260 ?? '0');
+    expect(koa210Deduction.plus(koa220Deduction).toString()).toBe('100000');
   });
 
   test('空白だけの利用者識別番号は未入力と同じく書き出しを止める', async () => {

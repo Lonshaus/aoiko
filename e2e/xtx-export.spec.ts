@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { acceptDisclaimer } from './helpers';
+import { acceptDisclaimer, setProcessingYear } from './helpers';
 // UI でのデータ投入 → /reports → .xtx 書き出しまでを 1 本で通す。過去の回帰（exportYear のずれ・
 // BS 欄の取り違え・リバースチャージの配線漏れ）は「unit は各自緑・繋ぐと壊れる」結合部分だったため、
 // 出力フロー全体を通して .xtx 出力後の値・ファイル名・文書構造を確かめる。
@@ -32,6 +32,7 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
 }) => {
   await page.goto('/');
   await acceptDisclaimer(page);
+  await setProcessingYear(page, 2026);
   // 申告者情報（IT部で必須）が欠けると downloadXtx は lockError を出して中断する。ここは
   // 検証対象（仕訳→数字）ではない前提設定なので、UI を通さず設定テーブルへ直接入れる。
   await page.evaluate(async () => {
@@ -61,7 +62,8 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
   // 売上 550,000（借方現金／貸方売上高）と経費の消耗品費 11,000（借方消耗品費／貸方現金）。
   // aoiko は税込経理で PL は仕訳金額をそのまま集計するため、.xtx 出力後の leaf は税抜換算されず
   // この金額がそのまま入る（xtx-mapping-koa020/210 の toKingaku は整数化のみ）。
-  const today = new Date().toISOString().slice(0, 10);
+  // 仕訳日は、処理年度の既定（2026 年）に含まれる固定日にする。
+  const today = '2026-06-30';
   await addEntry(page, {
     date: today,
     description: 'e2e売上 550000',
@@ -84,8 +86,8 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
   const downloadPromise = page.waitForEvent('download');
   await downloadButton.click();
   const download = await downloadPromise;
-  // ファイル名の年は処理年度（既定＝今年 2026）と一致する（#169 exportYear のずれの回帰防止）。
-  const processYear = new Date().getFullYear();
+  // ファイル名の年は処理年度（既定は 2026）と一致する（#169 exportYear のずれの回帰防止）。
+  const processYear = 2026;
   expect(download.suggestedFilename()).toBe(`aoiko-${processYear}.xtx`);
 
   const path = await download.path();

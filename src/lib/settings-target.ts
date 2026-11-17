@@ -3,9 +3,9 @@
 // hash を足すと画面の突き合わせが壊れるため、URL ではなく脇から渡す。
 const KEY = 'aoiko:settings-target';
 
-export type SettingsTarget = 'backup';
+export type SettingsTarget = 'backup' | 'dataCheck' | 'basic';
 
-const TARGETS: SettingsTarget[] = ['backup'];
+const TARGETS: SettingsTarget[] = ['backup', 'dataCheck', 'basic'];
 
 function isSettingsTarget(v: string): v is SettingsTarget {
   return (TARGETS as string[]).includes(v);

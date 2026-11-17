@@ -325,11 +325,17 @@ export interface ReportSnapshot {
   payload: ReportSnapshotData;
   generatedAt: number;
   generatedFromEntriesUpTo: string;
+  /** 現金・預金・金銭債権の借方を仕入から除く判定で申告した印。true のときだけ意味を持つ */
+  excludesNonPurchaseAssets?: boolean;
 }
+// 同一生計配偶者・扶養親族の障害の区分。同居特別障害者は特別障害者のうち納税者等と同居している者
+export type RelativeDisability = 'none' | 'disabled' | 'special' | 'specialCohabiting';
 
 interface PersonalDeductionSpouse {
   totalIncome: string;
   age: number;
+  /** 未設定は障害なし */
+  disability?: RelativeDisability;
 }
 
 export interface PersonalDeductionDependent {
@@ -340,6 +346,8 @@ export interface PersonalDeductionDependent {
   totalIncome: string;
   /** 老人扶養親族のうち、納税者又は配偶者と同居している直系尊属か */
   livesWithLinealAscendant?: boolean;
+  /** 未設定は障害なし */
+  disability?: RelativeDisability;
 }
 
 export type FamilyEmployeeRelation = 'spouse' | 'other';
@@ -372,10 +380,15 @@ interface PersonalDeductionSalaryIncome {
   /** 令和8年分のみ意味を持つ。最後の給与等の支払日が2026-12-01より前か（附則13条2項） */
   lastPaymentBeforeDecember?: boolean;
 }
-// 雑所得。公的年金等は3軸の速算表で複雑なため確定額を直接入力（other-income.ts 冒頭コメント参照）、
+// 雑所得。公的年金等は雑所得の確定額を直接入力するか、収入金額から aoiko が計算するかを選ぶ
+// （publicPensionInputMode、未設定は直接入力。other-income.ts 冒頭コメント参照）。
 // その他雑所得（副業収入等）は収入−必要経費を aoiko が計算する。
 interface PersonalDeductionMiscIncome {
   publicPensionAmount?: string;
+  publicPensionInputMode?: 'income' | 'revenue';
+  publicPensionRevenue?: string;
+  /** 12月31日時点で65歳以上か（措法41条の15の3） */
+  publicPensionAge65OrOver?: boolean;
   otherIncome?: string;
   otherExpenses?: string;
 }

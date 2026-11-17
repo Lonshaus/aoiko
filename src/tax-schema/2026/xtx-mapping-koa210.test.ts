@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D } from '../../lib/decimal';
 import {
   BsExtraAccountOverflowError,
@@ -368,6 +369,37 @@ describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所�
         }),
       ),
     ).toThrow(BsExtraAccountOverflowError);
+  });
+
+  test('BsExtraAccountOverflowError は資産・負債資本の上限（7／14）を持つ', () => {
+    const assets = Array.from({ length: 8 }, (_, i) =>
+      bsRow({ accountName: `独自科目${i}`, category: 'asset' as const, balance: '1000' }),
+    );
+    const liabilities = Array.from({ length: 15 }, (_, i) =>
+      bsRow({ accountName: `負債独自${i}`, category: 'liability' as const, balance: '1000' }),
+    );
+    const bsOf = (overrides: Partial<XtxContext['bs']>): XtxContext['bs'] => ({
+      year: 2026,
+      asOf: '2026-12-31',
+      assets: [],
+      liabilities: [],
+      equity: [],
+      netIncome: '0',
+      totalAssets: '0',
+      totalLiabilitiesAndEquity: '0',
+      balanced: false,
+      ...overrides,
+    });
+    for (const bs of [bsOf({ assets }), bsOf({ liabilities })]) {
+      try {
+        mapKoa210RepeatedValues(ctx({ bs }));
+        expect.unreachable();
+      } catch (e) {
+        expect(e).toBeInstanceOf(BsExtraAccountOverflowError);
+        expect((e as BsExtraAccountOverflowError).assetMax).toBe(7);
+        expect((e as BsExtraAccountOverflowError).liabilityEquityMax).toBe(14);
+      }
+    }
   });
 
   test('全科目が様式の欄に一致する場合、追加科目の繰り返しブロックは出力しない（回帰防止）', () => {
@@ -859,5 +891,14 @@ describe('措法28の2第3項明細（当年適用の少額特例資産を1行�
     const fallback = rows.find((r) => r.AMF01610 === 's7');
     expect(fallback).toBeDefined();
     expect(fallback?.AMF01660).toBe('定率法');
+  });
+});
+
+describe('gen:kingaku に収まらない値', () => {
+  test.each(['abc', '1e+21'])('%j は省かずに例外にする', (v) => {
+    const base = ctx();
+    expect(() => mapKoa210Values(ctx({ pl: { ...base.pl, totalRevenue: v } }))).toThrow(
+      XtxAmountOutOfRangeError,
+    );
   });
 });

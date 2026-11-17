@@ -29,6 +29,7 @@
   import { describeLlmError, type LlmImageInput } from '../domain/llm';
   import ConfirmDialog from '../components/ConfirmDialog.svelte';
   import DiscardCandidatesDialog from '../components/DiscardCandidatesDialog.svelte';
+  import { escapeHtml } from '../lib/html-escape';
   import { m } from '../paraglide/messages';
   import FilePicker from '../components/FilePicker.svelte';
 
@@ -301,26 +302,31 @@
       // OCR に使った原本画像を証憑として保存。仕訳と同一 transaction で
       // 書き込み、孤児画像・空参照を防ぐ。ファイル検証は transaction 開始前に済ませる。
       const attachmentRecord = file ? await buildAttachmentRecord(entryId, file, now) : null;
-      if (!(await filedYearGuard.confirm([Number(data.date.slice(0, 4))]))) {
+      const consent = await filedYearGuard.confirm([Number(data.date.slice(0, 4))]);
+      if (!consent) {
         return;
       }
-      await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
-        allowFiledYearWriteInThisTransaction();
-        await db.journalEntries.add({
-          id: entryId,
-          date: data.date,
-          year: Number(data.date.slice(0, 4)),
-          description,
-          status: 'confirmed',
-          source: 'ocr',
-          createdAt: now,
-          confirmedAt: now,
-        });
-        await db.journalLines.bulkAdd(lines);
-        if (attachmentRecord) {
-          await db.attachments.add(attachmentRecord);
-        }
-      });
+      await db.transaction(
+        'rw',
+        [db.journalEntries, db.journalLines, db.attachments, db.reportSnapshots],
+        async () => {
+          allowFiledYearWriteInThisTransaction(consent);
+          await db.journalEntries.add({
+            id: entryId,
+            date: data.date,
+            year: Number(data.date.slice(0, 4)),
+            description,
+            status: 'confirmed',
+            source: 'ocr',
+            createdAt: now,
+            confirmedAt: now,
+          });
+          await db.journalLines.bulkAdd(lines);
+          if (attachmentRecord) {
+            await db.attachments.add(attachmentRecord);
+          }
+        },
+      );
 
       success = m.receipt_success({ name: description, amount: formatJPY(data.totalAmount) });
       extracted = null;
@@ -641,7 +647,7 @@
 <ConfirmDialog
   open={confirmOpen}
   title={m.cloud_send_confirm_title()}
-  descriptionHtml={m.cloud_send_confirm_desc_html({ host: pending?.host ?? '' })}
+  descriptionHtml={m.cloud_send_confirm_desc_html({ host: escapeHtml(pending?.host ?? '') })}
   proceedLabel={m.cloud_send_confirm_proceed()}
   dontAskLabel={m.cloud_send_confirm_dont_ask()}
   onconfirm={onConfirmSend}

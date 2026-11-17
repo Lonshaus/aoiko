@@ -12,6 +12,7 @@ import {
   buildMultiYearBS,
   buildMultiYearPL,
   buildPL,
+  loadYearData,
 } from './reports';
 import { reverseEntry } from './reverse';
 import type { Account, JournalLine } from '../db/types';
@@ -251,6 +252,44 @@ describe('buildAll', () => {
     expect(all.bs).toEqual(bs);
     expect(all.monthly).toEqual(monthly);
     expect(all.breakdown.axis).toBe('vendor');
+  });
+
+  test('読み込み済みの年度データを渡しても、渡さない場合と同じ結果になる', async () => {
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '50000' },
+        { side: 'credit', accountCode: '4110', amount: '50000' },
+      ],
+    });
+    await addEntry({
+      date: '2026-05-20',
+      lines: [
+        { side: 'debit', accountCode: '5130', amount: '8000' },
+        { side: 'credit', accountCode: '1130', amount: '8000' },
+      ],
+    });
+    const data = await loadYearData(2026);
+
+    expect(await buildAll(2026, 'department', data)).toEqual(await buildAll(2026, 'department'));
+  });
+
+  test('skipBreakdown を指定すると breakdown 以外は同じで、breakdown は含まれない', async () => {
+    await addEntry({
+      date: '2026-04-15',
+      lines: [
+        { side: 'debit', accountCode: '1130', amount: '50000' },
+        { side: 'credit', accountCode: '4110', amount: '50000' },
+      ],
+    });
+    const data = await loadYearData(2026);
+    const { breakdown, ...rest } = await buildAll(2026, 'vendor', data);
+
+    const skipped = await buildAll(2026, 'vendor', data, { skipBreakdown: true });
+
+    expect(breakdown.axis).toBe('vendor');
+    expect(skipped).toEqual(rest);
+    expect('breakdown' in skipped).toBe(false);
   });
 });
 

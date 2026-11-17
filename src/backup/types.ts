@@ -1,6 +1,8 @@
 export interface BackupPayload {
   version: number;
   exportedAt: string;
+  // 含まれる区分の ID（標準の順序）。外から来た値なので、型は確かめるまで分からない。
+  parts?: unknown;
   tables: Record<string, unknown[]>;
 }
 

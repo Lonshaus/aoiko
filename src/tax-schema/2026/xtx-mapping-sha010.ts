@@ -16,6 +16,7 @@
 //    中間納付還付税額（AAJ00130/AAK00090）となる。AAK00130 は符号付き純額（負＝還付）
 
 import { D, Decimal } from '../../lib/decimal';
+import { toKingaku } from './xtx-mapping-shared';
 import {
   computeDeductibleInputTax,
   computeOfficialOutputTax,
@@ -29,17 +30,9 @@ import {
   type TaxableSalesRatio,
 } from '../../domain/consumption-tax';
 import { toYymmdd, type XtxLeafValues, type XtxRawValues } from './xtx-document';
-// gen:kingaku は xsd:long（整数円）。Decimal → 整数円文字列（カンマ無し、先頭ゼロ除去）
-function toKingaku(value: Decimal): string {
-  const rounded = value.toDecimalPlaces(0, Decimal.ROUND_DOWN);
-  if (rounded.isZero()) {
-    return '0';
-  }
-  return rounded.toString();
-}
 
 function put(out: XtxLeafValues, tag: string, value: Decimal): void {
-  const v = toKingaku(value);
+  const v = toKingaku(value, tag);
   if (v !== '0') {
     out[tag] = v;
   }
@@ -314,7 +307,7 @@ function buildShb033(
   } else if (input.attributionMethod === 'proportional') {
     put(shb033, 'DTG00150', deductible.rate624);
     put(shb033, 'DTG00160', deductible.rate78);
-    shb033.DTG00170 = toKingaku(deductible.total);
+    shb033.DTG00170 = toKingaku(deductible.total, 'DTG00170');
   } else {
     const common10 = input.inputCommon10.plus(rcCommon);
     const nonTaxableOnly10 = input.inputNonTaxableOnly10.plus(rcNonTaxableOnly);
@@ -331,7 +324,7 @@ function buildShb033(
     put(shb033, 'DTG00090', input.inputCommon8.plus(common10));
     put(shb033, 'DTG00110', deductible.rate624);
     put(shb033, 'DTG00120', deductible.rate78);
-    shb033.DTG00130 = toKingaku(deductible.total);
+    shb033.DTG00130 = toKingaku(deductible.total, 'DTG00130');
   }
   return shb033;
 }

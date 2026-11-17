@@ -42,7 +42,9 @@ class AoikoDB extends Dexie {
   stamps!: Table<Stamp, string>;
 
   constructor() {
-    super('aoiko');
+    // Dexie のクエリキャッシュを使うと、科目を書き換えたあとの再実行でライブクエリの追跡が切れ、
+    // 開いている画面がその後の書き込みで更新されなくなるため、キャッシュを使わない
+    super('aoiko', { cache: 'disabled' });
     // 申告済み年度への書き込みを止める門。version() より先に差し込む（middleware は
     // open() までに登録されていればよいが、後から足すと登録漏れに気付きにくい）。
     installFiledYearGuard(this);

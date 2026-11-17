@@ -291,3 +291,56 @@ describe('writeLooseBackup → readLatestSnapshot', () => {
     expect(new Uint8Array(await found!.attachmentBlobs.get('att3')!.arrayBuffer())).toEqual(RED);
   });
 });
+
+describe('readLatestSnapshot（parts の受け渡し）', () => {
+  function putRaw(
+    files: Map<string, Uint8Array<ArrayBuffer>>,
+    name: string,
+    extra: Record<string, unknown>,
+  ): void {
+    putText(
+      files,
+      `${SNAPSHOT_DIR}/${name}`,
+      JSON.stringify({
+        format: 1,
+        payloadVersion: 1,
+        exportedAt: '2026-08-09T12:00:00.000Z',
+        tables: { journalEntries: [] },
+        attachments: [],
+        ...extra,
+      }),
+    );
+  }
+
+  test('書き出した parts がそのまま戻る', async () => {
+    const { adapter } = fakeAdapter();
+    const payload: BackupPayload = {
+      version: 2,
+      exportedAt: '2026-08-09T12:00:00.000Z',
+      parts: ['books', 'business'],
+      tables: { journalEntries: [] },
+    };
+    async function* none(): AsyncGenerator<AttachmentSource> {}
+    await writeLooseBackup(adapter, payload, none());
+    const found = await readLatestSnapshot(adapter);
+    expect(found?.payload).toEqual(payload);
+  });
+
+  test('parts の無い旧スナップショットは、parts の欄を持たない payload で返す', async () => {
+    const { adapter, files } = fakeAdapter();
+    putRaw(files, '2026-08-09T120000Z.json', {});
+    const found = await readLatestSnapshot(adapter);
+    expect(found).not.toBeNull();
+    expect(Object.hasOwn(found!.payload, 'parts')).toBe(false);
+  });
+
+  test('parts が不正でも古いスナップショットへ落とさず、そのまま渡す', async () => {
+    const { adapter, files } = fakeAdapter();
+    putRaw(files, '2026-08-08T120000Z.json', { exportedAt: '2026-08-08T12:00:00.000Z' });
+    putRaw(files, '2026-08-09T120000Z.json', { parts: 'x' });
+    const found = await readLatestSnapshot(adapter);
+    expect(found?.snapshotName).toBe('2026-08-09T120000Z.json');
+    expect(found?.skippedSnapshots).toBe(0);
+    expect(found?.payload.parts).toBe('x');
+  });
+});

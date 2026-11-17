@@ -19,12 +19,12 @@ const { default: Settings } = await import('./Settings.svelte');
 function minimalXtxCtx(
   fixedAssets: XtxContext['fixedAssets'],
   dataYear: number,
-  businessStartDate?: string,
+  businessStartDates?: string[],
 ): XtxContext {
   return {
     year: dataYear,
     dataYear,
-    ...(businessStartDate ? { businessStartDate } : {}),
+    ...(businessStartDates ? { businessStartDates } : {}),
     businessName: '',
     invoiceNumber: '',
     monthly: { year: dataYear, months: [], totalSales: '0', totalExpense: '0' },
@@ -86,7 +86,7 @@ async function renderOpeningSetup(): Promise<void> {
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(OpeningSetup, { target: container, props: {} });
-  await waitFor(() => container!.querySelector('h2') !== null);
+  await waitFor(() => container!.querySelector('input[name="jigyoStartDate"]') !== null);
 }
 
 beforeEach(async () => {
@@ -170,16 +170,16 @@ describe('開業設定', () => {
     // 250,000 − 250,000×0.9×0.166×6 = 25,900
     expect(asset?.conversionBasis).toBe('25900');
 
-    const r = await generateYearEndDepreciation(2026, { businessStartDate: '2026-05-01' });
+    const r = await generateYearEndDepreciation(2026, { businessStartDates: ['2026-05-01'] });
     expect(r.created).toBe(1);
     const lines = await db.journalLines.toArray();
     const expenseLine = lines.find((l) => l.accountCode === '5210');
     expect(expenseLine?.amount).toBe('25900');
     // 少額特例の年度上限累計は原始取得価額（250,000）で計る（所令126条・所令135条）。
-    const statuses = smallAssetSpecialStatuses([asset!], '2026-05-01');
+    const statuses = smallAssetSpecialStatuses([asset!], ['2026-05-01']);
     expect(statuses.get(asset!.id)).toBe('applicable');
 
-    const koa210 = mapKoa210RepeatedValues(minimalXtxCtx([asset!], 2026, '2026-05-01'));
+    const koa210 = mapKoa210RepeatedValues(minimalXtxCtx([asset!], 2026, ['2026-05-01']));
     const summary = koa210.AMF01600?.find((r2) => r2.AMF01610 === '中古複合機');
     expect(summary?.AMF01640).toBe('250000');
     expect(summary?.AMF01650).toBe('250000');
@@ -366,7 +366,7 @@ describe('開業設定', () => {
 
     const fixedAssets = await db.fixedAssets.toArray();
     const koa210Row2027 = mapKoa210RepeatedValues(
-      minimalXtxCtx(fixedAssets, 2027, '2026-07-01'),
+      minimalXtxCtx(fixedAssets, 2027, ['2026-07-01']),
     ).AMF01600?.find((r) => r.AMF01610 === `少額特例資産4`);
     expect(koa210Row2027?.AMF01660).toBe('定額法');
     expect(koa210Row2027?.AMF01730).toBe('97500');

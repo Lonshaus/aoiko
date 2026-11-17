@@ -3,13 +3,18 @@ import { D } from '../../lib/decimal';
 import {
   basicDeduction,
   computeIncomeDeductions,
+  computeIncomeTax,
+  defenseSurtax,
   dependentDeductions,
   donationDeduction,
   earthquakeInsuranceDeduction,
+  filingTaxDue,
   lifeInsuranceDeduction,
   medicalExpenseDeduction,
   progressiveIncomeTax,
   reconstructionSurtax,
+  relativeDisabilityDeduction,
+  salaryAdjustmentEligibility,
   spouseDeduction,
   totalTaxCredits,
   workingStudentDeduction,
@@ -316,8 +321,304 @@ describe('progressiveIncomeTax', () => {
 });
 
 describe('reconstructionSurtax', () => {
-  test('基準所得税額×2.1%（1円未満切捨て）', () => {
-    expect(reconstructionSurtax(D(100_000)).toString()).toBe('2100');
-    expect(reconstructionSurtax(D(333)).toString()).toBe('6');
+  test('令和8年分以前は基準所得税額×2.1%（1円未満切捨て）', () => {
+    expect(reconstructionSurtax(2026, D(100_000)).toString()).toBe('2100');
+    expect(reconstructionSurtax(2026, D(333)).toString()).toBe('6');
+  });
+
+  test('令和9年分以降は基準所得税額×1.1%（1円未満切捨て）', () => {
+    expect(reconstructionSurtax(2027, D(100_000)).toString()).toBe('1100');
+    expect(reconstructionSurtax(2027, D(350_500)).toString()).toBe('3855');
+    expect(reconstructionSurtax(2028, D(333)).toString()).toBe('3');
+  });
+
+  test('2026 と 2027 で率が切り替わる', () => {
+    expect(reconstructionSurtax(2026, D(1_000_000)).toString()).toBe('21000');
+    expect(reconstructionSurtax(2027, D(1_000_000)).toString()).toBe('11000');
+  });
+});
+
+describe('defenseSurtax', () => {
+  test('令和8年分以前は課されない', () => {
+    expect(defenseSurtax(2025, D(350_500)).toString()).toBe('0');
+    expect(defenseSurtax(2026, D(350_500)).toString()).toBe('0');
+  });
+
+  test('令和9年分以降は基準所得税額×1%（1円未満切捨て）', () => {
+    expect(defenseSurtax(2027, D(350_500)).toString()).toBe('3505');
+    expect(defenseSurtax(2027, D(100_050)).toString()).toBe('1000');
+    expect(defenseSurtax(2028, D(99)).toString()).toBe('0');
+  });
+});
+
+describe('filingTaxDue', () => {
+  test('納付：100円未満を切り捨てる', () => {
+    expect(filingTaxDue(D(1_296_777)).toString()).toBe('1296700');
+    expect(filingTaxDue(D(99)).toString()).toBe('0');
+  });
+
+  test('納付：ちょうど100円の倍数はそのまま', () => {
+    expect(filingTaxDue(D(1_296_700)).toString()).toBe('1296700');
+  });
+
+  test('0はそのまま', () => {
+    expect(filingTaxDue(D(0)).toString()).toBe('0');
+  });
+
+  test('還付（マイナス）は切り捨てない', () => {
+    expect(filingTaxDue(D(-12_345)).toString()).toBe('-12345');
+  });
+});
+
+describe('computeIncomeTax', () => {
+  test('税額控除・外国税額控除・災害減免額・源泉徴収税額なし', () => {
+    const r = computeIncomeTax(2026, D(4_000_000), {}, D(0));
+    expect(r.incomeTax.toString()).toBe('372500');
+    expect(r.diffTax.toString()).toBe('372500');
+    expect(r.baseIncomeTax.toString()).toBe('372500');
+    // 372,500×2.1%=7,822.5 → 7,822
+    expect(r.reconstructionSurtax.toString()).toBe('7822');
+    expect(r.defenseSurtax.toString()).toBe('0');
+    expect(r.taxTotal.toString()).toBe('380322');
+    expect(r.filingTaxDue.toString()).toBe('380300');
+  });
+
+  test('外国税額控除は復興特別所得税の算定後、災害減免額は基準所得税額の前に控除する', () => {
+    const r = computeIncomeTax(
+      2026,
+      D(4_000_000),
+      {
+        mortgageDeductionAmount: D(20_000),
+        foreignTaxCreditAmount: D(10_000),
+        disasterExemptionAmount: D(2_000),
+      },
+      D(5_000),
+    );
+    expect(r.diffTax.toString()).toBe('352500');
+    expect(r.baseIncomeTax.toString()).toBe('350500');
+    // 350,500×2.1%=7,360.5 → 7,360
+    expect(r.reconstructionSurtax.toString()).toBe('7360');
+    expect(r.taxTotal.toString()).toBe('357860');
+    // 357,860−10,000−5,000=342,860 → 100円未満切捨て
+    expect(r.filingTaxDue.toString()).toBe('342800');
+  });
+
+  test('税額控除が税額を超えても差引所得税額は0で止まる', () => {
+    const r = computeIncomeTax(2026, D(1_000_000), { mortgageDeductionAmount: D(999_999) }, D(0));
+    expect(r.diffTax.toString()).toBe('0');
+    expect(r.taxTotal.toString()).toBe('0');
+  });
+
+  test('源泉徴収税額が上回れば還付（マイナス）で、100円未満も切り捨てない', () => {
+    const r = computeIncomeTax(2026, D(1_000_000), {}, D(100_000));
+    // 50,000+1,050=51,050 − 100,000
+    expect(r.filingTaxDue.toString()).toBe('-48950');
+  });
+});
+
+describe('computeIncomeTax（令和9年分：防衛特別所得税）', () => {
+  const credits = {
+    mortgageDeductionAmount: D(20_000),
+    foreignTaxCreditAmount: D(10_000),
+    disasterExemptionAmount: D(2_000),
+  };
+
+  test('基準所得税額350,500：復興3,855・防衛3,505・合計357,860', () => {
+    const r = computeIncomeTax(2027, D(4_000_000), credits, D(0));
+    expect(r.baseIncomeTax.toString()).toBe('350500');
+    expect(r.reconstructionSurtax.toString()).toBe('3855');
+    expect(r.defenseSurtax.toString()).toBe('3505');
+    expect(r.taxTotal.toString()).toBe('357860');
+  });
+
+  test('各税額を別々に切り捨てるため、合計は基準所得税額×2.1%の場合と1円ずれうる', () => {
+    // 基準所得税額 100,050：復興 1,100.55→1,100、防衛 1,000.5→1,000
+    const other = { otherTaxCreditAmount: D(550) };
+    const r2027 = computeIncomeTax(2027, D(1_981_000), other, D(0));
+    expect(r2027.baseIncomeTax.toString()).toBe('100050');
+    expect(r2027.reconstructionSurtax.toString()).toBe('1100');
+    expect(r2027.defenseSurtax.toString()).toBe('1000');
+    expect(r2027.taxTotal.toString()).toBe('102150');
+    const r2026 = computeIncomeTax(2026, D(1_981_000), other, D(0));
+    expect(r2026.reconstructionSurtax.toString()).toBe('2101');
+    expect(r2026.taxTotal.toString()).toBe('102151');
+  });
+
+  test('申告納税額は三税の合計から外国税額控除・源泉徴収税額を引き、正なら100円未満を切り捨てる', () => {
+    // 357,860−10,000−5,000=342,860 → 342,800
+    const r = computeIncomeTax(2027, D(4_000_000), credits, D(5_000));
+    expect(r.filingTaxDue.toString()).toBe('342800');
+  });
+
+  test('負になれば還付で、100円未満も切り捨てない', () => {
+    // 357,860−10,000−400,000=−52,140
+    const r = computeIncomeTax(2027, D(4_000_000), credits, D(400_000));
+    expect(r.filingTaxDue.toString()).toBe('-52140');
+  });
+});
+
+describe('relativeDisabilityDeduction（同一生計配偶者・扶養親族の障害者控除）', () => {
+  const dep = (over: Partial<Parameters<typeof dependentDeductions>[1][number]> = {}) => ({
+    id: 'd1',
+    age: 40,
+    totalIncome: D(0),
+    ...over,
+  });
+
+  test('配偶者：障害者27万・特別障害者40万・同居特別障害者75万', () => {
+    const amount = (disability: 'none' | 'disabled' | 'special' | 'specialCohabiting') =>
+      relativeDisabilityDeduction(2026, { totalIncome: D(0), age: 40, disability }, []).toString();
+    expect(amount('none')).toBe('0');
+    expect(amount('disabled')).toBe('270000');
+    expect(amount('special')).toBe('400000');
+    expect(amount('specialCohabiting')).toBe('750000');
+  });
+
+  test('扶養親族：障害者27万・特別障害者40万・同居特別障害者75万', () => {
+    const amount = (disability: 'none' | 'disabled' | 'special' | 'specialCohabiting') =>
+      relativeDisabilityDeduction(2026, undefined, [dep({ disability })]).toString();
+    expect(amount('none')).toBe('0');
+    expect(amount('disabled')).toBe('270000');
+    expect(amount('special')).toBe('400000');
+    expect(amount('specialCohabiting')).toBe('750000');
+  });
+
+  test('障害の区分が未設定なら0円（既存データの結果は変わらない）', () => {
+    expect(
+      relativeDisabilityDeduction(2026, { totalIncome: D(0), age: 40 }, [dep()]).toString(),
+    ).toBe('0');
+  });
+
+  test('15歳の特別障害の扶養親族は40万円、同居なら75万円（扶養控除の対象外でも障害者控除は受けられる）', () => {
+    expect(
+      relativeDisabilityDeduction(2026, undefined, [
+        dep({ age: 15, disability: 'special' }),
+      ]).toString(),
+    ).toBe('400000');
+    expect(
+      relativeDisabilityDeduction(2026, undefined, [
+        dep({ age: 15, disability: 'specialCohabiting' }),
+      ]).toString(),
+    ).toBe('750000');
+  });
+
+  test('所得が扶養親族等の所得要件を超える親族は対象外（20歳・所得70万円）', () => {
+    expect(
+      relativeDisabilityDeduction(2026, undefined, [
+        dep({ age: 20, totalIncome: D(700_000), disability: 'special' }),
+      ]).toString(),
+    ).toBe('0');
+  });
+
+  test('所得要件はちょうど62万円まで（令和8年分）、令和7年分は58万円まで', () => {
+    const spouse = (income: number) => ({
+      totalIncome: D(income),
+      age: 40,
+      disability: 'disabled' as const,
+    });
+    expect(relativeDisabilityDeduction(2026, spouse(620_000), []).toString()).toBe('270000');
+    expect(relativeDisabilityDeduction(2026, spouse(620_001), []).toString()).toBe('0');
+    expect(relativeDisabilityDeduction(2025, spouse(580_000), []).toString()).toBe('270000');
+    expect(relativeDisabilityDeduction(2025, spouse(580_001), []).toString()).toBe('0');
+  });
+
+  test('本人所得が1,000万円超で配偶者控除が0でも、配偶者の障害者控除は受けられる', () => {
+    const spouse = { totalIncome: D(0), age: 40, disability: 'special' as const };
+    expect(spouseDeduction(2026, D(11_000_000), spouse).toString()).toBe('0');
+    expect(relativeDisabilityDeduction(2026, spouse, []).toString()).toBe('400000');
+  });
+
+  test('配偶者と扶養親族の分を合算し、computeIncomeDeductions の障害者控除に本人分と合わせて入る', () => {
+    const result = computeIncomeDeductions(2026, {
+      totalIncome: D(3_000_000),
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: true,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      spouse: { totalIncome: D(0), age: 40, disability: 'disabled' },
+      dependents: [
+        dep({ disability: 'special' }),
+        dep({ id: 'd2', disability: 'specialCohabiting' }),
+      ],
+    });
+    // 本人27万＋配偶者27万＋40万＋75万
+    expect(result.disabilityDeduction.toString()).toBe('1690000');
+  });
+});
+
+describe('salaryAdjustmentEligibility（所得金額調整控除①の要件）', () => {
+  const base = { isSpecialDisabled: false, dependents: [] };
+  const dep = (age: number, totalIncome: number, disability?: 'special') => ({
+    id: `d${age}`,
+    age,
+    totalIncome: D(totalIncome),
+    ...(disability ? { disability } : {}),
+  });
+
+  test('何も該当しなければすべて false', () => {
+    expect(salaryAdjustmentEligibility(2026, base)).toEqual({
+      selfSpecialDisabled: false,
+      hasDependentUnder23: false,
+      hasSpecialDisabledRelative: false,
+    });
+  });
+
+  test('本人が特別障害者', () => {
+    expect(
+      salaryAdjustmentEligibility(2026, { ...base, isSpecialDisabled: true }).selfSpecialDisabled,
+    ).toBe(true);
+  });
+
+  test('23歳未満の扶養親族：22歳は該当、23歳は非該当、16歳未満も該当', () => {
+    const has = (age: number) =>
+      salaryAdjustmentEligibility(2026, { ...base, dependents: [dep(age, 0)] }).hasDependentUnder23;
+    expect(has(22)).toBe(true);
+    expect(has(23)).toBe(false);
+    expect(has(3)).toBe(true);
+  });
+
+  test('20歳でも所得が要件を超えれば扶養親族ではないので該当しない', () => {
+    expect(
+      salaryAdjustmentEligibility(2026, { ...base, dependents: [dep(20, 700_000)] })
+        .hasDependentUnder23,
+    ).toBe(false);
+  });
+
+  test('特別障害者である扶養親族・同一生計配偶者（同居特別障害者を含む）', () => {
+    expect(
+      salaryAdjustmentEligibility(2026, { ...base, dependents: [dep(40, 0, 'special')] })
+        .hasSpecialDisabledRelative,
+    ).toBe(true);
+    expect(
+      salaryAdjustmentEligibility(2026, {
+        ...base,
+        spouse: { totalIncome: D(0), age: 40, disability: 'specialCohabiting' },
+      }).hasSpecialDisabledRelative,
+    ).toBe(true);
+  });
+
+  test('障害者（特別でない）は対象外、所得要件超の特別障害者の配偶者も対象外', () => {
+    expect(
+      salaryAdjustmentEligibility(2026, {
+        ...base,
+        spouse: { totalIncome: D(0), age: 40, disability: 'disabled' },
+      }).hasSpecialDisabledRelative,
+    ).toBe(false);
+    expect(
+      salaryAdjustmentEligibility(2026, {
+        ...base,
+        spouse: { totalIncome: D(700_000), age: 40, disability: 'special' },
+      }).hasSpecialDisabledRelative,
+    ).toBe(false);
   });
 });

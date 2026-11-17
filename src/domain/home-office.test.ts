@@ -134,3 +134,17 @@ describe('isValidDefaultRatio', () => {
     expect(isValidDefaultRatio('abc')).toBe(false);
   });
 });
+
+describe('expandHomeOffice の金額は指数表記にならない', () => {
+  test('1 円未満の端数だけが個人使用分になっても、事業主貸は一般の書き方になる', () => {
+    const result = expandHomeOffice([line({ amount: '0.0000001', homeOfficeRatio: '0.5' })]);
+    expect(result.map((l) => l.amount)).toEqual(['0.0000001']);
+  });
+
+  test('桁の大きい金額でも指数表記にならない', () => {
+    const result = expandHomeOffice([
+      line({ amount: '1000000000000000000000', homeOfficeRatio: '0.5' }),
+    ]);
+    expect(result.map((l) => l.amount)).toEqual(['500000000000000000000', '500000000000000000000']);
+  });
+});

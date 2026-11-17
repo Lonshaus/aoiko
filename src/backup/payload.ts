@@ -2,45 +2,37 @@ import { db } from '../db/db';
 import { sha256Hex } from '../lib/sha256';
 import type { Attachment } from '../db/types';
 import type { BackupPayload } from './types';
-// 常にバックアップ対象外の settings キー。除外理由は 2 種類ある。
-// - backupFolderHandle：FileSystemDirectoryHandle でシリアライズできない
-// - nativeBackupFolder：シリアライズはできるが端末固有（パス / security-scoped bookmark）で、
-//   別端末へ復元すると存在しない場所や他人のフォルダを指し得る
-const SKIP_SETTING_KEYS = new Set([
-  'backupFolderHandle',
-  'nativeBackupFolder',
-  // 支援者バッジ。ストアから復元できるものなので、バックアップで運ぶと
-  // 買っていない端末へ持ち込めてしまう。
-  'supporterBadgeAt',
-]);
-// 常にバックアップ対象外のテーブル。
-// - stamps：この端末だけの記録だと画面で言っている。含めると復元で別端末へ引き継がれる
-const SKIP_TABLES = new Set(['stamps']);
-// API キー（平文）。既定では除外し、利用者が明示的に含めると選択した場合のみ書き出す。
-const SENSITIVE_SETTING_KEYS = new Set(['geminiApiKey', 'openaiApiKey']);
-// 申告者情報（利用者識別番号・氏名・住所・税務署）。個人情報のため既定で除外し、
-// 利用者が明示的に含めると選択した場合のみ書き出す。
-export const FILER_INFO_SETTING_KEYS = new Set([
-  'userRiyoshaId',
-  'userFilerName',
-  'userFilerZip',
-  'userFilerAddress',
-  'userZeimushoCode',
-  'userZeimushoName',
-]);
+import {
+  BACKUP_PART_SETTING_KEYS,
+  BACKUP_PART_TABLES,
+  EXPORT_DEFAULT_PARTS,
+  FILER_INFO_SETTING_KEYS,
+  SENSITIVE_SETTING_KEYS,
+  SKIP_SETTING_KEYS,
+  payloadVersionForParts,
+  sortBackupParts,
+  type BackupPartId,
+} from './parts';
+// 一覧の中身と除外の理由は parts.ts にまとめてある。
+export { FILER_INFO_SETTING_KEYS, SENSITIVE_SETTING_KEYS, SKIP_SETTING_KEYS };
 
 export const PAYLOAD_VERSION = 1;
 
 interface BuildPayloadOptions {
-  // API キーをバックアップに含めるか（既定 false）
-  includeApiKeys?: boolean;
-  // 申告者情報をバックアップに含めるか（既定 false）
-  includeFilerInfo?: boolean;
+  // 含める区分。省略時は EXPORT_DEFAULT_PARTS（API キーと申告者情報を含めない）。
+  parts?: ReadonlySet<BackupPartId>;
 }
 
 export async function buildPayload(options: BuildPayloadOptions = {}): Promise<BackupPayload> {
-  const includeApiKeys = options.includeApiKeys ?? false;
-  const includeFilerInfo = options.includeFilerInfo ?? false;
+  const requested = new Set(options.parts ?? EXPORT_DEFAULT_PARTS);
+  // 証憑だけのファイルは復元側が受け付けないので、帳簿データが無ければ証憑も外す。
+  if (!requested.has('books')) {
+    requested.delete('attachments');
+  }
+  const parts = sortBackupParts(requested);
+  const tableNames = new Set(['settings', ...parts.flatMap((p) => BACKUP_PART_TABLES[p])]);
+  // 端末専用のキーと、どの区分にも属さない旧キーは書き出さない。
+  const settingKeys = new Set(parts.flatMap((p) => BACKUP_PART_SETTING_KEYS[p]));
   const tables: Record<string, unknown[]> = {};
   // 全テーブルを1つの読み取りトランザクションで揃える。table ごとに await t.toArray()
   // すると Dexie がその都度独立トランザクションを開き、間に書き込みが割り込んで
@@ -48,24 +40,12 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
   // iterateAttachmentBlobs で zip ストリーミング中に別途行うため、ここには含めない。
   await db.transaction('r', db.tables, async () => {
     for (const t of db.tables) {
-      if (SKIP_TABLES.has(t.name)) {
+      if (!tableNames.has(t.name)) {
         continue;
       }
       let rows = await t.toArray();
       if (t.name === 'settings') {
-        rows = rows.filter((r) => {
-          const key = (r as { key: string }).key;
-          if (SKIP_SETTING_KEYS.has(key)) {
-            return false;
-          }
-          if (!includeApiKeys && SENSITIVE_SETTING_KEYS.has(key)) {
-            return false;
-          }
-          if (!includeFilerInfo && FILER_INFO_SETTING_KEYS.has(key)) {
-            return false;
-          }
-          return true;
-        });
+        rows = rows.filter((r) => settingKeys.has((r as { key: string }).key));
       }
       if (t.name === 'attachments') {
         // Blob は JSON.stringify 不可。メタデータのみ tables に残し、実体バイナリは
@@ -79,8 +59,9 @@ export async function buildPayload(options: BuildPayloadOptions = {}): Promise<B
     }
   });
   return {
-    version: PAYLOAD_VERSION,
+    version: payloadVersionForParts(new Set(parts)),
     exportedAt: new Date().toISOString(),
+    parts,
     tables,
   };
 }

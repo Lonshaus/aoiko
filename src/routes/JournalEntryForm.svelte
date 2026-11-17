@@ -4,7 +4,8 @@
   import { validateLines } from '../domain/journal';
   import { expandHomeOffice, type SplittableLine } from '../domain/home-office';
   import { AttachmentInvalidTypeError, buildAttachmentRecord } from '../domain/attachments';
-  import { D, formatJPY, toIndexable } from '../lib/decimal';
+  import { AmountTooLargeError, D, formatJPY, toAmountString, toIndexable } from '../lib/decimal';
+  import { amountInputError, normalizeAmountInput, parseAmountInput } from '../lib/amount-input';
   import { todayISO } from '../lib/date';
   import { assignInputString } from '../lib/number-input';
   import { newId } from '../lib/id';
@@ -123,8 +124,19 @@
   }
 
   function sumAmount(lines: DraftLine[]): string {
-    return lines.reduce((s, l) => (l.amount ? s.plus(l.amount) : s), D(0)).toString();
+    return lines.reduce((s, l) => s.plus(parseAmountInput(l.amount) ?? 0), D(0)).toString();
   }
+  function quantityError(l: DraftLine): string {
+    if (!l.itemId || normalizeAmountInput(l.quantity) === '') {
+      return '';
+    }
+    return parseAmountInput(l.quantity) === undefined ? m.common_amount_invalid() : '';
+  }
+  const hasInputError = $derived(
+    [...debits, ...credits].some(
+      (l) => amountInputError(l.amount) !== '' || quantityError(l) !== '',
+    ),
+  );
 
   const debitTotal = $derived(sumAmount(debits));
   const creditTotal = $derived(sumAmount(credits));
@@ -274,6 +286,13 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     error = '';
+    if (
+      hasInputError ||
+      [...debits, ...credits].some((l) => parseAmountInput(l.amount) === undefined)
+    ) {
+      error = m.common_amount_invalid();
+      return;
+    }
     saving = true;
     try {
       const entryId = newId();
@@ -308,53 +327,69 @@
           ...(d.inputUsageCategory ? { inputUsageCategory: d.inputUsageCategory } : {}),
           ...(d.itemId && d.quantity ? { itemId: d.itemId, quantity: d.quantity } : {}),
         }));
+      const canonical = (raw: string): string => toAmountString(parseAmountInput(raw) ?? D(0));
+      const canonicalQuantity = (l: DraftLine): string =>
+        l.itemId && normalizeAmountInput(l.quantity) !== '' ? canonical(l.quantity) : '';
       // 家事按分のある借方明細を「事業使用分」+「事業主貸」に分解
       const debitsForExpansion: SplittableLine[] = debits.map((d) => ({
         id: d.id,
         side: 'debit',
         accountCode: d.accountCode,
         subAccountId: d.subAccountId,
-        amount: d.amount,
+        amount: canonical(d.amount),
         taxRate: d.taxRate,
         taxIncluded: d.taxIncluded,
         homeOfficeRatio: d.homeOfficeRatio,
         taxCategory: d.taxCategory,
         inputUsageCategory: d.inputUsageCategory,
         itemId: d.itemId,
-        quantity: d.quantity,
+        quantity: canonicalQuantity(d),
       }));
       const expandedDebits = expandHomeOffice(debitsForExpansion);
 
-      const lines = [...buildLines(expandedDebits, 'debit'), ...buildLines(credits, 'credit')];
+      const canonicalCredits = credits.map((c) => ({
+        ...c,
+        amount: canonical(c.amount),
+        quantity: canonicalQuantity(c),
+      }));
+      const lines = [
+        ...buildLines(expandedDebits, 'debit'),
+        ...buildLines(canonicalCredits, 'credit'),
+      ];
       validateLines(lines);
 
       const attachmentRecords = await Promise.all(
         attachments.map((a) => buildAttachmentRecord(entryId, a.file, now)),
       );
 
-      if (!(await filedYearGuard.confirm([Number(date.slice(0, 4))]))) {
+      const consent = await filedYearGuard.confirm([Number(date.slice(0, 4))]);
+      if (!consent) {
         return;
       }
 
-      await db.transaction('rw', [db.journalEntries, db.journalLines, db.attachments], async () => {
-        // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
-        allowFiledYearWriteInThisTransaction();
-        await db.journalEntries.add({
-          id: entryId,
-          date,
-          year: Number(date.slice(0, 4)),
-          description,
-          ...(department ? { department } : {}),
-          status: 'confirmed',
-          source: 'manual',
-          createdAt: now,
-          confirmedAt: now,
-        });
-        await db.journalLines.bulkAdd(lines);
-        if (attachmentRecords.length > 0) {
-          await db.attachments.bulkAdd(attachmentRecords);
-        }
-      });
+      await db.transaction(
+        'rw',
+        [db.journalEntries, db.journalLines, db.attachments, db.reportSnapshots],
+        async () => {
+          // 申告済み年度の確認を通った書き込みであることを、書き込みの門へ伝える。
+          allowFiledYearWriteInThisTransaction(consent);
+          await db.journalEntries.add({
+            id: entryId,
+            date,
+            year: Number(date.slice(0, 4)),
+            description,
+            ...(department ? { department } : {}),
+            status: 'confirmed',
+            source: 'manual',
+            createdAt: now,
+            confirmedAt: now,
+          });
+          await db.journalLines.bulkAdd(lines);
+          if (attachmentRecords.length > 0) {
+            await db.attachments.bulkAdd(attachmentRecords);
+          }
+        },
+      );
 
       reset();
       date = today();
@@ -362,7 +397,9 @@
       error =
         e instanceof AttachmentInvalidTypeError
           ? m.common_file_not_image()
-          : describeStorageError(e);
+          : e instanceof AmountTooLargeError
+            ? e.message
+            : describeStorageError(e);
     } finally {
       saving = false;
     }
@@ -553,6 +590,9 @@
           ×
         </button>
       </div>
+      {#if amountInputError(line.amount)}
+        <p class="text-xs text-destructive text-right">{amountInputError(line.amount)}</p>
+      {/if}
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
@@ -633,6 +673,9 @@
                 placeholder={m.journal_form_inventory_quantity_placeholder()}
                 class="w-20 px-2 py-0.5 bg-background border rounded text-right text-foreground tabular-nums"
               />
+              {#if quantityError(line)}
+                <span class="text-destructive">{quantityError(line)}</span>
+              {/if}
             {/if}
           {/if}
         </div>
@@ -726,6 +769,9 @@
           ×
         </button>
       </div>
+      {#if amountInputError(line.amount)}
+        <p class="text-xs text-destructive text-right">{amountInputError(line.amount)}</p>
+      {/if}
       {#if line.accountCode}
         <div class="flex gap-3 ml-1 mb-2 text-xs items-center text-muted-foreground">
           <label class="flex items-center gap-1 cursor-pointer">
@@ -806,6 +852,9 @@
                 placeholder={m.journal_form_inventory_quantity_placeholder()}
                 class="w-20 px-2 py-0.5 bg-background border rounded text-right text-foreground tabular-nums"
               />
+              {#if quantityError(line)}
+                <span class="text-destructive">{quantityError(line)}</span>
+              {/if}
             {/if}
           {/if}
         </div>
@@ -856,7 +905,7 @@
     </button>
     <button
       type="submit"
-      disabled={saving || !balanced}
+      disabled={saving || !balanced || hasInputError}
       class="px-4 py-2 bg-primary text-primary-foreground rounded hover:opacity-90 disabled:opacity-50"
     >
       {saving ? m.common_saving() : m.journal_form_submit()}
