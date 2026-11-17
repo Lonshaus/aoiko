@@ -4,6 +4,45 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.7] - 2026-11-17
+
+Support for the 2026 (Reiwa 8) and 2027 (Reiwa 9) tax rules, plus fixes for input checks, .xtx files and backups. Because the consent documents changed, you'll be asked to agree again on the next launch.
+
+### Changed
+
+- Added support for the 2026 (Reiwa 8) and 2027 (Reiwa 9) tax rules. The tax due is rounded down to the nearest 100 yen, and the income amount adjustment deduction and the disability deduction for a spouse or dependents are now included. From 2027, the special defense income tax is calculated, and the special reconstruction income tax uses a 1.1% rate
+- The procedure version written into income tax .xtx files is now 25.0.1
+- Rows that don't fit in an .xtx detail section are now shown on screen
+- You can now choose which items to include in backup exports and automatic backups. Restoring replaces only the items you choose
+- Backup data is now checked before restoring, and a "Check saved data" tool was added
+- If the working year can't be read, it is reset on startup and a notice is shown
+- Settings now has "Business start and end dates", and these dates are decided per year
+- Opening setup can now undo a year that stopped partway, and re-register converted assets
+- Registering a fixed asset now checks that the useful life and depreciation method fit together. Assets that can't be calculated can be fixed from "Fix" in the list
+- Confirmed journal entries whose date can't be read can now be re-registered with the correct date from the list
+- Yayoi-format CSV now follows Yayoi's import specification (character replacement, tax categories, file splitting, department selection, name length)
+- In CSV files for tax accountants, values that would be treated as formulas now start with '
+- The correction history CSV now handles corrections that cross years
+- Reports load faster and no longer reload everything when you switch the analysis axis
+- The Guide, Privacy Policy, Security Policy and Disclaimer now match how the app actually behaves
+
+### Fixed
+
+- The public pension deduction and its 2.8 million yen adjustment were calculated incorrectly
+- The estimate on the income deductions screen did not match the .xtx calculation
+- Amount fields accepted unreadable values, values of 100 trillion yen or more, and decimals
+- Number fields such as year, forecast period and age accepted out-of-range values
+- The number of digits in the user ID and postal code was not checked
+- .xtx files could be exported with unreadable amounts, amounts of 16 digits or more, or amounts that are not whole yen
+- Exporting an .xtx file failed with an error when unreadable detail rows appeared after Reports was opened
+- Debits to cash, deposits and monetary receivables were counted in purchase tax totals. Years marked as filed before this change keep the result from when they were filed
+- Protection for filed years did not apply in other tabs
+- Registering accounts could fail when several tabs were open
+- Switching the automatic inventory valuation setting while Reports was open did not update the closing inventory estimate
+- When detail totals failed to load, the whole report showed an error
+- The income deductions screen showed an estimate even when saved data could not be loaded
+- Errors in the Traditional Chinese translation
+
 ## [1.2.6] - 2026-10-27
 
 Fixes for consumption tax .xtx files and for what is shown when aoiko cannot start.
