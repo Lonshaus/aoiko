@@ -47,7 +47,6 @@
   import { validatePersonalDeductions } from '../domain/stored-value-checks';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
-  import { TAX_REFORM_2027_UI } from '../lib/tax-reform-2027-ui';
 
   const now = new Date();
   let year = $state(now.getFullYear());
@@ -115,15 +114,6 @@
   let homeWorker = $state(false);
   let priorPriorBusinessRevenue = $state('0');
   let priorPriorRealEstateRevenue = $state('0');
-  let showPriorPriorRevenue = $state(TAX_REFORM_2027_UI);
-
-  function hasStoredValue(v: string | undefined): boolean {
-    if (v === undefined) {
-      return false;
-    }
-    const parsed = parseAmountInput(v);
-    return parsed === undefined || !parsed.isZero();
-  }
 
   let realEstateBusinessScale = $state(false);
   let realEstateLandLoanInterest = $state('0');
@@ -225,7 +215,6 @@
     homeWorker = false;
     priorPriorBusinessRevenue = '0';
     priorPriorRealEstateRevenue = '0';
-    showPriorPriorRevenue = TAX_REFORM_2027_UI;
     realEstateBusinessScale = false;
     realEstateLandLoanInterest = '0';
     realEstateRentPaid = [];
@@ -311,10 +300,6 @@
     homeWorker = stored.homeWorker ?? false;
     priorPriorBusinessRevenue = stored.priorPriorBusinessRevenue ?? '0';
     priorPriorRealEstateRevenue = stored.priorPriorRealEstateRevenue ?? '0';
-    showPriorPriorRevenue =
-      TAX_REFORM_2027_UI ||
-      hasStoredValue(stored.priorPriorBusinessRevenue) ||
-      hasStoredValue(stored.priorPriorRealEstateRevenue);
     realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
     realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
     realEstateRentPaid = (stored.realEstateIncome?.rentPaid || []).map((r) => ({
@@ -940,38 +925,34 @@
         {@render amountError(otherWithholdingTaxPaid)}
       </label>
     </div>
-    {#if showPriorPriorRevenue}
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_prior_prior_business_revenue()}</span
-          >
-          <input
-            type="text"
-            name="priorPriorJigyoRevenue"
-            autocomplete="off"
-            inputmode="numeric"
-            bind:value={priorPriorBusinessRevenue}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
-          />
-          {@render amountError(priorPriorBusinessRevenue)}
-        </label>
-        <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_prior_prior_real_estate_revenue()}</span
-          >
-          <input
-            type="text"
-            name="priorPriorFudosanRevenue"
-            autocomplete="off"
-            inputmode="numeric"
-            bind:value={priorPriorRealEstateRevenue}
-            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
-          />
-          {@render amountError(priorPriorRealEstateRevenue)}
-        </label>
-      </div>
-    {/if}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_prior_prior_business_revenue()}</span>
+        <input
+          type="text"
+          name="priorPriorJigyoRevenue"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={priorPriorBusinessRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(priorPriorBusinessRevenue)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground"
+          >{m.income_prior_prior_real_estate_revenue()}</span
+        >
+        <input
+          type="text"
+          name="priorPriorFudosanRevenue"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={priorPriorRealEstateRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(priorPriorRealEstateRevenue)}
+      </label>
+    </div>
     <label class="flex items-center gap-2 py-2">
       <input type="checkbox" bind:checked={homeWorker} />
       <span class="text-sm">{m.income_home_worker()}</span>

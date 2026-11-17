@@ -137,7 +137,6 @@
   import { loadAccountsForYear } from '../db/year-accounts';
   import * as AlertDialog from '$lib/components/ui/alert-dialog';
   import { m } from '../paraglide/messages';
-  import { TAX_REFORM_2027_UI } from '../lib/tax-reform-2027-ui';
   import type { AmendmentChecklistKey } from '../domain/amended';
   import ScrollX from '../components/ScrollX.svelte';
 
@@ -240,7 +239,6 @@
   let wariSession: WariSession | null = null;
   let wariNextRowKey = 0;
   let wariSpecifiedSmallAssetTransfers = $state<WariTransferRow[]>([]);
-  let showWariTransfers = $state(TAX_REFORM_2027_UI);
   let wariAdjustments = $state<WariBaseAdjustments>({});
   // 最初の読込が済むまで欄を無効にする。年度を切り替えても戻さない（切り替え中の画面は元の年度のものとして保存する）
   let wariReady = $state(false);
@@ -722,7 +720,6 @@
         netTax: wariStoredText(`netTax-${i}`, raw.netTaxes[i], nonString, '0'),
         rowKey: wariNextRowKey++,
       }));
-      showWariTransfers = TAX_REFORM_2027_UI || wariSpecifiedSmallAssetTransfers.length > 0;
       wariSession = {
         year: yr,
         hiddenIndexes: new Set(raw.hiddenIndexes),
@@ -3039,77 +3036,75 @@
             </label>
           </div>
           <p class="text-xs text-muted-foreground">{m.reports_wari_sales_return_tax_hint()}</p>
-          {#if showWariTransfers}
-            <div class="space-y-1">
-              <p class="text-xs text-muted-foreground">
-                {m.reports_wari_specified_small_asset_transfers()}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                {m.reports_wari_specified_small_asset_transfers_hint()}
-              </p>
-              {#each wariSpecifiedSmallAssetTransfers as transfer, i}
-                <div
-                  class="grid grid-cols-[minmax(8.5rem,1fr)_auto_minmax(0,1fr)_auto] gap-1 items-end"
-                >
-                  <input
-                    type="date"
-                    name="wariTransfer-date-{i}"
-                    autocomplete="off"
-                    aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.journal_th_date()}"
-                    bind:value={transfer.date}
-                    onfocus={(e) => trackFocus(`date-${i}`, e.currentTarget)}
-                    oninput={(e) => trackInput(`date-${i}`, e.currentTarget)}
-                    onchange={(e) =>
-                      commitPending(`date-${i}`, e.currentTarget, saveWariBaseAdjustments)}
-                    class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
-                  />
-                  <select
-                    name="wariTransfer-rate-{i}"
-                    aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.order_th_tax_rate()}"
-                    bind:value={transfer.rate}
-                    onchange={saveWariBaseAdjustments}
-                    class="border rounded px-2 py-1 text-sm"
-                  >
-                    <option value={0.1}>10%</option>
-                    <option value={0.08}>8%</option>
-                  </select>
-                  <input
-                    type="text"
-                    name="wariTransfer-netTax-{i}"
-                    autocomplete="off"
-                    aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_consumption_tax_breakdown_national()}"
-                    inputmode="numeric"
-                    bind:value={transfer.netTax}
-                    onfocus={(e) => trackFocus(`netTax-${i}`, e.currentTarget)}
-                    oninput={(e) => trackAmountInput(`netTax-${i}`, e.currentTarget)}
-                    onchange={(e) => commitAmount(`netTax-${i}`, e.currentTarget)}
-                    placeholder="0"
-                    class="border rounded px-2 py-1 text-sm"
-                  />
-                  <button
-                    type="button"
-                    onclick={() => removeWariSpecifiedSmallAssetTransfer(i)}
-                    class="px-2 py-1 border rounded text-xs hover:bg-accent"
-                  >
-                    {m.income_deductions_dependent_remove()}
-                  </button>
-                  {#if isWariFieldBlocked(`netTax-${i}`, transfer.netTax)}
-                    <p class="col-span-full text-xs text-destructive">
-                      {wariFieldError(transfer.netTax)}
-                    </p>
-                  {/if}
-                </div>
-              {/each}
-              <button
-                type="button"
-                disabled={!wariReady}
-                onclick={addWariSpecifiedSmallAssetTransfer}
-                class="px-2 py-1 border rounded text-xs hover:bg-accent"
+          <div class="space-y-1">
+            <p class="text-xs text-muted-foreground">
+              {m.reports_wari_specified_small_asset_transfers()}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {m.reports_wari_specified_small_asset_transfers_hint()}
+            </p>
+            {#each wariSpecifiedSmallAssetTransfers as transfer, i}
+              <div
+                class="grid grid-cols-[minmax(8.5rem,1fr)_auto_minmax(0,1fr)_auto] gap-1 items-end"
               >
-                {m.settings_action_add()}
-              </button>
-            </div>
-          {/if}
+                <input
+                  type="date"
+                  name="wariTransfer-date-{i}"
+                  autocomplete="off"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.journal_th_date()}"
+                  bind:value={transfer.date}
+                  onfocus={(e) => trackFocus(`date-${i}`, e.currentTarget)}
+                  oninput={(e) => trackInput(`date-${i}`, e.currentTarget)}
+                  onchange={(e) =>
+                    commitPending(`date-${i}`, e.currentTarget, saveWariBaseAdjustments)}
+                  class="w-full min-w-0 border rounded px-2 py-1 text-sm supports-[-webkit-touch-callout:none]:appearance-none [&::-webkit-date-and-time-value]:text-left"
+                />
+                <select
+                  name="wariTransfer-rate-{i}"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.order_th_tax_rate()}"
+                  bind:value={transfer.rate}
+                  onchange={saveWariBaseAdjustments}
+                  class="border rounded px-2 py-1 text-sm"
+                >
+                  <option value={0.1}>10%</option>
+                  <option value={0.08}>8%</option>
+                </select>
+                <input
+                  type="text"
+                  name="wariTransfer-netTax-{i}"
+                  autocomplete="off"
+                  aria-label="{m.reports_wari_specified_small_asset_transfers()} {m.reports_consumption_tax_breakdown_national()}"
+                  inputmode="numeric"
+                  bind:value={transfer.netTax}
+                  onfocus={(e) => trackFocus(`netTax-${i}`, e.currentTarget)}
+                  oninput={(e) => trackAmountInput(`netTax-${i}`, e.currentTarget)}
+                  onchange={(e) => commitAmount(`netTax-${i}`, e.currentTarget)}
+                  placeholder="0"
+                  class="border rounded px-2 py-1 text-sm"
+                />
+                <button
+                  type="button"
+                  onclick={() => removeWariSpecifiedSmallAssetTransfer(i)}
+                  class="px-2 py-1 border rounded text-xs hover:bg-accent"
+                >
+                  {m.income_deductions_dependent_remove()}
+                </button>
+                {#if isWariFieldBlocked(`netTax-${i}`, transfer.netTax)}
+                  <p class="col-span-full text-xs text-destructive">
+                    {wariFieldError(transfer.netTax)}
+                  </p>
+                {/if}
+              </div>
+            {/each}
+            <button
+              type="button"
+              disabled={!wariReady}
+              onclick={addWariSpecifiedSmallAssetTransfer}
+              class="px-2 py-1 border rounded text-xs hover:bg-accent"
+            >
+              {m.settings_action_add()}
+            </button>
+          </div>
         {/if}
         {#if ct.some((r) => r.method === 'two-wari')}
           <p class="text-xs text-muted-foreground">

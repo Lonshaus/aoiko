@@ -2,7 +2,6 @@ import { expect, test, type CDPSession, type Page } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 import { acceptDisclaimer } from './helpers';
 import { buildFormAuditBackup, readDisclaimerVersion } from './fixtures/form-audit-seed';
-import { TAX_REFORM_2027_UI } from '../src/lib/tax-reform-2027-ui';
 // DevTools Issues の「id も name も無いフォーム部品」を画面ごとに 0 件へ保つ（CDP は Chromium 専用）。
 test.skip(({ browserName }) => browserName !== 'chromium', 'CDP Audits は Chromium 専用');
 // 既定の headless shell はこの issue を出さないため、完全版の Chromium（新 headless）で動かす。
@@ -441,14 +440,12 @@ const CONDITIONAL_STATES: ReadonlyArray<{
       await arap.locator('[name=arapAmount]').fill('1000');
       await arap.getByRole('button', { name: '追加', exact: true }).click();
       await expect(arap.getByPlaceholder('金額')).toBeVisible();
-      if (TAX_REFORM_2027_UI) {
-        await page
-          .getByText('特定少額資産の譲渡（3 割特例の基礎から控除）', { exact: true })
-          .locator('..')
-          .getByRole('button', { name: '追加', exact: true })
-          .click();
-        await expect(page.locator('[name="wariTransfer-netTax-0"]')).toBeVisible();
-      }
+      await page
+        .getByText('特定少額資産の譲渡（3 割特例の基礎から控除）', { exact: true })
+        .locator('..')
+        .getByRole('button', { name: '追加', exact: true })
+        .click();
+      await expect(page.locator('[name="wariTransfer-netTax-0"]')).toBeVisible();
       await page.locator('[name=interimPriorNenAmount]').fill('600000');
       await expect(page.locator('[name=interimInstallment]')).toBeVisible();
       await page.getByRole('button', { name: '申告済みとしてロック' }).click();
