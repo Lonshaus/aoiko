@@ -4,6 +4,14 @@
 
 This file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format and the versions follow [Semantic Versioning](https://semver.org/). For aoiko, a "breaking change" (major) means a change that makes existing backup JSON or in-browser data (IndexedDB) unreadable by the new version.
 
+## [1.2.8] - 2026-11-18
+
+A fix for the reference capital-gain estimate shown when a fixed asset is sold.
+
+### Fixed
+
+- Sales of buildings, building fixtures and structures were estimated as comprehensive taxation. They are now estimated as separate taxation: short- or long-term is judged by the holding period as of January 1 of the year of sale, and neither the ¥500,000 special deduction nor the 1/2 rule applies. Settings now shows a separate yearly total, "Capital gains (separate taxation, land and buildings)"
+
 ## [1.2.7] - 2026-11-17
 
 Support for the 2026 (Reiwa 8) and 2027 (Reiwa 9) tax rules, plus fixes for input checks, .xtx files and backups. Because the consent documents changed, you'll be asked to agree again on the next launch.
