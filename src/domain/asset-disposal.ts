@@ -15,6 +15,7 @@ import {
   type SmallAssetStatus,
 } from './depreciation';
 import { SMALL_ASSET_MIN } from '../tax-schema/2026/limits';
+import { defaultAssetCategory } from '../tax-schema/2026/accounts';
 import {
   affectsSmallAssetCap,
   findInvalidFixedAssets,
@@ -41,6 +42,8 @@ import { m } from '../paraglide/messages';
 //     （帳票・xtx出力）を追加するたびに書き漏らすリスクがある
 // 譲渡所得の試算は資産単位の estimateTransferIncome() と年分集計の aggregateTransferIncome() で
 // 参考値として提供する（確定申告書第一表・第二表の総合譲渡欄へは利用者が転記する）。
+// 建物・建物附属設備・構築物の売却は総合譲渡ではなく措法31条・32条の別計算になるため、
+// estimateTransferIncome() の taxation で分け、年分集計は separateTransferIncomeByTerm() で行う。
 //
 // 一括償却資産（施行令139条）は除却・売却後も3年均等償却を継続し、未償却残高の一時損金算入は
 // できない。所令81条3号により譲渡所得の基因とならないため、売却対価は事業の雑収入に計上し、
@@ -53,7 +56,7 @@ const OWNER_CONTRIBUTION_ACCOUNT = '3120'; // 事業主借
 const DEFAULT_CASH_ACCOUNT = '1110';
 const MISC_INCOME_ACCOUNT = '4910';
 const MISC_INCOME_REAL_ESTATE_ACCOUNT = '4920';
-// 所法33条3項1号：取得の日以後 5 年以内の譲渡は短期。
+// 所法33条3項1号：取得後 5 年未満（満年数）の譲渡は短期。
 const SHORT_TERM_HOLDING_YEARS = 5;
 // 所法33条4項の譲渡所得の特別控除額。
 const TRANSFER_SPECIAL_DEDUCTION = 500_000;
@@ -377,8 +380,22 @@ interface TransferIncomeEstimate {
   saleExpenses: string;
   /** 概算譲渡所得 = 譲渡収入 − 取得費（帳簿価額） − 譲渡費用。特別控除は未反映 */
   estimate: string;
-  /** 取得日から売却日までの満年数（5 年以下は短期、所法33条3項1号） */
+  /** 取得日から売却日までの満年数（表示用） */
   holdingYears: number;
+  /** general は総合譲渡、separate は建物等（措法31条・32条）の譲渡 */
+  taxation: 'general' | 'separate';
+  /** general は満年数 5 年未満が短期（所法33条3項1号）、separate は譲渡年 1 月 1 日の所有期間が 5 年以下なら短期 */
+  term: 'short' | 'long';
+}
+// 建物・建物附属設備・構築物（措法31条1項の「建物等」）。種類が未指定の資産は科目から推定する。
+export function isLandBuildingAsset(asset: FixedAsset): boolean {
+  const category = asset.assetCategory ?? defaultAssetCategory(asset.accountCode);
+  return category === 1 || category === 2;
+}
+// 建物等の短期・長期（措法31条1項・32条1項）。譲渡年 1 月 1 日で所有期間が 5 年を超えるのは、譲渡年 − 取得年が 6 以上のとき。
+function landBuildingTerm(acquisitionDate: string, disposedDate: string): 'short' | 'long' {
+  const years = Number(disposedDate.slice(0, 4)) - Number(acquisitionDate.slice(0, 4));
+  return years >= 6 ? 'long' : 'short';
 }
 // 取得日から処分日までの満年数（応当日基準の暦計算）。総合課税の譲渡所得の
 // 短期/長期判定は 365.25 日平均ではなく暦の 5 年境界で行うため、月日で応当日を判定する。
@@ -393,7 +410,8 @@ function fullYearsBetween(acquisitionDate: string, disposedDate: string): number
   }
   return years;
 }
-// 譲渡所得の参考試算（総合課税、事業所得には含めない）。特別控除と短期・長期の通算は aggregateTransferIncome() で行う。
+// 譲渡所得の参考試算（事業所得には含めない）。総合譲渡の特別控除と短期・長期の通算は aggregateTransferIncome() で、
+// 建物等の短期・長期の通算は separateTransferIncomeByTerm() で行う。
 // 一括償却資産（essentialToBusiness で譲渡所得対象になった場合）は所基通49-40の2・質疑応答事例04/04により
 // 個別資産の取得価額を取得費として控除できない（3年均等償却を継続するため）ので取得費は 0 とする。
 export function estimateTransferIncome(
@@ -417,12 +435,21 @@ export function estimateTransferIncome(
       : disposalBookValue(asset, undefined, smallAssetStatuses).bookValueEnd;
   const estimate = proceeds.minus(acquisitionExpense).minus(saleExpenses);
   const holdingYears = fullYearsBetween(asset.acquisitionDate, asset.disposedDate);
+  const taxation = isLandBuildingAsset(asset) ? 'separate' : 'general';
+  const term =
+    taxation === 'separate'
+      ? landBuildingTerm(asset.acquisitionDate, asset.disposedDate)
+      : holdingYears < SHORT_TERM_HOLDING_YEARS
+        ? 'short'
+        : 'long';
   return {
     proceeds: proceeds.toString(),
     acquisitionExpense,
     saleExpenses: saleExpenses.toString(),
     estimate: estimate.toString(),
     holdingYears,
+    taxation,
+    term,
   };
 }
 
@@ -478,7 +505,7 @@ export function aggregateTransferIncome(
     halfOfLongTermAndOccasional: half.toString(),
   };
 }
-// 指定年に売却した資産の譲渡益を短期・長期に振り分ける（aggregateTransferIncome の入力）。
+// 指定年に売却した資産の譲渡益を短期・長期に振り分ける（aggregateTransferIncome の入力）。建物等は含めない。
 export function transferIncomeByTerm(
   assets: readonly FixedAsset[],
   year: number,
@@ -492,15 +519,51 @@ export function transferIncomeByTerm(
       continue;
     }
     const estimate = estimateTransferIncome(asset, smallAssetStatuses);
-    if (!estimate) {
+    if (!estimate || estimate.taxation !== 'general') {
       continue;
     }
     count++;
-    if (estimate.holdingYears < SHORT_TERM_HOLDING_YEARS) {
+    if (estimate.term === 'short') {
       shortTerm = shortTerm.plus(estimate.estimate);
     } else {
       longTerm = longTerm.plus(estimate.estimate);
     }
+  }
+  return { shortTerm: shortTerm.toString(), longTerm: longTerm.toString(), count };
+}
+// 指定年に売却した建物等の譲渡所得を短期・長期に振り分け、負の側を正の側で相殺した額を返す。
+// 特別控除と 1/2 は無い。相殺しきれない損失は負のまま残り、他の所得とは通算できない。
+export function separateTransferIncomeByTerm(
+  assets: readonly FixedAsset[],
+  year: number,
+  smallAssetStatuses?: ReadonlyMap<string, SmallAssetStatus>,
+): { shortTerm: string; longTerm: string; count: number } {
+  let shortTerm = D(0);
+  let longTerm = D(0);
+  let count = 0;
+  for (const asset of assets) {
+    if (!asset.disposedDate || Number(asset.disposedDate.slice(0, 4)) !== year) {
+      continue;
+    }
+    const estimate = estimateTransferIncome(asset, smallAssetStatuses);
+    if (!estimate || estimate.taxation !== 'separate') {
+      continue;
+    }
+    count++;
+    if (estimate.term === 'short') {
+      shortTerm = shortTerm.plus(estimate.estimate);
+    } else {
+      longTerm = longTerm.plus(estimate.estimate);
+    }
+  }
+  if (shortTerm.isNegative() && longTerm.isPositive()) {
+    const offset = Decimal.min(shortTerm.negated(), longTerm);
+    shortTerm = shortTerm.plus(offset);
+    longTerm = longTerm.minus(offset);
+  } else if (longTerm.isNegative() && shortTerm.isPositive()) {
+    const offset = Decimal.min(longTerm.negated(), shortTerm);
+    longTerm = longTerm.plus(offset);
+    shortTerm = shortTerm.minus(offset);
   }
   return { shortTerm: shortTerm.toString(), longTerm: longTerm.toString(), count };
 }

@@ -80,7 +80,7 @@ describe('仕訳を書く取引の範囲', () => {
   test('仕訳を書く取引はこの 18 箇所', () => {
     expect(journalWrites.map((c) => c.at).sort()).toEqual(
       [
-        'domain/asset-disposal.ts:332',
+        'domain/asset-disposal.ts:335',
         'domain/bad-debt-reversal.ts:90',
         'domain/business-opening.ts:489',
         'domain/business-opening.ts:618',

@@ -102,6 +102,8 @@
     aggregateTransferIncome,
     estimateTransferIncome,
     generateDisposalEntry,
+    isLandBuildingAsset,
+    separateTransferIncomeByTerm,
     transferIncomeByTerm,
   } from '../domain/asset-disposal';
   import { DEPRECIABLE_ASSET_ACCOUNTS, defaultAssetCategory } from '../tax-schema/2026/accounts';
@@ -1587,13 +1589,21 @@
         Number(a.disposedDate.slice(0, 4)) === depreciationYear,
     ),
   );
+  // 建物等（措法31条・32条）は総合譲渡と別に合計する。種類の判定は登録内容だけで決まり、計算の成否に依らない
+  const transferAssetsGeneral = $derived(
+    transferAssetsThisYear.filter((a) => !isLandBuildingAsset(a)),
+  );
+  const transferAssetsSeparate = $derived(transferAssetsThisYear.filter(isLandBuildingAsset));
   type TransferTotalState =
     { ok: true; terms: ReturnType<typeof transferIncomeByTerm> } | { ok: false; names: string[] };
-  const transferIncomeTotal = $derived.by<TransferTotalState>(() => {
+  function sumTransferIncome(
+    targets: FixedAsset[],
+    sum: typeof transferIncomeByTerm,
+  ): TransferTotalState {
     if (depreciationInputs.status !== 'ok') {
       return { ok: false, names: [] };
     }
-    const failed = transferAssetsThisYear.filter((a) => {
+    const failed = targets.filter((a) => {
       const t = assetRowCalcs.get(a.id)?.transfer;
       return t !== null && t !== undefined && 'error' in t;
     });
@@ -1603,16 +1613,18 @@
     try {
       return {
         ok: true,
-        terms: transferIncomeByTerm(
-          transferAssetsThisYear,
-          depreciationYear,
-          depreciationInputs.inputs.statuses,
-        ),
+        terms: sum(targets, depreciationYear, depreciationInputs.inputs.statuses),
       };
     } catch {
-      return { ok: false, names: transferAssetsThisYear.map(fixedAssetLabel) };
+      return { ok: false, names: targets.map(fixedAssetLabel) };
     }
-  });
+  }
+  const transferIncomeTotal = $derived.by<TransferTotalState>(() =>
+    sumTransferIncome(transferAssetsGeneral, transferIncomeByTerm),
+  );
+  const separateTransferIncomeTotal = $derived.by<TransferTotalState>(() =>
+    sumTransferIncome(transferAssetsSeparate, separateTransferIncomeByTerm),
+  );
   const transferIncomeAggregate = $derived.by(() => {
     if (!transferIncomeTotal.ok) {
       return null;
@@ -4444,12 +4456,25 @@
                     </div>
                     {#if estimate}
                       <p>
-                        {m.settings_asset_disposal_transfer_estimate({
-                          proceeds: formatJPY(estimate.proceeds),
-                          acquisitionExpense: formatJPY(estimate.acquisitionExpense),
-                          estimate: formatJPY(estimate.estimate),
-                          years: estimate.holdingYears,
-                        })}
+                        {#if estimate.taxation === 'separate'}
+                          {m.settings_asset_disposal_transfer_estimate_separate({
+                            term:
+                              estimate.term === 'short'
+                                ? m.settings_transfer_term_short()
+                                : m.settings_transfer_term_long(),
+                            proceeds: formatJPY(estimate.proceeds),
+                            acquisitionExpense: formatJPY(estimate.acquisitionExpense),
+                            estimate: formatJPY(estimate.estimate),
+                            years: estimate.holdingYears,
+                          })}
+                        {:else}
+                          {m.settings_asset_disposal_transfer_estimate({
+                            proceeds: formatJPY(estimate.proceeds),
+                            acquisitionExpense: formatJPY(estimate.acquisitionExpense),
+                            estimate: formatJPY(estimate.estimate),
+                            years: estimate.holdingYears,
+                          })}
+                        {/if}
                       </p>
                     {/if}
                   </td>
@@ -4462,7 +4487,7 @@
     {:else}
       <p class="text-sm text-muted-foreground">{m.settings_asset_empty()}</p>
     {/if}
-    {#if transferAssetsThisYear.some((a) => assetRowCalcs.get(a.id)?.transfer) || (depreciationInputs.status === 'blocked' && transferAssetsThisYear.length > 0)}
+    {#if transferAssetsGeneral.some((a) => assetRowCalcs.get(a.id)?.transfer) || (depreciationInputs.status === 'blocked' && transferAssetsGeneral.length > 0)}
       <div class="space-y-2 pt-3 border-t border-border/50">
         <h4 class="text-sm font-semibold">
           {m.settings_transfer_income_aggregate_title({ year: depreciationYear })}
@@ -4500,6 +4525,31 @@
               half: formatJPY(transferIncomeAggregate.halfOfLongTermAndOccasional),
             })}
           </p>
+        {/if}
+      </div>
+    {/if}
+    {#if transferAssetsSeparate.some((a) => assetRowCalcs.get(a.id)?.transfer) || (depreciationInputs.status === 'blocked' && transferAssetsSeparate.length > 0)}
+      <div class="space-y-2 pt-3 border-t border-border/50">
+        <h4 class="text-sm font-semibold">
+          {m.settings_transfer_income_separate_title({ year: depreciationYear })}
+        </h4>
+        {#if !separateTransferIncomeTotal.ok}
+          <p class="text-xs text-destructive" role="alert">
+            {m.common_dash()}
+            {#if separateTransferIncomeTotal.names.length > 0}
+              {m.settings_transfer_income_unavailable({
+                names: separateTransferIncomeTotal.names.join('、'),
+              })}
+            {/if}
+          </p>
+        {:else}
+          <p class="text-xs text-muted-foreground">
+            {m.settings_transfer_income_separate_result({
+              shortTerm: formatJPY(separateTransferIncomeTotal.terms.shortTerm),
+              longTerm: formatJPY(separateTransferIncomeTotal.terms.longTerm),
+            })}
+          </p>
+          <p class="text-xs text-muted-foreground">{m.settings_transfer_income_separate_note()}</p>
         {/if}
       </div>
     {/if}

@@ -9,6 +9,8 @@ import {
   disposalBookValue,
   estimateTransferIncome,
   generateDisposalEntry,
+  isLandBuildingAsset,
+  separateTransferIncomeByTerm,
   transferIncomeByTerm,
 } from './asset-disposal';
 import { computeDepreciation, generateYearEndDepreciation } from './depreciation';
@@ -516,6 +518,200 @@ describe('transferIncomeByTerm', () => {
     const longEstimate = estimateTransferIncome(long)!.estimate;
     const r = transferIncomeByTerm([short, long, asset({ id: 'kept' })], 2026);
     expect(r).toEqual({ shortTerm: shortEstimate, longTerm: longEstimate, count: 2 });
+  });
+});
+
+describe('isLandBuildingAsset', () => {
+  test.each([
+    [1, true],
+    [2, true],
+    [3, false],
+    [4, false],
+    [5, false],
+    [6, false],
+    [7, false],
+    [8, false],
+    [9, false],
+  ] as const)('資産の種類 %i は %s', (assetCategory, expected) => {
+    expect(isLandBuildingAsset(asset({ assetCategory, accountCode: '1510' }))).toBe(expected);
+  });
+
+  test('坑道（種類 2・isMineShaft）も建物等', () => {
+    expect(isLandBuildingAsset(asset({ assetCategory: 2, isMineShaft: true }))).toBe(true);
+  });
+
+  test('種類が未指定なら科目 1511・1512 は建物等、他の科目は建物等でない', () => {
+    expect(isLandBuildingAsset(asset({ accountCode: '1511' }))).toBe(true);
+    expect(isLandBuildingAsset(asset({ accountCode: '1512' }))).toBe(true);
+    expect(isLandBuildingAsset(asset({ accountCode: '1510' }))).toBe(false);
+    expect(isLandBuildingAsset(asset({ accountCode: '1513' }))).toBe(false);
+  });
+
+  test('種類を指定していれば科目より種類を優先する', () => {
+    expect(isLandBuildingAsset(asset({ accountCode: '1511', assetCategory: 3 }))).toBe(false);
+  });
+});
+
+function building(overrides: Partial<FixedAsset> = {}): FixedAsset {
+  return asset({
+    accountCode: '1511',
+    assetCategory: 1,
+    usefulLifeYears: 20,
+    disposalType: 'sale',
+    ...overrides,
+  });
+}
+
+describe('建物等の譲渡所得（措法31条・32条）', () => {
+  test.each([
+    ['2020-07-01', '2025-12-01', 'short', 5],
+    ['2020-12-31', '2026-01-01', 'long', 5],
+    ['2020-01-01', '2025-12-31', 'short', 5],
+    ['2019-12-31', '2025-01-01', 'long', 5],
+  ] as const)('取得 %s・売却 %s は %s', (acquisitionDate, disposedDate, term, years) => {
+    const est = estimateTransferIncome(building({ acquisitionDate, disposedDate, salePrice: '1' }));
+    expect(est!.taxation).toBe('separate');
+    expect(est!.term).toBe(term);
+    expect(est!.holdingYears).toBe(years);
+  });
+
+  test('総合譲渡の資産は taxation が general で、短期・長期は満年数 5 年未満かどうか', () => {
+    const short = estimateTransferIncome(
+      asset({
+        acquisitionDate: '2021-06-15',
+        disposedDate: '2026-06-14',
+        disposalType: 'sale',
+        salePrice: '1',
+      }),
+    )!;
+    const long = estimateTransferIncome(
+      asset({
+        acquisitionDate: '2021-06-15',
+        disposedDate: '2026-06-15',
+        disposalType: 'sale',
+        salePrice: '1',
+      }),
+    )!;
+    expect([short.taxation, short.term]).toEqual(['general', 'short']);
+    expect([long.taxation, long.term]).toEqual(['general', 'long']);
+  });
+
+  test('transferIncomeByTerm は建物等を含めない', () => {
+    const b = building({ disposedDate: '2026-06-30', salePrice: '5000000' });
+    const e = asset({ disposedDate: '2026-06-30', disposalType: 'sale', salePrice: '1' });
+    expect(transferIncomeByTerm([b], 2026)).toEqual({ shortTerm: '0', longTerm: '0', count: 0 });
+    const only = transferIncomeByTerm([e], 2026);
+    expect(transferIncomeByTerm([b, e], 2026)).toEqual(only);
+    expect(only.count).toBe(1);
+  });
+
+  test('separateTransferIncomeByTerm は建物等だけを短期・長期に振り分ける', () => {
+    const shortB = building({
+      id: 's',
+      acquisitionDate: '2024-01-01',
+      disposedDate: '2026-06-30',
+      salePrice: '9000000',
+    });
+    const longB = building({
+      id: 'l',
+      acquisitionDate: '2015-01-01',
+      disposedDate: '2026-06-30',
+      salePrice: '9000000',
+    });
+    const other = asset({ disposedDate: '2026-06-30', disposalType: 'sale', salePrice: '999' });
+    const sShort = estimateTransferIncome(shortB)!.estimate;
+    const sLong = estimateTransferIncome(longB)!.estimate;
+    expect(D(sShort).isPositive() && D(sLong).isPositive()).toBe(true);
+    expect(separateTransferIncomeByTerm([shortB, longB, other], 2026)).toEqual({
+      shortTerm: sShort,
+      longTerm: sLong,
+      count: 2,
+    });
+    expect(separateTransferIncomeByTerm([shortB, longB, other], 2027).count).toBe(0);
+  });
+
+  test.each([
+    ['短期の損失は長期の益を減らす', '1', '9000000', '2024-01-01', '2015-01-01'],
+    ['長期の損失は短期の益を減らす', '9000000', '1', '2024-01-01', '2015-01-01'],
+    ['両方が損失ならそのまま負', '1', '1', '2024-01-01', '2015-01-01'],
+  ])('%s', (_name, shortSale, longSale, shortAcq, longAcq) => {
+    const shortB = building({
+      id: 's',
+      acquisitionDate: shortAcq,
+      disposedDate: '2026-06-30',
+      salePrice: shortSale,
+    });
+    const longB = building({
+      id: 'l',
+      acquisitionDate: longAcq,
+      disposedDate: '2026-06-30',
+      salePrice: longSale,
+    });
+    const s = D(estimateTransferIncome(shortB)!.estimate);
+    const l = D(estimateTransferIncome(longB)!.estimate);
+    const r = separateTransferIncomeByTerm([shortB, longB], 2026);
+    expect(D(r.shortTerm).plus(r.longTerm).toString()).toBe(s.plus(l).toString());
+    if (s.isNegative() && l.isPositive()) {
+      expect(D(r.shortTerm).isZero() || D(r.longTerm).isZero()).toBe(true);
+    }
+    if (s.isNegative() && l.isNegative()) {
+      expect(r.shortTerm).toBe(s.toString());
+      expect(r.longTerm).toBe(l.toString());
+    }
+  });
+
+  test('短期の損失 -300000 を長期の益 1000000 で相殺すると短期 0・長期 700000', () => {
+    const shortB = building({
+      id: 's',
+      acquisitionDate: '2025-01-01',
+      acquisitionCost: '1000000',
+      usefulLifeYears: 20,
+      disposedDate: '2025-06-30',
+      salePrice: '1',
+    });
+    const longB = building({
+      id: 'l',
+      acquisitionDate: '2010-01-01',
+      acquisitionCost: '100000000',
+      disposedDate: '2025-06-30',
+      salePrice: '1',
+    });
+    const sBook = D(disposalBookValue(shortB).bookValueEnd);
+    const lBook = D(disposalBookValue(longB).bookValueEnd);
+    shortB.salePrice = sBook.minus(300000).toString();
+    longB.salePrice = lBook.plus(1000000).toString();
+    expect(separateTransferIncomeByTerm([shortB, longB], 2025)).toEqual({
+      shortTerm: '0',
+      longTerm: '700000',
+      count: 2,
+    });
+    shortB.salePrice = sBook.plus(1000000).toString();
+    longB.salePrice = lBook.minus(300000).toString();
+    expect(separateTransferIncomeByTerm([shortB, longB], 2025)).toEqual({
+      shortTerm: '700000',
+      longTerm: '0',
+      count: 2,
+    });
+  });
+
+  test('器具備品と建物が同じ年に売れても、50 万円の特別控除は器具備品の益だけで計算する', () => {
+    const e = asset({
+      acquisitionDate: '2025-01-01',
+      disposedDate: '2025-06-30',
+      disposalType: 'sale',
+    });
+    e.salePrice = D(disposalBookValue(e).bookValueEnd).plus(300000).toString();
+    const b = building({
+      acquisitionDate: '2020-07-01',
+      disposedDate: '2025-12-01',
+      salePrice: '90000000',
+    });
+    const terms = transferIncomeByTerm([e, b], 2025);
+    expect(terms).toEqual({ shortTerm: '300000', longTerm: '0', count: 1 });
+    const agg = aggregateTransferIncome(terms);
+    expect(agg.gain).toBe('300000');
+    expect(agg.specialDeduction).toBe('300000');
+    expect(agg.shortTermIncome).toBe('0');
   });
 });
 
