@@ -22,6 +22,25 @@ function rowsInvalid<T extends { amount: string; deductibleAmount?: string }>(
     (r) => invalid(r.amount) || invalidIfPresent(r.deductibleAmount) || invalidIfPresent(extra(r)),
   );
 }
+function generalIncomeInvalid(stored: PersonalDeductionInput): boolean {
+  const { interestIncome, dividendIncome, generalTransferIncome, occasionalIncome } = stored;
+  return (
+    (interestIncome !== undefined &&
+      (invalid(interestIncome.amount) || invalidIfPresent(interestIncome.withholdingTax))) ||
+    (dividendIncome !== undefined &&
+      (invalid(dividendIncome.revenue) ||
+        invalidIfPresent(dividendIncome.debtInterest) ||
+        invalidIfPresent(dividendIncome.withholdingTax))) ||
+    (generalTransferIncome ?? []).some(
+      (i) =>
+        invalid(i.revenue) || invalidIfPresent(i.acquisitionCost) || invalidIfPresent(i.expenses),
+    ) ||
+    (occasionalIncome !== undefined &&
+      (invalid(occasionalIncome.revenue) ||
+        invalidIfPresent(occasionalIncome.expenses) ||
+        invalidIfPresent(occasionalIncome.withholdingTax)))
+  );
+}
 // personalDeductionsToCtx が実際に読む金額欄だけを対象にする（読まれない欄は出力に影響しない）
 function deductionsInvalid(
   stored: PersonalDeductionInput,
@@ -73,6 +92,7 @@ function deductionsInvalid(
         : invalidIfPresent(misc.publicPensionAmount)) ||
         invalidIfPresent(misc.otherIncome) ||
         invalidIfPresent(misc.otherExpenses))) ||
+    generalIncomeInvalid(stored) ||
     (realEstateIncomeEnabled &&
       realEstate !== undefined &&
       (invalidIfPresent(realEstate.landLoanInterestAmount) ||

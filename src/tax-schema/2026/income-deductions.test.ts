@@ -293,7 +293,8 @@ describe('その他の単純控除', () => {
 describe('computeIncomeDeductions', () => {
   test('全項目を合算した total を返す', () => {
     const input: IncomeDeductionInput = {
-      totalIncome: D(3_000_000),
+      legalTotalIncome: D(3_000_000),
+      totalIncomeEtc: D(3_000_000),
       socialInsurancePaid: D(400_000),
       smallBusinessMutualAidPaid: D(0),
       lifeInsurance: {},
@@ -317,7 +318,8 @@ describe('computeIncomeDeductions', () => {
 
   test('勤労学生は合計所得金額が上限を超えると控除額0で total にも含まれない', () => {
     const base: IncomeDeductionInput = {
-      totalIncome: D(890_000),
+      legalTotalIncome: D(890_000),
+      totalIncomeEtc: D(890_000),
       socialInsurancePaid: D(0),
       smallBusinessMutualAidPaid: D(0),
       lifeInsurance: {},
@@ -335,7 +337,11 @@ describe('computeIncomeDeductions', () => {
       dependents: [],
     };
     const within = computeIncomeDeductions(2026, base);
-    const over = computeIncomeDeductions(2026, { ...base, totalIncome: D(890_001) });
+    const over = computeIncomeDeductions(2026, {
+      ...base,
+      legalTotalIncome: D(890_001),
+      totalIncomeEtc: D(890_001),
+    });
     expect(within.workingStudentDeduction.toString()).toBe('270000');
     expect(over.workingStudentDeduction.toString()).toBe('0');
     expect(within.total.minus(over.total).toString()).toBe(
@@ -345,7 +351,8 @@ describe('computeIncomeDeductions', () => {
 
   test('ひとり親は合計所得金額が500万円を超えると控除額0で total にも含まれない', () => {
     const base: IncomeDeductionInput = {
-      totalIncome: D(5_000_001),
+      legalTotalIncome: D(5_000_001),
+      totalIncomeEtc: D(5_000_001),
       socialInsurancePaid: D(0),
       smallBusinessMutualAidPaid: D(0),
       lifeInsurance: {},
@@ -364,10 +371,63 @@ describe('computeIncomeDeductions', () => {
     };
     const over = computeIncomeDeductions(2026, base);
     const without = computeIncomeDeductions(2026, { ...base, isSingleParent: false });
-    const within = computeIncomeDeductions(2026, { ...base, totalIncome: D(5_000_000) });
+    const within = computeIncomeDeductions(2026, {
+      ...base,
+      legalTotalIncome: D(5_000_000),
+      totalIncomeEtc: D(5_000_000),
+    });
     expect(over.singleParentOrWidowDeduction.toString()).toBe('0');
     expect(over.total.toString()).toBe(without.total.toString());
     expect(within.singleParentOrWidowDeduction.toString()).toBe('350000');
+  });
+});
+
+describe('computeIncomeDeductions の合計所得金額と総所得金額等', () => {
+  const base: IncomeDeductionInput = {
+    legalTotalIncome: D(3_000_000),
+    totalIncomeEtc: D(3_000_000),
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(300_000),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(1_000_000),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: true,
+    isWidow: false,
+    isWorkingStudent: true,
+    spouse: { totalIncome: D(0), age: 40 },
+    dependents: [],
+  };
+
+  test('基礎控除・ひとり親・勤労学生・配偶者控除は合計所得金額を読み、総所得金額等には反応しない', () => {
+    const changed = computeIncomeDeductions(2026, { ...base, totalIncomeEtc: D(99_000_000) });
+    const original = computeIncomeDeductions(2026, base);
+    expect(changed.basicDeduction.toString()).toBe(original.basicDeduction.toString());
+    expect(changed.singleParentOrWidowDeduction.toString()).toBe('350000');
+    expect(changed.workingStudentDeduction.toString()).toBe('0');
+    expect(changed.spouseDeduction.toString()).toBe(original.spouseDeduction.toString());
+    const high = computeIncomeDeductions(2026, { ...base, legalTotalIncome: D(10_000_001) });
+    expect(high.basicDeduction.toString()).toBe('620000');
+    expect(high.singleParentOrWidowDeduction.toString()).toBe('0');
+    expect(high.spouseDeduction.toString()).toBe('0');
+  });
+
+  test('医療費控除・寄附金控除は総所得金額等を読み、合計所得金額には反応しない', () => {
+    const original = computeIncomeDeductions(2026, base);
+    // 医療費 30 万円−min(10 万円, 300 万円の 5％)＝20 万円、寄附金は min(100 万円, 300 万円の 40％)−2,000 円
+    expect(original.medicalExpenseDeduction.toString()).toBe('200000');
+    expect(original.donationDeduction.toString()).toBe('998000');
+    const small = computeIncomeDeductions(2026, { ...base, totalIncomeEtc: D(1_000_000) });
+    expect(small.medicalExpenseDeduction.toString()).toBe('250000');
+    expect(small.donationDeduction.toString()).toBe('398000');
+    const legalChanged = computeIncomeDeductions(2026, { ...base, legalTotalIncome: D(9_000_000) });
+    expect(legalChanged.medicalExpenseDeduction.toString()).toBe('200000');
+    expect(legalChanged.donationDeduction.toString()).toBe('998000');
   });
 });
 
@@ -607,7 +667,8 @@ describe('relativeDisabilityDeduction（同一生計配偶者・扶養親族の�
 
   test('配偶者と扶養親族の分を合算し、computeIncomeDeductions の障害者控除に本人分と合わせて入る', () => {
     const result = computeIncomeDeductions(2026, {
-      totalIncome: D(3_000_000),
+      legalTotalIncome: D(3_000_000),
+      totalIncomeEtc: D(3_000_000),
       socialInsurancePaid: D(0),
       smallBusinessMutualAidPaid: D(0),
       lifeInsurance: {},

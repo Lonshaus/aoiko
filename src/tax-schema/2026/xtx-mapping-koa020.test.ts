@@ -2,13 +2,17 @@ import { describe, expect, test } from 'vitest';
 import { XtxAmountOutOfRangeError } from './xtx-mapping-shared';
 import { D, Decimal } from '../../lib/decimal';
 import {
-  combinedTotalIncomeAmount,
+  generalIncomeOf,
+  koa020DetailOverflow,
+  koa020InputBlocker,
+  ordinaryIncomeAmount,
   mapKoa020LeafValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
   realEstateFamilyEmployeeDeductionResult,
   totalIncomeAmount,
 } from './xtx-mapping-koa020';
+import { NO_FIXED_ASSET_TRANSFER, type FixedAssetTransfer } from './general-income';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa220Values } from './xtx-mapping-koa220';
 import { mapKoa110Values } from './xtx-mapping-koa110';
@@ -108,23 +112,24 @@ describe('mapKoa020LeafValues（第一表の直接値）', () => {
     expect(values).toContain('1900000'); // 事業所得=控除前200万−10万
   });
 
-  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
-    socialInsurancePaid: D(400_000),
-    smallBusinessMutualAidPaid: D(0),
-    lifeInsurance: {},
-    earthquakeInsurancePaid: D(0),
-    oldLongTermInsurancePaid: D(0),
-    medicalExpensePaid: D(0),
-    medicalInsuranceReimbursement: D(0),
-    donationAmount: D(0),
-    casualtyLossDeduction: D(0),
-    isDisabled: false,
-    isSpecialDisabled: false,
-    isSingleParent: false,
-    isWidow: false,
-    isWorkingStudent: false,
-    dependents: [],
-  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> =
+    {
+      socialInsurancePaid: D(400_000),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
 
   test('personalDeductions 入力時、所得控除・税額の各欄も出力する', () => {
     const out = mapKoa020LeafValues(
@@ -481,7 +486,7 @@ function realEstatePl(netIncome: string): PLReport {
   };
 }
 
-describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との共有枠、B7 part2）', () => {
+describe('totalIncomeAmount / ordinaryIncomeAmount（不動産所得との共有枠、B7 part2）', () => {
   const plBase = {
     year: 2026,
     revenue: [],
@@ -491,28 +496,29 @@ describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との�
     netIncome: '0',
     entryCount: 0,
   };
-  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
-    socialInsurancePaid: D(0),
-    smallBusinessMutualAidPaid: D(0),
-    lifeInsurance: {},
-    earthquakeInsurancePaid: D(0),
-    oldLongTermInsurancePaid: D(0),
-    medicalExpensePaid: D(0),
-    medicalInsuranceReimbursement: D(0),
-    donationAmount: D(0),
-    casualtyLossDeduction: D(0),
-    isDisabled: false,
-    isSpecialDisabled: false,
-    isSingleParent: false,
-    isWidow: false,
-    isWorkingStudent: false,
-    dependents: [],
-  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> =
+    {
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
 
   test('不動産所得が無ければ従来どおり単独の青色控除額を使う', () => {
     const c = ctx({ pl: { ...plBase, netIncome: '3000000' }, aoiroDeductionKind: 'electronic' });
     expect(totalIncomeAmount(c).toString()).toBe('2350000');
-    expect(combinedTotalIncomeAmount(c).toString()).toBe('2350000');
+    expect(ordinaryIncomeAmount(c).toString()).toBe('2350000');
   });
 
   test('不動産所得の黒字分が共有枠から優先控除され、事業所得側の控除額はその分だけ減る', () => {
@@ -528,7 +534,7 @@ describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との�
     // 限度額65万、不動産所得400万から優先控除→65万を使い切り、事業所得側の控除は0
     expect(totalIncomeAmount(c).toString()).toBe('5000000');
     // combinedIncome = 事業所得500万 + 損益通算可能な不動産所得(400万-65万=335万) = 835万
-    expect(combinedTotalIncomeAmount(c).toString()).toBe('8350000');
+    expect(ordinaryIncomeAmount(c).toString()).toBe('8350000');
   });
 
   test('不動産所得が赤字で土地等負債利子額があれば、その分だけ合計所得金額から除外される', () => {
@@ -544,7 +550,7 @@ describe('totalIncomeAmount / combinedTotalIncomeAmount（不動産所得との�
     // 事業所得は不動産所得の有無に関わらず単独黒字300万→控除65万→235万
     expect(totalIncomeAmount(c).toString()).toBe('2350000');
     // 不動産所得赤字100万のうち30万は損益通算不可→通算できるのは70万分の赤字
-    expect(combinedTotalIncomeAmount(c).toString()).toBe('1650000');
+    expect(ordinaryIncomeAmount(c).toString()).toBe('1650000');
   });
 });
 
@@ -558,23 +564,24 @@ describe('mapKoa020LeafValues（不動産所得ありの第一表・第二表欄
     netIncome: '0',
     entryCount: 0,
   };
-  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
-    socialInsurancePaid: D(0),
-    smallBusinessMutualAidPaid: D(0),
-    lifeInsurance: {},
-    earthquakeInsurancePaid: D(0),
-    oldLongTermInsurancePaid: D(0),
-    medicalExpensePaid: D(0),
-    medicalInsuranceReimbursement: D(0),
-    donationAmount: D(0),
-    casualtyLossDeduction: D(0),
-    isDisabled: false,
-    isSpecialDisabled: false,
-    isSingleParent: false,
-    isWidow: false,
-    isWorkingStudent: false,
-    dependents: [],
-  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> =
+    {
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
 
   test('不動産あり：青色控除は2枚合計・収入/所得/第二表控除欄を出力', () => {
     const rePl = realEstatePl('325000');
@@ -623,23 +630,24 @@ describe('mapKoa020LeafValues（白色申告：所得控除・税額・不動産
     netIncome: '0',
     entryCount: 0,
   };
-  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
-    socialInsurancePaid: D(400_000),
-    smallBusinessMutualAidPaid: D(0),
-    lifeInsurance: {},
-    earthquakeInsurancePaid: D(0),
-    oldLongTermInsurancePaid: D(0),
-    medicalExpensePaid: D(0),
-    medicalInsuranceReimbursement: D(0),
-    donationAmount: D(0),
-    casualtyLossDeduction: D(0),
-    isDisabled: false,
-    isSpecialDisabled: false,
-    isSingleParent: false,
-    isWidow: false,
-    isWorkingStudent: false,
-    dependents: [],
-  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> =
+    {
+      socialInsurancePaid: D(400_000),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
 
   test('白色×personalDeductions：所得控除・課税所得・税額・復興税を出力する', () => {
     const out = mapKoa020LeafValues(
@@ -858,23 +866,24 @@ describe('措法25条の2の事業を営むか否かの判定・前々年分収�
     netIncome: '0',
     entryCount: 0,
   };
-  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
-    socialInsurancePaid: D(0),
-    smallBusinessMutualAidPaid: D(0),
-    lifeInsurance: {},
-    earthquakeInsurancePaid: D(0),
-    oldLongTermInsurancePaid: D(0),
-    medicalExpensePaid: D(0),
-    medicalInsuranceReimbursement: D(0),
-    donationAmount: D(0),
-    casualtyLossDeduction: D(0),
-    isDisabled: false,
-    isSpecialDisabled: false,
-    isSingleParent: false,
-    isWidow: false,
-    isWorkingStudent: false,
-    dependents: [],
-  };
+  const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> =
+    {
+      socialInsurancePaid: D(0),
+      smallBusinessMutualAidPaid: D(0),
+      lifeInsurance: {},
+      earthquakeInsurancePaid: D(0),
+      oldLongTermInsurancePaid: D(0),
+      medicalExpensePaid: D(0),
+      medicalInsuranceReimbursement: D(0),
+      donationAmount: D(0),
+      casualtyLossDeduction: D(0),
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+    };
   function storedBase(overrides: Partial<PersonalDeductionInput> = {}) {
     return {
       socialInsurancePaid: '0',
@@ -1133,5 +1142,355 @@ describe('gen:kingaku に収まらない値', () => {
     expect(() => mapKoa020LeafValues(ctx({ pl: { ...base.pl, totalRevenue: v } }))).toThrow(
       XtxAmountOutOfRangeError,
     );
+  });
+});
+
+describe('総合課税の利子・配当・譲渡・一時所得（第一表・第二表）', () => {
+  const plBase = {
+    year: 2026,
+    revenue: [],
+    expense: [],
+    totalRevenue: '0',
+    totalExpense: '0',
+    netIncome: '0',
+    entryCount: 0,
+  };
+  const base: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> = {
+    socialInsurancePaid: D(0),
+    smallBusinessMutualAidPaid: D(0),
+    lifeInsurance: {},
+    earthquakeInsurancePaid: D(0),
+    oldLongTermInsurancePaid: D(0),
+    medicalExpensePaid: D(0),
+    medicalInsuranceReimbursement: D(0),
+    donationAmount: D(0),
+    casualtyLossDeduction: D(0),
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+  };
+  type Deductions = NonNullable<XtxContext['personalDeductions']>;
+  const occasionalOf = (over: Partial<NonNullable<Deductions['occasionalIncome']>> = {}) => ({
+    revenue: D(1_500_000),
+    expenses: D(0),
+    withholdingTax: D(0),
+    category: '生命保険の満期返戻金',
+    payerName: '青空生命保険',
+    payerAddress: '東京都千代田区1-1',
+    ...over,
+  });
+  const itemOf = (
+    term: 'short' | 'long',
+    revenue: number,
+    acquisitionCost = 0,
+    expenses = 0,
+    nonEssential = false,
+  ) => ({
+    term,
+    revenue: D(revenue),
+    acquisitionCost: D(acquisitionCost),
+    expenses: D(expenses),
+    nonEssential,
+  });
+  const withDeductions = (over: Partial<Deductions>, ctxOver: Partial<XtxContext> = {}) =>
+    ctx({ pl: plBase, personalDeductions: { ...base, ...over }, ...ctxOver });
+
+  test('例1：一時所得 収入 150 万円・支出 0 → ABB00230＝100 万円・ABB00400＝50 万円・ABX と ABD が各 1 行', () => {
+    const c = withDeductions({ occasionalIncome: occasionalOf() });
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00230).toBe('1000000');
+    expect(out.ABB00400).toBe('500000');
+    expect(out.ABB00130).toBeUndefined();
+    expect(out.ABB00180).toBeUndefined();
+    const repeats = mapKoa020RepeatedValues(c);
+    expect(repeats.ABX00000).toEqual([
+      { ABX00250: '一時', ABX00260: '1500000', ABX00290: '0', ABX00310: '1500000' },
+    ]);
+    expect(repeats.ABD00010).toEqual([
+      {
+        ABD00020: '一時',
+        ABD00025: '生命保険の満期返戻金',
+        ABD00030: '東京都千代田区1-1',
+        ABD00040: '青空生命保険',
+        ABD00050: '1500000',
+      },
+    ]);
+    expect(koa020InputBlocker(c)).toBeUndefined();
+  });
+
+  test('一時所得の源泉徴収税額は ABD00060 と ABB00710 に出し、0 のときは ABD00060 を出さない', () => {
+    const withTax = withDeductions({
+      occasionalIncome: occasionalOf({ withholdingTax: D(30_630) }),
+    });
+    expect(mapKoa020RepeatedValues(withTax).ABD00010?.[0]?.ABD00060).toBe('30630');
+    expect(mapKoa020LeafValues(withTax).ABB00710).toBe('30630');
+    expect(mapKoa020LeafValues(withTax).ABB00810).toBe('30630');
+    const without = withDeductions({ occasionalIncome: occasionalOf() });
+    expect(mapKoa020RepeatedValues(without).ABD00010?.[0]).not.toHaveProperty('ABD00060');
+    expect(mapKoa020LeafValues(without)).not.toHaveProperty('ABB00810');
+  });
+
+  test('例2：他の資産の短期譲渡（収入 120 万円・取得費 50 万円・費用 10 万円）→ ABB00130＝ABB00400＝10 万円、.xtx は KOC020 で止まる', () => {
+    const c = withDeductions({
+      generalTransferIncome: [itemOf('short', 1_200_000, 500_000, 100_000)],
+    });
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00130).toBe('100000');
+    expect(out.ABB00400).toBe('100000');
+    expect(mapKoa020RepeatedValues(c).ABX00000).toEqual([
+      { ABX00250: '譲渡（短期）', ABX00260: '1200000', ABX00290: '600000', ABX00310: '600000' },
+    ]);
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'transfer-koc020' });
+  });
+
+  test('例3：長期譲渡 差引 80 万円 → ABB00180＝30 万円・ABB00400＝15 万円', () => {
+    const c = withDeductions({ generalTransferIncome: [itemOf('long', 800_000)] });
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00180).toBe('300000');
+    expect(out.ABB00400).toBe('150000');
+    expect(mapKoa020RepeatedValues(c).ABX00000?.[0]?.ABX00250).toBe('譲渡（長期）');
+  });
+
+  test('利子は所得金額等 ABB00350、配当は収入金額等 ABB00070 と所得金額等 ABB00360（収入−負債の利子）', () => {
+    const out = mapKoa020LeafValues(
+      withDeductions({
+        interestIncome: { amount: D(100_000), withholdingTax: D(15_315) },
+        dividendIncome: {
+          revenue: D(300_000),
+          debtInterest: D(100_000),
+          withholdingTax: D(61_260),
+        },
+      }),
+    );
+    expect(out.ABB00350).toBe('100000');
+    expect(out.ABB00070).toBe('300000');
+    expect(out.ABB00360).toBe('200000');
+    expect(out.ABB00710).toBe('76575');
+  });
+
+  test('配当が負債の利子を下回っても ABB00360 は 0 で、利子・配当が 0 の欄は出さない', () => {
+    const out = mapKoa020LeafValues(
+      withDeductions({
+        interestIncome: { amount: D(0), withholdingTax: D(0) },
+        dividendIncome: { revenue: D(100_000), debtInterest: D(150_000), withholdingTax: D(0) },
+      }),
+    );
+    expect(out.ABB00360).toBe('0');
+    expect(out.ABB00350).toBeUndefined();
+  });
+
+  test('課税される所得金額は利子・配当を含む総所得金額から所得控除を引く', () => {
+    const c = withDeductions(
+      {
+        socialInsurancePaid: D(400_000),
+        interestIncome: { amount: D(100_000), withholdingTax: D(0) },
+        dividendIncome: { revenue: D(300_000), debtInterest: D(100_000), withholdingTax: D(0) },
+      },
+      { pl: { ...plBase, netIncome: '3000000' } },
+    );
+    const out = mapKoa020LeafValues(c);
+    // 事業 235 万円＋利子 10 万円＋配当 20 万円＝265 万円、控除は基礎 104 万円＋社会保険料 40 万円
+    expect(out.ABB00580).toBe('1210000');
+    expect(out.ABB00775).toBe('2650000');
+  });
+
+  test('合計所得金額が 489 万円を超えると基礎控除が 104 万円から 67 万円へ変わる', () => {
+    const at = (dividend: number) =>
+      mapKoa020LeafValues(
+        withDeductions(
+          { dividendIncome: { revenue: D(dividend), debtInterest: D(0), withholdingTax: D(0) } },
+          { pl: { ...plBase, netIncome: '3000000' } },
+        ),
+      );
+    expect(at(2_540_000).ABB00550).toBe('1040000');
+    expect(at(2_540_001).ABB00550).toBe('670000');
+  });
+
+  test('建物等の売却は総合譲渡に入れず、ABB00130・ABB00180・ABB00400 を出さない', () => {
+    const transfer: FixedAssetTransfer = {
+      ...NO_FIXED_ASSET_TRANSFER,
+      totals: { ...NO_FIXED_ASSET_TRANSFER.totals, separateNames: ['事務所建物'] },
+    };
+    const c = withDeductions({}, { fixedAssetTransfer: transfer });
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00130).toBeUndefined();
+    expect(out.ABB00180).toBeUndefined();
+    expect(out.ABB00400).toBeUndefined();
+    expect(mapKoa020RepeatedValues(c).ABX00000).toBeUndefined();
+    expect(generalIncomeOf(c).hasTransfer).toBe(false);
+    expect(koa020InputBlocker(c)).toBeUndefined();
+  });
+
+  test('固定資産の売却（総合部分）がある年は、短期・長期の行と KOC020 の案内になる', () => {
+    const transfer: FixedAssetTransfer = {
+      ...NO_FIXED_ASSET_TRANSFER,
+      totals: {
+        ...NO_FIXED_ASSET_TRANSFER.totals,
+        longTerm: D(800_000),
+        longRevenue: D(1_500_000),
+        longExpense: D(700_000),
+        longCount: 1,
+      },
+    };
+    const c = withDeductions({}, { fixedAssetTransfer: transfer });
+    expect(mapKoa020LeafValues(c).ABB00180).toBe('300000');
+    expect(mapKoa020RepeatedValues(c).ABX00000).toEqual([
+      { ABX00250: '譲渡（長期）', ABX00260: '1500000', ABX00290: '700000', ABX00310: '800000' },
+    ]);
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'transfer-koc020' });
+    expect(koa020InputBlocker(ctx({ fixedAssetTransfer: transfer }))).toEqual({
+      reason: 'transfer-koc020',
+    });
+  });
+
+  test('当年に売却した資産を計算できないときは、資産名つきで止める', () => {
+    const c = withDeductions({}, { fixedAssetTransfer: { ok: false, names: ['機材A', '機材B'] } });
+    expect(koa020InputBlocker(c)).toEqual({
+      reason: 'asset-transfer-failed',
+      names: ['機材A', '機材B'],
+    });
+  });
+
+  test('支払者の名称がない一時所得は止める（空白・改行だけでも同じ）', () => {
+    for (const payerName of ['', ' \n\t ']) {
+      const c = withDeductions({ occasionalIncome: occasionalOf({ payerName }) });
+      expect(koa020InputBlocker(c)).toEqual({ reason: 'payer-name-missing' });
+    }
+    const noRevenue = withDeductions({
+      occasionalIncome: occasionalOf({ payerName: '', revenue: D(0) }),
+    });
+    expect(koa020InputBlocker(noRevenue)).toBeUndefined();
+  });
+
+  test('生活に通常必要でない資産とその他の資産の損失が両方あると UNCONFIRMED で止める', () => {
+    const c = withDeductions({
+      generalTransferIncome: [
+        itemOf('long', 200_000, 500_000, 0, true),
+        itemOf('short', 100_000, 300_000),
+      ],
+    });
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'nonessential-unconfirmed' });
+  });
+
+  test('(a) 事業赤字が長期譲渡と一時所得から引かれ、総所得金額は令198条の順で 5 万円', () => {
+    const c = withDeductions(
+      {
+        generalTransferIncome: [itemOf('long', 800_000)],
+        occasionalIncome: occasionalOf({ revenue: D(800_000) }),
+      },
+      { pl: { ...plBase, totalExpense: '500000', netIncome: '-500000' } },
+    );
+    const g = generalIncomeOf(c);
+    expect(g.nettedLong.toString()).toBe('0');
+    expect(g.nettedOccasional.toString()).toBe('100000');
+    expect(g.aggregate.toString()).toBe('50000');
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'transfer-koc020' });
+  });
+
+  test('(b) 短期譲渡の赤字は一時所得から先に引き、経常所得は残る', () => {
+    const c = withDeductions({
+      miscIncome: { otherIncome: D(300_000), otherExpenses: D(0) },
+      generalTransferIncome: [itemOf('short', 400_000, 1_000_000)],
+      occasionalIncome: occasionalOf({ revenue: D(1_100_000) }),
+    });
+    const g = generalIncomeOf(c);
+    expect(g.nettedOccasional.toString()).toBe('0');
+    expect(g.nettedOrdinary.toString()).toBe('300000');
+    expect(g.aggregate.toString()).toBe('300000');
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'transfer-koc020' });
+  });
+
+  test('事業赤字があり一時所得もあるときは損益の通算の計算書が要るため止める', () => {
+    const c = withDeductions(
+      { occasionalIncome: occasionalOf({ revenue: D(800_000) }) },
+      { pl: { ...plBase, totalExpense: '300000', netIncome: '-300000' } },
+    );
+    expect(koa020InputBlocker(c)).toEqual({ reason: 'netting-statement' });
+  });
+
+  test('事業赤字だけで総合譲渡も一時所得もなければ、従来どおり出力する', () => {
+    const c = withDeductions(
+      {},
+      { pl: { ...plBase, totalExpense: '300000', netIncome: '-300000' } },
+    );
+    expect(koa020InputBlocker(c)).toBeUndefined();
+    const out = mapKoa020LeafValues(c);
+    expect(out.ABB00300).toBe('-300000');
+    expect(out.ABB00400).toBeUndefined();
+    expect(out.ABB00580).toBe('0');
+  });
+
+  test('新しい入力がなく当年の売却もなければ、出力は fixedAssetTransfer の有無で変わらず新しい欄も出さない', () => {
+    const plain = withDeductions({}, { pl: { ...plBase, netIncome: '3000000' } });
+    const none = withDeductions(
+      {},
+      { pl: { ...plBase, netIncome: '3000000' }, fixedAssetTransfer: NO_FIXED_ASSET_TRANSFER },
+    );
+    expect(mapKoa020LeafValues(none)).toEqual(mapKoa020LeafValues(plain));
+    expect(mapKoa020RepeatedValues(none)).toEqual(mapKoa020RepeatedValues(plain));
+    const out = mapKoa020LeafValues(plain);
+    for (const tag of [
+      'ABB00070',
+      'ABB00130',
+      'ABB00180',
+      'ABB00230',
+      'ABB00350',
+      'ABB00360',
+      'ABB00400',
+    ]) {
+      expect(out[tag]).toBeUndefined();
+    }
+    expect(mapKoa020RepeatedValues(plain)).toEqual({});
+    expect(koa020InputBlocker(plain)).toBeUndefined();
+    expect(out.ABB00580).toBe('1310000');
+  });
+
+  test('種目は 10 字、所在地等は 100 字に切り、改行とタブを含めない', () => {
+    const address = 'あ'.repeat(60) + '\n\t' + 'い'.repeat(100);
+    const c = withDeductions({
+      occasionalIncome: occasionalOf({ category: '123456789012345', payerAddress: address }),
+    });
+    const row = mapKoa020RepeatedValues(c).ABD00010?.[0];
+    expect(row?.ABD00025).toBe('1234567890');
+    expect(row?.ABD00030).toBe('あ'.repeat(60) + ' ' + 'い'.repeat(39));
+    expect(row?.ABD00030).toHaveLength(100);
+    expect(row?.ABD00030).not.toMatch(/[\n\r\t]/);
+  });
+
+  test('種目・所在地が空なら ABD00025・ABD00030 を出さない', () => {
+    const c = withDeductions({
+      occasionalIncome: occasionalOf({ category: '', payerAddress: '' }),
+    });
+    const row = mapKoa020RepeatedValues(c).ABD00010?.[0];
+    expect(row).not.toHaveProperty('ABD00025');
+    expect(row).not.toHaveProperty('ABD00030');
+  });
+
+  test('ABX は 2 行までで、3 行目（一時所得）は koa020DetailOverflow に出る', () => {
+    const transfer: FixedAssetTransfer = {
+      ...NO_FIXED_ASSET_TRANSFER,
+      totals: {
+        ...NO_FIXED_ASSET_TRANSFER.totals,
+        shortTerm: D(600_000),
+        shortRevenue: D(900_000),
+        shortExpense: D(300_000),
+        shortCount: 1,
+      },
+    };
+    const c = withDeductions(
+      {
+        generalTransferIncome: [itemOf('long', 800_000)],
+        occasionalIncome: occasionalOf(),
+      },
+      { fixedAssetTransfer: transfer },
+    );
+    const repeats = mapKoa020RepeatedValues(c);
+    expect(repeats.ABX00000?.map((r) => r.ABX00250)).toEqual(['譲渡（短期）', '譲渡（長期）']);
+    expect(koa020DetailOverflow(c)).toEqual([
+      { section: 'transferIncome', label: '一時', amount: '1500000' },
+    ]);
   });
 });

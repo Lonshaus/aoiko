@@ -19,6 +19,7 @@
   import { getSetting } from '../lib/settings';
   import { describeStorageError } from '../lib/storage-error';
   import { buildPL } from '../domain/reports';
+  import { loadEffectiveBusinessDates } from '../domain/depreciation';
   import {
     computeIncomeDeductions,
     computeIncomeTax,
@@ -31,17 +32,26 @@
   } from '../tax-schema/2026/other-income';
   import {
     businessFamilyEmployeeDeductionResultForOutput,
-    combinedTotalIncomeAmount,
+    generalIncomeOf,
     publicPensionIncomeOf,
     realEstateFamilyEmployeeDeductionResult,
     totalIncomeAmount,
   } from '../tax-schema/2026/xtx-mapping-koa020';
+  import {
+    NO_FIXED_ASSET_TRANSFER,
+    aggregateIncomeAmount,
+    legalTotalIncomeAmount,
+    resolveFixedAssetTransfer,
+    totalIncomeAmountEtc,
+    type FixedAssetTransfer,
+  } from '../tax-schema/2026/general-income';
   import { familyEmployeeExclusion } from '../tax-schema/2026/family-employee-deduction';
   import type {
     FamilyEmployeeRelation,
     PersonalDeductionDependent,
     PersonalDeductionFamilyEmployee,
     PersonalDeductionInput,
+    GeneralTransferItem,
     RealEstateLoanInterestPaidDetail,
     RealEstateProfessionalFeeDetail,
     RealEstateRentPaidDetail,
@@ -119,6 +129,27 @@
   let homeWorker = $state(false);
   let priorPriorBusinessRevenue = $state('0');
   let priorPriorRealEstateRevenue = $state('0');
+  let interestAmount = $state('0');
+  let interestWithholding = $state('0');
+  let dividendRevenue = $state('0');
+  let dividendDebtInterest = $state('0');
+  let dividendWithholding = $state('0');
+  let transferItems = $state<
+    Array<{
+      id: string;
+      term: GeneralTransferItem['term'];
+      revenue: string;
+      acquisitionCost: string;
+      expenses: string;
+      nonEssential: boolean;
+    }>
+  >([]);
+  let occasionalRevenue = $state('0');
+  let occasionalExpenses = $state('0');
+  let occasionalWithholding = $state('0');
+  let occasionalCategory = $state('');
+  let occasionalPayerName = $state('');
+  let occasionalPayerAddress = $state('');
 
   let realEstateBusinessScale = $state(false);
   let realEstateLandLoanInterest = $state('0');
@@ -173,6 +204,7 @@
   let filingTypeCache = $state<FilingType>('blue');
   let aoiroDeductionKindCache = $state<AoiroDeductionKind>('electronic');
   let cashBasisCache = $state(false);
+  let fixedAssetTransferCache = $state.raw<FixedAssetTransfer>(NO_FIXED_ASSET_TRANSFER);
 
   function resetForm() {
     socialInsurancePaid = '0';
@@ -220,6 +252,18 @@
     homeWorker = false;
     priorPriorBusinessRevenue = '0';
     priorPriorRealEstateRevenue = '0';
+    interestAmount = '0';
+    interestWithholding = '0';
+    dividendRevenue = '0';
+    dividendDebtInterest = '0';
+    dividendWithholding = '0';
+    transferItems = [];
+    occasionalRevenue = '0';
+    occasionalExpenses = '0';
+    occasionalWithholding = '0';
+    occasionalCategory = '';
+    occasionalPayerName = '';
+    occasionalPayerAddress = '';
     realEstateBusinessScale = false;
     realEstateLandLoanInterest = '0';
     realEstateRentPaid = [];
@@ -237,6 +281,10 @@
       isObjArray(v.dependents) &&
       (v.familyEmployees == null || isObjArray(v.familyEmployees)) &&
       (!v.spouse || isObj(v.spouse)) &&
+      (v.generalTransferIncome == null || isObjArray(v.generalTransferIncome)) &&
+      ['interestIncome', 'dividendIncome', 'occasionalIncome'].every(
+        (k) => v[k] == null || isObj(v[k]),
+      ) &&
       (!re ||
         (isObj(re) &&
           ['rentPaid', 'loanInterestPaid', 'professionalFeesPaid'].every(
@@ -305,6 +353,25 @@
     homeWorker = stored.homeWorker ?? false;
     priorPriorBusinessRevenue = stored.priorPriorBusinessRevenue ?? '0';
     priorPriorRealEstateRevenue = stored.priorPriorRealEstateRevenue ?? '0';
+    interestAmount = stored.interestIncome?.amount ?? '0';
+    interestWithholding = stored.interestIncome?.withholdingTax ?? '0';
+    dividendRevenue = stored.dividendIncome?.revenue ?? '0';
+    dividendDebtInterest = stored.dividendIncome?.debtInterest ?? '0';
+    dividendWithholding = stored.dividendIncome?.withholdingTax ?? '0';
+    transferItems = (stored.generalTransferIncome ?? []).map((i) => ({
+      id: newId(),
+      term: i.term,
+      revenue: i.revenue,
+      acquisitionCost: i.acquisitionCost ?? '0',
+      expenses: i.expenses ?? '0',
+      nonEssential: i.nonEssential ?? false,
+    }));
+    occasionalRevenue = stored.occasionalIncome?.revenue ?? '0';
+    occasionalExpenses = stored.occasionalIncome?.expenses ?? '0';
+    occasionalWithholding = stored.occasionalIncome?.withholdingTax ?? '0';
+    occasionalCategory = stored.occasionalIncome?.category ?? '';
+    occasionalPayerName = stored.occasionalIncome?.payerName ?? '';
+    occasionalPayerAddress = stored.occasionalIncome?.payerAddress ?? '';
     realEstateBusinessScale = stored.realEstateIncome?.businessScale ?? false;
     realEstateLandLoanInterest = stored.realEstateIncome?.landLoanInterestAmount ?? '0';
     realEstateRentPaid = (stored.realEstateIncome?.rentPaid || []).map((r) => ({
@@ -363,10 +430,16 @@
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(yr, undefined, 'realEstate')
       : undefined;
+    const fixedAssetTransfer = await resolveFixedAssetTransfer(
+      await db.fixedAssets.toArray(),
+      yr,
+      loadEffectiveBusinessDates,
+    );
     if (gen !== loadToken) {
       return;
     }
     plCache = pl;
+    fixedAssetTransferCache = fixedAssetTransfer;
     filingTypeCache = filingType;
     aoiroDeductionKindCache = aoiroDeductionKind;
     cashBasisCache = cashBasisElection;
@@ -394,6 +467,24 @@
     dependents = dependents.filter((d) => d.id !== id);
   }
 
+  function addTransferItem() {
+    transferItems = [
+      ...transferItems,
+      {
+        id: newId(),
+        term: 'short',
+        revenue: '0',
+        acquisitionCost: '0',
+        expenses: '0',
+        nonEssential: false,
+      },
+    ];
+  }
+
+  function removeTransferItem(id: string) {
+    transferItems = transferItems.filter((i) => i.id !== id);
+  }
+
   function addFamilyEmployee() {
     familyEmployees = [
       ...familyEmployees,
@@ -414,6 +505,8 @@
   // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
   // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
   // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
+  // 何も入力していない欄は保存しない（保存済みの記録と .xtx は新しい欄を使わない利用者では変わらない）
+  const isBlank = (...values: string[]) => values.every((v) => v === '0' || v === '');
   const recordDraft = $derived<Omit<PersonalDeductionInput, 'year' | 'updatedAt'>>({
     socialInsurancePaid,
     smallBusinessMutualAidPaid,
@@ -498,6 +591,44 @@
     homeWorker,
     priorPriorBusinessRevenue,
     priorPriorRealEstateRevenue,
+    ...(isBlank(interestAmount, interestWithholding)
+      ? {}
+      : { interestIncome: { amount: interestAmount, withholdingTax: interestWithholding } }),
+    ...(isBlank(dividendRevenue, dividendDebtInterest, dividendWithholding)
+      ? {}
+      : {
+          dividendIncome: {
+            revenue: dividendRevenue,
+            debtInterest: dividendDebtInterest,
+            withholdingTax: dividendWithholding,
+          },
+        }),
+    ...(transferItems.length > 0
+      ? {
+          generalTransferIncome: transferItems.map((i): GeneralTransferItem => ({
+            term: i.term,
+            revenue: i.revenue,
+            acquisitionCost: i.acquisitionCost,
+            expenses: i.expenses,
+            nonEssential: i.nonEssential,
+          })),
+        }
+      : {}),
+    ...(isBlank(occasionalRevenue, occasionalExpenses, occasionalWithholding) &&
+    occasionalCategory === '' &&
+    occasionalPayerName === '' &&
+    occasionalPayerAddress === ''
+      ? {}
+      : {
+          occasionalIncome: {
+            revenue: occasionalRevenue,
+            expenses: occasionalExpenses,
+            withholdingTax: occasionalWithholding,
+            category: occasionalCategory,
+            payerName: occasionalPayerName,
+            payerAddress: occasionalPayerAddress,
+          },
+        }),
     ...(ledger.realEstateIncomeEnabled
       ? {
           realEstateIncome: {
@@ -548,6 +679,15 @@
       d.otherWithholdingTax,
       d.priorPriorBusinessRevenue,
       d.priorPriorRealEstateRevenue,
+      d.interestIncome?.amount,
+      d.interestIncome?.withholdingTax,
+      d.dividendIncome?.revenue,
+      d.dividendIncome?.debtInterest,
+      d.dividendIncome?.withholdingTax,
+      ...(d.generalTransferIncome ?? []).flatMap((i) => [i.revenue, i.acquisitionCost, i.expenses]),
+      d.occasionalIncome?.revenue,
+      d.occasionalIncome?.expenses,
+      d.occasionalIncome?.withholdingTax,
       d.realEstateIncome?.landLoanInterestAmount,
       ...(d.realEstateIncome?.rentPaid ?? []).flatMap((r) => [r.amount, r.deductibleAmount]),
       ...(d.realEstateIncome?.loanInterestPaid ?? []).flatMap((r) => [
@@ -581,65 +721,55 @@
     return () => clearUnsavedGuard(unsavedToken);
   });
   const ctx = $derived(personalDeductionsToCtx(recordDraft));
-  // 事業所得（青色控除は不動産所得との共有枠配分後）。ledger 由来の pl はキャッシュから、
-  // businessScale・土地利子額は現在編集中の ctx から読むため、両方の変更に反応する。
-  const businessTotalIncome = $derived(
+  // 所得の計算に使う入力。ledger 由来の pl・当年の固定資産はキャッシュから、
+  // businessScale・土地利子額・他の所得は現在編集中の ctx から読むため、両方の変更に反応する。
+  const incomeCtx = $derived(
     plCache
-      ? totalIncomeAmount({
+      ? {
           year,
           pl: plCache,
           filingType: filingTypeCache,
           aoiroDeductionKind: aoiroDeductionKindCache,
           cashBasis: cashBasisCache,
+          fixedAssetTransfer: fixedAssetTransferCache,
           ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
           personalDeductions: ctx,
-        })
-      : D(0),
-  );
-  // 不動産所得のPL（青色控除前）。試算欄の内訳表示にのみ使う。
-  const realEstateTotalIncome = $derived(realEstatePlCache ? D(realEstatePlCache.netIncome) : D(0));
-  // 事業所得＋不動産所得（損益通算可能分）＋給与所得＋雑所得（B7）。
-  const combinedTotalIncome = $derived(
-    plCache
-      ? combinedTotalIncomeAmount({
-          year,
-          pl: plCache,
-          filingType: filingTypeCache,
-          aoiroDeductionKind: aoiroDeductionKindCache,
-          cashBasis: cashBasisCache,
-          ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
-          personalDeductions: ctx,
-        })
-      : D(0),
-  );
-  // 計算方式の公的年金等に係る雑所得（令和9年分以降は所法35条5項の調整後）。
-  const publicPension = $derived(
-    plCache
-      ? publicPensionIncomeOf({
-          year,
-          pl: plCache,
-          filingType: filingTypeCache,
-          aoiroDeductionKind: aoiroDeductionKindCache,
-          cashBasis: cashBasisCache,
-          ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
-          personalDeductions: ctx,
-        })
+        }
       : null,
   );
+  // 事業所得（青色控除は不動産所得との共有枠配分後）。
+  const businessTotalIncome = $derived(incomeCtx ? totalIncomeAmount(incomeCtx) : D(0));
+  // 不動産所得のPL（青色控除前）。試算欄の内訳表示にのみ使う。
+  const realEstateTotalIncome = $derived(realEstatePlCache ? D(realEstatePlCache.netIncome) : D(0));
+  // 総合課税の譲渡・一時所得を含む損益通算の結果。固定資産の売却を計算できないとき、
+  // 生活に通常必要でない資産の損失が配分できないときは、部分的な金額を出さない。
+  const generalIncome = $derived(incomeCtx ? generalIncomeOf(incomeCtx) : null);
+  const incomeUnavailable = $derived(
+    !fixedAssetTransferCache.ok || (generalIncome?.unconfirmed ?? false),
+  );
+  const legalTotalIncome = $derived(
+    generalIncome && !incomeUnavailable ? legalTotalIncomeAmount(generalIncome) : D(0),
+  );
+  const totalIncomeEtc = $derived(
+    generalIncome && !incomeUnavailable ? totalIncomeAmountEtc(generalIncome) : D(0),
+  );
+  const aggregateIncome = $derived(
+    generalIncome && !incomeUnavailable ? aggregateIncomeAmount(generalIncome) : D(0),
+  );
+  // 総合譲渡・一時所得として総所得金額に算入する額（1/2 の後）。
+  const transferAndOccasionalIncluded = $derived(
+    generalIncome ? generalIncome.aggregate.minus(generalIncome.nettedOrdinary) : D(0),
+  );
+  const separateTransferNames = $derived(
+    fixedAssetTransferCache.ok ? fixedAssetTransferCache.totals.separateNames : [],
+  );
+  // 計算方式の公的年金等に係る雑所得（令和9年分以降は所法35条5項の調整後）。
+  const publicPension = $derived(incomeCtx ? publicPensionIncomeOf(incomeCtx) : null);
   // 事業専従者控除（白色申告のみ、続柄で決まる定額）。事業所得側・不動産所得側の合計を表示する。
   const familyEmployeeDeductionTotal = $derived.by(() => {
-    if (!plCache) {
+    if (!incomeCtx) {
       return D(0);
     }
-    const incomeCtx = {
-      year,
-      pl: plCache,
-      filingType: filingTypeCache,
-      aoiroDeductionKind: aoiroDeductionKindCache,
-      cashBasis: cashBasisCache,
-      ...(realEstatePlCache ? { realEstatePl: realEstatePlCache } : {}),
-      personalDeductions: ctx,
-    };
     return businessFamilyEmployeeDeductionResultForOutput(incomeCtx).total.plus(
       realEstateFamilyEmployeeDeductionResult(incomeCtx).total,
     );
@@ -657,10 +787,10 @@
     hasSpouse && familyEmployeeExclusionResult.spouseExcluded,
   );
   const result = $derived(
-    computeIncomeDeductions(year, { ...ctx, totalIncome: combinedTotalIncome }),
+    computeIncomeDeductions(year, { ...ctx, legalTotalIncome, totalIncomeEtc }),
   );
   const taxableIncome = $derived.by(() => {
-    const v = combinedTotalIncome.minus(result.total);
+    const v = aggregateIncome.minus(result.total);
     return v.greaterThan(0) ? v : D(0);
   });
   const withholding = $derived(totalWithholdingTax(ctx));
@@ -755,10 +885,13 @@
       >
     </p>
     <p class="text-sm">
-      {m.income_deductions_combined_total_income_label()}：<span class="font-mono"
-        >{formatJPY(combinedTotalIncome)}</span
+      {m.income_deductions_combined_total_income_label()}：<span
+        class="font-mono"
+        data-testid="legal-total-income"
+        >{incomeUnavailable ? m.common_dash() : formatJPY(legalTotalIncome)}</span
       >
     </p>
+    <p class="text-xs text-muted-foreground">{m.income_deductions_combined_total_income_note()}</p>
     {#if filingTypeCache === 'white' && familyEmployeeDeductionTotal.greaterThan(0)}
       <p class="text-sm">
         {m.income_deductions_result_family_employee()}：<span class="font-mono"
@@ -930,6 +1063,274 @@
         {@render amountError(otherWithholdingTaxPaid)}
       </label>
     </div>
+    <h4 class="text-sm font-semibold pt-2 border-t">{m.income_general_title()}</h4>
+    <p class="text-xs text-muted-foreground">{m.income_general_intro()}</p>
+    {#if !fixedAssetTransferCache.ok}
+      <p
+        class="text-sm text-destructive border border-destructive bg-destructive/10 rounded px-3 py-2"
+        role="alert"
+      >
+        {m.income_general_asset_transfer_unavailable({
+          names: fixedAssetTransferCache.names.join('、'),
+        })}
+      </p>
+    {:else if fixedAssetTransferCache.totals.shortCount + fixedAssetTransferCache.totals.longCount > 0}
+      <p class="text-sm" data-testid="asset-transfer-income">
+        {m.income_general_asset_transfer({
+          shortTerm: formatJPY(fixedAssetTransferCache.totals.shortTerm),
+          longTerm: formatJPY(fixedAssetTransferCache.totals.longTerm),
+        })}
+      </p>
+    {/if}
+    {#if separateTransferNames.length > 0}
+      <p class="text-xs text-amber-600" data-testid="separate-transfer-notice">
+        {m.income_general_separate_excluded({ names: separateTransferNames.join('、') })}
+      </p>
+    {/if}
+    {#if generalIncome?.unconfirmed}
+      <p
+        class="text-sm text-destructive border border-destructive bg-destructive/10 rounded px-3 py-2"
+        role="alert"
+      >
+        {m.income_general_unconfirmed()}
+      </p>
+    {/if}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_interest_amount()}</span>
+        <input
+          type="text"
+          name="interestAmount"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={interestAmount}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(interestAmount)}
+        <span class="block mt-1 text-xs text-muted-foreground"
+          >{m.income_general_interest_hint()}</span
+        >
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_interest_withholding()}</span>
+        <input
+          type="text"
+          name="interestWithholding"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={interestWithholding}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(interestWithholding)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_dividend_revenue()}</span>
+        <input
+          type="text"
+          name="dividendRevenue"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={dividendRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(dividendRevenue)}
+        <span class="block mt-1 text-xs text-muted-foreground"
+          >{m.income_general_dividend_hint()}</span
+        >
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground"
+          >{m.income_general_dividend_debt_interest()}</span
+        >
+        <input
+          type="text"
+          name="dividendDebtInterest"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={dividendDebtInterest}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(dividendDebtInterest)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_dividend_withholding()}</span>
+        <input
+          type="text"
+          name="dividendWithholding"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={dividendWithholding}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(dividendWithholding)}
+      </label>
+    </div>
+    <div class="flex items-center justify-between pt-2 border-t">
+      <h4 class="text-sm font-semibold">{m.income_general_transfer_title()}</h4>
+      <button
+        type="button"
+        onclick={addTransferItem}
+        class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+      >
+        {m.income_general_transfer_add()}
+      </button>
+    </div>
+    <p class="text-xs text-muted-foreground">{m.income_general_transfer_intro()}</p>
+    {#each transferItems as item (item.id)}
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end border-t pt-3">
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.income_general_transfer_term()}</span>
+          <select
+            value={item.term}
+            onchange={(e) => (item.term = e.currentTarget.value as GeneralTransferItem['term'])}
+            name="transfer-{item.id}-term"
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          >
+            <option value="short">{m.income_general_transfer_term_short()}</option>
+            <option value="long">{m.income_general_transfer_term_long()}</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.income_general_transfer_revenue()}</span>
+          <input
+            type="text"
+            name="transfer-{item.id}-revenue"
+            autocomplete="off"
+            inputmode="numeric"
+            bind:value={item.revenue}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+          />
+          {@render amountError(item.revenue)}
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground"
+            >{m.income_general_transfer_acquisition_cost()}</span
+          >
+          <input
+            type="text"
+            name="transfer-{item.id}-acquisitionCost"
+            autocomplete="off"
+            inputmode="numeric"
+            bind:value={item.acquisitionCost}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+          />
+          {@render amountError(item.acquisitionCost)}
+        </label>
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.income_general_transfer_expenses()}</span>
+          <input
+            type="text"
+            name="transfer-{item.id}-expenses"
+            autocomplete="off"
+            inputmode="numeric"
+            bind:value={item.expenses}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+          />
+          {@render amountError(item.expenses)}
+        </label>
+        <div class="flex items-center gap-3">
+          <label class="flex items-center gap-1 text-xs py-2">
+            <input
+              type="checkbox"
+              name="transfer-{item.id}-nonEssential"
+              bind:checked={item.nonEssential}
+            />
+            {m.income_general_transfer_non_essential()}
+          </label>
+          <button
+            type="button"
+            onclick={() => removeTransferItem(item.id)}
+            class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:opacity-90"
+          >
+            {m.income_general_transfer_remove()}
+          </button>
+        </div>
+      </div>
+    {/each}
+    <h4 class="text-sm font-semibold pt-2 border-t">{m.income_general_occasional_title()}</h4>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_occasional_revenue()}</span>
+        <input
+          type="text"
+          name="occasionalRevenue"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={occasionalRevenue}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(occasionalRevenue)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_occasional_expenses()}</span>
+        <input
+          type="text"
+          name="occasionalExpenses"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={occasionalExpenses}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(occasionalExpenses)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground"
+          >{m.income_general_occasional_withholding()}</span
+        >
+        <input
+          type="text"
+          name="occasionalWithholding"
+          autocomplete="off"
+          inputmode="numeric"
+          bind:value={occasionalWithholding}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
+        />
+        {@render amountError(occasionalWithholding)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_occasional_category()}</span>
+        <input
+          type="text"
+          name="occasionalCategory"
+          autocomplete="off"
+          maxlength="10"
+          bind:value={occasionalCategory}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_general_occasional_payer_name()}</span
+        >
+        <input
+          type="text"
+          name="occasionalPayerName"
+          autocomplete="off"
+          bind:value={occasionalPayerName}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground"
+          >{m.income_general_occasional_payer_address()}</span
+        >
+        <input
+          type="text"
+          name="occasionalPayerAddress"
+          autocomplete="off"
+          maxlength="100"
+          bind:value={occasionalPayerAddress}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+      </label>
+    </div>
+    {#if generalIncome && generalIncome.hasOccasional && !incomeUnavailable}
+      <p class="text-sm" data-testid="occasional-result">
+        {m.income_general_occasional_result({
+          income: formatJPY(generalIncome.occasional),
+          included: formatJPY(transferAndOccasionalIncluded),
+        })}
+      </p>
+    {/if}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
         <span class="text-xs text-muted-foreground">{m.income_prior_prior_business_revenue()}</span>
@@ -1819,7 +2220,7 @@
     </div>
   </section>
 
-  {#if loadError === ''}
+  {#if loadError === '' && !incomeUnavailable}
     <section class="space-y-2 border rounded-lg p-6 bg-card text-card-foreground">
       <h3 class="text-lg font-semibold">{m.income_deductions_result_title()}</h3>
       <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">

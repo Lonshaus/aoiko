@@ -76,7 +76,8 @@ async function enterSalary(el: HTMLElement): Promise<void> {
 function expectedTax(year: number) {
   const salary = salaryIncomeAmount(year, D(5_000_000));
   const deductions = computeIncomeDeductions(year, {
-    totalIncome: salary,
+    legalTotalIncome: salary,
+    totalIncomeEtc: salary,
     socialInsurancePaid: D(0),
     smallBusinessMutualAidPaid: D(0),
     lifeInsurance: {},

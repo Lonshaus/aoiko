@@ -1,5 +1,6 @@
 import { D, Decimal } from '../../lib/decimal';
 import { isWithinSalaryIncomeTableRange, salaryIncomeFromTable } from './salary-income-table';
+import type { GeneralIncomeInput } from './general-income';
 // 給与所得・雑所得（B7-1）。
 //
 // 給与所得控除：令和8・9年分の収入69万1千円以上220万円未満は措法29条の4第2項の表を
@@ -100,7 +101,7 @@ interface MiscIncomeInput {
   otherExpenses?: Decimal;
 }
 // 給与所得・雑所得・（事業所得側の）源泉徴収税額。totalIncomeAmount（事業所得のみ）に
-// 合算する形で xtx-mapping-koa020.ts の combinedTotalIncomeAmount() から使う。
+// 合算する形で xtx-mapping-koa020.ts の ordinaryIncomeAmount() から使う。
 export interface OtherIncomeInput {
   salaryIncome?: SalaryIncomeInput;
   miscIncome?: MiscIncomeInput;
@@ -304,7 +305,11 @@ export function otherIncomeAmount(
     .plus(otherMiscIncomeOf(input, miscExpensesOverride));
 }
 
-export function totalWithholdingTax(input: OtherIncomeInput): Decimal {
+export function totalWithholdingTax(input: OtherIncomeInput & GeneralIncomeInput): Decimal {
   const salaryWithholding = input.salaryIncome?.withholdingTax ?? D(0);
-  return salaryWithholding.plus(input.otherWithholdingTax ?? D(0));
+  return salaryWithholding
+    .plus(input.otherWithholdingTax ?? D(0))
+    .plus(input.interestIncome?.withholdingTax ?? D(0))
+    .plus(input.dividendIncome?.withholdingTax ?? D(0))
+    .plus(input.occasionalIncome?.withholdingTax ?? D(0));
 }

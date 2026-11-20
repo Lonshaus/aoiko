@@ -24,11 +24,12 @@ export type XtxDetailOverflowSection =
   | 'rentPaid'
   | 'loanInterestPaid'
   | 'professionalFee'
-  | 'familyEmployee';
+  | 'familyEmployee'
+  | 'transferIncome';
 
 export interface XtxDetailOverflowRow {
   section: XtxDetailOverflowSection;
-  // 資産名・物件所在地・支払先氏名・専従者氏名。空白のときは空文字（表示側で amount を使う）
+  // 資産名・物件所在地・支払先氏名・専従者氏名・所得の種類。空白のときは空文字（表示側で amount を使う）
   label: string;
   amount: string;
 }

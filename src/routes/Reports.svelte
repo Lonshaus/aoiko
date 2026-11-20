@@ -93,6 +93,11 @@
   } from '../tax-schema/2026/xtx';
   import { BsExtraAccountOverflowError } from '../tax-schema/2026/xtx-mapping-koa210';
   import {
+    koa020InputBlocker,
+    type Koa020InputBlocker,
+  } from '../tax-schema/2026/xtx-mapping-koa020';
+  import { resolveFixedAssetTransfer } from '../tax-schema/2026/general-income';
+  import {
     hasInvalidXtxAmounts,
     hasInvalidXtxPropertyText,
   } from '../tax-schema/2026/xtx-amount-check';
@@ -1366,7 +1371,22 @@
     loanInterestPaid: () => m.reports_xtx_detail_overflow_loan_interest_paid(),
     professionalFee: () => m.reports_xtx_detail_overflow_professional_fee(),
     familyEmployee: () => m.reports_xtx_detail_overflow_family_employee(),
+    transferIncome: () => m.reports_xtx_detail_overflow_transfer_income(),
   } satisfies Record<XtxDetailOverflowItem['section'], () => string>;
+  function describeKoa020Blocker(b: Koa020InputBlocker): string {
+    switch (b.reason) {
+      case 'asset-transfer-failed':
+        return m.reports_xtx_asset_transfer_failed({ names: b.names.join('、') });
+      case 'nonessential-unconfirmed':
+        return m.reports_xtx_nonessential_unconfirmed();
+      case 'transfer-koc020':
+        return m.reports_xtx_transfer_koc020();
+      case 'netting-statement':
+        return m.reports_xtx_netting_statement();
+      case 'payer-name-missing':
+        return m.reports_xtx_occasional_payer_missing();
+    }
+  }
   function detailOverflowText(item: XtxDetailOverflowItem): string {
     const amount = formatJPY(item.amount);
     const subject = item.label === '' ? amount : `${item.label}（${amount}）`;
@@ -1445,6 +1465,11 @@
     try {
       // 少額特例の年合計上限の月割（措法28の2）に使う。年末の減価償却と同じ値を読む
       const businessDates = await loadEffectiveBusinessDates();
+      const fixedAssetTransfer = await resolveFixedAssetTransfer(
+        fixedAssets,
+        filingYear,
+        async () => businessDates,
+      );
       xtxCtx = {
         year: exportYear,
         dataYear: filingYear,
@@ -1459,11 +1484,17 @@
         aoiroDeductionKind,
         cashBasis: cashBasisElection,
         ...businessDates,
+        fixedAssetTransfer,
         ...(realEstatePl ? { realEstatePl } : {}),
         ...(storedDeductions
           ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
           : {}),
       };
+      const inputBlocker = koa020InputBlocker(xtxCtx);
+      if (inputBlocker) {
+        lockError = describeKoa020Blocker(inputBlocker);
+        return;
+      }
       xml = buildXtx2026(xtxCtx);
     } catch (e) {
       if (e instanceof BsExtraAccountOverflowError) {

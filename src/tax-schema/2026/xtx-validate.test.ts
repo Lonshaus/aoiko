@@ -18,7 +18,11 @@ import { describe, expect, test } from 'vitest';
 import { D } from '../../lib/decimal';
 import { buildXtx2026 } from './xtx';
 import { buildFormFragment, type XtxLeafValues } from './xtx-document';
-import { mapKoa020LeafValues, mapKoa020Values } from './xtx-mapping-koa020';
+import {
+  mapKoa020LeafValues,
+  mapKoa020RepeatedValues,
+  mapKoa020Values,
+} from './xtx-mapping-koa020';
 import { mapKoa210RepeatedValues, mapKoa210Values } from './xtx-mapping-koa210';
 import { mapKoa110RepeatedValues, mapKoa110Values } from './xtx-mapping-koa110';
 import { mapKoa220RepeatedValues, mapKoa220Values } from './xtx-mapping-koa220';
@@ -295,6 +299,115 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
     expect(out).not.toContain('Schemas parser error');
     expect(r.status, out).toBe(0);
   });
+
+  maybe(
+    'KOA020 実 mapping 経路（利子・配当・譲渡・一時所得、第二表 ABX・ABD）が公式 xsd に適合する',
+    () => {
+      const ctx = {
+        year: 2026,
+        businessName: 'aoikoウェブ事務所',
+        invoiceNumber: '',
+        monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [],
+          totalRevenue: '0',
+          totalExpense: '0',
+          netIncome: '0',
+          entryCount: 0,
+        },
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [],
+          liabilities: [],
+          equity: [],
+          netIncome: '0',
+          totalAssets: '0',
+          totalLiabilitiesAndEquity: '0',
+          balanced: true,
+        },
+        filer: {
+          riyoshaId: '',
+          name: '',
+          zip: '',
+          address: '',
+          zeimushoCode: '',
+          zeimushoName: '',
+        },
+        filingType: 'blue' as const,
+        aoiroDeductionKind: 'electronic' as const,
+        fixedAssets: [],
+        personalDeductions: {
+          socialInsurancePaid: D(0),
+          smallBusinessMutualAidPaid: D(0),
+          lifeInsurance: {},
+          earthquakeInsurancePaid: D(0),
+          oldLongTermInsurancePaid: D(0),
+          medicalExpensePaid: D(0),
+          medicalInsuranceReimbursement: D(0),
+          donationAmount: D(0),
+          casualtyLossDeduction: D(0),
+          isDisabled: false,
+          isSpecialDisabled: false,
+          isSingleParent: false,
+          isWidow: false,
+          isWorkingStudent: false,
+          dependents: [],
+          interestIncome: { amount: D(10_000), withholdingTax: D(1_531) },
+          dividendIncome: {
+            revenue: D(300_000),
+            debtInterest: D(100_000),
+            withholdingTax: D(61_260),
+          },
+          generalTransferIncome: [
+            {
+              term: 'short' as const,
+              revenue: D(1_200_000),
+              acquisitionCost: D(500_000),
+              expenses: D(100_000),
+              nonEssential: false,
+            },
+            {
+              term: 'long' as const,
+              revenue: D(800_000),
+              acquisitionCost: D(0),
+              expenses: D(0),
+              nonEssential: false,
+            },
+          ],
+          occasionalIncome: {
+            revenue: D(1_500_000),
+            expenses: D(0),
+            withholdingTax: D(30_630),
+            category: '生命保険の満期返戻金',
+            payerName: '青空生命保険',
+            payerAddress: '東京都千代田区1-1',
+          },
+        },
+      };
+      const leafValues = mapKoa020LeafValues(ctx);
+      const repeats = mapKoa020RepeatedValues(ctx);
+      expect(leafValues.ABB00230).toBe('1000000');
+      expect(repeats.ABX00000).toHaveLength(2);
+      expect(repeats.ABD00010).toHaveLength(1);
+      const frag = buildFormFragment(
+        koa020 as XtxSchema,
+        mapKoa020Values(ctx),
+        { creatorName: 'aoikoウェブ事務所', creationDate: '2026-05-13' },
+        leafValues,
+        repeats,
+      );
+      const doc =
+        `<?xml version="1.0" encoding="UTF-8"?>\n` +
+        `<ValidationRoot xmlns="${NS}">\n${frag}\n</ValidationRoot>\n`;
+      const r = runXmllint(join(SPEC_DIR, '_valwrap-KOA020.xsd'), doc);
+      const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+      expect(out).not.toContain('Schemas parser error');
+      expect(r.status, out).toBe(0);
+    },
+  );
 
   maybe('KOA020 実 mapping 経路（年金を収入から計算、ABB00100 含む）が公式 xsd に適合する', () => {
     const pl: PLReport = {

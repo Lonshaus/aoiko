@@ -267,6 +267,19 @@ const fullRows: Record<string, Record<string, unknown>> = {
       },
     ],
     homeWorker: false,
+    interestIncome: { amount: '1', withholdingTax: '0' },
+    dividendIncome: { revenue: '1', debtInterest: '0', withholdingTax: '0' },
+    generalTransferIncome: [
+      { term: 'long', revenue: '1', acquisitionCost: '0', expenses: '0', nonEssential: true },
+    ],
+    occasionalIncome: {
+      revenue: '1',
+      expenses: '0',
+      withholdingTax: '0',
+      category: '満期返戻金',
+      payerName: '保険会社',
+      payerAddress: '東京都',
+    },
   },
   budgets: minRows.budgets!,
   arApEntries: minRows.arApEntries!,
@@ -489,6 +502,61 @@ describe('personalDeductions の旧フィールドのみの旧バックアップ
     expect(() =>
       validateBackupPayload(payload({ personalDeductions: [oldBackupRow] })),
     ).not.toThrow();
+  });
+});
+
+describe('personalDeductions の総合課税の所得の欄', () => {
+  const row = {
+    year: 2026,
+    socialInsurancePaid: '0',
+    smallBusinessMutualAidPaid: '0',
+    lifeInsurance: {},
+    earthquakeInsurancePaid: '0',
+    oldLongTermInsurancePaid: '0',
+    medicalExpensePaid: '0',
+    medicalInsuranceReimbursement: '0',
+    donationAmount: '0',
+    casualtyLossDeduction: '0',
+    isDisabled: false,
+    isSpecialDisabled: false,
+    isSingleParent: false,
+    isWidow: false,
+    isWorkingStudent: false,
+    dependents: [],
+    updatedAt: 1,
+  };
+
+  test('利子・配当・総合譲渡・一時所得を含むバックアップも通る', () => {
+    expect(() =>
+      validateBackupPayload(
+        payload({
+          personalDeductions: [
+            {
+              ...row,
+              interestIncome: { amount: '1' },
+              dividendIncome: { revenue: '1' },
+              generalTransferIncome: [{ term: 'short', revenue: '1' }],
+              occasionalIncome: { revenue: '1500000', payerName: '保険会社' },
+            },
+          ],
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  test('所有期間の区分や金額の型が違えば、表名と欄の道筋を示して止める', () => {
+    expectRejected(
+      {
+        personalDeductions: [{ ...row, generalTransferIncome: [{ term: 'middle', revenue: '1' }] }],
+      },
+      'personalDeductions',
+      /generalTransferIncome/,
+    );
+    expectRejected(
+      { personalDeductions: [{ ...row, occasionalIncome: { revenue: 1500000 } }] },
+      'personalDeductions',
+      /occasionalIncome/,
+    );
   });
 });
 

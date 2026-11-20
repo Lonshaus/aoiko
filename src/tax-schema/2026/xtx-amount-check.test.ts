@@ -51,6 +51,12 @@ function baseDeductions(): PersonalDeductionInput {
     },
     priorPriorBusinessRevenue: '100',
     priorPriorRealEstateRevenue: '100',
+    interestIncome: { amount: '100', withholdingTax: '100' },
+    dividendIncome: { revenue: '100', debtInterest: '100', withholdingTax: '100' },
+    generalTransferIncome: [
+      { term: 'short', revenue: '100', acquisitionCost: '100', expenses: '100' },
+    ],
+    occasionalIncome: { revenue: '100', expenses: '100', withholdingTax: '100' },
     updatedAt: 0,
   };
 }
@@ -141,6 +147,17 @@ const DEDUCTION_PATHS = [
   'realEstateIncome.professionalFeesPaid.0.withholdingTax',
   'priorPriorBusinessRevenue',
   'priorPriorRealEstateRevenue',
+  'interestIncome.amount',
+  'interestIncome.withholdingTax',
+  'dividendIncome.revenue',
+  'dividendIncome.debtInterest',
+  'dividendIncome.withholdingTax',
+  'generalTransferIncome.0.revenue',
+  'generalTransferIncome.0.acquisitionCost',
+  'generalTransferIncome.0.expenses',
+  'occasionalIncome.revenue',
+  'occasionalIncome.expenses',
+  'occasionalIncome.withholdingTax',
 ];
 
 const OPTIONAL_DEDUCTION_PATHS = [
@@ -169,6 +186,13 @@ const OPTIONAL_DEDUCTION_PATHS = [
   'realEstateIncome.loanInterestPaid.0.yearEndBalance',
   'realEstateIncome.professionalFeesPaid.0.deductibleAmount',
   'realEstateIncome.professionalFeesPaid.0.withholdingTax',
+  'interestIncome.withholdingTax',
+  'dividendIncome.debtInterest',
+  'dividendIncome.withholdingTax',
+  'generalTransferIncome.0.acquisitionCost',
+  'generalTransferIncome.0.expenses',
+  'occasionalIncome.expenses',
+  'occasionalIncome.withholdingTax',
 ];
 
 describe('hasInvalidXtxAmounts: 所得控除の金額欄', () => {
@@ -230,6 +254,18 @@ describe('hasInvalidXtxAmounts: 所得控除の金額欄', () => {
     delete stored.salaryIncome;
     delete stored.miscIncome;
     delete stored.realEstateIncome;
+    delete stored.interestIncome;
+    delete stored.dividendIncome;
+    delete stored.generalTransferIncome;
+    delete stored.occasionalIncome;
+    expect(hasInvalidXtxAmounts(stored, [], true)).toBe(false);
+  });
+
+  test('一時所得の収入金額に読めない値を保存していれば true、新しい欄がなければ false', () => {
+    expect(invalidWith('occasionalIncome.revenue', 'abc')).toBe(true);
+    expect(invalidWith('occasionalIncome.revenue', '1500000')).toBe(false);
+    const stored = baseDeductions();
+    delete stored.occasionalIncome;
     expect(hasInvalidXtxAmounts(stored, [], true)).toBe(false);
   });
 

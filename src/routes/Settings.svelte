@@ -121,6 +121,7 @@
     smallAssetThreshold,
   } from '../tax-schema/2026/limits';
   import { D, formatJPY } from '../lib/decimal';
+  import { occasionalIncomeAmount } from '../tax-schema/2026/general-income';
   import { allowFiledYearWriteInThisTransaction } from '../db/filed-year-guard';
   import { filedYearGuard } from '../lib/filed-year-guard.svelte';
   import { countSuppressedConfirms, resetSuppressedConfirms } from '../lib/suppressed-confirms';
@@ -137,6 +138,7 @@
     IncomeType,
     ParserRule,
     ParserRuleMatchType,
+    PersonalDeductionInput,
     RealEstatePropertyDetail,
     SubAccount,
     TaxFilingMethod,
@@ -346,7 +348,6 @@
   let newAssetLeaseTermMonths = $state('');
   // 少額特例落選時の切替先。true は定率法、未設定（false）は定額法（所令125条2号イ）。
   let newAssetDecliningBalanceElected = $state(false);
-  let transferOccasionalIncome = $state('');
   let assetError = $state('');
   let propertyEditId = $state<string | null>(null);
   let propertyType = $state('');
@@ -1580,6 +1581,37 @@
     }
     return calcs;
   });
+  // 一時所得は所得控除の画面で保存した値を読む（対象年の記録）
+  let storedDeductions = $state.raw<PersonalDeductionInput | undefined>(undefined);
+  $effect(() => {
+    const yr = depreciationYear;
+    const sub = liveQuery(() => db.personalDeductions.get(yr)).subscribe({
+      next: (stored) => {
+        storedDeductions = stored;
+      },
+      error: () => {
+        storedDeductions = undefined;
+      },
+    });
+    return () => sub.unsubscribe();
+  });
+  const storedOccasionalAmount = $derived.by(() => {
+    const occasional = storedDeductions?.occasionalIncome;
+    if (!occasional) {
+      return D(0);
+    }
+    const read = (v: string | undefined) => parseAmountInput(v) ?? D(0);
+    return occasionalIncomeAmount({
+      occasionalIncome: {
+        revenue: read(occasional.revenue),
+        expenses: read(occasional.expenses),
+        withholdingTax: D(0),
+        category: '',
+        payerName: '',
+        payerAddress: '',
+      },
+    });
+  });
   // 売却した年の譲渡所得の合計。1 件でも計算できなければ、一部だけの合計は出さない
   const transferAssetsThisYear = $derived(
     ledger.fixedAssets.filter(
@@ -1629,14 +1661,12 @@
     if (!transferIncomeTotal.ok) {
       return null;
     }
-    const occasional = parseAmountInput(transferOccasionalIncome);
     return aggregateTransferIncome({
       shortTerm: transferIncomeTotal.terms.shortTerm,
       longTerm: transferIncomeTotal.terms.longTerm,
-      ...(occasional !== undefined ? { occasionalIncome: occasional.toFixed() } : {}),
+      occasionalIncome: storedOccasionalAmount.toFixed(),
     });
   });
-  const transferOccasionalInvalid = $derived(isAmountInputInvalid(transferOccasionalIncome));
 
   function selectNewAssetAccount(code: string) {
     newAssetAccount = code;
@@ -4492,18 +4522,11 @@
         <h4 class="text-sm font-semibold">
           {m.settings_transfer_income_aggregate_title({ year: depreciationYear })}
         </h4>
-        <label class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {m.settings_transfer_income_occasional()}
-          <input
-            type="number"
-            name="transferOccasionalIncome"
-            autocomplete="off"
-            value={transferOccasionalIncome}
-            oninput={assignInputString((v) => (transferOccasionalIncome = v))}
-            step="1"
-            class="w-36 px-3 h-10 bg-background border rounded text-foreground text-sm tabular-nums text-right"
-          />
-        </label>
+        <p class="text-xs text-muted-foreground" data-testid="stored-occasional-income">
+          {m.settings_transfer_income_occasional_stored({
+            amount: formatJPY(storedOccasionalAmount),
+          })}
+        </p>
         {#if !transferIncomeAggregate}
           <p class="text-xs text-destructive" role="alert">
             {m.common_dash()}
@@ -4513,8 +4536,6 @@
               })}
             {/if}
           </p>
-        {:else if transferOccasionalInvalid}
-          <p class="text-xs text-destructive">{amountInputError(transferOccasionalIncome)}</p>
         {:else}
           <p class="text-xs text-muted-foreground">
             {m.settings_transfer_income_special_deduction({
@@ -4550,6 +4571,9 @@
             })}
           </p>
           <p class="text-xs text-muted-foreground">{m.settings_transfer_income_separate_note()}</p>
+          <p class="text-xs text-muted-foreground">
+            {m.settings_transfer_income_separate_excluded()}
+          </p>
         {/if}
       </div>
     {/if}

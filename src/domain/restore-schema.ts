@@ -560,6 +560,34 @@ const TABLE_FIELDS: ReadonlyMap<string, Fields> = new Map<string, Fields>([
         ),
       ),
       opt('homeWorker', bool),
+      opt('interestIncome', obj(req('amount', str), opt('withholdingTax', str))),
+      opt(
+        'dividendIncome',
+        obj(req('revenue', str), opt('debtInterest', str), opt('withholdingTax', str)),
+      ),
+      opt(
+        'generalTransferIncome',
+        arr(
+          obj(
+            req('term', enumOf<'short' | 'long'>()(['short', 'long'])),
+            req('revenue', str),
+            opt('acquisitionCost', str),
+            opt('expenses', str),
+            opt('nonEssential', bool),
+          ),
+        ),
+      ),
+      opt(
+        'occasionalIncome',
+        obj(
+          req('revenue', str),
+          opt('expenses', str),
+          opt('withholdingTax', str),
+          opt('category', str),
+          opt('payerName', str),
+          opt('payerAddress', str),
+        ),
+      ),
       req('updatedAt', num),
     ],
   ],

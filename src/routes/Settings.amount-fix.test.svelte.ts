@@ -574,28 +574,4 @@ describe('数値の欄（R12・R13）', () => {
       expect(text()).not.toContain(m.settings_rule_priority_invalid());
     },
   );
-
-  test.each(['-5', 'abc'])(
-    '転用の一時所得 %j は案内を出し、譲渡所得の計算に入れない',
-    async (v) => {
-      await db.fixedAssets.bulkAdd([
-        asset({
-          id: 'ok',
-          name: '正常な売却',
-          acquisitionDate: `${Y - 2}-01-01`,
-          disposedDate: `${Y}-06-30`,
-          disposalType: 'sale',
-          salePrice: '300000',
-        }),
-      ]);
-      await mountSettings();
-      await waitFor(() => field('transferOccasionalIncome') !== null);
-      expect(text()).not.toContain(m.common_amount_invalid());
-      const el = field('transferOccasionalIncome');
-      Object.defineProperty(el, 'value', { configurable: true, get: () => v, set: () => {} });
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      flushSync();
-      expect(text()).toContain(m.common_amount_invalid());
-    },
-  );
 });

@@ -814,6 +814,19 @@ describe('区分ごとの復元', () => {
     priorPriorBusinessRevenue: '0',
     priorPriorRealEstateRevenue: '0',
     homeWorker: false,
+    interestIncome: { amount: '1', withholdingTax: '0' },
+    dividendIncome: { revenue: '1', debtInterest: '0', withholdingTax: '0' },
+    generalTransferIncome: [
+      { term: 'long', revenue: '1', acquisitionCost: '0', expenses: '0', nonEssential: true },
+    ],
+    occasionalIncome: {
+      revenue: '1',
+      expenses: '0',
+      withholdingTax: '0',
+      category: '満期返戻金',
+      payerName: '保険会社',
+      payerAddress: '東京都',
+    },
     updatedAt: 4,
   };
   const budget: Budget = { year: 2026, month: 1, revenueBudget: '100000', expenseBudget: '50000' };

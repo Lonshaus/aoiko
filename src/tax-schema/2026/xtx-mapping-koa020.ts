@@ -37,6 +37,20 @@ import {
   offsettableRealEstateLoss,
   realEstatePreDeductionIncome,
 } from './real-estate-income';
+import {
+  NO_FIXED_ASSET_TRANSFER,
+  aggregateIncomeAmount,
+  computeGeneralIncome,
+  dividendIncomeAmount,
+  hasOccasionalIncome,
+  interestIncomeAmount,
+  legalTotalIncomeAmount,
+  totalIncomeAmountEtc,
+  transferAndOccasionalAmount,
+  type FixedAssetTransferTotals,
+  type GeneralIncomeInput,
+  type GeneralIncomeResult,
+} from './general-income';
 import { homeWorkerNecessaryExpenses } from './home-worker-expense';
 import type { AoiroDeductionOptions } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
@@ -113,6 +127,7 @@ type IncomeCtx = Pick<
   | 'cashBasis'
   | 'realEstatePl'
   | 'personalDeductions'
+  | 'fixedAssetTransfer'
 >;
 // 措法25条の2第2項2号は事業所得を生ずべき事業を営む者に限るため、控除前所得の正負ではなく
 // 事業帳への記帳の有無（総収入・総経費・純損益のいずれかが0でない）で判定する。
@@ -317,9 +332,41 @@ function realEstateOffsettableAmount(ctx: IncomeCtx): Decimal {
   );
   return combined.realEstateOffsettable;
 }
-// 公的年金等に係る雑所得以外の合計所得金額（所基通35-8）。公的年金等控除額の区分を決める。
+function fixedAssetTotals(ctx: IncomeCtx): FixedAssetTransferTotals {
+  const transfer = ctx.fixedAssetTransfer ?? NO_FIXED_ASSET_TRANSFER;
+  return transfer.ok ? transfer.totals : NO_FIXED_ASSET_TRANSFER.totals;
+}
+// 手引きが『損益の通算の計算書』を求める事業・不動産の赤字の判定。損益通算前の所得で見る。
+function hasBusinessLoss(ctx: IncomeCtx): boolean {
+  return totalIncomeAmount(ctx).isNegative();
+}
+
+function hasRealEstateLoss(ctx: IncomeCtx): boolean {
+  const input = ctx.personalDeductions?.realEstateIncome;
+  return (
+    ctx.realEstatePl !== undefined &&
+    input !== undefined &&
+    realEstatePreDeductionIncome(ctx.realEstatePl, input.businessScale, ctx.filingType).isNegative()
+  );
+}
+
+function generalIncomeFor(ctx: IncomeCtx, ordinary: Decimal): GeneralIncomeResult {
+  return computeGeneralIncome({
+    ordinary,
+    businessLoss: hasBusinessLoss(ctx),
+    realEstateLoss: hasRealEstateLoss(ctx),
+    input: ctx.personalDeductions ?? {},
+    fixedAssetTransfer: fixedAssetTotals(ctx),
+  });
+}
+
+function newOrdinaryIncomeAmount(ctx: IncomeCtx): Decimal {
+  const input = ctx.personalDeductions ?? {};
+  return interestIncomeAmount(input).plus(dividendIncomeAmount(input));
+}
+// 公的年金等に係る雑所得以外の経常所得（所基通35-8）。公的年金等控除額の区分を決める。
 // 所得金額調整控除②は公的年金等の雑所得に依存するため、ここでは適用しない。
-export function nonPensionTotalIncomeAmount(ctx: IncomeCtx): Decimal {
+function nonPensionOrdinaryIncomeAmount(ctx: IncomeCtx): Decimal {
   const business = totalIncomeAmount(ctx);
   const realEstate = realEstateOffsettableAmount(ctx);
   const other = ctx.personalDeductions
@@ -330,7 +377,11 @@ export function nonPensionTotalIncomeAmount(ctx: IncomeCtx): Decimal {
         salaryAdjustmentEligibility(ctx.year, ctx.personalDeductions),
       )
     : D(0);
-  return business.plus(realEstate).plus(other);
+  return business.plus(realEstate).plus(other).plus(newOrdinaryIncomeAmount(ctx));
+}
+// 公的年金等に係る雑所得以外の合計所得金額（所基通35-8）。
+export function nonPensionTotalIncomeAmount(ctx: IncomeCtx): Decimal {
+  return legalTotalIncomeAmount(generalIncomeFor(ctx, nonPensionOrdinaryIncomeAmount(ctx)));
 }
 
 export function publicPensionIncomeOf(ctx: IncomeCtx): PublicPensionIncome {
@@ -338,11 +389,8 @@ export function publicPensionIncomeOf(ctx: IncomeCtx): PublicPensionIncome {
     ? resolvePublicPensionIncome(ctx.year, ctx.personalDeductions, nonPensionTotalIncomeAmount(ctx))
     : { amount: D(0), amountForAdjustment: D(0) };
 }
-// 事業所得＋不動産所得（損益通算可能分）＋給与所得＋雑所得（B7）。所得控除の計算
-// （基礎控除の区分・配偶者控除の判定等）はこちらを使う。totalIncomeAmount（事業所得のみ）は
-// 白色申告の所得補正や IncomeDeductions.svelte の「事業所得」表示にそのまま使うため、
-// 意味を変えず残す。
-export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
+// 損益通算前の経常所得（事業＋不動産所得（損益通算可能分）＋給与＋雑＋利子＋配当）。
+export function ordinaryIncomeAmount(ctx: IncomeCtx): Decimal {
   const business = totalIncomeAmount(ctx);
   const realEstate = realEstateOffsettableAmount(ctx);
   const other = ctx.personalDeductions
@@ -354,7 +402,12 @@ export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
         publicPensionIncomeOf(ctx),
       )
     : D(0);
-  return business.plus(realEstate).plus(other);
+  return business.plus(realEstate).plus(other).plus(newOrdinaryIncomeAmount(ctx));
+}
+// 総合課税の譲渡・一時所得を含めた損益通算の結果。合計所得金額・総所得金額等・総所得金額は
+// これに legalTotalIncomeAmount などを適用して得る。
+export function generalIncomeOf(ctx: IncomeCtx): GeneralIncomeResult {
+  return generalIncomeFor(ctx, ordinaryIncomeAmount(ctx));
 }
 
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
@@ -424,11 +477,12 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
     return;
   }
   const pd = ctx.personalDeductions;
-  const totalIncome = combinedTotalIncomeAmount(ctx);
+  const general = generalIncomeOf(ctx);
   const pension = publicPensionIncomeOf(ctx);
   const deductions = computeIncomeDeductions(ctx.year, {
     ...pd,
-    totalIncome,
+    legalTotalIncome: legalTotalIncomeAmount(general),
+    totalIncomeEtc: totalIncomeAmountEtc(general),
   });
   putTag(
     out,
@@ -456,7 +510,7 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
   putTag(out, 'ABB00550', deductions.basicDeduction.toString());
   putTag(out, 'ABB00560', deductions.total.toString());
   // 課税される所得金額は千円未満切捨て（第一表(30)欄。progressiveIncomeTax の内部切捨てと同一基準）
-  const taxableIncome = maxZero(totalIncome.minus(deductions.total))
+  const taxableIncome = maxZero(aggregateIncomeAmount(general).minus(deductions.total))
     .dividedBy(1_000)
     .toDecimalPlaces(0, Decimal.ROUND_DOWN)
     .times(1_000);
@@ -507,13 +561,43 @@ function putIncomeDeductions(out: XtxLeafValues, ctx: XtxContext): void {
       putTag(out, 'ABB01120', otherMiscIncome(pd.miscIncome.otherIncome, miscExpenses).toString());
     }
   }
-  // 源泉徴収税額（給与＋事業所得側の直接入力分）・申告納税額（マイナス＝還付相当）。
+  putGeneralIncome(out, pd, general);
+  // 源泉徴収税額（給与・事業所得側の直接入力分・利子・配当・一時所得）・申告納税額（マイナス＝還付相当）。
   putTag(out, 'ABB00710', totalWithholdingTax(pd).toString());
+  // 第一表60欄。手引きは「源泉徴収税額」欄のうち雑所得・一時所得・臨時所得・株式等の譲渡所得・退職所得の分の合計とする。
+  // 源泉徴収税額を受け付けているのは、このうち一時所得だけ。
+  const occasionalWithholding = pd.occasionalIncome?.withholdingTax ?? D(0);
+  if (occasionalWithholding.greaterThan(0)) {
+    putTag(out, 'ABB00810', occasionalWithholding.toString());
+  }
   putTag(out, 'ABB00720', tax.filingTaxDue.toString());
   // 公的年金等以外の合計所得金額・配偶者の合計所得金額（既存収集データからの参考値）
   putTag(out, 'ABB00775', nonPensionTotalIncomeAmount(ctx).toString());
   if (pd.spouse) {
     putTag(out, 'ABB00780', pd.spouse.totalIncome.toString());
+  }
+}
+// 利子・配当・総合譲渡・一時所得の第一表の欄。譲渡・一時は手引きの計算欄 A・B・G・I をそのまま転記する
+// （損益通算が要る組み合わせは koa020InputBlocker が出力を止める）。ABB00410 の合計は e-Tax が計算する。
+function putGeneralIncome(
+  out: XtxLeafValues,
+  pd: NonNullable<XtxContext['personalDeductions']>,
+  general: GeneralIncomeResult,
+): void {
+  putNonZero(out, 'ABB00350', interestIncomeAmount(pd));
+  if (pd.dividendIncome?.revenue.greaterThan(0)) {
+    putTag(out, 'ABB00070', pd.dividendIncome.revenue.toString());
+    putTag(out, 'ABB00360', dividendIncomeAmount(pd).toString());
+  }
+  putNonZero(out, 'ABB00130', general.short);
+  putNonZero(out, 'ABB00180', general.long);
+  putNonZero(out, 'ABB00230', general.occasional);
+  putNonZero(out, 'ABB00400', transferAndOccasionalAmount(general));
+}
+
+function putNonZero(out: XtxLeafValues, tag: string, amount: Decimal): void {
+  if (!amount.isZero()) {
+    putTag(out, tag, amount.toString());
   }
 }
 
@@ -535,33 +619,157 @@ function familyEmployeeCandidates(ctx: XtxContext) {
     ...realEstateFamilyEmployeeDeductionResult(ctx).entries,
   ];
 }
+// 第二表「総合課税の譲渡所得、一時所得に関する事項」の行。短期譲渡・長期譲渡・一時所得の順に、
+// 該当する入力か当年の固定資産の売却がある種類だけ並べる。
+interface TransferRow {
+  kind: '譲渡（短期）' | '譲渡（長期）' | '一時';
+  revenue: Decimal;
+  expense: Decimal;
+  difference: Decimal;
+}
+
+function transferIncomeRows(ctx: IncomeCtx): TransferRow[] {
+  const pd: GeneralIncomeInput = ctx.personalDeductions ?? {};
+  const fa = fixedAssetTotals(ctx);
+  const items = pd.generalTransferIncome ?? [];
+  const rows: TransferRow[] = [];
+  for (const term of ['short', 'long'] as const) {
+    const own = items.filter(
+      (i) =>
+        i.term === term &&
+        (!i.revenue.isZero() || !i.acquisitionCost.isZero() || !i.expenses.isZero()),
+    );
+    const count = term === 'short' ? fa.shortCount : fa.longCount;
+    if (count + own.length === 0) {
+      continue;
+    }
+    const revenue = own.reduce(
+      (acc, i) => acc.plus(i.revenue),
+      term === 'short' ? fa.shortRevenue : fa.longRevenue,
+    );
+    const expense = own.reduce(
+      (acc, i) => acc.plus(i.acquisitionCost).plus(i.expenses),
+      term === 'short' ? fa.shortExpense : fa.longExpense,
+    );
+    rows.push({
+      kind: term === 'short' ? '譲渡（短期）' : '譲渡（長期）',
+      revenue,
+      expense,
+      difference: revenue.minus(expense),
+    });
+  }
+  if (pd.occasionalIncome && hasOccasionalIncome(pd)) {
+    const { revenue, expenses } = pd.occasionalIncome;
+    rows.push({
+      kind: '一時',
+      revenue,
+      expense: expenses,
+      difference: maxZero(revenue.minus(expenses)),
+    });
+  }
+  return rows;
+}
+// 第二表「所得の内訳」の一時所得の行。種目・支払者の欄は XSD の文字数上限と文字種に合わせる。
+function occasionalBreakdownRow(ctx: IncomeCtx): XtxLeafValues | undefined {
+  const occasional = ctx.personalDeductions?.occasionalIncome;
+  if (!occasional || !hasOccasionalIncome(ctx.personalDeductions ?? {})) {
+    return undefined;
+  }
+  const row: XtxLeafValues = { ABD00020: '一時' };
+  const texts: [string, string][] = [
+    ['ABD00025', sanitizeLine(occasional.category).slice(0, 10)],
+    ['ABD00030', sanitizeLine(occasional.payerAddress).slice(0, 100)],
+    ['ABD00040', sanitizeLine(occasional.payerName)],
+  ];
+  for (const [tag, text] of texts) {
+    if (text) {
+      row[tag] = text;
+    }
+  }
+  putTag(row, 'ABD00050', occasional.revenue.toString());
+  if (occasional.withholdingTax.greaterThan(0)) {
+    putTag(row, 'ABD00060', occasional.withholdingTax.toString());
+  }
+  return row;
+}
 
 export function mapKoa020RepeatedValues(ctx: XtxContext): XtxRepeatedValues {
+  const out: XtxRepeatedValues = {};
   const entries = familyEmployeeCandidates(ctx).slice(0, maxOccursOf(SCHEMA, 'ABE00010'));
-  if (entries.length === 0) {
-    return {};
+  if (entries.length > 0) {
+    out.ABE00010 = entries.map((entry) => {
+      const row: XtxLeafValues = {};
+      const name = sanitizeLine(entry.name);
+      if (name) {
+        row.ABE00020 = name;
+      }
+      row.ABE00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
+      row.ABE00060 = sanitizeLine(`従事月数${entry.monthsWorked}か月`).slice(0, 40);
+      putTag(row, 'ABE00070', entry.amount.toString());
+      return row;
+    });
   }
-  const rows = entries.map((entry) => {
-    const row: XtxLeafValues = {};
-    const name = sanitizeLine(entry.name);
-    if (name) {
-      row.ABE00020 = name;
-    }
-    row.ABE00040 = FAMILY_EMPLOYEE_ZOKUGARA_LABEL[entry.relation];
-    row.ABE00060 = sanitizeLine(`従事月数${entry.monthsWorked}か月`).slice(0, 40);
-    putTag(row, 'ABE00070', entry.amount.toString());
-    return row;
-  });
-  return { ABE00010: rows };
+  const transferRows = transferIncomeRows(ctx).slice(0, maxOccursOf(SCHEMA, 'ABX00000'));
+  if (transferRows.length > 0) {
+    out.ABX00000 = transferRows.map((r) => {
+      const row: XtxLeafValues = { ABX00250: r.kind };
+      putTag(row, 'ABX00260', r.revenue.toString());
+      putTag(row, 'ABX00290', r.expense.toString());
+      putTag(row, 'ABX00310', r.difference.toString());
+      return row;
+    });
+  }
+  const breakdown = occasionalBreakdownRow(ctx);
+  if (breakdown) {
+    out.ABD00010 = [breakdown];
+  }
+  return out;
 }
-// 事業専従者の明細（ABE00010）の上限を超えて .xtx へ出せなかった行。
+// 明細欄（事業専従者・総合譲渡一時）の上限を超えて .xtx へ出せなかった行。
 // 出力側と同じ候補の並びの、上限より後ろを返す。
 export function koa020DetailOverflow(ctx: XtxContext): XtxDetailOverflowRow[] {
-  return familyEmployeeCandidates(ctx)
-    .slice(maxOccursOf(SCHEMA, 'ABE00010'))
-    .map((entry) => ({
-      section: 'familyEmployee' as const,
-      label: sanitizeLine(entry.name),
-      amount: entry.amount.toString(),
-    }));
+  return [
+    ...familyEmployeeCandidates(ctx)
+      .slice(maxOccursOf(SCHEMA, 'ABE00010'))
+      .map((entry) => ({
+        section: 'familyEmployee' as const,
+        label: sanitizeLine(entry.name),
+        amount: entry.amount.toString(),
+      })),
+    ...transferIncomeRows(ctx)
+      .slice(maxOccursOf(SCHEMA, 'ABX00000'))
+      .map((row) => ({
+        section: 'transferIncome' as const,
+        label: row.kind,
+        amount: row.revenue.toString(),
+      })),
+  ];
+}
+
+export type Koa020InputBlocker =
+  | { reason: 'asset-transfer-failed'; names: string[] }
+  | { reason: 'nonessential-unconfirmed' }
+  | { reason: 'transfer-koc020' }
+  | { reason: 'netting-statement' }
+  | { reason: 'payer-name-missing' };
+// 現時点で .xtx を出力できない所得の組み合わせ。最初に当てはまる理由だけを返す。
+export function koa020InputBlocker(ctx: IncomeCtx): Koa020InputBlocker | undefined {
+  if (ctx.fixedAssetTransfer && !ctx.fixedAssetTransfer.ok) {
+    return { reason: 'asset-transfer-failed', names: ctx.fixedAssetTransfer.names };
+  }
+  const general = generalIncomeOf(ctx);
+  if (general.unconfirmed) {
+    return { reason: 'nonessential-unconfirmed' };
+  }
+  if (general.hasTransfer) {
+    return { reason: 'transfer-koc020' };
+  }
+  if (general.nettingStatementRequired) {
+    return { reason: 'netting-statement' };
+  }
+  const occasional = ctx.personalDeductions?.occasionalIncome;
+  if (general.hasOccasional && occasional && sanitizeLine(occasional.payerName) === '') {
+    return { reason: 'payer-name-missing' };
+  }
+  return undefined;
 }

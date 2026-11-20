@@ -40,8 +40,10 @@ interface LifeInsurancePayments {
 }
 
 export interface IncomeDeductionInput {
-  /** 合計所得金額（申告者本人） */
-  totalIncome: Decimal;
+  /** 合計所得金額（申告者本人）。基礎控除・配偶者控除・寡婦・ひとり親・勤労学生の判定に使う */
+  legalTotalIncome: Decimal;
+  /** 総所得金額等。医療費控除・寄附金控除の基準 */
+  totalIncomeEtc: Decimal;
   socialInsurancePaid: Decimal;
   smallBusinessMutualAidPaid: Decimal;
   lifeInsurance: LifeInsurancePayments;
@@ -473,7 +475,7 @@ export function computeIncomeDeductions(
     input.dependents,
   );
   const result: IncomeDeductionResult = {
-    basicDeduction: basicDeduction(year, input.totalIncome),
+    basicDeduction: basicDeduction(year, input.legalTotalIncome),
     socialInsuranceDeduction: input.socialInsurancePaid,
     smallBusinessMutualAidDeduction: input.smallBusinessMutualAidPaid,
     lifeInsuranceDeduction: lifeInsuranceDeduction(input.lifeInsurance),
@@ -484,9 +486,9 @@ export function computeIncomeDeductions(
     medicalExpenseDeduction: medicalExpenseDeduction(
       input.medicalExpensePaid,
       input.medicalInsuranceReimbursement,
-      input.totalIncome,
+      input.totalIncomeEtc,
     ),
-    donationDeduction: donationDeduction(input.donationAmount, input.totalIncome),
+    donationDeduction: donationDeduction(input.donationAmount, input.totalIncomeEtc),
     casualtyLossDeduction: input.casualtyLossDeduction,
     disabilityDeduction: disabilityDeduction(input).plus(
       relativeDisabilityDeduction(year, input.spouse, input.dependents),
@@ -495,14 +497,14 @@ export function computeIncomeDeductions(
       year,
       input.isSingleParent,
       input.isWidow,
-      input.totalIncome,
+      input.legalTotalIncome,
     ),
     workingStudentDeduction: workingStudentDeduction(
       year,
       input.isWorkingStudent,
-      input.totalIncome,
+      input.legalTotalIncome,
     ),
-    spouseDeduction: spouseDeduction(year, input.totalIncome, input.spouse),
+    spouseDeduction: spouseDeduction(year, input.legalTotalIncome, input.spouse),
     dependentDeduction,
     specificRelativeSpecialDeduction,
     total: D(0),

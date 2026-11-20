@@ -70,6 +70,90 @@ const PAYEE_TABLES: [string, () => string][] = [
   ['loanInterestPaid', m.income_deductions_real_estate_loan_interest_paid_title],
   ['professionalFeesPaid', m.income_deductions_real_estate_professional_fees_title],
 ];
+// 利子・配当・総合譲渡・一時所得の欄。金額は personalDeductionsToCtx が読めなければ 0 にし、
+// 文字欄は .xtx の組み立てで文字列として扱うため、読めない値を欄の名前で返す
+function pushGeneralIncomeIssues(stored: Record<string, unknown>, bad: string[]): void {
+  const amountsOf = (
+    value: unknown,
+    fields: [string, () => string][],
+    title: () => string,
+  ): void => {
+    if (!isRecord(value)) {
+      bad.push(title());
+      return;
+    }
+    for (const [key, label] of fields) {
+      if (isStoredAmountInvalid(value[key])) {
+        bad.push(label());
+      }
+    }
+  };
+  if (stored.interestIncome) {
+    amountsOf(
+      stored.interestIncome,
+      [
+        ['amount', m.income_general_interest_amount],
+        ['withholdingTax', m.income_general_interest_withholding],
+      ],
+      m.income_general_interest_amount,
+    );
+  }
+  if (stored.dividendIncome) {
+    amountsOf(
+      stored.dividendIncome,
+      [
+        ['revenue', m.income_general_dividend_revenue],
+        ['debtInterest', m.income_general_dividend_debt_interest],
+        ['withholdingTax', m.income_general_dividend_withholding],
+      ],
+      m.income_general_dividend_revenue,
+    );
+  }
+  const items = stored.generalTransferIncome;
+  if (items !== undefined) {
+    if (!Array.isArray(items)) {
+      bad.push(m.income_general_transfer_title());
+    } else {
+      for (const item of items as unknown[]) {
+        amountsOf(
+          item,
+          [
+            ['revenue', m.income_general_transfer_revenue],
+            ['acquisitionCost', m.income_general_transfer_acquisition_cost],
+            ['expenses', m.income_general_transfer_expenses],
+          ],
+          m.income_general_transfer_title,
+        );
+        if (isRecord(item) && item.term !== 'short' && item.term !== 'long') {
+          bad.push(m.income_general_transfer_title());
+        }
+      }
+    }
+  }
+  if (stored.occasionalIncome) {
+    const occasional = stored.occasionalIncome;
+    amountsOf(
+      occasional,
+      [
+        ['revenue', m.income_general_occasional_revenue],
+        ['expenses', m.income_general_occasional_expenses],
+        ['withholdingTax', m.income_general_occasional_withholding],
+      ],
+      m.income_general_occasional_revenue,
+    );
+    if (isRecord(occasional)) {
+      for (const [key, label] of [
+        ['category', m.income_general_occasional_category],
+        ['payerName', m.income_general_occasional_payer_name],
+        ['payerAddress', m.income_general_occasional_payer_address],
+      ] as const) {
+        if (occasional[key] !== undefined && typeof occasional[key] !== 'string') {
+          bad.push(label());
+        }
+      }
+    }
+  }
+}
 // 復元された所得控除は主キーしか検査していない。.xtx の変換（personalDeductionsToCtx）が例外にする形と、
 // 0 や未記入に置き換えてしまう金額・年齢・月数を、読めない欄の名前の一覧として返す
 export function validatePersonalDeductions(stored: unknown): string[] {
@@ -151,6 +235,7 @@ export function validatePersonalDeductions(stored: unknown): string[] {
       }
     }
   }
+  pushGeneralIncomeIssues(stored, bad);
   const realEstate = stored.realEstateIncome;
   if (realEstate) {
     if (!isRecord(realEstate)) {
