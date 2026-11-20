@@ -299,8 +299,12 @@ export function salaryAdjustmentEligibility(
 }
 // 寡婦控除（27万円）・ひとり親控除（35万円、令和8年分。令和9年分以後38万円）はいずれか一方のみ適用。
 // ひとり親控除は令和9年分以後 35万円→38万円（令和8年度税制改正の大綱(3)、国税庁 Q&A Q3-2。
-// 令和8年分には適用されない）。寡婦控除27万円は据え置き。どちらも本人の合計所得金額
-// 500万円以下が要件だが、その判定は入力側（isSingleParent / isWidow）に委ねる。
+// 令和8年分には適用されない）。寡婦控除27万円は据え置き。
+// 寡婦控除・ひとり親控除の合計所得金額500万円以下の要件（所得税法2条1項30号・31号）は自動で判定する。婚姻の状況や子・扶養親族の有無などは入力側に委ねる。
+export function singleParentOrWidowIncomeLimit(): Decimal {
+  return D(5_000_000);
+}
+
 function singleParentAmount(year: number): number {
   return year <= 2026 ? 350_000 : 380_000;
 }
@@ -309,7 +313,11 @@ export function singleParentOrWidowDeduction(
   year: number,
   isSingleParent: boolean,
   isWidow: boolean,
+  totalIncome: Decimal,
 ): Decimal {
+  if (totalIncome.greaterThan(singleParentOrWidowIncomeLimit())) {
+    return D(0);
+  }
   if (isSingleParent) {
     return D(singleParentAmount(year));
   }
@@ -318,9 +326,20 @@ export function singleParentOrWidowDeduction(
   }
   return D(0);
 }
+// 所得税法2条1項32号・令和8年法律第12号附則2条により合計所得金額の上限は令和8年分から89万円（令和7年分は85万円）。
+// 給与所得等以外の所得が10万円以下という要件は、雑所得が本人の勤労によるものか判別できないため入力側に委ねる。
+export function workingStudentIncomeLimit(year: number): Decimal {
+  return D(year <= 2025 ? 850_000 : 890_000);
+}
 
-export function workingStudentDeduction(isWorkingStudent: boolean): Decimal {
-  return isWorkingStudent ? D(270_000) : D(0);
+export function workingStudentDeduction(
+  year: number,
+  isWorkingStudent: boolean,
+  totalIncome: Decimal,
+): Decimal {
+  return isWorkingStudent && totalIncome.lessThanOrEqualTo(workingStudentIncomeLimit(year))
+    ? D(270_000)
+    : D(0);
 }
 
 function isElderly(age: number): boolean {
@@ -476,8 +495,13 @@ export function computeIncomeDeductions(
       year,
       input.isSingleParent,
       input.isWidow,
+      input.totalIncome,
     ),
-    workingStudentDeduction: workingStudentDeduction(input.isWorkingStudent),
+    workingStudentDeduction: workingStudentDeduction(
+      year,
+      input.isWorkingStudent,
+      input.totalIncome,
+    ),
     spouseDeduction: spouseDeduction(year, input.totalIncome, input.spouse),
     dependentDeduction,
     specificRelativeSpecialDeduction,
