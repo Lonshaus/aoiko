@@ -41,6 +41,58 @@ afterEach(async () => {
   await db.delete();
 });
 
+describe('validatePersonalDeductions: 総合課税の所得の欄', () => {
+  test('正しい値と、新しい欄がない記録は問題なし', () => {
+    expect(
+      validatePersonalDeductions(
+        deductions({
+          interestIncome: { amount: '1' },
+          dividendIncome: { revenue: '1', debtInterest: '0' },
+          generalTransferIncome: [{ term: 'long', revenue: '1', acquisitionCost: '0' }],
+          occasionalIncome: { revenue: '1500000', payerName: '保険会社' },
+        }),
+      ),
+    ).toEqual([]);
+    expect(validatePersonalDeductions(deductions())).toEqual([]);
+  });
+
+  test('読めない金額は欄の名前で返す', () => {
+    expect(
+      validatePersonalDeductions(
+        deductions({
+          interestIncome: { amount: 'abc' },
+          dividendIncome: { revenue: '1', withholdingTax: '1e3' },
+          generalTransferIncome: [{ term: 'short', revenue: '-1', expenses: 'x' }],
+          occasionalIncome: { revenue: '1.5.0', expenses: 'q' },
+        }),
+      ),
+    ).toEqual([
+      m.income_general_interest_amount(),
+      m.income_general_dividend_withholding(),
+      m.income_general_transfer_revenue(),
+      m.income_general_transfer_expenses(),
+      m.income_general_occasional_revenue(),
+      m.income_general_occasional_expenses(),
+    ]);
+  });
+
+  test('一時所得の文字欄が文字列でない、所有期間が不正、配列でない総合譲渡は欄の名前で返す', () => {
+    expect(
+      validatePersonalDeductions(
+        deductions({ occasionalIncome: { revenue: '1', payerName: 5, category: [] } }),
+      ),
+    ).toEqual([m.income_general_occasional_category(), m.income_general_occasional_payer_name()]);
+    expect(
+      validatePersonalDeductions(
+        deductions({ generalTransferIncome: [{ term: 'middle', revenue: '1' }] }),
+      ),
+    ).toEqual([m.income_general_transfer_title()]);
+    expect(validatePersonalDeductions(deductions({ generalTransferIncome: {} }))).toEqual([
+      m.income_general_transfer_title(),
+    ]);
+  });
+});
+
 describe('validatePersonalDeductions', () => {
   test('正常な値と 15 桁の金額は問題なし', () => {
     expect(validatePersonalDeductions(deductions())).toEqual([]);

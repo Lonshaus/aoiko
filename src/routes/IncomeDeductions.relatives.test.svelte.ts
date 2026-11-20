@@ -198,7 +198,8 @@ describe('税額の試算は .xtx 出力と同じ計算（外国税額控除・�
 
     const salary = salaryIncomeAmount(2026, D(5_000_000));
     const deductions = computeIncomeDeductions(2026, {
-      totalIncome: salary,
+      legalTotalIncome: salary,
+      totalIncomeEtc: salary,
       socialInsurancePaid: D(0),
       smallBusinessMutualAidPaid: D(0),
       lifeInsurance: {},

@@ -65,7 +65,7 @@ function realEstatePl(netIncome: string): PLReport {
   };
 }
 
-const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'totalIncome'> = {
+const emptyPersonalDeductions: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> = {
   socialInsurancePaid: D(0),
   smallBusinessMutualAidPaid: D(0),
   lifeInsurance: {},

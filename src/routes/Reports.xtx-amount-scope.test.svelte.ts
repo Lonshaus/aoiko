@@ -146,7 +146,7 @@ function disposedAsset(salePrice: string): FixedAsset {
     usefulLifeYears: 10,
     depreciationMethod: 'straight-line',
     accountCode: '1510',
-    disposedDate: '2026-03-31',
+    disposedDate: '2025-03-31',
     disposalType: 'sale',
     salePrice,
   };

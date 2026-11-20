@@ -428,6 +428,16 @@ export interface RealEstateIncomeInput {
   loanInterestPaid?: RealEstateLoanInterestPaidDetail[];
   professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
 }
+// 固定資産台帳にない総合課税の譲渡所得（金地金・ゴルフ会員権など）の 1 件。
+export interface GeneralTransferItem {
+  /** 取得日から譲渡日までの所有期間が 5 年以内なら短期（所法33条3項1号）、超えれば長期 */
+  term: 'short' | 'long';
+  revenue: string;
+  acquisitionCost?: string;
+  expenses?: string;
+  /** 所令178条1項各号の生活に通常必要でない資産（所法69条2項） */
+  nonEssential?: boolean;
+}
 // 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
 // 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
 // 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する
@@ -469,6 +479,21 @@ export interface PersonalDeductionInput {
   priorPriorRealEstateRevenue?: string;
   /** 家内労働者等の必要経費の特例（措法27条）の適用を受けるか */
   homeWorker?: boolean;
+  /** 総合課税の利子所得（源泉徴収だけで課税が終わる預金利子は入力しない） */
+  interestIncome?: { amount: string; withholdingTax?: string };
+  /** 総合課税を選択した配当所得（所得＝収入−負債利子） */
+  dividendIncome?: { revenue: string; debtInterest?: string; withholdingTax?: string };
+  /** 固定資産台帳にない総合課税の譲渡所得 */
+  generalTransferIncome?: GeneralTransferItem[];
+  /** 一時所得（特別控除 50 万円は計算で引く）。種目・支払者は第二表の所得の内訳へ転記する */
+  occasionalIncome?: {
+    revenue: string;
+    expenses?: string;
+    withholdingTax?: string;
+    category?: string;
+    payerName?: string;
+    payerAddress?: string;
+  };
   updatedAt: number;
 }
 

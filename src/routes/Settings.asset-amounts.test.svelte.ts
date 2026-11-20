@@ -236,30 +236,65 @@ describe('譲渡所得の一時所得の金額', () => {
     });
   }
 
-  test.each([
-    ['1e3', () => m.common_amount_invalid()],
-    ['100000000000000', () => m.common_amount_too_large()],
-  ])(
-    '「一時所得の金額（特別控除後、任意）」に %j を入れると、その欄の誤りを示す',
-    async (bad, message) => {
-      await seedSold();
-      unmount(instance!);
-      container!.remove();
-      container = document.createElement('div');
-      document.body.appendChild(container);
-      instance = mount(Settings, { target: container, props: {} });
-      // 画面の読み込みが終わる前にテストを終えると、後始末で閉じたデータベースを読んで未処理の rejection になる
-      await waitFor(() => {
-        const text = container!.textContent ?? '';
-        return (
-          text.includes(MOUNT_SENTINEL) &&
-          text.includes(m.settings_transfer_income_aggregate_title({ year }))
-        );
-      });
-      type('transferOccasionalIncome', bad);
-      expect(container!.textContent).toContain(message());
-      type('transferOccasionalIncome', '10000');
-      expect(container!.textContent).not.toContain(message());
-    },
-  );
+  async function seedDeductions(revenue: string): Promise<void> {
+    await db.personalDeductions.put({
+      year,
+      socialInsurancePaid: '0',
+      smallBusinessMutualAidPaid: '0',
+      lifeInsurance: {},
+      earthquakeInsurancePaid: '0',
+      oldLongTermInsurancePaid: '0',
+      medicalExpensePaid: '0',
+      medicalInsuranceReimbursement: '0',
+      donationAmount: '0',
+      casualtyLossDeduction: '0',
+      isDisabled: false,
+      isSpecialDisabled: false,
+      isSingleParent: false,
+      isWidow: false,
+      isWorkingStudent: false,
+      dependents: [],
+      occasionalIncome: { revenue },
+      updatedAt: Date.now(),
+    });
+  }
+
+  async function remount(): Promise<void> {
+    unmount(instance!);
+    container!.remove();
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    instance = mount(Settings, { target: container, props: {} });
+    // 画面の読み込みが終わる前にテストを終えると、後始末で閉じたデータベースを読んで未処理の rejection になる
+    await waitFor(() => {
+      const text = container!.textContent ?? '';
+      return (
+        text.includes(MOUNT_SENTINEL) &&
+        text.includes(m.settings_transfer_income_aggregate_title({ year }))
+      );
+    });
+  }
+
+  test('所得控除の画面に保存した一時所得（収入 150 万円）を特別控除後の金額で読む', async () => {
+    await seedSold();
+    await seedDeductions('1500000');
+    await remount();
+    await waitFor(() =>
+      (
+        container!.querySelector('[data-testid="stored-occasional-income"]')?.textContent ?? ''
+      ).includes('1,000,000'),
+    );
+    expect(container!.querySelector('input[name="transferOccasionalIncome"]')).toBeNull();
+  });
+
+  test('保存した一時所得が読めない値でも、0 円として試算を出す', async () => {
+    await seedSold();
+    await seedDeductions('1e3');
+    await remount();
+    const note = container!.querySelector('[data-testid="stored-occasional-income"]');
+    expect(note?.textContent).toContain(
+      m.settings_transfer_income_occasional_stored({ amount: '¥0' }),
+    );
+    expect(container!.textContent).not.toContain(m.common_amount_invalid());
+  });
 });

@@ -141,5 +141,6 @@ describe('建物等の売却は分離課税で試算する', () => {
       }),
     );
     expect(separate).toContain(m.settings_transfer_income_separate_note());
+    expect(separate).toContain(m.settings_transfer_income_separate_excluded());
   });
 });

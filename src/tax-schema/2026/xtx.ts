@@ -35,6 +35,7 @@ import { buildXtxBundle, type XtxFilerInfo, type XtxFormInput } from './xtx-docu
 import { todayISO } from '../../lib/date';
 import type { AoiroDeductionKind } from './aoiro-deduction';
 import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
+import type { FixedAssetTransfer, GeneralIncomeInput } from './general-income';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
@@ -124,10 +125,13 @@ export interface XtxContext {
   businessCloseDate?: string;
   /** 不動産所得のPL（incomeType: 'realEstate' の仕訳から buildPL で算出）。無ければ不動産所得なし */
   realEstatePl?: PLReport;
-  /** 所得控除・税額控除・給与/雑所得の入力（totalIncome は ctx.pl から導出するため含めない）。未入力なら KOA020 側は出力しない */
-  personalDeductions?: Omit<IncomeDeductionInput, 'totalIncome'> &
+  /** 当年に処分した固定資産の総合譲渡所得（resolveFixedAssetTransfer の結果）。未指定は当年の処分なし */
+  fixedAssetTransfer?: FixedAssetTransfer;
+  /** 所得控除・税額控除・給与/雑所得の入力（合計所得金額・総所得金額等は ctx から導出するため含めない）。未入力なら KOA020 側は出力しない */
+  personalDeductions?: Omit<IncomeDeductionInput, 'legalTotalIncome' | 'totalIncomeEtc'> &
     TaxCreditInput &
-    OtherIncomeInput & {
+    OtherIncomeInput &
+    GeneralIncomeInput & {
       realEstateIncome?: RealEstateIncomeCtx;
       familyEmployees?: PersonalDeductionFamilyEmployee[];
       /** 前々年分の事業所得に係る総収入金額（措法25条の2第2項、令和9年分以後） */
@@ -340,6 +344,46 @@ export function personalDeductionsToCtx(
       ? { priorPriorRealEstateRevenue: toDec(stored.priorPriorRealEstateRevenue) }
       : {}),
     ...(stored.homeWorker !== undefined ? { homeWorker: stored.homeWorker } : {}),
+    ...(stored.interestIncome
+      ? {
+          interestIncome: {
+            amount: toDec(stored.interestIncome.amount),
+            withholdingTax: toDec(stored.interestIncome.withholdingTax ?? ''),
+          },
+        }
+      : {}),
+    ...(stored.dividendIncome
+      ? {
+          dividendIncome: {
+            revenue: toDec(stored.dividendIncome.revenue),
+            debtInterest: toDec(stored.dividendIncome.debtInterest ?? ''),
+            withholdingTax: toDec(stored.dividendIncome.withholdingTax ?? ''),
+          },
+        }
+      : {}),
+    ...(stored.generalTransferIncome
+      ? {
+          generalTransferIncome: stored.generalTransferIncome.map((i) => ({
+            term: i.term,
+            revenue: toDec(i.revenue),
+            acquisitionCost: toDec(i.acquisitionCost ?? ''),
+            expenses: toDec(i.expenses ?? ''),
+            nonEssential: i.nonEssential ?? false,
+          })),
+        }
+      : {}),
+    ...(stored.occasionalIncome
+      ? {
+          occasionalIncome: {
+            revenue: toDec(stored.occasionalIncome.revenue),
+            expenses: toDec(stored.occasionalIncome.expenses ?? ''),
+            withholdingTax: toDec(stored.occasionalIncome.withholdingTax ?? ''),
+            category: stored.occasionalIncome.category ?? '',
+            payerName: stored.occasionalIncome.payerName ?? '',
+            payerAddress: stored.occasionalIncome.payerAddress ?? '',
+          },
+        }
+      : {}),
   };
 }
 
