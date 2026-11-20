@@ -7,7 +7,7 @@ import {
   purchaseResultOf,
   purchaseResultOfError,
 } from './iap.js';
-// ストアごとに品目 ID が違い、間違えると「ストアに無い品目」を買わせようとして落ちる。
+// ストアの記録ごとに品目 ID が違い、間違えると「ストアに無い品目」を買わせようとして落ちる。
 // 消耗型を consume し忘れると 2 回目が買えなくなる。どちらも実機でしか気付けないので、
 // 対応表と後始末の呼び出しをここで固定する。
 function fakeInvoke(handlers) {
@@ -29,16 +29,17 @@ test('3 つのストアとも品目は 2 つだけ', () => {
   }
 });
 
-test('ストアごとに品目 ID が分かれている', () => {
-  assert.equal(productIdsFor('macos').tip, 'net.lonshaus.aoiko.mac.tip');
+test('macOS と iOS は同じ記録の品目 ID を使い、Windows は別', () => {
+  assert.equal(productIdsFor('macos').tip, 'net.lonshaus.aoiko.ios.tip');
   assert.equal(productIdsFor('ios').tip, 'net.lonshaus.aoiko.ios.tip');
   assert.equal(productIdsFor('windows').tip, 'net.lonshaus.aoiko.win.tip');
-  assert.equal(productIdsFor('macos')['supporter-badge'], 'net.lonshaus.aoiko.mac.supporterbadge');
+  assert.equal(productIdsFor('macos')['supporter-badge'], 'net.lonshaus.aoiko.ios.supporterbadge');
   assert.equal(productIdsFor('ios')['supporter-badge'], 'net.lonshaus.aoiko.ios.supporterbadge');
   assert.equal(
     productIdsFor('windows')['supporter-badge'],
     'net.lonshaus.aoiko.win.supporterbadge',
   );
+  assert.deepEqual(productIdsFor('macos'), productIdsFor('ios'));
 });
 
 test('表に無い環境では入口ごと生えない', () => {
@@ -53,9 +54,9 @@ test('表に無い環境では入口ごと生えない', () => {
   );
 });
 
-test('kindFor は自分のストアの ID だけを引く', () => {
-  assert.equal(kindFor('macos', 'net.lonshaus.aoiko.mac.tip'), 'tip');
-  assert.equal(kindFor('macos', 'net.lonshaus.aoiko.ios.tip'), null);
+test('kindFor は自分の記録の ID だけを引く', () => {
+  assert.equal(kindFor('macos', 'net.lonshaus.aoiko.ios.tip'), 'tip');
+  assert.equal(kindFor('macos', 'net.lonshaus.aoiko.mac.tip'), null);
   assert.equal(kindFor('windows', 'net.lonshaus.aoiko.win.tip'), 'tip');
 });
 
@@ -72,8 +73,8 @@ test('価格はストアが返した文字列をそのまま渡す', async () =>
   const { invoke, calls } = fakeInvoke({
     'plugin:iap|get_products': () => ({
       products: [
-        { productId: 'net.lonshaus.aoiko.mac.tip', formattedPrice: 'NT$35' },
-        { productId: 'net.lonshaus.aoiko.mac.supporterbadge', formattedPrice: '$3.99' },
+        { productId: 'net.lonshaus.aoiko.ios.tip', formattedPrice: 'NT$35' },
+        { productId: 'net.lonshaus.aoiko.ios.supporterbadge', formattedPrice: '$3.99' },
       ],
     }),
   });
@@ -106,9 +107,9 @@ test('価格の付いていない品目は出さない', async () => {
   const { invoke } = fakeInvoke({
     'plugin:iap|get_products': () => ({
       products: [
-        { productId: 'net.lonshaus.aoiko.mac.tip' },
-        { productId: 'net.lonshaus.aoiko.mac.supporterbadge', formattedPrice: '¥500' },
-        { productId: 'net.lonshaus.aoiko.mac.unknown', formattedPrice: '¥1' },
+        { productId: 'net.lonshaus.aoiko.ios.tip' },
+        { productId: 'net.lonshaus.aoiko.ios.supporterbadge', formattedPrice: '¥500' },
+        { productId: 'net.lonshaus.aoiko.ios.unknown', formattedPrice: '¥1' },
       ],
     }),
   });
@@ -125,7 +126,7 @@ test('確定した消耗型は consume する', async () => {
   });
   const iap = createIap(invoke, 'macos');
   assert.equal(await iap.purchaseIap('tip'), 'purchased');
-  assert.equal(calls[0].args.payload.productId, 'net.lonshaus.aoiko.mac.tip');
+  assert.equal(calls[0].args.payload.productId, 'net.lonshaus.aoiko.ios.tip');
   assert.equal(calls[1].cmd, 'plugin:iap|consume_purchase');
   assert.equal(calls[1].args.payload.purchaseToken, 'tok-1');
 });
@@ -198,10 +199,21 @@ test('復元で戻すのは非消耗型だけ', async () => {
       purchases: [
         { productId: 'net.lonshaus.aoiko.mac.tip' },
         { productId: 'net.lonshaus.aoiko.mac.supporterbadge' },
+        { productId: 'net.lonshaus.aoiko.ios.tip' },
         { productId: 'net.lonshaus.aoiko.ios.supporterbadge' },
       ],
     }),
   });
   const iap = createIap(invoke, 'macos');
   assert.deepEqual(await iap.restoreIapPurchases(), ['supporter-badge']);
+});
+
+test('旧記録の mac.* は復元対象にならない', async () => {
+  const { invoke } = fakeInvoke({
+    'plugin:iap|restore_purchases': () => ({
+      purchases: [{ productId: 'net.lonshaus.aoiko.mac.supporterbadge' }],
+    }),
+  });
+  const iap = createIap(invoke, 'macos');
+  assert.deepEqual(await iap.restoreIapPurchases(), []);
 });

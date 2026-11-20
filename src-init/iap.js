@@ -1,11 +1,12 @@
 // ストアの課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
 // invoke を直に叩く。aoiko-native も同じ書き方で、新しい npm 依存を増やさない。
 //
-// 品目 ID はストアごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
+// 品目 ID はストアの記録ごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
 const PRODUCT_IDS = {
+  // macOS 版は iOS 版と同じ記録で配るので、品目も iOS の ID を使う。
   macos: {
-    tip: 'net.lonshaus.aoiko.mac.tip',
-    'supporter-badge': 'net.lonshaus.aoiko.mac.supporterbadge',
+    tip: 'net.lonshaus.aoiko.ios.tip',
+    'supporter-badge': 'net.lonshaus.aoiko.ios.supporterbadge',
   },
   ios: {
     tip: 'net.lonshaus.aoiko.ios.tip',
