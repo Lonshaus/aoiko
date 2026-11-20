@@ -268,7 +268,7 @@ const CONDITIONAL_STATES: ReadonlyArray<{
     },
   },
   {
-    name: '所得控除：給与所得・配偶者・不動産所得の内訳・扶養親族・専従者の欄を出す',
+    name: '所得控除：給与所得・配偶者・不動産所得の内訳・扶養親族・専従者・総合譲渡の欄を出す',
     path: '/income-deductions',
     drive: async (page) => {
       await page.getByRole('checkbox', { name: /給与所得がある/ }).check();
@@ -283,6 +283,8 @@ const CONDITIONAL_STATES: ReadonlyArray<{
         await addRowUnder(page, heading);
       }
       await expect(page.locator('[name$="-incomeType"]')).toBeVisible();
+      await page.getByRole('button', { name: '譲渡を追加', exact: true }).click();
+      await expect(page.locator('[name$="-nonEssential"]')).toBeVisible();
     },
   },
   {
@@ -415,7 +417,7 @@ const CONDITIONAL_STATES: ReadonlyArray<{
         .filter({ has: page.locator('[name=disposeDate]') })
         .getByRole('button', { name: '保存' })
         .click();
-      await expect(page.locator('[name=transferOccasionalIncome]')).toBeVisible();
+      await expect(page.getByTestId('stored-occasional-income')).toBeVisible();
       await page.locator('[name=geminiApiKey]').fill('form-audit-dummy-key');
       await page.getByRole('button', { name: 'モデル一覧取得' }).click();
       await expect(page.locator('[name=geminiModelSelect]')).toBeVisible();
