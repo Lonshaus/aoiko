@@ -1,5 +1,5 @@
-// スタンプ帳の並べ方と、絵柄の決め方だけを持つ。購入も保存もここには無い（画面と store の仕事）。
-// 絵柄は猫のおもちゃ 7 種 × 淡い虹 7 色。押した時点で決まり、以後変わらない。
+// スタンプ帳の並べ方だけを持つ。保存もここには無い（画面と store の仕事）。
+// 絵柄は猫のおもちゃ 7 種 × 淡い虹 7 色。スタンプは販売を終えており、過去に押した分の表示にだけ使う。
 export const STAMP_SHAPES = [
   'yarn',
   'mouse',
@@ -53,43 +53,4 @@ export function stampPageCount(total: number): number {
 export function stampPageSlots(stamps: readonly Stamp[], page: number): (Stamp | null)[] {
   const start = page * STAMPS_PER_PAGE;
   return Array.from({ length: STAMPS_PER_PAGE }, (_, i) => stamps[start + i] ?? null);
-}
-// 7 種を使い切るまで同じものを引かない。素の無作為だと 9 枠の 1 頁に同じ絵柄が 3 回出ることが
-// あり、集まっていく見え方にならない。袋の中身は保存せず、既に押した分から今の周回を割り出す。
-function drawFrom<T>(
-  pool: readonly [T, ...T[]],
-  used: readonly T[],
-  previous: T | undefined,
-  random: () => number,
-): T {
-  const rest = pool.filter((v) => !used.includes(v));
-  // 周回の切れ目。ここを見ないと、避けたかった「隣り合う重複」だけが残る。
-  const choices =
-    rest.length === pool.length && previous !== undefined
-      ? pool.filter((v) => v !== previous)
-      : rest;
-  return choices[Math.floor(random() * choices.length)] ?? pool[0];
-}
-// 絵柄と色は独立に引く。連動させると 7 通りしか出ず、49 通りある意味が無くなる。
-export function nextStampFace(
-  stamps: readonly Stamp[],
-  random: () => number = Math.random,
-): { shape: StampShape; color: StampColor } {
-  const cycle = stamps.length % STAMP_SHAPES.length;
-  const current = cycle === 0 ? [] : stamps.slice(-cycle);
-  const previous = stamps[stamps.length - 1];
-  return {
-    shape: drawFrom(
-      STAMP_SHAPES,
-      current.map((s) => s.shape),
-      previous?.shape,
-      random,
-    ),
-    color: drawFrom(
-      STAMP_COLORS,
-      current.map((s) => s.color),
-      previous?.color,
-      random,
-    ),
-  };
 }

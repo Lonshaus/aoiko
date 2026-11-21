@@ -256,6 +256,28 @@
   const SupportDialog = __NATIVE__
     ? import('../components/SupportDialog.svelte').then((mod) => mod.default)
     : null;
+  const SupporterBadge = __NATIVE__
+    ? import('../components/SupporterBadge.svelte').then((mod) => mod.default)
+    : null;
+  // 支援者バッジを買った日。買ったあとは支援画面を開くボタンをバッジに替える。
+  let supporterBadgeAt = $state<string | null>(null);
+  // 読めなくてもボタンがバッジに替わらないだけなので、失敗は画面に出さない。
+  function refreshSupporterBadge(): void {
+    if (!canSupport) {
+      return;
+    }
+    void getSetting('supporterBadgeAt')
+      .then((at) => {
+        supporterBadgeAt = at ?? null;
+      })
+      .catch(() => {});
+  }
+  // 購入は支援画面の中で済むので、閉じたときに読み直してバッジへ替える。
+  function closeSupport(): void {
+    supportOpen = false;
+    refreshSupporterBadge();
+  }
+  onMount(refreshSupporterBadge);
   let confirmingRestore = $state(false);
   let restorePayload = $state<Awaited<ReturnType<typeof parseBackupFile>>['payload'] | null>(null);
   let restoreAttachmentCount = $state(0);
@@ -5359,13 +5381,30 @@
   {/if}
   {#if canSupport}
     <div class="text-center">
-      <button
-        type="button"
-        onclick={() => (supportOpen = true)}
-        class="px-4 py-2 border rounded hover:bg-accent"
-      >
-        {m.support_open()}
-      </button>
+      {#if supporterBadgeAt !== null && SupporterBadge}
+        <button
+          type="button"
+          onclick={() => (supportOpen = true)}
+          title={m.support_badge_thanks()}
+          data-testid="supporter-badge-entry"
+          class="inline-flex flex-col items-center gap-1 px-4 py-2 rounded hover:bg-accent"
+        >
+          {#await SupporterBadge then Badge}
+            <Badge owned />
+          {/await}
+          <span class="text-xs text-muted-foreground">
+            {m.support_badge_desc_owned({ date: supporterBadgeAt.replaceAll('-', '.') })}
+          </span>
+        </button>
+      {:else}
+        <button
+          type="button"
+          onclick={() => (supportOpen = true)}
+          class="px-4 py-2 border rounded hover:bg-accent"
+        >
+          {m.support_open()}
+        </button>
+      {/if}
     </div>
   {/if}
   <p class="text-center text-xs text-muted-foreground">
@@ -5375,7 +5414,7 @@
 
 {#if canSupport && SupportDialog}
   {#await SupportDialog then Dialog}
-    <Dialog open={supportOpen} onclose={() => (supportOpen = false)} />
+    <Dialog open={supportOpen} onclose={closeSupport} />
   {/await}
 {/if}
 

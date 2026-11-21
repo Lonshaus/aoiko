@@ -32,7 +32,7 @@ export type NativeBridge = {
   // 購入。'pending' は「家族の承認待ち」等、その場で確定しない状態。
   purchaseIap?(kind: IapProductKind): Promise<IapPurchaseResult>;
   // 機種変更・再インストール後に、購入済みの非消耗型を取り戻す。
-  // 戻り値は復元できた品目。消耗型（スタンプ）は対象外。
+  // 戻り値は復元できた品目。
   restoreIapPurchases?(): Promise<IapProductKind[]>;
   // OS 内蔵の文字認識。行に加えて 1 単語ごとの座標・信頼度・次の候補まで返す。
   // 構造化は receipt-text-extract が行う。読めなければ拒否する。
@@ -53,7 +53,7 @@ export type NativeBridge = {
   appleAiRun?(task: number, data: string): Promise<string>;
 };
 
-export type IapProductKind = 'tip' | 'supporter-badge';
+export type IapProductKind = 'supporter-badge';
 
 export type IapProduct = {
   kind: IapProductKind;

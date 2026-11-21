@@ -30,17 +30,17 @@ describe('preview-bridge', () => {
     expect(b?.appleAiRun).toBeUndefined();
   });
 
-  it('原生側の共通関数が揃い、価格は ¥999 の仮値', async () => {
+  it('原生側の共通関数が揃い、品目は支援者バッジだけ', async () => {
     for (const p of ['macos', 'ios', 'windows'] as const) {
       const b = previewBridge(p);
       expect(b?.saveFile).toBeTypeOf('function');
       expect(b?.backupChooseFolder).toBeTypeOf('function');
       expect(await b?.saveFile?.(new Uint8Array(), 'a')).toBe(false);
       expect(await b?.isTextRecognitionAvailable?.()).toBe(true);
-      expect(await b?.purchaseIap?.('tip')).toBe('cancelled');
+      expect(await b?.purchaseIap?.('supporter-badge')).toBe('cancelled');
       expect(await b?.restoreIapPurchases?.()).toEqual([]);
       expect(await (b?.backupChooseFolder as () => Promise<unknown>)()).toBeNull();
-      expect((await b?.listIapProducts?.())?.map((x) => x.displayPrice)).toEqual(['¥999', '¥999']);
+      expect((await b?.listIapProducts?.())?.map((x) => x.kind)).toEqual(['supporter-badge']);
       await expect(b?.recognizeText?.('')).rejects.toBeDefined();
     }
   });
