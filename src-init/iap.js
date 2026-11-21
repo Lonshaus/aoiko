@@ -1,24 +1,20 @@
-// ストアの課金。プラグインの JS API は npm で別配布だが、入口が 4 つしか要らないので
+// ストアの課金。プラグインの JS API は npm で別配布だが、入口が 3 つしか要らないので
 // invoke を直に叩く。aoiko-native も同じ書き方で、新しい npm 依存を増やさない。
 //
 // 品目 ID はストアの記録ごとに違う。web 側は kind でしか呼ばず、この表だけが実際の ID を知る。
 const PRODUCT_IDS = {
   // macOS 版は iOS 版と同じ記録で配るので、品目も iOS の ID を使う。
   macos: {
-    tip: 'net.lonshaus.aoiko.ios.tip',
     'supporter-badge': 'net.lonshaus.aoiko.ios.supporterbadge',
   },
   ios: {
-    tip: 'net.lonshaus.aoiko.ios.tip',
     'supporter-badge': 'net.lonshaus.aoiko.ios.supporterbadge',
   },
   windows: {
-    tip: 'net.lonshaus.aoiko.win.tip',
     'supporter-badge': 'net.lonshaus.aoiko.win.supporterbadge',
   },
 };
-// どのストアも、消耗しない品目と分けるためにこの区別を要求する。
-// 定期購読は扱わないので inapp 固定。
+// どのストアも品目の種類の指定を要求する。定期購読は扱わないので inapp 固定。
 const PRODUCT_TYPE = 'inapp';
 // プラグインが返す purchaseState（0/1/2）。web 側の語彙へ移す。
 const PURCHASE_STATE = { 0: 'purchased', 1: 'cancelled', 2: 'pending' };
@@ -91,26 +87,15 @@ export function createIap(invoke, platform) {
       }
       return fromError;
     }
-    const result = purchaseResultOf(purchase);
-    // 消耗型は finish しないと同じ品目を二度買えない。スタンプは何度でも押せる
-    // ものなので、確定した時点で必ず消費する。
-    if (result === 'purchased' && kind !== 'supporter-badge' && purchase.purchaseToken) {
-      await invoke('plugin:iap|consume_purchase', {
-        payload: { purchaseToken: purchase.purchaseToken },
-      });
-    }
-    return result;
+    return purchaseResultOf(purchase);
   }
 
   async function restoreIapPurchases() {
     const { purchases } = await invoke('plugin:iap|restore_purchases', {
       payload: { productType: PRODUCT_TYPE },
     });
-    // 戻すのは非消耗型だけ。消耗型は買い切りの記録が端末に残るもので、
-    // ストアから取り戻す対象ではない。
-    return purchases
-      .map((p) => kindFor(platform, p.productId))
-      .filter((kind) => kind === 'supporter-badge');
+    // 表に無い品目（販売を終えた旧品目）は戻さない。
+    return purchases.map((p) => kindFor(platform, p.productId)).filter((kind) => kind !== null);
   }
 
   return { listIapProducts, purchaseIap, restoreIapPurchases };

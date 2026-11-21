@@ -23,4 +23,14 @@ describe('購入画面の取り込み条件', () => {
       /__NATIVE__\s*\n?\s*\?\s*import\('\.\.\/components\/SupportDialog\.svelte'\)/,
     );
   });
+
+  test('SupporterBadge を静的 import していない（畳めなくなる）', () => {
+    expect(source).not.toMatch(/^\s*import SupporterBadge from/m);
+  });
+
+  test('SupporterBadge の読み込みが __NATIVE__ の内側にある', () => {
+    expect(source).toMatch(
+      /__NATIVE__\s*\n?\s*\?\s*import\('\.\.\/components\/SupporterBadge\.svelte'\)/,
+    );
+  });
 });

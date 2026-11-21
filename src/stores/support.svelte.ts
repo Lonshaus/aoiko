@@ -1,8 +1,7 @@
 import { db } from '../db/db';
 import { getSetting, setSetting } from '../lib/settings';
-import { newId } from '../lib/id';
 import { todayISO } from '../lib/date';
-import { nextStampFace, stampPageCount, stampPageSlots, type Stamp } from '../domain/stamps';
+import { stampPageCount, stampPageSlots, type Stamp } from '../domain/stamps';
 import {
   nativeBridge,
   type IapProduct,
@@ -10,7 +9,7 @@ import {
   type IapPurchaseResult,
 } from '../lib/native-bridge';
 
-const KINDS: IapProductKind[] = ['tip', 'supporter-badge'];
+const KINDS: IapProductKind[] = ['supporter-badge'];
 
 class SupportStore {
   stamps = $state<Stamp[]>([]);
@@ -21,12 +20,11 @@ class SupportStore {
   productsAsked = $state(false);
   page = $state(0);
   busy = $state(false);
-  // 直前に押したスタンプ。押した瞬間だけ動きを付けるために持つ。
-  justStamped = $state<string | null>(null);
 
   pageCount = $derived(stampPageCount(this.stamps.length));
   slots = $derived(stampPageSlots(this.stamps, this.page));
-  // ストアが片方しか返さないことがある（実機で観測）。揃っていないことを画面へ伝えるため、
+  hasStamps = $derived(this.stamps.length > 0);
+  // ストアが品目を返さないことがある（実機で観測）。揃っていないことを画面へ伝えるため、
   // 取り出せなかった品目を隠さずここで判る形にしておく。
   productsMissing = $derived(this.productsAsked && this.products.length < KINDS.length);
 
@@ -61,7 +59,8 @@ class SupportStore {
     try {
       const result = await bridge.purchaseIap(kind);
       if (result === 'purchased') {
-        await this.grant(kind);
+        // 購入が確定したときだけバッジを付ける。画面から直接呼べる経路は作らない。
+        await this.setBadge();
       }
       return result;
     } finally {
@@ -77,38 +76,12 @@ class SupportStore {
     this.busy = true;
     try {
       const restored = await bridge.restoreIapPurchases();
-      // 復元の対象は非消耗型だけ。スタンプは消耗型なので戻ってこないし、戻したくもない
-      // （この端末の記録だと画面で言っている）。
       if (restored.includes('supporter-badge') && this.badgeAt === null) {
         await this.setBadge();
       }
       return restored;
     } finally {
       this.busy = false;
-    }
-  }
-  // 購入が確定したときだけ通る。ここを画面から直接呼ばないのは、ストアを通さずに
-  // スタンプが増える経路を作らないため。
-  private async grant(kind: IapProductKind): Promise<void> {
-    if (kind === 'tip') {
-      // 絵柄は押した時点で決めて保存する。表示のたびに引き直すと、同じスタンプの
-      // 見た目が再読み込みで変わってしまう。
-      // 同じミリ秒に 2 個入ると at と同じ「同点」に戻る。直前より必ず後ろへ置く。
-      const previous = this.stamps[this.stamps.length - 1]?.createdAt ?? 0;
-      const stamp: Stamp = {
-        id: newId(),
-        ...nextStampFace(this.stamps),
-        at: todayISO(),
-        createdAt: Math.max(Date.now(), previous + 1),
-      };
-      await db.stamps.put(stamp);
-      this.stamps = [...this.stamps, stamp];
-      this.page = this.pageCount - 1;
-      this.justStamped = stamp.id;
-      return;
-    }
-    if (kind === 'supporter-badge') {
-      await this.setBadge();
     }
   }
 

@@ -1,5 +1,6 @@
-// ストアが売っていない品目のボタンを出さないこと、購入済みのバッジで文言が変わることを見る。
-// どちらも「買えないものを見せない」ための分岐で、間違えると審査で落ちる。
+// ストアが売っていない品目のボタンを出さないこと、購入済みのバッジで文言が変わること、
+// スタンプ帳が、押した記録のあるときだけ出ることを見る。
+// 「買えないものを見せない」ための分岐で、間違えると審査で落ちる。
 
 import { describe, expect, test, afterEach, beforeEach, vi } from 'vitest';
 import { mount, unmount, flushSync } from 'svelte';
@@ -51,23 +52,14 @@ afterEach(() => {
 
 describe('購入導線', () => {
   test('価格はストアが返した文字列をそのまま出す（自前で組み立てない）', () => {
-    support.products = [{ kind: 'tip', displayPrice: 'NT$35' }];
+    support.products = [{ kind: 'supporter-badge', displayPrice: 'NT$35' }];
     render();
     flushSync();
-    expect(target?.querySelector('.tier .amount')?.textContent).toBe('NT$35');
-  });
-
-  test('消耗型をストアが売っていなければ金額ボタンもスタンプ帳も出さない', () => {
-    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
-    render();
-    flushSync();
-    expect(target?.querySelector('.tiers')).toBeNull();
-    expect(target?.querySelector('.book')).toBeNull();
-    expect(target?.querySelector('.badge-block')).not.toBeNull();
+    expect(target?.querySelector('.badge-block .buy')?.textContent?.trim()).toBe('NT$35');
   });
 
   test('支援者バッジをストアが売っていなければ枠ごと出さない', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+    support.products = [];
     render();
     flushSync();
     expect(target?.querySelector('.badge-block')).toBeNull();
@@ -81,18 +73,87 @@ describe('購入導線', () => {
     expect(target?.querySelector('.badge-block .buy')).toBeNull();
     expect(target?.querySelector('.badge-desc')?.textContent).toContain('2026.03.14');
   });
+
+  test('スタンプが無いとき、購入ボタンはバッジの 1 つだけでスタンプのボタンは無い', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
+    render();
+    flushSync();
+    expect(target?.querySelectorAll('button.buy')).toHaveLength(1);
+    expect(target?.querySelector('.tiers')).toBeNull();
+    expect(target?.querySelector('.tier')).toBeNull();
+  });
+
+  test('スタンプがあるときも、スタンプの購入ボタンは出さない', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
+    support.stamps = [{ id: 's1', shape: 'fish', color: 'blue', at: '2026-08-18', createdAt: 1 }];
+    render();
+    flushSync();
+    expect(target?.querySelector('.book')).not.toBeNull();
+    expect(target?.querySelectorAll('button.buy')).toHaveLength(1);
+    expect(target?.querySelector('.tiers')).toBeNull();
+    expect(target?.querySelector('.tier')).toBeNull();
+  });
 });
 
 describe('スタンプ帳', () => {
-  test('空でも 9 枠出す', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+  test('スタンプが無ければスタンプ帳を出さない', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
+    render();
+    flushSync();
+    expect(target?.querySelector('.book')).toBeNull();
+    expect(target?.querySelectorAll('.slot')).toHaveLength(0);
+  });
+
+  test('保存済みのスタンプがあれば、読み込み後に個数・頁数・日付つきで出す', async () => {
+    for (let i = 0; i < 3; i++) {
+      await db.stamps.put({
+        id: `s${i}`,
+        shape: 'bell',
+        color: 'blue',
+        at: `2026-08-1${i}`,
+        createdAt: i,
+      });
+    }
+    render();
+    await vi.waitFor(() => {
+      flushSync();
+      expect(target?.querySelector('.book')).not.toBeNull();
+    });
+    expect(target?.querySelector('.tally')?.textContent).toContain('3');
+    expect(target?.querySelectorAll('.stamp')).toHaveLength(3);
+    expect(target?.querySelector('.pager span')?.textContent).toContain('1 / 1');
+    expect([...(target?.querySelectorAll('.stamp .date') ?? [])].map((e) => e.textContent)).toEqual(
+      ['2026.08.10', '2026.08.11', '2026.08.12'],
+    );
+  });
+
+  test('10 個を超えると頁が分かれ、最後の頁が開く', async () => {
+    for (let i = 0; i < 10; i++) {
+      await db.stamps.put({
+        id: `s${i}`,
+        shape: 'bell',
+        color: 'blue',
+        at: '2026-08-18',
+        createdAt: i,
+      });
+    }
+    render();
+    await vi.waitFor(() => {
+      flushSync();
+      expect(target?.querySelector('.book')).not.toBeNull();
+    });
+    expect(target?.querySelector('.pager span')?.textContent).toContain('2 / 2');
+    expect(target?.querySelectorAll('.stamp')).toHaveLength(1);
+  });
+
+  test('スタンプがあれば 9 枠出す', () => {
+    support.stamps = [{ id: 's1', shape: 'fish', color: 'blue', at: '2026-08-18', createdAt: 1 }];
     render();
     flushSync();
     expect(target?.querySelectorAll('.slot')).toHaveLength(9);
   });
 
   test('押した日付を点区切りで出す', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     support.stamps = [{ id: 's1', shape: 'fish', color: 'blue', at: '2026-08-18', createdAt: 1 }];
     render();
     flushSync();
@@ -101,7 +162,6 @@ describe('スタンプ帳', () => {
   // 絵柄は保存されたものを描く。ここが位置や乱数で決まっていると、同じスタンプの
   // 見た目が再読み込みのたびに変わる。
   test('保存された絵柄と色をそのまま描く', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     support.stamps = [
       { id: 's1', shape: 'butterfly', color: 'violet', at: '2026-08-18', createdAt: 1 },
     ];
@@ -112,7 +172,6 @@ describe('スタンプ帳', () => {
   });
 
   test('絵柄ごとに違う図形を引く', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     support.stamps = [
       { id: 's1', shape: 'yarn', color: 'red', at: '2026-08-18', createdAt: 1 },
       { id: 's2', shape: 'bell', color: 'green', at: '2026-08-18', createdAt: 2 },
@@ -126,7 +185,6 @@ describe('スタンプ帳', () => {
   });
   // 7 種すべてに図形が要る。1 つでも欠けると、その絵柄のスタンプだけ空白で押される。
   test('7 種すべての図形が定義されている', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
     render();
     flushSync();
     for (const shape of ['yarn', 'mouse', 'bell', 'feather', 'fish', 'butterfly', 'teaser']) {
@@ -165,7 +223,7 @@ describe('閉じる', () => {
     expect(closed).toBe(0);
   });
 });
-// ストアが片方しか返さないことが実機で起きた（#491）。黙って隠すと、審査員には
+// ストアが品目を返さないことが実機で起きた（#491）。黙って隠すと、審査員には
 // 宣言した品目が画面に無い状態が見える。
 describe('品目が揃わないとき', () => {
   function missing(): HTMLElement | null {
@@ -177,43 +235,30 @@ describe('品目が揃わないとき', () => {
     expect(missing()).toBeNull();
   });
 
-  test('片方しか返らなければ、隠さずに取れなかったことを出す', () => {
-    support.products = [{ kind: 'tip', displayPrice: '¥150' }];
+  test('何も返らなければ、隠さずに取れなかったことを出す', () => {
     support.productsAsked = true;
     render();
     expect(missing()).not.toBeNull();
     expect(missing()?.querySelector('button')).not.toBeNull();
   });
 
-  test('1 つも返らなくても同じく出す', () => {
-    support.productsAsked = true;
-    render();
-    expect(missing()).not.toBeNull();
-  });
-
-  test('揃っていれば出さない', () => {
-    support.products = [
-      { kind: 'tip', displayPrice: '¥150' },
-      { kind: 'supporter-badge', displayPrice: '¥500' },
-    ];
+  test('支援者バッジだけが返れば揃っているので出さない', () => {
+    support.products = [{ kind: 'supporter-badge', displayPrice: '¥500' }];
     support.productsAsked = true;
     render();
     expect(missing()).toBeNull();
   });
-  // 実機で起きたのはこの順序：最初に開くと片方だけ、開き直すと両方。
-  test('押すとストアへ問い合わせ直し、揃えば表示が消える', async () => {
-    const both = [
-      { kind: 'tip' as const, displayPrice: '¥150' },
-      { kind: 'supporter-badge' as const, displayPrice: '¥500' },
-    ];
+  // 実機で起きたのはこの順序：最初に開くと空、開き直すと返る。
+  test('押すとストアへ問い合わせ直し、返れば表示が消える', async () => {
+    const badge = { kind: 'supporter-badge' as const, displayPrice: '¥500' };
     let asked = 0;
     const listIapProducts = vi.fn(async () => {
       asked += 1;
-      return asked === 1 ? [both[0]!] : both;
+      return asked === 1 ? [] : [badge];
     });
     vi.stubGlobal('window', Object.assign(window, { __aoikoNative: { listIapProducts } }));
     render();
-    // 1 回目の返りは片方だけ。まず出ることを確かめてから押す。
+    // 1 回目の返りは空。まず出ることを確かめてから押す。
     await vi.waitFor(() => {
       flushSync();
       expect(missing()).not.toBeNull();

@@ -16,10 +16,7 @@ export function previewBridge(
     setDiscardText: () => {},
     isTextRecognitionAvailable: async () => true,
     recognizeText: () => Promise.reject(new Error('preview')),
-    listIapProducts: async () => [
-      { kind: 'tip', displayPrice: '¥999' },
-      { kind: 'supporter-badge', displayPrice: '¥999' },
-    ],
+    listIapProducts: async () => [{ kind: 'supporter-badge', displayPrice: '¥999' }],
     purchaseIap: async () => 'cancelled',
     restoreIapPurchases: async () => [],
     backupChooseFolder: async () => null,
