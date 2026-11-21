@@ -283,6 +283,168 @@ describe('区分（kubun）ブランチの生 XML 上書き（raw、SHA020 ABY00
     expect(frag).toMatch(/<SHA020-1 page="1">/);
   });
 });
+// 一頁・一つの繰り返しブロックだけを持つ最小の様式（区分 branch・年分 leaf・文字列 leaf を子に持つ）
+function miniSchema(): XtxSchema {
+  const el = (
+    no: number,
+    level: number,
+    tag: string,
+    kind: 'branch' | 'leaf',
+    maxOccurs: number | 'unbounded' = 1,
+  ) => ({
+    no,
+    level,
+    tag,
+    ja: tag,
+    kind,
+    idref: '',
+    refType: '',
+    minOccurs: 0,
+    maxOccurs,
+  });
+  return {
+    meta: {
+      formId: 'ZZZ900',
+      formName: 'テスト様式',
+      namespace: 'http://xml.e-tax.nta.go.jp/XSD/shotoku',
+      version: '1.0',
+      source: 'test',
+      fetchedAt: '2026-11-21',
+    },
+    refTree: [
+      el(1, 0, 'ZZZ900', 'branch'),
+      el(2, 1, 'ZZZ900-1', 'branch'),
+      el(3, 2, 'REP00000', 'branch', 3),
+      el(4, 3, 'KBN00010', 'branch'),
+      el(5, 3, 'YR00020', 'leaf'),
+      el(6, 3, 'TXT00030', 'leaf'),
+      el(7, 2, 'TOP00040', 'leaf'),
+    ],
+    definitions: [],
+  };
+}
+
+describe('繰り返しブロックの各エントリごとの raw（repeatsRaw）', () => {
+  const schema = miniSchema();
+  const entryXml = (kubun: string, era: string, yy: string): string =>
+    `<REP00000><KBN00010><kubun_CD>${kubun}</kubun_CD></KBN00010>` +
+    `<YR00020><gen:era>${era}</gen:era><gen:yy>${yy}</gen:yy></YR00020>`;
+
+  test('エントリごとに自身の区分と年分（複合型）を出力する', () => {
+    const frag = buildFormFragment(
+      schema,
+      {},
+      {},
+      {},
+      { REP00000: [{ TXT00030: 'A' }, { TXT00030: 'B' }] },
+      {},
+      {
+        REP00000: [
+          {
+            KBN00010: '<kubun_CD>1</kubun_CD>',
+            YR00020: '<gen:era>4</gen:era><gen:yy>30</gen:yy>',
+          },
+          {
+            KBN00010: '<kubun_CD>2</kubun_CD>',
+            YR00020: '<gen:era>5</gen:era><gen:yy>2</gen:yy>',
+          },
+        ],
+      },
+    );
+    expect(frag).toContain(`${entryXml('1', '4', '30')}<TXT00030>A</TXT00030></REP00000>`);
+    expect(frag).toContain(`${entryXml('2', '5', '2')}<TXT00030>B</TXT00030></REP00000>`);
+    expect(frag.match(/<REP00000>/g)).toHaveLength(2);
+  });
+
+  test('添字に対応する raw が無いエントリは親の raw だけを使う', () => {
+    const frag = buildFormFragment(
+      schema,
+      {},
+      {},
+      {},
+      { REP00000: [{ TXT00030: 'A' }, { TXT00030: 'B' }] },
+      { KBN00010: '<kubun_CD>9</kubun_CD>' },
+      { REP00000: [{ KBN00010: '<kubun_CD>1</kubun_CD>' }] },
+    );
+    expect(frag).toContain(
+      '<REP00000><KBN00010><kubun_CD>1</kubun_CD></KBN00010><TXT00030>A</TXT00030></REP00000>',
+    );
+    expect(frag).toContain(
+      '<REP00000><KBN00010><kubun_CD>9</kubun_CD></KBN00010><TXT00030>B</TXT00030></REP00000>',
+    );
+  });
+
+  test('エントリの raw は他のエントリにも繰り返しブロックの外にも漏れない', () => {
+    const frag = buildFormFragment(
+      schema,
+      {},
+      {},
+      { TOP00040: 'top' },
+      { REP00000: [{ TXT00030: 'A' }, { TXT00030: 'B' }] },
+      {},
+      { REP00000: [{ YR00020: '<gen:era>5</gen:era><gen:yy>7</gen:yy>' }] },
+    );
+    expect(frag.match(/<YR00020>/g)).toHaveLength(1);
+    expect(frag).toContain('<TOP00040>top</TOP00040>');
+  });
+
+  test('repeatsRaw を渡さないときの出力は従来と同じ', () => {
+    const leaf = { TOP00040: 'top' };
+    const repeats = { REP00000: [{ TXT00030: 'A' }] };
+    expect(buildFormFragment(schema, {}, {}, leaf, repeats, {}, {})).toBe(
+      buildFormFragment(schema, {}, {}, leaf, repeats),
+    );
+    expect(buildFormFragment(schema, {}, {}, leaf, repeats)).toContain(
+      '<REP00000><TXT00030>A</TXT00030></REP00000><TOP00040>top</TOP00040>',
+    );
+  });
+
+  test('buildXtxBundle の repeatsRaw も同じ位置に出力される', () => {
+    const xml = buildXtxBundle([
+      {
+        schema,
+        values: {},
+        repeats: { REP00000: [{ TXT00030: 'A' }] },
+        repeatsRaw: { REP00000: [{ KBN00010: '<kubun_CD>3</kubun_CD>' }] },
+      },
+    ]);
+    expect(xml).toContain(
+      '<REP00000><KBN00010><kubun_CD>3</kubun_CD></KBN00010><TXT00030>A</TXT00030></REP00000>',
+    );
+  });
+});
+
+describe('直接値 leaf への raw（複合型）', () => {
+  const schema = miniSchema();
+
+  test('raw は leafValues より優先して <TAG>raw</TAG> で出力される', () => {
+    const frag = buildFormFragment(
+      schema,
+      {},
+      {},
+      { TOP00040: 'plain' },
+      {},
+      { TOP00040: '<gen:era>5</gen:era><gen:yy>8</gen:yy>' },
+    );
+    expect(frag).toContain('<TOP00040><gen:era>5</gen:era><gen:yy>8</gen:yy></TOP00040>');
+    expect(frag).not.toContain('plain');
+  });
+
+  test('raw が空文字なら leafValues があっても出力しない', () => {
+    const frag = buildFormFragment(schema, {}, {}, { TOP00040: 'plain' }, {}, { TOP00040: '' });
+    expect(frag).not.toContain('TOP00040');
+  });
+
+  test('raw のみの leaf でもそのページは出力される', () => {
+    const frag = buildFormFragment(schema, {}, {}, {}, {}, { TOP00040: '<gen:yy>1</gen:yy>' });
+    expect(frag).toMatch(/<ZZZ900-1 page="1">/);
+    expect(frag).toContain('<TOP00040><gen:yy>1</gen:yy></TOP00040>');
+  });
+
+  test('raw も leafValues も無いページは出力されない', () => {
+    expect(buildFormFragment(schema, {})).toContain('出力対象データなし');
+  });
+});
 
 describe('必須 ID 属性を持つ区分ブランチ（hasId）', () => {
   const withId: XtxSchema = {

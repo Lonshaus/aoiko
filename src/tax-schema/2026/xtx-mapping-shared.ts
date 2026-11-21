@@ -53,13 +53,15 @@ export type XtxDetailOverflowSection =
   | 'rentPaid'
   | 'loanInterestPaid'
   | 'professionalFee'
-  | 'familyEmployee';
+  | 'familyEmployee'
+  | 'filingNotice';
 
 export interface XtxDetailOverflowRow {
   section: XtxDetailOverflowSection;
   // 資産名・物件所在地・支払先氏名・専従者氏名。空白のときは空文字（表示側で amount を使う）
   label: string;
-  amount: string;
+  // 届出事項（filingNotice）の行は金額を持たない
+  amount?: string;
 }
 export class XtxAmountOutOfRangeError extends Error {
   readonly tag: string;

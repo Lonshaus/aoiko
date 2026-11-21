@@ -171,6 +171,8 @@ export type XtxRepeatedValues = Record<string, XtxLeafValues[]>;
 // で生 XML を直書きしているのと同じ理由）。ブランチ tag → 内側の生 XML
 // （例：'<kubun_CD>1</kubun_CD>'）を直接指定する対応。
 export type XtxRawValues = Record<string, string>;
+// 繰り返しブロック（ブランチ tag）の各エントリに対応する raw。添字は repeats[tag] の同じエントリを指す。
+export type XtxRepeatedRawValues = Record<string, XtxRawValues[]>;
 // gen:yymmdd（複合型：<gen:era>/<gen:yy>/<gen:mm>/<gen:dd>）の raw XML を組み立てる。
 // 中間申告の対象期間（AAI00170/180 等）のように、kind:'leaf' だが実際は複合型な項目は
 // leafValues の単純文字列では表現できないため、XtxRawValues 経由で渡す。
@@ -294,9 +296,11 @@ function buildItPart(
 }
 // 参照側 leaf/branch（level >= 2）を描画。
 //  - leaf.idref 有：対応する IT部の ID があるとき IDREF 空要素
-//  - leaf.idref 無：leafValues に値があるとき <TAG>値</TAG>
+//  - leaf.idref 無：raw[tag] があればその生 XML を <TAG>…</TAG> で包む（空文字なら出力しない）。
+//    無ければ leafValues に値があるとき <TAG>値</TAG>
 //  - branch：repeats[tag] があれば繰り返しブロックとして 1 件ごとに独立した
-//    leafValues で子要素を解決し、<TAG>...</TAG> をエントリ数だけ並べて出力する
+//    leafValues で子要素を解決し、<TAG>...</TAG> をエントリ数だけ並べて出力する。
+//    子要素の raw は repeatsRaw[tag] の同じ添字のエントリで上書きする
 //  - branch（通常）：出力対象の子があるときのみ自身を出力
 function renderNode(
   node: RefNode,
@@ -304,11 +308,16 @@ function renderNode(
   leafValues: XtxLeafValues,
   repeats: XtxRepeatedValues,
   raw: XtxRawValues,
+  repeatsRaw: XtxRepeatedRawValues,
 ): string | null {
   if (node.kind === 'leaf') {
     if (node.idref) {
       const id = idByName.get(node.idref);
       return id ? `<${node.tag} IDREF="${id}"/>` : null;
+    }
+    const rawLeaf = raw[node.tag];
+    if (rawLeaf !== undefined) {
+      return rawLeaf === '' ? null : `<${node.tag}>${rawLeaf}</${node.tag}>`;
     }
     const v = leafValues[node.tag];
     if (v === undefined || v === '') {
@@ -327,10 +336,11 @@ function renderNode(
   const entries = repeats[node.tag];
   if (entries) {
     const rendered = entries
-      .map((entry) => {
+      .map((entry, i) => {
+        const entryRaw = { ...raw, ...(repeatsRaw[node.tag]?.[i] ?? {}) };
         const inner: string[] = [];
         for (const c of node.children) {
-          const r = renderNode(c, idByName, entry, repeats, raw);
+          const r = renderNode(c, idByName, entry, repeats, entryRaw, repeatsRaw);
           if (r !== null) {
             inner.push(r);
           }
@@ -342,7 +352,7 @@ function renderNode(
   }
   const inner: string[] = [];
   for (const c of node.children) {
-    const r = renderNode(c, idByName, leafValues, repeats, raw);
+    const r = renderNode(c, idByName, leafValues, repeats, raw, repeatsRaw);
     if (r !== null) {
       inner.push(r);
     }
@@ -373,6 +383,9 @@ function pageHasDirectValue(
   if (node.kind === 'leaf') {
     if (node.idref) {
       return false;
+    }
+    if ((raw[node.tag] ?? '') !== '') {
+      return true;
     }
     const v = leafValues[node.tag];
     return v !== undefined && v !== '';
@@ -407,6 +420,7 @@ function renderForm(
   attrs: FormAttrs,
   repeats: XtxRepeatedValues,
   raw: XtxRawValues,
+  repeatsRaw: XtxRepeatedRawValues,
 ): RenderedForm | null {
   const formRoot = buildRefTreeNodes(schema);
   const formId = formRoot.tag;
@@ -422,7 +436,7 @@ function renderForm(
       }
       const inner: string[] = [];
       for (const c of pageNode.children) {
-        const r = renderNode(c, idByName, leafValues, repeats, raw);
+        const r = renderNode(c, idByName, leafValues, repeats, raw, repeatsRaw);
         if (r !== null) {
           inner.push(r);
         }
@@ -441,7 +455,7 @@ function renderForm(
     // 単頁様式：子要素をページラッパ無しでそのまま様式ルート直下に描画する。
     const inner: string[] = [];
     for (const c of formRoot.children) {
-      const r = renderNode(c, idByName, leafValues, repeats, raw);
+      const r = renderNode(c, idByName, leafValues, repeats, raw, repeatsRaw);
       if (r !== null) {
         inner.push(r);
       }
@@ -496,6 +510,7 @@ export function buildFormFragment(
   leafValues: XtxLeafValues = {},
   repeats: XtxRepeatedValues = {},
   raw: XtxRawValues = {},
+  repeatsRaw: XtxRepeatedRawValues = {},
 ): string {
   const procedureTag = options.procedureTag ?? DEFAULT_PROCEDURE_TAG;
   const procedureName = options.procedureName ?? DEFAULT_PROCEDURE_NAME;
@@ -507,7 +522,15 @@ export function buildFormFragment(
     options.filer ?? {},
     options.shinkokuKbn ?? '1',
   );
-  const r = renderForm(schema, idByName, leafValues, resolveFormAttrs(options), repeats, raw);
+  const r = renderForm(
+    schema,
+    idByName,
+    leafValues,
+    resolveFormAttrs(options),
+    repeats,
+    raw,
+    repeatsRaw,
+  );
   return r ? r.xml : '<!-- 参照側：出力対象データなし -->';
 }
 
@@ -528,8 +551,10 @@ export interface XtxFormInput {
   leafValues?: XtxLeafValues;
   /** 繰り返しブロック（maxOccurs>1）の値：ブランチ tag→エントリ配列 */
   repeats?: XtxRepeatedValues;
-  /** 区分（kubun）型ブランチの生 XML 上書き：ブランチ tag→内側の生 XML */
+  /** 区分（kubun）型ブランチ、または複合型の直接値 leaf の生 XML 上書き：tag→内側の生 XML */
   raw?: XtxRawValues;
+  /** 繰り返しブロックの各エントリごとの raw：ブランチ tag→エントリ配列（repeats の同じ添字に対応） */
+  repeatsRaw?: XtxRepeatedRawValues;
 }
 // 複数様式を 1 つの送信データ（DATA > 手続ID > CONTENTS）に併載する。
 // IT部は全様式の定義側値を統合して 1 回だけ出力（ITdefinition カタログは全所得税
@@ -597,6 +622,7 @@ export function buildXtxBundle(forms: XtxFormInput[], options: XtxDocumentOption
       attrs,
       f.repeats ?? {},
       f.raw ?? {},
+      f.repeatsRaw ?? {},
     );
     if (r) {
       rendered.push(r);

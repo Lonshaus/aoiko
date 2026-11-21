@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   buildXtx2026,
   INCOME_TAX_XTX_LAST_YEAR,
   IncomeTaxXtxYearUnsupportedError,
   personalDeductionsToCtx,
   RealEstateIncomeInputMissingError,
+  xtxDetailOverflow,
   type XtxContext,
 } from './xtx';
 import { buildFormFragment } from './xtx-document';
@@ -14,6 +15,7 @@ import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { PersonalDeductionInput } from '../../db/types';
 import { D } from '../../lib/decimal';
 import type { RealEstateIncomeCtx } from './real-estate-income';
+import type { XtxFilingNotices } from './xtx-filing-notices';
 // personalDeductions は各種 IncomeDeductionInput 系の必須項目を含む交差型のため、
 // realEstateIncome だけの部分オブジェクトは型を満たさない（xtx-mapping-koa220.test.ts と同じ事情）。
 function withRealEstate(
@@ -805,5 +807,90 @@ describe('所得控除画面の金額（全角・カンマ・負の値）', () =
         }),
       ),
     ).not.toThrow();
+  });
+});
+
+describe('xtxDetailOverflow（不動産の届出事項。不動産用の様式を出さないとき画面へ提示する）', () => {
+  const realEstateNotices: XtxFilingNotices = {
+    closureDate: '2026-03-31',
+    blueReturnWithdrawalYear: 2027,
+    methodApplications: [
+      {
+        kind: 'notice',
+        assetType: 'inventory',
+        businessOrAssetType: '賃貸業',
+        assetClass: '区分A',
+        newMethod: '最終仕入原価法',
+      },
+      {
+        kind: 'notice',
+        assetType: 'depreciable',
+        businessOrAssetType: '賃貸業',
+        assetClass: '区分B',
+        newMethod: '定額法',
+      },
+    ],
+  };
+  const noticeRows = (ctx: XtxContext) =>
+    xtxDetailOverflow(ctx).filter((r) => r.section === 'filingNotice');
+
+  test.each([
+    ['white', 'KOA130'],
+    ['blue', 'KOA220'],
+  ] as const)(
+    '不動産用の様式が無いとき（%s）、廃業・取りやめ・番号・明細を %s の行として全部提示する',
+    (filingType, formId) => {
+      const ctx = makeCtx();
+      ctx.filingType = filingType;
+      ctx.filingNotices = { realEstate: realEstateNotices };
+      expect(noticeRows(ctx)).toEqual([
+        { formId, section: 'filingNotice', label: '廃業（2026.03.31）' },
+        { formId, section: 'filingNotice', label: '青色申告の取りやめ（2027年分）' },
+        { formId, section: 'filingNotice', label: '棚卸資産の評価方法の届出' },
+        { formId, section: 'filingNotice', label: '減価償却資産の償却方法の届出' },
+        { formId, section: 'filingNotice', label: '区分A' },
+        { formId, section: 'filingNotice', label: '区分B' },
+      ]);
+    },
+  );
+
+  test.each(['white', 'blue'] as const)(
+    '不動産用の様式を出すとき（%s）は提示しない',
+    (filingType) => {
+      const ctx = makeCtx();
+      ctx.filingType = filingType;
+      ctx.realEstatePl = {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      };
+      ctx.personalDeductions = withRealEstate({ businessScale: false });
+      ctx.filingNotices = { realEstate: realEstateNotices };
+      expect(noticeRows(ctx)).toEqual([]);
+    },
+  );
+
+  test('事業用の届出事項は提示しない', () => {
+    const ctx = makeCtx();
+    ctx.filingNotices = { business: realEstateNotices };
+    expect(noticeRows(ctx)).toEqual([]);
+  });
+
+  test('filingNotices があっても buildXtx2026 の出力は変わらない', () => {
+    // 作成日は実時計から入るので、2 回の呼び出しの間に日付が変わらないよう固定する
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2027-01-04T12:00:00Z'));
+      const ctx = makeCtx();
+      const without = buildXtx2026(ctx);
+      ctx.filingNotices = { business: realEstateNotices, realEstate: realEstateNotices };
+      expect(buildXtx2026(ctx)).toBe(without);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

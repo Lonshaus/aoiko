@@ -38,6 +38,7 @@ import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
+import { filingNoticeRows, type XtxFilingNotices } from './xtx-filing-notices';
 import {
   koa020DetailOverflow,
   mapKoa020LeafValues,
@@ -143,6 +144,8 @@ export interface XtxContext {
       /** 家内労働者等の必要経費の特例（措法27条）の適用を受けるか */
       homeWorker?: boolean;
     };
+  /** 届出事項の内容。business は KOA110／KOA210、realEstate は KOA130／KOA220 に対応する */
+  filingNotices?: { business?: XtxFilingNotices; realEstate?: XtxFilingNotices };
 }
 
 const KOA020_SCHEMA = koa020 as XtxSchema;
@@ -389,17 +392,24 @@ export function xtxDetailOverflow(ctx: XtxContext): XtxDetailOverflowItem[] {
     formId: XtxDetailOverflowItem['formId'],
     rows: XtxDetailOverflowRow[],
   ): XtxDetailOverflowItem[] => rows.map((row) => ({ formId, ...row }));
+  const realEstateNotices = ctx.filingNotices?.realEstate;
   if (ctx.filingType === 'white') {
     return [
       ...withForm('KOA020', koa020DetailOverflow(ctx)),
       ...withForm('KOA110', koa110DetailOverflow(ctx)),
       ...(ctx.realEstatePl ? withForm('KOA130', koa130DetailOverflow(ctx)) : []),
+      ...(realEstateNotices && !ctx.realEstatePl
+        ? withForm('KOA130', filingNoticeRows(realEstateNotices))
+        : []),
     ];
   }
   return [
     ...withForm('KOA020', koa020DetailOverflow(ctx)),
     ...withForm('KOA210', koa210DetailOverflow(ctx)),
     ...(ctx.realEstatePl ? withForm('KOA220', koa220DetailOverflow(ctx)) : []),
+    ...(realEstateNotices && !ctx.realEstatePl
+      ? withForm('KOA220', filingNoticeRows(realEstateNotices))
+      : []),
   ];
 }
 
