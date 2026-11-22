@@ -74,6 +74,9 @@ export const FILER_SETTING_KEYS = [
   'userFilerName',
   'userFilerZip',
   'userFilerAddress',
+  'userFilerTaxPlaceKind',
+  'userFilerDomicileAddress',
+  'userFilerBusinessPlaceAddress',
   'userZeimushoCode',
   'userZeimushoName',
 ] as const satisfies readonly (keyof SettingsMap)[];

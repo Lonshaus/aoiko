@@ -1427,4 +1427,113 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
       }
     },
   );
+
+  describe('納税地・住所・事業所所在地（KOA020 ABA00095、KOA110/KOA210 の住所・事業所所在地）', () => {
+    function taxPlaceCtx(
+      filingType: 'blue' | 'white',
+      filer: Partial<XtxContext['filer']>,
+    ): XtxContext {
+      return {
+        year: 2026,
+        businessName: 'aoikoウェブ事務所',
+        invoiceNumber: '',
+        monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+        pl: {
+          year: 2026,
+          revenue: [],
+          expense: [],
+          totalRevenue: '5000000',
+          totalExpense: '0',
+          netIncome: '5000000',
+          entryCount: 0,
+        },
+        bs: {
+          year: 2026,
+          asOf: '2026-12-31',
+          assets: [],
+          liabilities: [],
+          equity: [],
+          netIncome: '5000000',
+          totalAssets: '0',
+          totalLiabilitiesAndEquity: '0',
+          balanced: true,
+        },
+        filer: {
+          riyoshaId: '1234567890123456',
+          name: '青井 太郎',
+          zip: '1000001',
+          address: '京都府京都市中京区1-1',
+          zeimushoCode: '01101',
+          zeimushoName: '麹町',
+          ...filer,
+        },
+        filingType,
+        aoiroDeductionKind: filingType === 'blue' ? 'electronic' : 'none',
+        fixedAssets: [],
+      };
+    }
+
+    function validateForms(xtx: string, forms: Array<[string, string]>): void {
+      for (const [tag, wrapper] of forms) {
+        const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xtx);
+        expect(m, `${tag} subtree not found`).not.toBeNull();
+        const doc =
+          `<?xml version="1.0" encoding="UTF-8"?>\n` +
+          `<ValidationRoot xmlns="${NS}">\n${m![0]}\n</ValidationRoot>\n`;
+        const r = runXmllint(join(SPEC_DIR, wrapper), doc);
+        const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+        expect(out).not.toContain('Schemas parser error');
+        expect(r.status, `${tag}: ${out}`).toBe(0);
+      }
+    }
+
+    maybe('居所を納税地にした青色申告（住所・事業所所在地あり）が公式 xsd に適合する', () => {
+      const xtx = buildXtx2026(
+        taxPlaceCtx('blue', {
+          taxPlaceKind: 'abode',
+          domicileAddress: '大阪府大阪市北区1-1',
+          businessPlaceAddress: '兵庫県神戸市中央区1-1',
+        }),
+      );
+      expect(xtx).toContain('<ABA00095>大阪府大阪市北区1-1</ABA00095>');
+      expect(xtx).toContain('<AMB00010>大阪府大阪市北区1-1</AMB00010>');
+      expect(xtx).toContain('<AMB00050>兵庫県神戸市中央区1-1</AMB00050>');
+      validateForms(xtx, [
+        ['KOA020', '_valwrap-KOA020.xsd'],
+        ['KOA210', '_valwrap-KOA210.xsd'],
+      ]);
+    });
+
+    maybe('事業所等を納税地にした白色申告が公式 xsd に適合する', () => {
+      const xtx = buildXtx2026(
+        taxPlaceCtx('white', {
+          taxPlaceKind: 'businessPlace',
+          domicileAddress: '大阪府大阪市北区1-1',
+        }),
+      );
+      expect(xtx).toContain('<ABA00095>大阪府大阪市北区1-1</ABA00095>');
+      expect(xtx).toContain('<AIB00010>大阪府大阪市北区1-1</AIB00010>');
+      expect(xtx).toContain('<AIB00050>京都府京都市中京区1-1</AIB00050>');
+      validateForms(xtx, [
+        ['KOA020', '_valwrap-KOA020.xsd'],
+        ['KOA110', '_valwrap-KOA110.xsd'],
+      ]);
+    });
+
+    maybe('住所地を納税地にした青色申告・白色申告が公式 xsd に適合する', () => {
+      const blue = buildXtx2026(taxPlaceCtx('blue', {}));
+      expect(blue).not.toContain('<ABA00095>');
+      expect(blue).toContain('<AMB00010>京都府京都市中京区1-1</AMB00010>');
+      validateForms(blue, [
+        ['KOA020', '_valwrap-KOA020.xsd'],
+        ['KOA210', '_valwrap-KOA210.xsd'],
+      ]);
+      const white = buildXtx2026(taxPlaceCtx('white', {}));
+      expect(white).toContain('<AIB00010>京都府京都市中京区1-1</AIB00010>');
+      validateForms(white, [
+        ['KOA020', '_valwrap-KOA020.xsd'],
+        ['KOA110', '_valwrap-KOA110.xsd'],
+      ]);
+    });
+  });
 });

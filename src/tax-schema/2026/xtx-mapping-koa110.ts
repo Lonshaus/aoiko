@@ -45,6 +45,7 @@ import {
 } from './white-return-income';
 import {
   maxOccursOf,
+  putStatementAddresses,
   stripClassificationSuffix,
   toKingaku,
   type XtxDetailOverflowRow,
@@ -132,6 +133,7 @@ export function koa110AdditionalExpenseOverflow(
 export function mapKoa110Values(ctx: XtxContext): XtxLeafValues {
   const { pl } = ctx;
   const out: XtxLeafValues = {};
+  putStatementAddresses(out, ctx.filer, { domicile: 'AIB00010', businessPlace: 'AIB00050' });
   const reversalRevenue = pl.revenue.find(
     (r) => r.accountName === BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME,
   );

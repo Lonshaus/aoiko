@@ -39,7 +39,7 @@ export interface XtxFilerInfo {
   name?: string;
   /** 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP、任意） */
   zip?: string;
-  /** 住所（NOZEISHA_ADR、IT部で必須） */
+  /** 納税地（NOZEISHA_ADR、IT部で必須） */
   address?: string;
 }
 

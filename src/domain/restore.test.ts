@@ -909,6 +909,9 @@ describe('区分ごとの復元', () => {
     userFilerName: '青井 太郎',
     userFilerZip: '1000001',
     userFilerAddress: '東京都',
+    userFilerTaxPlaceKind: 'abode',
+    userFilerDomicileAddress: '大阪府',
+    userFilerBusinessPlaceAddress: '京都府',
     userZeimushoCode: '01101',
     userZeimushoName: '麹町',
   };

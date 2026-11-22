@@ -162,7 +162,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     }
   });
 
-  test('申告者情報が IT部の必須項目（税務署・利用者識別番号・氏名・住所）に入る', () => {
+  test('申告者情報が IT部の必須項目（税務署・利用者識別番号・氏名・納税地）に入る', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toContain(
       '<ZEIMUSHO ID="ZEIMUSHO"><gen:zeimusho_CD>01101</gen:zeimusho_CD><gen:zeimusho_NM>麹町</gen:zeimusho_NM></ZEIMUSHO>',

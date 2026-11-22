@@ -1,4 +1,5 @@
 import { isValidZeimushoCode } from '../tax-schema/2026/zeimusho';
+import type { TaxPlaceKind } from '../tax-schema/2026/xtx';
 
 export type FilerFieldKind = 'code' | 'zip' | 'text';
 // 復元された設定は値の型を検査していない。未設定は空欄、文字列にできない値は undefined にする。
@@ -45,11 +46,23 @@ export function isZeimushoCodeInvalid(raw: unknown): boolean {
   return code === undefined || (code.trim() !== '' && !isValidZeimushoCode(code));
 }
 
+const TAX_PLACE_KINDS: readonly TaxPlaceKind[] = ['domicile', 'abode', 'businessPlace'];
+// 未設定は住所地（導入前の保存値は住所のまま納税地として正しい）。三つの値以外は undefined
+export function readTaxPlaceKind(v: unknown): TaxPlaceKind | undefined {
+  if (v === undefined || v === null) {
+    return 'domicile';
+  }
+  return TAX_PLACE_KINDS.find((k) => k === v);
+}
+
 export interface StoredFilerSettings {
   userRiyoshaId: unknown;
   userFilerName: unknown;
   userFilerZip: unknown;
   userFilerAddress: unknown;
+  userFilerTaxPlaceKind?: unknown;
+  userFilerDomicileAddress?: unknown;
+  userFilerBusinessPlaceAddress?: unknown;
   userZeimushoCode: unknown;
   userZeimushoName: unknown;
   userBusinessName: unknown;
@@ -62,6 +75,9 @@ export function readStoredFiler(stored: StoredFilerSettings): {
     name: string;
     zip: string;
     address: string;
+    taxPlaceKind: TaxPlaceKind;
+    domicileAddress: string;
+    businessPlaceAddress: string;
     zeimushoCode: string;
     zeimushoName: string;
   };
@@ -73,6 +89,9 @@ export function readStoredFiler(stored: StoredFilerSettings): {
   const name = readFilerField(stored.userFilerName, 'text');
   const zip = readFilerField(stored.userFilerZip, 'zip');
   const address = readFilerField(stored.userFilerAddress, 'text');
+  const taxPlaceKind = readTaxPlaceKind(stored.userFilerTaxPlaceKind);
+  const domicileAddress = readFilerField(stored.userFilerDomicileAddress, 'text');
+  const businessPlaceAddress = readFilerField(stored.userFilerBusinessPlaceAddress, 'text');
   const zeimushoCode = readFilerField(stored.userZeimushoCode, 'code');
   const zeimushoName = readFilerField(stored.userZeimushoName, 'text');
   const businessName = readFilerField(stored.userBusinessName, 'text');
@@ -82,6 +101,9 @@ export function readStoredFiler(stored: StoredFilerSettings): {
     name: name ?? '',
     zip: zip ?? '',
     address: address ?? '',
+    taxPlaceKind: taxPlaceKind ?? 'domicile',
+    domicileAddress: domicileAddress ?? '',
+    businessPlaceAddress: businessPlaceAddress ?? '',
     zeimushoCode: zeimushoCode ?? '',
     zeimushoName: zeimushoName ?? '',
   };
@@ -89,8 +111,22 @@ export function readStoredFiler(stored: StoredFilerSettings): {
     isRiyoshaIdInvalid(stored.userRiyoshaId) ||
     isFilerZipInvalid(stored.userFilerZip) ||
     isZeimushoCodeInvalid(stored.userZeimushoCode) ||
-    [name, address, zeimushoName, businessName, invoiceNumber].some((v) => v === undefined);
-  const missing = !filer.zeimushoCode || !filer.riyoshaId || !filer.name || !filer.address;
+    [
+      name,
+      address,
+      taxPlaceKind,
+      domicileAddress,
+      businessPlaceAddress,
+      zeimushoName,
+      businessName,
+      invoiceNumber,
+    ].some((v) => v === undefined);
+  const missing =
+    !filer.zeimushoCode ||
+    !filer.riyoshaId ||
+    !filer.name ||
+    !filer.address ||
+    (filer.taxPlaceKind !== 'domicile' && !filer.domicileAddress);
   return {
     filer,
     businessName: businessName ?? '',
