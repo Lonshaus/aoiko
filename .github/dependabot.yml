@@ -31,3 +31,24 @@ updates:
       interval: cron
       cronjob: '0 9 * * 0'
       timezone: Asia/Tokyo
+  - package-ecosystem: cargo
+    directory: '/src-tauri'
+    schedule:
+      interval: cron
+      cronjob: '0 9 * * 0'
+      timezone: Asia/Tokyo
+    open-pull-requests-limit: 5
+    ignore:
+      # iap の都合で 2.11 のまま止めていて、JS 側の @tauri-apps/* とも minor をそろえる必要がある
+      - dependency-name: 'tauri*'
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      # tauri 自身が使うバージョンと一致しないと型が合わない
+      - dependency-name: webview2-com
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+      - dependency-name: windows-core
+        update-types: ['version-update:semver-minor', 'version-update:semver-major']
+    groups:
+      cargo-minor-patch:
+        update-types:
+          - minor
+          - patch
