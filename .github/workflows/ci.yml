@@ -94,7 +94,10 @@ jobs:
   # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
   # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
   native:
-    runs-on: macos-latest
+    # 本番の Swift が 27 の API を使うため、ストア向けビルドと同じ Xcode 27.2 でコンパイルする。
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
 
