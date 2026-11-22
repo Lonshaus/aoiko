@@ -86,11 +86,11 @@ export interface XtxFilingNoticeOutput {
   overflow: XtxDetailOverflowRow[];
 }
 
-const BUSINESS_OR_ASSET_TYPE_MAX = 20;
-const ASSET_CLASS_MAX = 40;
-const NEW_METHOD_MAX = 20;
-const CURRENT_METHOD_MAX = 20;
-const MEMO_MAX = 40;
+export const BUSINESS_OR_ASSET_TYPE_MAX = 20;
+export const ASSET_CLASS_MAX = 40;
+export const NEW_METHOD_MAX = 20;
+export const CURRENT_METHOD_MAX = 20;
+export const MEMO_MAX = 40;
 
 export class XtxFilingNoticeTextTooLongError extends Error {
   readonly tag: string;

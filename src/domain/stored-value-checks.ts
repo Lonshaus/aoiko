@@ -12,6 +12,13 @@ import {
   computeYearDepreciationAll,
   loadEffectiveBusinessDates,
 } from './depreciation';
+import {
+  ASSET_CLASS_MAX,
+  BUSINESS_OR_ASSET_TYPE_MAX,
+  CURRENT_METHOD_MAX,
+  MEMO_MAX,
+  NEW_METHOD_MAX,
+} from '../tax-schema/2026/xtx-filing-notices';
 import { m } from '../paraglide/messages';
 
 const AGE_RANGE = { min: 0, max: 120 };
@@ -70,6 +77,113 @@ const PAYEE_TABLES: [string, () => string][] = [
   ['loanInterestPaid', m.income_deductions_real_estate_loan_interest_paid_title],
   ['professionalFeesPaid', m.income_deductions_real_estate_professional_fees_title],
 ];
+// .xtx では届出の年分と廃業日を令和（gen:yy は 1〜99）で書くため、2019〜2117 年だけを書ける。
+// 採用した年は昭和（1926 年〜）まで書ける
+export const FILING_NOTICE_YEAR_MIN = 2019;
+export const FILING_NOTICE_YEAR_MAX = 2117;
+export const ADOPTED_YEAR_MIN = 1926;
+export const FILING_NOTICE_DATE_MIN = `${FILING_NOTICE_YEAR_MIN}-01-01`;
+export const FILING_NOTICE_DATE_MAX = `${FILING_NOTICE_YEAR_MAX}-12-31`;
+
+export function isFilingNoticeDate(v: unknown): boolean {
+  if (typeof v !== 'string') {
+    return false;
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!match) {
+    return false;
+  }
+  const [y, mo, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  const exists =
+    date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+  return exists && v >= FILING_NOTICE_DATE_MIN && v <= FILING_NOTICE_DATE_MAX;
+}
+
+export function isFilingNoticeYearInvalid(v: unknown): boolean {
+  return (
+    typeof v !== 'number' ||
+    !Number.isInteger(v) ||
+    v < FILING_NOTICE_YEAR_MIN ||
+    v > FILING_NOTICE_YEAR_MAX
+  );
+}
+
+export function isAdoptedYearInvalid(v: unknown): boolean {
+  return (
+    typeof v !== 'number' ||
+    !Number.isInteger(v) ||
+    v < ADOPTED_YEAR_MIN ||
+    v > FILING_NOTICE_YEAR_MAX
+  );
+}
+
+export function isFilingNoticeTextTooLong(v: unknown, max: number): boolean {
+  return typeof v !== 'string' || [...v].length > max;
+}
+
+const METHOD_APPLICATION_KINDS: readonly unknown[] = ['notice', 'change'];
+const METHOD_APPLICATION_ASSET_TYPES: readonly unknown[] = [
+  'inventory',
+  'securities',
+  'crypto',
+  'depreciable',
+];
+
+function isMethodApplicationInvalid(v: unknown): boolean {
+  if (!isRecord(v)) {
+    return true;
+  }
+  const optionalText = (x: unknown, max: number) =>
+    x !== undefined && isFilingNoticeTextTooLong(x, max);
+  return (
+    !METHOD_APPLICATION_KINDS.includes(v.kind) ||
+    !METHOD_APPLICATION_ASSET_TYPES.includes(v.assetType) ||
+    isFilingNoticeTextTooLong(v.businessOrAssetType, BUSINESS_OR_ASSET_TYPE_MAX) ||
+    isFilingNoticeTextTooLong(v.assetClass, ASSET_CLASS_MAX) ||
+    isFilingNoticeTextTooLong(v.newMethod, NEW_METHOD_MAX) ||
+    optionalText(v.currentMethod, CURRENT_METHOD_MAX) ||
+    optionalText(v.memo, MEMO_MAX) ||
+    (v.currentAdoptedYear !== undefined && isAdoptedYearInvalid(v.currentAdoptedYear))
+  );
+}
+// 読めない欄の名前を返す。事業用と不動産用は同じ欄名になるため、呼び出し側で重複を除く
+function invalidFilingNoticePartLabels(part: unknown): string[] {
+  if (part === undefined) {
+    return [];
+  }
+  if (!isRecord(part)) {
+    return [m.income_filing_notices_title()];
+  }
+  const bad: string[] = [];
+  if (part.closureDate !== undefined && !isFilingNoticeDate(part.closureDate)) {
+    bad.push(m.income_filing_notices_closure_date());
+  }
+  const apps = part.methodApplications;
+  if (!Array.isArray(apps) || (apps as unknown[]).some(isMethodApplicationInvalid)) {
+    bad.push(m.income_filing_notices_methods_title());
+  }
+  return bad;
+}
+
+function invalidFilingNoticeLabels(notices: unknown): string[] {
+  if (notices === undefined) {
+    return [];
+  }
+  if (!isRecord(notices)) {
+    return [m.income_filing_notices_title()];
+  }
+  const bad: string[] = [];
+  if (
+    notices.blueReturnWithdrawalYear !== undefined &&
+    isFilingNoticeYearInvalid(notices.blueReturnWithdrawalYear)
+  ) {
+    bad.push(m.income_filing_notices_withdrawal_year());
+  }
+  bad.push(...invalidFilingNoticePartLabels(notices.business));
+  bad.push(...invalidFilingNoticePartLabels(notices.realEstate));
+  return bad;
+}
 // 復元された所得控除は主キーしか検査していない。.xtx の変換（personalDeductionsToCtx）が例外にする形と、
 // 0 や未記入に置き換えてしまう金額・年齢・月数を、読めない欄の名前の一覧として返す
 export function validatePersonalDeductions(stored: unknown): string[] {
@@ -181,6 +295,7 @@ export function validatePersonalDeductions(stored: unknown): string[] {
       }
     }
   }
+  bad.push(...invalidFilingNoticeLabels(stored.filingNotices));
   return [...new Set(bad)];
 }
 // 消費税の判定・.xtx・弥生 CSV が settings.ts 経由で読む金額設定。欄の名前と、その欄が持つ保存値（行の欄は複数）を並べる

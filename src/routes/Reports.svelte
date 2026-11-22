@@ -92,7 +92,10 @@
     type XtxDetailOverflowItem,
   } from '../tax-schema/2026/xtx';
   import { BsExtraAccountOverflowError } from '../tax-schema/2026/xtx-mapping-koa210';
-  import { XtxFilingNoticeTextTooLongError } from '../tax-schema/2026/xtx-filing-notices';
+  import {
+    XtxFilingNoticeTextTooLongError,
+    type XtxFilingNotices,
+  } from '../tax-schema/2026/xtx-filing-notices';
   import {
     hasInvalidXtxAmounts,
     hasInvalidXtxPropertyText,
@@ -131,6 +134,7 @@
     ConsumptionTaxSnapshotData,
     FixedAsset,
     PersonalDeductionInput,
+    StoredFilingNotices,
     TaxRegistration,
     Vendor,
   } from '../db/types';
@@ -1454,6 +1458,7 @@
     try {
       // 少額特例の年合計上限の月割（措法28の2）に使う。年末の減価償却と同じ値を読む
       const businessDates = await loadEffectiveBusinessDates();
+      const filingNotices = xtxFilingNoticesOf(storedDeductions?.filingNotices);
       xtxCtx = {
         year: exportYear,
         dataYear: filingYear,
@@ -1472,6 +1477,7 @@
         ...(storedDeductions
           ? { personalDeductions: personalDeductionsToCtx(storedDeductions) }
           : {}),
+        ...(filingNotices ? { filingNotices } : {}),
       };
       xml = buildXtx2026(xtxCtx);
     } catch (e) {
@@ -1501,6 +1507,7 @@
           })
         : '',
       describeConversionBasisOverCost(fixedAssets),
+      xtxCtx.filingNotices ? m.reports_xtx_filing_notices_not_written() : '',
     ]
       .filter((t) => t !== '')
       .join(' ');
@@ -1511,6 +1518,31 @@
       });
     }
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
+  }
+  function xtxNoticePart(
+    part: StoredFilingNotices | undefined,
+    withdrawalYear?: number,
+  ): XtxFilingNotices | undefined {
+    const apps = part?.methodApplications ?? [];
+    if (part?.closureDate === undefined && apps.length === 0 && withdrawalYear === undefined) {
+      return undefined;
+    }
+    return {
+      ...(part?.closureDate !== undefined ? { closureDate: part.closureDate } : {}),
+      ...(withdrawalYear !== undefined ? { blueReturnWithdrawalYear: withdrawalYear } : {}),
+      methodApplications: apps,
+    };
+  }
+  // 青色申告の取りやめは人単位で、事業用の様式（KOA110・KOA210）にだけ載せる
+  function xtxFilingNoticesOf(
+    stored: PersonalDeductionInput['filingNotices'],
+  ): Parameters<typeof buildXtx2026>[0]['filingNotices'] {
+    const business = xtxNoticePart(stored?.business, stored?.blueReturnWithdrawalYear);
+    const realEstate = xtxNoticePart(stored?.realEstate);
+    if (!business && !realEstate) {
+      return undefined;
+    }
+    return { ...(business ? { business } : {}), ...(realEstate ? { realEstate } : {}) };
   }
   async function downloadXml(xml: string, filename: string): Promise<void> {
     await saveTextFile(xml, filename, 'application/xml');

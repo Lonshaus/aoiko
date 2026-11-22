@@ -47,7 +47,7 @@ The following is stored in the app's managed storage (database `aoiko`):
 | Simple inventory item master | IndexedDB | Not sent |
 | Budgets | IndexedDB | Not sent |
 | Receivables and payables | IndexedDB | Not sent |
-| Income and tax deduction inputs (names, ages, and income of dependents and family employees; the spouse's income and age; disability, single-parent, and similar statuses; salary, pension, and other income; medical expenses and insurance premiums; names and addresses of real-estate payees, etc.) | IndexedDB | Not sent (in backups, part of "Bookkeeping data": always in automatic backups, and left out of a manual export only when you deselect "Bookkeeping data") |
+| Income and tax deduction inputs (names, ages, and income of dependents and family employees; the spouse's income and age; disability, single-parent, and similar statuses; salary, pension, and other income; medical expenses and insurance premiums; names and addresses of real-estate payees; filing notices [closure date, year of withdrawal from blue-return filing, contents of valuation and depreciation method notices], etc.) | IndexedDB | Not sent (in backups, part of "Bookkeeping data": always in automatic backups, and left out of a manual export only when you deselect "Bookkeeping data") |
 | CSV-import classification rules | IndexedDB | Not sent |
 | Filed-year snapshots | IndexedDB | Not sent |
 <!-- only:native -->

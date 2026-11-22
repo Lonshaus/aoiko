@@ -428,6 +428,22 @@ export interface RealEstateIncomeInput {
   loanInterestPaid?: RealEstateLoanInterestPaidDetail[];
   professionalFeesPaid?: RealEstateProfessionalFeeDetail[];
 }
+export interface StoredMethodApplication {
+  kind: 'notice' | 'change';
+  assetType: 'inventory' | 'securities' | 'crypto' | 'depreciable';
+  businessOrAssetType: string;
+  assetClass: string;
+  newMethod: string;
+  currentMethod?: string;
+  /** 現在の方法を採用した年（西暦） */
+  currentAdoptedYear?: number;
+  memo?: string;
+}
+export interface StoredFilingNotices {
+  /** ISO 日付 */
+  closureDate?: string;
+  methodApplications: StoredMethodApplication[];
+}
 // 所得控除・税額控除の入力（年度ごと）。事業所得（合計所得金額）は決算書側の集計から
 // 導出するため、ここには保存しない。雑損控除・住宅ローン控除・外国税額控除等、
 // 制度が複雑で本人事情に強く依存する項目は確定額をそのまま入力する
@@ -469,6 +485,12 @@ export interface PersonalDeductionInput {
   priorPriorRealEstateRevenue?: string;
   /** 家内労働者等の必要経費の特例（措法27条）の適用を受けるか */
   homeWorker?: boolean;
+  /** 決算書・収支内訳書の届出事項。青色申告の取りやめは人単位のためここに 1 つだけ持つ */
+  filingNotices?: {
+    blueReturnWithdrawalYear?: number;
+    business?: StoredFilingNotices;
+    realEstate?: StoredFilingNotices;
+  };
   updatedAt: number;
 }
 
