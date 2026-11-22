@@ -27,6 +27,10 @@ const APPLE_INTELLIGENCE_SWIFT: &str = "ios/Sources/AoikoNativePlugin/AppleIntel
 const CONCURRENCY_SWIFT: &str = "ios/Sources/AoikoNativePlugin/Concurrency.swift";
 // 分類ループの中核。同じ理由（FoundationModels 非依存・単体テスト対象）で切り出してある。
 const CLASSIFY_LOOP_SWIFT: &str = "ios/Sources/AoikoNativePlugin/ClassifyLoop.swift";
+// レシートを画像のまま渡すか文字認識を挟むかの判定。同じく FoundationModels 非依存。
+const RECEIPT_ROUTE_SWIFT: &str = "ios/Sources/AoikoNativePlugin/ReceiptRoute.swift";
+// 上限に収まらない入力の分け方。同じく FoundationModels 非依存。
+const TEXT_CHUNKING_SWIFT: &str = "ios/Sources/AoikoNativePlugin/TextChunking.swift";
 
 fn main() {
     // build.rs は host 向けにビルドされるため cfg!(target_os) は host を指す。
@@ -45,6 +49,8 @@ fn build_apple_intelligence_lib() {
     println!("cargo:rerun-if-changed={APPLE_INTELLIGENCE_SWIFT}");
     println!("cargo:rerun-if-changed={CONCURRENCY_SWIFT}");
     println!("cargo:rerun-if-changed={CLASSIFY_LOOP_SWIFT}");
+    println!("cargo:rerun-if-changed={RECEIPT_ROUTE_SWIFT}");
+    println!("cargo:rerun-if-changed={TEXT_CHUNKING_SWIFT}");
     let out_dir = env::var("OUT_DIR").expect("OUT_DIR");
     let arch = match env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
         Ok("aarch64") => "arm64",
@@ -78,11 +84,13 @@ fn build_apple_intelligence_lib() {
         .arg(APPLE_INTELLIGENCE_SWIFT)
         .arg(CONCURRENCY_SWIFT)
         .arg(CLASSIFY_LOOP_SWIFT)
+        .arg(RECEIPT_ROUTE_SWIFT)
+        .arg(TEXT_CHUNKING_SWIFT)
         .status()
         .expect("swiftc を起動できません");
     assert!(
         status.success(),
-        "AppleIntelligence.swift / Concurrency.swift / ClassifyLoop.swift のビルドに失敗しました"
+        "AppleIntelligence.swift / Concurrency.swift / ClassifyLoop.swift / ReceiptRoute.swift / TextChunking.swift のビルドに失敗しました"
     );
     println!("cargo:rustc-link-lib=static={lib_name}");
     println!("cargo:rustc-link-search=native={out_dir}");
