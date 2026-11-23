@@ -61,15 +61,18 @@
         href="/settings"
         use:link
         onclick={() => stashSettingsTarget('dataCheck')}
-        class="text-primary hover:underline py-2 -my-2">{m.data_check_notice_action_details()}</a
+        class="text-primary hover:underline py-2 -my-2"
       >
+        {m.data_check_notice_action_details()}
+      </a>
       <button
         type="button"
         onclick={acknowledge}
         disabled={saving}
         class="text-primary hover:underline py-2 -my-2 disabled:opacity-50"
-        >{m.data_check_notice_action_ack()}</button
       >
+        {m.data_check_notice_action_ack()}
+      </button>
     </div>
     {#if saveError !== ''}
       <p class="basis-full text-destructive">{saveError}</p>

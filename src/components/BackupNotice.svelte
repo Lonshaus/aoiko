@@ -21,38 +21,41 @@
       use:link
       onclick={() => stashSettingsTarget('backup')}
       class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
-      >{m.backup_notice_action_configure()}</a
     >
+      {m.backup_notice_action_configure()}
+    </a>
   </div>
 {:else if backup.status === 'reconfigure-required'}
   <div
     class="flex items-center justify-between gap-3 text-xs border border-destructive rounded-lg px-3 py-2 bg-card"
   >
-    <span class="text-destructive"
-      >{m.backup_notice_reconfigure_required({ folderName: backup.folderName ?? '' })}</span
-    >
+    <span class="text-destructive">
+      {m.backup_notice_reconfigure_required({ folderName: backup.folderName ?? '' })}
+    </span>
     <a
       href="/settings"
       use:link
       onclick={() => stashSettingsTarget('backup')}
       class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
-      >{m.backup_notice_action_reconfigure()}</a
     >
+      {m.backup_notice_action_reconfigure()}
+    </a>
   </div>
 {:else if backup.status === 'permission-required'}
   <div
     class="flex items-center justify-between gap-3 text-xs border rounded-lg px-3 py-2 bg-card text-card-foreground"
   >
-    <span class="text-muted-foreground"
-      >{m.backup_notice_permission_required({ folderName: backup.folderName ?? '' })}</span
-    >
+    <span class="text-muted-foreground">
+      {m.backup_notice_permission_required({ folderName: backup.folderName ?? '' })}
+    </span>
     <a
       href="/settings"
       use:link
       onclick={() => stashSettingsTarget('backup')}
       class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
-      >{m.backup_notice_action_grant()}</a
     >
+      {m.backup_notice_action_grant()}
+    </a>
   </div>
 {:else if backup.status === 'unsupported'}
   <div class="text-xs border border-destructive/50 rounded-lg px-3 py-2 bg-card text-destructive">
@@ -68,8 +71,9 @@
       use:link
       onclick={() => stashSettingsTarget('backup')}
       class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
-      >{m.backup_notice_action_settings()}</a
     >
+      {m.backup_notice_action_settings()}
+    </a>
   </div>
 {/if}
 
@@ -87,7 +91,8 @@
       use:link
       onclick={() => stashSettingsTarget('backup')}
       class="text-primary hover:underline whitespace-nowrap py-2 -my-2"
-      >{m.backup_notice_action_operate()}</a
     >
+      {m.backup_notice_action_operate()}
+    </a>
   </div>
 {/if}

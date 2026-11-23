@@ -1732,9 +1732,9 @@
         class="mt-1 w-24 px-3 py-2 bg-background border rounded text-foreground tabular-nums"
       />
       {#if yearInvalid}
-        <span class="block mt-1 text-xs text-destructive"
-          >{m.common_integer_invalid(YEAR_RANGE)}</span
-        >
+        <span class="block mt-1 text-xs text-destructive">
+          {m.common_integer_invalid(YEAR_RANGE)}
+        </span>
       {/if}
     </label>
   </header>
@@ -1800,9 +1800,9 @@
         <h3 class="text-lg font-semibold">{m.reports_overview_title({ year })}</h3>
         <div class="flex items-center gap-3">
           {#if locked}
-            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary"
-              >{m.reports_filed_badge()}</span
-            >
+            <span class="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
+              {m.reports_filed_badge()}
+            </span>
             <button
               type="button"
               onclick={() => (confirmingUnlock = true)}
@@ -1867,9 +1867,9 @@
       <ul class="space-y-1">
         {#each monthly.months as mo (mo.month)}
           <li class="grid grid-cols-[3rem_1fr_auto] gap-3 items-center text-sm">
-            <span class="text-muted-foreground tabular-nums"
-              >{m.reports_monthly_month({ m: mo.month })}</span
-            >
+            <span class="text-muted-foreground tabular-nums">
+              {m.reports_monthly_month({ m: mo.month })}
+            </span>
             <div class="h-2 bg-background rounded overflow-hidden">
               <div
                 class="h-full bg-primary/60 transition-all"
@@ -1954,11 +1954,11 @@
       {/if}
 
       <div class="pt-4 border-t border-border flex justify-between items-baseline">
-        <span class="text-base font-semibold"
-          >{m.reports_pl_net_income_label()}{hasRealEstate
+        <span class="text-base font-semibold">
+          {m.reports_pl_net_income_label()}{hasRealEstate
             ? m.reports_net_income_scope_business()
-            : ''}</span
-        >
+            : ''}
+        </span>
         <span
           class="text-2xl font-bold tabular-nums"
           class:text-destructive={D(pl.netIncome).isNegative()}
@@ -1973,9 +1973,9 @@
     <section class="bg-card text-card-foreground rounded-2xl p-6 space-y-6 shadow-sm">
       <header class="flex items-baseline justify-between">
         <h3 class="text-lg font-semibold">{m.reports_bs_title()}</h3>
-        <span class="text-xs text-muted-foreground tabular-nums"
-          >{m.reports_bs_asof({ date: bs.asOf })}</span
-        >
+        <span class="text-xs text-muted-foreground tabular-nums">
+          {m.reports_bs_asof({ date: bs.asOf })}
+        </span>
       </header>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2032,11 +2032,11 @@
               {/each}
               <li class="grid grid-cols-[auto_1fr_auto] gap-3 items-baseline">
                 <span class="font-mono text-xs text-muted-foreground">—</span>
-                <span
-                  >{m.reports_bs_net_income_row()}{hasRealEstate
+                <span>
+                  {m.reports_bs_net_income_row()}{hasRealEstate
                     ? m.reports_net_income_scope_whole()
-                    : ''}</span
-                >
+                    : ''}
+                </span>
                 <span
                   class="tabular-nums whitespace-nowrap"
                   class:text-destructive={D(bs.netIncome).isNegative()}
@@ -2087,13 +2087,13 @@
         <table class="w-full min-w-[960px] text-xs tabular-nums border-separate border-spacing-0">
           <thead>
             <tr class="text-muted-foreground [&>th]:border-b">
-              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card"
-                >{m.reports_monthly_pl_th_account()}</th
-              >
+              <th class="text-left font-normal py-2 pr-2 sticky left-0 bg-card">
+                {m.reports_monthly_pl_th_account()}
+              </th>
               {#each Array(12) as _, i (i)}
-                <th class="text-right font-normal px-2"
-                  >{m.reports_monthly_pl_th_month({ m: i + 1 })}</th
-                >
+                <th class="text-right font-normal px-2">
+                  {m.reports_monthly_pl_th_month({ m: i + 1 })}
+                </th>
               {/each}
               <th class="text-right font-medium px-2">{m.reports_monthly_pl_th_total()}</th>
             </tr>
@@ -2101,8 +2101,9 @@
           <tbody>
             {#if monthlyPL.revenue.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_revenue_row()}</td
-                >
+                <td class="py-1 pr-2 sticky left-0 bg-card">
+                  {m.reports_monthly_pl_revenue_row()}
+                </td>
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.revenue as row (row.accountCode)}
@@ -2117,9 +2118,9 @@
                 </tr>
               {/each}
               <tr class="[&>td]:border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card"
-                  >{m.reports_monthly_pl_revenue_total()}</td
-                >
+                <td class="py-1 pr-2 sticky left-0 bg-card">
+                  {m.reports_monthly_pl_revenue_total()}
+                </td>
                 {#each monthlyPL.monthlyRevenueTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -2130,8 +2131,9 @@
             {/if}
             {#if monthlyPL.expense.length > 0}
               <tr class="text-muted-foreground bg-muted/30">
-                <td class="py-1 pr-2 sticky left-0 bg-card">{m.reports_monthly_pl_expense_row()}</td
-                >
+                <td class="py-1 pr-2 sticky left-0 bg-card">
+                  {m.reports_monthly_pl_expense_row()}
+                </td>
                 <td colspan="13"></td>
               </tr>
               {#each monthlyPL.expense as row (row.accountCode)}
@@ -2146,9 +2148,9 @@
                 </tr>
               {/each}
               <tr class="[&>td]:border-b font-medium">
-                <td class="py-1 pr-2 sticky left-0 bg-card"
-                  >{m.reports_monthly_pl_expense_total()}</td
-                >
+                <td class="py-1 pr-2 sticky left-0 bg-card">
+                  {m.reports_monthly_pl_expense_total()}
+                </td>
                 {#each monthlyPL.monthlyExpenseTotals as v, i (i)}
                   <td class="text-right px-2" class:text-muted-foreground={v === '0'}>
                     {v === '0' ? '' : formatJPY(v)}
@@ -2158,9 +2160,9 @@
               </tr>
             {/if}
             <tr class="font-semibold [&>td]:border-t-2">
-              <td class="py-1 pr-2 sticky left-0 bg-card"
-                >{m.reports_monthly_pl_net_income_row()}</td
-              >
+              <td class="py-1 pr-2 sticky left-0 bg-card">
+                {m.reports_monthly_pl_net_income_row()}
+              </td>
               {#each monthlyPL.monthlyNetIncomes as v, i (i)}
                 <td class="text-right px-2" class:text-destructive={D(v).isNegative()}>
                   {v === '0' ? '' : formatJPY(v)}
@@ -2229,22 +2231,23 @@
               <header
                 class="flex items-baseline justify-between text-sm font-medium border-b pb-1 mb-1"
               >
-                <span
-                  ><span class="font-mono text-xs text-muted-foreground mr-2">{g.accountCode}</span
-                  >{g.accountName}</span
-                >
+                <span>
+                  <span class="font-mono text-xs text-muted-foreground mr-2">
+                    {g.accountCode}
+                  </span>{g.accountName}
+                </span>
                 <span class="tabular-nums">{formatJPY(g.total)}</span>
               </header>
               <ul class="space-y-0.5 text-sm pl-4">
                 {#each g.entries as e (e.key)}
                   <li class="grid grid-cols-[1fr_auto_auto] gap-3 items-baseline">
                     <span class:text-muted-foreground={!e.key}>{e.label}</span>
-                    <span class="text-xs text-muted-foreground tabular-nums"
-                      >{m.reports_breakdown_count({ n: e.count })}</span
-                    >
-                    <span class="tabular-nums whitespace-nowrap w-28 text-right"
-                      >{formatJPY(e.amount)}</span
-                    >
+                    <span class="text-xs text-muted-foreground tabular-nums">
+                      {m.reports_breakdown_count({ n: e.count })}
+                    </span>
+                    <span class="tabular-nums whitespace-nowrap w-28 text-right">
+                      {formatJPY(e.amount)}
+                    </span>
                   </li>
                 {/each}
               </ul>
@@ -2319,17 +2322,17 @@
           </thead>
           <tbody>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}
-                >{m.reports_pl_revenue()}</td
-              >
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>
+                {m.reports_pl_revenue()}
+              </td>
             </tr>
             {#each multiYearPL.revenue as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"
-                  ><span class="font-mono text-xs text-muted-foreground mr-2"
-                    >{row.accountCode}</span
-                  >{row.accountName}</td
-                >
+                <td class="px-3 py-1">
+                  <span class="font-mono text-xs text-muted-foreground mr-2">
+                    {row.accountCode}
+                  </span>{row.accountName}
+                </td>
                 {#each row.amounts as a, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
                 {/each}
@@ -2342,17 +2345,17 @@
               {/each}
             </tr>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}
-                >{m.reports_pl_expense()}</td
-              >
+              <td class="px-3 py-1 font-medium" colspan={multiYearPL.years.length + 1}>
+                {m.reports_pl_expense()}
+              </td>
             </tr>
             {#each multiYearPL.expense as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"
-                  ><span class="font-mono text-xs text-muted-foreground mr-2"
-                    >{row.accountCode}</span
-                  >{row.accountName}</td
-                >
+                <td class="px-3 py-1">
+                  <span class="font-mono text-xs text-muted-foreground mr-2">
+                    {row.accountCode}
+                  </span>{row.accountName}
+                </td>
                 {#each row.amounts as a, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(a)}</td>
                 {/each}
@@ -2365,16 +2368,18 @@
               {/each}
             </tr>
             <tr class="border-t-2 border-border font-semibold">
-              <td class="px-3 py-1"
-                >{m.reports_pl_net_income_label()}{hasRealEstate
+              <td class="px-3 py-1">
+                {m.reports_pl_net_income_label()}{hasRealEstate
                   ? m.reports_net_income_scope_business()
-                  : ''}</td
-              >
+                  : ''}
+              </td>
               {#each multiYearPL.yearlyNetIncome as v, i (i)}
                 <td
                   class="px-3 py-1 text-right tabular-nums"
-                  class:text-destructive={D(v).isNegative()}>{formatJPY(v)}</td
+                  class:text-destructive={D(v).isNegative()}
                 >
+                  {formatJPY(v)}
+                </td>
               {/each}
             </tr>
           </tbody>
@@ -2395,17 +2400,17 @@
           </thead>
           <tbody>
             <tr class="text-xs text-muted-foreground border-t border-border/50">
-              <td class="px-3 py-1 font-medium" colspan={multiYearBS.years.length + 1}
-                >{m.reports_bs_assets()}</td
-              >
+              <td class="px-3 py-1 font-medium" colspan={multiYearBS.years.length + 1}>
+                {m.reports_bs_assets()}
+              </td>
             </tr>
             {#each multiYearBS.assets as row (row.accountCode)}
               <tr class="border-t border-border/50">
-                <td class="px-3 py-1"
-                  ><span class="font-mono text-xs text-muted-foreground mr-2"
-                    >{row.accountCode}</span
-                  >{row.accountName}</td
-                >
+                <td class="px-3 py-1">
+                  <span class="font-mono text-xs text-muted-foreground mr-2">
+                    {row.accountCode}
+                  </span>{row.accountName}
+                </td>
                 {#each row.balances as b, i (i)}
                   <td class="px-3 py-1 text-right tabular-nums">{formatJPY(b)}</td>
                 {/each}
@@ -2442,9 +2447,9 @@
           {#each budgetDrafts as d, i (d.month)}
             {@const actual = budgetVsActual?.months[i]}
             <tr class="border-t border-border/50">
-              <td class="px-3 py-1 tabular-nums"
-                >{m.journal_list_filter_month_label({ m: d.month })}</td
-              >
+              <td class="px-3 py-1 tabular-nums">
+                {m.journal_list_filter_month_label({ m: d.month })}
+              </td>
               <td class="px-3 py-1 text-right">
                 <input
                   type="number"
@@ -2468,9 +2473,9 @@
                   </p>
                 {/if}
               </td>
-              <td class="px-3 py-1 text-right tabular-nums"
-                >{formatJPY(actual?.revenueActual ?? '0')}</td
-              >
+              <td class="px-3 py-1 text-right tabular-nums">
+                {formatJPY(actual?.revenueActual ?? '0')}
+              </td>
               <td
                 class="px-3 py-1 text-right tabular-nums"
                 class:text-destructive={actual?.revenueDiff === '' ||
@@ -2503,9 +2508,9 @@
                   </p>
                 {/if}
               </td>
-              <td class="px-3 py-1 text-right tabular-nums"
-                >{formatJPY(actual?.expenseActual ?? '0')}</td
-              >
+              <td class="px-3 py-1 text-right tabular-nums">
+                {formatJPY(actual?.expenseActual ?? '0')}
+              </td>
               <td
                 class="px-3 py-1 text-right tabular-nums"
                 class:text-destructive={actual?.expenseDiff === '' ||
@@ -2713,9 +2718,9 @@
             class="mt-1 w-20 h-8 px-2 bg-background border rounded text-foreground tabular-nums"
           />
           {#if cashFlowHorizonMonths === undefined}
-            <span class="block text-xs text-destructive"
-              >{m.common_integer_invalid(HORIZON_RANGE)}</span
-            >
+            <span class="block text-xs text-destructive">
+              {m.common_integer_invalid(HORIZON_RANGE)}
+            </span>
           {/if}
         </label>
         <button
@@ -2865,12 +2870,13 @@
         <table class="w-full min-w-[720px] text-sm tabular-nums">
           <thead>
             <tr class="text-xs text-muted-foreground border-b">
-              <th class="text-left font-normal py-2 pr-2"
-                >{m.reports_consumption_tax_th_method()}</th
-              >
+              <th class="text-left font-normal py-2 pr-2">
+                {m.reports_consumption_tax_th_method()}
+              </th>
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_output()}</th>
-              <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input_raw()}</th
-              >
+              <th class="text-right font-normal px-2">
+                {m.reports_consumption_tax_th_input_raw()}
+              </th>
               <th class="text-right font-normal px-2">{m.reports_consumption_tax_th_input()}</th>
               <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_net()}</th>
               <th class="text-right font-medium px-2">{m.reports_consumption_tax_th_filing()}</th>
@@ -2905,28 +2911,28 @@
         </table>
       </ScrollX>
       <details class="text-xs text-muted-foreground">
-        <summary class="cursor-pointer"
-          >{m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}</summary
-        >
+        <summary class="cursor-pointer">
+          {m.reports_consumption_tax_breakdown_national()} / {m.reports_consumption_tax_breakdown_local()}
+        </summary>
         <ScrollX class="mt-2">
           <table class="w-full min-w-[720px] text-xs tabular-nums">
             <thead>
               <tr class="text-muted-foreground border-b">
-                <th class="text-left font-normal py-1 pr-2"
-                  >{m.reports_consumption_tax_th_method()}</th
-                >
-                <th class="text-right font-normal px-2"
-                  >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）</th
-                >
-                <th class="text-right font-normal px-2"
-                  >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）</th
-                >
-                <th class="text-right font-normal px-2"
-                  >{m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）</th
-                >
-                <th class="text-right font-normal px-2"
-                  >{m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）</th
-                >
+                <th class="text-left font-normal py-1 pr-2">
+                  {m.reports_consumption_tax_th_method()}
+                </th>
+                <th class="text-right font-normal px-2">
+                  {m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_net()}）
+                </th>
+                <th class="text-right font-normal px-2">
+                  {m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_net()}）
+                </th>
+                <th class="text-right font-normal px-2">
+                  {m.reports_consumption_tax_breakdown_national()}（{m.reports_consumption_tax_th_filing()}）
+                </th>
+                <th class="text-right font-normal px-2">
+                  {m.reports_consumption_tax_breakdown_local()}（{m.reports_consumption_tax_th_filing()}）
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -2966,9 +2972,9 @@
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             />
             {#if isAmountInputInvalid(interimPaidNationalInput)}
-              <span class="block text-xs text-destructive"
-                >{amountInputError(interimPaidNationalInput)}</span
-              >
+              <span class="block text-xs text-destructive">
+                {amountInputError(interimPaidNationalInput)}
+              </span>
             {/if}
           </label>
           <label class="text-xs text-muted-foreground">
@@ -2983,9 +2989,9 @@
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             />
             {#if isAmountInputInvalid(interimPaidLocalInput)}
-              <span class="block text-xs text-destructive"
-                >{amountInputError(interimPaidLocalInput)}</span
-              >
+              <span class="block text-xs text-destructive">
+                {amountInputError(interimPaidLocalInput)}
+              </span>
             {/if}
           </label>
         </div>
@@ -3008,9 +3014,9 @@
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
               {#if isWariFieldBlocked('wariSalesReturnTax78', wariSalesReturnTax78Input)}
-                <span class="block text-xs text-destructive"
-                  >{wariFieldError(wariSalesReturnTax78Input)}</span
-                >
+                <span class="block text-xs text-destructive">
+                  {wariFieldError(wariSalesReturnTax78Input)}
+                </span>
               {/if}
             </label>
             <label class="text-xs text-muted-foreground">
@@ -3029,9 +3035,9 @@
                 class="mt-1 w-full border rounded px-2 py-1 text-sm"
               />
               {#if isWariFieldBlocked('wariSalesReturnTax624', wariSalesReturnTax624Input)}
-                <span class="block text-xs text-destructive"
-                  >{wariFieldError(wariSalesReturnTax624Input)}</span
-                >
+                <span class="block text-xs text-destructive">
+                  {wariFieldError(wariSalesReturnTax624Input)}
+                </span>
               {/if}
             </label>
           </div>
@@ -3171,9 +3177,9 @@
           class="mt-1 w-full border rounded px-2 py-1 text-sm"
         />
         {#if isAmountInputInvalid(priorYearAmountInput)}
-          <span class="block text-xs text-destructive"
-            >{amountInputError(priorYearAmountInput)}</span
-          >
+          <span class="block text-xs text-destructive">
+            {amountInputError(priorYearAmountInput)}
+          </span>
         {/if}
       </label>
       <label class="block text-xs text-muted-foreground">
@@ -3235,9 +3241,10 @@
               class="mt-1 w-full border rounded px-2 py-1 text-sm"
             >
               {#each interimObligation.installments as inst, i (inst.start)}
-                <option value={i}
-                  >{inst.start} 〜 {inst.end}（{m.reports_interim_th_due()} {inst.dueDate}）</option
-                >
+                <option value={i}>
+                  {inst.start} 〜 {inst.end}（{m.reports_interim_th_due()}
+                  {inst.dueDate}）
+                </option>
               {/each}
             </select>
           </label>
@@ -3332,9 +3339,9 @@
             <option value={r.method}>{consumptionTaxMethodLabel(r, simplifiedCategory)}</option>
           {/each}
         </select>
-        <span class="mt-1 block text-xs text-muted-foreground"
-          >{m.reports_lock_filed_method_hint()}</span
-        >
+        <span class="mt-1 block text-xs text-muted-foreground">
+          {m.reports_lock_filed_method_hint()}
+        </span>
       </label>
     {/if}
     <AlertDialog.Footer>

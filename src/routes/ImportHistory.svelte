@@ -163,16 +163,17 @@
               <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">{batch.rowCount}</td>
               <td class="px-4 py-3 text-xs">
                 {#if reversed === 0}
-                  <span class="text-foreground"
-                    >{m.import_history_status_active({ n: active })}</span
-                  >
+                  <span class="text-foreground">
+                    {m.import_history_status_active({ n: active })}
+                  </span>
                 {:else if active === 0}
-                  <span class="text-muted-foreground">{m.import_history_status_all_reversed()}</span
-                  >
+                  <span class="text-muted-foreground">
+                    {m.import_history_status_all_reversed()}
+                  </span>
                 {:else}
-                  <span class="text-foreground"
-                    >{m.import_history_status_mixed({ active, reversed })}</span
-                  >
+                  <span class="text-foreground">
+                    {m.import_history_status_mixed({ active, reversed })}
+                  </span>
                 {/if}
               </td>
             </tr>
@@ -214,9 +215,9 @@
                       {m.import_history_batch_reverse_button({ count: active })}
                     </button>
                   {:else}
-                    <span class="text-xs text-muted-foreground"
-                      >{m.import_history_batch_already_reversed()}</span
-                    >
+                    <span class="text-xs text-muted-foreground">
+                      {m.import_history_batch_already_reversed()}
+                    </span>
                   {/if}
                 </td>
               </tr>

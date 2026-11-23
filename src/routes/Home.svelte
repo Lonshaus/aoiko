@@ -96,9 +96,9 @@
                   {#if row.debits[0]}
                     <span>{row.debits[0].name}</span>
                     {#if row.debits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1"
-                        >+{row.debits.length - 1}</span
-                      >
+                      <span class="text-xs text-muted-foreground ml-1">
+                        +{row.debits.length - 1}
+                      </span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
@@ -108,9 +108,9 @@
                   {#if row.credits[0]}
                     <span>{row.credits[0].name}</span>
                     {#if row.credits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1"
-                        >+{row.credits.length - 1}</span
-                      >
+                      <span class="text-xs text-muted-foreground ml-1">
+                        +{row.credits.length - 1}
+                      </span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
