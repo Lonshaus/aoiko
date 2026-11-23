@@ -107,8 +107,10 @@
     type="button"
     onclick={() => toggle(entry.doc)}
     aria-expanded={openDoc === entry.doc}
-    class="underline hover:text-foreground">{entry.label}</button
+    class="underline hover:text-foreground"
   >
+    {entry.label}
+  </button>
 {/each}
 {#if openDoc !== null}
   <div

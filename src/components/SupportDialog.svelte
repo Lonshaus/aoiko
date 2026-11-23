@@ -209,15 +209,19 @@
           type="button"
           aria-label={m.support_book_prev()}
           disabled={support.page === 0}
-          onclick={() => (support.page -= 1)}>‹</button
+          onclick={() => (support.page -= 1)}
         >
+          ‹
+        </button>
         <span>{m.support_book_page({ page: support.page + 1, total: support.pageCount })}</span>
         <button
           type="button"
           aria-label={m.support_book_next()}
           disabled={support.page === support.pageCount - 1}
-          onclick={() => (support.page += 1)}>›</button
+          onclick={() => (support.page += 1)}
         >
+          ›
+        </button>
       </div>
     </div>
     <p class="note">{m.support_book_note()}</p>
