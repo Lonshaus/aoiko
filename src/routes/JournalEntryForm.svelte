@@ -516,9 +516,9 @@
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_debit()}</h3>
-      <span class="text-xs text-muted-foreground tabular-nums"
-        >{m.journal_form_total({ amount: formatJPY(debitTotal) })}</span
-      >
+      <span class="text-xs text-muted-foreground tabular-nums">
+        {m.journal_form_total({ amount: formatJPY(debitTotal) })}
+      </span>
     </div>
     {#each debits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}
@@ -693,9 +693,9 @@
   <div class="border-t pt-4 space-y-2">
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-medium text-muted-foreground">{m.journal_side_credit()}</h3>
-      <span class="text-xs text-muted-foreground tabular-nums"
-        >{m.journal_form_total({ amount: formatJPY(creditTotal) })}</span
-      >
+      <span class="text-xs text-muted-foreground tabular-nums">
+        {m.journal_form_total({ amount: formatJPY(creditTotal) })}
+      </span>
     </div>
     {#each credits as line, i (line.id)}
       {@const subs = line.accountCode ? ledger.subAccountsFor(line.accountCode) : []}

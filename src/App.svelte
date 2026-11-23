@@ -153,8 +153,9 @@
               href={item.href}
               use:link
               class="whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors py-2 -my-2"
-              >{item.label()}</a
             >
+              {item.label()}
+            </a>
           {/each}
         </nav>
         <button
@@ -189,8 +190,10 @@
               href={item.href}
               use:link
               class="rounded px-2 py-2.5 text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              onclick={() => (mobileNavOpen = false)}>{item.label()}</a
+              onclick={() => (mobileNavOpen = false)}
             >
+              {item.label()}
+            </a>
           {/each}
         </nav>
       {/if}

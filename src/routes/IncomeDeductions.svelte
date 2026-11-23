@@ -687,8 +687,9 @@
 
 {#snippet intError(value: number | undefined, min: number, max: number)}
   {#if intInvalid(value, { min, max })}
-    <span class="block mt-1 text-xs text-destructive">{m.common_integer_invalid({ min, max })}</span
-    >
+    <span class="block mt-1 text-xs text-destructive">
+      {m.common_integer_invalid({ min, max })}
+    </span>
   {/if}
 {/snippet}
 
@@ -702,9 +703,9 @@
   <option value="none">{m.income_deductions_relative_disability_none()}</option>
   <option value="disabled">{m.income_deductions_relative_disability_disabled()}</option>
   <option value="special">{m.income_deductions_relative_disability_special()}</option>
-  <option value="specialCohabiting"
-    >{m.income_deductions_relative_disability_special_cohabiting()}</option
-  >
+  <option value="specialCohabiting">
+    {m.income_deductions_relative_disability_special_cohabiting()}
+  </option>
 {/snippet}
 
 <div class="space-y-8">
@@ -739,9 +740,9 @@
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
       {#if yearInvalid}
-        <span class="block mt-1 text-xs text-destructive"
-          >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
-        >
+        <span class="block mt-1 text-xs text-destructive">
+          {m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}
+        </span>
       {/if}
     </label>
     {#if loadError}
@@ -750,20 +751,20 @@
       </p>
     {/if}
     <p class="text-sm">
-      {m.income_deductions_total_income_label()}：<span class="font-mono"
-        >{formatJPY(businessTotalIncome)}</span
-      >
+      {m.income_deductions_total_income_label()}：<span class="font-mono">
+        {formatJPY(businessTotalIncome)}
+      </span>
     </p>
     <p class="text-sm">
-      {m.income_deductions_combined_total_income_label()}：<span class="font-mono"
-        >{formatJPY(combinedTotalIncome)}</span
-      >
+      {m.income_deductions_combined_total_income_label()}：<span class="font-mono">
+        {formatJPY(combinedTotalIncome)}
+      </span>
     </p>
     {#if filingTypeCache === 'white' && familyEmployeeDeductionTotal.greaterThan(0)}
       <p class="text-sm">
-        {m.income_deductions_result_family_employee()}：<span class="font-mono"
-          >{formatJPY(familyEmployeeDeductionTotal)}</span
-        >
+        {m.income_deductions_result_family_employee()}：<span class="font-mono">
+          {formatJPY(familyEmployeeDeductionTotal)}
+        </span>
       </p>
     {/if}
   </section>
@@ -778,9 +779,9 @@
     {#if hasSalaryIncome}
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-6">
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_salary_paid_amount()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_salary_paid_amount()}
+          </span>
           <input
             type="text"
             name="salaryPaidAmount"
@@ -792,9 +793,9 @@
           {@render amountError(salaryPaidAmount)}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_salary_withholding_tax()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_salary_withholding_tax()}
+          </span>
           <input
             type="text"
             name="salaryWithholdingTax"
@@ -837,9 +838,9 @@
         </div>
         {#if publicPensionMode === 'income'}
           <label class="block sm:max-w-sm">
-            <span class="text-xs text-muted-foreground"
-              >{m.income_deductions_public_pension_amount()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.income_deductions_public_pension_amount()}
+            </span>
             <input
               type="text"
               name="publicPensionAmount"
@@ -849,9 +850,9 @@
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
             />
             {@render amountError(publicPensionAmount)}
-            <span class="block mt-1 text-xs text-muted-foreground"
-              >{m.income_deductions_public_pension_hint()}</span
-            >
+            <span class="block mt-1 text-xs text-muted-foreground">
+              {m.income_deductions_public_pension_hint()}
+            </span>
           </label>
           {#if year >= PENSION_SALARY_CAP_FIRST_YEAR && hasSalaryIncome}
             <p class="text-xs text-muted-foreground" data-testid="public-pension-salary-cap-hint">
@@ -860,9 +861,9 @@
           {/if}
         {:else}
           <label class="block sm:max-w-sm">
-            <span class="text-xs text-muted-foreground"
-              >{m.income_deductions_public_pension_revenue()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.income_deductions_public_pension_revenue()}
+            </span>
             <input
               type="text"
               name="publicPensionRevenue"
@@ -875,16 +876,18 @@
           </label>
           <label class="flex items-center gap-2 py-2">
             <input type="checkbox" name="publicPensionAge65" bind:checked={publicPensionAge65} />
-            <span class="text-sm"
-              >{m.income_deductions_public_pension_age65({ birthYear: year - 64 })}</span
-            >
+            <span class="text-sm">
+              {m.income_deductions_public_pension_age65({ birthYear: year - 64 })}
+            </span>
           </label>
           {#if publicPension}
             <p class="text-sm">
               {m.income_deductions_public_pension_computed()}：<span
                 class="font-mono"
-                data-testid="public-pension-computed">{formatJPY(publicPension.amount)}</span
+                data-testid="public-pension-computed"
               >
+                {formatJPY(publicPension.amount)}
+              </span>
             </p>
           {/if}
         {/if}
@@ -902,9 +905,9 @@
         {@render amountError(otherMiscIncomeAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_other_misc_expenses()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_other_misc_expenses()}
+        </span>
         <input
           type="text"
           name="otherMiscKeihi"
@@ -916,9 +919,9 @@
         {@render amountError(otherMiscExpenses)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_other_withholding_tax()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_other_withholding_tax()}
+        </span>
         <input
           type="text"
           name="otherWithholdingTaxPaid"
@@ -944,9 +947,9 @@
         {@render amountError(priorPriorBusinessRevenue)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_prior_prior_real_estate_revenue()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_prior_prior_real_estate_revenue()}
+        </span>
         <input
           type="text"
           name="priorPriorFudosanRevenue"
@@ -969,18 +972,18 @@
       <h3 class="text-lg font-semibold">{m.income_deductions_real_estate_title()}</h3>
       <p class="text-xs text-muted-foreground">{m.income_deductions_real_estate_intro()}</p>
       <p class="text-sm">
-        {m.income_deductions_real_estate_pl_label()}：<span class="font-mono"
-          >{formatJPY(realEstateTotalIncome)}</span
-        >
+        {m.income_deductions_real_estate_pl_label()}：<span class="font-mono">
+          {formatJPY(realEstateTotalIncome)}
+        </span>
       </p>
       <label class="flex items-center gap-2 py-2">
         <input type="checkbox" bind:checked={realEstateBusinessScale} />
         <span class="text-sm">{m.income_deductions_real_estate_business_scale()}</span>
       </label>
       <label class="block sm:max-w-xs">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_real_estate_land_loan_interest()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_real_estate_land_loan_interest()}
+        </span>
         <input
           type="text"
           name="landLoanInterest"
@@ -990,9 +993,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
         {@render amountError(realEstateLandLoanInterest)}
-        <span class="block mt-1 text-xs text-muted-foreground"
-          >{m.income_deductions_real_estate_land_loan_interest_hint()}</span
-        >
+        <span class="block mt-1 text-xs text-muted-foreground">
+          {m.income_deductions_real_estate_land_loan_interest_hint()}
+        </span>
       </label>
 
       <div class="flex items-center justify-between pt-2 border-t">
@@ -1275,9 +1278,9 @@
           {@render intError(spouseAge, 0, 120)}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_relative_disability()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_relative_disability()}
+          </span>
           <select
             value={spouseDisability}
             onchange={(e) => (spouseDisability = e.currentTarget.value as RelativeDisability)}
@@ -1332,8 +1335,9 @@
           {@render intError(dep.age, 0, 120)}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.income_deductions_dependent_income()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_dependent_income()}
+          </span>
           <input
             type="text"
             name="dependent-{dep.id}-totalIncome"
@@ -1345,9 +1349,9 @@
           {@render amountError(dep.totalIncome)}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_relative_disability()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_relative_disability()}
+          </span>
           <select
             value={dep.disability}
             onchange={(e) => (dep.disability = e.currentTarget.value as RelativeDisability)}
@@ -1391,9 +1395,9 @@
     {#each familyEmployees as employee (employee.id)}
       <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end border-t pt-3">
         <label class="block sm:col-span-2">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_family_employee_name()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_family_employee_name()}
+          </span>
           <input
             type="text"
             name="familyEmployee-{employee.id}-shimei"
@@ -1403,9 +1407,9 @@
           />
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_family_employee_relation()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_family_employee_relation()}
+          </span>
           <select
             bind:value={employee.relation}
             name="familyEmployee-{employee.id}-relation"
@@ -1416,9 +1420,9 @@
           </select>
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_family_employee_age()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_family_employee_age()}
+          </span>
           <input
             type="number"
             name="familyEmployee-{employee.id}-age"
@@ -1432,9 +1436,9 @@
           {@render intError(employee.age, 0, 120)}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.income_deductions_family_employee_months_worked()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.income_deductions_family_employee_months_worked()}
+          </span>
           <input
             type="number"
             name="familyEmployee-{employee.id}-monthsWorked"
@@ -1449,20 +1453,20 @@
         </label>
         {#if ledger.realEstateIncomeEnabled}
           <label class="block">
-            <span class="text-xs text-muted-foreground"
-              >{m.income_deductions_family_employee_income_type()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.income_deductions_family_employee_income_type()}
+            </span>
             <select
               bind:value={employee.incomeType}
               name="familyEmployee-{employee.id}-incomeType"
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
-              <option value="business"
-                >{m.income_deductions_family_employee_income_type_business()}</option
-              >
-              <option value="realEstate"
-                >{m.income_deductions_family_employee_income_type_real_estate()}</option
-              >
+              <option value="business">
+                {m.income_deductions_family_employee_income_type_business()}
+              </option>
+              <option value="realEstate">
+                {m.income_deductions_family_employee_income_type_real_estate()}
+              </option>
             </select>
           </label>
         {/if}
@@ -1481,9 +1485,9 @@
     <h3 class="text-lg font-semibold">{m.income_deductions_insurance_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_social_insurance_paid()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_social_insurance_paid()}
+        </span>
         <input
           type="text"
           name="socialInsurancePaid"
@@ -1495,9 +1499,9 @@
         {@render amountError(socialInsurancePaid)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_small_business_mutual_aid_paid()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_small_business_mutual_aid_paid()}
+        </span>
         <input
           type="text"
           name="smallJigyoMutualAidPaid"
@@ -1509,9 +1513,9 @@
         {@render amountError(smallBusinessMutualAidPaid)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_life_insurance_new_general()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_life_insurance_new_general()}
+        </span>
         <input
           type="text"
           name="lifeNewGeneral"
@@ -1523,9 +1527,9 @@
         {@render amountError(lifeNewGeneral)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_life_insurance_old_general()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_life_insurance_old_general()}
+        </span>
         <input
           type="text"
           name="lifeOldGeneral"
@@ -1537,9 +1541,9 @@
         {@render amountError(lifeOldGeneral)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_life_insurance_new_medical()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_life_insurance_new_medical()}
+        </span>
         <input
           type="text"
           name="lifeNewMedical"
@@ -1551,9 +1555,9 @@
         {@render amountError(lifeNewMedical)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_life_insurance_new_pension()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_life_insurance_new_pension()}
+        </span>
         <input
           type="text"
           name="lifeNewPension"
@@ -1565,9 +1569,9 @@
         {@render amountError(lifeNewPension)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_life_insurance_old_pension()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_life_insurance_old_pension()}
+        </span>
         <input
           type="text"
           name="lifeOldPension"
@@ -1579,9 +1583,9 @@
         {@render amountError(lifeOldPension)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_earthquake_insurance_paid()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_earthquake_insurance_paid()}
+        </span>
         <input
           type="text"
           name="earthquakeInsurancePaid"
@@ -1593,9 +1597,9 @@
         {@render amountError(earthquakeInsurancePaid)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_old_long_term_insurance_paid()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_old_long_term_insurance_paid()}
+        </span>
         <input
           type="text"
           name="oldLongTermInsurancePaid"
@@ -1613,9 +1617,9 @@
     <h3 class="text-lg font-semibold">{m.income_deductions_medical_title()}</h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_medical_expense_paid()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_medical_expense_paid()}
+        </span>
         <input
           type="text"
           name="medicalKeihiPaid"
@@ -1627,9 +1631,9 @@
         {@render amountError(medicalExpensePaid)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_medical_insurance_reimbursement()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_medical_insurance_reimbursement()}
+        </span>
         <input
           type="text"
           name="medicalInsuranceReimbursement"
@@ -1653,9 +1657,9 @@
         {@render amountError(donationAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_casualty_loss_deduction()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_casualty_loss_deduction()}
+        </span>
         <input
           type="text"
           name="casualtyLossDeduction"
@@ -1665,9 +1669,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
         {@render amountError(casualtyLossDeduction)}
-        <span class="block mt-1 text-xs text-muted-foreground"
-          >{m.income_deductions_casualty_loss_hint()}</span
-        >
+        <span class="block mt-1 text-xs text-muted-foreground">
+          {m.income_deductions_casualty_loss_hint()}
+        </span>
       </label>
     </div>
   </section>
@@ -1751,9 +1755,9 @@
         {@render amountError(mortgageDeductionAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_political_donation_credit()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_political_donation_credit()}
+        </span>
         <input
           type="text"
           name="politicalDonationCreditAmount"
@@ -1765,9 +1769,9 @@
         {@render amountError(politicalDonationCreditAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_deductions_housing_renovation_credit()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_housing_renovation_credit()}
+        </span>
         <input
           type="text"
           name="housingRenovationCreditAmount"
@@ -1779,8 +1783,9 @@
         {@render amountError(housingRenovationCreditAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_foreign_tax_credit()}
+        </span>
         <input
           type="text"
           name="foreignTaxCreditAmount"
@@ -1804,8 +1809,9 @@
         {@render amountError(otherTaxCreditAmount)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_deductions_disaster_exemption()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_deductions_disaster_exemption()}
+        </span>
         <input
           type="text"
           name="disasterExemptionAmount"
@@ -1824,96 +1830,131 @@
       <h3 class="text-lg font-semibold">{m.income_deductions_result_title()}</h3>
       <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
         <span class="text-muted-foreground">{m.income_deductions_result_basic()}</span><span
-          class="font-mono text-right">{formatJPY(result.basicDeduction)}</span
+          class="font-mono text-right"
         >
-        <span class="text-muted-foreground">{m.income_deductions_result_social_insurance()}</span
-        ><span class="font-mono text-right">{formatJPY(result.socialInsuranceDeduction)}</span>
-        <span class="text-muted-foreground"
-          >{m.income_deductions_result_small_business_mutual_aid()}</span
-        ><span class="font-mono text-right"
-          >{formatJPY(result.smallBusinessMutualAidDeduction)}</span
-        >
-        <span class="text-muted-foreground">{m.income_deductions_result_life_insurance()}</span
-        ><span class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span>
-        <span class="text-muted-foreground"
-          >{m.income_deductions_result_earthquake_insurance()}</span
-        ><span class="font-mono text-right">{formatJPY(result.earthquakeInsuranceDeduction)}</span>
-        <span class="text-muted-foreground">{m.income_deductions_result_medical_expense()}</span
-        ><span class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span>
+          {formatJPY(result.basicDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_social_insurance()}
+        </span><span class="font-mono text-right">
+          {formatJPY(result.socialInsuranceDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_small_business_mutual_aid()}
+        </span><span class="font-mono text-right">
+          {formatJPY(result.smallBusinessMutualAidDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_life_insurance()}
+        </span><span class="font-mono text-right">{formatJPY(result.lifeInsuranceDeduction)}</span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_earthquake_insurance()}
+        </span><span class="font-mono text-right">
+          {formatJPY(result.earthquakeInsuranceDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_medical_expense()}
+        </span><span class="font-mono text-right">{formatJPY(result.medicalExpenseDeduction)}</span>
         <span class="text-muted-foreground">{m.income_deductions_result_donation()}</span><span
-          class="font-mono text-right">{formatJPY(result.donationDeduction)}</span
+          class="font-mono text-right"
         >
+          {formatJPY(result.donationDeduction)}
+        </span>
         <span class="text-muted-foreground">{m.income_deductions_result_casualty_loss()}</span><span
-          class="font-mono text-right">{formatJPY(result.casualtyLossDeduction)}</span
+          class="font-mono text-right"
         >
+          {formatJPY(result.casualtyLossDeduction)}
+        </span>
         <span class="text-muted-foreground">{m.income_deductions_result_disability()}</span><span
-          class="font-mono text-right">{formatJPY(result.disabilityDeduction)}</span
+          class="font-mono text-right"
         >
-        <span class="text-muted-foreground"
-          >{m.income_deductions_result_single_parent_or_widow()}</span
-        ><span class="font-mono text-right">{formatJPY(result.singleParentOrWidowDeduction)}</span>
-        <span class="text-muted-foreground">{m.income_deductions_result_working_student()}</span
-        ><span class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span>
+          {formatJPY(result.disabilityDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_single_parent_or_widow()}
+        </span><span class="font-mono text-right">
+          {formatJPY(result.singleParentOrWidowDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_working_student()}
+        </span><span class="font-mono text-right">{formatJPY(result.workingStudentDeduction)}</span>
         <span class="text-muted-foreground">{m.income_deductions_result_spouse()}</span><span
-          class="font-mono text-right">{formatJPY(result.spouseDeduction)}</span
+          class="font-mono text-right"
         >
+          {formatJPY(result.spouseDeduction)}
+        </span>
         <span class="text-muted-foreground">{m.income_deductions_result_dependent()}</span><span
-          class="font-mono text-right">{formatJPY(result.dependentDeduction)}</span
+          class="font-mono text-right"
         >
-        <span class="text-muted-foreground"
-          >{m.income_deductions_result_specific_relative_special()}</span
-        ><span class="font-mono text-right"
-          >{formatJPY(result.specificRelativeSpecialDeduction)}</span
-        >
+          {formatJPY(result.dependentDeduction)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_specific_relative_special()}
+        </span><span class="font-mono text-right">
+          {formatJPY(result.specificRelativeSpecialDeduction)}
+        </span>
         <span class="font-semibold border-t pt-1">{m.income_deductions_result_total()}</span><span
-          class="font-mono text-right font-semibold border-t pt-1">{formatJPY(result.total)}</span
+          class="font-mono text-right font-semibold border-t pt-1"
         >
-        <span class="text-muted-foreground">{m.income_deductions_result_taxable_income()}</span
-        ><span class="font-mono text-right">{formatJPY(taxableIncome)}</span>
+          {formatJPY(result.total)}
+        </span>
+        <span class="text-muted-foreground">
+          {m.income_deductions_result_taxable_income()}
+        </span><span class="font-mono text-right">{formatJPY(taxableIncome)}</span>
         <span class="text-muted-foreground">{m.income_deductions_result_income_tax()}</span><span
-          class="font-mono text-right">{formatJPY(tax.baseIncomeTax)}</span
+          class="font-mono text-right"
         >
+          {formatJPY(tax.baseIncomeTax)}
+        </span>
         <span class="text-muted-foreground">{m.income_deductions_result_surtax()}</span><span
-          class="font-mono text-right">{formatJPY(tax.reconstructionSurtax)}</span
+          class="font-mono text-right"
         >
+          {formatJPY(tax.reconstructionSurtax)}
+        </span>
         {#if year >= 2027}
-          <span class="text-muted-foreground">{m.income_deductions_result_defense_surtax()}</span
-          ><span class="font-mono text-right">{formatJPY(tax.defenseSurtax)}</span>
+          <span class="text-muted-foreground">
+            {m.income_deductions_result_defense_surtax()}
+          </span><span class="font-mono text-right">{formatJPY(tax.defenseSurtax)}</span>
         {/if}
-        <span class="font-semibold border-t pt-1"
-          >{year >= 2027
+        <span class="font-semibold border-t pt-1">
+          {year >= 2027
             ? m.income_deductions_result_tax_total_with_defense()
-            : m.income_deductions_result_final_tax()}</span
-        ><span class="font-mono text-right font-semibold border-t pt-1"
-          >{formatJPY(tax.taxTotal)}</span
-        >
+            : m.income_deductions_result_final_tax()}
+        </span><span class="font-mono text-right font-semibold border-t pt-1">
+          {formatJPY(tax.taxTotal)}
+        </span>
         {#if foreignTaxCredit.greaterThan(0)}
           <span class="text-muted-foreground">{m.income_deductions_foreign_tax_credit()}</span><span
-            class="font-mono text-right">{formatJPY(foreignTaxCredit)}</span
+            class="font-mono text-right"
           >
+            {formatJPY(foreignTaxCredit)}
+          </span>
         {/if}
         <span class="text-muted-foreground">{m.income_deductions_result_withholding()}</span><span
-          class="font-mono text-right">{formatJPY(withholding)}</span
+          class="font-mono text-right"
         >
-        <span class="font-semibold border-t pt-1">{m.income_deductions_result_net_tax_due()}</span
-        ><span class="font-mono text-right font-semibold border-t pt-1"
-          >{formatJPY(tax.filingTaxDue)}</span
-        >
+          {formatJPY(withholding)}
+        </span>
+        <span class="font-semibold border-t pt-1">
+          {m.income_deductions_result_net_tax_due()}
+        </span><span class="font-mono text-right font-semibold border-t pt-1">
+          {formatJPY(tax.filingTaxDue)}
+        </span>
       </div>
     </section>
   {/if}
 
   <div class="flex items-center gap-3 justify-end">
     {#if yearInvalid}
-      <span class="text-xs text-destructive"
-        >{m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}</span
-      >
+      <span class="text-xs text-destructive">
+        {m.common_integer_invalid({ min: PROCESSING_YEAR_MIN, max: PROCESSING_YEAR_MAX })}
+      </span>
     {:else if loadError}
       <span class="text-xs text-destructive">{m.income_deductions_load_failed_short()}</span>
     {:else if invalidFieldCount > 0}
-      <span class="text-xs text-destructive"
-        >{m.income_deductions_invalid_count({ count: invalidFieldCount })}</span
-      >
+      <span class="text-xs text-destructive">
+        {m.income_deductions_invalid_count({ count: invalidFieldCount })}
+      </span>
     {:else if saveError}
       <span class="text-xs text-destructive">{saveError}</span>
     {:else if saved && !isDirty}

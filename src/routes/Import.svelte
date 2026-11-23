@@ -680,23 +680,31 @@
                     {#if row.matchedRuleId}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
-                        title={m.import_badge_rule_title()}>{m.import_badge_rule()}</span
+                        title={m.import_badge_rule_title()}
                       >
+                        {m.import_badge_rule()}
+                      </span>
                     {:else if row.vendorMatched}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
-                        title={m.import_badge_vendor_title()}>{m.import_badge_vendor()}</span
+                        title={m.import_badge_vendor_title()}
                       >
+                        {m.import_badge_vendor()}
+                      </span>
                     {:else if row.llmConfidence === 'high'}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary whitespace-nowrap"
-                        title={m.import_badge_llm_high_title()}>{m.import_badge_llm_high()}</span
+                        title={m.import_badge_llm_high_title()}
                       >
+                        {m.import_badge_llm_high()}
+                      </span>
                     {:else if row.llmConfidence === 'low'}
                       <span
                         class="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap"
-                        title={m.import_badge_llm_low_title()}>{m.import_badge_llm_low()}</span
+                        title={m.import_badge_llm_low_title()}
                       >
+                        {m.import_badge_llm_low()}
+                      </span>
                     {/if}
                   </div>
                   {#if subs.length > 0}

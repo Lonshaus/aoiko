@@ -306,9 +306,9 @@
       <ul class="space-y-2">
         {#each filtered as inv (inv.id)}
           <li class="flex flex-wrap gap-3 items-center border rounded px-3 py-2 bg-card text-sm">
-            <span class="font-mono text-xs text-muted-foreground min-w-32"
-              >{inv.number || m.invoices_status_draft()}</span
-            >
+            <span class="font-mono text-xs text-muted-foreground min-w-32">
+              {inv.number || m.invoices_status_draft()}
+            </span>
             <span class="min-w-32">{vendorName(inv.vendorId)}</span>
             <span class="text-xs text-muted-foreground">{inv.date}</span>
             {#if hasUnreadableLineItems(inv.lineItems)}
@@ -483,9 +483,10 @@
         {#each groupLineItemsByTaxRate(editing.lineItems) as g (g.taxRate)}
           <div class="flex justify-between text-muted-foreground">
             <span>{m.invoices_form_subtotal_at_rate({ rate: g.taxRate * 100 })}</span>
-            <span class="font-mono"
-              >{formatJPY(g.subtotalExcl)} + {m.invoices_form_tax()} {formatJPY(g.taxAmount)}</span
-            >
+            <span class="font-mono">
+              {formatJPY(g.subtotalExcl)} + {m.invoices_form_tax()}
+              {formatJPY(g.taxAmount)}
+            </span>
           </div>
         {/each}
         <div class="flex justify-between font-semibold">
