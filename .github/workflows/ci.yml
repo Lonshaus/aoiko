@@ -114,6 +114,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Rust のキャッシュを保存するのは develop だけにする。PR のキャッシュはその PR からしか読めず、リポジトリのキャッシュ上限を圧迫する。
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
 
       - run: npm ci
       # 依存の追加・更新で、許可していないライセンスや本文を掲げられないクレートが配られるのを防ぐ。
@@ -132,6 +134,27 @@ jobs:
       - run: npm run check:ios
       # iOS 向けの cargo check は Swift をコンパイルしない。iOS の Swift は Xcode の中でしかビルドされない。
       - run: npm run check:ios:swift
+  # native と並列に回す。リリース構成の成果物を含む Rust のキャッシュを、native とは別に持たせるために job を分けている。
+  native-build:
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
+
+      - run: npm ci
       # Tauri CLI、ネイティブ版のライセンス一覧を作る build-frontend.mjs、リリース構成のコンパイルを通す。
       # --no-bundle は .app を作らず、署名も要らない。
       - run: npm run tauri:build -- --no-bundle
