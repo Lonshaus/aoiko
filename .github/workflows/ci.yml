@@ -132,7 +132,7 @@ jobs:
       - run: npm run test:swift
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios
-      # iOS 向けの cargo check は Swift をコンパイルしない。iOS の Swift は Xcode の中でしかビルドされない。
+      # check:ios の Swift は Swift 5 の言語モードでビルドされる。iOS の SDK に対して Swift 6 の厳密な並行性検査を通すのはここだけ。
       - run: npm run check:ios:swift
   # native と並列に回す。リリース構成の成果物を含む Rust のキャッシュを、native とは別に持たせるために job を分けている。
   native-build:

@@ -1,6 +1,6 @@
-// iOS 向けの Swift は、Xcode の中の SwiftPM でしかビルドされない（build.rs が Swift をコンパイル
-// するのは macOS の時だけで、check:ios の cargo check も Swift には触れない）。そこで、最低対応
-// バージョンの iOS SDK を相手に型検査だけを通し、@available の付け忘れなどを CI で拾う。
+// check:ios はプラグインの iOS 向け Swift を SwiftPM で Swift 5 の言語モードでビルドする。
+// build.rs が Swift 6 の厳密な並行性検査を通すのは macOS の SDK に対してだけなので、
+// ここでは最低対応バージョンの iOS SDK を相手に、Swift 6 の厳密な並行性検査つきで型検査だけを通す。
 // AoikoNativePlugin.swift は Tauri の SwiftPM パッケージを import していて単体では型検査できないので除く。
 // 最低対応バージョンは tauri.conf.json から読む（ビルド設定との食い違いを防ぐため）。
 // Darwin 以外では何もしない。
