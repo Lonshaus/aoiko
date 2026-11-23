@@ -30,6 +30,7 @@ beforeEach(async () => {
   await db.open();
   await setSetting('skipAttachmentConfirm', true);
   await setSetting('skipExternalSendConfirm', true);
+  await setSetting('receiptMethod', 'rule');
 });
 
 afterEach(async () => {
@@ -54,10 +55,16 @@ async function waitFor(predicate: () => boolean, timeoutMs = 2000): Promise<void
   }
 }
 
-function renderReceipt(): HTMLElement {
+async function renderReceipt(): Promise<HTMLElement> {
   container = document.createElement('div');
   document.body.appendChild(container);
   instance = mount(Receipt, { target: container, props: {} });
+  // 画面の読み込みが終わる前にテストを終えると、後始末で閉じたデータベースを読んで未処理の rejection になる
+  await waitFor(() =>
+    (container!.textContent ?? '').includes(
+      m.receipt_rule_engine_notice({ engine: m.receipt_rule_engine_name_tesseract() }),
+    ),
+  );
   return container;
 }
 
@@ -136,7 +143,7 @@ function dialogVisible(): boolean {
 
 describe('Receipt: 画像を選び直した時の破棄確認', () => {
   test('抽出結果がある状態で別画像を選ぶと確認ダイアログが出て、抽出結果は表示されたまま', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
     const preview = c.querySelector('img') as HTMLImageElement;
     const originalSrc = preview.src;
@@ -149,7 +156,7 @@ describe('Receipt: 画像を選び直した時の破棄確認', () => {
   });
 
   test('ダイアログを閉じると抽出結果は残り、input.value がクリアされて同じ画像を選び直せる', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
 
     const input = c.querySelector('input[type="file"]') as HTMLInputElement;
@@ -169,7 +176,7 @@ describe('Receipt: 画像を選び直した時の破棄確認', () => {
   });
 
   test('確認すると抽出結果は破棄され、新しい画像が読み込まれる', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
     const preview = c.querySelector('img') as HTMLImageElement;
     const originalSrc = preview.src;
@@ -182,7 +189,7 @@ describe('Receipt: 画像を選び直した時の破棄確認', () => {
   });
 
   test('抽出結果が無ければ確認なしで即座に画像が読み込まれる', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
 
     dispatchImageFile(c, 'first.png');
     await waitFor(() => c.querySelector('img') !== null);
@@ -194,7 +201,7 @@ describe('Receipt: 画像を選び直した時の破棄確認', () => {
 
 describe('Receipt: キャンセル時の破棄確認', () => {
   test('候補がある状態でキャンセルすると確認ダイアログが出て、候補は表示されたまま', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
 
     button(c, 'キャンセル').click();
@@ -205,7 +212,7 @@ describe('Receipt: キャンセル時の破棄確認', () => {
   });
 
   test('ダイアログを閉じると候補は残ったまま', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
 
     button(c, 'キャンセル').click();
@@ -217,7 +224,7 @@ describe('Receipt: キャンセル時の破棄確認', () => {
   });
 
   test('確認すると候補が破棄される', async () => {
-    const c = renderReceipt();
+    const c = await renderReceipt();
     await analyze(c);
 
     button(c, 'キャンセル').click();
