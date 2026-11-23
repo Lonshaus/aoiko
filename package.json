@@ -36,6 +36,7 @@
     "test:swift": "node scripts/test-swift.mjs",
     "test:rust": "npm run init:bundle && node scripts/with-swift-native.mjs cargo test --manifest-path src-tauri/Cargo.toml -p aoiko-desktop -p tauri-plugin-aoiko-native",
     "check:ios": "IPHONEOS_DEPLOYMENT_TARGET=16.4 cargo check --target aarch64-apple-ios --manifest-path src-tauri/Cargo.toml -p tauri-plugin-aoiko-native -p aoiko-desktop",
+    "check:ios:swift": "node scripts/check-ios-swift.mjs",
     "licenses:native:generate": "node scripts/gen-native-licenses.mjs",
     "licenses:native:check": "node scripts/gen-native-licenses.mjs --check",
     "dev:native": "node scripts/dev-native.mjs"
