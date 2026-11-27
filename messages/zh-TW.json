@@ -1419,5 +1419,8 @@
   "error_chrome_ai_over_receipt": "這張收據沒辦法一次處理完，請分開讀取看看。",
   "error_chrome_ai_over_data": "超過一次能處理的量，請減少件數後再試一次。",
   "error_chrome_ai_response_shape": "讀不到內建 AI 的回應，請再試一次。",
-  "common_scroll_more_right": "右邊還有內容"
+  "common_scroll_more_right": "右邊還有內容",
+  "legacy_host_notice_dated": "此網址預計於 {when} 停止使用。資料不會自動移到新網址 {newUrl}。請先匯出備份，再到新網址還原。",
+  "legacy_host_notice": "此網址即將停止使用。資料不會自動移到新網址 {newUrl}。請先匯出備份，再到新網址還原。",
+  "legacy_host_action_backup": "前往設定處理 →"
 }

@@ -8,7 +8,7 @@ aoiko is a pure-frontend BYOK (Bring Your Own Key) app. There is no aoiko server
 
 aoiko is officially distributed only from:
 
-- Online demo: <https://aoiko.pages.dev>
+- Online demo: <https://aoiko.lonshaus.net> (the old URL, <https://aoiko.pages.dev>, will stop working in January 2027)
 <!-- only:apple -->
 - The App Store (macOS and iOS editions)
 <!-- /only -->
@@ -29,7 +29,7 @@ Beware of phishing or malware distributed under the aoiko name or a confusingly 
 ## Supported versions
 <!-- only:browser -->
 
-The version published at <https://aoiko.pages.dev> is the supported version.
+The version published at <https://aoiko.lonshaus.net> is the supported version.
 <!-- /only -->
 <!-- only:native -->
 The latest release published in the stores is the supported version. For a report filed against an older release, you may be asked to confirm whether it still reproduces on the latest one.
