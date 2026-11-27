@@ -3,6 +3,7 @@
   import { D, formatJPY } from '../lib/decimal';
   import { formatStoredAmount } from '../lib/amount-input';
   import JournalEntryForm from './JournalEntryForm.svelte';
+  import LegacyHostNotice from '../components/LegacyHostNotice.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
   import DataCheckNotice from '../components/DataCheckNotice.svelte';
   import ProcessingYearResetNotice from '../components/ProcessingYearResetNotice.svelte';
@@ -14,6 +15,7 @@
 </script>
 
 <div class="space-y-8">
+  <LegacyHostNotice />
   <ProcessingYearResetNotice />
   <BackupNotice />
   <DataCheckNotice />
