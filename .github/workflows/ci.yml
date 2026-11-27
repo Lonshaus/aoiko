@@ -94,7 +94,10 @@ jobs:
   # 配る対象（macOS / iOS / Windows）のうち macOS を使う。public repo なので
   # ランナー OS による課金差は無く、Linux 専用のスタブを維持する理由も無い。
   native:
-    runs-on: macos-latest
+    # 本番の Swift が 27 の API を使うため、ストア向けビルドと同じ Xcode 27.2 でコンパイルする。
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
     steps:
       - uses: actions/checkout@v7
 
@@ -111,9 +114,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri -> target
+          # Rust のキャッシュを保存するのは develop だけにする。PR のキャッシュはその PR からしか読めず、リポジトリのキャッシュ上限を圧迫する。
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
 
       - run: npm ci
-      # 依存の追加・更新でライセンス一覧が古くなったまま配られるのを防ぐ。
+      # 依存の追加・更新で、許可していないライセンスや本文を掲げられないクレートが配られるのを防ぐ。
       # cargo tree と cargo metadata しか使わない（ビルドはしない）ので、対象プラットフォームの toolchain は要らない。
       - run: npm run licenses:native:check
       # 枠（aoiko_fetch との契約）が壊れていれば、コンパイルより先に分かる。
@@ -123,5 +128,33 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all -- --check
       # mobile_entry_point のガードもここに入っている。
       - run: npm run test:rust
+      # Swift のテストを走らせるのはここだけ。test:rust はコンパイルまでで、テストは実行しない。
+      - run: npm run test:swift
       # iOS の cfg 分岐は既定の target では一度も引かれない。
       - run: npm run check:ios
+      # check:ios の Swift は Swift 5 の言語モードでビルドされる。iOS の SDK に対して Swift 6 の厳密な並行性検査を通すのはここだけ。
+      - run: npm run check:ios:swift
+  # native と並列に回す。リリース構成の成果物を含む Rust のキャッシュを、native とは別に持たせるために job を分けている。
+  native-build:
+    runs-on: xcode-27
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          save-if: ${{ github.ref == 'refs/heads/develop' }}
+
+      - run: npm ci
+      # Tauri CLI、ネイティブ版のライセンス一覧を作る build-frontend.mjs、リリース構成のコンパイルを通す。
+      # --no-bundle は .app を作らず、署名も要らない。
+      - run: npm run tauri:build -- --no-bundle

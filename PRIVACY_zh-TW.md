@@ -24,7 +24,7 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 <!-- /only -->
 <!-- only:browser -->
 
-提供 <https://aoiko.pages.dev> 的主機代管服務的 **HTTP 存取紀錄**可能依該服務政策保留。aoiko 這邊無法控制這部分。
+提供 <https://aoiko.lonshaus.net>（舊網址 <https://aoiko.pages.dev> 停止使用前也包含舊網址）的主機代管服務的 **HTTP 存取紀錄**可能依該服務政策保留。aoiko 這邊無法控制這部分。
 <!-- /only -->
 
 ## 存在本機的資料
@@ -94,7 +94,7 @@ iOS 版的 `PrivacyInfo.xcprivacy` 把追蹤（NSPrivacyTracking）宣告為 fal
 
 - **影像辨識生成式 AI 路徑（Gemini / OpenAI 相容）**：生成式 AI 分類＝CSV 匯入中未勾選「排除」且尚未填對應科目的列的摘要・金額＋匯入來源的科目代碼與借貸別＋對應科目候補清單（科目代碼・科目名稱・類別）／OCR＝收據照片（Base64）＋抽取指示的提示詞（長邊超過 2048px 的照片會先縮小並轉成 JPEG 再送出〔轉換後沒有變小時除外〕；其餘照片以原檔送出，若含拍攝日期時間・位置等 Exif 資訊也會一併送出）／訂單匯入＝貼上的完整文字（若貼上的範圍含訂單頁上的收件人姓名・地址・電話等，也會原樣送出）＋抽取指示的提示詞
 <!-- only:browser -->
-- **Tesseract 路徑（OCR 限定）**：不用生成式 AI。照片在 WASM 內本機處理、不送出。文字辨識程式（worker・WASM）與日文語言資料（`jpn.traineddata`）會在第一次用 Tesseract 辨識時，從 aoiko 的發布來源（<https://aoiko.pages.dev>）取得並存在瀏覽器的 Cache Storage，之後就使用存好的檔案。除了 aoiko 的發布來源之外不會有其他連線
+- **Tesseract 路徑（OCR 限定）**：不用生成式 AI。照片在 WASM 內本機處理、不送出。文字辨識程式（worker・WASM）與日文語言資料（`jpn.traineddata`）會在第一次用 Tesseract 辨識時，從 aoiko 的發布來源（<https://aoiko.lonshaus.net>；在舊網址 <https://aoiko.pages.dev> 開啟時則是舊網址）取得並存在瀏覽器的 Cache Storage，之後就使用存好的檔案。除了 aoiko 的發布來源之外不會有其他連線
 <!-- /only -->
 <!-- only:native -->
 - **Tesseract 路徑（OCR 限定）**：不用生成式 AI。照片在 WASM 內本機處理、不送出。文字辨識程式與日文語言資料（`jpn.traineddata`）內建在 App 中，不會有任何連線

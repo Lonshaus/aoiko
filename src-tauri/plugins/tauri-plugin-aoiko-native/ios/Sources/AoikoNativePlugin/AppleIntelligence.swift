@@ -67,6 +67,18 @@ private let receiptInstructions = """
 - クレジット売上票・ポイント明細・会員番号・広告・返品案内は買い物の内訳ではない。
 - 明細行が無いレシート（金額だけの領収書）では品目を空配列にする。書かれていない品目を推測しない。
 """
+@available(macOS 26, iOS 26, *)
+private let receiptImageInstructions = """
+あなたは日本のレシート・領収書から経理に必要な項目を抜き出す担当です。
+入力はレシート・領収書の画像です。
+
+守ること：
+- 紙面に印刷されていない値を作らない。読み取れない項目は空文字にする。
+- 支払総額は「合計」「ご請求額」「領収金額」の額。「お預り」「お釣り」「現金」と混同しない。
+- 税率ごとの額は課税対象額（売上額）であって、消費税額ではない。両者はレシート上で隣接して並ぶので注意する。
+- クレジット売上票・ポイント明細・会員番号・広告・返品案内は買い物の内訳ではない。
+- 明細行が無いレシート（金額だけの領収書）では品目を空配列にする。書かれていない品目を推測しない。
+"""
 // EXIF の向きを読まないと、スマホで撮った写真は縦横が入れ替わったまま認識される。
 @available(macOS 26, iOS 26, *)
 private func exifOrientation(of data: Data) -> CGImagePropertyOrientation {
@@ -116,8 +128,21 @@ private func recognizeReceiptText(from data: Data) -> String? {
 // 実測値（このMac）: レシート抽出 3.32 秒。iOS は非力な端末もあり、もっと掛かる想定で
 // 見繕った判断値。ゲート確保・締め切り付きの待ち・見捨てる判断は Concurrency.swift の
 // runSingleFlight に集約されており、ここは body を組み立てて渡すだけ。
+// 入力を部分に分けて送るときは、部分 1 つあたりの締め切りとして使う。
 @available(macOS 26, iOS 26, *)
 private let appleAIDeadlineSeconds: TimeInterval = 60
+// 量るときに出力ぶんとして取っておく量。品目が密な入力では出力が入力より長くなるので、
+// 部分の量の 1.6 倍に JSON の枠のぶんを足す。
+@available(macOS 26, iOS 26, *)
+private let appleAIOutputRatio = 1.6
+@available(macOS 26, iOS 26, *)
+private let appleAIOutputBaseTokens = 64
+// 計測（tokenCount）の締め切り。量る量は入力の長さに比例するので、固定の 10 秒に
+// 1 MB あたり 60 秒を足す。超えたら分けずに今までどおり 1 回で送る。
+@available(macOS 26, iOS 26, *)
+private let appleAIPlanBaseSeconds: TimeInterval = 10
+@available(macOS 26, iOS 26, *)
+private let appleAIPlanSecondsPerMegabyte: TimeInterval = 60
 // 分類はトランザクション毎に最大 2 回（パス1・パス2）モデルを呼ぶため、レシート抽出・
 // 注文取込より長い締め切りを持つ。この値はここでしか使わず、他の 2 経路の
 // appleAIDeadlineSeconds には触れない。
@@ -133,36 +158,192 @@ private let classifyLoopBudgetSeconds: TimeInterval = 105
 // 3 経路が同じ形で生成→JSON エンコードを行うので、ここへ集約する。
 @available(macOS 26, iOS 26, *)
 private func runGeneration<T: Generable & Encodable>(
-    instructions: String, content: String, generating: T.Type
+    generate: @escaping @Sendable () async throws -> T
 ) -> (json: String?, err: Int32) {
     let outcome = runSingleFlight(deadline: appleAIDeadlineSeconds) {
         do {
-            let session = LanguageModelSession(instructions: instructions)
-            let response = try await session.respond(to: content, generating: T.self)
-            let encoder = JSONEncoder()
-            encoder.outputFormatting = [.withoutEscapingSlashes]
-            let data = try encoder.encode(response.content)
-            // String(data:encoding:) は failable。ここで err = 0 を決め打ちすると、
-            // 「変換に失敗して中身は無い」が成功として外へ漏れる。
-            guard let json = String(data: data, encoding: .utf8) else {
-                return AppleAIOutcome(json: nil, err: 3)
-            }
-            return AppleAIOutcome(json: json, err: 0)
-        } catch let e as LanguageModelSession.GenerationError {
-            if case .exceededContextWindowSize = e {
-                return AppleAIOutcome(json: nil, err: 1)
-            }
-            return AppleAIOutcome(json: nil, err: 3)
+            return encodeOutcome(try await generate())
         } catch {
-            return AppleAIOutcome(json: nil, err: 3)
+            return AppleAIOutcome(json: nil, err: generationErrorCode(error))
         }
     }
     return (outcome.json, outcome.err)
 }
 
 @available(macOS 26, iOS 26, *)
-private func runExtraction(text: String) -> (json: String?, err: Int32) {
-    runGeneration(instructions: receiptInstructions, content: text, generating: Receipt.self)
+private func encodeOutcome<T: Encodable>(_ content: T) -> AppleAIOutcome {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.withoutEscapingSlashes]
+    guard let data = try? encoder.encode(content) else {
+        return AppleAIOutcome(json: nil, err: 3)
+    }
+    // String(data:encoding:) は failable。ここで err = 0 を決め打ちすると、
+    // 「変換に失敗して中身は無い」が成功として外へ漏れる。
+    guard let json = String(data: data, encoding: .utf8) else {
+        return AppleAIOutcome(json: nil, err: 3)
+    }
+    return AppleAIOutcome(json: json, err: 0)
+}
+// 26 は GenerationError、27 以降は LanguageModelError でコンテキスト超過を知らせてくる。
+@available(macOS 26, iOS 26, *)
+private func generationErrorCode(_ error: any Error) -> Int32 {
+    if let e = error as? LanguageModelSession.GenerationError, case .exceededContextWindowSize = e {
+        return 1
+    }
+    if #available(macOS 27, iOS 27, *) {
+        if let e = error as? LanguageModelError, case .contextSizeExceeded = e {
+            return 1
+        }
+    }
+    return 3
+}
+
+@available(macOS 26, iOS 26, *)
+private func runTextGeneration<T: Generable & Encodable>(
+    instructions: String, content: String, generating: T.Type
+) -> (json: String?, err: Int32) {
+    runGeneration {
+        let session = LanguageModelSession(instructions: instructions)
+        return try await session.respond(to: content, generating: T.self).content
+    }
+}
+// 分けた部分の頭に付ける。部分に無い項目をモデルが埋めないようにする。
+private func chunkPrefix(k: Int, n: Int) -> String {
+    "以下は長い入力を分けたうちの \(k)／\(n) 番目です。この部分に書かれていない項目は空文字にしてください。\n"
+}
+// 指示・出力の構造・部分・出力ぶんの取り置きの合計が上限に収まるように分ける。
+// 検収用のハーネスから分け方を確かめるため private にしない。
+@available(macOS 26.4, iOS 26.4, *)
+func planTextChunks(instructions: String, schema: GenerationSchema, text: String) async throws -> ChunkPlan {
+    let model = SystemLanguageModel.default
+    let fixed = try await model.tokenCount(for: Instructions(instructions)) + model.tokenCount(for: schema)
+    let limit = model.contextSize
+    // 部分の数はまだ分からないので、桁の多い番号で量って余裕を持たせる。
+    let longestPrefix = chunkPrefix(k: 9999, n: 9999)
+    return try await planChunks(text) { part in
+        let content = try await model.tokenCount(for: Prompt(longestPrefix + part))
+        let reserve = appleAIOutputBaseTokens + Int((Double(content) * appleAIOutputRatio).rounded(.up))
+        return fixed + content + reserve <= limit
+    }
+}
+// 1 件の入力が上限に収まらなければ部分に分けて順に送り、全部が返ってから 1 件にまとめる。
+// 量れない OS（26.4 より前）、計測に失敗したとき、1 文字でも収まらないときは、今までどおり 1 回で送る。
+// 検収用のハーネスから直接呼ぶため private にしない。
+@available(macOS 26, iOS 26, *)
+func runChunkedTextGeneration<T: Generable & Encodable>(
+    instructions: String,
+    text: String,
+    generating: T.Type,
+    merge: @escaping @Sendable ([T]) -> T
+) -> (json: String?, err: Int32) {
+    guard #available(macOS 26.4, iOS 26.4, *) else {
+        return runTextGeneration(instructions: instructions, content: text, generating: T.self)
+    }
+    let schema = T.generationSchema
+    let megabytes = Double(text.utf8.count) / 1_000_000
+    let plan = waitForAsync(timeout: appleAIPlanBaseSeconds + appleAIPlanSecondsPerMegabyte * megabytes) {
+        try? await planTextChunks(instructions: instructions, schema: schema, text: text)
+    } ?? nil
+    switch plan {
+    case nil, .single, .unsplittable:
+        return runTextGeneration(instructions: instructions, content: text, generating: T.self)
+    case .chunks(let parts):
+        let outcome = runSingleFlight(deadline: appleAIDeadlineSeconds * Double(parts.count)) {
+            do {
+                let results = try await runPartsInOrder(parts) { index, part in
+                    let session = LanguageModelSession(instructions: instructions)
+                    let prompt = chunkPrefix(k: index + 1, n: parts.count) + part
+                    return try await session.respond(to: prompt, generating: T.self).content
+                }
+                return encodeOutcome(merge(results))
+            } catch {
+                return AppleAIOutcome(json: nil, err: generationErrorCode(error))
+            }
+        }
+        return (outcome.json, outcome.err)
+    }
+}
+// 部分はどれも同じ 1 枚のレシートの一部。見出し側の項目は最初に現れた値、
+// 合計・税率ごとの額は品目より後に印字されるので最後に現れた値を採る。
+@available(macOS 26, iOS 26, *)
+func mergeReceipts(_ parts: [Receipt]) -> Receipt {
+    Receipt(
+        vendor: firstNonEmpty(parts.map(\.vendor)),
+        date: firstNonEmpty(parts.map(\.date)),
+        total: lastNonEmpty(parts.map(\.total)),
+        invoiceNumber: firstNonEmpty(parts.map(\.invoiceNumber)),
+        amount8: lastNonEmpty(parts.map(\.amount8)),
+        amount10: lastNonEmpty(parts.map(\.amount10)),
+        items: parts.flatMap(\.items)
+    )
+}
+// 部分はどれも同じ 1 件の注文の一部。
+@available(macOS 26, iOS 26, *)
+func mergeOrders(_ parts: [OrderOutput]) -> OrderOutput {
+    OrderOutput(
+        date: firstNonEmpty(parts.map(\.date)),
+        vendor: firstNonEmpty(parts.map(\.vendor)),
+        orderNumber: firstNonEmpty(parts.map(\.orderNumber)),
+        items: parts.flatMap(\.items),
+        totalAmount: lastNonEmpty(parts.map(\.totalAmount))
+    )
+}
+// 検収用のハーネスから直接呼ぶため private にしない。
+@available(macOS 26, iOS 26, *)
+func runReceiptTextExtraction(text: String) -> (json: String?, err: Int32) {
+    runChunkedTextGeneration(
+        instructions: receiptInstructions, text: text, generating: Receipt.self, merge: mergeReceipts
+    )
+}
+// 検収用のハーネスから直接呼ぶため private にしない。
+@available(macOS 26, iOS 26, *)
+func runRecognizedTextExtraction(data: Data) -> (json: String?, err: Int32) {
+    guard let text = recognizeReceiptText(from: data) else {
+        return (nil, 2)
+    }
+    return runReceiptTextExtraction(text: text)
+}
+// 検収用のハーネスから直接呼ぶため private にしない。
+@available(macOS 27, iOS 27, *)
+func runImageExtraction(data: Data) -> (json: String?, err: Int32) {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+        let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+    else {
+        return (nil, 2)
+    }
+    let orientation = exifOrientation(of: data)
+    return runGeneration {
+        let session = LanguageModelSession(instructions: receiptImageInstructions)
+        let prompt = Prompt {
+            "このレシート・領収書から項目を抜き出してください。"
+            Attachment(image, orientation: orientation)
+        }
+        return try await session.respond(to: prompt, generating: Receipt.self).content
+    }
+}
+
+@available(macOS 26, iOS 26, *)
+private func currentReceiptRoute() -> ReceiptRoute {
+    if #available(macOS 27, iOS 27, *) {
+        return receiptRoute(
+            osSupportsImageInput: true,
+            modelSupportsVision: SystemLanguageModel.default.capabilities.contains(.vision)
+        )
+    }
+    return receiptRoute(osSupportsImageInput: false, modelSupportsVision: false)
+}
+// 検収用のハーネスから経路を指定して呼ぶため private にしない。
+@available(macOS 26, iOS 26, *)
+func extractReceipt(data: Data, route: ReceiptRoute) -> (json: String?, err: Int32) {
+    switch route {
+    case .image:
+        guard #available(macOS 27, iOS 27, *) else {
+            return (nil, 4)
+        }
+        return runImageExtraction(data: data)
+    case .recognizedText:
+        return runRecognizedTextExtraction(data: data)
+    }
 }
 
 @_cdecl("aoiko_ai_extract")
@@ -174,11 +355,7 @@ func aoiko_ai_extract(
         return nil
     }
     let data = Data(bytes: bytes, count: length)
-    guard let text = recognizeReceiptText(from: data) else {
-        outErr.pointee = 2
-        return nil
-    }
-    let (json, err) = runExtraction(text: text)
+    let (json, err) = extractReceipt(data: data, route: currentReceiptRoute())
     outErr.pointee = err
     guard let json else {
         return nil
@@ -186,7 +363,7 @@ func aoiko_ai_extract(
     return strdup(json)
 }
 // MARK: - 分類（CSV 相手科目）・注文取込
-// 配列出力（classifications: [Item]）はコンテキストウィンドウ（4096 トークン）を埋めるまで
+// 配列出力（classifications: [Item]）はコンテキストウィンドウを埋めるまで
 // 項目を吐き続ける暴走が実測で確認されたため、単一オブジェクト出力にする
 // （ClassifyLoop.swift がトランザクション 1 件ずつ回す）。ref はモデルに書かせない。
 @available(macOS 26, iOS 26, *)
@@ -233,13 +410,8 @@ let classifyModelCall: ClassifyLoopCall = { instructions, content in
             confidence: response.content.confidence,
             reason: response.content.reason
         )
-    } catch let e as LanguageModelSession.GenerationError {
-        if case .exceededContextWindowSize = e {
-            throw ClassifyCallError(code: 1)
-        }
-        throw ClassifyCallError(code: 3)
     } catch {
-        throw ClassifyCallError(code: 3)
+        throw ClassifyCallError(code: generationErrorCode(error))
     }
 }
 // runSingleFlight で単一化・締め切り付きの待ちに載せてから ClassifyLoop.swift を回す、
@@ -329,8 +501,8 @@ private func runTask(_ task: Int32, data: Data) -> (json: String?, err: Int32) {
         guard let request = try? JSONDecoder().decode(OrderRequest.self, from: data) else {
             return (nil, 2)
         }
-        return runGeneration(
-            instructions: orderInstructions, content: request.text, generating: OrderOutput.self
+        return runChunkedTextGeneration(
+            instructions: orderInstructions, text: request.text, generating: OrderOutput.self, merge: mergeOrders
         )
     default:
         return (nil, 2)

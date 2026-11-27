@@ -3,6 +3,7 @@
   import { D, formatJPY } from '../lib/decimal';
   import { formatStoredAmount } from '../lib/amount-input';
   import JournalEntryForm from './JournalEntryForm.svelte';
+  import LegacyHostNotice from '../components/LegacyHostNotice.svelte';
   import BackupNotice from '../components/BackupNotice.svelte';
   import DataCheckNotice from '../components/DataCheckNotice.svelte';
   import ProcessingYearResetNotice from '../components/ProcessingYearResetNotice.svelte';
@@ -14,6 +15,7 @@
 </script>
 
 <div class="space-y-8">
+  <LegacyHostNotice />
   <ProcessingYearResetNotice />
   <BackupNotice />
   <DataCheckNotice />
@@ -96,9 +98,9 @@
                   {#if row.debits[0]}
                     <span>{row.debits[0].name}</span>
                     {#if row.debits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1"
-                        >+{row.debits.length - 1}</span
-                      >
+                      <span class="text-xs text-muted-foreground ml-1">
+                        +{row.debits.length - 1}
+                      </span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
@@ -108,9 +110,9 @@
                   {#if row.credits[0]}
                     <span>{row.credits[0].name}</span>
                     {#if row.credits.length > 1}
-                      <span class="text-xs text-muted-foreground ml-1"
-                        >+{row.credits.length - 1}</span
-                      >
+                      <span class="text-xs text-muted-foreground ml-1">
+                        +{row.credits.length - 1}
+                      </span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>

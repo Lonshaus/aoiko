@@ -69,6 +69,7 @@ private let gate = SingleFlightGate()
 /// body は自分の結果を書き込んで返すだけで、コード 1..4 の意味は呼び出し元が決める。
 /// FoundationModels の respond に cancellation が効く保証は無いため、task.cancel() は
 /// 「呼べるものは呼ぶ」に留まり、実際に積み上がりを防ぐのはゲートの単一化。
+/// 連続して呼ぶ body は、呼ぶ前に毎回取り消しを確かめて、見捨てられた後にゲートを握り続けない。
 func runSingleFlight(
     deadline: TimeInterval,
     body: @escaping @Sendable () async -> AppleAIOutcome
@@ -96,4 +97,40 @@ func runSingleFlight(
     }
     task.cancel()
     return AppleAIOutcome(json: nil, err: appleAITimedOutError)
+}
+// tokenCount による計測のように、生成を伴わない async 処理を同期に落とす。
+// モデルを取り合わないのでゲートは通さない。締め切りを過ぎたら nil を返す。
+func waitForAsync<T: Sendable>(
+    timeout: TimeInterval,
+    body: @escaping @Sendable () async -> T
+) -> T? {
+    let box = ValueBox<T>()
+    let semaphore = DispatchSemaphore(value: 0)
+    let task = Task {
+        box.write(await body())
+        semaphore.signal()
+    }
+    _ = semaphore.wait(timeout: .now() + timeout)
+    if let value = box.read() {
+        return value
+    }
+    task.cancel()
+    return nil
+}
+
+private final class ValueBox<T: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: T?
+
+    func write(_ value: T) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.value = value
+    }
+
+    func read() -> T? {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
 }

@@ -2706,9 +2706,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
         {#if currentYearInvalid}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.common_integer_invalid(YEAR_RANGE)}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.common_integer_invalid(YEAR_RANGE)}
+          </span>
         {/if}
       </label>
       <label class="block">
@@ -2824,9 +2824,9 @@
     </p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.settings_consumption_tax_registration()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.settings_consumption_tax_registration()}
+        </span>
         <select
           bind:value={taxRegistration}
           name="taxRegistration"
@@ -2854,9 +2854,9 @@
         </label>
         {#if taxFilingMethod === 'simplified'}
           <label class="block sm:col-span-2">
-            <span class="text-xs text-muted-foreground"
-              >{m.settings_consumption_tax_simplified_category()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.settings_consumption_tax_simplified_category()}
+            </span>
             <select
               bind:value={simplifiedTaxCategory}
               name="simplifiedTaxCategory"
@@ -2864,40 +2864,40 @@
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
               {#each [1, 2, 3, 4, 5, 6] as cat (cat)}
-                <option value={cat}
-                  >{simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}</option
-                >
+                <option value={cat}>
+                  {simplifiedTaxCategoryLabel(cat as SimplifiedTaxCategory)}
+                </option>
               {/each}
             </select>
           </label>
         {/if}
         {#if taxFilingMethod === 'general'}
           <label class="block sm:col-span-2">
-            <span class="text-xs text-muted-foreground"
-              >{m.settings_consumption_tax_attribution_method()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.settings_consumption_tax_attribution_method()}
+            </span>
             <select
               bind:value={consumptionTaxAttributionMethod}
               name="consumptionTaxAttributionMethod"
               onchange={saveConsumptionTax}
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             >
-              <option value="proportional"
-                >{m.settings_consumption_tax_attribution_proportional()}</option
-              >
-              <option value="individual"
-                >{m.settings_consumption_tax_attribution_individual()}</option
-              >
+              <option value="proportional">
+                {m.settings_consumption_tax_attribution_proportional()}
+              </option>
+              <option value="individual">
+                {m.settings_consumption_tax_attribution_individual()}
+              </option>
             </select>
-            <span class="block mt-1 text-xs text-muted-foreground"
-              >{m.settings_consumption_tax_attribution_hint()}</span
-            >
+            <span class="block mt-1 text-xs text-muted-foreground">
+              {m.settings_consumption_tax_attribution_hint()}
+            </span>
           </label>
         {/if}
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_ct_registration_start_date()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_ct_registration_start_date()}
+          </span>
           <input
             type="date"
             name="ctRegistrationStartDate"
@@ -2914,8 +2914,9 @@
           {/each}
         </label>
         <div class="block">
-          <span class="text-xs text-muted-foreground">{m.settings_ct_taxable_election_filed()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_ct_taxable_election_filed()}
+          </span>
           <div class="mt-1 flex items-center gap-2">
             <input
               type="text"
@@ -2965,9 +2966,9 @@
           {/each}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_ct_adjusted_fixed_asset_date()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_ct_adjusted_fixed_asset_date()}
+          </span>
           <input
             type="date"
             name="ctAdjustedFixedAssetDate"
@@ -3032,8 +3033,9 @@
           {/each}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground">{m.settings_ct_specified_period_sales()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_ct_specified_period_sales()}
+          </span>
           <input
             type="text"
             name="ctSpecifiedPeriodSales"
@@ -3050,9 +3052,9 @@
           {/each}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_ct_simplified_election_filed_date()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_ct_simplified_election_filed_date()}
+          </span>
           <input
             type="date"
             name="ctSimplifiedElectionFiledDate"
@@ -3118,9 +3120,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground font-mono"
         />
         {#if riyoshaIdInvalid}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.settings_filer_riyosha_id_invalid()}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_riyosha_id_invalid()}
+          </span>
         {/if}
       </label>
       <label class="block">
@@ -3134,9 +3136,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
         {#if filerStoredUnreadable.has('userFilerName')}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.settings_filer_stored_unreadable()}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
         {/if}
       </label>
       <label class="block">
@@ -3169,9 +3171,9 @@
           >{m.settings_filer_address_hint()}</span
         >
         {#if filerStoredUnreadable.has('userFilerAddress')}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.settings_filer_stored_unreadable()}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
         {/if}
       </label>
       <label class="block">
@@ -3267,9 +3269,9 @@
                   }}
                   class="block w-full px-3 py-2 text-left text-sm hover:bg-accent"
                 >
-                  <span class="text-foreground"
-                    >{e.name || m.settings_filer_zeimusho_fallback()}</span
-                  >
+                  <span class="text-foreground">
+                    {e.name || m.settings_filer_zeimusho_fallback()}
+                  </span>
                   <span class="ml-2 font-mono text-xs text-muted-foreground">{e.code}</span>
                 </button>
               </li>
@@ -3381,9 +3383,9 @@
         {m.settings_carryover_delete_button()}
       </button>
       {#if currentYearInvalid}
-        <span class="self-center text-xs text-destructive"
-          >{m.common_integer_invalid(YEAR_RANGE)}</span
-        >
+        <span class="self-center text-xs text-destructive">
+          {m.common_integer_invalid(YEAR_RANGE)}
+        </span>
       {/if}
     </div>
     {#if carryoverStatus}
@@ -3432,14 +3434,14 @@
       </div>
       <div class="text-xs text-muted-foreground border-t pt-2 space-y-0.5">
         <p>
-          {m.settings_carryover_prior_net_income()}：<span class="font-mono"
-            >{formatJPY(p.priorNetIncome)}</span
-          >
+          {m.settings_carryover_prior_net_income()}：<span class="font-mono">
+            {formatJPY(p.priorNetIncome)}
+          </span>
         </p>
         <p>
-          {m.settings_carryover_prior_capital()}：<span class="font-mono"
-            >{formatJPY(p.priorEndingCapital)}</span
-          >
+          {m.settings_carryover_prior_capital()}：<span class="font-mono">
+            {formatJPY(p.priorEndingCapital)}
+          </span>
         </p>
         <p>
           {m.settings_carryover_prior_owner_movements({
@@ -3628,9 +3630,9 @@
             <div class="flex-1 min-w-0">
               <span class="break-all">
                 {v.name}
-                <span class="text-xs text-muted-foreground ml-2"
-                  >{vendorEntityLabel(v.entityType)}</span
-                >
+                <span class="text-xs text-muted-foreground ml-2">
+                  {vendorEntityLabel(v.entityType)}
+                </span>
               </span>
               {#if v.invoiceNumber || v.defaultAccountCode}
                 <div class="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
@@ -3769,9 +3771,9 @@
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_business_dates_start_label()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_business_dates_start_label()}
+          </span>
           <input
             type="date"
             name="businessStartDateSetting"
@@ -3792,9 +3794,9 @@
           {/if}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_business_dates_close_label()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_business_dates_close_label()}
+          </span>
           <input
             type="date"
             name="businessCloseDateSetting"
@@ -3920,9 +3922,9 @@
             <option value="small-asset-special">{m.settings_asset_method_small_special()}</option>
           {/if}
           <option value="lump-sum">{m.settings_asset_method_lump_sum()}</option>
-          <option value="lease-period-straight-line"
-            >{m.settings_asset_method_lease_period()}</option
-          >
+          <option value="lease-period-straight-line">
+            {m.settings_asset_method_lease_period()}
+          </option>
           {#if newAssetDate <= '2007-03-31'}
             <option value="old-straight-line">{m.settings_asset_method_old_straight()}</option>
             <option value="old-declining-balance">{m.settings_asset_method_old_declining()}</option>
@@ -4140,15 +4142,15 @@
                     ? m.common_stored_amount_unreadable()
                     : formatJPY(a.acquisitionCost)}
                 </td>
-                <td class="py-2 text-right tabular-nums"
-                  >{m.settings_asset_life_years({ n: a.usefulLifeYears })}</td
-                >
-                <td class="py-2 text-right tabular-nums"
-                  >{d ? formatJPY(d.amount) : m.common_dash()}</td
-                >
-                <td class="py-2 text-right tabular-nums text-muted-foreground"
-                  >{d ? formatJPY(d.book) : m.common_dash()}</td
-                >
+                <td class="py-2 text-right tabular-nums">
+                  {m.settings_asset_life_years({ n: a.usefulLifeYears })}
+                </td>
+                <td class="py-2 text-right tabular-nums">
+                  {d ? formatJPY(d.amount) : m.common_dash()}
+                </td>
+                <td class="py-2 text-right tabular-nums text-muted-foreground">
+                  {d ? formatJPY(d.book) : m.common_dash()}
+                </td>
                 <td class="py-2 text-right whitespace-nowrap">
                   {#if hasComputeIssue(issues)}
                     <button
@@ -4191,9 +4193,9 @@
                       <p class="text-xs text-muted-foreground">{m.settings_asset_fix_intro()}</p>
                       <div class="flex flex-wrap items-end gap-2">
                         <label class="block">
-                          <span class="text-xs text-muted-foreground"
-                            >{m.settings_asset_life_title()}</span
-                          >
+                          <span class="text-xs text-muted-foreground">
+                            {m.settings_asset_life_title()}
+                          </span>
                           <input
                             type="number"
                             name="assetFixUsefulLife"
@@ -4207,9 +4209,9 @@
                         </label>
                         {#if a.depreciationMethod === 'lease-period-straight-line'}
                           <label class="block">
-                            <span class="text-xs text-muted-foreground"
-                              >{m.settings_asset_lease_term_months()}</span
-                            >
+                            <span class="text-xs text-muted-foreground">
+                              {m.settings_asset_lease_term_months()}
+                            </span>
                             <input
                               type="number"
                               name="assetFixLeaseTermMonths"
@@ -4693,9 +4695,9 @@
           class="mt-1 w-24 px-3 h-10 bg-background border rounded text-foreground tabular-nums text-sm"
         />
         {#if depreciationYearInvalid}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.common_integer_invalid(YEAR_RANGE)}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.common_integer_invalid(YEAR_RANGE)}
+          </span>
         {/if}
       </label>
       <button
@@ -4787,12 +4789,12 @@
             <span class="text-xs text-muted-foreground">{matchTypeLabel(r.matchType)}</span>
             <span class="font-mono flex-1 min-w-32 break-all">{r.pattern}</span>
             <span class="font-mono text-xs text-muted-foreground">→ {r.accountCode}</span>
-            <span class="text-xs text-muted-foreground tabular-nums"
-              >{m.settings_rule_priority_short({ n: r.priority })}</span
-            >
-            <span class="text-xs text-muted-foreground tabular-nums"
-              >{m.settings_rule_hits({ n: r.hitCount })}</span
-            >
+            <span class="text-xs text-muted-foreground tabular-nums">
+              {m.settings_rule_priority_short({ n: r.priority })}
+            </span>
+            <span class="text-xs text-muted-foreground tabular-nums">
+              {m.settings_rule_hits({ n: r.hitCount })}
+            </span>
             <button
               type="button"
               onclick={() => askDelete(r.pattern, () => deleteRule(r.id))}
@@ -5046,9 +5048,9 @@
           {/if}
         </label>
         <label class="block">
-          <span class="text-xs text-muted-foreground"
-            >{m.settings_openai_classify_model_label()}</span
-          >
+          <span class="text-xs text-muted-foreground">
+            {m.settings_openai_classify_model_label()}
+          </span>
           {#if openaiModels.length > 0}
             <select
               bind:value={openaiClassifyModel}
@@ -5145,9 +5147,9 @@
         {m.settings_accountant_export_corrections()}
       </button>
       {#if currentYearInvalid}
-        <span class="self-center text-xs text-destructive"
-          >{m.common_integer_invalid(YEAR_RANGE)}</span
-        >
+        <span class="self-center text-xs text-destructive">
+          {m.common_integer_invalid(YEAR_RANGE)}
+        </span>
       {/if}
     </div>
     <p class="text-xs text-muted-foreground border-t pt-2">

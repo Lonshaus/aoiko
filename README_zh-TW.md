@@ -8,7 +8,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-🌐 **線上版**: <https://aoiko.pages.dev>
+🌐 **線上版**: <https://aoiko.lonshaus.net>（舊網址 <https://aoiko.pages.dev> 預計於 2027/01 停止使用。在舊網址使用過的話，請先在舊網址匯出備份，再到新網址還原。）
 
 給日本個人事業主用的純前端記帳工具。支援青色申告特別控除，自令和 9 年分起分為 75 萬／65 萬／10 萬圓三段（要件見手冊「01. 初次設定」「14. 所得控除・稅額扣抵」）；以單一 Web App 提供 CSV／OCR／EC 訂單頁匯入、複式簿記、折舊、資產負債表、`.xtx`（e-Tax 申報檔）輸出。也支援白色申告（収支内訳書）。無後端、BYOK（API 金鑰使用者自備）。
 

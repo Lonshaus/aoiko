@@ -57,15 +57,17 @@
         use:link
         onclick={() => stashSettingsTarget('basic')}
         class="text-primary hover:underline py-2 -my-2"
-        >{m.processing_year_reset_action_settings()}</a
       >
+        {m.processing_year_reset_action_settings()}
+      </a>
       <button
         type="button"
         onclick={close}
         disabled={closing}
         class="text-primary hover:underline py-2 -my-2 disabled:opacity-50"
-        >{m.processing_year_reset_action_close()}</button
       >
+        {m.processing_year_reset_action_close()}
+      </button>
     </div>
   </div>
 {/if}

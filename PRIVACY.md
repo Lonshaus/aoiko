@@ -24,7 +24,7 @@ iOS 版の `PrivacyInfo.xcprivacy` は追跡（NSPrivacyTracking）を false と
 <!-- /only -->
 <!-- only:browser -->
 
-ホスティング先（<https://aoiko.pages.dev> の配信元）の **HTTP アクセスログ**は、そのサービスのポリシーに従って残る可能性があります。これは aoiko 側で制御できません。
+ホスティング先（<https://aoiko.lonshaus.net> の配信元。旧 URL の <https://aoiko.pages.dev> が使えるあいだは、そちらも含む）の **HTTP アクセスログ**は、そのサービスのポリシーに従って残る可能性があります。これは aoiko 側で制御できません。
 <!-- /only -->
 
 ## 端末内に保存されるデータ
@@ -94,7 +94,7 @@ iPhone・iPad ではアプリを削除するとデータも同時に消えます
 
 - **画像対応の生成 AI 経路（Gemini / OpenAI 互換）**：生成 AI 分類＝CSV インポートで「除外」にしておらず相手科目が未入力の行の摘要・金額＋取込元の科目コードと貸借の別＋相手科目の候補一覧（科目コード・科目名・区分）／OCR＝領収書画像（Base64）＋抽出指示プロンプト（長辺 2048px を超える画像は縮小して JPEG に変換してから送る〔変換で小さくならない場合を除く〕。それ以外は元のファイルのまま送るため、撮影日時・位置情報などの Exif 情報が含まれていればそれも送信される）／注文取込＝貼り付けたテキスト全文（注文ページに表示されていた配送先の氏名・住所・電話番号なども、貼り付けた範囲にあればそのまま含まれる）＋抽出指示プロンプト
 <!-- only:browser -->
-- **Tesseract 経路（OCR のみ）**：生成 AI 不使用。画像は WASM で端末内処理され外部送信なし。文字認識のプログラム（worker・WASM）と日本語の言語データ（`jpn.traineddata`）は、初めて Tesseract で読み取るときに aoiko の配信元（<https://aoiko.pages.dev>）から取得してブラウザの Cache Storage に保存し、以後はそれを使う。aoiko の配信元以外との通信は発生しない
+- **Tesseract 経路（OCR のみ）**：生成 AI 不使用。画像は WASM で端末内処理され外部送信なし。文字認識のプログラム（worker・WASM）と日本語の言語データ（`jpn.traineddata`）は、初めて Tesseract で読み取るときに aoiko の配信元（<https://aoiko.lonshaus.net>。旧 URL の <https://aoiko.pages.dev> で開いた場合はそちら）から取得してブラウザの Cache Storage に保存し、以後はそれを使う。aoiko の配信元以外との通信は発生しない
 <!-- /only -->
 <!-- only:native -->
 - **Tesseract 経路（OCR のみ）**：生成 AI 不使用。画像は WASM で端末内処理され外部送信なし。文字認識のプログラムと日本語の言語データ（`jpn.traineddata`）はアプリに内蔵されているため、通信は発生しない

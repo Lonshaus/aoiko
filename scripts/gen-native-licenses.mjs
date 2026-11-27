@@ -5,10 +5,15 @@
 // ライセンス・著作者などの情報は `cargo metadata` から引く。対象ごと（x64/arm64 を含む）にクレート集合が
 // 変わる（windows-sys 等がプラットフォーム限定依存のため）ので、配布対象の全プラットフォームで
 // 取得して和集合を取る。1 枚だけでは載せ漏れが出る。
+//
+// 一覧はバージョン管理に入れず、ネイティブ版のビルドの直前に scripts/build-frontend.mjs が毎回生成する。
+// --check はファイルを書かずに、許可済みのライセンス表記だけに収まっていること、どのクレートにも
+// 本文を掲げられること、生成が最後まで通ることを確かめる。
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ALLOWED_NATIVE_LICENSES, disallowedLicenses } from './license-policy.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const manifestPath = join(root, 'src-tauri', 'Cargo.toml');
@@ -223,6 +228,21 @@ function readLicenseTexts(pkg) {
   return [];
 }
 
+// 一覧に出すライセンスの表記。許可済みかどうかもこの文字列で照合する。
+function licenseLabel(p) {
+  const note = isPatched(p)
+    ? `（aoiko 用に修正：src-tauri/patches/${p.name}/MODIFICATIONS.md）`
+    : '';
+  return `${p.license ?? '(不明)'}${note}`;
+}
+// 本文ファイルが無く、宣言から標準本文を補うこともできないクレート。識別子だけ載せて満たしたことにはできない。
+function cratesWithoutText(packages) {
+  return packages.filter(
+    (p) =>
+      !MPL_NAMES.has(p.name) && readLicenseTexts(p).length === 0 && supplyLicenseText(p) === null,
+  );
+}
+
 function render(packages) {
   const lines = [
     'aoiko のネイティブ版（Windows / macOS / iPadOS / iOS）が配布物に含む第三者 Rust クレートと、その著作権表示',
@@ -238,10 +258,7 @@ function render(packages) {
   ];
   lines.push('■ 一覧', '');
   for (const p of packages) {
-    const note = isPatched(p)
-      ? `（aoiko 用に修正：src-tauri/patches/${p.name}/MODIFICATIONS.md）`
-      : '';
-    lines.push(`  ${p.name}@${p.version}  —  ${p.license ?? '(不明)'}${note}`);
+    lines.push(`  ${p.name}@${p.version}  —  ${licenseLabel(p)}`);
   }
   lines.push('');
 
@@ -250,7 +267,6 @@ function render(packages) {
   // 同一本文（複数ファイルを持つクレートはその組み合わせ）が並ぶ場合、対象クレートをまとめて 1 回だけ載せる。
   const byText = new Map();
   const supplied = new Map();
-  const residual = [];
   for (const p of rest) {
     const texts = readLicenseTexts(p);
     if (texts.length > 0) {
@@ -265,8 +281,7 @@ function render(packages) {
     }
     const suppliedText = supplyLicenseText(p);
     if (suppliedText === null) {
-      residual.push(p);
-      continue;
+      throw new Error(`${p.name}@${p.version} に掲げる本文がありません。`);
     }
     const entry = supplied.get(suppliedText) ?? { packages: [], text: suppliedText };
     entry.packages.push(`${p.name}@${p.version}`);
@@ -321,33 +336,36 @@ function render(packages) {
     }
   }
 
-  if (residual.length > 0) {
-    lines.push('─'.repeat(78), '');
-    lines.push(
-      '次のクレートは本文ファイルを同梱しておらず、宣言されたライセンス識別子から標準本文を',
-      '機械的に補うこともできませんでした。識別子を手掛かりに原本を別途参照してください。',
-      '',
-    );
-    for (const p of residual) {
-      lines.push(`  ${p.name}@${p.version}  —  ${p.license ?? '(不明)'}`);
-    }
-    lines.push('');
-  }
   // BOM は JS 側（public/THIRD_PARTY_LICENSES.txt）と同じ理由。charset 指定のない配信環境で
   // 文字化けしないよう、ファイル自身に持たせる。
   return `﻿${lines.join('\n').trimEnd()}\n`;
 }
 
-const generated = render(collectPackages());
-if (process.argv.includes('--check')) {
-  const current = existsSync(outPath) ? readFileSync(outPath, 'utf8') : '';
-  if (current !== generated) {
-    console.error(
-      'src-tauri/THIRD_PARTY_LICENSES_NATIVE.txt が依存と一致していません。npm run licenses:native:generate を実行してください。',
-    );
-    process.exit(1);
+const packages = collectPackages();
+const rejected = disallowedLicenses(
+  packages.map((p) => ({ name: p.name, version: p.version, license: licenseLabel(p) })),
+  ALLOWED_NATIVE_LICENSES,
+);
+if (rejected.length > 0) {
+  console.error('許可していないライセンスがネイティブ版の配布物に含まれています。');
+  for (const { name, version, license } of rejected) {
+    console.error(`  ${name} ${version}: ${license}`);
   }
-  console.log('src-tauri/THIRD_PARTY_LICENSES_NATIVE.txt は依存と一致しています。');
+  process.exit(1);
+}
+const withoutText = cratesWithoutText(packages);
+if (withoutText.length > 0) {
+  console.error(
+    '本文ファイルが無く、宣言されたライセンスから標準本文を補うこともできないクレートがあります。',
+  );
+  for (const p of withoutText) {
+    console.error(`  ${p.name} ${p.version}: ${p.license ?? '(不明)'}`);
+  }
+  process.exit(1);
+}
+const generated = render(packages);
+if (process.argv.includes('--check')) {
+  console.log('ネイティブ版の配布物のライセンスはすべて許可済みで、一覧も生成できました。');
 } else {
   writeFileSync(outPath, generated);
   console.log(

@@ -590,11 +590,12 @@
             <th class="text-left font-normal px-4 py-3 w-8"></th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_date()}</th>
             <th class="text-left font-normal px-4 py-3">{m.journal_th_description()}</th>
-            <th class="text-left font-normal px-4 py-3 whitespace-nowrap">{m.journal_th_debit()}</th
-            >
-            <th class="text-left font-normal px-4 py-3 whitespace-nowrap"
-              >{m.journal_th_credit()}</th
-            >
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap">
+              {m.journal_th_debit()}
+            </th>
+            <th class="text-left font-normal px-4 py-3 whitespace-nowrap">
+              {m.journal_th_credit()}
+            </th>
             <th class="text-right font-normal px-4 py-3">{m.journal_th_amount()}</th>
           </tr>
         </thead>
@@ -623,8 +624,10 @@
               <td class="px-4 py-3">
                 {#if row.debits[0]}
                   {row.debits[0].name}{#if row.debits.length > 1}<span
-                      class="text-xs text-muted-foreground ml-1">+{row.debits.length - 1}</span
-                    >{/if}
+                      class="text-xs text-muted-foreground ml-1"
+                    >
+                      +{row.debits.length - 1}
+                    </span>{/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
                 {/if}
@@ -632,8 +635,10 @@
               <td class="px-4 py-3">
                 {#if row.credits[0]}
                   {row.credits[0].name}{#if row.credits.length > 1}<span
-                      class="text-xs text-muted-foreground ml-1">+{row.credits.length - 1}</span
-                    >{/if}
+                      class="text-xs text-muted-foreground ml-1"
+                    >
+                      +{row.credits.length - 1}
+                    </span>{/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
                 {/if}
@@ -655,17 +660,18 @@
                           {#each row.debits as l, i (`d-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
                               <span>
-                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span
-                                >
+                                <span class="font-mono text-xs text-muted-foreground">
+                                  {l.code}
+                                </span>
                                 {l.name}{#if l.subAccountName}
                                   / {l.subAccountName}{/if}
-                                <span class="text-xs text-muted-foreground ml-1"
-                                  >{fmtTax(l.taxRate)}</span
-                                >
+                                <span class="text-xs text-muted-foreground ml-1">
+                                  {fmtTax(l.taxRate)}
+                                </span>
                               </span>
-                              <span class="tabular-nums whitespace-nowrap"
-                                >{formatStoredAmount(l.amount)}</span
-                              >
+                              <span class="tabular-nums whitespace-nowrap">
+                                {formatStoredAmount(l.amount)}
+                              </span>
                             </li>
                             {#if l.memo}
                               <li class="text-xs text-muted-foreground pl-2">↳ {l.memo}</li>
@@ -681,17 +687,18 @@
                           {#each row.credits as l, i (`c-${i}`)}
                             <li class="flex justify-between gap-3 text-sm">
                               <span>
-                                <span class="font-mono text-xs text-muted-foreground">{l.code}</span
-                                >
+                                <span class="font-mono text-xs text-muted-foreground">
+                                  {l.code}
+                                </span>
                                 {l.name}{#if l.subAccountName}
                                   / {l.subAccountName}{/if}
-                                <span class="text-xs text-muted-foreground ml-1"
-                                  >{fmtTax(l.taxRate)}</span
-                                >
+                                <span class="text-xs text-muted-foreground ml-1">
+                                  {fmtTax(l.taxRate)}
+                                </span>
                               </span>
-                              <span class="tabular-nums whitespace-nowrap"
-                                >{formatStoredAmount(l.amount)}</span
-                              >
+                              <span class="tabular-nums whitespace-nowrap">
+                                {formatStoredAmount(l.amount)}
+                              </span>
                             </li>
                             {#if l.memo}
                               <li class="text-xs text-muted-foreground pl-2">↳ {l.memo}</li>
@@ -742,9 +749,9 @@
                     <div class="flex items-center justify-between pt-2 border-t border-border/50">
                       <div class="text-xs text-muted-foreground font-mono">{row.entry.id}</div>
                       {#if reversed}
-                        <span class="text-xs text-muted-foreground"
-                          >{m.journal_list_reversed_label()}</span
-                        >
+                        <span class="text-xs text-muted-foreground">
+                          {m.journal_list_reversed_label()}
+                        </span>
                       {:else if !isCorrection}
                         <button
                           type="button"

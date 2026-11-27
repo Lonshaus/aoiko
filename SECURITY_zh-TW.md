@@ -8,7 +8,7 @@ aoiko 是純前端 BYOK（Bring Your Own Key）App。沒有 aoiko 自己的伺�
 
 aoiko 只透過以下管道正式發布：
 
-- 線上版：<https://aoiko.pages.dev>
+- 線上版：<https://aoiko.lonshaus.net>（舊網址 <https://aoiko.pages.dev> 預計於 2027/01 停止使用）
 <!-- only:apple -->
 - App Store（macOS 版・iOS 版）
 <!-- /only -->
@@ -29,7 +29,7 @@ aoiko 只透過以下管道正式發布：
 ## 支援版本
 <!-- only:browser -->
 
-支援對象是 <https://aoiko.pages.dev> 目前公開的版本。
+支援對象是 <https://aoiko.lonshaus.net> 目前公開的版本。
 <!-- /only -->
 <!-- only:native -->
 支援對象是各商店上架的最新發布版。若以舊版回報，可能會請你確認在最新版是否仍然重現。
