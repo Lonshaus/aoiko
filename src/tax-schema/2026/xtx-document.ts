@@ -118,6 +118,7 @@ interface RefNode {
   tag: string;
   kind: 'branch' | 'leaf';
   idref: string;
+  hasId: boolean;
   children: RefNode[];
 }
 // フラット refTree（level 付き）をネスト木へ再構成
@@ -128,6 +129,7 @@ function buildRefTreeNodes(schema: XtxSchema): RefNode {
     tag: '',
     kind: 'branch',
     idref: '',
+    hasId: false,
     children: [],
   };
   const stack: RefNode[] = [root];
@@ -138,6 +140,7 @@ function buildRefTreeNodes(schema: XtxSchema): RefNode {
       tag: e.tag,
       kind: e.kind,
       idref: e.idref,
+      hasId: e.hasId === true,
       children: [],
     };
     while (stack.length > 1 && stack[stack.length - 1]!.level >= e.level) {
@@ -315,7 +318,11 @@ function renderNode(
   }
   const rawInner = raw[node.tag];
   if (rawInner !== undefined) {
-    return rawInner === '' ? null : `<${node.tag}>${rawInner}</${node.tag}>`;
+    if (rawInner === '') {
+      return null;
+    }
+    const idAttr = node.hasId ? ` ID="${node.tag}"` : '';
+    return `<${node.tag}${idAttr}>${rawInner}</${node.tag}>`;
   }
   const entries = repeats[node.tag];
   if (entries) {

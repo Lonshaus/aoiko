@@ -47,7 +47,7 @@ import {
   type XtxDetailOverflowRow,
 } from './xtx-mapping-shared';
 import type { XtxContext } from './xtx';
-import type { XtxValues, XtxLeafValues, XtxRepeatedValues } from './xtx-document';
+import type { XtxValues, XtxLeafValues, XtxRawValues, XtxRepeatedValues } from './xtx-document';
 import type { PLReport } from '../../domain/reports';
 
 const SCHEMA = koa020 as XtxSchema;
@@ -546,6 +546,17 @@ function familyEmployeeCandidates(ctx: XtxContext) {
     ...businessFamilyEmployeeDeductionResultForOutput(ctx).entries,
     ...realEstateFamilyEmployeeDeductionResult(ctx).entries,
   ];
+}
+// ABA00070「納税地区分」は居所（5）・事業所等（6）のときだけ書く。住所地は書かない。
+export function mapKoa020RawValues(ctx: XtxContext): XtxRawValues {
+  switch (ctx.filer.taxPlaceKind) {
+    case 'abode':
+      return { ABA00070: '<kubun_CD>5</kubun_CD>' };
+    case 'businessPlace':
+      return { ABA00070: '<kubun_CD>6</kubun_CD>' };
+    default:
+      return {};
+  }
 }
 
 export function mapKoa020RepeatedValues(ctx: XtxContext): XtxRepeatedValues {

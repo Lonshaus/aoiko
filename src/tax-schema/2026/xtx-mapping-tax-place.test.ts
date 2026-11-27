@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { buildXtx2026, type XtxContext, type XtxFiler } from './xtx';
-import { mapKoa020LeafValues } from './xtx-mapping-koa020';
+import koa020Schema from './xtx-schema-koa020.generated.json';
+import type { XtxSchema } from './xtx-schema';
+import { mapKoa020LeafValues, mapKoa020RawValues } from './xtx-mapping-koa020';
 import { mapKoa110Values } from './xtx-mapping-koa110';
 import { mapKoa210Values } from './xtx-mapping-koa210';
 
@@ -177,5 +179,35 @@ describe('.xtx への出力', () => {
     );
     expect(xtx).toContain('<AIB00010>大阪府大阪市1-1</AIB00010>');
     expect(xtx).toContain('<AIB00050>京都府京都市1-1</AIB00050>');
+  });
+});
+
+describe('KOA020 ABA00070（納税地区分）', () => {
+  test('生成スキーマで ID 属性を持つ branch は ABA00070 だけ', () => {
+    const withId = (koa020Schema as XtxSchema).refTree.filter((e) => e.hasId === true);
+    expect(withId.map((e) => e.tag)).toEqual(['ABA00070']);
+    expect(withId[0]?.kind).toBe('branch');
+  });
+
+  test.each([
+    ['abode', '5'],
+    ['businessPlace', '6'],
+  ] as const)('区分 %s は kubun_CD %s で書く', (kind, code) => {
+    expect(mapKoa020RawValues(ctx({ taxPlaceKind: kind }))).toEqual({
+      ABA00070: `<kubun_CD>${code}</kubun_CD>`,
+    });
+    const xtx = buildXtx2026(ctx({ taxPlaceKind: kind }));
+    const element = `<ABA00070 ID="ABA00070"><kubun_CD>${code}</kubun_CD></ABA00070>`;
+    const parent = /<ABA00060>[\s\S]*?<\/ABA00060>/.exec(xtx);
+    expect(parent).not.toBeNull();
+    expect(parent![0]).toContain(element);
+    expect(parent![0].indexOf(element)).toBeLessThan(parent![0].indexOf('<ABA00080'));
+  });
+
+  test('住所地と区分なしは書かない', () => {
+    expect(mapKoa020RawValues(ctx({ taxPlaceKind: 'domicile' }))).toEqual({});
+    expect(mapKoa020RawValues(ctx({}))).toEqual({});
+    expect(buildXtx2026(ctx({ taxPlaceKind: 'domicile' }))).not.toContain('ABA00070');
+    expect(buildXtx2026(ctx({}))).not.toContain('ABA00070');
   });
 });

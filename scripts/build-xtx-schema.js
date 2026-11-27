@@ -156,6 +156,18 @@ function parseOccurs(attrs) {
     maxOccurs: max === undefined ? 1 : max === 'unbounded' ? 'unbounded' : Number(max),
   };
 }
+// complexType が必須の ID 属性（<xsd:attribute name="ID" use="required"/>）を宣言しているか。
+// complexContent/extension 経由の宣言も含む。
+function declaresRequiredId(ctype) {
+  const cc = kid(ctype, 'xsd:complexContent');
+  const ext = cc && kid(cc, 'xsd:extension');
+  return [...kids(ctype, 'xsd:attribute'), ...(ext ? kids(ext, 'xsd:attribute') : [])].some(
+    (at) => {
+      const aa = attrsOf(at);
+      return aa['@_name'] === 'ID' && aa['@_use'] === 'required';
+    },
+  );
+}
 // 様式 xsd の参照側ツリーを level でフラット化
 function buildRefTree(schema, types, idrefMap) {
   const group = kid(schema, 'xsd:group');
@@ -175,18 +187,21 @@ function buildRefTree(schema, types, idrefMap) {
     const typeRef = a['@_type'];
     let kind = 'leaf';
     let childCtype = null;
+    let hasId = false;
 
     if (typeRef && !typeRef.includes(':') && types.complex.has(typeRef)) {
       const ctype = types.complex.get(typeRef);
       if (!isSimpleContentType(ctype)) {
         kind = 'branch';
         childCtype = ctype;
+        hasId = declaresRequiredId(ctype);
       }
     } else if (!typeRef) {
       const inline = kid(elNode, 'xsd:complexType');
       if (inline && !isSimpleContentType(inline)) {
         kind = 'branch';
         childCtype = inline;
+        hasId = declaresRequiredId(inline);
       }
     }
 
@@ -208,6 +223,7 @@ function buildRefTree(schema, types, idrefMap) {
       refType,
       minOccurs: occ.minOccurs,
       maxOccurs: occ.maxOccurs,
+      ...(hasId ? { hasId } : {}),
     });
 
     if (childCtype) {

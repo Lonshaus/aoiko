@@ -48,6 +48,8 @@ interface XtxRefElement {
   minOccurs: number;
   /** 最大出現回数（数値または 'unbounded'） */
   maxOccurs: number | 'unbounded';
+  /** 必須の ID 属性を持つ branch（例：KOA020 の ABA00070 納税地区分）のとき true。省略時は持たない */
+  hasId?: boolean;
 }
 /** 定義側（IT部）のデータ項目カタログ（ITdefinition.xsd / ITtype より） */
 interface XtxDefinition {

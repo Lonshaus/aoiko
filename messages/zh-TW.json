@@ -646,6 +646,7 @@
   "settings_filer_tax_place_business_place": "事業所等",
   "settings_filer_domicile_address": "住所",
   "settings_filer_domicile_required": "納稅地不是住所地時，必須輸入住所",
+  "settings_filer_domicile_real_estate_note": "不動產所得用的決算書・収支内訳書，住所欄依 e-Tax 樣式的規定會填入納稅地",
   "settings_filer_business_place_address": "事業所所在地（選填）",
   "settings_filer_zeimusho_code": "提交地稅務署代碼（5 碼）",
   "settings_filer_zeimusho_name": "提交地稅務署名稱（選填）",

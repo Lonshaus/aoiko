@@ -3215,6 +3215,11 @@
               >{m.settings_filer_domicile_required()}</span
             >
           {/if}
+          {#if userFilerTaxPlaceKind !== 'domicile'}
+            <span class="block mt-1 text-xs text-muted-foreground"
+              >{m.settings_filer_domicile_real_estate_note()}</span
+            >
+          {/if}
         </label>
       {/if}
       <label class="block">

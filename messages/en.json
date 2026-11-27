@@ -646,6 +646,7 @@
   "settings_filer_tax_place_business_place": "Business office, etc.",
   "settings_filer_domicile_address": "Address (domicile)",
   "settings_filer_domicile_required": "Enter your address when the place for tax payment is not your domicile",
+  "settings_filer_domicile_real_estate_note": "On the real-estate financial statements, the address field shows your place for tax payment, as the e-Tax form requires",
   "settings_filer_business_place_address": "Business office location (optional)",
   "settings_filer_zeimusho_code": "Tax office code (5 digits)",
   "settings_filer_zeimusho_name": "Tax office name (optional)",

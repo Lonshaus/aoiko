@@ -138,6 +138,27 @@ describe('申告者情報の納税地', () => {
     },
   );
 
+  test.each(['abode', 'businessPlace'])(
+    '区分に %s を選ぶと、不動産所得用の様式の住所欄の案内が出る',
+    async (kind) => {
+      await renderSettings();
+      expect(container!.textContent).not.toContain(m.settings_filer_domicile_real_estate_note());
+      chooseKind(kind);
+      expect(field('filerDomicileAddress').closest('label')!.textContent).toContain(
+        m.settings_filer_domicile_real_estate_note(),
+      );
+      chooseKind('domicile');
+      expect(container!.textContent).not.toContain(m.settings_filer_domicile_real_estate_note());
+    },
+  );
+
+  test('保存されている住所が読めない住所地では、不動産所得用の案内は出さない', async () => {
+    await setSetting('userFilerDomicileAddress', {} as never);
+    await renderSettings();
+    expect(input('filerDomicileAddress')).not.toBeNull();
+    expect(container!.textContent).not.toContain(m.settings_filer_domicile_real_estate_note());
+  });
+
   test('区分・住所・事業所所在地は前後の空白を除いて保存され、開き直しても同じ', async () => {
     await renderSettings();
     typeInto('filerJusho', '  京都府京都市1-1  ');

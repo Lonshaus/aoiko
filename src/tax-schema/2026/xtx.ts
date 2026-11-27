@@ -41,6 +41,7 @@ import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
 import {
   koa020DetailOverflow,
   mapKoa020LeafValues,
+  mapKoa020RawValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
 } from './xtx-mapping-koa020';
@@ -448,6 +449,7 @@ export function buildXtx2026(ctx: XtxContext): string {
         values: mapKoa020Values(ctx),
         leafValues: mapKoa020LeafValues(ctx),
         repeats: mapKoa020RepeatedValues(ctx),
+        raw: mapKoa020RawValues(ctx),
       },
       businessStatementForm,
       ...(realEstateStatementForm ? [realEstateStatementForm] : []),

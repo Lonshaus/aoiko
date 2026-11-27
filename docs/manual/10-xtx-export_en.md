@@ -35,7 +35,8 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 | Form | Source |
 |---|---|
 | Filer info (tax office, user identification number, name, place for tax payment) | Settings > Filer info |
-| Address and business office location on the financial statements | Settings > Filer info (place for tax payment, address, business office location) |
+| Tax return p.1: place-for-tax-payment type (when a residence or business office is the place for tax payment) | Settings > Filer info (type of place for tax payment) |
+| Address and business office location on the financial statements | Settings > Filer info (business income statements: address and business office location; the address field of the real-estate financial statements takes the place for tax payment, as the form requires) |
 | Tax return p.1: business (営業等) revenue | PL (sales) |
 | Tax return p.1: business income (①) | PL (after expenses; blue return further subtracts the blue-return special deduction. When the home-worker special provision under Special Taxation Measures Act Art. 27 ([14. Income & tax deductions](14-income-deductions_en.md)) applies, the expenses are the special-provision expenses, which already include family employee salary/deduction: total revenue − special-provision expenses, and for a blue return also − the blue-return special deduction) |
 
@@ -64,7 +65,6 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 |---|---|
 | **Income deductions** (basic, spouse, social insurance, medical, etc.) | Output automatically if entered in [14. Income & tax deductions](14-income-deductions_en.md); otherwise enter in e-Tax |
 | **Total income, taxable income, tax calculation** | Same as above (computed and output by aoiko when deductions are entered; otherwise auto-computed in e-Tax) |
-| **Place-for-tax-payment type** (tax return p.1; when a residence or business office is the place for tax payment) | Choose in e-Tax (aoiko does not write it) |
 | **Attachments** (medical detail, deduction certificates, etc.) | Attach in e-Tax |
 | **Consumption tax return** (the 30% special provision, and simplified taxation for a filer who actually runs multiple business categories) | Prepare separately in e-Tax (aoiko gives estimates only; general taxation, the 20% special provision, and simplified taxation have `.xtx` export: [§ 5](#5-consumption-tax-general--20-special-provision--simplified-taxation-xtx-export), [07. Consumption tax](07-consumption-tax_en.md)) |
 | **Basis for the allowance for doubtful accounts (lump-sum valuation)** ("total receivables" and "deductible limit" on page 2 of the financial statement) | Enter in e-Tax (aoiko does not track per-debtor receivable balances, so both boxes are output blank; the addition itself is still output) |

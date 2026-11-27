@@ -645,6 +645,7 @@
   "settings_filer_tax_place_business_place": "事業所等",
   "settings_filer_domicile_address": "住所",
   "settings_filer_domicile_required": "納税地が住所地以外のときは、住所の入力が必要です",
+  "settings_filer_domicile_real_estate_note": "不動産所得用の決算書・収支内訳書の住所欄には、e-Tax の様式の決まりで納税地が入ります",
   "settings_filer_business_place_address": "事業所所在地（任意）",
   "settings_filer_zeimusho_code": "提出先税務署コード（5桁）",
   "settings_filer_zeimusho_name": "提出先税務署名（任意）",
