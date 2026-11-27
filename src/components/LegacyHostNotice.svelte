@@ -38,14 +38,16 @@
   <div
     class="relative flex flex-col gap-1 text-xs border border-destructive/50 rounded-lg pl-3 pr-8 py-2 bg-card text-card-foreground"
   >
-    <span class="text-muted-foreground"
-      >{before}<a
+    <span class="text-muted-foreground">
+      {before}<a
         href={NEW_ORIGIN}
         target="_blank"
         rel="noopener noreferrer"
-        class="text-primary hover:underline">{NEW_ORIGIN}</a
-      >{after}</span
-    >
+        class="text-primary hover:underline"
+      >
+        {NEW_ORIGIN}
+      </a>{after}
+    </span>
     <a
       href="/settings"
       use:link
