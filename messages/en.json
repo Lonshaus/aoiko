@@ -1422,5 +1422,8 @@
   "error_chrome_ai_over_receipt": "This receipt could not be processed in one pass. Try reading it in parts.",
   "error_chrome_ai_over_data": "This is more than can be processed in one pass. Reduce the number of rows and try again.",
   "error_chrome_ai_response_shape": "The built-in AI's response could not be read. Please try again.",
-  "common_scroll_more_right": "More to the right"
+  "common_scroll_more_right": "More to the right",
+  "legacy_host_notice_dated": "This URL will stop working in {when}. Your data won't move to the new URL ({newUrl}) on its own, so export a backup first and restore it there.",
+  "legacy_host_notice": "This URL will stop working soon. Your data won't move to the new URL ({newUrl}) on its own, so export a backup first and restore it there.",
+  "legacy_host_action_backup": "Open Settings →"
 }

@@ -424,7 +424,7 @@ fn build_menu<R: tauri::Runtime>(
         .name(Some(app.package_info().name.clone()))
         .version(Some(app.package_info().version.to_string()))
         .license(Some("AGPL-3.0-or-later"))
-        .website(Some("https://aoiko.pages.dev"))
+        .website(Some("https://aoiko.lonshaus.net"))
         .copyright(Some("Copyright (C) 2026 Lonshaus"))
         .build();
     let file_menu = SubmenuBuilder::new(app, tr(locale, Key::WinFileMenu))

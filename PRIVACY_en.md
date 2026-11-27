@@ -24,7 +24,7 @@ The iOS edition's `PrivacyInfo.xcprivacy` declares tracking (NSPrivacyTracking) 
 <!-- /only -->
 <!-- only:browser -->
 
-The **HTTP access logs** of the host serving <https://aoiko.pages.dev> may exist per that service's policy. aoiko cannot control this.
+The **HTTP access logs** of the host serving <https://aoiko.lonshaus.net> (and the old URL, <https://aoiko.pages.dev>, while it still works) may exist per that service's policy. aoiko cannot control this.
 <!-- /only -->
 
 ## Data stored on your device
@@ -94,7 +94,7 @@ When you **explicitly invoke** generative AI classification, receipt OCR, or ord
 
 - **Vision-capable generative AI path (Gemini / OpenAI-compatible)**: generative AI classification = the description and amount of each CSV-import row that is not marked "Skip" and has no counterpart account yet, plus the import source's account code and side and the list of candidate counterpart accounts (code, name, category). OCR = receipt image (Base64) + extraction prompt (images whose long edge exceeds 2048px are downscaled and re-encoded as JPEG before sending, unless that does not make them smaller; anything else is sent as the original file, so any Exif data such as the shooting date and location goes with it). Order import = the full pasted text (including the delivery name, address, phone number, etc. if they were in the part you pasted) + extraction prompt
 <!-- only:browser -->
-- **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. The recognition program (worker and WASM) and the Japanese language data (`jpn.traineddata`) are fetched from aoiko's own server (<https://aoiko.pages.dev>) the first time you read a receipt with Tesseract, stored in the browser's Cache Storage, and reused after that. No request goes anywhere other than aoiko's own server
+- **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. The recognition program (worker and WASM) and the Japanese language data (`jpn.traineddata`) are fetched from aoiko's own server (<https://aoiko.lonshaus.net>, or <https://aoiko.pages.dev> if you opened the app at the old URL) the first time you read a receipt with Tesseract, stored in the browser's Cache Storage, and reused after that. No request goes anywhere other than aoiko's own server
 <!-- /only -->
 <!-- only:native -->
 - **Tesseract path (OCR only)**: no generative AI. The image is processed inside WASM on the device — never sent externally. The recognition program and the Japanese language data (`jpn.traineddata`) are built into the app, so no request is made

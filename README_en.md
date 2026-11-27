@@ -8,7 +8,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-🌐 **Online**: <https://aoiko.pages.dev>
+🌐 **Online**: <https://aoiko.lonshaus.net> (the old URL, <https://aoiko.pages.dev>, will stop working in January 2027. If you used it, export a backup there and restore it at the new URL.)
 
 A pure-frontend bookkeeping tool for Japanese sole proprietors. Supports the three-tier blue return (青色申告) deduction from tax year 2027 (Reiwa 9) — ¥750,000 / ¥650,000 / ¥100,000 (see the Guide's "01. Initial setup" and "14. Income & tax deductions" chapters for the requirements). Provides CSV/OCR/online-store order page import, double-entry bookkeeping, depreciation, balance sheet, and `.xtx` (e-Tax format) export in a single app. The white return (income/expense breakdown statement) is also supported. No backend, BYOK (you bring your own API key).
 

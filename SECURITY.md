@@ -8,7 +8,7 @@ aoiko はフロントエンドのみの BYOK（Bring Your Own Key）アプリで
 
 aoiko は以下からのみ公式に配布されます：
 
-- オンライン版：<https://aoiko.pages.dev>
+- オンライン版：<https://aoiko.lonshaus.net>（旧 URL の <https://aoiko.pages.dev> は 2027/01 中に使えなくなる予定です）
 <!-- only:apple -->
 - App Store（macOS 版・iOS 版）
 <!-- /only -->
@@ -29,7 +29,7 @@ aoiko の名前を使った偽装配布（フィッシング・マルウェア�
 ## サポート対象バージョン
 <!-- only:browser -->
 
-<https://aoiko.pages.dev> で公開しているバージョンをサポート対象とします。
+<https://aoiko.lonshaus.net> で公開しているバージョンをサポート対象とします。
 <!-- /only -->
 <!-- only:native -->
 各ストアで配布している最新のリリース版をサポート対象とします。旧バージョンのままのご報告は、最新版で再現するかの確認をお願いすることがあります。

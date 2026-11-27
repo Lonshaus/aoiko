@@ -8,7 +8,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 
-🌐 **オンライン版**: <https://aoiko.pages.dev>
+🌐 **オンライン版**: <https://aoiko.lonshaus.net>（旧 URL の <https://aoiko.pages.dev> は 2027/01 中に使えなくなる予定です。旧 URL で使っていた場合は、旧 URL でバックアップを書き出し、新しい URL で復元してください）
 
 日本の個人事業主向け、フロントエンドのみの帳簿ツール。青色申告特別控除は令和 9 年分以降 75 万円／65 万円／10 万円の三段階に対応（要件はマニュアル「01. 初回設定」「14. 所得控除・税額控除」参照）。CSV/OCR/EC 注文ページからの取り込み、複式簿記、減価償却、貸借対照表、`.xtx` 出力を Web アプリ単体で提供する。白色申告（収支内訳書）にも対応。バックエンド無し、BYOK（API キーは利用者が持参）。
 
