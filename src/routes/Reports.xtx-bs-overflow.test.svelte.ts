@@ -1,4 +1,4 @@
-// 貸借対照表の追加科目欄（資産は7件まで）に入りきらない科目があるとき、Reports の
+// 貸借対照表の追加科目欄（資産は5件まで）に入りきらない科目があるとき、Reports の
 // .xtx 書き出しが例外のまま落ちず、科目名を含む理由を画面に出してファイルを書かないことを見る。
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
@@ -125,8 +125,8 @@ describe('貸借対照表の追加科目が上限を超えたときの .xtx 書�
       (el.textContent ?? '').includes(
         m.reports_xtx_bs_extra_overflow({
           list: EXTRA_ASSET_NAMES.join('、'),
-          assetMax: 7,
-          liabilityEquityMax: 14,
+          assetMax: 5,
+          liabilityEquityMax: 12,
         }),
       ),
     );

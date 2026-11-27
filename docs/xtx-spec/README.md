@@ -5,19 +5,19 @@ aoiko が `.xtx` 出力を生成するために参照する国税庁公式 XML �
 ## 出典
 
 - 配布元：国税庁 e-Tax「仕様公開資料」一覧 <https://www.e-tax.nta.go.jp/shiyo/shiyo3.htm>
-- 元 CAB：`e-tax19.CAB`「XMLスキーマ」 <https://www.e-tax.nta.go.jp/shiyo/download/e-tax19.CAB>（約9.3MB、令和8年5月18日版）
-- 展開：`7z x e-tax19.CAB` → `19XMLスキーマ/{shotoku,general}/`
-- 取得日：2026-05-16（2026-05-20 に 5/18 更新版と照合済。当時の 7 ファイル（KOA020-023 / KOA210-011 / General / ITdefinition / ITreference / zeimusho / zeimoku）はバイト単位で一致、更新は不要）
-- `KOA110-012.xsd`（白色申告用）は 2026-07-05 に同一 CAB から追加抽出。同じ CAB の再取得で SHA256 一致を確認済み
+- 元 CAB（`general/` と消費税の様式）：`e-tax19.CAB`「XMLスキーマ」 <https://www.e-tax.nta.go.jp/shiyo/download/e-tax19.CAB>（約9.3MB、令和8年5月18日版）
+- 展開：`7z x e-tax19.CAB` → `19XMLスキーマ/{shohi,general}/`
+- 取得日：2026-05-16（2026-05-20 に 5/18 更新版と照合済。当時の General / ITdefinition / ITreference / zeimusho / zeimoku はバイト単位で一致、更新は不要）
 - `shohi/SHA020-009.xsd`・`shohi/SHB070-001.xsd`（消費税・2割特例用）、`shohi/SHB047-001.xsd`・`shohi/SHB067-001.xsd`（消費税・簡易課税用）、`shohi/SHA010-010.xsd`・`shohi/SHB017-002.xsd`・`shohi/SHB033-002.xsd`（消費税・一般課税用）は 2026-07-05 に同一 CAB から追加抽出
 - `shohi/RSH0010-232.xsd`・`shohi/RSH0030-232.xsd`（消費税の個人手続、23.2.0 世代）は `e-tax19.CAB`（令和8年8月28日版、<https://www.e-tax.nta.go.jp/shiyo/ksk2/download/e-tax19.CAB>）の `19XMLスキーマ/shohi/` から抽出。aoiko の出力はこの世代を使う。国税庁が個人の令和8年分の申告に「令和8年9月30日以前に開始した課税期間用」を指定しているため（<https://www.nta.go.jp/taxes/tetsuzuki/shinsei/shinkoku/shohi/06.htm>）。`shohi/RSH0010-260.xsd`・`shohi/RSH0030-260.xsd`（26.0.0 世代、令和8年10月1日以後に開始する課税期間用）は同じ CAB から抽出して対照用に残している。どちらの世代でも個人手続が include する様式は `SHA010-010.xsd`・`SHA020-009.xsd` と同組の SHB のままで、様式のバージョンは変わらない
+- 所得税の様式 5 ファイル（`shotoku/KOA020-024.xsd`・`KOA110-013.xsd`・`KOA130-010.xsd`・`KOA210-012.xsd`・`KOA220-009.xsd`）は令和9年1月4日受付開始分で、国税庁 e-Tax「仕様公開資料」一覧（ksk2 版、<https://www.e-tax.nta.go.jp/shiyo/ksk2/ksk2_shiyo3.htm>）の全仕様書 `e-taxall.CAB`（<https://www.e-tax.nta.go.jp/shiyo/ksk2/download/e-taxall.CAB>）の `19XMLスキーマ/shotoku/` から抽出した。取得日は 2026-11-26 で、2026-11-27 の再取得で SHA256 一致を確認済み
 
 ## なぜ XSD か（xlsx 構造設計書ではなく）
 
 e-Tax `.xtx` は **2 段式 ID/IDREF モデル**：
 
 - 定義側（IT部）：実値を持つ要素を `ID` 属性付きで列挙（`general/ITdefinition.xsd` の `ITtype`）
-- 参照側（帳票個別部分）：様式 xsd（`shotoku/KOA020-023.xsd` 等）。各葉要素は `general/ITreference.xsd` の `*ref` 型で、`IDREF` 属性により定義側 ID を指す空要素
+- 参照側（帳票個別部分）：様式 xsd（`shotoku/KOA020-024.xsd` 等）。各葉要素は `general/ITreference.xsd` の `*ref` 型で、`IDREF` 属性により定義側 ID を指す空要素
 
 e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦化した派生物で、機械処理には権威ある W3C XSD（本ディレクトリ）を単一ソースとする。
 
@@ -25,11 +25,11 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 
 | パス | 様式/役割 | バージョン |
 |---|---|---|
-| `shotoku/KOA020-023.xsd` | 確定申告書（第一表〜第四表） | 23.0（令和7年分用・2025-08-15） |
-| `shotoku/KOA210-011.xsd` | 青色申告決算書（一般用） | 11.0（2023-09-27、現行適用） |
-| `shotoku/KOA110-012.xsd` | 収支内訳書（一般用、白色申告用） | 12.0（2023-09-27、現行適用。KOA210 と同時改定） |
-| `shotoku/KOA220-008.xsd` | 青色申告決算書（不動産所得用） | 8.0（2020-08-31） |
-| `shotoku/KOA130-009.xsd` | 収支内訳書（不動産所得用、白色申告用） | 9.0（2020-09-09） |
+| `shotoku/KOA020-024.xsd` | 確定申告書（第一表〜第四表） | 24.0（令和9年1月4日受付開始分・2026-11-25 公開） |
+| `shotoku/KOA210-012.xsd` | 青色申告決算書（一般用） | 12.0（令和9年1月4日受付開始分・2026-11-25 公開） |
+| `shotoku/KOA110-013.xsd` | 収支内訳書（一般用、白色申告用） | 13.0（令和9年1月4日受付開始分・2026-11-25 公開） |
+| `shotoku/KOA220-009.xsd` | 青色申告決算書（不動産所得用） | 9.0（令和9年1月4日受付開始分・2026-11-25 公開） |
+| `shotoku/KOA130-010.xsd` | 収支内訳書（不動産所得用、白色申告用） | 10.0（令和9年1月4日受付開始分・2026-11-25 公開） |
 | `shohi/SHA020-009.xsd` | 消費税及び地方消費税の申告書（簡易課税用）。2割特例もこの様式構造を使う | 9.0（2023-06-26） |
 | `shohi/SHB070-001.xsd` | 付表6（税額控除に係る経過措置＝2割特例用） | 1.0（2023-06-26） |
 | `shohi/SHB047-001.xsd` | 付表4-3（税率別消費税額計算表兼地方消費税の課税標準となる消費税額計算表） | 1.0（2020-09-07） |
@@ -47,7 +47,7 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 | `general/zeimusho.xsd` | 税務署コード（General 依存） | — |
 | `general/zeimoku.xsd` | 税目コード（General 依存） | — |
 
-`KOA020-023.xsd` を令和7年分用とした根拠：v22 には令和6年分の特別税額控除（定額減税）の欄が残り、公開済みの草案 v24 には「令和8年分以降用」と示されている。v23 はその間のバージョンであるため、令和7年分用と判断した。
+aoiko が `.xtx` を書き出すのは令和8年分のみで、令和8年分の申告は e-Tax が令和9年1月4日から受け付ける世代で行う。そのため所得税の 5 様式はこの世代（手続 `RKO0010` 26.0.0、`KOA020` 24.0。国税庁の手続内帳票対応表 Ver260x による）だけを収録し、旧世代の様式は置かない。
 
 ディレクトリ構成（`shotoku/`・`shohi/`・`general/`・`somu/`）は xsd 内の相対 `schemaLocation`（`../general/...`）を保つため変更しないこと。
 
@@ -58,11 +58,11 @@ e-tax09 の xlsx「構造設計書」はこの 2 段式を人間向けに平坦�
 `scripts/build-xtx-schema.js` の `EXPECTED_SHA256` が起動時に照合する対象は、このうち `RSH*` を除くファイル。`RSH*` の値は記録のみで、スクリプトは照合しない。
 
 ```text
-8de959bacc36112f0ae6972dadc809a9f793dd30da169af98f83ee5c91107d0d  shotoku/KOA020-023.xsd
-806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313  shotoku/KOA210-011.xsd
-cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f  shotoku/KOA110-012.xsd
-7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78  shotoku/KOA220-008.xsd
-e52eaa460b0f0d3ae6fc970657a57e1146bfd42dd5138fc532c25651d471ebdc  shotoku/KOA130-009.xsd
+6d61b49e124e893bf5d7b245b044189e711730d60c98fd518b7be49054e5e183  shotoku/KOA020-024.xsd
+9bed1357e4ba81bd2a99bbfc021b1e9b951173f541f50d0b5b90818252c97584  shotoku/KOA210-012.xsd
+94f2858b163167692b3a1b11c52d38cae0877c97809958350095e8d30ed21291  shotoku/KOA110-013.xsd
+a0139de326f16926a98f407b0dd63359d74f3501be172630c301f1742144886b  shotoku/KOA220-009.xsd
+3d2457e715a92d736f2409083d5080929b6071f95316dd3f4afdf9aa25531512  shotoku/KOA130-010.xsd
 977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53  shohi/SHA020-009.xsd
 25a603aa463d35803264ed2c55ad39a76146723fd6fa727b1a31a93bb6448fbc  shohi/SHB070-001.xsd
 db0fb768bd9868a26d2b3ad8639c82c8c68b8a44b964fb845795f78f19719dbe  shohi/SHB047-001.xsd
@@ -86,7 +86,7 @@ b48b1afcacfc3623ad33bc0fc1c65ecf01ac9abf6587914bdde2aaaa60c30643  general/ITdefi
 
 決算書（KOA210）は構造が安定しており毎年は改定されない。確定申告書（KOA020）は年度ごとのバージョンが増える。新しいバージョンが出たら：
 
-1. `e-tax19.CAB` を再取得し `7z x` で展開
+1. 仕様公開資料の全仕様書 `e-taxall.CAB` を再取得し `7z x` で展開
 2. 最新版 xsd（`KOA020-0NN.xsd` 等）を本ディレクトリへ更新（旧バージョンは履歴で追跡）
 3. 本 README の SHA256 と `scripts/build-xtx-schema.js` の `EXPECTED_SHA256` を更新
 4. `npm run xtx:build-schema` で JSON 再生成、`npm run verify`

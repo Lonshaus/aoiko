@@ -325,7 +325,7 @@ describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所�
     expect(repeated.AMG00025).toEqual([{ AMG00030: '暗号資産', AMG00420: '50000' }]);
   });
 
-  test('資産の追加科目枠（maxOccurs 7）を超えると、超過科目名を含むエラーで例外を投げる', () => {
+  test('資産の追加科目枠（maxOccurs 5）を超えると、超過科目名を含むエラーで例外を投げる', () => {
     const assets = Array.from({ length: 8 }, (_, i) =>
       bsRow({ accountName: `独自科目${i}`, category: 'asset' as const, balance: '1000' }),
     );
@@ -348,7 +348,7 @@ describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所�
     ).toThrowError(/独自科目0.*独自科目7|独自科目7.*独自科目0/s);
   });
 
-  test('負債・資本の追加科目枠（AMG00465＋AMG00475、計 14）を超えると例外を投げる', () => {
+  test('負債・資本の追加科目枠（AMG00465＋AMG00475、計 12）を超えると例外を投げる', () => {
     const liabilities = Array.from({ length: 15 }, (_, i) =>
       bsRow({ accountName: `負債独自${i}`, category: 'liability' as const, balance: '1000' }),
     );
@@ -371,7 +371,7 @@ describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所�
     ).toThrow(BsExtraAccountOverflowError);
   });
 
-  test('BsExtraAccountOverflowError は資産・負債資本の上限（7／14）を持つ', () => {
+  test('BsExtraAccountOverflowError は資産・負債資本の上限（5／12）を持つ', () => {
     const assets = Array.from({ length: 8 }, (_, i) =>
       bsRow({ accountName: `独自科目${i}`, category: 'asset' as const, balance: '1000' }),
     );
@@ -396,8 +396,8 @@ describe('#294 貸借対照表：欄に無い科目を追加科目枠へ・所�
         expect.unreachable();
       } catch (e) {
         expect(e).toBeInstanceOf(BsExtraAccountOverflowError);
-        expect((e as BsExtraAccountOverflowError).assetMax).toBe(7);
-        expect((e as BsExtraAccountOverflowError).liabilityEquityMax).toBe(14);
+        expect((e as BsExtraAccountOverflowError).assetMax).toBe(5);
+        expect((e as BsExtraAccountOverflowError).liabilityEquityMax).toBe(12);
       }
     }
   });

@@ -3,9 +3,9 @@
     "formId": "KOA210",
     "formName": "年分青色申告決算書(一般用)",
     "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
-    "version": "11.0",
-    "source": "e-tax19.CAB shotoku/KOA210-011.xsd",
-    "fetchedAt": "2026-05-16"
+    "version": "12.0",
+    "source": "e-taxall.CAB shotoku/KOA210-012.xsd",
+    "fetchedAt": "2026-11-26"
   },
   "refTree": [
     {
@@ -180,12 +180,89 @@
       "ja": "加入団体名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMB00110-11-0Rtype",
+      "refType": "AMB00110-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 17,
+      "level": 2,
+      "tag": "AMJ00000",
+      "ja": "新たに届出を行う事項",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 18,
+      "level": 3,
+      "tag": "AMJ00010",
+      "ja": "廃業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 19,
+      "level": 3,
+      "tag": "AMJ00020",
+      "ja": "廃業年月日",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymmdd",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 20,
+      "level": 3,
+      "tag": "AMJ00030",
+      "ja": "青色申告取りやめ",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 21,
+      "level": 3,
+      "tag": "AMJ00040",
+      "ja": "取りやめ年分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yy",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 22,
+      "level": 3,
+      "tag": "AMJ00050",
+      "ja": "資産の評価方法・償却方法の届出又は変更承認申請　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 4
+    },
+    {
+      "no": 23,
+      "level": 4,
+      "tag": "AMJ00060",
+      "ja": "番号",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 24,
       "level": 2,
       "tag": "AMC00000",
       "ja": "依頼税理士等",
@@ -196,7 +273,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 18,
+      "no": 25,
       "level": 3,
       "tag": "AMC00010",
       "ja": "事務所所在地",
@@ -207,7 +284,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 19,
+      "no": 26,
       "level": 3,
       "tag": "AMC00020",
       "ja": "氏名（名称）",
@@ -218,7 +295,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 20,
+      "no": 27,
       "level": 3,
       "tag": "AMC00030",
       "ja": "電話番号",
@@ -229,7 +306,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 21,
+      "no": 28,
       "level": 2,
       "tag": "AME00000",
       "ja": "提出年月日",
@@ -240,7 +317,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 22,
+      "no": 29,
       "level": 2,
       "tag": "AMF00000",
       "ja": "損益計算書",
@@ -251,7 +328,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 23,
+      "no": 30,
       "level": 3,
       "tag": "AMF00010",
       "ja": "損益計算書の内訳",
@@ -262,7 +339,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 24,
+      "no": 31,
       "level": 4,
       "tag": "AMF00020",
       "ja": "事業期間",
@@ -273,7 +350,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 25,
+      "no": 32,
       "level": 5,
       "tag": "AMF00030",
       "ja": "事業期間（自）",
@@ -284,7 +361,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 26,
+      "no": 33,
       "level": 5,
       "tag": "AMF00040",
       "ja": "事業期間（至）",
@@ -295,7 +372,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 27,
+      "no": 34,
       "level": 4,
       "tag": "AMF00090",
       "ja": "金額",
@@ -306,7 +383,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 28,
+      "no": 35,
       "level": 5,
       "tag": "AMF00100",
       "ja": "売上（収入）金額",
@@ -317,7 +394,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 29,
+      "no": 36,
       "level": 5,
       "tag": "AMF00110",
       "ja": "売上原価",
@@ -328,7 +405,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 30,
+      "no": 37,
       "level": 6,
       "tag": "AMF00120",
       "ja": "期首商品（製品）棚卸高",
@@ -339,7 +416,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 31,
+      "no": 38,
       "level": 6,
       "tag": "AMF00130",
       "ja": "仕入金額（製品製造原価）",
@@ -350,7 +427,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 32,
+      "no": 39,
       "level": 6,
       "tag": "AMF00140",
       "ja": "小計",
@@ -361,7 +438,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 33,
+      "no": 40,
       "level": 6,
       "tag": "AMF00150",
       "ja": "期末商品（製品）棚卸高",
@@ -372,7 +449,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 34,
+      "no": 41,
       "level": 6,
       "tag": "AMF00160",
       "ja": "差引原価",
@@ -383,7 +460,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 35,
+      "no": 42,
       "level": 5,
       "tag": "AMF00170",
       "ja": "差引金額",
@@ -394,7 +471,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 36,
+      "no": 43,
       "level": 5,
       "tag": "AMF00180",
       "ja": "経費",
@@ -405,7 +482,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 37,
+      "no": 44,
       "level": 6,
       "tag": "AMF00190",
       "ja": "租税公課",
@@ -416,7 +493,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 38,
+      "no": 45,
       "level": 6,
       "tag": "AMF00200",
       "ja": "荷造運賃",
@@ -427,7 +504,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 39,
+      "no": 46,
       "level": 6,
       "tag": "AMF00210",
       "ja": "水道光熱費",
@@ -438,7 +515,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 40,
+      "no": 47,
       "level": 6,
       "tag": "AMF00220",
       "ja": "旅費交通費",
@@ -449,7 +526,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 41,
+      "no": 48,
       "level": 6,
       "tag": "AMF00230",
       "ja": "通信費",
@@ -460,7 +537,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 42,
+      "no": 49,
       "level": 6,
       "tag": "AMF00240",
       "ja": "広告宣伝費",
@@ -471,7 +548,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 43,
+      "no": 50,
       "level": 6,
       "tag": "AMF00250",
       "ja": "接待交際費",
@@ -482,7 +559,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 44,
+      "no": 51,
       "level": 6,
       "tag": "AMF00260",
       "ja": "損害保険料",
@@ -493,7 +570,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 45,
+      "no": 52,
       "level": 6,
       "tag": "AMF00270",
       "ja": "修繕費",
@@ -504,7 +581,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 46,
+      "no": 53,
       "level": 6,
       "tag": "AMF00280",
       "ja": "消耗品費",
@@ -515,7 +592,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 47,
+      "no": 54,
       "level": 6,
       "tag": "AMF00290",
       "ja": "減価償却費",
@@ -526,7 +603,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 48,
+      "no": 55,
       "level": 6,
       "tag": "AMF00300",
       "ja": "福利厚生費",
@@ -537,7 +614,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 49,
+      "no": 56,
       "level": 6,
       "tag": "AMF00310",
       "ja": "給料賃金",
@@ -548,7 +625,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 50,
+      "no": 57,
       "level": 6,
       "tag": "AMF00320",
       "ja": "外注工賃",
@@ -559,7 +636,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 51,
+      "no": 58,
       "level": 6,
       "tag": "AMF00330",
       "ja": "利子割引料",
@@ -570,7 +647,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 52,
+      "no": 59,
       "level": 6,
       "tag": "AMF00340",
       "ja": "地代家賃",
@@ -581,7 +658,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 53,
+      "no": 60,
       "level": 6,
       "tag": "AMF00350",
       "ja": "貸倒金",
@@ -592,7 +669,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 54,
+      "no": 61,
       "level": 6,
       "tag": "AMF00355",
       "ja": "追加科目　繰り返し",
@@ -603,18 +680,18 @@
       "maxOccurs": 6
     },
     {
-      "no": 55,
+      "no": 62,
       "level": 7,
       "tag": "AMF00060",
       "ja": "経費（科目名）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00060-11-0Rtype",
+      "refType": "AMF00060-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 56,
+      "no": 63,
       "level": 7,
       "tag": "AMF00360",
       "ja": "金額",
@@ -625,7 +702,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 57,
+      "no": 64,
       "level": 6,
       "tag": "AMF00370",
       "ja": "雑費",
@@ -636,7 +713,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 58,
+      "no": 65,
       "level": 6,
       "tag": "AMF00380",
       "ja": "計",
@@ -647,7 +724,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 59,
+      "no": 66,
       "level": 5,
       "tag": "AMF00390",
       "ja": "差引金額",
@@ -658,7 +735,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 60,
+      "no": 67,
       "level": 5,
       "tag": "AMF00400",
       "ja": "各種引当金・準備金等",
@@ -669,7 +746,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 61,
+      "no": 68,
       "level": 6,
       "tag": "AMF00410",
       "ja": "繰戻額等",
@@ -680,7 +757,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 62,
+      "no": 69,
       "level": 7,
       "tag": "AMF00420",
       "ja": "貸倒引当金",
@@ -691,7 +768,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 63,
+      "no": 70,
       "level": 7,
       "tag": "AMF00425",
       "ja": "追加科目　繰り返し",
@@ -702,18 +779,18 @@
       "maxOccurs": 2
     },
     {
-      "no": 64,
+      "no": 71,
       "level": 8,
       "tag": "AMF00070",
       "ja": "各種引当金・準備金等：繰戻額等（科目名）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00070-11-0Rtype",
+      "refType": "AMF00070-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 65,
+      "no": 72,
       "level": 8,
       "tag": "AMF00430",
       "ja": "金額",
@@ -724,7 +801,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 66,
+      "no": 73,
       "level": 7,
       "tag": "AMF00440",
       "ja": "計",
@@ -735,7 +812,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 67,
+      "no": 74,
       "level": 6,
       "tag": "AMF00450",
       "ja": "繰入額等",
@@ -746,7 +823,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 68,
+      "no": 75,
       "level": 7,
       "tag": "AMF00460",
       "ja": "専従者給与",
@@ -757,7 +834,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 69,
+      "no": 76,
       "level": 7,
       "tag": "AMF00470",
       "ja": "貸倒引当金",
@@ -768,7 +845,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 70,
+      "no": 77,
       "level": 7,
       "tag": "AMF00475",
       "ja": "追加科目　繰り返し",
@@ -779,18 +856,18 @@
       "maxOccurs": 2
     },
     {
-      "no": 71,
+      "no": 78,
       "level": 8,
       "tag": "AMF00080",
       "ja": "各種引当金・準備金等：繰入額等（科目名）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00080-11-0Rtype",
+      "refType": "AMF00080-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 72,
+      "no": 79,
       "level": 8,
       "tag": "AMF00480",
       "ja": "金額",
@@ -801,7 +878,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 73,
+      "no": 80,
       "level": 7,
       "tag": "AMF00490",
       "ja": "計",
@@ -812,7 +889,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 74,
+      "no": 81,
       "level": 5,
       "tag": "AMF00500",
       "ja": "青色申告特別控除前の所得金額(上段)",
@@ -823,18 +900,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 75,
+      "no": 82,
       "level": 5,
       "tag": "AMF00505",
       "ja": "青色申告特別控除前の所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00505-11-0Rtype",
+      "refType": "AMF00505-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 76,
+      "no": 83,
       "level": 5,
       "tag": "AMF00510",
       "ja": "青色申告特別控除額",
@@ -845,18 +922,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 77,
+      "no": 84,
       "level": 5,
       "tag": "AMF00520",
       "ja": "所得金額（特例表示）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00520-11-0Rtype",
+      "refType": "AMF00520-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 78,
+      "no": 85,
       "level": 5,
       "tag": "AMF00530",
       "ja": "所得金額",
@@ -867,18 +944,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 79,
+      "no": 86,
       "level": 2,
       "tag": "AMF00532",
       "ja": "必要経費不算入損失額・措置法差額",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF00532-11-0Rtype",
+      "refType": "AMF00532-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 80,
+      "no": 87,
       "level": 1,
       "tag": "KOA210-2",
       "ja": "２ページ目",
@@ -889,51 +966,7 @@
       "maxOccurs": "unbounded"
     },
     {
-      "no": 81,
-      "level": 2,
-      "tag": "AMF00538",
-      "ja": "年分",
-      "kind": "leaf",
-      "idref": "NENBUN",
-      "refType": "gen:NENBUNref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 82,
-      "level": 2,
-      "tag": "AMF00540",
-      "ja": "（フリガナ）氏名",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 83,
-      "level": 3,
-      "tag": "AMF00550",
-      "ja": "フリガナ",
-      "kind": "leaf",
-      "idref": "NOZEISHA_NM_KN",
-      "refType": "gen:NOZEISHA_NM_KNref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 84,
-      "level": 3,
-      "tag": "AMF00560",
-      "ja": "氏名",
-      "kind": "leaf",
-      "idref": "NOZEISHA_NM",
-      "refType": "gen:NOZEISHA_NMref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 85,
+      "no": 88,
       "level": 2,
       "tag": "AMF00580",
       "ja": "月別売上（収入）金額及び仕入金額",
@@ -944,7 +977,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 86,
+      "no": 89,
       "level": 3,
       "tag": "AMF00590",
       "ja": "１月",
@@ -955,7 +988,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 87,
+      "no": 90,
       "level": 4,
       "tag": "AMF00600",
       "ja": "売上（収入）金額",
@@ -966,7 +999,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 88,
+      "no": 91,
       "level": 4,
       "tag": "AMF00610",
       "ja": "仕入金額",
@@ -977,7 +1010,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 89,
+      "no": 92,
       "level": 3,
       "tag": "AMF00620",
       "ja": "２月",
@@ -988,7 +1021,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 90,
+      "no": 93,
       "level": 4,
       "tag": "AMF00630",
       "ja": "売上（収入）金額",
@@ -999,7 +1032,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 91,
+      "no": 94,
       "level": 4,
       "tag": "AMF00640",
       "ja": "仕入金額",
@@ -1010,7 +1043,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 92,
+      "no": 95,
       "level": 3,
       "tag": "AMF00650",
       "ja": "３月",
@@ -1021,7 +1054,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 93,
+      "no": 96,
       "level": 4,
       "tag": "AMF00660",
       "ja": "売上（収入）金額",
@@ -1032,7 +1065,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 94,
+      "no": 97,
       "level": 4,
       "tag": "AMF00670",
       "ja": "仕入金額",
@@ -1043,7 +1076,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 95,
+      "no": 98,
       "level": 3,
       "tag": "AMF00680",
       "ja": "４月",
@@ -1054,7 +1087,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 96,
+      "no": 99,
       "level": 4,
       "tag": "AMF00690",
       "ja": "売上（収入）金額",
@@ -1065,7 +1098,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 97,
+      "no": 100,
       "level": 4,
       "tag": "AMF00700",
       "ja": "仕入金額",
@@ -1076,7 +1109,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 98,
+      "no": 101,
       "level": 3,
       "tag": "AMF00710",
       "ja": "５月",
@@ -1087,7 +1120,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 99,
+      "no": 102,
       "level": 4,
       "tag": "AMF00720",
       "ja": "売上（収入）金額",
@@ -1098,7 +1131,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 100,
+      "no": 103,
       "level": 4,
       "tag": "AMF00730",
       "ja": "仕入金額",
@@ -1109,7 +1142,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 101,
+      "no": 104,
       "level": 3,
       "tag": "AMF00740",
       "ja": "６月",
@@ -1120,7 +1153,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 102,
+      "no": 105,
       "level": 4,
       "tag": "AMF00750",
       "ja": "売上（収入）金額",
@@ -1131,7 +1164,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 103,
+      "no": 106,
       "level": 4,
       "tag": "AMF00760",
       "ja": "仕入金額",
@@ -1142,7 +1175,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 104,
+      "no": 107,
       "level": 3,
       "tag": "AMF00770",
       "ja": "７月",
@@ -1153,7 +1186,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 105,
+      "no": 108,
       "level": 4,
       "tag": "AMF00780",
       "ja": "売上（収入）金額",
@@ -1164,7 +1197,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 106,
+      "no": 109,
       "level": 4,
       "tag": "AMF00790",
       "ja": "仕入金額",
@@ -1175,7 +1208,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 107,
+      "no": 110,
       "level": 3,
       "tag": "AMF00800",
       "ja": "８月",
@@ -1186,7 +1219,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 108,
+      "no": 111,
       "level": 4,
       "tag": "AMF00810",
       "ja": "売上（収入）金額",
@@ -1197,7 +1230,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 109,
+      "no": 112,
       "level": 4,
       "tag": "AMF00820",
       "ja": "仕入金額",
@@ -1208,7 +1241,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 110,
+      "no": 113,
       "level": 3,
       "tag": "AMF00830",
       "ja": "９月",
@@ -1219,7 +1252,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 111,
+      "no": 114,
       "level": 4,
       "tag": "AMF00840",
       "ja": "売上（収入）金額",
@@ -1230,7 +1263,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 112,
+      "no": 115,
       "level": 4,
       "tag": "AMF00850",
       "ja": "仕入金額",
@@ -1241,7 +1274,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 113,
+      "no": 116,
       "level": 3,
       "tag": "AMF00860",
       "ja": "１０月",
@@ -1252,7 +1285,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 114,
+      "no": 117,
       "level": 4,
       "tag": "AMF00870",
       "ja": "売上（収入）金額",
@@ -1263,7 +1296,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 115,
+      "no": 118,
       "level": 4,
       "tag": "AMF00880",
       "ja": "仕入金額",
@@ -1274,7 +1307,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 116,
+      "no": 119,
       "level": 3,
       "tag": "AMF00890",
       "ja": "１１月",
@@ -1285,7 +1318,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 117,
+      "no": 120,
       "level": 4,
       "tag": "AMF00900",
       "ja": "売上（収入）金額",
@@ -1296,7 +1329,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 118,
+      "no": 121,
       "level": 4,
       "tag": "AMF00910",
       "ja": "仕入金額",
@@ -1307,7 +1340,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 119,
+      "no": 122,
       "level": 3,
       "tag": "AMF00920",
       "ja": "１２月",
@@ -1318,7 +1351,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 120,
+      "no": 123,
       "level": 4,
       "tag": "AMF00930",
       "ja": "売上（収入）金額",
@@ -1329,7 +1362,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 121,
+      "no": 124,
       "level": 4,
       "tag": "AMF00940",
       "ja": "仕入金額",
@@ -1340,7 +1373,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 122,
+      "no": 125,
       "level": 3,
       "tag": "AMF00950",
       "ja": "家事消費等（売上（収入）金額）",
@@ -1351,7 +1384,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 123,
+      "no": 126,
       "level": 3,
       "tag": "AMF00960",
       "ja": "雑収入（売上（収入）金額）",
@@ -1362,7 +1395,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 124,
+      "no": 127,
       "level": 3,
       "tag": "AMF00970",
       "ja": "計",
@@ -1373,7 +1406,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 125,
+      "no": 128,
       "level": 4,
       "tag": "AMF00980",
       "ja": "売上（収入）金額",
@@ -1384,7 +1417,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 126,
+      "no": 129,
       "level": 4,
       "tag": "AMF00990",
       "ja": "仕入金額",
@@ -1395,7 +1428,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 127,
+      "no": 130,
       "level": 3,
       "tag": "AMF00993",
       "ja": "うち軽減税率対象",
@@ -1406,7 +1439,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 128,
+      "no": 131,
       "level": 4,
       "tag": "AMF00995",
       "ja": "売上（収入）金額",
@@ -1417,7 +1450,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 129,
+      "no": 132,
       "level": 4,
       "tag": "AMF00997",
       "ja": "仕入金額",
@@ -1428,7 +1461,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 130,
+      "no": 133,
       "level": 2,
       "tag": "AMF01000",
       "ja": "貸倒引当金繰入額の計算",
@@ -1439,7 +1472,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 131,
+      "no": 134,
       "level": 3,
       "tag": "AMF01010",
       "ja": "個別評価による本年分繰入額",
@@ -1450,7 +1483,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 132,
+      "no": 135,
       "level": 3,
       "tag": "AMF01020",
       "ja": "一括評価による本年分繰入額",
@@ -1461,7 +1494,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 133,
+      "no": 136,
       "level": 4,
       "tag": "AMF01030",
       "ja": "年末における一括評価による貸倒引当金の繰入れの対象となる貸金の合計額",
@@ -1472,7 +1505,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 134,
+      "no": 137,
       "level": 4,
       "tag": "AMF01040",
       "ja": "本年分繰入限度額",
@@ -1483,7 +1516,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 135,
+      "no": 138,
       "level": 4,
       "tag": "AMF01050",
       "ja": "本年分繰入額",
@@ -1494,7 +1527,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 136,
+      "no": 139,
       "level": 3,
       "tag": "AMF01060",
       "ja": "本年分の貸倒引当金繰入額",
@@ -1505,7 +1538,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 137,
+      "no": 140,
       "level": 2,
       "tag": "AMF01070",
       "ja": "給料賃金の内訳",
@@ -1516,7 +1549,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 138,
+      "no": 141,
       "level": 3,
       "tag": "AMF01080",
       "ja": "給料賃金明細行　繰り返し",
@@ -1527,7 +1560,7 @@
       "maxOccurs": 4
     },
     {
-      "no": 139,
+      "no": 142,
       "level": 4,
       "tag": "AMF01090",
       "ja": "氏名",
@@ -1538,29 +1571,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 140,
+      "no": 143,
       "level": 4,
       "tag": "AMF01100",
       "ja": "年齢",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01100-11-0type",
+      "refType": "AMF01100-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 141,
+      "no": 144,
       "level": 4,
       "tag": "AMF01110",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01110-11-0type",
+      "refType": "AMF01110-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 142,
+      "no": 145,
       "level": 4,
       "tag": "AMF01120",
       "ja": "支給額",
@@ -1571,7 +1604,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 143,
+      "no": 146,
       "level": 5,
       "tag": "AMF01130",
       "ja": "給料賃金",
@@ -1582,7 +1615,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 144,
+      "no": 147,
       "level": 5,
       "tag": "AMF01140",
       "ja": "賞与",
@@ -1593,7 +1626,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 145,
+      "no": 148,
       "level": 5,
       "tag": "AMF01150",
       "ja": "合計",
@@ -1604,7 +1637,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 146,
+      "no": 149,
       "level": 4,
       "tag": "AMF01160",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1615,7 +1648,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 147,
+      "no": 150,
       "level": 3,
       "tag": "AMF01170",
       "ja": "その他",
@@ -1626,29 +1659,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 148,
+      "no": 151,
       "level": 4,
       "tag": "AMF01180",
       "ja": "人数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01180-11-0type",
+      "refType": "AMF01180-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 149,
+      "no": 152,
       "level": 4,
       "tag": "AMF01190",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01190-11-0type",
+      "refType": "AMF01190-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 150,
+      "no": 153,
       "level": 4,
       "tag": "AMF01200",
       "ja": "支給額",
@@ -1659,7 +1692,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 151,
+      "no": 154,
       "level": 5,
       "tag": "AMF01210",
       "ja": "給料賃金",
@@ -1670,7 +1703,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 152,
+      "no": 155,
       "level": 5,
       "tag": "AMF01220",
       "ja": "賞与",
@@ -1681,7 +1714,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 153,
+      "no": 156,
       "level": 5,
       "tag": "AMF01230",
       "ja": "合計",
@@ -1692,7 +1725,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 154,
+      "no": 157,
       "level": 4,
       "tag": "AMF01240",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1703,7 +1736,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 155,
+      "no": 158,
       "level": 3,
       "tag": "AMF01250",
       "ja": "計",
@@ -1714,18 +1747,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 156,
+      "no": 159,
       "level": 4,
       "tag": "AMF01260",
       "ja": "延べ従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01260-11-0type",
+      "refType": "AMF01260-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 157,
+      "no": 160,
       "level": 4,
       "tag": "AMF01270",
       "ja": "支給額",
@@ -1736,7 +1769,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 158,
+      "no": 161,
       "level": 5,
       "tag": "AMF01280",
       "ja": "給料賃金",
@@ -1747,7 +1780,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 159,
+      "no": 162,
       "level": 5,
       "tag": "AMF01290",
       "ja": "賞与",
@@ -1758,7 +1791,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 160,
+      "no": 163,
       "level": 5,
       "tag": "AMF01300",
       "ja": "合計",
@@ -1769,7 +1802,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 161,
+      "no": 164,
       "level": 4,
       "tag": "AMF01310",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1780,7 +1813,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 162,
+      "no": 165,
       "level": 2,
       "tag": "AMF01320",
       "ja": "専従者給与の内訳",
@@ -1791,7 +1824,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 163,
+      "no": 166,
       "level": 3,
       "tag": "AMF01330",
       "ja": "専従者給与明細行　繰り返し",
@@ -1802,7 +1835,7 @@
       "maxOccurs": 4
     },
     {
-      "no": 164,
+      "no": 167,
       "level": 4,
       "tag": "AMF01340",
       "ja": "氏名",
@@ -1813,7 +1846,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 165,
+      "no": 168,
       "level": 4,
       "tag": "AMF01350",
       "ja": "続柄",
@@ -1824,29 +1857,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 166,
+      "no": 169,
       "level": 4,
       "tag": "AMF01360",
       "ja": "年齢",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01360-11-0type",
+      "refType": "AMF01360-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 167,
+      "no": 170,
       "level": 4,
       "tag": "AMF01370",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01370-11-0type",
+      "refType": "AMF01370-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 168,
+      "no": 171,
       "level": 4,
       "tag": "AMF01380",
       "ja": "支給額",
@@ -1857,7 +1890,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 169,
+      "no": 172,
       "level": 5,
       "tag": "AMF01390",
       "ja": "給料",
@@ -1868,7 +1901,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 170,
+      "no": 173,
       "level": 5,
       "tag": "AMF01400",
       "ja": "賞与",
@@ -1879,7 +1912,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 171,
+      "no": 174,
       "level": 5,
       "tag": "AMF01410",
       "ja": "合計",
@@ -1890,7 +1923,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 172,
+      "no": 175,
       "level": 4,
       "tag": "AMF01420",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1901,7 +1934,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 173,
+      "no": 176,
       "level": 3,
       "tag": "AMF01421",
       "ja": "次葉合計",
@@ -1912,29 +1945,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 174,
+      "no": 177,
       "level": 4,
       "tag": "AMF01422",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01422-11-0Rtype",
+      "refType": "AMF01422-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 175,
+      "no": 178,
       "level": 4,
       "tag": "AMF01423",
       "ja": "延べ従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01423-11-0type",
+      "refType": "AMF01423-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 176,
+      "no": 179,
       "level": 4,
       "tag": "AMF01424",
       "ja": "支給額",
@@ -1945,7 +1978,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 177,
+      "no": 180,
       "level": 5,
       "tag": "AMF01425",
       "ja": "給料",
@@ -1956,7 +1989,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 178,
+      "no": 181,
       "level": 5,
       "tag": "AMF01426",
       "ja": "賞与",
@@ -1967,7 +2000,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 179,
+      "no": 182,
       "level": 5,
       "tag": "AMF01427",
       "ja": "合計",
@@ -1978,7 +2011,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 180,
+      "no": 183,
       "level": 4,
       "tag": "AMF01428",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1989,7 +2022,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 181,
+      "no": 184,
       "level": 3,
       "tag": "AMF01430",
       "ja": "計",
@@ -2000,18 +2033,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 182,
+      "no": 185,
       "level": 4,
       "tag": "AMF01440",
       "ja": "延べ従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01440-11-0type",
+      "refType": "AMF01440-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 183,
+      "no": 186,
       "level": 4,
       "tag": "AMF01450",
       "ja": "支給額",
@@ -2022,7 +2055,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 184,
+      "no": 187,
       "level": 5,
       "tag": "AMF01460",
       "ja": "給料",
@@ -2033,7 +2066,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 185,
+      "no": 188,
       "level": 5,
       "tag": "AMF01470",
       "ja": "賞与",
@@ -2044,7 +2077,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 186,
+      "no": 189,
       "level": 5,
       "tag": "AMF01480",
       "ja": "合計",
@@ -2055,7 +2088,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 187,
+      "no": 190,
       "level": 4,
       "tag": "AMF01490",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -2066,7 +2099,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 188,
+      "no": 191,
       "level": 2,
       "tag": "AMF02120",
       "ja": "地代家賃の内訳　繰り返し",
@@ -2077,7 +2110,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 189,
+      "no": 192,
       "level": 3,
       "tag": "AMF02130",
       "ja": "支払先の住所・氏名",
@@ -2088,7 +2121,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 190,
+      "no": 193,
       "level": 4,
       "tag": "AMF02140",
       "ja": "支払先の住所",
@@ -2099,7 +2132,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 191,
+      "no": 194,
       "level": 4,
       "tag": "AMF02150",
       "ja": "支払先の氏名",
@@ -2110,18 +2143,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 192,
+      "no": 195,
       "level": 3,
       "tag": "AMF02160",
       "ja": "賃借物件",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02160-11-0Rtype",
+      "refType": "AMF02160-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 193,
+      "no": 196,
       "level": 3,
       "tag": "AMF02170",
       "ja": "本年中の賃借料・権利金等",
@@ -2132,7 +2165,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 194,
+      "no": 197,
       "level": 4,
       "tag": "AMF02180",
       "ja": "権利金",
@@ -2143,7 +2176,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 195,
+      "no": 198,
       "level": 4,
       "tag": "AMF02190",
       "ja": "更新料",
@@ -2154,7 +2187,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 196,
+      "no": 199,
       "level": 4,
       "tag": "AMF02200",
       "ja": "賃借料",
@@ -2165,7 +2198,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 197,
+      "no": 200,
       "level": 3,
       "tag": "AMF02210",
       "ja": "左の賃借料のうち必要経費算入額",
@@ -2176,7 +2209,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 198,
+      "no": 201,
       "level": 2,
       "tag": "AMF01500",
       "ja": "青色申告特別控除額の計算",
@@ -2187,7 +2220,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 199,
+      "no": 202,
       "level": 3,
       "tag": "AMF01510",
       "ja": "本年分の不動産所得の金額",
@@ -2198,7 +2231,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 200,
+      "no": 203,
       "level": 3,
       "tag": "AMF01520",
       "ja": "青色申告特別控除前の所得金額",
@@ -2209,7 +2242,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 201,
+      "no": 204,
       "level": 3,
       "tag": "AMF01530",
       "ja": "65万円又は55万円の青色申告特別控除を受ける場合",
@@ -2220,7 +2253,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 202,
+      "no": 205,
       "level": 4,
       "tag": "AMF01540",
       "ja": "65万円又は55万円と（６）のいずれか少ない方の金額",
@@ -2231,7 +2264,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 203,
+      "no": 206,
       "level": 4,
       "tag": "AMF01550",
       "ja": "青色申告特別控除額",
@@ -2242,7 +2275,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 204,
+      "no": 207,
       "level": 3,
       "tag": "AMF01560",
       "ja": "上記以外の場合",
@@ -2253,7 +2286,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 205,
+      "no": 208,
       "level": 4,
       "tag": "AMF01570",
       "ja": "10万円と（６）のいずれか少ない方の金額",
@@ -2264,7 +2297,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 206,
+      "no": 209,
       "level": 4,
       "tag": "AMF01580",
       "ja": "青色申告特別控除額",
@@ -2275,7 +2308,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 207,
+      "no": 210,
       "level": 1,
       "tag": "KOA210-3",
       "ja": "３ページ目",
@@ -2286,7 +2319,51 @@
       "maxOccurs": "unbounded"
     },
     {
-      "no": 208,
+      "no": 211,
+      "level": 2,
+      "tag": "AMK00000",
+      "ja": "年分",
+      "kind": "leaf",
+      "idref": "NENBUN",
+      "refType": "gen:NENBUNref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 212,
+      "level": 2,
+      "tag": "AML00000",
+      "ja": "（フリガナ）氏名",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 213,
+      "level": 3,
+      "tag": "AML00010",
+      "ja": "フリガナ",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM_KN",
+      "refType": "gen:NOZEISHA_NM_KNref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 214,
+      "level": 3,
+      "tag": "AML00020",
+      "ja": "氏名",
+      "kind": "leaf",
+      "idref": "NOZEISHA_NM",
+      "refType": "gen:NOZEISHA_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 215,
       "level": 2,
       "tag": "AMF02220",
       "ja": "売上（収入）金額の明細",
@@ -2297,7 +2374,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 209,
+      "no": 216,
       "level": 3,
       "tag": "AMF02230",
       "ja": "明細　繰り返し",
@@ -2305,32 +2382,32 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 4
+      "maxOccurs": 3
     },
     {
-      "no": 210,
+      "no": 217,
       "level": 4,
       "tag": "AMF02240",
       "ja": "売上先名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02240-11-0Rtype",
+      "refType": "AMF02240-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 211,
+      "no": 218,
       "level": 4,
       "tag": "AMF02250",
       "ja": "所在地",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02250-11-0Rtype",
+      "refType": "AMF02250-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 212,
+      "no": 219,
       "level": 4,
       "tag": "AMF02260",
       "ja": "登録番号（法人番号）",
@@ -2341,18 +2418,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 213,
+      "no": 220,
       "level": 5,
       "tag": "AMF02270",
       "ja": "登録番号",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02270-11-0Rtype",
+      "refType": "AMF02270-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 214,
+      "no": 221,
       "level": 5,
       "tag": "AMF02280",
       "ja": "法人番号",
@@ -2363,7 +2440,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 215,
+      "no": 222,
       "level": 4,
       "tag": "AMF02290",
       "ja": "売上（収入）金額",
@@ -2374,7 +2451,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 216,
+      "no": 223,
       "level": 3,
       "tag": "AMF02300",
       "ja": "上記以外の売上先の計（雑収入を含む）",
@@ -2385,7 +2462,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 217,
+      "no": 224,
       "level": 3,
       "tag": "AMF02310",
       "ja": "計",
@@ -2396,7 +2473,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 218,
+      "no": 225,
       "level": 2,
       "tag": "AMF02320",
       "ja": "仕入金額の明細",
@@ -2407,7 +2484,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 219,
+      "no": 226,
       "level": 3,
       "tag": "AMF02330",
       "ja": "明細　繰り返し",
@@ -2415,32 +2492,32 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 4
+      "maxOccurs": 3
     },
     {
-      "no": 220,
+      "no": 227,
       "level": 4,
       "tag": "AMF02340",
       "ja": "仕入先名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02340-11-0Rtype",
+      "refType": "AMF02340-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 221,
+      "no": 228,
       "level": 4,
       "tag": "AMF02350",
       "ja": "所在地",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02350-11-0Rtype",
+      "refType": "AMF02350-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 222,
+      "no": 229,
       "level": 4,
       "tag": "AMF02360",
       "ja": "登録番号（法人番号）",
@@ -2451,18 +2528,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 223,
+      "no": 230,
       "level": 5,
       "tag": "AMF02370",
       "ja": "登録番号",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02370-11-0Rtype",
+      "refType": "AMF02370-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 224,
+      "no": 231,
       "level": 5,
       "tag": "AMF02380",
       "ja": "法人番号",
@@ -2473,7 +2550,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 225,
+      "no": 232,
       "level": 4,
       "tag": "AMF02390",
       "ja": "仕入金額",
@@ -2484,7 +2561,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 226,
+      "no": 233,
       "level": 3,
       "tag": "AMF02400",
       "ja": "上記以外の仕入先の計",
@@ -2495,7 +2572,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 227,
+      "no": 234,
       "level": 3,
       "tag": "AMF02410",
       "ja": "計",
@@ -2506,7 +2583,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 228,
+      "no": 235,
       "level": 2,
       "tag": "AMF01590",
       "ja": "減価償却費の計算",
@@ -2517,7 +2594,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 229,
+      "no": 236,
       "level": 3,
       "tag": "AMF01600",
       "ja": "減価償却費の明細　繰り返し",
@@ -2528,29 +2605,29 @@
       "maxOccurs": 7
     },
     {
-      "no": 230,
+      "no": 237,
       "level": 4,
       "tag": "AMF01610",
       "ja": "減価償却資産の名称等（繰延資産を含む）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01610-11-0Rtype",
+      "refType": "AMF01610-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 231,
+      "no": 238,
       "level": 4,
       "tag": "AMF01620",
       "ja": "面積又は数量",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01620-11-0Rtype",
+      "refType": "AMF01620-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 232,
+      "no": 239,
       "level": 4,
       "tag": "AMF01630",
       "ja": "取得年月",
@@ -2561,7 +2638,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 233,
+      "no": 240,
       "level": 4,
       "tag": "AMF01640",
       "ja": "取得価額",
@@ -2572,7 +2649,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 234,
+      "no": 241,
       "level": 4,
       "tag": "AMF01645",
       "ja": "（償却保証額）",
@@ -2583,7 +2660,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 235,
+      "no": 242,
       "level": 4,
       "tag": "AMF01650",
       "ja": "償却の基礎になる金額",
@@ -2594,29 +2671,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 236,
+      "no": 243,
       "level": 4,
       "tag": "AMF01660",
       "ja": "償却方法",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01660-11-0Rtype",
+      "refType": "AMF01660-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 237,
+      "no": 244,
       "level": 4,
       "tag": "AMF01670",
       "ja": "耐用年数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01670-11-0type",
+      "refType": "AMF01670-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 238,
+      "no": 245,
       "level": 4,
       "tag": "AMF01680",
       "ja": "償却率又は改定償却率",
@@ -2627,29 +2704,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 239,
+      "no": 246,
       "level": 5,
       "tag": "AMF01690",
       "ja": "償却率又は改定償却率",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01690-11-0type",
+      "refType": "AMF01690-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 240,
+      "no": 247,
       "level": 4,
       "tag": "AMF01720",
       "ja": "本年中の償却期間",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01720-11-0type",
+      "refType": "AMF01720-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 241,
+      "no": 248,
       "level": 4,
       "tag": "AMF01730",
       "ja": "本年分の普通償却費",
@@ -2660,7 +2737,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 242,
+      "no": 249,
       "level": 4,
       "tag": "AMF01740",
       "ja": "割増（特別）償却費",
@@ -2671,7 +2748,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 243,
+      "no": 250,
       "level": 4,
       "tag": "AMF01750",
       "ja": "本年分の償却費合計",
@@ -2682,18 +2759,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 244,
+      "no": 251,
       "level": 4,
       "tag": "AMF01760",
       "ja": "事業専用割合",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01760-11-0type",
+      "refType": "AMF01760-12-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 245,
+      "no": 252,
       "level": 4,
       "tag": "AMF01770",
       "ja": "本年分の必要経費算入額",
@@ -2704,7 +2781,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 246,
+      "no": 253,
       "level": 4,
       "tag": "AMF01780",
       "ja": "未償却残高（期末残高）",
@@ -2715,18 +2792,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 247,
+      "no": 254,
       "level": 4,
       "tag": "AMF01790",
       "ja": "摘要",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01790-11-0Rtype",
+      "refType": "AMF01790-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 248,
+      "no": 255,
       "level": 3,
       "tag": "AMF01791",
       "ja": "次葉合計",
@@ -2737,18 +2814,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 249,
+      "no": 256,
       "level": 4,
       "tag": "AMF01792",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01792-11-0Rtype",
+      "refType": "AMF01792-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 250,
+      "no": 257,
       "level": 4,
       "tag": "AMF01793",
       "ja": "本年分の普通償却費",
@@ -2759,7 +2836,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 251,
+      "no": 258,
       "level": 4,
       "tag": "AMF01794",
       "ja": "割増（特別）償却費",
@@ -2770,7 +2847,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 252,
+      "no": 259,
       "level": 4,
       "tag": "AMF01795",
       "ja": "本年分の償却費合計",
@@ -2781,7 +2858,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 253,
+      "no": 260,
       "level": 4,
       "tag": "AMF01796",
       "ja": "本年分の必要経費算入額",
@@ -2792,7 +2869,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 254,
+      "no": 261,
       "level": 4,
       "tag": "AMF01797",
       "ja": "未償却残高（期末残高）",
@@ -2803,7 +2880,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 255,
+      "no": 262,
       "level": 3,
       "tag": "AMF01800",
       "ja": "計",
@@ -2814,7 +2891,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 256,
+      "no": 263,
       "level": 4,
       "tag": "AMF01810",
       "ja": "本年分の普通償却費",
@@ -2825,7 +2902,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 257,
+      "no": 264,
       "level": 4,
       "tag": "AMF01820",
       "ja": "割増（特別）償却費",
@@ -2836,7 +2913,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 258,
+      "no": 265,
       "level": 4,
       "tag": "AMF01830",
       "ja": "本年分の償却費合計",
@@ -2847,7 +2924,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 259,
+      "no": 266,
       "level": 4,
       "tag": "AMF01840",
       "ja": "本年分の必要経費算入額",
@@ -2858,7 +2935,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 260,
+      "no": 267,
       "level": 4,
       "tag": "AMF01850",
       "ja": "未償却残高（期末残高）",
@@ -2869,18 +2946,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 261,
+      "no": 268,
       "level": 4,
       "tag": "AMF01860",
       "ja": "摘要",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF01860-11-0Rtype",
+      "refType": "AMF01860-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 262,
+      "no": 269,
       "level": 2,
       "tag": "AMF01870",
       "ja": "利子割引料の内訳　繰り返し",
@@ -2891,7 +2968,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 263,
+      "no": 270,
       "level": 3,
       "tag": "AMF01880",
       "ja": "支払先の住所・氏名",
@@ -2902,7 +2979,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 264,
+      "no": 271,
       "level": 4,
       "tag": "AMF01890",
       "ja": "支払先の住所",
@@ -2913,7 +2990,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 265,
+      "no": 272,
       "level": 4,
       "tag": "AMF01900",
       "ja": "支払先の氏名",
@@ -2924,7 +3001,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 266,
+      "no": 273,
       "level": 3,
       "tag": "AMF01910",
       "ja": "期末現在の借入金等の金額",
@@ -2935,7 +3012,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 267,
+      "no": 274,
       "level": 3,
       "tag": "AMF01920",
       "ja": "本年中の利子割引料",
@@ -2946,7 +3023,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 268,
+      "no": 275,
       "level": 3,
       "tag": "AMF01930",
       "ja": "左のうち必要経費算入額",
@@ -2957,7 +3034,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 269,
+      "no": 276,
       "level": 2,
       "tag": "AMF02040",
       "ja": "税理士・弁護士等の報酬・料金の内訳　繰り返し",
@@ -2968,7 +3045,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 270,
+      "no": 277,
       "level": 3,
       "tag": "AMF02050",
       "ja": "支払先の住所・氏名",
@@ -2979,7 +3056,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 271,
+      "no": 278,
       "level": 4,
       "tag": "AMF02060",
       "ja": "支払先の住所",
@@ -2990,7 +3067,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 272,
+      "no": 279,
       "level": 4,
       "tag": "AMF02070",
       "ja": "支払先の氏名",
@@ -3001,7 +3078,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 273,
+      "no": 280,
       "level": 3,
       "tag": "AMF02080",
       "ja": "本年中の報酬等の金額",
@@ -3012,7 +3089,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 274,
+      "no": 281,
       "level": 3,
       "tag": "AMF02090",
       "ja": "左のうち必要経費算入額",
@@ -3023,7 +3100,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 275,
+      "no": 282,
       "level": 3,
       "tag": "AMF02100",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -3034,18 +3111,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 276,
+      "no": 283,
       "level": 2,
       "tag": "AMF02110",
       "ja": "本年中における特殊事情",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMF02110-11-0Rtype",
+      "refType": "AMF02110-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 277,
+      "no": 284,
       "level": 1,
       "tag": "KOA210-4",
       "ja": "４ページ目",
@@ -3053,10 +3130,10 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 1
+      "maxOccurs": "unbounded"
     },
     {
-      "no": 278,
+      "no": 285,
       "level": 2,
       "tag": "AMG00000",
       "ja": "貸借対照表",
@@ -3067,7 +3144,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 279,
+      "no": 286,
       "level": 3,
       "tag": "AMG00010",
       "ja": "期末年月日",
@@ -3078,7 +3155,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 280,
+      "no": 287,
       "level": 3,
       "tag": "AMG00020",
       "ja": "資産の部",
@@ -3089,7 +3166,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 281,
+      "no": 288,
       "level": 4,
       "tag": "AMG00025",
       "ja": "追加科目　繰り返し",
@@ -3097,21 +3174,21 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 7
+      "maxOccurs": 5
     },
     {
-      "no": 282,
+      "no": 289,
       "level": 5,
       "tag": "AMG00030",
       "ja": "科目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMG00030-11-0Rtype",
+      "refType": "AMG00030-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 283,
+      "no": 290,
       "level": 5,
       "tag": "AMG00220",
       "ja": "金額（期首）",
@@ -3122,7 +3199,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 284,
+      "no": 291,
       "level": 5,
       "tag": "AMG00420",
       "ja": "金額（期末）",
@@ -3133,7 +3210,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 285,
+      "no": 292,
       "level": 4,
       "tag": "AMG00040",
       "ja": "期首",
@@ -3144,7 +3221,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 286,
+      "no": 293,
       "level": 5,
       "tag": "AMG00050",
       "ja": "期首月日",
@@ -3155,7 +3232,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 287,
+      "no": 294,
       "level": 5,
       "tag": "AMG00060",
       "ja": "現金",
@@ -3166,7 +3243,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 288,
+      "no": 295,
       "level": 5,
       "tag": "AMG00070",
       "ja": "当座預金",
@@ -3177,7 +3254,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 289,
+      "no": 296,
       "level": 5,
       "tag": "AMG00080",
       "ja": "定期預金",
@@ -3188,7 +3265,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 290,
+      "no": 297,
       "level": 5,
       "tag": "AMG00090",
       "ja": "その他の預金",
@@ -3199,7 +3276,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 291,
+      "no": 298,
       "level": 5,
       "tag": "AMG00100",
       "ja": "受取手形",
@@ -3210,7 +3287,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 292,
+      "no": 299,
       "level": 5,
       "tag": "AMG00110",
       "ja": "売掛金",
@@ -3221,7 +3298,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 293,
+      "no": 300,
       "level": 5,
       "tag": "AMG00120",
       "ja": "有価証券",
@@ -3232,7 +3309,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 294,
+      "no": 301,
       "level": 5,
       "tag": "AMG00130",
       "ja": "棚卸資産",
@@ -3243,7 +3320,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 295,
+      "no": 302,
       "level": 5,
       "tag": "AMG00140",
       "ja": "前払金",
@@ -3254,7 +3331,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 296,
+      "no": 303,
       "level": 5,
       "tag": "AMG00150",
       "ja": "貸付金",
@@ -3265,7 +3342,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 297,
+      "no": 304,
       "level": 5,
       "tag": "AMG00160",
       "ja": "建物",
@@ -3276,7 +3353,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 298,
+      "no": 305,
       "level": 5,
       "tag": "AMG00170",
       "ja": "建物附属設備",
@@ -3287,7 +3364,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 299,
+      "no": 306,
       "level": 5,
       "tag": "AMG00180",
       "ja": "機械装置",
@@ -3298,7 +3375,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 300,
+      "no": 307,
       "level": 5,
       "tag": "AMG00190",
       "ja": "車両運搬具",
@@ -3309,7 +3386,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 301,
+      "no": 308,
       "level": 5,
       "tag": "AMG00200",
       "ja": "工具　器具　備品",
@@ -3320,7 +3397,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 302,
+      "no": 309,
       "level": 5,
       "tag": "AMG00210",
       "ja": "土地",
@@ -3331,7 +3408,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 303,
+      "no": 310,
       "level": 5,
       "tag": "AMG00230",
       "ja": "合計",
@@ -3342,7 +3419,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 304,
+      "no": 311,
       "level": 4,
       "tag": "AMG00240",
       "ja": "期末",
@@ -3353,7 +3430,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 305,
+      "no": 312,
       "level": 5,
       "tag": "AMG00250",
       "ja": "期末月日",
@@ -3364,7 +3441,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 306,
+      "no": 313,
       "level": 5,
       "tag": "AMG00260",
       "ja": "現金",
@@ -3375,7 +3452,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 307,
+      "no": 314,
       "level": 5,
       "tag": "AMG00270",
       "ja": "当座預金",
@@ -3386,7 +3463,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 308,
+      "no": 315,
       "level": 5,
       "tag": "AMG00280",
       "ja": "定期預金",
@@ -3397,7 +3474,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 309,
+      "no": 316,
       "level": 5,
       "tag": "AMG00290",
       "ja": "その他の預金",
@@ -3408,7 +3485,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 310,
+      "no": 317,
       "level": 5,
       "tag": "AMG00300",
       "ja": "受取手形",
@@ -3419,7 +3496,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 311,
+      "no": 318,
       "level": 5,
       "tag": "AMG00310",
       "ja": "売掛金",
@@ -3430,7 +3507,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 312,
+      "no": 319,
       "level": 5,
       "tag": "AMG00320",
       "ja": "有価証券",
@@ -3441,7 +3518,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 313,
+      "no": 320,
       "level": 5,
       "tag": "AMG00330",
       "ja": "棚卸資産",
@@ -3452,7 +3529,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 314,
+      "no": 321,
       "level": 5,
       "tag": "AMG00340",
       "ja": "前払金",
@@ -3463,7 +3540,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 315,
+      "no": 322,
       "level": 5,
       "tag": "AMG00350",
       "ja": "貸付金",
@@ -3474,7 +3551,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 316,
+      "no": 323,
       "level": 5,
       "tag": "AMG00360",
       "ja": "建物",
@@ -3485,7 +3562,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 317,
+      "no": 324,
       "level": 5,
       "tag": "AMG00370",
       "ja": "建物附属設備",
@@ -3496,7 +3573,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 318,
+      "no": 325,
       "level": 5,
       "tag": "AMG00380",
       "ja": "機械装置",
@@ -3507,7 +3584,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 319,
+      "no": 326,
       "level": 5,
       "tag": "AMG00390",
       "ja": "車両運搬具",
@@ -3518,7 +3595,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 320,
+      "no": 327,
       "level": 5,
       "tag": "AMG00400",
       "ja": "工具　器具　備品",
@@ -3529,7 +3606,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 321,
+      "no": 328,
       "level": 5,
       "tag": "AMG00410",
       "ja": "土地",
@@ -3540,7 +3617,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 322,
+      "no": 329,
       "level": 5,
       "tag": "AMG00430",
       "ja": "事業主貸",
@@ -3551,7 +3628,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 323,
+      "no": 330,
       "level": 5,
       "tag": "AMG00440",
       "ja": "合計",
@@ -3562,7 +3639,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 324,
+      "no": 331,
       "level": 3,
       "tag": "AMG00450",
       "ja": "負債・資本の部",
@@ -3573,7 +3650,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 325,
+      "no": 332,
       "level": 4,
       "tag": "AMG00460",
       "ja": "科目",
@@ -3584,7 +3661,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 326,
+      "no": 333,
       "level": 5,
       "tag": "AMG00465",
       "ja": "追加科目１　繰り返し",
@@ -3595,18 +3672,18 @@
       "maxOccurs": 7
     },
     {
-      "no": 327,
+      "no": 334,
       "level": 6,
       "tag": "AMG00470",
       "ja": "科目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMG00470-11-0Rtype",
+      "refType": "AMG00470-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 328,
+      "no": 335,
       "level": 6,
       "tag": "AMG00570",
       "ja": "金額（期首）",
@@ -3617,7 +3694,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 329,
+      "no": 336,
       "level": 6,
       "tag": "AMG00700",
       "ja": "金額（期末）",
@@ -3628,7 +3705,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 330,
+      "no": 337,
       "level": 5,
       "tag": "AMG00475",
       "ja": "追加科目２　繰り返し",
@@ -3636,21 +3713,21 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 7
+      "maxOccurs": 5
     },
     {
-      "no": 331,
+      "no": 338,
       "level": 6,
       "tag": "AMG00480",
       "ja": "科目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMG00480-11-0Rtype",
+      "refType": "AMG00480-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 332,
+      "no": 339,
       "level": 6,
       "tag": "AMG00590",
       "ja": "金額（期首）",
@@ -3661,7 +3738,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 333,
+      "no": 340,
       "level": 6,
       "tag": "AMG00720",
       "ja": "金額（期末）",
@@ -3672,7 +3749,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 334,
+      "no": 341,
       "level": 4,
       "tag": "AMG00490",
       "ja": "期首",
@@ -3683,7 +3760,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 335,
+      "no": 342,
       "level": 5,
       "tag": "AMG00500",
       "ja": "期首月日",
@@ -3694,7 +3771,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 336,
+      "no": 343,
       "level": 5,
       "tag": "AMG00510",
       "ja": "支払手形",
@@ -3705,7 +3782,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 337,
+      "no": 344,
       "level": 5,
       "tag": "AMG00520",
       "ja": "買掛金",
@@ -3716,7 +3793,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 338,
+      "no": 345,
       "level": 5,
       "tag": "AMG00530",
       "ja": "借入金",
@@ -3727,7 +3804,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 339,
+      "no": 346,
       "level": 5,
       "tag": "AMG00540",
       "ja": "未払金",
@@ -3738,7 +3815,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 340,
+      "no": 347,
       "level": 5,
       "tag": "AMG00550",
       "ja": "前受金",
@@ -3749,7 +3826,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 341,
+      "no": 348,
       "level": 5,
       "tag": "AMG00560",
       "ja": "預り金",
@@ -3760,7 +3837,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 342,
+      "no": 349,
       "level": 5,
       "tag": "AMG00580",
       "ja": "貸倒引当金",
@@ -3771,7 +3848,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 343,
+      "no": 350,
       "level": 5,
       "tag": "AMG00600",
       "ja": "元入金",
@@ -3782,7 +3859,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 344,
+      "no": 351,
       "level": 5,
       "tag": "AMG00610",
       "ja": "合計",
@@ -3793,7 +3870,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 345,
+      "no": 352,
       "level": 4,
       "tag": "AMG00620",
       "ja": "期末",
@@ -3804,7 +3881,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 346,
+      "no": 353,
       "level": 5,
       "tag": "AMG00630",
       "ja": "期末月日",
@@ -3815,7 +3892,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 347,
+      "no": 354,
       "level": 5,
       "tag": "AMG00640",
       "ja": "支払手形",
@@ -3826,7 +3903,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 348,
+      "no": 355,
       "level": 5,
       "tag": "AMG00650",
       "ja": "買掛金",
@@ -3837,7 +3914,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 349,
+      "no": 356,
       "level": 5,
       "tag": "AMG00660",
       "ja": "借入金",
@@ -3848,7 +3925,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 350,
+      "no": 357,
       "level": 5,
       "tag": "AMG00670",
       "ja": "未払金",
@@ -3859,7 +3936,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 351,
+      "no": 358,
       "level": 5,
       "tag": "AMG00680",
       "ja": "前受金",
@@ -3870,7 +3947,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 352,
+      "no": 359,
       "level": 5,
       "tag": "AMG00690",
       "ja": "預り金",
@@ -3881,7 +3958,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 353,
+      "no": 360,
       "level": 5,
       "tag": "AMG00710",
       "ja": "貸倒引当金",
@@ -3892,7 +3969,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 354,
+      "no": 361,
       "level": 5,
       "tag": "AMG00730",
       "ja": "事業主借",
@@ -3903,7 +3980,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 355,
+      "no": 362,
       "level": 5,
       "tag": "AMG00740",
       "ja": "元入金",
@@ -3914,7 +3991,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 356,
+      "no": 363,
       "level": 5,
       "tag": "AMG00750",
       "ja": "青色申告特別控除前の所得金額",
@@ -3925,7 +4002,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 357,
+      "no": 364,
       "level": 5,
       "tag": "AMG00760",
       "ja": "合計",
@@ -3936,7 +4013,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 358,
+      "no": 365,
       "level": 2,
       "tag": "AMH00000",
       "ja": "製造原価の計算",
@@ -3947,7 +4024,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 359,
+      "no": 366,
       "level": 3,
       "tag": "AMH00020",
       "ja": "原材料費",
@@ -3958,7 +4035,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 360,
+      "no": 367,
       "level": 4,
       "tag": "AMH00030",
       "ja": "期首原材料棚卸高",
@@ -3969,7 +4046,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 361,
+      "no": 368,
       "level": 4,
       "tag": "AMH00040",
       "ja": "原材料仕入高",
@@ -3980,7 +4057,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 362,
+      "no": 369,
       "level": 4,
       "tag": "AMH00050",
       "ja": "小計",
@@ -3991,7 +4068,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 363,
+      "no": 370,
       "level": 4,
       "tag": "AMH00060",
       "ja": "期末原材料棚卸高",
@@ -4002,7 +4079,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 364,
+      "no": 371,
       "level": 4,
       "tag": "AMH00070",
       "ja": "差引原材料費",
@@ -4013,7 +4090,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 365,
+      "no": 372,
       "level": 3,
       "tag": "AMH00080",
       "ja": "労務費",
@@ -4024,7 +4101,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 366,
+      "no": 373,
       "level": 3,
       "tag": "AMH00090",
       "ja": "その他の製造経費",
@@ -4035,7 +4112,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 367,
+      "no": 374,
       "level": 4,
       "tag": "AMH00100",
       "ja": "外注工賃",
@@ -4046,7 +4123,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 368,
+      "no": 375,
       "level": 4,
       "tag": "AMH00110",
       "ja": "電力費",
@@ -4057,7 +4134,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 369,
+      "no": 376,
       "level": 4,
       "tag": "AMH00120",
       "ja": "水道光熱費",
@@ -4068,7 +4145,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 370,
+      "no": 377,
       "level": 4,
       "tag": "AMH00130",
       "ja": "修繕費",
@@ -4079,7 +4156,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 371,
+      "no": 378,
       "level": 4,
       "tag": "AMH00140",
       "ja": "減価償却費",
@@ -4090,7 +4167,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 372,
+      "no": 379,
       "level": 4,
       "tag": "AMH00145",
       "ja": "追加科目　繰り返し",
@@ -4098,21 +4175,21 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 8
+      "maxOccurs": 6
     },
     {
-      "no": 373,
+      "no": 380,
       "level": 5,
       "tag": "AMH00010",
       "ja": "科目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AMH00010-11-0Rtype",
+      "refType": "AMH00010-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 374,
+      "no": 381,
       "level": 5,
       "tag": "AMH00150",
       "ja": "金額",
@@ -4123,7 +4200,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 375,
+      "no": 382,
       "level": 4,
       "tag": "AMH00160",
       "ja": "雑費",
@@ -4134,7 +4211,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 376,
+      "no": 383,
       "level": 4,
       "tag": "AMH00170",
       "ja": "計",
@@ -4145,7 +4222,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 377,
+      "no": 384,
       "level": 3,
       "tag": "AMH00180",
       "ja": "総製造費",
@@ -4156,7 +4233,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 378,
+      "no": 385,
       "level": 3,
       "tag": "AMH00190",
       "ja": "期首半製品・仕掛品棚卸高",
@@ -4167,7 +4244,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 379,
+      "no": 386,
       "level": 3,
       "tag": "AMH00200",
       "ja": "小計",
@@ -4178,7 +4255,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 380,
+      "no": 387,
       "level": 3,
       "tag": "AMH00210",
       "ja": "期末半製品・仕掛品棚卸高",
@@ -4189,13 +4266,123 @@
       "maxOccurs": 1
     },
     {
-      "no": 381,
+      "no": 388,
       "level": 3,
       "tag": "AMH00220",
       "ja": "製品製造原価",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 389,
+      "level": 2,
+      "tag": "AMM00000",
+      "ja": "所得税の棚卸資産・有価証券・暗号資産の評価方法、減価償却資産の償却方法の届出・変更承認申請　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 3
+    },
+    {
+      "no": 390,
+      "level": 3,
+      "tag": "AMM00010",
+      "ja": "届出又は変更承認申請の別",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 391,
+      "level": 3,
+      "tag": "AMM00020",
+      "ja": "届出又は変更承認申請を行う資産の種別",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 392,
+      "level": 3,
+      "tag": "AMM00030",
+      "ja": "事業の種類又は資産・設備の種類",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AMM00030-12-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 393,
+      "level": 3,
+      "tag": "AMM00040",
+      "ja": "資産の区分又は構造・用途・品目",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AMM00040-12-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 394,
+      "level": 3,
+      "tag": "AMM00050",
+      "ja": "採用しようとする新たな評価方法又は償却方法",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AMM00050-12-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 395,
+      "level": 3,
+      "tag": "AMM00060",
+      "ja": "現在の評価方法又は償却方法",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 396,
+      "level": 4,
+      "tag": "AMM00070",
+      "ja": "現在の評価方法又は償却方法",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AMM00070-12-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 397,
+      "level": 4,
+      "tag": "AMM00080",
+      "ja": "採用した年",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yy",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 398,
+      "level": 3,
+      "tag": "AMM00090",
+      "ja": "摘要",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AMM00090-12-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     }

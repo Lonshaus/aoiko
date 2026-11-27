@@ -365,7 +365,7 @@ export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
   const isWhite = ctx.filingType === 'white';
-  // ABA00090 の「住所（上段）」は納税地を指すため、住所地以外が納税地のときだけ下段に住所を書く
+  // ABA00090 の「納税地（上段）」は納税地を指すため、住所地以外が納税地のときだけ下段に住所を書く
   if ((ctx.filer.taxPlaceKind ?? 'domicile') !== 'domicile') {
     const domicile = filerDomicile(ctx.filer);
     if (domicile) {

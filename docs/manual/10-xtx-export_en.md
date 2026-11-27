@@ -16,9 +16,9 @@ Generate an e-Tax `.xtx` file and load it into e-Tax software (download edition)
 
 `.xtx` is the XML filing-data file that **e-Tax software (download edition)** accepts via "組み込み" (load). Per the **NTA official W3C XSD** (from e-tax19 "XML schema"), aoiko bundles the following into one `.xtx`:
 
-- **KOA020-023**: tax return, pages 1 and 2 (第一表・第二表)
-- **KOA210-011**: blue-return financial statements (general), or **KOA110-012**: income/expense breakdown statement (general) for white return — decided by **Settings > Filer info > Filing type**
-- **KOA220-008**: blue-return financial statements (real estate income), or **KOA130-009**: income/expense breakdown statement (real estate income) — attached alongside the business statement above only when **Settings > Use real estate income** is on and real estate income has been entered in [14. Income & tax deductions](14-income-deductions_en.md)
+- **KOA020-024**: tax return, pages 1 and 2 (第一表・第二表)
+- **KOA210-012**: blue-return financial statements (general), or **KOA110-013**: income/expense breakdown statement (general) for white return — decided by **Settings > Filer info > Filing type**
+- **KOA220-009**: blue-return financial statements (real estate income), or **KOA130-010**: income/expense breakdown statement (real estate income) — attached alongside the business statement above only when **Settings > Use real estate income** is on and real estate income has been entered in [14. Income & tax deductions](14-income-deductions_en.md)
 - **TEA060**: filing/transmission slip
 - **Procedure code**: `RKO0010` (income tax & special reconstruction income tax return)
 
@@ -93,7 +93,7 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 8. If there's real estate income, the real estate income section in [14. Income & tax deductions](14-income-deductions_en.md) is filled in and saved (export is refused otherwise — this figure determines the cap on the blue-return special deduction, so aoiko never outputs a guessed amount in its absence)
 9. The amounts on the Deductions screen and in the fixed assets (real estate) in Settings are whole numbers of yen (the `.xtx` cannot be exported if an amount cannot be read or has a decimal part; correct it to a whole number of yen and save. Fixed assets (real estate) count only when real estate income is enabled in Settings)
 10. When real estate income is enabled, no property detail of the fixed assets (real estate) in Settings has an item that cannot be read as text (the `.xtx` cannot be exported otherwise; open the property detail, check it, and save)
-11. For a blue return, no balance sheet account is left over from the additional-account fields (accounts without a field on the form, such as accumulated depreciation or your own custom accounts, go into the additional-account fields, with a limit of 7 asset accounts and 14 liability and equity accounts. Beyond that the `.xtx` cannot be exported, and the accounts that don't fit are listed)
+11. For a blue return, no balance sheet account is left over from the additional-account fields (accounts without a field on the form, such as accumulated depreciation or your own custom accounts, go into the additional-account fields, with a limit of 5 asset accounts and 12 liability and equity accounts. Beyond that the `.xtx` cannot be exported, and the accounts that don't fit are listed)
 
 When you press the export button, if any of the following applies, aoiko creates no `.xtx` and stops with the reason shown at the top of the screen. They are checked in this order.
 

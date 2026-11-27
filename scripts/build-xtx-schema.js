@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// 国税庁公式 W3C XSD（e-tax19.CAB「XMLスキーマ」由来、docs/xtx-spec/）から
-// .xtx 出力用の構造化 JSON を生成する。
+// 国税庁公式 W3C XSD（e-Tax 仕様公開 CAB の「XMLスキーマ」由来、docs/xtx-spec/）から
+// .xtx 出力用の構造化 JSON を生成する。所得税の様式は令和9年1月4日受付開始分
+// （KOA020 24.0・KOA110 13.0・KOA130 10.0・KOA210 12.0・KOA220 9.0）。
 //
 // 出力（src/tax-schema/2026/）：
 //  - xtx-schema-koa020.generated.json … 確定申告書（参照側ツリー + 定義側カタログ）
@@ -18,14 +19,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 const SPEC = join(ROOT, 'docs/xtx-spec');
 const OUT = join(ROOT, 'src/tax-schema/2026');
-const FETCHED_AT = '2026-05-16';
+const FETCHED_AT = { shotoku: '2026-11-26', shohi: '2026-05-16' };
+const SOURCE_CAB = { shotoku: 'e-taxall.CAB', shohi: 'e-tax19.CAB' };
 
 const EXPECTED_SHA256 = {
-  'shotoku/KOA020-023.xsd': '8de959bacc36112f0ae6972dadc809a9f793dd30da169af98f83ee5c91107d0d',
-  'shotoku/KOA210-011.xsd': '806d4a5e3ee8e33ef82ec5904e12088e6c1f9e37ac0eedeb549facecadf60313',
-  'shotoku/KOA110-012.xsd': 'cab3142f8ef4e520951010d95220ea9ef32af9c1fba678c78c590e2b6e80da3f',
-  'shotoku/KOA220-008.xsd': '7de9fd5faa8437ff5fcd0439564cc534d9388f0d04eb646e47b50f7c55892d78',
-  'shotoku/KOA130-009.xsd': 'e52eaa460b0f0d3ae6fc970657a57e1146bfd42dd5138fc532c25651d471ebdc',
+  'shotoku/KOA020-024.xsd': '6d61b49e124e893bf5d7b245b044189e711730d60c98fd518b7be49054e5e183',
+  'shotoku/KOA210-012.xsd': '9bed1357e4ba81bd2a99bbfc021b1e9b951173f541f50d0b5b90818252c97584',
+  'shotoku/KOA110-013.xsd': '94f2858b163167692b3a1b11c52d38cae0877c97809958350095e8d30ed21291',
+  'shotoku/KOA220-009.xsd': 'a0139de326f16926a98f407b0dd63359d74f3501be172630c301f1742144886b',
+  'shotoku/KOA130-010.xsd': '3d2457e715a92d736f2409083d5080929b6071f95316dd3f4afdf9aa25531512',
   'shohi/SHA020-009.xsd': '977957b3407eb3b1ac0888ae86ac77cb1e2b1bf048ef0b272db98a45e8968d53',
   'shohi/SHB070-001.xsd': '25a603aa463d35803264ed2c55ad39a76146723fd6fa727b1a31a93bb6448fbc',
   'shohi/SHB047-001.xsd': 'db0fb768bd9868a26d2b3ad8639c82c8c68b8a44b964fb845795f78f19719dbe',
@@ -325,8 +327,8 @@ function metaOf(schema, formId, rel) {
     formName,
     namespace: ns,
     version,
-    source: `e-tax19.CAB ${rel}`,
-    fetchedAt: FETCHED_AT,
+    source: `${SOURCE_CAB[rel.split('/')[0]]} ${rel}`,
+    fetchedAt: FETCHED_AT[rel.split('/')[0]],
   };
 }
 
@@ -350,35 +352,35 @@ function main() {
   const idrefMap = buildIdrefMap();
   const definitions = buildDefinitions();
   buildForm(
-    'shotoku/KOA020-023.xsd',
+    'shotoku/KOA020-024.xsd',
     'KOA020',
     'xtx-schema-koa020.generated.json',
     idrefMap,
     definitions,
   );
   buildForm(
-    'shotoku/KOA210-011.xsd',
+    'shotoku/KOA210-012.xsd',
     'KOA210',
     'xtx-schema-koa210.generated.json',
     idrefMap,
     definitions,
   );
   buildForm(
-    'shotoku/KOA110-012.xsd',
+    'shotoku/KOA110-013.xsd',
     'KOA110',
     'xtx-schema-koa110.generated.json',
     idrefMap,
     definitions,
   );
   buildForm(
-    'shotoku/KOA220-008.xsd',
+    'shotoku/KOA220-009.xsd',
     'KOA220',
     'xtx-schema-koa220.generated.json',
     idrefMap,
     definitions,
   );
   buildForm(
-    'shotoku/KOA130-009.xsd',
+    'shotoku/KOA130-010.xsd',
     'KOA130',
     'xtx-schema-koa130.generated.json',
     idrefMap,

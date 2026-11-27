@@ -9,14 +9,14 @@ const k210 = koa210 as XtxSchema;
 describe('xtx-schema (e-tax19 XSD 由来)', () => {
   test('KOA020 メタが令和8年分のスキーマと正式名前空間 URI を持つ', () => {
     expect(k020.meta.formId).toBe('KOA020');
-    expect(k020.meta.version).toBe('23.0');
+    expect(k020.meta.version).toBe('24.0');
     expect(k020.meta.namespace).toBe('http://xml.e-tax.nta.go.jp/XSD/shotoku');
-    expect(k020.meta.source).toContain('KOA020-023.xsd');
+    expect(k020.meta.source).toContain('KOA020-024.xsd');
   });
 
   test('KOA210 メタが青色申告決算書(一般用)', () => {
     expect(k210.meta.formId).toBe('KOA210');
-    expect(k210.meta.version).toBe('11.0');
+    expect(k210.meta.version).toBe('12.0');
     expect(k210.meta.formName).toContain('青色申告決算書');
     expect(k210.meta.namespace).toBe('http://xml.e-tax.nta.go.jp/XSD/shotoku');
   });

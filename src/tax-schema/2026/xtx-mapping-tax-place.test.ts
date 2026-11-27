@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { buildXtx2026, type XtxContext, type XtxFiler } from './xtx';
 import koa020Schema from './xtx-schema-koa020.generated.json';
+import koa110Schema from './xtx-schema-koa110.generated.json';
+import koa130Schema from './xtx-schema-koa130.generated.json';
+import koa210Schema from './xtx-schema-koa210.generated.json';
+import koa220Schema from './xtx-schema-koa220.generated.json';
 import type { XtxSchema } from './xtx-schema';
 import { mapKoa020LeafValues, mapKoa020RawValues } from './xtx-mapping-koa020';
 import { mapKoa110Values } from './xtx-mapping-koa110';
@@ -183,10 +187,11 @@ describe('.xtx への出力', () => {
 });
 
 describe('KOA020 ABA00070（納税地区分）', () => {
-  test('生成スキーマで ID 属性を持つ branch は ABA00070 だけ', () => {
-    const withId = (koa020Schema as XtxSchema).refTree.filter((e) => e.hasId === true);
-    expect(withId.map((e) => e.tag)).toEqual(['ABA00070']);
-    expect(withId[0]?.kind).toBe('branch');
+  test('生成スキーマに ID 属性を持つ branch は無い', () => {
+    const schemas = [koa020Schema, koa110Schema, koa130Schema, koa210Schema, koa220Schema];
+    for (const schema of schemas as XtxSchema[]) {
+      expect(schema.refTree.filter((e) => e.hasId === true)).toEqual([]);
+    }
   });
 
   test.each([
@@ -197,7 +202,7 @@ describe('KOA020 ABA00070（納税地区分）', () => {
       ABA00070: `<kubun_CD>${code}</kubun_CD>`,
     });
     const xtx = buildXtx2026(ctx({ taxPlaceKind: kind }));
-    const element = `<ABA00070 ID="ABA00070"><kubun_CD>${code}</kubun_CD></ABA00070>`;
+    const element = `<ABA00070><kubun_CD>${code}</kubun_CD></ABA00070>`;
     const parent = /<ABA00060>[\s\S]*?<\/ABA00060>/.exec(xtx);
     expect(parent).not.toBeNull();
     expect(parent![0]).toContain(element);
