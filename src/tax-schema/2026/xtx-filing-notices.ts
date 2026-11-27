@@ -48,6 +48,36 @@ export interface XtxFilingNoticeTags {
   detailMemo: string;
 }
 
+function filingNoticeTags(
+  page1: string,
+  detailBlock: string,
+  detailPrefix: string,
+): XtxFilingNoticeTags {
+  return {
+    closure: `${page1}10`,
+    closureDate: `${page1}20`,
+    withdrawal: `${page1}30`,
+    withdrawalYear: `${page1}40`,
+    numberBlock: `${page1}50`,
+    numberKubun: `${page1}60`,
+    detailBlock,
+    detailKind: `${detailPrefix}10`,
+    detailAssetType: `${detailPrefix}20`,
+    detailBusinessOrAssetType: `${detailPrefix}30`,
+    detailAssetClass: `${detailPrefix}40`,
+    detailNewMethod: `${detailPrefix}50`,
+    detailCurrentGroup: `${detailPrefix}60`,
+    detailCurrentMethod: `${detailPrefix}70`,
+    detailCurrentYear: `${detailPrefix}80`,
+    detailMemo: `${detailPrefix}90`,
+  };
+}
+
+export const KOA110_FILING_NOTICE_TAGS = filingNoticeTags('AIS000', 'AIT00000', 'AIT000');
+export const KOA130_FILING_NOTICE_TAGS = filingNoticeTags('AKS000', 'AKT00000', 'AKT000');
+export const KOA210_FILING_NOTICE_TAGS = filingNoticeTags('AMJ000', 'AMM00000', 'AMM000');
+export const KOA220_FILING_NOTICE_TAGS = filingNoticeTags('ANI000', 'ANG00700', 'ANG007');
+
 export interface XtxFilingNoticeOutput {
   leafValues: XtxLeafValues;
   raw: XtxRawValues;

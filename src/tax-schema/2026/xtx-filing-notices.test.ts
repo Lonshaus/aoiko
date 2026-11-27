@@ -2,6 +2,10 @@ import { describe, expect, test } from 'vitest';
 import {
   buildFilingNoticeValues,
   filingNoticeRows,
+  KOA110_FILING_NOTICE_TAGS,
+  KOA130_FILING_NOTICE_TAGS,
+  KOA210_FILING_NOTICE_TAGS,
+  KOA220_FILING_NOTICE_TAGS,
   XtxFilingNoticeTextTooLongError,
   type XtxFilingNotices,
   type XtxFilingNoticeTags,
@@ -10,6 +14,10 @@ import {
 import { buildFormFragment } from './xtx-document';
 import { maxOccursOf } from './xtx-mapping-shared';
 import type { XtxSchema } from './xtx-schema';
+import koa110 from './xtx-schema-koa110.generated.json';
+import koa130 from './xtx-schema-koa130.generated.json';
+import koa210 from './xtx-schema-koa210.generated.json';
+import koa220 from './xtx-schema-koa220.generated.json';
 
 const TAGS: XtxFilingNoticeTags = {
   closure: 'AMJ00010',
@@ -404,4 +412,24 @@ describe('filingNoticeRows', () => {
   test('内容が無ければ空', () => {
     expect(filingNoticeRows({ methodApplications: [] })).toEqual([]);
   });
+});
+
+describe('様式ごとの届出事項タグ', () => {
+  test.each([
+    ['KOA110', koa110, KOA110_FILING_NOTICE_TAGS],
+    ['KOA130', koa130, KOA130_FILING_NOTICE_TAGS],
+    ['KOA210', koa210, KOA210_FILING_NOTICE_TAGS],
+    ['KOA220', koa220, KOA220_FILING_NOTICE_TAGS],
+  ] as const)(
+    '%s のタグはすべて様式 schema に存在し、番号は4件・明細は3件まで',
+    (_id, json, tags) => {
+      const formSchema = json as XtxSchema;
+      const known = new Set(formSchema.refTree.map((e) => e.tag));
+      for (const tag of Object.values(tags)) {
+        expect(known.has(tag), tag).toBe(true);
+      }
+      expect(maxOccursOf(formSchema, tags.numberBlock)).toBe(4);
+      expect(maxOccursOf(formSchema, tags.detailBlock)).toBe(3);
+    },
+  );
 });

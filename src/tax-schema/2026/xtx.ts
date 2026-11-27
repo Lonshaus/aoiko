@@ -38,7 +38,16 @@ import type { IncomeDeductionInput, TaxCreditInput } from './income-deductions';
 import type { OtherIncomeInput } from './other-income';
 import type { RealEstateIncomeCtx } from './real-estate-income';
 import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
-import { filingNoticeRows, type XtxFilingNotices } from './xtx-filing-notices';
+import {
+  buildFilingNoticeValues,
+  filingNoticeRows,
+  KOA110_FILING_NOTICE_TAGS,
+  KOA130_FILING_NOTICE_TAGS,
+  KOA210_FILING_NOTICE_TAGS,
+  KOA220_FILING_NOTICE_TAGS,
+  type XtxFilingNoticeOutput,
+  type XtxFilingNotices,
+} from './xtx-filing-notices';
 import {
   koa020DetailOverflow,
   mapKoa020LeafValues,
@@ -153,6 +162,29 @@ const KOA210_SCHEMA = koa210 as XtxSchema;
 const KOA110_SCHEMA = koa110 as XtxSchema;
 const KOA220_SCHEMA = koa220 as XtxSchema;
 const KOA130_SCHEMA = koa130 as XtxSchema;
+function businessNoticeOutput(ctx: XtxContext): XtxFilingNoticeOutput {
+  return ctx.filingType === 'white'
+    ? buildFilingNoticeValues(ctx.filingNotices?.business, KOA110_SCHEMA, KOA110_FILING_NOTICE_TAGS)
+    : buildFilingNoticeValues(
+        ctx.filingNotices?.business,
+        KOA210_SCHEMA,
+        KOA210_FILING_NOTICE_TAGS,
+      );
+}
+
+function realEstateNoticeOutput(ctx: XtxContext): XtxFilingNoticeOutput {
+  return ctx.filingType === 'white'
+    ? buildFilingNoticeValues(
+        ctx.filingNotices?.realEstate,
+        KOA130_SCHEMA,
+        KOA130_FILING_NOTICE_TAGS,
+      )
+    : buildFilingNoticeValues(
+        ctx.filingNotices?.realEstate,
+        KOA220_SCHEMA,
+        KOA220_FILING_NOTICE_TAGS,
+      );
+}
 // フォーム入力の生文字列がそのまま保存されているため、読めない値・負の値は例外を投げず 0 扱いにする。
 function toDec(s: string): Decimal {
   return parseAmountInput(s) ?? D(0);
@@ -397,7 +429,9 @@ export function xtxDetailOverflow(ctx: XtxContext): XtxDetailOverflowItem[] {
     return [
       ...withForm('KOA020', koa020DetailOverflow(ctx)),
       ...withForm('KOA110', koa110DetailOverflow(ctx)),
+      ...withForm('KOA110', businessNoticeOutput(ctx).overflow),
       ...(ctx.realEstatePl ? withForm('KOA130', koa130DetailOverflow(ctx)) : []),
+      ...(ctx.realEstatePl ? withForm('KOA130', realEstateNoticeOutput(ctx).overflow) : []),
       ...(realEstateNotices && !ctx.realEstatePl
         ? withForm('KOA130', filingNoticeRows(realEstateNotices))
         : []),
@@ -406,7 +440,9 @@ export function xtxDetailOverflow(ctx: XtxContext): XtxDetailOverflowItem[] {
   return [
     ...withForm('KOA020', koa020DetailOverflow(ctx)),
     ...withForm('KOA210', koa210DetailOverflow(ctx)),
+    ...withForm('KOA210', businessNoticeOutput(ctx).overflow),
     ...(ctx.realEstatePl ? withForm('KOA220', koa220DetailOverflow(ctx)) : []),
+    ...(ctx.realEstatePl ? withForm('KOA220', realEstateNoticeOutput(ctx).overflow) : []),
     ...(realEstateNotices && !ctx.realEstatePl
       ? withForm('KOA220', filingNoticeRows(realEstateNotices))
       : []),
@@ -420,37 +456,47 @@ export function buildXtx2026(ctx: XtxContext): string {
   const creatorName = ctx.businessName.replace(/[\n\r\t]+/g, ' ').trim() || 'aoiko';
   // 事業用の決算書・収支内訳書は常に載る。不動産所得用（KOA220/KOA130）は
   // ctx.realEstatePl がある場合のみ追加で載せる（B7 part2、両方同時申告に対応）。
+  const businessNotices = businessNoticeOutput(ctx);
   const businessStatementForm: XtxFormInput =
     ctx.filingType === 'white'
       ? {
           schema: KOA110_SCHEMA,
           values: {},
-          leafValues: mapKoa110Values(ctx),
-          repeats: mapKoa110RepeatedValues(ctx),
+          leafValues: { ...mapKoa110Values(ctx), ...businessNotices.leafValues },
+          repeats: { ...mapKoa110RepeatedValues(ctx), ...businessNotices.repeats },
+          raw: businessNotices.raw,
+          repeatsRaw: businessNotices.repeatsRaw,
         }
       : {
           schema: KOA210_SCHEMA,
           values: {},
-          leafValues: mapKoa210Values(ctx),
-          repeats: mapKoa210RepeatedValues(ctx),
+          leafValues: { ...mapKoa210Values(ctx), ...businessNotices.leafValues },
+          repeats: { ...mapKoa210RepeatedValues(ctx), ...businessNotices.repeats },
+          raw: businessNotices.raw,
+          repeatsRaw: businessNotices.repeatsRaw,
         };
   if (ctx.realEstatePl && !ctx.personalDeductions?.realEstateIncome) {
     throw new RealEstateIncomeInputMissingError();
   }
-  const realEstateStatementForm: XtxFormInput | undefined = !ctx.realEstatePl
+  const realEstateNotices = ctx.realEstatePl ? realEstateNoticeOutput(ctx) : undefined;
+  const realEstateStatementForm: XtxFormInput | undefined = !realEstateNotices
     ? undefined
     : ctx.filingType === 'white'
       ? {
           schema: KOA130_SCHEMA,
           values: {},
-          leafValues: mapKoa130Values(ctx),
-          repeats: mapKoa130RepeatedValues(ctx),
+          leafValues: { ...mapKoa130Values(ctx), ...realEstateNotices.leafValues },
+          repeats: { ...mapKoa130RepeatedValues(ctx), ...realEstateNotices.repeats },
+          raw: realEstateNotices.raw,
+          repeatsRaw: realEstateNotices.repeatsRaw,
         }
       : {
           schema: KOA220_SCHEMA,
           values: {},
-          leafValues: mapKoa220Values(ctx),
-          repeats: mapKoa220RepeatedValues(ctx),
+          leafValues: { ...mapKoa220Values(ctx), ...realEstateNotices.leafValues },
+          repeats: { ...mapKoa220RepeatedValues(ctx), ...realEstateNotices.repeats },
+          raw: realEstateNotices.raw,
+          repeatsRaw: realEstateNotices.repeatsRaw,
         };
   return buildXtxBundle(
     [

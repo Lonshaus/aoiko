@@ -33,6 +33,7 @@ import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { FixedAsset } from '../../db/types';
 import type { XtxContext } from './xtx';
 import type { RealEstateIncomeCtx } from './real-estate-income';
+import type { XtxFilingNotices } from './xtx-filing-notices';
 // personalDeductions は Omit<IncomeDeductionInput,'totalIncome'> & TaxCreditInput &
 // OtherIncomeInput & { realEstateIncome? } の交差型のため、realEstateIncome だけの
 // 部分オブジェクトは型を満たさない。IncomeDeductionInput 側の必須項目を補ったヘルパー。
@@ -1539,4 +1540,113 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
       ]);
     });
   });
+});
+
+describe('届出事項を書いた様式の実 XSD 検証（公式 xsd / xmllint）', () => {
+  const notices: XtxFilingNotices = {
+    closureDate: '2026-06-30',
+    blueReturnWithdrawalYear: 2027,
+    methodApplications: [
+      {
+        kind: 'change',
+        assetType: 'inventory',
+        businessOrAssetType: '飲食業',
+        assetClass: '食材',
+        newMethod: '最終仕入原価法',
+        currentMethod: '総平均法',
+        currentAdoptedYear: 1985,
+        memo: '備考あり',
+      },
+      {
+        kind: 'notice',
+        assetType: 'depreciable',
+        businessOrAssetType: '飲食業',
+        assetClass: '機械装置',
+        newMethod: '定額法',
+      },
+      {
+        kind: 'change',
+        assetType: 'securities',
+        businessOrAssetType: '飲食業',
+        assetClass: '',
+        newMethod: '移動平均法',
+        currentMethod: '総平均法',
+        currentAdoptedYear: 1995,
+      },
+    ],
+  };
+
+  function ctxOf(filingType: 'blue' | 'white'): XtxContext {
+    return {
+      year: 2026,
+      businessName: 'aoikoウェブ事務所',
+      invoiceNumber: '',
+      monthly: { year: 2026, months: [], totalSales: '0', totalExpense: '0' },
+      pl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      bs: {
+        year: 2026,
+        asOf: '2026-12-31',
+        assets: [],
+        liabilities: [],
+        equity: [],
+        netIncome: '0',
+        totalAssets: '0',
+        totalLiabilitiesAndEquity: '0',
+        balanced: true,
+      },
+      filer: {
+        riyoshaId: '1234567890123456',
+        name: '青井 太郎',
+        zip: '1000001',
+        address: '京都府京都市中京区1-1',
+        zeimushoCode: '01101',
+        zeimushoName: '麹町',
+      },
+      filingType,
+      aoiroDeductionKind: filingType === 'blue' ? 'electronic' : 'none',
+      fixedAssets: [],
+      realEstatePl: {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      },
+      personalDeductions: withRealEstate({ businessScale: false }),
+      filingNotices: { business: notices, realEstate: notices },
+    };
+  }
+
+  const cases = [
+    ['blue', ['KOA210', 'KOA220']],
+    ['white', ['KOA110', 'KOA130']],
+  ] as const;
+  for (const [filingType, formIds] of cases) {
+    maybe(`届出事項つきの ${filingType} の様式 ${formIds.join('・')} が公式 xsd に適合する`, () => {
+      const xtx = buildXtx2026(ctxOf(filingType));
+      for (const tag of formIds) {
+        const m = new RegExp(`<${tag} [\\s\\S]*?</${tag}>`).exec(xtx);
+        expect(m, `${tag} subtree not found`).not.toBeNull();
+        expect(m![0]).toContain('<gen:era>3</gen:era><gen:yy>60</gen:yy>');
+        expect(m![0]).toContain('<gen:era>4</gen:era><gen:yy>7</gen:yy>');
+        const doc =
+          `<?xml version="1.0" encoding="UTF-8"?>\n` +
+          `<ValidationRoot xmlns="${NS}" xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general">\n${m![0]}\n</ValidationRoot>\n`;
+        const r = runXmllint(join(SPEC_DIR, `_valwrap-${tag}.xsd`), doc);
+        const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+        expect(out).not.toContain('Schemas parser error');
+        expect(r.status, `${tag}: ${out}`).toBe(0);
+      }
+    });
+  }
 });
