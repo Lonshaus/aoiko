@@ -52,11 +52,11 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
     expect(xml).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
     expect(xml).toContain('<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"');
     expect(xml).toContain('xmlns:gen="http://xml.e-tax.nta.go.jp/XSD/general"');
-    expect(xml).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
+    expect(xml).toContain('<RKO0010 VR="26.0.0" id="RKO0010">');
     expect(xml).toContain('<CATALOG id="CATALOG"><rdf:RDF');
     expect(xml).toContain('<CONTENTS id="CONTENTS">');
     expect(xml).toContain('<IT VR="1.5" id="IT">');
-    expect(xml).toContain('<SOFUSHO VR="15.0" fid="TEA060" id="TEA060-1"');
+    expect(xml).toContain('<SOFUSHO VR="16.0" fid="TEA060" id="TEA060-1"');
     expect(xml).toContain('</DATA>');
   });
 
@@ -164,7 +164,7 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
       firstPageLeaf(k210),
     );
     expect(xml).toMatch(
-      /<KOA210 VR="11\.0" id="KOA210-1" page="1" sakuseiDay="2026-05-13" sakuseiNM="青井事務所" softNM="aoiko">/,
+      /<KOA210 VR="12\.0" id="KOA210-1" page="1" sakuseiDay="2026-05-13" sakuseiNM="青井事務所" softNM="aoiko">/,
     );
     // ページ子要素は page 属性を持つ
     expect(xml).toContain('<KOA210-1 page="1">');
@@ -180,7 +180,7 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
   test('KOA020 でもエンベロープが組める', () => {
     const xml = buildXtxDocument(k020, { NENBUN: '08' }, {}, firstPageLeaf(k020));
     expect(xml).toContain('<DATA id="DATA"');
-    expect(xml).toMatch(/<KOA020 VR="23\.0" id="KOA020-1" page="1"/);
+    expect(xml).toMatch(/<KOA020 VR="24\.0" id="KOA020-1" page="1"/);
     expect(xml).toContain('<NENBUN ID="NENBUN"><gen:era>5</gen:era><gen:yy>08</gen:yy></NENBUN>');
   });
 
@@ -207,9 +207,9 @@ describe('buildXtxDocument (2 段式 ID/IDREF 文書モデル / 参照ファイ�
     expect(xml).toContain('<RSH0001 VR="12.0.0" id="RSH0001">');
   });
 
-  test('手続バージョンの既定は 25.0.1（RKO0010）', () => {
+  test('手続バージョンの既定は 26.0.0（RKO0010）', () => {
     const xml = buildXtxDocument(k210, { NENBUN: '08' });
-    expect(xml).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
+    expect(xml).toContain('<RKO0010 VR="26.0.0" id="RKO0010">');
   });
 });
 
@@ -281,6 +281,23 @@ describe('区分（kubun）ブランチの生 XML 上書き（raw、SHA020 ABY00
   test('raw のみのページも「実質データ有り」として出力される', () => {
     const frag = buildFormFragment(s020, {}, {}, {}, {}, { ABY00000: '<kubun_CD>1</kubun_CD>' });
     expect(frag).toMatch(/<SHA020-1 page="1">/);
+  });
+});
+
+describe('必須 ID 属性を持つ区分ブランチ（hasId）', () => {
+  const withId: XtxSchema = {
+    ...s020,
+    refTree: s020.refTree.map((e) => (e.tag === 'ABY00000' ? { ...e, hasId: true } : e)),
+  };
+
+  test('hasId のブランチは ID 属性を付けて出力する', () => {
+    const frag = buildFormFragment(withId, {}, {}, {}, {}, { ABY00000: '<kubun_CD>1</kubun_CD>' });
+    expect(frag).toContain('<ABY00000 ID="ABY00000"><kubun_CD>1</kubun_CD></ABY00000>');
+  });
+
+  test('hasId が無いブランチに ID 属性は付かない', () => {
+    const frag = buildFormFragment(s020, {}, {}, {}, {}, { ABY00000: '<kubun_CD>1</kubun_CD>' });
+    expect(frag).not.toContain('ABY00000 ID=');
   });
 });
 

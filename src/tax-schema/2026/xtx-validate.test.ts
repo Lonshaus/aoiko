@@ -1495,7 +1495,7 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
           businessPlaceAddress: '兵庫県神戸市中央区1-1',
         }),
       );
-      expect(xtx).toContain('<ABA00070 ID="ABA00070"><kubun_CD>5</kubun_CD></ABA00070>');
+      expect(xtx).toContain('<ABA00070><kubun_CD>5</kubun_CD></ABA00070>');
       expect(xtx).toContain('<ABA00095>大阪府大阪市北区1-1</ABA00095>');
       expect(xtx).toContain('<AMB00010>大阪府大阪市北区1-1</AMB00010>');
       expect(xtx).toContain('<AMB00050>兵庫県神戸市中央区1-1</AMB00050>');
@@ -1512,7 +1512,7 @@ describe('実 XSD 検証（公式 xsd / xmllint）', () => {
           domicileAddress: '大阪府大阪市北区1-1',
         }),
       );
-      expect(xtx).toContain('<ABA00070 ID="ABA00070"><kubun_CD>6</kubun_CD></ABA00070>');
+      expect(xtx).toContain('<ABA00070><kubun_CD>6</kubun_CD></ABA00070>');
       expect(xtx).toContain('<ABA00095>大阪府大阪市北区1-1</ABA00095>');
       expect(xtx).toContain('<AIB00010>大阪府大阪市北区1-1</AIB00010>');
       expect(xtx).toContain('<AIB00050>京都府京都市中京区1-1</AIB00050>');

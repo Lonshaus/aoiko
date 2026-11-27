@@ -3,9 +3,9 @@
     "formId": "KOA020",
     "formName": "年分の所得税及び復興特別所得税の__申告書(第一表・第二表)",
     "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
-    "version": "23.0",
-    "source": "e-tax19.CAB shotoku/KOA020-023.xsd",
-    "fetchedAt": "2026-05-16"
+    "version": "24.0",
+    "source": "e-taxall.CAB shotoku/KOA020-024.xsd",
+    "fetchedAt": "2026-11-26"
   },
   "refTree": [
     {
@@ -100,7 +100,7 @@
       "no": 9,
       "level": 4,
       "tag": "ABA00060",
-      "ja": "現在の住所（又は居所・事業所等）",
+      "ja": "納税地又は上記以外の住所地（又は居所・事業所等）",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -116,8 +116,7 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 1,
-      "hasId": true
+      "maxOccurs": 1
     },
     {
       "no": 11,
@@ -134,7 +133,7 @@
       "no": 12,
       "level": 5,
       "tag": "ABA00090",
-      "ja": "住所（上段）",
+      "ja": "納税地（上段）",
       "kind": "leaf",
       "idref": "NOZEISHA_ADR",
       "refType": "gen:NOZEISHA_ADRref",
@@ -145,7 +144,7 @@
       "no": 13,
       "level": 5,
       "tag": "ABA00095",
-      "ja": "住所（下段）",
+      "ja": "納税地（下段）",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:address",
@@ -243,28 +242,6 @@
     {
       "no": 22,
       "level": 4,
-      "tag": "ABA00180",
-      "ja": "世帯主の氏名",
-      "kind": "leaf",
-      "idref": "SETAINUSHI_NM",
-      "refType": "gen:SETAINUSHI_NMref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 23,
-      "level": 4,
-      "tag": "ABA00190",
-      "ja": "世帯主との続柄",
-      "kind": "leaf",
-      "idref": "SETAINUSHI_ZOKU",
-      "refType": "gen:SETAINUSHI_ZOKUref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 24,
-      "level": 4,
       "tag": "ABA00200",
       "ja": "生年月日",
       "kind": "leaf",
@@ -274,7 +251,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 25,
+      "no": 23,
       "level": 4,
       "tag": "ABA00220",
       "ja": "電話番号",
@@ -285,18 +262,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 26,
-      "level": 4,
-      "tag": "ABA00225",
-      "ja": "振替継続希望区分",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 27,
+      "no": 24,
       "level": 4,
       "tag": "ABA00230",
       "ja": "種類",
@@ -307,7 +273,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 28,
+      "no": 25,
       "level": 5,
       "tag": "ABA00240",
       "ja": "青色区分",
@@ -318,7 +284,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 29,
+      "no": 26,
       "level": 5,
       "tag": "ABA00250",
       "ja": "分離区分",
@@ -329,7 +295,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 30,
+      "no": 27,
       "level": 5,
       "tag": "ABA00252",
       "ja": "国出区分",
@@ -340,7 +306,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 31,
+      "no": 28,
       "level": 5,
       "tag": "ABA00253",
       "ja": "損失区分",
@@ -351,7 +317,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 32,
+      "no": 29,
       "level": 5,
       "tag": "ABA00256",
       "ja": "修正区分",
@@ -362,7 +328,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 33,
+      "no": 30,
       "level": 4,
       "tag": "ABA00260",
       "ja": "特農の表示区分",
@@ -373,7 +339,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 34,
+      "no": 31,
       "level": 2,
       "tag": "ABB00000",
       "ja": "申告内容（第一表）",
@@ -384,7 +350,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 35,
+      "no": 32,
       "level": 3,
       "tag": "ABB00010",
       "ja": "収入金額等",
@@ -395,7 +361,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 36,
+      "no": 33,
       "level": 4,
       "tag": "ABB00020",
       "ja": "事業",
@@ -406,18 +372,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 37,
+      "no": 34,
       "level": 5,
       "tag": "ABB00025",
       "ja": "営業等　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00025-23-0type",
+      "refType": "ABB00025-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 38,
+      "no": 35,
       "level": 5,
       "tag": "ABB00030",
       "ja": "営業等　金額",
@@ -428,18 +394,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 39,
+      "no": 36,
       "level": 5,
       "tag": "ABB00035",
       "ja": "農業　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00035-23-0type",
+      "refType": "ABB00035-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 40,
+      "no": 37,
       "level": 5,
       "tag": "ABB00040",
       "ja": "農業　金額",
@@ -450,29 +416,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 41,
+      "no": 38,
       "level": 4,
       "tag": "ABB00043",
       "ja": "不動産　区分１",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00043-23-0type",
+      "refType": "ABB00043-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 42,
+      "no": 39,
       "level": 4,
       "tag": "ABB00046",
       "ja": "不動産　区分２",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00046-23-0type",
+      "refType": "ABB00046-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 43,
+      "no": 40,
       "level": 4,
       "tag": "ABB00050",
       "ja": "不動産　金額",
@@ -483,7 +449,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 44,
+      "no": 41,
       "level": 4,
       "tag": "ABB00070",
       "ja": "配当",
@@ -494,18 +460,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 45,
+      "no": 42,
       "level": 4,
       "tag": "ABB00075",
       "ja": "給与　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00075-23-0type",
+      "refType": "ABB00075-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 46,
+      "no": 43,
       "level": 4,
       "tag": "ABB00080",
       "ja": "給与　金額",
@@ -516,7 +482,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 47,
+      "no": 44,
       "level": 4,
       "tag": "ABB00090",
       "ja": "雑",
@@ -527,7 +493,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 48,
+      "no": 45,
       "level": 5,
       "tag": "ABB00100",
       "ja": "公的年金等",
@@ -538,18 +504,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 49,
+      "no": 46,
       "level": 5,
       "tag": "ABB00103",
       "ja": "業務　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00103-23-0type",
+      "refType": "ABB00103-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 50,
+      "no": 47,
       "level": 5,
       "tag": "ABB00105",
       "ja": "業務　金額",
@@ -560,18 +526,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 51,
+      "no": 48,
       "level": 5,
       "tag": "ABB00107",
       "ja": "その他　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00107-23-0type",
+      "refType": "ABB00107-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 52,
+      "no": 49,
       "level": 5,
       "tag": "ABB00110",
       "ja": "その他　金額",
@@ -582,7 +548,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 53,
+      "no": 50,
       "level": 4,
       "tag": "ABB00120",
       "ja": "総合譲渡",
@@ -593,7 +559,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 54,
+      "no": 51,
       "level": 5,
       "tag": "ABB00130",
       "ja": "短期",
@@ -604,7 +570,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 55,
+      "no": 52,
       "level": 5,
       "tag": "ABB00180",
       "ja": "長期",
@@ -615,7 +581,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 56,
+      "no": 53,
       "level": 4,
       "tag": "ABB00230",
       "ja": "一時",
@@ -626,7 +592,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 57,
+      "no": 54,
       "level": 3,
       "tag": "ABB00270",
       "ja": "所得金額等",
@@ -637,7 +603,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 58,
+      "no": 55,
       "level": 4,
       "tag": "ABB00280",
       "ja": "事業",
@@ -648,7 +614,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 59,
+      "no": 56,
       "level": 5,
       "tag": "ABB00300",
       "ja": "営業等",
@@ -659,7 +625,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 60,
+      "no": 57,
       "level": 5,
       "tag": "ABB00320",
       "ja": "農業",
@@ -670,18 +636,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 61,
+      "no": 58,
       "level": 4,
       "tag": "ABB00330",
       "ja": "不動産（特例表示）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00330-23-0Rtype",
+      "refType": "ABB00330-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 62,
+      "no": 59,
       "level": 4,
       "tag": "ABB00340",
       "ja": "不動産",
@@ -692,7 +658,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 63,
+      "no": 60,
       "level": 4,
       "tag": "ABB00350",
       "ja": "利子",
@@ -703,7 +669,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 64,
+      "no": 61,
       "level": 4,
       "tag": "ABB00360",
       "ja": "配当",
@@ -714,18 +680,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 65,
+      "no": 62,
       "level": 4,
       "tag": "ABB00365",
       "ja": "給与　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00365-23-0type",
+      "refType": "ABB00365-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 66,
+      "no": 63,
       "level": 4,
       "tag": "ABB00370",
       "ja": "給与　金額",
@@ -736,7 +702,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 67,
+      "no": 64,
       "level": 4,
       "tag": "ABB01050",
       "ja": "雑",
@@ -747,7 +713,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 68,
+      "no": 65,
       "level": 5,
       "tag": "ABB01060",
       "ja": "公的年金等",
@@ -758,7 +724,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 69,
+      "no": 66,
       "level": 5,
       "tag": "ABB01070",
       "ja": "業務",
@@ -769,7 +735,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 70,
+      "no": 67,
       "level": 6,
       "tag": "ABB01090",
       "ja": "業務",
@@ -780,7 +746,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 71,
+      "no": 68,
       "level": 5,
       "tag": "ABB01100",
       "ja": "その他",
@@ -791,7 +757,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 72,
+      "no": 69,
       "level": 6,
       "tag": "ABB01120",
       "ja": "その他",
@@ -802,7 +768,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 73,
+      "no": 70,
       "level": 5,
       "tag": "ABB01130",
       "ja": "（７）から（９）までの計",
@@ -813,7 +779,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 74,
+      "no": 71,
       "level": 4,
       "tag": "ABB00400",
       "ja": "総合譲渡・一時",
@@ -824,7 +790,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 75,
+      "no": 72,
       "level": 4,
       "tag": "ABB00410",
       "ja": "合計",
@@ -835,7 +801,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 76,
+      "no": 73,
       "level": 3,
       "tag": "ABB00420",
       "ja": "所得から差し引かれる金額",
@@ -846,7 +812,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 77,
+      "no": 74,
       "level": 4,
       "tag": "ABB00430",
       "ja": "雑損控除",
@@ -857,18 +823,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 78,
+      "no": 75,
       "level": 4,
       "tag": "ABB00435",
       "ja": "医療費控除　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00435-23-0type",
+      "refType": "ABB00435-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 79,
+      "no": 76,
       "level": 4,
       "tag": "ABB00440",
       "ja": "医療費控除　控除額",
@@ -879,7 +845,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 80,
+      "no": 77,
       "level": 4,
       "tag": "ABB00450",
       "ja": "社会保険料控除",
@@ -890,7 +856,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 81,
+      "no": 78,
       "level": 4,
       "tag": "ABB00460",
       "ja": "小規模企業共済等掛金控除",
@@ -901,7 +867,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 82,
+      "no": 79,
       "level": 4,
       "tag": "ABB00470",
       "ja": "生命保険料控除",
@@ -912,7 +878,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 83,
+      "no": 80,
       "level": 4,
       "tag": "ABB00480",
       "ja": "地震保険料控除",
@@ -923,7 +889,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 84,
+      "no": 81,
       "level": 4,
       "tag": "ABB00490",
       "ja": "寄附金控除",
@@ -934,18 +900,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 85,
+      "no": 82,
       "level": 4,
       "tag": "ABB00495",
       "ja": "寡婦、ひとり親控除　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00495-23-0type",
+      "refType": "ABB00495-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 86,
+      "no": 83,
       "level": 4,
       "tag": "ABB00500",
       "ja": "寡婦、ひとり親控除　控除額",
@@ -956,7 +922,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 87,
+      "no": 84,
       "level": 4,
       "tag": "ABB00510",
       "ja": "勤労学生、障害者控除",
@@ -967,29 +933,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 88,
+      "no": 85,
       "level": 4,
       "tag": "ABB00515",
       "ja": "配偶者(特別)控除　区分１",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00515-23-0type",
+      "refType": "ABB00515-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 89,
+      "no": 86,
       "level": 4,
       "tag": "ABB00517",
       "ja": "配偶者(特別)控除　区分２",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00517-23-0type",
+      "refType": "ABB00517-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 90,
+      "no": 87,
       "level": 4,
       "tag": "ABB00520",
       "ja": "配偶者(特別)控除　控除額",
@@ -1000,18 +966,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 91,
+      "no": 88,
       "level": 4,
       "tag": "ABB00535",
       "ja": "扶養控除　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00535-23-0type",
+      "refType": "ABB00535-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 92,
+      "no": 89,
       "level": 4,
       "tag": "ABB00540",
       "ja": "扶養控除　控除額",
@@ -1022,7 +988,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 93,
+      "no": 90,
       "level": 4,
       "tag": "ABB00542",
       "ja": "特定親族特別控除",
@@ -1033,29 +999,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 94,
+      "no": 91,
       "level": 5,
       "tag": "ABB00544",
       "ja": "区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00544-23-0type",
+      "refType": "ABB00544-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 95,
+      "no": 92,
       "level": 5,
       "tag": "ABB00546",
       "ja": "人数",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00546-23-0type",
+      "refType": "ABB00546-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 96,
+      "no": 93,
       "level": 5,
       "tag": "ABB00548",
       "ja": "控除額",
@@ -1066,7 +1032,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 97,
+      "no": 94,
       "level": 4,
       "tag": "ABB00550",
       "ja": "基礎控除",
@@ -1077,7 +1043,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 98,
+      "no": 95,
       "level": 4,
       "tag": "ABB00555",
       "ja": "（１３）から（２５）までの計",
@@ -1088,7 +1054,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 99,
+      "no": 96,
       "level": 4,
       "tag": "ABB00560",
       "ja": "合計",
@@ -1099,7 +1065,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 100,
+      "no": 97,
       "level": 3,
       "tag": "ABB00570",
       "ja": "税金の計算",
@@ -1110,7 +1076,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 101,
+      "no": 98,
       "level": 4,
       "tag": "ABB00580",
       "ja": "課税される所得金額又は第三表",
@@ -1121,7 +1087,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 102,
+      "no": 99,
       "level": 4,
       "tag": "ABB00590",
       "ja": "上の（３１）に対する税額又は第三表の（９４）",
@@ -1132,7 +1098,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 103,
+      "no": 100,
       "level": 4,
       "tag": "ABB00600",
       "ja": "配当控除",
@@ -1143,7 +1109,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 104,
+      "no": 101,
       "level": 4,
       "tag": "ABB00610",
       "ja": "その他の税額控除",
@@ -1154,29 +1120,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 105,
+      "no": 102,
       "level": 5,
       "tag": "ABB00620",
       "ja": "税額控除の名称",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00620-23-0Rtype",
+      "refType": "ABB00620-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 106,
+      "no": 103,
       "level": 5,
       "tag": "ABB00630",
       "ja": "区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00630-23-0type",
+      "refType": "ABB00630-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 107,
+      "no": 104,
       "level": 5,
       "tag": "ABB00640",
       "ja": "控除額",
@@ -1187,29 +1153,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 108,
+      "no": 105,
       "level": 4,
       "tag": "ABB00645",
       "ja": "住借金等特別控除　区分１",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00645-23-0type",
+      "refType": "ABB00645-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 109,
+      "no": 106,
       "level": 4,
       "tag": "ABB00647",
       "ja": "住借金等特別控除　区分２",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00647-23-0type",
+      "refType": "ABB00647-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 110,
+      "no": 107,
       "level": 4,
       "tag": "ABB00650",
       "ja": "住借金等特別控除　控除額",
@@ -1220,7 +1186,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 111,
+      "no": 108,
       "level": 4,
       "tag": "ABB00660",
       "ja": "政党等寄附金等特別控除",
@@ -1231,7 +1197,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 112,
+      "no": 109,
       "level": 4,
       "tag": "ABB00960",
       "ja": "住宅耐震改修特別控除等　区分",
@@ -1242,18 +1208,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 113,
+      "no": 110,
       "level": 5,
       "tag": "ABB01000",
       "ja": "区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB01000-23-0type",
+      "refType": "ABB01000-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 114,
+      "no": 111,
       "level": 4,
       "tag": "ABB00663",
       "ja": "住宅耐震改修特別控除等　控除額",
@@ -1264,7 +1230,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 115,
+      "no": 112,
       "level": 4,
       "tag": "ABB00670",
       "ja": "差引所得税額",
@@ -1275,18 +1241,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 116,
+      "no": 113,
       "level": 4,
       "tag": "ABB00676",
       "ja": "外国税額控除等　区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00676-23-0type",
+      "refType": "ABB00676-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 117,
+      "no": 114,
       "level": 4,
       "tag": "ABB00680",
       "ja": "災害減免額",
@@ -1297,7 +1263,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 118,
+      "no": 115,
       "level": 4,
       "tag": "ABB01010",
       "ja": "再差引所得税額",
@@ -1308,7 +1274,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 119,
+      "no": 116,
       "level": 4,
       "tag": "ABB01020",
       "ja": "復興特別所得税額",
@@ -1319,7 +1285,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 120,
+      "no": 117,
       "level": 4,
       "tag": "ABB01030",
       "ja": "所得税等の額",
@@ -1330,7 +1296,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 121,
+      "no": 118,
       "level": 4,
       "tag": "ABB01040",
       "ja": "外国税額控除等　控除額",
@@ -1341,7 +1307,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 122,
+      "no": 119,
       "level": 4,
       "tag": "ABB00710",
       "ja": "源泉徴収税額",
@@ -1352,7 +1318,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 123,
+      "no": 120,
       "level": 4,
       "tag": "ABB00720",
       "ja": "申告納税額",
@@ -1363,7 +1329,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 124,
+      "no": 121,
       "level": 4,
       "tag": "ABB00730",
       "ja": "予定納税額",
@@ -1374,7 +1340,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 125,
+      "no": 122,
       "level": 4,
       "tag": "ABB00740",
       "ja": "第３期分の税額",
@@ -1385,7 +1351,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 126,
+      "no": 123,
       "level": 5,
       "tag": "ABB00750",
       "ja": "納める税金",
@@ -1396,7 +1362,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 127,
+      "no": 124,
       "level": 5,
       "tag": "ABB00760",
       "ja": "還付される税金",
@@ -1407,7 +1373,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 128,
+      "no": 125,
       "level": 3,
       "tag": "ABB00763",
       "ja": "修正申告",
@@ -1418,7 +1384,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 129,
+      "no": 126,
       "level": 4,
       "tag": "ABB00765",
       "ja": "修正前の第３期分の税額",
@@ -1429,7 +1395,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 130,
+      "no": 127,
       "level": 4,
       "tag": "ABB00767",
       "ja": "第３期分の税額の増加額",
@@ -1440,7 +1406,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 131,
+      "no": 128,
       "level": 3,
       "tag": "ABB00770",
       "ja": "その他",
@@ -1451,7 +1417,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 132,
+      "no": 129,
       "level": 4,
       "tag": "ABB00775",
       "ja": "公的年金等以外の合計所得金額",
@@ -1462,7 +1428,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 133,
+      "no": 130,
       "level": 4,
       "tag": "ABB00780",
       "ja": "配偶者の合計所得金額",
@@ -1473,7 +1439,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 134,
+      "no": 131,
       "level": 4,
       "tag": "ABB00790",
       "ja": "専従者給与（控除）額の合計額",
@@ -1484,7 +1450,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 135,
+      "no": 132,
       "level": 4,
       "tag": "ABB00800",
       "ja": "青色申告特別控除額",
@@ -1495,7 +1461,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 136,
+      "no": 133,
       "level": 4,
       "tag": "ABB00810",
       "ja": "雑所得・一時所得等の源泉徴収税額の合計額",
@@ -1506,7 +1472,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 137,
+      "no": 134,
       "level": 4,
       "tag": "ABB00820",
       "ja": "未納付の源泉徴収税額",
@@ -1517,7 +1483,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 138,
+      "no": 135,
       "level": 4,
       "tag": "ABB00830",
       "ja": "本年分で差し引く繰越損失額",
@@ -1528,7 +1494,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 139,
+      "no": 136,
       "level": 4,
       "tag": "ABB00840",
       "ja": "平均課税対象金額",
@@ -1539,7 +1505,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 140,
+      "no": 137,
       "level": 4,
       "tag": "ABB00850",
       "ja": "変動・臨時所得金額",
@@ -1550,18 +1516,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 141,
+      "no": 138,
       "level": 5,
       "tag": "ABB00860",
       "ja": "区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABB00860-23-0type",
+      "refType": "ABB00860-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 142,
+      "no": 139,
       "level": 5,
       "tag": "ABB00870",
       "ja": "所得金額",
@@ -1572,7 +1538,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 143,
+      "no": 140,
       "level": 3,
       "tag": "ABB00880",
       "ja": "延納の届出",
@@ -1583,7 +1549,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 144,
+      "no": 141,
       "level": 4,
       "tag": "ABB00890",
       "ja": "申告期限までに納付する金額",
@@ -1594,7 +1560,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 145,
+      "no": 142,
       "level": 4,
       "tag": "ABB00900",
       "ja": "延納届出額",
@@ -1605,7 +1571,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 146,
+      "no": 143,
       "level": 3,
       "tag": "ABB00940",
       "ja": "還付される税金の受取場所",
@@ -1616,7 +1582,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 147,
+      "no": 144,
       "level": 4,
       "tag": "ABB00950",
       "ja": "口座",
@@ -1627,7 +1593,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 148,
+      "no": 145,
       "level": 2,
       "tag": "ABZ00000",
       "ja": "口座情報提供同意区分",
@@ -1638,7 +1604,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 149,
+      "no": 146,
       "level": 2,
       "tag": "ABZ40000",
       "ja": "口座情報利用同意区分",
@@ -1649,10 +1615,43 @@
       "maxOccurs": 1
     },
     {
-      "no": 150,
+      "no": 147,
       "level": 2,
-      "tag": "ABZ10000",
-      "ja": "通知希望区分（加算税）",
+      "tag": "ABZ40010",
+      "ja": "税理士署名欄",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 148,
+      "level": 3,
+      "tag": "ABZ40020",
+      "ja": "税理士法書面提出",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 149,
+      "level": 4,
+      "tag": "ABZ40030",
+      "ja": "３０条",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 150,
+      "level": 4,
+      "tag": "ABZ40040",
+      "ja": "３３条の２",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -1661,9 +1660,9 @@
     },
     {
       "no": 151,
-      "level": 2,
-      "tag": "ABZ20000",
-      "ja": "通知希望区分（予定納税）",
+      "level": 3,
+      "tag": "ABZ40050",
+      "ja": "税理士署名・電話番号",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -1672,6 +1671,28 @@
     },
     {
       "no": 152,
+      "level": 4,
+      "tag": "ABZ40060",
+      "ja": "税理士署名",
+      "kind": "leaf",
+      "idref": "DAIRI_NM",
+      "refType": "gen:DAIRI_NMref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 153,
+      "level": 4,
+      "tag": "ABZ40070",
+      "ja": "電話番号",
+      "kind": "leaf",
+      "idref": "DAIRI_TEL",
+      "refType": "gen:DAIRI_TELref",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 154,
       "level": 2,
       "tag": "ABZ30000",
       "ja": "通知希望区分（還付金振込）",
@@ -1682,7 +1703,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 153,
+      "no": 155,
       "level": 1,
       "tag": "KOA020-2",
       "ja": "申告書第二表",
@@ -1693,7 +1714,7 @@
       "maxOccurs": "unbounded"
     },
     {
-      "no": 154,
+      "no": 156,
       "level": 2,
       "tag": "ABC00000",
       "ja": "申告書見出し部（第二表）",
@@ -1704,7 +1725,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 155,
+      "no": 157,
       "level": 3,
       "tag": "ABC00010",
       "ja": "年分",
@@ -1715,7 +1736,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 156,
+      "no": 158,
       "level": 3,
       "tag": "ABC00015",
       "ja": "申告の種類",
@@ -1726,7 +1747,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 157,
+      "no": 159,
       "level": 3,
       "tag": "ABC00020",
       "ja": "納税者等部",
@@ -1737,10 +1758,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 158,
+      "no": 160,
       "level": 4,
       "tag": "ABC00040",
-      "ja": "住所",
+      "ja": "納税地",
       "kind": "leaf",
       "idref": "NOZEISHA_ADR",
       "refType": "gen:NOZEISHA_ADRref",
@@ -1748,18 +1769,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 159,
-      "level": 4,
-      "tag": "ABC00045",
-      "ja": "住所以外の居所又は事業所等",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "gen:address",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 160,
+      "no": 161,
       "level": 4,
       "tag": "ABC00050",
       "ja": "屋号",
@@ -1770,7 +1780,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 161,
+      "no": 162,
       "level": 4,
       "tag": "ABC00060",
       "ja": "フリガナ",
@@ -1781,7 +1791,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 162,
+      "no": 163,
       "level": 4,
       "tag": "ABC00070",
       "ja": "氏名",
@@ -1792,7 +1802,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 163,
+      "no": 164,
       "level": 2,
       "tag": "ABD00000",
       "ja": "所得の内訳（所得税及び復興特別所得税の源泉徴収税額）",
@@ -1803,7 +1813,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 164,
+      "no": 165,
       "level": 3,
       "tag": "ABD00010",
       "ja": "所得の内訳　繰り返し",
@@ -1814,40 +1824,40 @@
       "maxOccurs": 4
     },
     {
-      "no": 165,
+      "no": 166,
       "level": 4,
       "tag": "ABD00020",
       "ja": "所得の種類",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABD00020-23-0Rtype",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 166,
-      "level": 4,
-      "tag": "ABD00025",
-      "ja": "種目",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "ABD00025-23-0Rtype",
+      "refType": "ABD00020-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 167,
       "level": 4,
-      "tag": "ABD00030",
-      "ja": "給与などの支払者の「法人番号又は所在地」等",
+      "tag": "ABD00025",
+      "ja": "種目",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABD00030-23-0Rtype",
+      "refType": "ABD00025-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 168,
+      "level": 4,
+      "tag": "ABD00030",
+      "ja": "給与などの支払者の「法人番号又は所在地」等",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "ABD00030-24-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 169,
       "level": 4,
       "tag": "ABD00040",
       "ja": "給与などの支払者の「名称」",
@@ -1858,7 +1868,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 169,
+      "no": 170,
       "level": 4,
       "tag": "ABD00050",
       "ja": "収入金額",
@@ -1869,7 +1879,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 170,
+      "no": 171,
       "level": 4,
       "tag": "ABD00060",
       "ja": "源泉徴収税額",
@@ -1880,7 +1890,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 171,
+      "no": 172,
       "level": 3,
       "tag": "ABD00062",
       "ja": "次葉合計",
@@ -1891,18 +1901,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 172,
+      "no": 173,
       "level": 4,
       "tag": "ABD00064",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABD00064-23-0Rtype",
+      "refType": "ABD00064-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 173,
+      "no": 174,
       "level": 4,
       "tag": "ABD00066",
       "ja": "金額",
@@ -1913,7 +1923,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 174,
+      "no": 175,
       "level": 3,
       "tag": "ABD00070",
       "ja": "源泉徴収税額の合計額",
@@ -1924,7 +1934,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 175,
+      "no": 176,
       "level": 2,
       "tag": "ABX00000",
       "ja": "総合課税の譲渡所得、一時所得に関する事項　繰り返し",
@@ -1935,18 +1945,18 @@
       "maxOccurs": 2
     },
     {
-      "no": 176,
+      "no": 177,
       "level": 3,
       "tag": "ABX00250",
       "ja": "所得の種類",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABX00250-23-0Rtype",
+      "refType": "ABX00250-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 177,
+      "no": 178,
       "level": 3,
       "tag": "ABX00260",
       "ja": "収入金額",
@@ -1957,7 +1967,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 178,
+      "no": 179,
       "level": 3,
       "tag": "ABX00270",
       "ja": "必要経費等",
@@ -1968,18 +1978,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 179,
+      "no": 180,
       "level": 4,
       "tag": "ABX00280",
       "ja": "必要経費等（上段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABX00280-23-0Rtype",
+      "refType": "ABX00280-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 180,
+      "no": 181,
       "level": 4,
       "tag": "ABX00290",
       "ja": "必要経費等（下段）",
@@ -1990,7 +2000,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 181,
+      "no": 182,
       "level": 3,
       "tag": "ABX00300",
       "ja": "差引金額",
@@ -2001,7 +2011,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 182,
+      "no": 183,
       "level": 4,
       "tag": "ABX00310",
       "ja": "差引金額（上段）",
@@ -2012,18 +2022,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 183,
+      "no": 184,
       "level": 4,
       "tag": "ABX00320",
       "ja": "差引金額（下段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABX00320-23-0Rtype",
+      "refType": "ABX00320-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 184,
+      "no": 185,
       "level": 2,
       "tag": "ABE00000",
       "ja": "事業専従者に関する事項",
@@ -2034,7 +2044,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 185,
+      "no": 186,
       "level": 3,
       "tag": "ABE00010",
       "ja": "事業専従者の明細　繰り返し",
@@ -2045,7 +2055,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 186,
+      "no": 187,
       "level": 4,
       "tag": "ABE00020",
       "ja": "氏名",
@@ -2056,7 +2066,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 187,
+      "no": 188,
       "level": 4,
       "tag": "ABE00025",
       "ja": "個人番号",
@@ -2067,7 +2077,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 188,
+      "no": 189,
       "level": 4,
       "tag": "ABE00030",
       "ja": "生年月日",
@@ -2078,7 +2088,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 189,
+      "no": 190,
       "level": 4,
       "tag": "ABE00040",
       "ja": "続柄",
@@ -2089,18 +2099,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 190,
+      "no": 191,
       "level": 4,
       "tag": "ABE00060",
       "ja": "従事月数・程度・仕事の内容",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABE00060-23-0Rtype",
+      "refType": "ABE00060-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 191,
+      "no": 192,
       "level": 4,
       "tag": "ABE00070",
       "ja": "専従者給与（控除）額",
@@ -2111,18 +2121,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 192,
+      "no": 193,
       "level": 2,
       "tag": "ABF00000",
       "ja": "特例適用条文等",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABF00000-23-0Rtype",
+      "refType": "ABF00000-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 193,
+      "no": 194,
       "level": 2,
       "tag": "ABH00000",
       "ja": "明細",
@@ -2133,7 +2143,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 194,
+      "no": 195,
       "level": 3,
       "tag": "ABH00010",
       "ja": "雑損控除に関する事項",
@@ -2144,18 +2154,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 195,
+      "no": 196,
       "level": 4,
       "tag": "ABH00020",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00020-23-0Rtype",
+      "refType": "ABH00020-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 196,
+      "no": 197,
       "level": 4,
       "tag": "ABH00030",
       "ja": "損害年月日",
@@ -2166,18 +2176,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 197,
+      "no": 198,
       "level": 4,
       "tag": "ABH00040",
       "ja": "損害を受けた資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00040-23-0Rtype",
+      "refType": "ABH00040-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 198,
+      "no": 199,
       "level": 4,
       "tag": "ABH00050",
       "ja": "損害金額",
@@ -2188,7 +2198,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 199,
+      "no": 200,
       "level": 4,
       "tag": "ABH00060",
       "ja": "保険金などで補填される金額",
@@ -2199,7 +2209,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 200,
+      "no": 201,
       "level": 4,
       "tag": "ABH00070",
       "ja": "差引損失額のうち災害関連支出の金額",
@@ -2210,7 +2220,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 201,
+      "no": 202,
       "level": 3,
       "tag": "ABH00110",
       "ja": "（１３）社会保険料控除・（１４）小規模企業共済等掛金控除",
@@ -2221,7 +2231,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 202,
+      "no": 203,
       "level": 4,
       "tag": "ABH00120",
       "ja": "明細　繰り返し",
@@ -2232,18 +2242,18 @@
       "maxOccurs": 3
     },
     {
-      "no": 203,
+      "no": 204,
       "level": 5,
       "tag": "ABH00130",
       "ja": "保険料等の種類",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00130-23-0Rtype",
+      "refType": "ABH00130-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 204,
+      "no": 205,
       "level": 5,
       "tag": "ABH00140",
       "ja": "支払保険料等の計",
@@ -2254,7 +2264,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 205,
+      "no": 206,
       "level": 5,
       "tag": "ABH00580",
       "ja": "うち年末調整等以外",
@@ -2265,7 +2275,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 206,
+      "no": 207,
       "level": 3,
       "tag": "ABH00210",
       "ja": "（１５）生命保険料控除",
@@ -2276,117 +2286,117 @@
       "maxOccurs": 1
     },
     {
-      "no": 207,
+      "no": 208,
       "level": 4,
       "tag": "ABH00215",
       "ja": "新生命保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00215-23-0Rtype",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 208,
-      "level": 4,
-      "tag": "ABH00217",
-      "ja": "新生命保険料　うち年末調整等以外",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "ABH00217-23-0Rtype",
+      "refType": "ABH00215-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 209,
       "level": 4,
-      "tag": "ABH00220",
-      "ja": "旧生命保険料　支払保険料等の計",
+      "tag": "ABH00217",
+      "ja": "新生命保険料　うち年末調整等以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00220-23-0Rtype",
+      "refType": "ABH00217-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 210,
       "level": 4,
-      "tag": "ABH00222",
-      "ja": "旧生命保険料　うち年末調整等以外",
+      "tag": "ABH00220",
+      "ja": "旧生命保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00222-23-0Rtype",
+      "refType": "ABH00220-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 211,
       "level": 4,
-      "tag": "ABH00225",
-      "ja": "新個人年金保険料　支払保険料等の計",
+      "tag": "ABH00222",
+      "ja": "旧生命保険料　うち年末調整等以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00225-23-0Rtype",
+      "refType": "ABH00222-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 212,
       "level": 4,
-      "tag": "ABH00227",
-      "ja": "新個人年金保険料　うち年末調整等以外",
+      "tag": "ABH00225",
+      "ja": "新個人年金保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00227-23-0Rtype",
+      "refType": "ABH00225-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 213,
       "level": 4,
-      "tag": "ABH00230",
-      "ja": "旧個人年金保険料　支払保険料等の計",
+      "tag": "ABH00227",
+      "ja": "新個人年金保険料　うち年末調整等以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00230-23-0Rtype",
+      "refType": "ABH00227-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 214,
       "level": 4,
-      "tag": "ABH00232",
-      "ja": "旧個人年金保険料　うち年末調整等以外",
+      "tag": "ABH00230",
+      "ja": "旧個人年金保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00232-23-0Rtype",
+      "refType": "ABH00230-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 215,
       "level": 4,
-      "tag": "ABH00235",
-      "ja": "介護医療保険料　支払保険料等の計",
+      "tag": "ABH00232",
+      "ja": "旧個人年金保険料　うち年末調整等以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00235-23-0Rtype",
+      "refType": "ABH00232-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 216,
       "level": 4,
-      "tag": "ABH00237",
-      "ja": "介護医療保険料　うち年末調整等以外",
+      "tag": "ABH00235",
+      "ja": "介護医療保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00237-23-0Rtype",
+      "refType": "ABH00235-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 217,
+      "level": 4,
+      "tag": "ABH00237",
+      "ja": "介護医療保険料　うち年末調整等以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "ABH00237-24-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 218,
       "level": 3,
       "tag": "ABH00240",
       "ja": "（１６）地震保険料控除",
@@ -2397,51 +2407,51 @@
       "maxOccurs": 1
     },
     {
-      "no": 218,
+      "no": 219,
       "level": 4,
       "tag": "ABH00250",
       "ja": "地震保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00250-23-0Rtype",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 219,
-      "level": 4,
-      "tag": "ABH00255",
-      "ja": "地震保険料　うち年末調整等以外",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "ABH00255-23-0Rtype",
+      "refType": "ABH00250-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 220,
       "level": 4,
-      "tag": "ABH00260",
-      "ja": "旧長期損害保険料　支払保険料等の計",
+      "tag": "ABH00255",
+      "ja": "地震保険料　うち年末調整等以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00260-23-0Rtype",
+      "refType": "ABH00255-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 221,
       "level": 4,
-      "tag": "ABH00265",
-      "ja": "旧長期損害保険料　うち年末調整等以外",
+      "tag": "ABH00260",
+      "ja": "旧長期損害保険料　支払保険料等の計",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABH00265-23-0Rtype",
+      "refType": "ABH00260-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
       "no": 222,
+      "level": 4,
+      "tag": "ABH00265",
+      "ja": "旧長期損害保険料　うち年末調整等以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "ABH00265-24-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 223,
       "level": 3,
       "tag": "ABH00270",
       "ja": "寄附金控除に関する事項",
@@ -2452,7 +2462,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 223,
+      "no": 224,
       "level": 4,
       "tag": "ABH00280",
       "ja": "寄附先の名称等　所在地",
@@ -2463,7 +2473,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 224,
+      "no": 225,
       "level": 4,
       "tag": "ABH00290",
       "ja": "寄附先の名称等　名称",
@@ -2474,7 +2484,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 225,
+      "no": 226,
       "level": 4,
       "tag": "ABH00300",
       "ja": "寄附金",
@@ -2485,7 +2495,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 226,
+      "no": 227,
       "level": 3,
       "tag": "ABH00320",
       "ja": "本人に関する事項",
@@ -2496,7 +2506,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 227,
+      "no": 228,
       "level": 4,
       "tag": "ABH00340",
       "ja": "寡婦",
@@ -2507,7 +2517,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 228,
+      "no": 229,
       "level": 5,
       "tag": "ABH00350",
       "ja": "控除区分",
@@ -2518,7 +2528,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 229,
+      "no": 230,
       "level": 5,
       "tag": "ABH00360",
       "ja": "原因区分",
@@ -2529,7 +2539,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 230,
+      "no": 231,
       "level": 4,
       "tag": "ABH00365",
       "ja": "ひとり親　控除区分",
@@ -2540,7 +2550,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 231,
+      "no": 232,
       "level": 4,
       "tag": "ABH00370",
       "ja": "勤労学生",
@@ -2551,7 +2561,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 232,
+      "no": 233,
       "level": 5,
       "tag": "ABH00380",
       "ja": "控除区分",
@@ -2562,7 +2572,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 233,
+      "no": 234,
       "level": 5,
       "tag": "ABH00600",
       "ja": "年調以外かつ専修学校等区分",
@@ -2573,7 +2583,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 234,
+      "no": 235,
       "level": 4,
       "tag": "ABH00610",
       "ja": "障害者　控除区分",
@@ -2584,7 +2594,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 235,
+      "no": 236,
       "level": 4,
       "tag": "ABH00620",
       "ja": "特別障害者　控除区分",
@@ -2595,7 +2605,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 236,
+      "no": 237,
       "level": 2,
       "tag": "ABY00000",
       "ja": "配偶者や親族に関する事項",
@@ -2606,7 +2616,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 237,
+      "no": 238,
       "level": 3,
       "tag": "ABY00010",
       "ja": "配偶者",
@@ -2617,7 +2627,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 238,
+      "no": 239,
       "level": 4,
       "tag": "ABY00020",
       "ja": "氏名",
@@ -2628,7 +2638,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 239,
+      "no": 240,
       "level": 4,
       "tag": "ABY00030",
       "ja": "個人番号",
@@ -2639,7 +2649,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 240,
+      "no": 241,
       "level": 4,
       "tag": "ABY00040",
       "ja": "生年月日",
@@ -2650,7 +2660,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 241,
+      "no": 242,
       "level": 4,
       "tag": "ABY00050",
       "ja": "障害者",
@@ -2661,7 +2671,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 242,
+      "no": 243,
       "level": 5,
       "tag": "ABY00060",
       "ja": "障",
@@ -2672,7 +2682,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 243,
+      "no": 244,
       "level": 5,
       "tag": "ABY00070",
       "ja": "特障",
@@ -2683,7 +2693,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 244,
+      "no": 245,
       "level": 4,
       "tag": "ABY00080",
       "ja": "国外居住",
@@ -2694,7 +2704,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 245,
+      "no": 246,
       "level": 5,
       "tag": "ABY00090",
       "ja": "国外",
@@ -2705,7 +2715,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 246,
+      "no": 247,
       "level": 5,
       "tag": "ABY00100",
       "ja": "年調",
@@ -2716,7 +2726,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 247,
+      "no": 248,
       "level": 4,
       "tag": "ABY00105",
       "ja": "住宅　特個",
@@ -2727,7 +2737,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 248,
+      "no": 249,
       "level": 4,
       "tag": "ABY00110",
       "ja": "住民税",
@@ -2738,7 +2748,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 249,
+      "no": 250,
       "level": 5,
       "tag": "ABY00120",
       "ja": "同一",
@@ -2749,7 +2759,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 250,
+      "no": 251,
       "level": 5,
       "tag": "ABY00130",
       "ja": "別居",
@@ -2760,7 +2770,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 251,
+      "no": 252,
       "level": 4,
       "tag": "ABY00133",
       "ja": "その他　調整",
@@ -2771,7 +2781,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 252,
+      "no": 253,
       "level": 3,
       "tag": "ABY00150",
       "ja": "親族　繰り返し",
@@ -2782,7 +2792,7 @@
       "maxOccurs": 4
     },
     {
-      "no": 253,
+      "no": 254,
       "level": 4,
       "tag": "ABY00160",
       "ja": "氏名",
@@ -2793,7 +2803,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 254,
+      "no": 255,
       "level": 4,
       "tag": "ABY00170",
       "ja": "個人番号",
@@ -2804,7 +2814,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 255,
+      "no": 256,
       "level": 4,
       "tag": "ABY00180",
       "ja": "続柄",
@@ -2815,7 +2825,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 256,
+      "no": 257,
       "level": 4,
       "tag": "ABY00190",
       "ja": "生年月日",
@@ -2826,7 +2836,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 257,
+      "no": 258,
       "level": 4,
       "tag": "ABY00200",
       "ja": "障害者",
@@ -2837,7 +2847,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 258,
+      "no": 259,
       "level": 5,
       "tag": "ABY00210",
       "ja": "障",
@@ -2848,7 +2858,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 259,
+      "no": 260,
       "level": 5,
       "tag": "ABY00220",
       "ja": "特障",
@@ -2859,7 +2869,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 260,
+      "no": 261,
       "level": 4,
       "tag": "ABY00230",
       "ja": "国外居住",
@@ -2870,18 +2880,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 261,
+      "no": 262,
       "level": 5,
       "tag": "ABY00235",
       "ja": "国外",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABY00235-23-0type",
+      "refType": "ABY00235-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 262,
+      "no": 263,
       "level": 5,
       "tag": "ABY00250",
       "ja": "年調",
@@ -2892,18 +2902,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 263,
+      "no": 264,
       "level": 4,
       "tag": "ABY00253",
       "ja": "特親",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABY00253-23-0type",
+      "refType": "ABY00253-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 264,
+      "no": 265,
       "level": 4,
       "tag": "ABY00255",
       "ja": "住宅　特個",
@@ -2914,7 +2924,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 265,
+      "no": 266,
       "level": 4,
       "tag": "ABY00260",
       "ja": "住民税",
@@ -2925,7 +2935,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 266,
+      "no": 267,
       "level": 5,
       "tag": "ABY00270",
       "ja": "１６",
@@ -2936,7 +2946,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 267,
+      "no": 268,
       "level": 5,
       "tag": "ABY00280",
       "ja": "別居",
@@ -2947,10 +2957,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 268,
+      "no": 269,
       "level": 4,
       "tag": "ABY00283",
-      "ja": "その他　調整",
+      "ja": "その他",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -2958,7 +2968,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 269,
+      "no": 270,
       "level": 2,
       "tag": "ABI00000",
       "ja": "住民税・事業税に関する事項",
@@ -2969,7 +2979,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 270,
+      "no": 271,
       "level": 3,
       "tag": "ABI00010",
       "ja": "住民税　給与、公的年金等以外の所得に係る住民税の徴収方法",
@@ -2980,7 +2990,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 271,
+      "no": 272,
       "level": 3,
       "tag": "ABI00020",
       "ja": "上記の配偶者・親族・事業専従者のうち別居の者の氏名・住所",
@@ -2991,7 +3001,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 272,
+      "no": 273,
       "level": 4,
       "tag": "ABI00030",
       "ja": "氏名",
@@ -3002,7 +3012,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 273,
+      "no": 274,
       "level": 4,
       "tag": "ABI00040",
       "ja": "住所",
@@ -3013,7 +3023,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 274,
+      "no": 275,
       "level": 3,
       "tag": "ABI00045",
       "ja": "国外",
@@ -3024,7 +3034,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 275,
+      "no": 276,
       "level": 3,
       "tag": "ABI00050",
       "ja": "所得税で控除対象配偶者などとした専従者",
@@ -3035,7 +3045,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 276,
+      "no": 277,
       "level": 4,
       "tag": "ABI00060",
       "ja": "氏名",
@@ -3046,7 +3056,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 277,
+      "no": 278,
       "level": 4,
       "tag": "ABI00070",
       "ja": "給与",
@@ -3057,7 +3067,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 278,
+      "no": 279,
       "level": 3,
       "tag": "ABI00080",
       "ja": "住民税",
@@ -3068,7 +3078,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 279,
+      "no": 280,
       "level": 4,
       "tag": "ABI00090",
       "ja": "非上場株式の少額配当等",
@@ -3079,7 +3089,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 280,
+      "no": 281,
       "level": 4,
       "tag": "ABI00100",
       "ja": "非居住者の特例",
@@ -3090,7 +3100,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 281,
+      "no": 282,
       "level": 4,
       "tag": "ABI00104",
       "ja": "配当割額控除額",
@@ -3101,7 +3111,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 282,
+      "no": 283,
       "level": 4,
       "tag": "ABI00106",
       "ja": "株式等譲渡所得割額控除額",
@@ -3112,7 +3122,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 283,
+      "no": 284,
       "level": 4,
       "tag": "ABI00230",
       "ja": "明細１",
@@ -3123,7 +3133,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 284,
+      "no": 285,
       "level": 5,
       "tag": "ABI00240",
       "ja": "都道府県、市区町村への寄附（特例控除対象）",
@@ -3134,7 +3144,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 285,
+      "no": 286,
       "level": 5,
       "tag": "ABI00250",
       "ja": "共同募金、日赤その他の寄附",
@@ -3145,7 +3155,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 286,
+      "no": 287,
       "level": 4,
       "tag": "ABI00260",
       "ja": "明細２",
@@ -3156,7 +3166,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 287,
+      "no": 288,
       "level": 5,
       "tag": "ABI00270",
       "ja": "都道府県条例指定寄附",
@@ -3167,7 +3177,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 288,
+      "no": 289,
       "level": 5,
       "tag": "ABI00280",
       "ja": "市区町村条例指定寄附",
@@ -3178,7 +3188,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 289,
+      "no": 290,
       "level": 3,
       "tag": "ABI00400",
       "ja": "退職所得のある配偶者・親族",
@@ -3189,7 +3199,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 290,
+      "no": 291,
       "level": 4,
       "tag": "ABI00410",
       "ja": "退職所得のある配偶者・親族の氏名",
@@ -3200,7 +3210,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 291,
+      "no": 292,
       "level": 4,
       "tag": "ABI00420",
       "ja": "個人番号",
@@ -3211,7 +3221,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 292,
+      "no": 293,
       "level": 4,
       "tag": "ABI00430",
       "ja": "続柄",
@@ -3222,7 +3232,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 293,
+      "no": 294,
       "level": 4,
       "tag": "ABI00440",
       "ja": "生年月日",
@@ -3233,7 +3243,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 294,
+      "no": 295,
       "level": 4,
       "tag": "ABI00450",
       "ja": "退職所得を除く所得金額",
@@ -3244,7 +3254,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 295,
+      "no": 296,
       "level": 4,
       "tag": "ABI00460",
       "ja": "障害者",
@@ -3255,7 +3265,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 296,
+      "no": 297,
       "level": 5,
       "tag": "ABI00470",
       "ja": "障",
@@ -3266,7 +3276,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 297,
+      "no": 298,
       "level": 5,
       "tag": "ABI00480",
       "ja": "特障",
@@ -3277,7 +3287,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 298,
+      "no": 299,
       "level": 4,
       "tag": "ABI00490",
       "ja": "その他　調整",
@@ -3288,7 +3298,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 299,
+      "no": 300,
       "level": 4,
       "tag": "ABI00500",
       "ja": "寡婦・ひとり親",
@@ -3299,7 +3309,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 300,
+      "no": 301,
       "level": 5,
       "tag": "ABI00510",
       "ja": "寡婦",
@@ -3310,7 +3320,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 301,
+      "no": 302,
       "level": 5,
       "tag": "ABI00520",
       "ja": "ひとり親",
@@ -3321,7 +3331,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 302,
+      "no": 303,
       "level": 3,
       "tag": "ABI00110",
       "ja": "事業税",
@@ -3332,7 +3342,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 303,
+      "no": 304,
       "level": 4,
       "tag": "ABI00120",
       "ja": "非課税所得など",
@@ -3343,18 +3353,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 304,
+      "no": 305,
       "level": 5,
       "tag": "ABI00130",
       "ja": "番号",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABI00130-23-0type",
+      "refType": "ABI00130-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 305,
+      "no": 306,
       "level": 5,
       "tag": "ABI00140",
       "ja": "所得金額",
@@ -3365,7 +3375,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 306,
+      "no": 307,
       "level": 4,
       "tag": "ABI00150",
       "ja": "損益通算の特例適用前の不動産所得",
@@ -3376,7 +3386,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 307,
+      "no": 308,
       "level": 4,
       "tag": "ABI00170",
       "ja": "不動産所得から差し引いた青色申告特別控除額",
@@ -3387,7 +3397,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 308,
+      "no": 309,
       "level": 4,
       "tag": "ABI00180",
       "ja": "事業用資産の譲渡損失など",
@@ -3398,7 +3408,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 309,
+      "no": 310,
       "level": 4,
       "tag": "ABI00190",
       "ja": "前年中の開（廃）業",
@@ -3409,7 +3419,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 310,
+      "no": 311,
       "level": 5,
       "tag": "ABI00200",
       "ja": "開始・廃止の区分",
@@ -3420,7 +3430,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 311,
+      "no": 312,
       "level": 5,
       "tag": "ABI00210",
       "ja": "開始（廃止）月日",
@@ -3431,7 +3441,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 312,
+      "no": 313,
       "level": 5,
       "tag": "ABI00220",
       "ja": "他都道府県の事務所等区分",
@@ -3442,84 +3452,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 313,
-      "level": 2,
-      "tag": "ABS10000",
-      "ja": "税理士署名欄",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
       "no": 314,
-      "level": 3,
-      "tag": "ABS10010",
-      "ja": "税理士法書面提出",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 315,
-      "level": 4,
-      "tag": "ABS10020",
-      "ja": "３０条",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 316,
-      "level": 4,
-      "tag": "ABS10030",
-      "ja": "３３条の２",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 317,
-      "level": 3,
-      "tag": "ABS10040",
-      "ja": "税理士署名・電話番号",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 318,
-      "level": 4,
-      "tag": "ABS10050",
-      "ja": "税理士署名",
-      "kind": "leaf",
-      "idref": "DAIRI_NM",
-      "refType": "gen:DAIRI_NMref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 319,
-      "level": 4,
-      "tag": "ABS10060",
-      "ja": "電話番号",
-      "kind": "leaf",
-      "idref": "DAIRI_TEL",
-      "refType": "gen:DAIRI_TELref",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 320,
       "level": 1,
       "tag": "KOA020-3",
       "ja": "申告書第三表",
@@ -3530,7 +3463,7 @@
       "maxOccurs": "unbounded"
     },
     {
-      "no": 321,
+      "no": 315,
       "level": 2,
       "tag": "ABK00000",
       "ja": "申告書見出し部（第三表）",
@@ -3541,7 +3474,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 322,
+      "no": 316,
       "level": 3,
       "tag": "ABK00010",
       "ja": "年分",
@@ -3552,7 +3485,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 323,
+      "no": 317,
       "level": 3,
       "tag": "ABK00020",
       "ja": "申告の種類",
@@ -3563,7 +3496,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 324,
+      "no": 318,
       "level": 3,
       "tag": "ABK00030",
       "ja": "納税者等部",
@@ -3574,10 +3507,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 325,
+      "no": 319,
       "level": 4,
       "tag": "ABK00040",
-      "ja": "住所（又は居所・事業所等）",
+      "ja": "納税地",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -3585,10 +3518,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 326,
+      "no": 320,
       "level": 5,
       "tag": "ABK00060",
-      "ja": "住所",
+      "ja": "納税地",
       "kind": "leaf",
       "idref": "NOZEISHA_ADR",
       "refType": "gen:NOZEISHA_ADRref",
@@ -3596,18 +3529,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 327,
-      "level": 4,
-      "tag": "ABK00065",
-      "ja": "住所以外の居所又は事業所等",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "gen:address",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 328,
+      "no": 321,
       "level": 4,
       "tag": "ABK00066",
       "ja": "屋号",
@@ -3618,7 +3540,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 329,
+      "no": 322,
       "level": 4,
       "tag": "ABK00070",
       "ja": "フリガナ",
@@ -3629,7 +3551,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 330,
+      "no": 323,
       "level": 4,
       "tag": "ABK00080",
       "ja": "氏名",
@@ -3640,7 +3562,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 331,
+      "no": 324,
       "level": 2,
       "tag": "ABL00000",
       "ja": "分離課税用（第三表）",
@@ -3651,7 +3573,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 332,
+      "no": 325,
       "level": 3,
       "tag": "ABL00010",
       "ja": "収入金額",
@@ -3662,7 +3584,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 333,
+      "no": 326,
       "level": 4,
       "tag": "ABL00020",
       "ja": "分離課税",
@@ -3673,7 +3595,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 334,
+      "no": 327,
       "level": 5,
       "tag": "ABL00030",
       "ja": "短期譲渡",
@@ -3684,7 +3606,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 335,
+      "no": 328,
       "level": 6,
       "tag": "ABL00040",
       "ja": "一般分",
@@ -3695,7 +3617,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 336,
+      "no": 329,
       "level": 6,
       "tag": "ABL00050",
       "ja": "軽減分",
@@ -3706,7 +3628,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 337,
+      "no": 330,
       "level": 5,
       "tag": "ABL00060",
       "ja": "長期譲渡",
@@ -3717,7 +3639,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 338,
+      "no": 331,
       "level": 6,
       "tag": "ABL00070",
       "ja": "一般分",
@@ -3728,7 +3650,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 339,
+      "no": 332,
       "level": 6,
       "tag": "ABL00080",
       "ja": "特定分",
@@ -3739,7 +3661,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 340,
+      "no": 333,
       "level": 6,
       "tag": "ABL00090",
       "ja": "軽課分",
@@ -3750,7 +3672,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 341,
+      "no": 334,
       "level": 5,
       "tag": "ABL00100",
       "ja": "明細",
@@ -3761,7 +3683,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 342,
+      "no": 335,
       "level": 6,
       "tag": "ABL00125",
       "ja": "一般株式等の譲渡",
@@ -3772,7 +3694,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 343,
+      "no": 336,
       "level": 6,
       "tag": "ABL00130",
       "ja": "上場株式等の譲渡",
@@ -3783,7 +3705,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 344,
+      "no": 337,
       "level": 5,
       "tag": "ABL00134",
       "ja": "上場株式等の配当等",
@@ -3794,7 +3716,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 345,
+      "no": 338,
       "level": 6,
       "tag": "ABL00137",
       "ja": "収入金額",
@@ -3805,7 +3727,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 346,
+      "no": 339,
       "level": 5,
       "tag": "ABL00140",
       "ja": "先物取引",
@@ -3816,7 +3738,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 347,
+      "no": 340,
       "level": 6,
       "tag": "ABL00160",
       "ja": "収入金額",
@@ -3827,7 +3749,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 348,
+      "no": 341,
       "level": 4,
       "tag": "ABL00170",
       "ja": "山林",
@@ -3838,7 +3760,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 349,
+      "no": 342,
       "level": 4,
       "tag": "ABL00180",
       "ja": "退職",
@@ -3849,7 +3771,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 350,
+      "no": 343,
       "level": 3,
       "tag": "ABL00190",
       "ja": "所得金額",
@@ -3860,7 +3782,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 351,
+      "no": 344,
       "level": 4,
       "tag": "ABL00200",
       "ja": "分離課税",
@@ -3871,7 +3793,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 352,
+      "no": 345,
       "level": 5,
       "tag": "ABL00210",
       "ja": "短期譲渡",
@@ -3882,7 +3804,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 353,
+      "no": 346,
       "level": 6,
       "tag": "ABL00220",
       "ja": "一般分",
@@ -3893,7 +3815,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 354,
+      "no": 347,
       "level": 6,
       "tag": "ABL00230",
       "ja": "軽減分",
@@ -3904,7 +3826,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 355,
+      "no": 348,
       "level": 5,
       "tag": "ABL00240",
       "ja": "長期譲渡",
@@ -3915,7 +3837,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 356,
+      "no": 349,
       "level": 6,
       "tag": "ABL00250",
       "ja": "一般分",
@@ -3926,7 +3848,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 357,
+      "no": 350,
       "level": 6,
       "tag": "ABL00260",
       "ja": "特定分",
@@ -3937,7 +3859,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 358,
+      "no": 351,
       "level": 6,
       "tag": "ABL00270",
       "ja": "軽課分",
@@ -3948,7 +3870,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 359,
+      "no": 352,
       "level": 5,
       "tag": "ABL00280",
       "ja": "明細",
@@ -3959,7 +3881,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 360,
+      "no": 353,
       "level": 6,
       "tag": "ABL00305",
       "ja": "一般株式等の譲渡",
@@ -3970,7 +3892,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 361,
+      "no": 354,
       "level": 6,
       "tag": "ABL00310",
       "ja": "上場株式等の譲渡",
@@ -3981,7 +3903,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 362,
+      "no": 355,
       "level": 5,
       "tag": "ABL00320",
       "ja": "上場株式等の配当等",
@@ -3992,7 +3914,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 363,
+      "no": 356,
       "level": 6,
       "tag": "ABL00325",
       "ja": "所得金額",
@@ -4003,7 +3925,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 364,
+      "no": 357,
       "level": 5,
       "tag": "ABL00330",
       "ja": "先物取引",
@@ -4014,7 +3936,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 365,
+      "no": 358,
       "level": 6,
       "tag": "ABL00350",
       "ja": "所得金額",
@@ -4025,7 +3947,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 366,
+      "no": 359,
       "level": 4,
       "tag": "ABL00360",
       "ja": "山林",
@@ -4036,7 +3958,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 367,
+      "no": 360,
       "level": 4,
       "tag": "ABL00410",
       "ja": "退職",
@@ -4047,7 +3969,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 368,
+      "no": 361,
       "level": 3,
       "tag": "ABL00430",
       "ja": "税金の計算",
@@ -4058,7 +3980,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 369,
+      "no": 362,
       "level": 4,
       "tag": "ABL00440",
       "ja": "総合課税の合計額",
@@ -4069,7 +3991,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 370,
+      "no": 363,
       "level": 4,
       "tag": "ABL00450",
       "ja": "所得から差し引かれる金額",
@@ -4080,7 +4002,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 371,
+      "no": 364,
       "level": 4,
       "tag": "ABL00460",
       "ja": "課税される所得金額",
@@ -4091,7 +4013,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 372,
+      "no": 365,
       "level": 5,
       "tag": "ABL00470",
       "ja": "（１２）対応分",
@@ -4102,7 +4024,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 373,
+      "no": 366,
       "level": 5,
       "tag": "ABL00480",
       "ja": "（６７）（６８）対応分",
@@ -4113,7 +4035,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 374,
+      "no": 367,
       "level": 5,
       "tag": "ABL00490",
       "ja": "（６９）（７０）（７１）対応分",
@@ -4124,7 +4046,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 375,
+      "no": 368,
       "level": 5,
       "tag": "ABL00500",
       "ja": "（７２）（７３）対応分",
@@ -4135,7 +4057,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 376,
+      "no": 369,
       "level": 5,
       "tag": "ABL00505",
       "ja": "（７４）対応分",
@@ -4146,7 +4068,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 377,
+      "no": 370,
       "level": 5,
       "tag": "ABL00510",
       "ja": "（７５）対応分",
@@ -4157,7 +4079,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 378,
+      "no": 371,
       "level": 5,
       "tag": "ABL00520",
       "ja": "（７６）対応分",
@@ -4168,7 +4090,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 379,
+      "no": 372,
       "level": 5,
       "tag": "ABL00530",
       "ja": "（７７）対応分",
@@ -4179,7 +4101,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 380,
+      "no": 373,
       "level": 4,
       "tag": "ABL00540",
       "ja": "税額",
@@ -4190,7 +4112,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 381,
+      "no": 374,
       "level": 5,
       "tag": "ABL00550",
       "ja": "（７８）対応分",
@@ -4201,7 +4123,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 382,
+      "no": 375,
       "level": 5,
       "tag": "ABL00560",
       "ja": "（７９）対応分",
@@ -4212,7 +4134,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 383,
+      "no": 376,
       "level": 5,
       "tag": "ABL00570",
       "ja": "（８０）対応分",
@@ -4223,7 +4145,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 384,
+      "no": 377,
       "level": 5,
       "tag": "ABL00580",
       "ja": "（８１）対応分",
@@ -4234,7 +4156,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 385,
+      "no": 378,
       "level": 5,
       "tag": "ABL00585",
       "ja": "（８２）対応分",
@@ -4245,7 +4167,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 386,
+      "no": 379,
       "level": 5,
       "tag": "ABL00590",
       "ja": "（８３）対応分",
@@ -4256,7 +4178,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 387,
+      "no": 380,
       "level": 5,
       "tag": "ABL00600",
       "ja": "（８４）対応分",
@@ -4267,7 +4189,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 388,
+      "no": 381,
       "level": 5,
       "tag": "ABL00610",
       "ja": "（８５）対応分",
@@ -4278,7 +4200,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 389,
+      "no": 382,
       "level": 4,
       "tag": "ABL00620",
       "ja": "（８６）から（９３）までの合計",
@@ -4289,7 +4211,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 390,
+      "no": 383,
       "level": 3,
       "tag": "ABL00900",
       "ja": "その他",
@@ -4300,7 +4222,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 391,
+      "no": 384,
       "level": 4,
       "tag": "ABL00910",
       "ja": "株式等",
@@ -4311,7 +4233,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 392,
+      "no": 385,
       "level": 5,
       "tag": "ABL00920",
       "ja": "本年分の（７２）、（７３）から差し引く繰越損失額",
@@ -4322,7 +4244,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 393,
+      "no": 386,
       "level": 5,
       "tag": "ABL00930",
       "ja": "翌年以後に繰り越される損失の金額",
@@ -4333,7 +4255,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 394,
+      "no": 387,
       "level": 4,
       "tag": "ABL00934",
       "ja": "配当等",
@@ -4344,7 +4266,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 395,
+      "no": 388,
       "level": 5,
       "tag": "ABL00937",
       "ja": "本年分の（７４）から差し引く繰越損失額",
@@ -4355,7 +4277,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 396,
+      "no": 389,
       "level": 4,
       "tag": "ABL00940",
       "ja": "先物取引",
@@ -4366,7 +4288,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 397,
+      "no": 390,
       "level": 5,
       "tag": "ABL00950",
       "ja": "本年分の（７５）から差し引く繰越損失額",
@@ -4377,7 +4299,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 398,
+      "no": 391,
       "level": 5,
       "tag": "ABL00960",
       "ja": "翌年以後に繰り越される損失の金額",
@@ -4388,7 +4310,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 399,
+      "no": 392,
       "level": 3,
       "tag": "ABL00640",
       "ja": "特例適用条文",
@@ -4399,7 +4321,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 400,
+      "no": 393,
       "level": 4,
       "tag": "ABL00650",
       "ja": "条文　繰り返し",
@@ -4410,7 +4332,7 @@
       "maxOccurs": 3
     },
     {
-      "no": 401,
+      "no": 394,
       "level": 5,
       "tag": "ABL00660",
       "ja": "法区分",
@@ -4421,62 +4343,62 @@
       "maxOccurs": 1
     },
     {
-      "no": 402,
+      "no": 395,
       "level": 5,
       "tag": "ABL00670",
       "ja": "条１",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00670-23-0type",
+      "refType": "ABL00670-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 403,
+      "no": 396,
       "level": 5,
       "tag": "ABL00680",
       "ja": "条２",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00680-23-0type",
+      "refType": "ABL00680-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 404,
+      "no": 397,
       "level": 5,
       "tag": "ABL00690",
       "ja": "条３",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00690-23-0type",
+      "refType": "ABL00690-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 405,
+      "no": 398,
       "level": 5,
       "tag": "ABL00700",
       "ja": "項",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00700-23-0type",
+      "refType": "ABL00700-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 406,
+      "no": 399,
       "level": 5,
       "tag": "ABL00710",
       "ja": "号",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00710-23-0type",
+      "refType": "ABL00710-24-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 407,
+      "no": 400,
       "level": 3,
       "tag": "ABL00720",
       "ja": "分離課税の短期・長期譲渡所得に関する事項",
@@ -4487,7 +4409,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 408,
+      "no": 401,
       "level": 4,
       "tag": "ABL00730",
       "ja": "分離課税の譲渡所得の明細　繰り返し",
@@ -4498,18 +4420,18 @@
       "maxOccurs": 2
     },
     {
-      "no": 409,
+      "no": 402,
       "level": 5,
       "tag": "ABL00740",
       "ja": "区分",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00740-23-0Rtype",
+      "refType": "ABL00740-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 410,
+      "no": 403,
       "level": 5,
       "tag": "ABL00750",
       "ja": "所得の生ずる場所",
@@ -4520,18 +4442,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 411,
+      "no": 404,
       "level": 5,
       "tag": "ABL00770",
       "ja": "必要経費(上段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00770-23-0Rtype",
+      "refType": "ABL00770-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 412,
+      "no": 405,
       "level": 5,
       "tag": "ABL00780",
       "ja": "必要経費(下段)",
@@ -4542,7 +4464,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 413,
+      "no": 406,
       "level": 5,
       "tag": "ABL00790",
       "ja": "差引金額（上段）",
@@ -4553,18 +4475,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 414,
+      "no": 407,
       "level": 5,
       "tag": "ABL00800",
       "ja": "差引金額（下段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00800-23-0Rtype",
+      "refType": "ABL00800-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 415,
+      "no": 408,
       "level": 5,
       "tag": "ABL00850",
       "ja": "特別控除額",
@@ -4575,7 +4497,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 416,
+      "no": 409,
       "level": 4,
       "tag": "ABL00852",
       "ja": "差引金額（上段）　次葉合計",
@@ -4586,18 +4508,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 417,
+      "no": 410,
       "level": 5,
       "tag": "ABL00855",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL00855-23-0Rtype",
+      "refType": "ABL00855-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 418,
+      "no": 411,
       "level": 5,
       "tag": "ABL00857",
       "ja": "金額",
@@ -4608,7 +4530,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 419,
+      "no": 412,
       "level": 4,
       "tag": "ABL00860",
       "ja": "差引金額の合計額",
@@ -4619,7 +4541,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 420,
+      "no": 413,
       "level": 4,
       "tag": "ABL01020",
       "ja": "特別控除額　次葉合計",
@@ -4630,18 +4552,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 421,
+      "no": 414,
       "level": 5,
       "tag": "ABL01030",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABL01030-23-0Rtype",
+      "refType": "ABL01030-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 422,
+      "no": 415,
       "level": 5,
       "tag": "ABL01040",
       "ja": "金額",
@@ -4652,7 +4574,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 423,
+      "no": 416,
       "level": 4,
       "tag": "ABL00863",
       "ja": "特別控除額の合計額",
@@ -4663,7 +4585,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 424,
+      "no": 417,
       "level": 3,
       "tag": "ABL00867",
       "ja": "上場株式等の譲渡所得等に関する事項　上場株式等の譲渡所得等の源泉徴収税額の合計額",
@@ -4674,7 +4596,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 425,
+      "no": 418,
       "level": 3,
       "tag": "ABL00870",
       "ja": "退職所得に関する事項",
@@ -4685,7 +4607,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 426,
+      "no": 419,
       "level": 4,
       "tag": "ABL01050",
       "ja": "一般",
@@ -4696,7 +4618,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 427,
+      "no": 420,
       "level": 5,
       "tag": "ABL01060",
       "ja": "収入金額",
@@ -4707,7 +4629,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 428,
+      "no": 421,
       "level": 5,
       "tag": "ABL01070",
       "ja": "退職所得控除額",
@@ -4718,7 +4640,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 429,
+      "no": 422,
       "level": 4,
       "tag": "ABL01080",
       "ja": "短期",
@@ -4729,7 +4651,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 430,
+      "no": 423,
       "level": 5,
       "tag": "ABL01090",
       "ja": "収入金額",
@@ -4740,7 +4662,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 431,
+      "no": 424,
       "level": 5,
       "tag": "ABL01100",
       "ja": "退職所得控除額",
@@ -4751,7 +4673,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 432,
+      "no": 425,
       "level": 4,
       "tag": "ABL01110",
       "ja": "特定役員",
@@ -4762,7 +4684,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 433,
+      "no": 426,
       "level": 5,
       "tag": "ABL01120",
       "ja": "収入金額",
@@ -4773,7 +4695,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 434,
+      "no": 427,
       "level": 5,
       "tag": "ABL01130",
       "ja": "退職所得控除額",
@@ -4784,7 +4706,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 435,
+      "no": 428,
       "level": 1,
       "tag": "KOA020-4",
       "ja": "申告書第四表（一）",
@@ -4795,7 +4717,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 436,
+      "no": 429,
       "level": 2,
       "tag": "ABM00000",
       "ja": "申告書見出し部（第四表（一））",
@@ -4806,7 +4728,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 437,
+      "no": 430,
       "level": 3,
       "tag": "ABM00010",
       "ja": "年分",
@@ -4817,7 +4739,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 438,
+      "no": 431,
       "level": 3,
       "tag": "ABM00020",
       "ja": "申告の種類",
@@ -4828,7 +4750,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 439,
+      "no": 432,
       "level": 3,
       "tag": "ABM00030",
       "ja": "納税者等部（第四表（一））",
@@ -4839,10 +4761,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 440,
+      "no": 433,
       "level": 4,
       "tag": "ABM00040",
-      "ja": "住所（又は居所・事業所等）",
+      "ja": "納税地",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -4850,21 +4772,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 441,
-      "level": 5,
-      "tag": "ABM00050",
-      "ja": "納税地区分",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 442,
+      "no": 434,
       "level": 5,
       "tag": "ABM00060",
-      "ja": "住所",
+      "ja": "納税地",
       "kind": "leaf",
       "idref": "NOZEISHA_ADR",
       "refType": "gen:NOZEISHA_ADRref",
@@ -4872,18 +4783,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 443,
-      "level": 4,
-      "tag": "ABM00065",
-      "ja": "住所以外の居所又は事業所等",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "gen:address",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 444,
+      "no": 435,
       "level": 4,
       "tag": "ABM00070",
       "ja": "フリガナ",
@@ -4894,7 +4794,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 445,
+      "no": 436,
       "level": 4,
       "tag": "ABM00080",
       "ja": "氏名",
@@ -4905,7 +4805,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 446,
+      "no": 437,
       "level": 2,
       "tag": "ABN00000",
       "ja": "損失申告用（第四表（一））",
@@ -4916,7 +4816,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 447,
+      "no": 438,
       "level": 3,
       "tag": "ABN00010",
       "ja": "１．損失額又は所得金額",
@@ -4927,7 +4827,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 448,
+      "no": 439,
       "level": 4,
       "tag": "ABN00020",
       "ja": "Ａ",
@@ -4938,7 +4838,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 449,
+      "no": 440,
       "level": 5,
       "tag": "ABN00030",
       "ja": "経常所得",
@@ -4949,7 +4849,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 450,
+      "no": 441,
       "level": 4,
       "tag": "ABN00040",
       "ja": "Ｂ",
@@ -4960,7 +4860,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 451,
+      "no": 442,
       "level": 5,
       "tag": "ABN00050",
       "ja": "譲渡",
@@ -4971,7 +4871,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 452,
+      "no": 443,
       "level": 6,
       "tag": "ABN00060",
       "ja": "短期",
@@ -4982,7 +4882,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 453,
+      "no": 444,
       "level": 7,
       "tag": "ABN00070",
       "ja": "分離譲渡",
@@ -4993,7 +4893,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 454,
+      "no": 445,
       "level": 8,
       "tag": "ABN00083",
       "ja": "区分等",
@@ -5004,7 +4904,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 455,
+      "no": 446,
       "level": 9,
       "tag": "ABN00086",
       "ja": "一般分",
@@ -5015,7 +4915,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 456,
+      "no": 447,
       "level": 9,
       "tag": "ABN00089",
       "ja": "軽減分",
@@ -5026,7 +4926,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 457,
+      "no": 448,
       "level": 8,
       "tag": "ABN00090",
       "ja": "所得の生ずる場所等",
@@ -5037,7 +4937,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 458,
+      "no": 449,
       "level": 8,
       "tag": "ABN00100",
       "ja": "収入金額",
@@ -5048,18 +4948,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 459,
+      "no": 450,
       "level": 8,
       "tag": "ABN00110",
       "ja": "必要経費等（上段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00110-23-0Rtype",
+      "refType": "ABN00110-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 460,
+      "no": 451,
       "level": 8,
       "tag": "ABN00115",
       "ja": "必要経費等（下段）",
@@ -5070,7 +4970,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 461,
+      "no": 452,
       "level": 8,
       "tag": "ABN00120",
       "ja": "差引金額(上段)",
@@ -5081,18 +4981,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 462,
+      "no": 453,
       "level": 8,
       "tag": "ABN00130",
       "ja": "差引金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00130-23-0Rtype",
+      "refType": "ABN00130-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 463,
+      "no": 454,
       "level": 8,
       "tag": "ABN00140",
       "ja": "損失額又は所得金額(上段)",
@@ -5103,18 +5003,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 464,
+      "no": 455,
       "level": 8,
       "tag": "ABN00150",
       "ja": "損失額又は所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00150-23-0Rtype",
+      "refType": "ABN00150-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 465,
+      "no": 456,
       "level": 7,
       "tag": "ABN00160",
       "ja": "総合譲渡",
@@ -5125,7 +5025,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 466,
+      "no": 457,
       "level": 8,
       "tag": "ABN00170",
       "ja": "差引金額(上段)",
@@ -5136,18 +5036,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 467,
+      "no": 458,
       "level": 8,
       "tag": "ABN00180",
       "ja": "差引金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00180-23-0Rtype",
+      "refType": "ABN00180-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 468,
+      "no": 459,
       "level": 8,
       "tag": "ABN00190",
       "ja": "特別控除額",
@@ -5158,7 +5058,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 469,
+      "no": 460,
       "level": 8,
       "tag": "ABN00200",
       "ja": "損失額又は所得金額(上段)",
@@ -5169,18 +5069,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 470,
+      "no": 461,
       "level": 8,
       "tag": "ABN00210",
       "ja": "損失額又は所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00210-23-0Rtype",
+      "refType": "ABN00210-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 471,
+      "no": 462,
       "level": 6,
       "tag": "ABN00220",
       "ja": "長期",
@@ -5191,7 +5091,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 472,
+      "no": 463,
       "level": 7,
       "tag": "ABN00230",
       "ja": "分離譲渡",
@@ -5202,7 +5102,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 473,
+      "no": 464,
       "level": 8,
       "tag": "ABN00242",
       "ja": "区分等",
@@ -5213,7 +5113,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 474,
+      "no": 465,
       "level": 9,
       "tag": "ABN00244",
       "ja": "一般分",
@@ -5224,7 +5124,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 475,
+      "no": 466,
       "level": 9,
       "tag": "ABN00246",
       "ja": "特定分",
@@ -5235,7 +5135,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 476,
+      "no": 467,
       "level": 9,
       "tag": "ABN00248",
       "ja": "軽課分",
@@ -5246,7 +5146,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 477,
+      "no": 468,
       "level": 8,
       "tag": "ABN00250",
       "ja": "所得の生ずる場所等",
@@ -5257,7 +5157,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 478,
+      "no": 469,
       "level": 8,
       "tag": "ABN00260",
       "ja": "収入金額",
@@ -5268,18 +5168,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 479,
+      "no": 470,
       "level": 8,
       "tag": "ABN00270",
       "ja": "必要経費等（上段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00270-23-0Rtype",
+      "refType": "ABN00270-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 480,
+      "no": 471,
       "level": 8,
       "tag": "ABN00275",
       "ja": "必要経費等（下段）",
@@ -5290,7 +5190,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 481,
+      "no": 472,
       "level": 8,
       "tag": "ABN00280",
       "ja": "差引金額(上段)",
@@ -5301,18 +5201,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 482,
+      "no": 473,
       "level": 8,
       "tag": "ABN00290",
       "ja": "差引金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00290-23-0Rtype",
+      "refType": "ABN00290-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 483,
+      "no": 474,
       "level": 8,
       "tag": "ABN00300",
       "ja": "損失額又は所得金額(上段)",
@@ -5323,18 +5223,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 484,
+      "no": 475,
       "level": 8,
       "tag": "ABN00310",
       "ja": "損失額又は所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00310-23-0Rtype",
+      "refType": "ABN00310-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 485,
+      "no": 476,
       "level": 7,
       "tag": "ABN00320",
       "ja": "総合譲渡",
@@ -5345,7 +5245,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 486,
+      "no": 477,
       "level": 8,
       "tag": "ABN00330",
       "ja": "差引金額(上段)",
@@ -5356,18 +5256,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 487,
+      "no": 478,
       "level": 8,
       "tag": "ABN00340",
       "ja": "差引金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00340-23-0Rtype",
+      "refType": "ABN00340-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 488,
+      "no": 479,
       "level": 8,
       "tag": "ABN00350",
       "ja": "特別控除額",
@@ -5378,7 +5278,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 489,
+      "no": 480,
       "level": 8,
       "tag": "ABN00360",
       "ja": "損失額又は所得金額(上段)",
@@ -5389,18 +5289,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 490,
+      "no": 481,
       "level": 8,
       "tag": "ABN00370",
       "ja": "損失額又は所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00370-23-0Rtype",
+      "refType": "ABN00370-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 491,
+      "no": 482,
       "level": 5,
       "tag": "ABN00380",
       "ja": "一時",
@@ -5411,7 +5311,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 492,
+      "no": 483,
       "level": 6,
       "tag": "ABN00390",
       "ja": "差引金額",
@@ -5422,7 +5322,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 493,
+      "no": 484,
       "level": 6,
       "tag": "ABN00400",
       "ja": "特別控除額",
@@ -5433,7 +5333,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 494,
+      "no": 485,
       "level": 6,
       "tag": "ABN00410",
       "ja": "損失額又は所得金額(上段)",
@@ -5444,18 +5344,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 495,
+      "no": 486,
       "level": 6,
       "tag": "ABN00420",
       "ja": "損失額又は所得金額(下段)",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00420-23-0Rtype",
+      "refType": "ABN00420-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 496,
+      "no": 487,
       "level": 4,
       "tag": "ABN00430",
       "ja": "Ｃ",
@@ -5466,7 +5366,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 497,
+      "no": 488,
       "level": 5,
       "tag": "ABN00440",
       "ja": "山林",
@@ -5477,7 +5377,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 498,
+      "no": 489,
       "level": 6,
       "tag": "ABN00450",
       "ja": "収入金額",
@@ -5488,7 +5388,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 499,
+      "no": 490,
       "level": 6,
       "tag": "ABN00460",
       "ja": "損失額又は所得金額",
@@ -5499,7 +5399,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 500,
+      "no": 491,
       "level": 4,
       "tag": "ABN00470",
       "ja": "D",
@@ -5510,7 +5410,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 501,
+      "no": 492,
       "level": 5,
       "tag": "ABN00480",
       "ja": "退職",
@@ -5521,7 +5421,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 502,
+      "no": 493,
       "level": 6,
       "tag": "ABN01630",
       "ja": "一般",
@@ -5532,7 +5432,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 503,
+      "no": 494,
       "level": 7,
       "tag": "ABN01640",
       "ja": "所得の生ずる場所等",
@@ -5543,7 +5443,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 504,
+      "no": 495,
       "level": 7,
       "tag": "ABN01650",
       "ja": "収入金額",
@@ -5554,7 +5454,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 505,
+      "no": 496,
       "level": 7,
       "tag": "ABN01660",
       "ja": "必要経費等",
@@ -5565,7 +5465,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 506,
+      "no": 497,
       "level": 7,
       "tag": "ABN01670",
       "ja": "差引金額",
@@ -5576,7 +5476,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 507,
+      "no": 498,
       "level": 6,
       "tag": "ABN01680",
       "ja": "短期",
@@ -5587,7 +5487,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 508,
+      "no": 499,
       "level": 7,
       "tag": "ABN01690",
       "ja": "所得の生ずる場所等",
@@ -5598,7 +5498,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 509,
+      "no": 500,
       "level": 7,
       "tag": "ABN01700",
       "ja": "収入金額",
@@ -5609,7 +5509,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 510,
+      "no": 501,
       "level": 7,
       "tag": "ABN01710",
       "ja": "必要経費等",
@@ -5620,7 +5520,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 511,
+      "no": 502,
       "level": 7,
       "tag": "ABN01720",
       "ja": "差引金額",
@@ -5631,7 +5531,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 512,
+      "no": 503,
       "level": 6,
       "tag": "ABN01730",
       "ja": "特定役員",
@@ -5642,7 +5542,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 513,
+      "no": 504,
       "level": 7,
       "tag": "ABN01740",
       "ja": "所得の生ずる場所等",
@@ -5653,7 +5553,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 514,
+      "no": 505,
       "level": 7,
       "tag": "ABN01750",
       "ja": "収入金額",
@@ -5664,7 +5564,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 515,
+      "no": 506,
       "level": 7,
       "tag": "ABN01760",
       "ja": "必要経費等",
@@ -5675,7 +5575,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 516,
+      "no": 507,
       "level": 7,
       "tag": "ABN01770",
       "ja": "差引金額",
@@ -5686,7 +5586,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 517,
+      "no": 508,
       "level": 6,
       "tag": "ABN00540",
       "ja": "損失額又は所得金額",
@@ -5697,7 +5597,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 518,
+      "no": 509,
       "level": 4,
       "tag": "ABN00550",
       "ja": "E",
@@ -5708,7 +5608,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 519,
+      "no": 510,
       "level": 5,
       "tag": "ABN00560",
       "ja": "明細",
@@ -5719,7 +5619,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 520,
+      "no": 511,
       "level": 6,
       "tag": "ABN01600",
       "ja": "一般株式等の譲渡",
@@ -5730,7 +5630,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 521,
+      "no": 512,
       "level": 7,
       "tag": "ABN01610",
       "ja": "収入金額",
@@ -5741,7 +5641,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 522,
+      "no": 513,
       "level": 7,
       "tag": "ABN01620",
       "ja": "損失額又は所得金額",
@@ -5752,7 +5652,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 523,
+      "no": 514,
       "level": 6,
       "tag": "ABN00610",
       "ja": "上場株式等の譲渡",
@@ -5763,7 +5663,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 524,
+      "no": 515,
       "level": 7,
       "tag": "ABN00620",
       "ja": "収入金額",
@@ -5774,7 +5674,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 525,
+      "no": 516,
       "level": 7,
       "tag": "ABN00630",
       "ja": "損失額又は所得金額",
@@ -5785,7 +5685,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 526,
+      "no": 517,
       "level": 5,
       "tag": "ABN01530",
       "ja": "上場株式等の配当等",
@@ -5796,18 +5696,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 527,
+      "no": 518,
       "level": 6,
       "tag": "ABN01540",
       "ja": "区分等",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN01540-23-0Rtype",
+      "refType": "ABN01540-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 528,
+      "no": 519,
       "level": 6,
       "tag": "ABN01550",
       "ja": "所得の生ずる場所等",
@@ -5818,7 +5718,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 529,
+      "no": 520,
       "level": 6,
       "tag": "ABN01560",
       "ja": "収入金額",
@@ -5829,7 +5729,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 530,
+      "no": 521,
       "level": 6,
       "tag": "ABN01570",
       "ja": "必要経費等",
@@ -5840,7 +5740,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 531,
+      "no": 522,
       "level": 6,
       "tag": "ABN01580",
       "ja": "差引金額",
@@ -5851,7 +5751,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 532,
+      "no": 523,
       "level": 6,
       "tag": "ABN01590",
       "ja": "損失額又は所得金額",
@@ -5862,7 +5762,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 533,
+      "no": 524,
       "level": 4,
       "tag": "ABN00650",
       "ja": "Ｆ",
@@ -5873,7 +5773,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 534,
+      "no": 525,
       "level": 5,
       "tag": "ABN00660",
       "ja": "先物取引",
@@ -5884,7 +5784,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 535,
+      "no": 526,
       "level": 6,
       "tag": "ABN00680",
       "ja": "収入金額",
@@ -5895,7 +5795,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 536,
+      "no": 527,
       "level": 6,
       "tag": "ABN00690",
       "ja": "損失額又は所得金額",
@@ -5906,7 +5806,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 537,
+      "no": 528,
       "level": 3,
       "tag": "ABN00693",
       "ja": "分離課税の譲渡所得の特別控除額の合計額",
@@ -5917,7 +5817,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 538,
+      "no": 529,
       "level": 3,
       "tag": "ABN00696",
       "ja": "上場株式等の譲渡所得等の源泉徴収税額の合計額",
@@ -5928,18 +5828,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 539,
+      "no": 530,
       "level": 3,
       "tag": "ABN00700",
       "ja": "特例適用条文",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABN00700-23-0Rtype",
+      "refType": "ABN00700-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 540,
+      "no": 531,
       "level": 3,
       "tag": "ABN00780",
       "ja": "２．損益の通算",
@@ -5950,7 +5850,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 541,
+      "no": 532,
       "level": 4,
       "tag": "ABN00790",
       "ja": "通算前",
@@ -5961,7 +5861,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 542,
+      "no": 533,
       "level": 5,
       "tag": "ABN00800",
       "ja": "Ａ",
@@ -5972,7 +5872,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 543,
+      "no": 534,
       "level": 6,
       "tag": "ABN00810",
       "ja": "経常所得",
@@ -5983,7 +5883,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 544,
+      "no": 535,
       "level": 5,
       "tag": "ABN00820",
       "ja": "Ｂ",
@@ -5994,7 +5894,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 545,
+      "no": 536,
       "level": 6,
       "tag": "ABN00830",
       "ja": "譲渡",
@@ -6005,7 +5905,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 546,
+      "no": 537,
       "level": 7,
       "tag": "ABN00840",
       "ja": "短期",
@@ -6016,7 +5916,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 547,
+      "no": 538,
       "level": 8,
       "tag": "ABN00860",
       "ja": "総合譲渡",
@@ -6027,7 +5927,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 548,
+      "no": 539,
       "level": 7,
       "tag": "ABN00870",
       "ja": "長期",
@@ -6038,7 +5938,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 549,
+      "no": 540,
       "level": 8,
       "tag": "ABN00880",
       "ja": "分離譲渡（特定損失額）",
@@ -6049,7 +5949,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 550,
+      "no": 541,
       "level": 8,
       "tag": "ABN00890",
       "ja": "総合譲渡",
@@ -6060,7 +5960,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 551,
+      "no": 542,
       "level": 6,
       "tag": "ABN00900",
       "ja": "一時",
@@ -6071,7 +5971,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 552,
+      "no": 543,
       "level": 4,
       "tag": "ABN00910",
       "ja": "第１次通算後",
@@ -6082,7 +5982,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 553,
+      "no": 544,
       "level": 5,
       "tag": "ABN00920",
       "ja": "Ａ",
@@ -6093,7 +5993,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 554,
+      "no": 545,
       "level": 6,
       "tag": "ABN00930",
       "ja": "経常所得",
@@ -6104,7 +6004,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 555,
+      "no": 546,
       "level": 5,
       "tag": "ABN00940",
       "ja": "Ｂ",
@@ -6115,7 +6015,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 556,
+      "no": 547,
       "level": 6,
       "tag": "ABN00950",
       "ja": "譲渡",
@@ -6126,7 +6026,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 557,
+      "no": 548,
       "level": 7,
       "tag": "ABN00960",
       "ja": "短期",
@@ -6137,7 +6037,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 558,
+      "no": 549,
       "level": 8,
       "tag": "ABN00980",
       "ja": "総合譲渡",
@@ -6148,7 +6048,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 559,
+      "no": 550,
       "level": 7,
       "tag": "ABN00990",
       "ja": "長期",
@@ -6159,7 +6059,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 560,
+      "no": 551,
       "level": 8,
       "tag": "ABN01000",
       "ja": "分離譲渡（特定損失額）",
@@ -6170,7 +6070,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 561,
+      "no": 552,
       "level": 8,
       "tag": "ABN01010",
       "ja": "総合譲渡",
@@ -6181,7 +6081,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 562,
+      "no": 553,
       "level": 6,
       "tag": "ABN01020",
       "ja": "一時",
@@ -6192,7 +6092,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 563,
+      "no": 554,
       "level": 5,
       "tag": "ABN01030",
       "ja": "Ｃ",
@@ -6203,7 +6103,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 564,
+      "no": 555,
       "level": 6,
       "tag": "ABN01040",
       "ja": "山林",
@@ -6214,7 +6114,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 565,
+      "no": 556,
       "level": 4,
       "tag": "ABN01050",
       "ja": "第２次通算後",
@@ -6225,7 +6125,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 566,
+      "no": 557,
       "level": 5,
       "tag": "ABN01060",
       "ja": "Ａ",
@@ -6236,7 +6136,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 567,
+      "no": 558,
       "level": 6,
       "tag": "ABN01070",
       "ja": "経常所得",
@@ -6247,7 +6147,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 568,
+      "no": 559,
       "level": 5,
       "tag": "ABN01080",
       "ja": "Ｂ",
@@ -6258,7 +6158,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 569,
+      "no": 560,
       "level": 6,
       "tag": "ABN01090",
       "ja": "譲渡",
@@ -6269,7 +6169,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 570,
+      "no": 561,
       "level": 7,
       "tag": "ABN01100",
       "ja": "短期",
@@ -6280,7 +6180,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 571,
+      "no": 562,
       "level": 8,
       "tag": "ABN01120",
       "ja": "総合譲渡",
@@ -6291,7 +6191,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 572,
+      "no": 563,
       "level": 7,
       "tag": "ABN01130",
       "ja": "長期",
@@ -6302,7 +6202,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 573,
+      "no": 564,
       "level": 8,
       "tag": "ABN01140",
       "ja": "分離譲渡（特定損失額）",
@@ -6313,7 +6213,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 574,
+      "no": 565,
       "level": 8,
       "tag": "ABN01150",
       "ja": "総合譲渡",
@@ -6324,7 +6224,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 575,
+      "no": 566,
       "level": 6,
       "tag": "ABN01160",
       "ja": "一時",
@@ -6335,7 +6235,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 576,
+      "no": 567,
       "level": 5,
       "tag": "ABN01170",
       "ja": "Ｃ",
@@ -6346,7 +6246,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 577,
+      "no": 568,
       "level": 6,
       "tag": "ABN01180",
       "ja": "山林",
@@ -6357,7 +6257,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 578,
+      "no": 569,
       "level": 5,
       "tag": "ABN01190",
       "ja": "D",
@@ -6368,7 +6268,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 579,
+      "no": 570,
       "level": 6,
       "tag": "ABN01200",
       "ja": "退職",
@@ -6379,7 +6279,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 580,
+      "no": 571,
       "level": 4,
       "tag": "ABN01210",
       "ja": "第３次通算後",
@@ -6390,7 +6290,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 581,
+      "no": 572,
       "level": 5,
       "tag": "ABN01220",
       "ja": "Ａ",
@@ -6401,7 +6301,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 582,
+      "no": 573,
       "level": 6,
       "tag": "ABN01230",
       "ja": "経常所得",
@@ -6412,7 +6312,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 583,
+      "no": 574,
       "level": 5,
       "tag": "ABN01240",
       "ja": "Ｂ",
@@ -6423,7 +6323,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 584,
+      "no": 575,
       "level": 6,
       "tag": "ABN01250",
       "ja": "譲渡",
@@ -6434,7 +6334,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 585,
+      "no": 576,
       "level": 7,
       "tag": "ABN01260",
       "ja": "短期",
@@ -6445,7 +6345,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 586,
+      "no": 577,
       "level": 8,
       "tag": "ABN01280",
       "ja": "総合譲渡",
@@ -6456,7 +6356,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 587,
+      "no": 578,
       "level": 7,
       "tag": "ABN01290",
       "ja": "長期",
@@ -6467,7 +6367,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 588,
+      "no": 579,
       "level": 8,
       "tag": "ABN01300",
       "ja": "分離譲渡（特定損失額）",
@@ -6478,7 +6378,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 589,
+      "no": 580,
       "level": 8,
       "tag": "ABN01310",
       "ja": "総合譲渡",
@@ -6489,7 +6389,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 590,
+      "no": 581,
       "level": 6,
       "tag": "ABN01320",
       "ja": "一時",
@@ -6500,7 +6400,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 591,
+      "no": 582,
       "level": 5,
       "tag": "ABN01330",
       "ja": "Ｃ",
@@ -6511,7 +6411,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 592,
+      "no": 583,
       "level": 6,
       "tag": "ABN01340",
       "ja": "山林",
@@ -6522,7 +6422,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 593,
+      "no": 584,
       "level": 5,
       "tag": "ABN01350",
       "ja": "D",
@@ -6533,7 +6433,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 594,
+      "no": 585,
       "level": 6,
       "tag": "ABN01360",
       "ja": "退職",
@@ -6544,7 +6444,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 595,
+      "no": 586,
       "level": 4,
       "tag": "ABN01370",
       "ja": "損失額又は所得金額",
@@ -6555,7 +6455,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 596,
+      "no": 587,
       "level": 5,
       "tag": "ABN01380",
       "ja": "Ａ",
@@ -6566,7 +6466,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 597,
+      "no": 588,
       "level": 6,
       "tag": "ABN01390",
       "ja": "経常所得",
@@ -6577,7 +6477,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 598,
+      "no": 589,
       "level": 5,
       "tag": "ABN01400",
       "ja": "Ｂ",
@@ -6588,7 +6488,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 599,
+      "no": 590,
       "level": 6,
       "tag": "ABN01410",
       "ja": "譲渡",
@@ -6599,7 +6499,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 600,
+      "no": 591,
       "level": 7,
       "tag": "ABN01420",
       "ja": "短期",
@@ -6610,7 +6510,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 601,
+      "no": 592,
       "level": 8,
       "tag": "ABN01440",
       "ja": "総合譲渡",
@@ -6621,7 +6521,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 602,
+      "no": 593,
       "level": 7,
       "tag": "ABN01450",
       "ja": "長期",
@@ -6632,7 +6532,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 603,
+      "no": 594,
       "level": 8,
       "tag": "ABN01460",
       "ja": "分離譲渡（特定損失額）",
@@ -6643,7 +6543,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 604,
+      "no": 595,
       "level": 6,
       "tag": "ABN01470",
       "ja": "総合譲渡・一時",
@@ -6654,7 +6554,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 605,
+      "no": 596,
       "level": 5,
       "tag": "ABN01480",
       "ja": "Ｃ",
@@ -6665,7 +6565,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 606,
+      "no": 597,
       "level": 6,
       "tag": "ABN01490",
       "ja": "山林",
@@ -6676,7 +6576,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 607,
+      "no": 598,
       "level": 5,
       "tag": "ABN01500",
       "ja": "D",
@@ -6687,7 +6587,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 608,
+      "no": 599,
       "level": 6,
       "tag": "ABN01510",
       "ja": "退職",
@@ -6698,7 +6598,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 609,
+      "no": 600,
       "level": 4,
       "tag": "ABN01520",
       "ja": "損失額又は所得金額の合計額",
@@ -6709,7 +6609,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 610,
+      "no": 601,
       "level": 1,
       "tag": "KOA020-5",
       "ja": "申告書第四表（二）",
@@ -6720,7 +6620,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 611,
+      "no": 602,
       "level": 2,
       "tag": "ABO00000",
       "ja": "申告書見出し部（第四表（二））",
@@ -6731,7 +6631,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 612,
+      "no": 603,
       "level": 3,
       "tag": "ABO00010",
       "ja": "年分",
@@ -6742,7 +6642,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 613,
+      "no": 604,
       "level": 3,
       "tag": "ABO00020",
       "ja": "申告の種類",
@@ -6753,7 +6653,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 614,
+      "no": 605,
       "level": 2,
       "tag": "ABP00000",
       "ja": "損失申告用（第四表（二））",
@@ -6764,7 +6664,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 615,
+      "no": 606,
       "level": 3,
       "tag": "ABP00010",
       "ja": "３．翌年以後に繰り越す損失額",
@@ -6775,7 +6675,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 616,
+      "no": 607,
       "level": 4,
       "tag": "ABP00020",
       "ja": "青色申告者の損失の金額",
@@ -6786,7 +6686,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 617,
+      "no": 608,
       "level": 4,
       "tag": "ABP00030",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -6797,7 +6697,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 618,
+      "no": 609,
       "level": 4,
       "tag": "ABP00040",
       "ja": "変動所得の損失額",
@@ -6808,7 +6708,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 619,
+      "no": 610,
       "level": 4,
       "tag": "ABP00050",
       "ja": "被災事業用資産の損失額",
@@ -6819,7 +6719,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 620,
+      "no": 611,
       "level": 5,
       "tag": "ABP00060",
       "ja": "山林以外",
@@ -6830,7 +6730,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 621,
+      "no": 612,
       "level": 6,
       "tag": "ABP00070",
       "ja": "営業等・農業",
@@ -6841,29 +6741,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 622,
+      "no": 613,
       "level": 7,
       "tag": "ABP00080",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00080-23-0Rtype",
+      "refType": "ABP00080-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 623,
+      "no": 614,
       "level": 7,
       "tag": "ABP00090",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00090-23-0Rtype",
+      "refType": "ABP00090-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 624,
+      "no": 615,
       "level": 7,
       "tag": "ABP00100",
       "ja": "損害年月日",
@@ -6874,7 +6774,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 625,
+      "no": 616,
       "level": 7,
       "tag": "ABP00110",
       "ja": "損害金額",
@@ -6885,7 +6785,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 626,
+      "no": 617,
       "level": 7,
       "tag": "ABP00120",
       "ja": "保険金などで補填される金額",
@@ -6896,7 +6796,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 627,
+      "no": 618,
       "level": 7,
       "tag": "ABP00130",
       "ja": "差引損失額",
@@ -6907,7 +6807,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 628,
+      "no": 619,
       "level": 6,
       "tag": "ABP00140",
       "ja": "不動産",
@@ -6918,29 +6818,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 629,
+      "no": 620,
       "level": 7,
       "tag": "ABP00150",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00150-23-0Rtype",
+      "refType": "ABP00150-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 630,
+      "no": 621,
       "level": 7,
       "tag": "ABP00160",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00160-23-0Rtype",
+      "refType": "ABP00160-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 631,
+      "no": 622,
       "level": 7,
       "tag": "ABP00170",
       "ja": "損害年月日",
@@ -6951,7 +6851,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 632,
+      "no": 623,
       "level": 7,
       "tag": "ABP00180",
       "ja": "損害金額",
@@ -6962,7 +6862,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 633,
+      "no": 624,
       "level": 7,
       "tag": "ABP00190",
       "ja": "保険金などで補填される金額",
@@ -6973,7 +6873,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 634,
+      "no": 625,
       "level": 7,
       "tag": "ABP00200",
       "ja": "差引損失額",
@@ -6984,7 +6884,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 635,
+      "no": 626,
       "level": 5,
       "tag": "ABP00210",
       "ja": "山林",
@@ -6995,29 +6895,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 636,
+      "no": 627,
       "level": 6,
       "tag": "ABP00220",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00220-23-0Rtype",
+      "refType": "ABP00220-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 637,
+      "no": 628,
       "level": 6,
       "tag": "ABP00230",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABP00230-23-0Rtype",
+      "refType": "ABP00230-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 638,
+      "no": 629,
       "level": 6,
       "tag": "ABP00240",
       "ja": "損害年月日",
@@ -7028,7 +6928,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 639,
+      "no": 630,
       "level": 6,
       "tag": "ABP00250",
       "ja": "損害金額",
@@ -7039,7 +6939,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 640,
+      "no": 631,
       "level": 6,
       "tag": "ABP00260",
       "ja": "保険金などで補填される金額",
@@ -7050,7 +6950,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 641,
+      "no": 632,
       "level": 6,
       "tag": "ABP00270",
       "ja": "差引損失額",
@@ -7061,7 +6961,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 642,
+      "no": 633,
       "level": 4,
       "tag": "ABP00290",
       "ja": "山林以外の所得に係る被災事業用資産の損失額",
@@ -7072,7 +6972,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 643,
+      "no": 634,
       "level": 4,
       "tag": "ABP00300",
       "ja": "山林所得に係る被災事業用資産の損失額",
@@ -7083,7 +6983,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 644,
+      "no": 635,
       "level": 3,
       "tag": "ABP00310",
       "ja": "４．繰越損失を差し引く計算",
@@ -7094,7 +6994,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 645,
+      "no": 636,
       "level": 4,
       "tag": "ABP00320",
       "ja": "年分（Ａ）",
@@ -7105,7 +7005,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 646,
+      "no": 637,
       "level": 4,
       "tag": "ABP00330",
       "ja": "３年前（Ａ）",
@@ -7116,7 +7016,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 647,
+      "no": 638,
       "level": 5,
       "tag": "ABP00340",
       "ja": "青色の場合",
@@ -7127,7 +7027,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 648,
+      "no": 639,
       "level": 5,
       "tag": "ABP00350",
       "ja": "白色の場合",
@@ -7138,7 +7038,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 649,
+      "no": 640,
       "level": 4,
       "tag": "ABP00360",
       "ja": "年分（Ｂ）",
@@ -7149,7 +7049,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 650,
+      "no": 641,
       "level": 4,
       "tag": "ABP00370",
       "ja": "２年前（Ｂ）",
@@ -7160,7 +7060,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 651,
+      "no": 642,
       "level": 5,
       "tag": "ABP00380",
       "ja": "青色の場合",
@@ -7171,7 +7071,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 652,
+      "no": 643,
       "level": 5,
       "tag": "ABP00390",
       "ja": "白色の場合",
@@ -7182,7 +7082,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 653,
+      "no": 644,
       "level": 4,
       "tag": "ABP00400",
       "ja": "年分（Ｃ）",
@@ -7193,7 +7093,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 654,
+      "no": 645,
       "level": 4,
       "tag": "ABP00410",
       "ja": "前年（Ｃ）",
@@ -7204,7 +7104,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 655,
+      "no": 646,
       "level": 5,
       "tag": "ABP00420",
       "ja": "青色の場合",
@@ -7215,7 +7115,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 656,
+      "no": 647,
       "level": 5,
       "tag": "ABP00430",
       "ja": "白色の場合",
@@ -7226,7 +7126,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 657,
+      "no": 648,
       "level": 4,
       "tag": "ABP00460",
       "ja": "前年分までに引ききれなかった損失額",
@@ -7237,7 +7137,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 658,
+      "no": 649,
       "level": 5,
       "tag": "ABP00470",
       "ja": "Ａ年分",
@@ -7248,7 +7148,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 659,
+      "no": 650,
       "level": 6,
       "tag": "ABP00480",
       "ja": "純損失",
@@ -7259,7 +7159,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 660,
+      "no": 651,
       "level": 7,
       "tag": "ABP00490",
       "ja": "青色",
@@ -7270,7 +7170,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 661,
+      "no": 652,
       "level": 8,
       "tag": "ABP00500",
       "ja": "山林以外の所得の損失",
@@ -7281,7 +7181,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 662,
+      "no": 653,
       "level": 8,
       "tag": "ABP00510",
       "ja": "山林所得の損失",
@@ -7292,7 +7192,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 663,
+      "no": 654,
       "level": 7,
       "tag": "ABP00520",
       "ja": "白色",
@@ -7303,7 +7203,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 664,
+      "no": 655,
       "level": 8,
       "tag": "ABP00530",
       "ja": "変動所得の損失",
@@ -7314,7 +7214,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 665,
+      "no": 656,
       "level": 8,
       "tag": "ABP00540",
       "ja": "被災事業用資産の損失",
@@ -7325,7 +7225,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 666,
+      "no": 657,
       "level": 9,
       "tag": "ABP00550",
       "ja": "山林以外",
@@ -7336,7 +7236,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 667,
+      "no": 658,
       "level": 9,
       "tag": "ABP00560",
       "ja": "山林",
@@ -7347,7 +7247,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 668,
+      "no": 659,
       "level": 7,
       "tag": "ABP00570",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -7358,7 +7258,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 669,
+      "no": 660,
       "level": 6,
       "tag": "ABP00580",
       "ja": "雑損失",
@@ -7369,7 +7269,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 670,
+      "no": 661,
       "level": 5,
       "tag": "ABP00590",
       "ja": "Ｂ年分",
@@ -7380,7 +7280,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 671,
+      "no": 662,
       "level": 6,
       "tag": "ABP00600",
       "ja": "純損失",
@@ -7391,7 +7291,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 672,
+      "no": 663,
       "level": 7,
       "tag": "ABP00610",
       "ja": "青色",
@@ -7402,7 +7302,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 673,
+      "no": 664,
       "level": 8,
       "tag": "ABP00620",
       "ja": "山林以外の所得の損失",
@@ -7413,7 +7313,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 674,
+      "no": 665,
       "level": 8,
       "tag": "ABP00630",
       "ja": "山林所得の損失",
@@ -7424,7 +7324,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 675,
+      "no": 666,
       "level": 7,
       "tag": "ABP00640",
       "ja": "白色",
@@ -7435,7 +7335,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 676,
+      "no": 667,
       "level": 8,
       "tag": "ABP00650",
       "ja": "変動所得の損失",
@@ -7446,7 +7346,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 677,
+      "no": 668,
       "level": 8,
       "tag": "ABP00660",
       "ja": "被災事業用資産の損失",
@@ -7457,7 +7357,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 678,
+      "no": 669,
       "level": 9,
       "tag": "ABP00670",
       "ja": "山林以外",
@@ -7468,7 +7368,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 679,
+      "no": 670,
       "level": 9,
       "tag": "ABP00680",
       "ja": "山林",
@@ -7479,7 +7379,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 680,
+      "no": 671,
       "level": 7,
       "tag": "ABP00690",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -7490,7 +7390,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 681,
+      "no": 672,
       "level": 6,
       "tag": "ABP00700",
       "ja": "雑損失",
@@ -7501,7 +7401,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 682,
+      "no": 673,
       "level": 5,
       "tag": "ABP00710",
       "ja": "Ｃ年分",
@@ -7512,7 +7412,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 683,
+      "no": 674,
       "level": 6,
       "tag": "ABP00720",
       "ja": "純損失",
@@ -7523,7 +7423,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 684,
+      "no": 675,
       "level": 7,
       "tag": "ABP00730",
       "ja": "青色",
@@ -7534,7 +7434,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 685,
+      "no": 676,
       "level": 8,
       "tag": "ABP00740",
       "ja": "山林以外の所得の損失",
@@ -7545,7 +7445,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 686,
+      "no": 677,
       "level": 8,
       "tag": "ABP00750",
       "ja": "山林所得の損失",
@@ -7556,7 +7456,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 687,
+      "no": 678,
       "level": 7,
       "tag": "ABP00760",
       "ja": "白色",
@@ -7567,7 +7467,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 688,
+      "no": 679,
       "level": 8,
       "tag": "ABP00770",
       "ja": "変動所得の損失",
@@ -7578,7 +7478,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 689,
+      "no": 680,
       "level": 8,
       "tag": "ABP00780",
       "ja": "被災事業用資産の損失",
@@ -7589,7 +7489,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 690,
+      "no": 681,
       "level": 9,
       "tag": "ABP00790",
       "ja": "山林以外",
@@ -7600,7 +7500,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 691,
+      "no": 682,
       "level": 9,
       "tag": "ABP00800",
       "ja": "山林",
@@ -7611,7 +7511,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 692,
+      "no": 683,
       "level": 7,
       "tag": "ABP00810",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -7622,7 +7522,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 693,
+      "no": 684,
       "level": 6,
       "tag": "ABP00820",
       "ja": "雑損失",
@@ -7633,7 +7533,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 694,
+      "no": 685,
       "level": 4,
       "tag": "ABP00830",
       "ja": "本年分で差し引く損失額",
@@ -7644,7 +7544,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 695,
+      "no": 686,
       "level": 5,
       "tag": "ABP00840",
       "ja": "Ａ年分",
@@ -7655,7 +7555,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 696,
+      "no": 687,
       "level": 6,
       "tag": "ABP00850",
       "ja": "純損失",
@@ -7666,7 +7566,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 697,
+      "no": 688,
       "level": 7,
       "tag": "ABP00860",
       "ja": "青色",
@@ -7677,7 +7577,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 698,
+      "no": 689,
       "level": 8,
       "tag": "ABP00870",
       "ja": "山林以外の所得の損失",
@@ -7688,7 +7588,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 699,
+      "no": 690,
       "level": 8,
       "tag": "ABP00880",
       "ja": "山林所得の損失",
@@ -7699,7 +7599,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 700,
+      "no": 691,
       "level": 7,
       "tag": "ABP00890",
       "ja": "白色",
@@ -7710,7 +7610,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 701,
+      "no": 692,
       "level": 8,
       "tag": "ABP00900",
       "ja": "変動所得の損失",
@@ -7721,7 +7621,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 702,
+      "no": 693,
       "level": 8,
       "tag": "ABP00910",
       "ja": "被災事業用資産の損失",
@@ -7732,7 +7632,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 703,
+      "no": 694,
       "level": 9,
       "tag": "ABP00920",
       "ja": "山林以外",
@@ -7743,7 +7643,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 704,
+      "no": 695,
       "level": 9,
       "tag": "ABP00930",
       "ja": "山林",
@@ -7754,7 +7654,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 705,
+      "no": 696,
       "level": 7,
       "tag": "ABP00940",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -7765,7 +7665,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 706,
+      "no": 697,
       "level": 6,
       "tag": "ABP00950",
       "ja": "雑損失",
@@ -7776,7 +7676,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 707,
+      "no": 698,
       "level": 5,
       "tag": "ABP00960",
       "ja": "Ｂ年分",
@@ -7787,7 +7687,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 708,
+      "no": 699,
       "level": 6,
       "tag": "ABP00970",
       "ja": "純損失",
@@ -7798,7 +7698,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 709,
+      "no": 700,
       "level": 7,
       "tag": "ABP00980",
       "ja": "青色",
@@ -7809,7 +7709,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 710,
+      "no": 701,
       "level": 8,
       "tag": "ABP00990",
       "ja": "山林以外の所得の損失",
@@ -7820,7 +7720,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 711,
+      "no": 702,
       "level": 8,
       "tag": "ABP01000",
       "ja": "山林所得の損失",
@@ -7831,7 +7731,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 712,
+      "no": 703,
       "level": 7,
       "tag": "ABP01010",
       "ja": "白色",
@@ -7842,7 +7742,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 713,
+      "no": 704,
       "level": 8,
       "tag": "ABP01020",
       "ja": "変動所得の損失",
@@ -7853,7 +7753,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 714,
+      "no": 705,
       "level": 8,
       "tag": "ABP01030",
       "ja": "被災事業用資産の損失",
@@ -7864,7 +7764,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 715,
+      "no": 706,
       "level": 9,
       "tag": "ABP01040",
       "ja": "山林以外",
@@ -7875,7 +7775,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 716,
+      "no": 707,
       "level": 9,
       "tag": "ABP01050",
       "ja": "山林",
@@ -7886,7 +7786,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 717,
+      "no": 708,
       "level": 7,
       "tag": "ABP01060",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -7897,7 +7797,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 718,
+      "no": 709,
       "level": 6,
       "tag": "ABP01070",
       "ja": "雑損失",
@@ -7908,7 +7808,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 719,
+      "no": 710,
       "level": 5,
       "tag": "ABP01080",
       "ja": "Ｃ年分",
@@ -7919,7 +7819,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 720,
+      "no": 711,
       "level": 6,
       "tag": "ABP01090",
       "ja": "純損失",
@@ -7930,7 +7830,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 721,
+      "no": 712,
       "level": 7,
       "tag": "ABP01100",
       "ja": "青色",
@@ -7941,7 +7841,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 722,
+      "no": 713,
       "level": 8,
       "tag": "ABP01110",
       "ja": "山林以外の所得の損失",
@@ -7952,7 +7852,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 723,
+      "no": 714,
       "level": 8,
       "tag": "ABP01120",
       "ja": "山林所得の損失",
@@ -7963,7 +7863,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 724,
+      "no": 715,
       "level": 7,
       "tag": "ABP01130",
       "ja": "白色",
@@ -7974,7 +7874,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 725,
+      "no": 716,
       "level": 8,
       "tag": "ABP01140",
       "ja": "変動所得の損失",
@@ -7985,7 +7885,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 726,
+      "no": 717,
       "level": 8,
       "tag": "ABP01150",
       "ja": "被災事業用資産の損失",
@@ -7996,7 +7896,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 727,
+      "no": 718,
       "level": 9,
       "tag": "ABP01160",
       "ja": "山林以外",
@@ -8007,7 +7907,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 728,
+      "no": 719,
       "level": 9,
       "tag": "ABP01170",
       "ja": "山林",
@@ -8018,7 +7918,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 729,
+      "no": 720,
       "level": 7,
       "tag": "ABP01180",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -8029,7 +7929,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 730,
+      "no": 721,
       "level": 6,
       "tag": "ABP01190",
       "ja": "雑損失",
@@ -8040,7 +7940,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 731,
+      "no": 722,
       "level": 6,
       "tag": "ABP01194",
       "ja": "本年分の一般株式等及び上場株式等に係る譲渡所得等から差し引く損失額",
@@ -8051,7 +7951,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 732,
+      "no": 723,
       "level": 6,
       "tag": "ABP01195",
       "ja": "本年分の上場株式等に係る配当所得等から差し引く損失額",
@@ -8062,7 +7962,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 733,
+      "no": 724,
       "level": 6,
       "tag": "ABP01197",
       "ja": "本年分の先物取引に係る雑所得等から差し引く損失額",
@@ -8073,7 +7973,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 734,
+      "no": 725,
       "level": 4,
       "tag": "ABP01200",
       "ja": "翌年分以後に繰り越して差し引かれる損失額",
@@ -8084,7 +7984,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 735,
+      "no": 726,
       "level": 5,
       "tag": "ABP01210",
       "ja": "Ｂ年分",
@@ -8095,7 +7995,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 736,
+      "no": 727,
       "level": 6,
       "tag": "ABP01220",
       "ja": "純損失",
@@ -8106,7 +8006,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 737,
+      "no": 728,
       "level": 7,
       "tag": "ABP01230",
       "ja": "青色",
@@ -8117,7 +8017,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 738,
+      "no": 729,
       "level": 8,
       "tag": "ABP01240",
       "ja": "山林以外の所得の損失",
@@ -8128,7 +8028,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 739,
+      "no": 730,
       "level": 8,
       "tag": "ABP01250",
       "ja": "山林所得の損失",
@@ -8139,7 +8039,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 740,
+      "no": 731,
       "level": 7,
       "tag": "ABP01260",
       "ja": "白色",
@@ -8150,7 +8050,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 741,
+      "no": 732,
       "level": 8,
       "tag": "ABP01270",
       "ja": "変動所得の損失",
@@ -8161,7 +8061,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 742,
+      "no": 733,
       "level": 8,
       "tag": "ABP01280",
       "ja": "被災事業用資産の損失",
@@ -8172,7 +8072,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 743,
+      "no": 734,
       "level": 9,
       "tag": "ABP01290",
       "ja": "山林以外",
@@ -8183,7 +8083,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 744,
+      "no": 735,
       "level": 9,
       "tag": "ABP01300",
       "ja": "山林",
@@ -8194,7 +8094,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 745,
+      "no": 736,
       "level": 7,
       "tag": "ABP01310",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -8205,7 +8105,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 746,
+      "no": 737,
       "level": 6,
       "tag": "ABP01320",
       "ja": "雑損失",
@@ -8216,7 +8116,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 747,
+      "no": 738,
       "level": 5,
       "tag": "ABP01330",
       "ja": "Ｃ年分",
@@ -8227,7 +8127,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 748,
+      "no": 739,
       "level": 6,
       "tag": "ABP01340",
       "ja": "純損失",
@@ -8238,7 +8138,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 749,
+      "no": 740,
       "level": 7,
       "tag": "ABP01350",
       "ja": "青色",
@@ -8249,7 +8149,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 750,
+      "no": 741,
       "level": 8,
       "tag": "ABP01360",
       "ja": "山林以外の所得の損失",
@@ -8260,7 +8160,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 751,
+      "no": 742,
       "level": 8,
       "tag": "ABP01370",
       "ja": "山林所得の損失",
@@ -8271,7 +8171,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 752,
+      "no": 743,
       "level": 7,
       "tag": "ABP01380",
       "ja": "白色",
@@ -8282,7 +8182,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 753,
+      "no": 744,
       "level": 8,
       "tag": "ABP01390",
       "ja": "変動所得の損失",
@@ -8293,7 +8193,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 754,
+      "no": 745,
       "level": 8,
       "tag": "ABP01400",
       "ja": "被災事業用資産の損失",
@@ -8304,7 +8204,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 755,
+      "no": 746,
       "level": 9,
       "tag": "ABP01410",
       "ja": "山林以外",
@@ -8315,7 +8215,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 756,
+      "no": 747,
       "level": 9,
       "tag": "ABP01420",
       "ja": "山林",
@@ -8326,7 +8226,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 757,
+      "no": 748,
       "level": 7,
       "tag": "ABP01430",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -8337,7 +8237,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 758,
+      "no": 749,
       "level": 6,
       "tag": "ABP01440",
       "ja": "雑損失",
@@ -8348,7 +8248,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 759,
+      "no": 750,
       "level": 5,
       "tag": "ABP01445",
       "ja": "雑損控除、医療費控除及び寄附金控除の計算で使用する所得金額の合計額",
@@ -8359,7 +8259,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 760,
+      "no": 751,
       "level": 3,
       "tag": "ABP01520",
       "ja": "５．翌年以後に繰り越される本年分の雑損失の金額",
@@ -8370,7 +8270,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 761,
+      "no": 752,
       "level": 3,
       "tag": "ABP01530",
       "ja": "６．翌年以後に繰り越される株式等に係る譲渡損失の金額",
@@ -8381,7 +8281,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 762,
+      "no": 753,
       "level": 3,
       "tag": "ABP01540",
       "ja": "７．翌年以後に繰り越される先物取引に係る損失の金額",
@@ -8392,7 +8292,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 763,
+      "no": 754,
       "level": 1,
       "tag": "KOA020-6",
       "ja": "申告書第四表付表（一）",
@@ -8403,7 +8303,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 764,
+      "no": 755,
       "level": 2,
       "tag": "ABT10000",
       "ja": "申告書見出し部（第四表付表（一））",
@@ -8414,7 +8314,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 765,
+      "no": 756,
       "level": 3,
       "tag": "ABT10010",
       "ja": "年分",
@@ -8425,7 +8325,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 766,
+      "no": 757,
       "level": 3,
       "tag": "ABT10020",
       "ja": "申告の種類",
@@ -8436,7 +8336,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 767,
+      "no": 758,
       "level": 3,
       "tag": "ABT10030",
       "ja": "納税者等部（第四表付表（一））",
@@ -8447,10 +8347,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 768,
+      "no": 759,
       "level": 4,
       "tag": "ABT10040",
-      "ja": "住所（又は居所・事業所等）",
+      "ja": "納税地",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -8458,21 +8358,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 769,
-      "level": 5,
-      "tag": "ABT10050",
-      "ja": "納税地区分",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 770,
+      "no": 760,
       "level": 5,
       "tag": "ABT10060",
-      "ja": "住所",
+      "ja": "納税地",
       "kind": "leaf",
       "idref": "NOZEISHA_ADR",
       "refType": "gen:NOZEISHA_ADRref",
@@ -8480,18 +8369,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 771,
-      "level": 4,
-      "tag": "ABT10070",
-      "ja": "住所以外の居所又は事業所等",
-      "kind": "leaf",
-      "idref": "",
-      "refType": "gen:address",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
-      "no": 772,
+      "no": 761,
       "level": 4,
       "tag": "ABT10080",
       "ja": "フリガナ",
@@ -8502,7 +8380,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 773,
+      "no": 762,
       "level": 4,
       "tag": "ABT10090",
       "ja": "氏名",
@@ -8513,7 +8391,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 774,
+      "no": 763,
       "level": 2,
       "tag": "ABU10000",
       "ja": "損失申告用（第四表付表（一））",
@@ -8524,7 +8402,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 775,
+      "no": 764,
       "level": 3,
       "tag": "ABU10010",
       "ja": "３．翌年以後に繰り越す損失額",
@@ -8535,7 +8413,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 776,
+      "no": 765,
       "level": 4,
       "tag": "ABU10610",
       "ja": "純損失の繰越控除期間の特例の該当判定",
@@ -8546,7 +8424,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 777,
+      "no": 766,
       "level": 5,
       "tag": "ABU10620",
       "ja": "事業所得",
@@ -8557,7 +8435,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 778,
+      "no": 767,
       "level": 6,
       "tag": "ABU10630",
       "ja": "事業資産特定災害損失額",
@@ -8568,7 +8446,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 779,
+      "no": 768,
       "level": 6,
       "tag": "ABU10640",
       "ja": "事業所得に係る事業用固定資産の価額の合計額",
@@ -8579,7 +8457,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 780,
+      "no": 769,
       "level": 6,
       "tag": "ABU10650",
       "ja": "（イ）／（ロ）＞＝0.1のときは、「該当」",
@@ -8590,7 +8468,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 781,
+      "no": 770,
       "level": 5,
       "tag": "ABU10660",
       "ja": "不動産所得等",
@@ -8601,7 +8479,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 782,
+      "no": 771,
       "level": 6,
       "tag": "ABU10670",
       "ja": "不動産等特定災害損失額",
@@ -8612,7 +8490,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 783,
+      "no": 772,
       "level": 6,
       "tag": "ABU10680",
       "ja": "不動産所得又は山林所得に係る事業用固定資産の価額の合計額",
@@ -8623,7 +8501,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 784,
+      "no": 773,
       "level": 6,
       "tag": "ABU10690",
       "ja": "（ハ）／（ニ）＞＝0.1のときは、「該当」",
@@ -8634,7 +8512,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 785,
+      "no": 774,
       "level": 4,
       "tag": "ABU10130",
       "ja": "翌年以後に繰り越す損失額",
@@ -8645,7 +8523,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 786,
+      "no": 775,
       "level": 5,
       "tag": "ABU10140",
       "ja": "青色申告者の損失の金額",
@@ -8656,7 +8534,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 787,
+      "no": 776,
       "level": 6,
       "tag": "ABU10150",
       "ja": "要件非該当",
@@ -8667,7 +8545,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 788,
+      "no": 777,
       "level": 7,
       "tag": "ABU10160",
       "ja": "被災純損失以外の純損失金額",
@@ -8678,7 +8556,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 789,
+      "no": 778,
       "level": 7,
       "tag": "ABU10165",
       "ja": "被災純損失金額（所得税法）",
@@ -8689,7 +8567,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 790,
+      "no": 779,
       "level": 7,
       "tag": "ABU10170",
       "ja": "被災純損失金額（震災特例法）",
@@ -8700,7 +8578,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 791,
+      "no": 780,
       "level": 6,
       "tag": "ABU10175",
       "ja": "要件該当　特定非常災害発生年純損失金額",
@@ -8711,7 +8589,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 792,
+      "no": 781,
       "level": 5,
       "tag": "ABU10200",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -8722,7 +8600,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 793,
+      "no": 782,
       "level": 5,
       "tag": "ABU10210",
       "ja": "変動所得の損失額",
@@ -8733,7 +8611,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 794,
+      "no": 783,
       "level": 5,
       "tag": "ABU10220",
       "ja": "被災事業用資産の損失額",
@@ -8744,7 +8622,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 795,
+      "no": 784,
       "level": 6,
       "tag": "ABU10230",
       "ja": "山林以外",
@@ -8755,7 +8633,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 796,
+      "no": 785,
       "level": 7,
       "tag": "ABU10240",
       "ja": "営業等・農業",
@@ -8766,29 +8644,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 797,
+      "no": 786,
       "level": 8,
       "tag": "ABU10250",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10250-23-0Rtype",
+      "refType": "ABU10250-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 798,
+      "no": 787,
       "level": 8,
       "tag": "ABU10260",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10260-23-0Rtype",
+      "refType": "ABU10260-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 799,
+      "no": 788,
       "level": 8,
       "tag": "ABU10270",
       "ja": "損害年月日",
@@ -8799,7 +8677,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 800,
+      "no": 789,
       "level": 8,
       "tag": "ABU10280",
       "ja": "損害金額",
@@ -8810,7 +8688,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 801,
+      "no": 790,
       "level": 8,
       "tag": "ABU10290",
       "ja": "保険金などで補填される金額",
@@ -8821,7 +8699,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 802,
+      "no": 791,
       "level": 8,
       "tag": "ABU10300",
       "ja": "差引損失額",
@@ -8832,7 +8710,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 803,
+      "no": 792,
       "level": 8,
       "tag": "ABU10303",
       "ja": "うち棚卸資産特定災害損失額",
@@ -8843,7 +8721,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 804,
+      "no": 793,
       "level": 8,
       "tag": "ABU10306",
       "ja": "うち固定資産特定災害損失額",
@@ -8854,7 +8732,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 805,
+      "no": 794,
       "level": 8,
       "tag": "ABU10310",
       "ja": "うち棚卸資産震災損失額",
@@ -8865,7 +8743,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 806,
+      "no": 795,
       "level": 8,
       "tag": "ABU10320",
       "ja": "うち固定資産震災損失額",
@@ -8876,7 +8754,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 807,
+      "no": 796,
       "level": 7,
       "tag": "ABU10330",
       "ja": "不動産",
@@ -8887,29 +8765,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 808,
+      "no": 797,
       "level": 8,
       "tag": "ABU10340",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10340-23-0Rtype",
+      "refType": "ABU10340-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 809,
+      "no": 798,
       "level": 8,
       "tag": "ABU10350",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10350-23-0Rtype",
+      "refType": "ABU10350-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 810,
+      "no": 799,
       "level": 8,
       "tag": "ABU10360",
       "ja": "損害年月日",
@@ -8920,7 +8798,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 811,
+      "no": 800,
       "level": 8,
       "tag": "ABU10370",
       "ja": "損害金額",
@@ -8931,7 +8809,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 812,
+      "no": 801,
       "level": 8,
       "tag": "ABU10380",
       "ja": "保険金などで補填される金額",
@@ -8942,7 +8820,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 813,
+      "no": 802,
       "level": 8,
       "tag": "ABU10390",
       "ja": "差引損失額",
@@ -8953,7 +8831,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 814,
+      "no": 803,
       "level": 8,
       "tag": "ABU10395",
       "ja": "うち固定資産特定災害損失額",
@@ -8964,7 +8842,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 815,
+      "no": 804,
       "level": 8,
       "tag": "ABU10400",
       "ja": "うち固定資産震災損失額",
@@ -8975,7 +8853,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 816,
+      "no": 805,
       "level": 6,
       "tag": "ABU10410",
       "ja": "山林",
@@ -8986,29 +8864,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 817,
+      "no": 806,
       "level": 7,
       "tag": "ABU10420",
       "ja": "被災事業用資産の種類など",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10420-23-0Rtype",
+      "refType": "ABU10420-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 818,
+      "no": 807,
       "level": 7,
       "tag": "ABU10430",
       "ja": "損害の原因",
       "kind": "leaf",
       "idref": "",
-      "refType": "ABU10430-23-0Rtype",
+      "refType": "ABU10430-24-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 819,
+      "no": 808,
       "level": 7,
       "tag": "ABU10440",
       "ja": "損害年月日",
@@ -9019,7 +8897,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 820,
+      "no": 809,
       "level": 7,
       "tag": "ABU10450",
       "ja": "損害金額",
@@ -9030,7 +8908,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 821,
+      "no": 810,
       "level": 7,
       "tag": "ABU10460",
       "ja": "保険金などで補填される金額",
@@ -9041,7 +8919,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 822,
+      "no": 811,
       "level": 7,
       "tag": "ABU10470",
       "ja": "差引損失額",
@@ -9052,7 +8930,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 823,
+      "no": 812,
       "level": 7,
       "tag": "ABU10475",
       "ja": "うち固定資産特定災害損失額",
@@ -9063,7 +8941,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 824,
+      "no": 813,
       "level": 7,
       "tag": "ABU10480",
       "ja": "うち固定資産震災損失額",
@@ -9074,7 +8952,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 825,
+      "no": 814,
       "level": 5,
       "tag": "ABU10490",
       "ja": "山林所得に係る被災事業用資産の損失額",
@@ -9085,7 +8963,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 826,
+      "no": 815,
       "level": 6,
       "tag": "ABU10500",
       "ja": "要件非該当",
@@ -9096,7 +8974,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 827,
+      "no": 816,
       "level": 7,
       "tag": "ABU10510",
       "ja": "被災純損失以外の純損失金額",
@@ -9107,7 +8985,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 828,
+      "no": 817,
       "level": 7,
       "tag": "ABU10520",
       "ja": "被災純損失金額（所得税法）",
@@ -9118,7 +8996,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 829,
+      "no": 818,
       "level": 7,
       "tag": "ABU10523",
       "ja": "被災純損失金額（震災特例法）",
@@ -9129,7 +9007,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 830,
+      "no": 819,
       "level": 6,
       "tag": "ABU10526",
       "ja": "要件該当　特定非常災害発生年特定純損失金額",
@@ -9140,7 +9018,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 831,
+      "no": 820,
       "level": 5,
       "tag": "ABU10550",
       "ja": "山林以外の所得に係る被災事業用資産の損失額",
@@ -9151,7 +9029,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 832,
+      "no": 821,
       "level": 6,
       "tag": "ABU10560",
       "ja": "要件非該当",
@@ -9162,7 +9040,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 833,
+      "no": 822,
       "level": 7,
       "tag": "ABU10570",
       "ja": "被災純損失以外の純損失金額",
@@ -9173,7 +9051,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 834,
+      "no": 823,
       "level": 7,
       "tag": "ABU10580",
       "ja": "被災純損失金額（所得税法）",
@@ -9184,7 +9062,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 835,
+      "no": 824,
       "level": 7,
       "tag": "ABU10590",
       "ja": "被災純損失金額（震災特例法）",
@@ -9195,7 +9073,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 836,
+      "no": 825,
       "level": 6,
       "tag": "ABU10600",
       "ja": "要件該当　特定非常災害発生年特定純損失金額",
@@ -9206,7 +9084,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 837,
+      "no": 826,
       "level": 1,
       "tag": "KOA020-7",
       "ja": "申告書第四表付表（二）",
@@ -9217,7 +9095,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 838,
+      "no": 827,
       "level": 2,
       "tag": "ABV10000",
       "ja": "申告書見出し部（第四表付表（二））",
@@ -9228,7 +9106,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 839,
+      "no": 828,
       "level": 3,
       "tag": "ABV10010",
       "ja": "年分",
@@ -9239,7 +9117,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 840,
+      "no": 829,
       "level": 3,
       "tag": "ABV10020",
       "ja": "申告の種類",
@@ -9250,7 +9128,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 841,
+      "no": 830,
       "level": 2,
       "tag": "ABW10000",
       "ja": "損失申告用（第四表付表（二））",
@@ -9261,7 +9139,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 842,
+      "no": 831,
       "level": 3,
       "tag": "ABW10010",
       "ja": "４．繰越損失を差し引く計算（５年前、４年前及び３年前に生じた損失）",
@@ -9272,7 +9150,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 843,
+      "no": 832,
       "level": 4,
       "tag": "ABW10020",
       "ja": "前年分までに引ききれなかった損失額",
@@ -9283,7 +9161,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 844,
+      "no": 833,
       "level": 5,
       "tag": "ABW14290",
       "ja": "Ａ年分",
@@ -9294,7 +9172,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 845,
+      "no": 834,
       "level": 6,
       "tag": "ABW14300",
       "ja": "純損失",
@@ -9305,7 +9183,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 846,
+      "no": 835,
       "level": 7,
       "tag": "ABW14310",
       "ja": "山林以外",
@@ -9316,7 +9194,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 847,
+      "no": 836,
       "level": 7,
       "tag": "ABW14320",
       "ja": "山林",
@@ -9327,7 +9205,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 848,
+      "no": 837,
       "level": 6,
       "tag": "ABW14330",
       "ja": "雑損失",
@@ -9338,7 +9216,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 849,
+      "no": 838,
       "level": 5,
       "tag": "ABW14340",
       "ja": "B年分",
@@ -9349,7 +9227,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 850,
+      "no": 839,
       "level": 6,
       "tag": "ABW14350",
       "ja": "純損失",
@@ -9360,7 +9238,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 851,
+      "no": 840,
       "level": 7,
       "tag": "ABW14360",
       "ja": "山林以外",
@@ -9371,7 +9249,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 852,
+      "no": 841,
       "level": 7,
       "tag": "ABW14370",
       "ja": "山林",
@@ -9382,7 +9260,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 853,
+      "no": 842,
       "level": 6,
       "tag": "ABW14380",
       "ja": "雑損失",
@@ -9393,7 +9271,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 854,
+      "no": 843,
       "level": 5,
       "tag": "ABW14390",
       "ja": "Ｃ年分",
@@ -9404,7 +9282,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 855,
+      "no": 844,
       "level": 6,
       "tag": "ABW14400",
       "ja": "純損失",
@@ -9415,7 +9293,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 856,
+      "no": 845,
       "level": 7,
       "tag": "ABW14410",
       "ja": "青色",
@@ -9426,7 +9304,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 857,
+      "no": 846,
       "level": 8,
       "tag": "ABW14420",
       "ja": "山林以外",
@@ -9437,7 +9315,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 858,
+      "no": 847,
       "level": 8,
       "tag": "ABW14430",
       "ja": "山林",
@@ -9448,7 +9326,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 859,
+      "no": 848,
       "level": 7,
       "tag": "ABW14440",
       "ja": "白色",
@@ -9459,7 +9337,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 860,
+      "no": 849,
       "level": 8,
       "tag": "ABW14450",
       "ja": "変動所得の損失",
@@ -9470,7 +9348,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 861,
+      "no": 850,
       "level": 8,
       "tag": "ABW14460",
       "ja": "被災事業用資産の損失",
@@ -9481,7 +9359,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 862,
+      "no": 851,
       "level": 9,
       "tag": "ABW14470",
       "ja": "山林以外",
@@ -9492,7 +9370,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 863,
+      "no": 852,
       "level": 9,
       "tag": "ABW14480",
       "ja": "山林",
@@ -9503,7 +9381,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 864,
+      "no": 853,
       "level": 7,
       "tag": "ABW14490",
       "ja": "被災純損失（青・白）",
@@ -9514,10 +9392,32 @@
       "maxOccurs": 1
     },
     {
-      "no": 865,
+      "no": 854,
+      "level": 8,
+      "tag": "ABW14492",
+      "ja": "被災純損失（所得税法）　山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 855,
+      "level": 8,
+      "tag": "ABW14494",
+      "ja": "被災純損失（所得税法）　山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 856,
       "level": 8,
       "tag": "ABW14500",
-      "ja": "山林以外",
+      "ja": "被災純損失（震災特例法）　山林以外",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9525,10 +9425,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 866,
+      "no": 857,
       "level": 8,
       "tag": "ABW14510",
-      "ja": "山林",
+      "ja": "被災純損失（震災特例法）　山林",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9536,7 +9436,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 867,
+      "no": 858,
       "level": 7,
       "tag": "ABW14520",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -9547,7 +9447,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 868,
+      "no": 859,
       "level": 6,
       "tag": "ABW14530",
       "ja": "雑損失",
@@ -9558,7 +9458,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 869,
+      "no": 860,
       "level": 7,
       "tag": "ABW14540",
       "ja": "特定雑損失以外の雑損失",
@@ -9569,7 +9469,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 870,
+      "no": 861,
+      "level": 7,
+      "tag": "ABW14545",
+      "ja": "特定雑損失（所得税法）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 862,
       "level": 7,
       "tag": "ABW14550",
       "ja": "特定雑損失（震災特例法）",
@@ -9580,7 +9491,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 871,
+      "no": 863,
       "level": 4,
       "tag": "ABW10450",
       "ja": "本年分で差し引く損失額",
@@ -9591,7 +9502,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 872,
+      "no": 864,
       "level": 5,
       "tag": "ABW14900",
       "ja": "Ａ年分",
@@ -9602,7 +9513,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 873,
+      "no": 865,
       "level": 6,
       "tag": "ABW14910",
       "ja": "純損失",
@@ -9613,7 +9524,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 874,
+      "no": 866,
       "level": 7,
       "tag": "ABW14920",
       "ja": "山林以外",
@@ -9624,7 +9535,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 875,
+      "no": 867,
       "level": 7,
       "tag": "ABW14930",
       "ja": "山林",
@@ -9635,7 +9546,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 876,
+      "no": 868,
       "level": 6,
       "tag": "ABW14940",
       "ja": "雑損失",
@@ -9646,7 +9557,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 877,
+      "no": 869,
       "level": 5,
       "tag": "ABW14950",
       "ja": "B年分",
@@ -9657,7 +9568,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 878,
+      "no": 870,
       "level": 6,
       "tag": "ABW14960",
       "ja": "純損失",
@@ -9668,7 +9579,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 879,
+      "no": 871,
       "level": 7,
       "tag": "ABW14970",
       "ja": "山林以外",
@@ -9679,7 +9590,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 880,
+      "no": 872,
       "level": 7,
       "tag": "ABW14980",
       "ja": "山林",
@@ -9690,7 +9601,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 881,
+      "no": 873,
       "level": 6,
       "tag": "ABW14990",
       "ja": "雑損失",
@@ -9701,7 +9612,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 882,
+      "no": 874,
       "level": 5,
       "tag": "ABW15000",
       "ja": "Ｃ年分",
@@ -9712,7 +9623,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 883,
+      "no": 875,
       "level": 6,
       "tag": "ABW15010",
       "ja": "純損失",
@@ -9723,7 +9634,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 884,
+      "no": 876,
       "level": 7,
       "tag": "ABW15020",
       "ja": "青色",
@@ -9734,7 +9645,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 885,
+      "no": 877,
       "level": 8,
       "tag": "ABW15030",
       "ja": "山林以外",
@@ -9745,7 +9656,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 886,
+      "no": 878,
       "level": 8,
       "tag": "ABW15040",
       "ja": "山林",
@@ -9756,7 +9667,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 887,
+      "no": 879,
       "level": 7,
       "tag": "ABW15050",
       "ja": "白色",
@@ -9767,7 +9678,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 888,
+      "no": 880,
       "level": 8,
       "tag": "ABW15060",
       "ja": "変動所得の損失",
@@ -9778,7 +9689,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 889,
+      "no": 881,
       "level": 8,
       "tag": "ABW15070",
       "ja": "被災事業用資産の損失",
@@ -9789,7 +9700,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 890,
+      "no": 882,
       "level": 9,
       "tag": "ABW15080",
       "ja": "山林以外",
@@ -9800,7 +9711,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 891,
+      "no": 883,
       "level": 9,
       "tag": "ABW15090",
       "ja": "山林",
@@ -9811,7 +9722,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 892,
+      "no": 884,
       "level": 7,
       "tag": "ABW15100",
       "ja": "被災純損失（青・白）",
@@ -9822,10 +9733,32 @@
       "maxOccurs": 1
     },
     {
-      "no": 893,
+      "no": 885,
+      "level": 8,
+      "tag": "ABW15102",
+      "ja": "被災純損失（所得税法）　山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 886,
+      "level": 8,
+      "tag": "ABW15104",
+      "ja": "被災純損失（所得税法）　山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 887,
       "level": 8,
       "tag": "ABW15110",
-      "ja": "山林以外",
+      "ja": "被災純損失（震災特例法）　山林以外",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9833,10 +9766,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 894,
+      "no": 888,
       "level": 8,
       "tag": "ABW15120",
-      "ja": "山林",
+      "ja": "被災純損失（震災特例法）　山林",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9844,7 +9777,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 895,
+      "no": 889,
       "level": 7,
       "tag": "ABW15130",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -9855,7 +9788,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 896,
+      "no": 890,
       "level": 6,
       "tag": "ABW15140",
       "ja": "雑損失",
@@ -9866,7 +9799,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 897,
+      "no": 891,
       "level": 7,
       "tag": "ABW15150",
       "ja": "特定雑損失以外の雑損失",
@@ -9877,7 +9810,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 898,
+      "no": 892,
+      "level": 7,
+      "tag": "ABW15155",
+      "ja": "特定雑損失（所得税法）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 893,
       "level": 7,
       "tag": "ABW15160",
       "ja": "特定雑損失（震災特例法）",
@@ -9888,7 +9832,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 899,
+      "no": 894,
       "level": 4,
       "tag": "ABW10910",
       "ja": "翌年分以後に繰り越して差し引かれる損失額",
@@ -9899,7 +9843,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 900,
+      "no": 895,
       "level": 5,
       "tag": "ABW15510",
       "ja": "B年分",
@@ -9910,7 +9854,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 901,
+      "no": 896,
       "level": 6,
       "tag": "ABW15520",
       "ja": "純損失",
@@ -9921,7 +9865,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 902,
+      "no": 897,
       "level": 7,
       "tag": "ABW15530",
       "ja": "山林以外",
@@ -9932,7 +9876,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 903,
+      "no": 898,
       "level": 7,
       "tag": "ABW15540",
       "ja": "山林",
@@ -9943,7 +9887,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 904,
+      "no": 899,
       "level": 6,
       "tag": "ABW15550",
       "ja": "雑損失",
@@ -9954,7 +9898,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 905,
+      "no": 900,
       "level": 5,
       "tag": "ABW15560",
       "ja": "Ｃ年分",
@@ -9965,7 +9909,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 906,
+      "no": 901,
       "level": 6,
       "tag": "ABW15570",
       "ja": "純損失",
@@ -9976,10 +9920,32 @@
       "maxOccurs": 1
     },
     {
-      "no": 907,
+      "no": 902,
+      "level": 7,
+      "tag": "ABW15572",
+      "ja": "被災純損失（所得税法）　山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 903,
+      "level": 7,
+      "tag": "ABW15574",
+      "ja": "被災純損失（所得税法）　山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 904,
       "level": 7,
       "tag": "ABW15580",
-      "ja": "山林以外",
+      "ja": "被災純損失（震災特例法）　山林以外",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9987,10 +9953,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 908,
+      "no": 905,
       "level": 7,
       "tag": "ABW15590",
-      "ja": "山林",
+      "ja": "被災純損失（震災特例法）　山林",
       "kind": "leaf",
       "idref": "",
       "refType": "gen:kingaku",
@@ -9998,7 +9964,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 909,
+      "no": 906,
+      "level": 6,
+      "tag": "ABW15595",
+      "ja": "特定雑損失（所得税法）",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 907,
       "level": 6,
       "tag": "ABW15600",
       "ja": "特定雑損失（震災特例法）",
@@ -10009,7 +9986,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 910,
+      "no": 908,
       "level": 1,
       "tag": "KOA020-8",
       "ja": "申告書第四表付表（三）",
@@ -10020,7 +9997,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 911,
+      "no": 909,
       "level": 2,
       "tag": "ABV20000",
       "ja": "申告書見出し部（第四表付表（三））",
@@ -10031,7 +10008,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 912,
+      "no": 910,
       "level": 3,
       "tag": "ABV20010",
       "ja": "年分",
@@ -10042,7 +10019,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 913,
+      "no": 911,
       "level": 3,
       "tag": "ABV20020",
       "ja": "申告の種類",
@@ -10053,7 +10030,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 914,
+      "no": 912,
       "level": 2,
       "tag": "ABW20000",
       "ja": "損失申告用（第四表付表（三））",
@@ -10064,7 +10041,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 915,
+      "no": 913,
       "level": 3,
       "tag": "ABW20010",
       "ja": "４．繰越損失を差し引く計算（２年前及び前年に生じた損失）",
@@ -10075,7 +10052,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 916,
+      "no": 914,
       "level": 4,
       "tag": "ABW20020",
       "ja": "前年分までに引ききれなかった損失額",
@@ -10086,7 +10063,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 917,
+      "no": 915,
       "level": 5,
       "tag": "ABW20030",
       "ja": "Ｄ年分",
@@ -10097,7 +10074,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 918,
+      "no": 916,
       "level": 6,
       "tag": "ABW20040",
       "ja": "純損失",
@@ -10108,7 +10085,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 919,
+      "no": 917,
       "level": 7,
       "tag": "ABW20050",
       "ja": "青色",
@@ -10119,7 +10096,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 920,
+      "no": 918,
       "level": 8,
       "tag": "ABW20060",
       "ja": "被災純損失以外の損失",
@@ -10130,7 +10107,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 921,
+      "no": 919,
       "level": 9,
       "tag": "ABW20070",
       "ja": "山林以外",
@@ -10141,7 +10118,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 922,
+      "no": 920,
       "level": 9,
       "tag": "ABW20080",
       "ja": "山林",
@@ -10152,7 +10129,40 @@
       "maxOccurs": 1
     },
     {
+      "no": 921,
+      "level": 8,
+      "tag": "ABW20083",
+      "ja": "特定非常災害発生年純損失",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 922,
+      "level": 9,
+      "tag": "ABW20085",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
       "no": 923,
+      "level": 9,
+      "tag": "ABW20087",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 924,
       "level": 7,
       "tag": "ABW20090",
       "ja": "白色",
@@ -10163,7 +10173,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 924,
+      "no": 925,
       "level": 8,
       "tag": "ABW20100",
       "ja": "変動所得の損失",
@@ -10174,7 +10184,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 925,
+      "no": 926,
       "level": 8,
       "tag": "ABW20110",
       "ja": "被災事業用資産の損失",
@@ -10185,7 +10195,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 926,
+      "no": 927,
       "level": 9,
       "tag": "ABW20120",
       "ja": "山林以外",
@@ -10196,7 +10206,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 927,
+      "no": 928,
       "level": 9,
       "tag": "ABW20130",
       "ja": "山林",
@@ -10207,21 +10217,10 @@
       "maxOccurs": 1
     },
     {
-      "no": 928,
-      "level": 7,
-      "tag": "ABW20140",
-      "ja": "被災純損失（青・白）",
-      "kind": "branch",
-      "idref": "",
-      "refType": "",
-      "minOccurs": 0,
-      "maxOccurs": 1
-    },
-    {
       "no": 929,
       "level": 8,
-      "tag": "ABW20142",
-      "ja": "被災純損失（所得税法）",
+      "tag": "ABW20133",
+      "ja": "特定非常災害発生年特定純損失",
       "kind": "branch",
       "idref": "",
       "refType": "",
@@ -10231,7 +10230,7 @@
     {
       "no": 930,
       "level": 9,
-      "tag": "ABW20144",
+      "tag": "ABW20135",
       "ja": "山林以外",
       "kind": "leaf",
       "idref": "",
@@ -10242,7 +10241,7 @@
     {
       "no": 931,
       "level": 9,
-      "tag": "ABW20146",
+      "tag": "ABW20137",
       "ja": "山林",
       "kind": "leaf",
       "idref": "",
@@ -10252,6 +10251,50 @@
     },
     {
       "no": 932,
+      "level": 7,
+      "tag": "ABW20140",
+      "ja": "被災純損失（青・白）",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 933,
+      "level": 8,
+      "tag": "ABW20142",
+      "ja": "被災純損失（所得税法）",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 934,
+      "level": 9,
+      "tag": "ABW20144",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 935,
+      "level": 9,
+      "tag": "ABW20146",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 936,
       "level": 8,
       "tag": "ABW20150",
       "ja": "被災純損失（震災特例法）",
@@ -10262,7 +10305,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 933,
+      "no": 937,
       "level": 9,
       "tag": "ABW20160",
       "ja": "山林以外",
@@ -10273,7 +10316,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 934,
+      "no": 938,
       "level": 9,
       "tag": "ABW20170",
       "ja": "山林",
@@ -10284,7 +10327,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 935,
+      "no": 939,
       "level": 7,
       "tag": "ABW20180",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -10295,7 +10338,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 936,
+      "no": 940,
       "level": 6,
       "tag": "ABW20190",
       "ja": "雑損失",
@@ -10306,7 +10349,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 937,
+      "no": 941,
       "level": 7,
       "tag": "ABW20200",
       "ja": "特定雑損失以外の雑損失",
@@ -10317,7 +10360,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 938,
+      "no": 942,
       "level": 7,
       "tag": "ABW20205",
       "ja": "特定雑損失（所得税法）",
@@ -10328,7 +10371,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 939,
+      "no": 943,
       "level": 7,
       "tag": "ABW20210",
       "ja": "特定雑損失（震災特例法）",
@@ -10339,7 +10382,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 940,
+      "no": 944,
       "level": 5,
       "tag": "ABW20220",
       "ja": "Ｅ年分",
@@ -10350,7 +10393,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 941,
+      "no": 945,
       "level": 6,
       "tag": "ABW20230",
       "ja": "純損失",
@@ -10361,7 +10404,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 942,
+      "no": 946,
       "level": 7,
       "tag": "ABW20240",
       "ja": "青色",
@@ -10372,7 +10415,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 943,
+      "no": 947,
       "level": 8,
       "tag": "ABW20250",
       "ja": "被災純損失以外の損失",
@@ -10383,7 +10426,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 944,
+      "no": 948,
       "level": 9,
       "tag": "ABW20260",
       "ja": "山林以外",
@@ -10394,7 +10437,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 945,
+      "no": 949,
       "level": 9,
       "tag": "ABW20270",
       "ja": "山林",
@@ -10405,7 +10448,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 946,
+      "no": 950,
       "level": 8,
       "tag": "ABW20272",
       "ja": "特定非常災害発生年純損失",
@@ -10416,7 +10459,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 947,
+      "no": 951,
       "level": 9,
       "tag": "ABW20274",
       "ja": "山林以外",
@@ -10427,7 +10470,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 948,
+      "no": 952,
       "level": 9,
       "tag": "ABW20276",
       "ja": "山林",
@@ -10438,7 +10481,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 949,
+      "no": 953,
       "level": 7,
       "tag": "ABW20280",
       "ja": "白色",
@@ -10449,7 +10492,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 950,
+      "no": 954,
       "level": 8,
       "tag": "ABW20290",
       "ja": "変動所得の損失",
@@ -10460,7 +10503,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 951,
+      "no": 955,
       "level": 8,
       "tag": "ABW20300",
       "ja": "被災事業用資産の損失",
@@ -10471,7 +10514,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 952,
+      "no": 956,
       "level": 9,
       "tag": "ABW20310",
       "ja": "山林以外",
@@ -10482,7 +10525,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 953,
+      "no": 957,
       "level": 9,
       "tag": "ABW20320",
       "ja": "山林",
@@ -10493,7 +10536,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 954,
+      "no": 958,
       "level": 8,
       "tag": "ABW20322",
       "ja": "特定非常災害発生年特定純損失",
@@ -10504,7 +10547,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 955,
+      "no": 959,
       "level": 9,
       "tag": "ABW20324",
       "ja": "山林以外",
@@ -10515,7 +10558,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 956,
+      "no": 960,
       "level": 9,
       "tag": "ABW20326",
       "ja": "山林",
@@ -10526,7 +10569,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 957,
+      "no": 961,
       "level": 7,
       "tag": "ABW20330",
       "ja": "被災純損失（青・白）",
@@ -10537,7 +10580,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 958,
+      "no": 962,
       "level": 8,
       "tag": "ABW20332",
       "ja": "被災純損失（所得税法）",
@@ -10548,7 +10591,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 959,
+      "no": 963,
       "level": 9,
       "tag": "ABW20334",
       "ja": "山林以外",
@@ -10559,7 +10602,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 960,
+      "no": 964,
       "level": 9,
       "tag": "ABW20336",
       "ja": "山林",
@@ -10570,7 +10613,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 961,
+      "no": 965,
       "level": 8,
       "tag": "ABW20340",
       "ja": "被災純損失（震災特例法）",
@@ -10581,7 +10624,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 962,
+      "no": 966,
       "level": 9,
       "tag": "ABW20350",
       "ja": "山林以外",
@@ -10592,7 +10635,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 963,
+      "no": 967,
       "level": 9,
       "tag": "ABW20360",
       "ja": "山林",
@@ -10603,7 +10646,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 964,
+      "no": 968,
       "level": 7,
       "tag": "ABW20370",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -10614,7 +10657,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 965,
+      "no": 969,
       "level": 6,
       "tag": "ABW20380",
       "ja": "雑損失",
@@ -10625,7 +10668,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 966,
+      "no": 970,
       "level": 7,
       "tag": "ABW20390",
       "ja": "特定雑損失以外の雑損失",
@@ -10636,7 +10679,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 967,
+      "no": 971,
       "level": 7,
       "tag": "ABW20395",
       "ja": "特定雑損失（所得税法）",
@@ -10647,7 +10690,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 968,
+      "no": 972,
       "level": 7,
       "tag": "ABW20400",
       "ja": "特定雑損失（震災特例法）",
@@ -10658,7 +10701,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 969,
+      "no": 973,
       "level": 4,
       "tag": "ABW20410",
       "ja": "本年分で差し引く損失額",
@@ -10669,7 +10712,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 970,
+      "no": 974,
       "level": 5,
       "tag": "ABW20420",
       "ja": "Ｄ年分",
@@ -10680,7 +10723,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 971,
+      "no": 975,
       "level": 6,
       "tag": "ABW20430",
       "ja": "純損失",
@@ -10691,7 +10734,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 972,
+      "no": 976,
       "level": 7,
       "tag": "ABW20440",
       "ja": "青色",
@@ -10702,7 +10745,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 973,
+      "no": 977,
       "level": 8,
       "tag": "ABW20450",
       "ja": "被災純損失以外の損失",
@@ -10713,7 +10756,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 974,
+      "no": 978,
       "level": 9,
       "tag": "ABW20460",
       "ja": "山林以外",
@@ -10724,7 +10767,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 975,
+      "no": 979,
       "level": 9,
       "tag": "ABW20470",
       "ja": "山林",
@@ -10735,7 +10778,40 @@
       "maxOccurs": 1
     },
     {
-      "no": 976,
+      "no": 980,
+      "level": 8,
+      "tag": "ABW20473",
+      "ja": "特定非常災害発生年純損失",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 981,
+      "level": 9,
+      "tag": "ABW20475",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 982,
+      "level": 9,
+      "tag": "ABW20477",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 983,
       "level": 7,
       "tag": "ABW20480",
       "ja": "白色",
@@ -10746,7 +10822,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 977,
+      "no": 984,
       "level": 8,
       "tag": "ABW20490",
       "ja": "変動所得の損失",
@@ -10757,7 +10833,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 978,
+      "no": 985,
       "level": 8,
       "tag": "ABW20500",
       "ja": "被災事業用資産の損失",
@@ -10768,7 +10844,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 979,
+      "no": 986,
       "level": 9,
       "tag": "ABW20510",
       "ja": "山林以外",
@@ -10779,7 +10855,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 980,
+      "no": 987,
       "level": 9,
       "tag": "ABW20520",
       "ja": "山林",
@@ -10790,7 +10866,40 @@
       "maxOccurs": 1
     },
     {
-      "no": 981,
+      "no": 988,
+      "level": 8,
+      "tag": "ABW20523",
+      "ja": "特定非常災害発生年特定純損失",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 989,
+      "level": 9,
+      "tag": "ABW20525",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 990,
+      "level": 9,
+      "tag": "ABW20527",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 991,
       "level": 7,
       "tag": "ABW20530",
       "ja": "被災純損失（青・白）",
@@ -10801,7 +10910,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 982,
+      "no": 992,
       "level": 8,
       "tag": "ABW20532",
       "ja": "被災純損失（所得税法）",
@@ -10812,7 +10921,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 983,
+      "no": 993,
       "level": 9,
       "tag": "ABW20534",
       "ja": "山林以外",
@@ -10823,7 +10932,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 984,
+      "no": 994,
       "level": 9,
       "tag": "ABW20536",
       "ja": "山林",
@@ -10834,7 +10943,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 985,
+      "no": 995,
       "level": 8,
       "tag": "ABW20540",
       "ja": "被災純損失（震災特例法）",
@@ -10845,7 +10954,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 986,
+      "no": 996,
       "level": 9,
       "tag": "ABW20550",
       "ja": "山林以外",
@@ -10856,7 +10965,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 987,
+      "no": 997,
       "level": 9,
       "tag": "ABW20560",
       "ja": "山林",
@@ -10867,7 +10976,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 988,
+      "no": 998,
       "level": 7,
       "tag": "ABW20570",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -10878,7 +10987,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 989,
+      "no": 999,
       "level": 6,
       "tag": "ABW20580",
       "ja": "雑損失",
@@ -10889,7 +10998,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 990,
+      "no": 1000,
       "level": 7,
       "tag": "ABW20590",
       "ja": "特定雑損失以外の雑損失",
@@ -10900,7 +11009,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 991,
+      "no": 1001,
       "level": 7,
       "tag": "ABW20595",
       "ja": "特定雑損失（所得税法）",
@@ -10911,7 +11020,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 992,
+      "no": 1002,
       "level": 7,
       "tag": "ABW20600",
       "ja": "特定雑損失（震災特例法）",
@@ -10922,7 +11031,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 993,
+      "no": 1003,
       "level": 5,
       "tag": "ABW20610",
       "ja": "Ｅ年分",
@@ -10933,7 +11042,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 994,
+      "no": 1004,
       "level": 6,
       "tag": "ABW20620",
       "ja": "純損失",
@@ -10944,7 +11053,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 995,
+      "no": 1005,
       "level": 7,
       "tag": "ABW20630",
       "ja": "青色",
@@ -10955,7 +11064,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 996,
+      "no": 1006,
       "level": 8,
       "tag": "ABW20640",
       "ja": "被災純損失以外の損失",
@@ -10966,7 +11075,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 997,
+      "no": 1007,
       "level": 9,
       "tag": "ABW20650",
       "ja": "山林以外",
@@ -10977,7 +11086,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 998,
+      "no": 1008,
       "level": 9,
       "tag": "ABW20660",
       "ja": "山林",
@@ -10988,7 +11097,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 999,
+      "no": 1009,
       "level": 8,
       "tag": "ABW20662",
       "ja": "特定非常災害発生年純損失",
@@ -10999,7 +11108,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1000,
+      "no": 1010,
       "level": 9,
       "tag": "ABW20664",
       "ja": "山林以外",
@@ -11010,7 +11119,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1001,
+      "no": 1011,
       "level": 9,
       "tag": "ABW20666",
       "ja": "山林",
@@ -11021,7 +11130,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1002,
+      "no": 1012,
       "level": 7,
       "tag": "ABW20670",
       "ja": "白色",
@@ -11032,7 +11141,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1003,
+      "no": 1013,
       "level": 8,
       "tag": "ABW20680",
       "ja": "変動所得の損失",
@@ -11043,7 +11152,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1004,
+      "no": 1014,
       "level": 8,
       "tag": "ABW20690",
       "ja": "被災事業用資産の損失",
@@ -11054,7 +11163,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1005,
+      "no": 1015,
       "level": 9,
       "tag": "ABW20700",
       "ja": "山林以外",
@@ -11065,7 +11174,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1006,
+      "no": 1016,
       "level": 9,
       "tag": "ABW20710",
       "ja": "山林",
@@ -11076,7 +11185,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1007,
+      "no": 1017,
       "level": 8,
       "tag": "ABW20712",
       "ja": "特定非常災害発生年特定純損失",
@@ -11087,7 +11196,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1008,
+      "no": 1018,
       "level": 9,
       "tag": "ABW20714",
       "ja": "山林以外",
@@ -11098,7 +11207,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1009,
+      "no": 1019,
       "level": 9,
       "tag": "ABW20716",
       "ja": "山林",
@@ -11109,7 +11218,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1010,
+      "no": 1020,
       "level": 7,
       "tag": "ABW20720",
       "ja": "被災純損失（青・白）",
@@ -11120,7 +11229,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1011,
+      "no": 1021,
       "level": 8,
       "tag": "ABW20722",
       "ja": "被災純損失（所得税法）",
@@ -11131,7 +11240,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1012,
+      "no": 1022,
       "level": 9,
       "tag": "ABW20724",
       "ja": "山林以外",
@@ -11142,7 +11251,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1013,
+      "no": 1023,
       "level": 9,
       "tag": "ABW20726",
       "ja": "山林",
@@ -11153,7 +11262,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1014,
+      "no": 1024,
       "level": 8,
       "tag": "ABW20730",
       "ja": "被災純損失（震災特例法）",
@@ -11164,7 +11273,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1015,
+      "no": 1025,
       "level": 9,
       "tag": "ABW20740",
       "ja": "山林以外",
@@ -11175,7 +11284,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1016,
+      "no": 1026,
       "level": 9,
       "tag": "ABW20750",
       "ja": "山林",
@@ -11186,7 +11295,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1017,
+      "no": 1027,
       "level": 7,
       "tag": "ABW20760",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -11197,7 +11306,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1018,
+      "no": 1028,
       "level": 6,
       "tag": "ABW20770",
       "ja": "雑損失",
@@ -11208,7 +11317,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1019,
+      "no": 1029,
       "level": 7,
       "tag": "ABW20780",
       "ja": "特定雑損失以外の雑損失",
@@ -11219,7 +11328,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1020,
+      "no": 1030,
       "level": 7,
       "tag": "ABW20785",
       "ja": "特定雑損失（所得税法）",
@@ -11230,7 +11339,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1021,
+      "no": 1031,
       "level": 7,
       "tag": "ABW20790",
       "ja": "特定雑損失（震災特例法）",
@@ -11241,7 +11350,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1022,
+      "no": 1032,
       "level": 5,
       "tag": "ABW20800",
       "ja": "本年分の一般株式等及び上場株式等に係る譲渡所得等から差し引く損失額",
@@ -11252,7 +11361,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1023,
+      "no": 1033,
       "level": 5,
       "tag": "ABW20810",
       "ja": "本年分の上場株式等に係る配当所得等から差し引く損失額",
@@ -11263,7 +11372,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1024,
+      "no": 1034,
       "level": 5,
       "tag": "ABW20820",
       "ja": "本年分の先物取引に係る雑所得等から差し引く損失額",
@@ -11274,7 +11383,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1025,
+      "no": 1035,
       "level": 4,
       "tag": "ABW20830",
       "ja": "翌年分以後に繰り越して差し引かれる損失額",
@@ -11285,7 +11394,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1026,
+      "no": 1036,
       "level": 5,
       "tag": "ABW20840",
       "ja": "Ｄ年分",
@@ -11296,7 +11405,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1027,
+      "no": 1037,
       "level": 6,
       "tag": "ABW20850",
       "ja": "純損失",
@@ -11307,7 +11416,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1028,
+      "no": 1038,
       "level": 7,
       "tag": "ABW20860",
       "ja": "青色",
@@ -11318,7 +11427,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1029,
+      "no": 1039,
       "level": 8,
       "tag": "ABW20870",
       "ja": "被災純損失以外の損失",
@@ -11329,7 +11438,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1030,
+      "no": 1040,
       "level": 9,
       "tag": "ABW20880",
       "ja": "山林以外",
@@ -11340,7 +11449,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1031,
+      "no": 1041,
       "level": 9,
       "tag": "ABW20890",
       "ja": "山林",
@@ -11351,7 +11460,40 @@
       "maxOccurs": 1
     },
     {
-      "no": 1032,
+      "no": 1042,
+      "level": 8,
+      "tag": "ABW20893",
+      "ja": "特定非常災害発生年純損失",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1043,
+      "level": 9,
+      "tag": "ABW20895",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1044,
+      "level": 9,
+      "tag": "ABW20897",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1045,
       "level": 7,
       "tag": "ABW20900",
       "ja": "白色",
@@ -11362,7 +11504,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1033,
+      "no": 1046,
       "level": 8,
       "tag": "ABW20910",
       "ja": "変動所得の損失",
@@ -11373,7 +11515,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1034,
+      "no": 1047,
       "level": 8,
       "tag": "ABW20920",
       "ja": "被災事業用資産の損失",
@@ -11384,7 +11526,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1035,
+      "no": 1048,
       "level": 9,
       "tag": "ABW20930",
       "ja": "山林以外",
@@ -11395,7 +11537,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1036,
+      "no": 1049,
       "level": 9,
       "tag": "ABW20940",
       "ja": "山林",
@@ -11406,7 +11548,40 @@
       "maxOccurs": 1
     },
     {
-      "no": 1037,
+      "no": 1050,
+      "level": 8,
+      "tag": "ABW20943",
+      "ja": "特定非常災害発生年特定純損失",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1051,
+      "level": 9,
+      "tag": "ABW20945",
+      "ja": "山林以外",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1052,
+      "level": 9,
+      "tag": "ABW20947",
+      "ja": "山林",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:kingaku",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 1053,
       "level": 7,
       "tag": "ABW20950",
       "ja": "被災純損失（青・白）",
@@ -11417,7 +11592,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1038,
+      "no": 1054,
       "level": 8,
       "tag": "ABW20952",
       "ja": "被災純損失（所得税法）",
@@ -11428,7 +11603,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1039,
+      "no": 1055,
       "level": 9,
       "tag": "ABW20954",
       "ja": "山林以外",
@@ -11439,7 +11614,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1040,
+      "no": 1056,
       "level": 9,
       "tag": "ABW20956",
       "ja": "山林",
@@ -11450,7 +11625,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1041,
+      "no": 1057,
       "level": 8,
       "tag": "ABW20960",
       "ja": "被災純損失（震災特例法）",
@@ -11461,7 +11636,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1042,
+      "no": 1058,
       "level": 9,
       "tag": "ABW20970",
       "ja": "山林以外",
@@ -11472,7 +11647,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1043,
+      "no": 1059,
       "level": 9,
       "tag": "ABW20980",
       "ja": "山林",
@@ -11483,7 +11658,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1044,
+      "no": 1060,
       "level": 7,
       "tag": "ABW20990",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -11494,7 +11669,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1045,
+      "no": 1061,
       "level": 6,
       "tag": "ABW21000",
       "ja": "雑損失",
@@ -11505,7 +11680,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1046,
+      "no": 1062,
       "level": 7,
       "tag": "ABW21010",
       "ja": "特定雑損失以外の雑損失",
@@ -11516,7 +11691,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1047,
+      "no": 1063,
       "level": 7,
       "tag": "ABW21015",
       "ja": "特定雑損失（所得税法）",
@@ -11527,7 +11702,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1048,
+      "no": 1064,
       "level": 7,
       "tag": "ABW21020",
       "ja": "特定雑損失（震災特例法）",
@@ -11538,7 +11713,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1049,
+      "no": 1065,
       "level": 5,
       "tag": "ABW21030",
       "ja": "Ｅ年分",
@@ -11549,7 +11724,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1050,
+      "no": 1066,
       "level": 6,
       "tag": "ABW21040",
       "ja": "純損失",
@@ -11560,7 +11735,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1051,
+      "no": 1067,
       "level": 7,
       "tag": "ABW21050",
       "ja": "青色",
@@ -11571,7 +11746,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1052,
+      "no": 1068,
       "level": 8,
       "tag": "ABW21060",
       "ja": "被災純損失以外の損失",
@@ -11582,7 +11757,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1053,
+      "no": 1069,
       "level": 9,
       "tag": "ABW21070",
       "ja": "山林以外",
@@ -11593,7 +11768,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1054,
+      "no": 1070,
       "level": 9,
       "tag": "ABW21080",
       "ja": "山林",
@@ -11604,7 +11779,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1055,
+      "no": 1071,
       "level": 8,
       "tag": "ABW21082",
       "ja": "特定非常災害発生年純損失",
@@ -11615,7 +11790,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1056,
+      "no": 1072,
       "level": 9,
       "tag": "ABW21084",
       "ja": "山林以外",
@@ -11626,7 +11801,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1057,
+      "no": 1073,
       "level": 9,
       "tag": "ABW21086",
       "ja": "山林",
@@ -11637,7 +11812,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1058,
+      "no": 1074,
       "level": 7,
       "tag": "ABW21090",
       "ja": "白色",
@@ -11648,7 +11823,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1059,
+      "no": 1075,
       "level": 8,
       "tag": "ABW21100",
       "ja": "変動所得の損失",
@@ -11659,7 +11834,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1060,
+      "no": 1076,
       "level": 8,
       "tag": "ABW21110",
       "ja": "被災事業用資産の損失",
@@ -11670,7 +11845,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1061,
+      "no": 1077,
       "level": 9,
       "tag": "ABW21120",
       "ja": "山林以外",
@@ -11681,7 +11856,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1062,
+      "no": 1078,
       "level": 9,
       "tag": "ABW21130",
       "ja": "山林",
@@ -11692,7 +11867,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1063,
+      "no": 1079,
       "level": 8,
       "tag": "ABW21132",
       "ja": "特定非常災害発生年特定純損失",
@@ -11703,7 +11878,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1064,
+      "no": 1080,
       "level": 9,
       "tag": "ABW21134",
       "ja": "山林以外",
@@ -11714,7 +11889,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1065,
+      "no": 1081,
       "level": 9,
       "tag": "ABW21136",
       "ja": "山林",
@@ -11725,7 +11900,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1066,
+      "no": 1082,
       "level": 7,
       "tag": "ABW21140",
       "ja": "被災純損失（青・白）",
@@ -11736,7 +11911,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1067,
+      "no": 1083,
       "level": 8,
       "tag": "ABW21142",
       "ja": "被災純損失（所得税法）",
@@ -11747,7 +11922,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1068,
+      "no": 1084,
       "level": 9,
       "tag": "ABW21144",
       "ja": "山林以外",
@@ -11758,7 +11933,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1069,
+      "no": 1085,
       "level": 9,
       "tag": "ABW21146",
       "ja": "山林",
@@ -11769,7 +11944,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1070,
+      "no": 1086,
       "level": 8,
       "tag": "ABW21150",
       "ja": "被災純損失（震災特例法）",
@@ -11780,7 +11955,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1071,
+      "no": 1087,
       "level": 9,
       "tag": "ABW21160",
       "ja": "山林以外",
@@ -11791,7 +11966,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1072,
+      "no": 1088,
       "level": 9,
       "tag": "ABW21170",
       "ja": "山林",
@@ -11802,7 +11977,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1073,
+      "no": 1089,
       "level": 7,
       "tag": "ABW21180",
       "ja": "居住用財産に係る通算後譲渡損失の金額",
@@ -11813,7 +11988,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1074,
+      "no": 1090,
       "level": 6,
       "tag": "ABW21190",
       "ja": "雑損失",
@@ -11824,7 +11999,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1075,
+      "no": 1091,
       "level": 7,
       "tag": "ABW21200",
       "ja": "特定雑損失以外の雑損失",
@@ -11835,7 +12010,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1076,
+      "no": 1092,
       "level": 7,
       "tag": "ABW21205",
       "ja": "特定雑損失（所得税法）",
@@ -11846,7 +12021,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1077,
+      "no": 1093,
       "level": 7,
       "tag": "ABW21210",
       "ja": "特定雑損失（震災特例法）",
@@ -11857,7 +12032,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1078,
+      "no": 1094,
       "level": 5,
       "tag": "ABW21220",
       "ja": "雑損控除、医療費控除及び寄附金控除の計算で使用する所得金額の合計額",
@@ -11868,7 +12043,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1079,
+      "no": 1095,
       "level": 3,
       "tag": "ABW21230",
       "ja": "５．翌年以後に繰り越される本年分の雑損失の金額",
@@ -11879,7 +12054,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1080,
+      "no": 1096,
       "level": 4,
       "tag": "ABW21240",
       "ja": "特定雑損失以外の雑損失の金額",
@@ -11890,7 +12065,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1081,
+      "no": 1097,
       "level": 4,
       "tag": "ABW21250",
       "ja": "特定雑損失（所得税法）の金額",
@@ -11901,7 +12076,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 1082,
+      "no": 1098,
       "level": 4,
       "tag": "ABW21260",
       "ja": "特定雑損失（震災特例法）の金額",

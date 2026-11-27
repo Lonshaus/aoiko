@@ -6,7 +6,7 @@
 // 構造は e-Tax 自身が書き出した実ファイルに準拠する。実機取込が SC00X010 で
 // fail した根本原因＝旧エンベロープの構造誤りを修正：
 //   <DATA id="DATA" xmlns=…/shotoku xmlns:gen xmlns:kyo xmlns:xlink xmlns:xsi>
-//     <RKO0010 VR="25.0.1" id="RKO0010">          手続ID 要素（id＝手続コード）
+//     <RKO0010 VR="26.0.0" id="RKO0010">          手続ID 要素（id＝手続コード）
 //       <CATALOG id="CATALOG">                     管理用部分（RDF マニフェスト）
 //         <rdf:RDF><rdf:description id="REPORT">
 //           SEND_DATA / IT_SEC(#IT) / FORM_SEC(各様式) / …各 SEC / SOFUSHO_SEC(#TEA060-1)
@@ -14,9 +14,9 @@
 //         <IT VR="1.5" id="IT"> … </IT>            ①IT部＝定義側（値＋ID属性）
 //         <{様式ID} VR id="{様式ID}-1" page="1" …>   ②帳票個別部分＝参照側（IDREF配線）
 //           <{様式ID}-N page="N"> … </{様式ID}-N>     各ページを子に持つ単一様式要素
-//         <SOFUSHO VR="15.0" fid="TEA060" … xmlns=…/kyotsu/>  送信票（必須）
+//         <SOFUSHO VR="16.0" fid="TEA060" … xmlns=…/kyotsu/>  送信票（必須）
 //
-// 様式要素は公式 xsd（KOA210-011.xsd 等）の定義どおり「単一 <KOA210> がページ
+// 様式要素は公式 xsd（KOA210-012.xsd 等）の定義どおり「単一 <KOA210> がページ
 // 子要素 KOA210-1..4 を内包する」モデル。id は様式インスタンスID＝`{様式ID}-1`。
 
 import type { XtxSchema } from './xtx-schema';
@@ -46,13 +46,13 @@ export interface XtxFilerInfo {
 export interface XtxDocumentOptions {
   /**
    * 手続ID 要素のタグ名・id（手続コード）。既定は所得税確定申告（青色・決算書同梱）の
-   * `RKO0010`（e-tax07「手続一覧」由来、#22 / #33 で確定）。
+   * `RKO0010`（e-tax07「手続一覧」Ver260x 由来、#22 / #33 で確定）。
    * 他の手続を流用する場合のみ上書きする。
    */
   procedureTag?: string;
   /**
    * 手続ID 要素の VR（手続バージョン）。データ形式等仕様書の表1-1-1：2005 年度以降の
-   * 手続は年度バージョンを先頭に付した 3 桁体系（例「25.0.1」）が必須。
+   * 手続は年度バージョンを先頭に付した 3 桁体系（例「26.0.0」）が必須。
    */
   procedureVersion?: string;
   /** 手続名称（IT部 TETSUZUKI/procedure_NM）。既定は所得税確定申告の名称 */
@@ -81,11 +81,11 @@ export interface XtxDocumentOptions {
    */
   shinkokuKbn?: string;
 }
-// e-tax07「01手続一覧」Ver250x より：所得税及び復興特別所得税申告。
+// e-tax07「01手続一覧」Ver260x より：所得税及び復興特別所得税申告。
 // 確定申告書(KOA020)+青色申告決算書(KOA210) はこの手続で送信する。
 const DEFAULT_PROCEDURE_TAG = 'RKO0010';
-// RKO0010 の手続バージョン。国税庁 e-Tax ksk2 バージョン e-tax07（2026-08-28）の「手続一覧（申告）Ver250x」で RKO0010＝25.0.1。
-const DEFAULT_PROCEDURE_VERSION = '25.0.1';
+// RKO0010 の手続バージョン。国税庁 e-Tax ksk2 バージョン（令和9年1月受付開始分）の「手続一覧（申告）Ver260x」で RKO0010＝26.0.0（KOA020＝24.0）。
+const DEFAULT_PROCEDURE_VERSION = '26.0.0';
 // IT部 TETSUZUKI/procedure_NM（参照ファイル準拠）。
 const DEFAULT_PROCEDURE_NAME = '所得税及び復興特別所得税申告';
 // e-Tax 共通名前空間（参照ファイル準拠）。既定 ns は様式 schema の meta.namespace。
@@ -97,7 +97,7 @@ const NS_RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 // IT部 VR（参照ファイル＝1.5）。
 const IT_VERSION = '1.5';
 // 送信票（汎用送信票 TEA060）。所得税申告でも必須。kyotsu ns で空要素タグ出力。
-const SOFUSHO_VR = '15.0';
+const SOFUSHO_VR = '16.0';
 const SOFUSHO_FID = 'TEA060';
 const SOFUSHO_ID = 'TEA060-1';
 // NENBUN は IT部で複合型 <gen:era><gen:yy>。era=5＝令和（参照ファイル準拠）。

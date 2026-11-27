@@ -7,6 +7,9 @@ import {
   RealEstateIncomeInputMissingError,
   type XtxContext,
 } from './xtx';
+import { buildFormFragment } from './xtx-document';
+import koa210 from './xtx-schema-koa210.generated.json';
+import type { XtxSchema } from './xtx-schema';
 import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { PersonalDeductionInput } from '../../db/types';
 import { D } from '../../lib/decimal';
@@ -94,7 +97,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(/^<\?xml version="1\.0" encoding="UTF-8" standalone="no" \?>/);
     expect(x).toContain('<DATA id="DATA" xmlns="http://xml.e-tax.nta.go.jp/XSD/shotoku"');
-    expect(x).toContain('<RKO0010 VR="25.0.1" id="RKO0010">');
+    expect(x).toContain('<RKO0010 VR="26.0.0" id="RKO0010">');
     expect(x).toContain('<CONTENTS id="CONTENTS">');
     expect(x).toContain('<IT VR="1.5" id="IT">');
   });
@@ -114,7 +117,7 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
     expect(x).toContain('<SOFUSHO_SEC><rdf:description about="#TEA060-1"/></SOFUSHO_SEC>');
     // 送信票 SOFUSHO（kyotsu ns で空要素タグ）
     expect(x).toMatch(
-      /<SOFUSHO VR="15\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
+      /<SOFUSHO VR="16\.0" fid="TEA060" id="TEA060-1" page="1" [^>]*xmlns="http:\/\/xml\.e-tax\.nta\.go\.jp\/XSD\/kyotsu"\/>/,
     );
     // IT部の構造項目（手続・申告区分）
     expect(x).toContain(
@@ -125,8 +128,8 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
 
   test('1 エンベロープに申告書 KOA020 と決算書 KOA210 を併載', () => {
     const x = buildXtx2026(makeCtx());
-    expect(x).toMatch(/<KOA020 VR="23\.0"/);
-    expect(x).toMatch(/<KOA210 VR="11\.0"/);
+    expect(x).toMatch(/<KOA020 VR="24\.0"/);
+    expect(x).toMatch(/<KOA210 VR="12\.0"/);
     // CONTENTS / IT部は 1 つだけ
     expect(x.match(/<CONTENTS id="CONTENTS">/g)).toHaveLength(1);
     expect(x.match(/<IT VR="1\.5" id="IT">/g)).toHaveLength(1);
@@ -145,11 +148,20 @@ describe('buildXtx2026 (KOA020+KOA210 併載 / 2 段式モデル駆動)', () => 
   test('参照側ルートは様式インスタンスID＋page＋FormAttribute（参照ファイル順）', () => {
     const x = buildXtx2026(makeCtx());
     expect(x).toMatch(
-      /<KOA020 VR="23\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="aoikoウェブ事務所" softNM="aoiko">/,
+      /<KOA020 VR="24\.0" id="KOA020-1" page="1" sakuseiDay="\d{4}-\d{2}-\d{2}" sakuseiNM="aoikoウェブ事務所" softNM="aoiko">/,
     );
     // ページ子要素は page 属性を持つ
     expect(x).toContain('<KOA020-1 page="1">');
     expect(x).toContain('<KOA210-1 page="1">');
+  });
+
+  test('KOA210 の年分は 3 ページ目の見出し（AMK00000）が指し、2 ページ目には無い', () => {
+    // makeCtx には固定資産が無く 3 ページ目が出ないため、様式側に値を渡して 3 ページ目を出す
+    const x = buildFormFragment(koa210 as XtxSchema, { NENBUN: '08' }, {}, { AMF02300: '100' });
+    const page3 = /<KOA210-3 page="3">[\s\S]*?<\/KOA210-3>/.exec(x);
+    expect(page3).not.toBeNull();
+    expect(page3![0]).toContain('<AMK00000 IDREF="NENBUN"/>');
+    expect(x).not.toContain('AMF00538');
   });
 
   test('参照側 IDREF が定義側 ID に解決する', () => {
@@ -225,8 +237,8 @@ describe('buildXtx2026（filingType: white → KOA020+KOA110 併載）', () => {
     const ctx = makeCtx();
     ctx.filingType = 'white';
     const x = buildXtx2026(ctx);
-    expect(x).toMatch(/<KOA020 VR="23\.0"/);
-    expect(x).toMatch(/<KOA110 VR="12\.0"/);
+    expect(x).toMatch(/<KOA020 VR="24\.0"/);
+    expect(x).toMatch(/<KOA110 VR="13\.0"/);
     expect(x).not.toContain('<KOA210 ');
   });
 
@@ -665,6 +677,14 @@ describe('所得控除画面の金額（全角・カンマ・負の値）', () =
     expect(x).toContain('<ANF01240>5000</ANF01240>');
     expect(x).toContain('<ANF01300>123456</ANF01300>');
     expect(x).toContain('<ANF01370>3000</ANF01370>');
+  });
+
+  test('KOA220 の年分は 3 ページ目の見出し（ANJ00000）が指し、2 ページ目には無い', () => {
+    const x = buildXtx2026(realEstateCtx('blue'));
+    const page3 = /<KOA220-3 page="3">[\s\S]*?<\/KOA220-3>/.exec(x);
+    expect(page3).not.toBeNull();
+    expect(page3![0]).toContain('<ANJ00000 IDREF="NENBUN"/>');
+    expect(x).not.toContain('ANF00288');
   });
 
   test('青色の不動産所得用 KOA220 に負・読めない明細の金額は 0 で載り、負の値は載らない', () => {

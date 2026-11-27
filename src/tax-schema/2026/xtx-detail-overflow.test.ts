@@ -201,23 +201,23 @@ describe('xtxDetailOverflow 白色申告（KOA020／KOA110／KOA130）', () => {
     );
   });
 
-  test('KOA130 貸付不動産：12 件は 10 件を出力し、2 件を提示する', () => {
+  test('KOA130 貸付不動産：12 件は 7 件を出力し、5 件を提示する', () => {
     const c = white();
     expectPartition(
       propertyAssets('物件', 12).map((a) => a.realEstateDetail!.address),
       emitted(mapKoa130RepeatedValues(c), 'AKH00010', 'AKH00030'),
       of(xtxDetailOverflow(c), 'KOA130', 'realEstateProperty'),
-      10,
+      7,
     );
   });
 
-  test('KOA130 減価償却：12 件は 8 件を出力し、4 件を提示する', () => {
+  test('KOA130 減価償却：12 件は 7 件を出力し、5 件を提示する', () => {
     const c = white();
     expectPartition(
       propertyAssets('物件', 12).map((a) => a.name),
       emitted(mapKoa130RepeatedValues(c), 'AKK00010', 'AKK00020'),
       of(xtxDetailOverflow(c), 'KOA130', 'depreciation'),
-      8,
+      7,
     );
   });
 
@@ -274,7 +274,7 @@ describe('xtxDetailOverflow 白色申告（KOA020／KOA110／KOA130）', () => {
     const base = white();
     const withIdle = white({ fixedAssets: [...(base.fixedAssets ?? []), ...idle] });
     const overflow = of(xtxDetailOverflow(withIdle), 'KOA130', 'depreciation');
-    expect(overflow).toHaveLength(4);
+    expect(overflow).toHaveLength(5);
     expect(overflow).toEqual(of(xtxDetailOverflow(base), 'KOA130', 'depreciation'));
   });
 

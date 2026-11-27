@@ -104,6 +104,6 @@ test('UI で入力した仕訳が .xtx 出力に反映され、年・売上・�
   expect(xml).toContain('>11000<');
   // 文書構造の要：手続 RKO0010・申告書 KOA020 と青色決算書 KOA210 の併載。
   expect(xml).toContain('<procedure_CD>RKO0010</procedure_CD>');
-  expect(xml).toMatch(/<KOA020 VR="23\.0"/);
-  expect(xml).toMatch(/<KOA210 VR="11\.0"/);
+  expect(xml).toMatch(/<KOA020 VR="24\.0"/);
+  expect(xml).toMatch(/<KOA210 VR="12\.0"/);
 });

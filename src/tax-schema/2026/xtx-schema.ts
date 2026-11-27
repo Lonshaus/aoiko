@@ -18,9 +18,9 @@ interface XtxFormMeta {
   formName: string;
   /** ターゲット名前空間 URI（例：http://xml.e-tax.nta.go.jp/XSD/shotoku） */
   namespace: string;
-  /** 様式バージョン（VR enumeration 値。例：23.0 / 11.0） */
+  /** 様式バージョン（VR enumeration 値。例：24.0 / 12.0） */
   version: string;
-  /** 取得元（例：e-tax19.CAB shotoku/KOA020-023.xsd） */
+  /** 取得元（例：e-tax19.CAB shotoku/KOA020-024.xsd） */
   source: string;
   /** 仕様取得日 ISO（例：2026-05-16） */
   fetchedAt: string;

@@ -3,9 +3,9 @@
     "formId": "KOA130",
     "formName": "年分収支内訳書(不動産所得用)",
     "namespace": "http://xml.e-tax.nta.go.jp/XSD/shotoku",
-    "version": "9.0",
-    "source": "e-tax19.CAB shotoku/KOA130-009.xsd",
-    "fetchedAt": "2026-05-16"
+    "version": "10.0",
+    "source": "e-taxall.CAB shotoku/KOA130-010.xsd",
+    "fetchedAt": "2026-11-26"
   },
   "refTree": [
     {
@@ -132,6 +132,83 @@
     {
       "no": 12,
       "level": 2,
+      "tag": "AKS00000",
+      "ja": "新たに届出を行う事項",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 13,
+      "level": 3,
+      "tag": "AKS00010",
+      "ja": "廃業",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 14,
+      "level": 3,
+      "tag": "AKS00020",
+      "ja": "廃業年月日",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yymmdd",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 15,
+      "level": 3,
+      "tag": "AKS00030",
+      "ja": "青色申告取りやめ",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 16,
+      "level": 3,
+      "tag": "AKS00040",
+      "ja": "取りやめ年分",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yy",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 17,
+      "level": 3,
+      "tag": "AKS00050",
+      "ja": "資産の評価方法・償却方法の届出又は変更承認申請　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 4
+    },
+    {
+      "no": 18,
+      "level": 4,
+      "tag": "AKS00060",
+      "ja": "番号",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 19,
+      "level": 2,
       "tag": "AKC00000",
       "ja": "依頼税理士等",
       "kind": "branch",
@@ -141,7 +218,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 13,
+      "no": 20,
       "level": 3,
       "tag": "AKC00010",
       "ja": "事務所所在地",
@@ -152,7 +229,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 14,
+      "no": 21,
       "level": 3,
       "tag": "AKC00020",
       "ja": "氏名（名称）",
@@ -163,7 +240,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 15,
+      "no": 22,
       "level": 3,
       "tag": "AKC00030",
       "ja": "電話番号",
@@ -174,7 +251,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 16,
+      "no": 23,
       "level": 2,
       "tag": "AKE00000",
       "ja": "提出年月日",
@@ -185,7 +262,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 17,
+      "no": 24,
       "level": 2,
       "tag": "AKF00000",
       "ja": "事業期間",
@@ -196,7 +273,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 18,
+      "no": 25,
       "level": 3,
       "tag": "AKF00010",
       "ja": "事業期間（自）",
@@ -207,7 +284,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 19,
+      "no": 26,
       "level": 3,
       "tag": "AKF00020",
       "ja": "事業期間（至）",
@@ -218,7 +295,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 20,
+      "no": 27,
       "level": 2,
       "tag": "AKG00000",
       "ja": "収支内訳",
@@ -229,18 +306,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 21,
+      "no": 28,
       "level": 3,
       "tag": "AKG00010",
       "ja": "追加科目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKG00010-9-0Rtype",
+      "refType": "AKG00010-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 22,
+      "no": 29,
       "level": 3,
       "tag": "AKG00020",
       "ja": "収入金額",
@@ -251,7 +328,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 23,
+      "no": 30,
       "level": 4,
       "tag": "AKG00030",
       "ja": "賃貸料",
@@ -262,7 +339,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 24,
+      "no": 31,
       "level": 4,
       "tag": "AKG00040",
       "ja": "その他の収入",
@@ -273,7 +350,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 25,
+      "no": 32,
       "level": 5,
       "tag": "AKG00050",
       "ja": "礼金・権利金・更新料",
@@ -284,7 +361,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 26,
+      "no": 33,
       "level": 5,
       "tag": "AKG00060",
       "ja": "名義書換料その他",
@@ -295,7 +372,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 27,
+      "no": 34,
       "level": 5,
       "tag": "AKG00070",
       "ja": "小計",
@@ -306,7 +383,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 28,
+      "no": 35,
       "level": 4,
       "tag": "AKG00080",
       "ja": "計",
@@ -317,7 +394,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 29,
+      "no": 36,
       "level": 3,
       "tag": "AKG00090",
       "ja": "経費",
@@ -328,7 +405,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 30,
+      "no": 37,
       "level": 4,
       "tag": "AKG00100",
       "ja": "給料賃金",
@@ -339,7 +416,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 31,
+      "no": 38,
       "level": 4,
       "tag": "AKG00110",
       "ja": "減価償却費",
@@ -350,7 +427,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 32,
+      "no": 39,
       "level": 4,
       "tag": "AKG00120",
       "ja": "貸倒金",
@@ -361,7 +438,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 33,
+      "no": 40,
       "level": 4,
       "tag": "AKG00130",
       "ja": "地代家賃",
@@ -372,7 +449,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 34,
+      "no": 41,
       "level": 4,
       "tag": "AKG00140",
       "ja": "借入金利子",
@@ -383,7 +460,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 35,
+      "no": 42,
       "level": 4,
       "tag": "AKG00150",
       "ja": "その他の経費",
@@ -394,7 +471,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 36,
+      "no": 43,
       "level": 5,
       "tag": "AKG00160",
       "ja": "租税公課",
@@ -405,7 +482,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 37,
+      "no": 44,
       "level": 5,
       "tag": "AKG00170",
       "ja": "損害保険料",
@@ -416,7 +493,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 38,
+      "no": 45,
       "level": 5,
       "tag": "AKG00180",
       "ja": "修繕費",
@@ -427,7 +504,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 39,
+      "no": 46,
       "level": 5,
       "tag": "AKG00190",
       "ja": "追加科目の金額",
@@ -438,7 +515,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 40,
+      "no": 47,
       "level": 5,
       "tag": "AKG00200",
       "ja": "雑費",
@@ -449,7 +526,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 41,
+      "no": 48,
       "level": 5,
       "tag": "AKG00210",
       "ja": "小計",
@@ -460,7 +537,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 42,
+      "no": 49,
       "level": 4,
       "tag": "AKG00220",
       "ja": "経費計",
@@ -471,7 +548,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 43,
+      "no": 50,
       "level": 3,
       "tag": "AKG00230",
       "ja": "専従者控除前の所得金額",
@@ -482,7 +559,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 44,
+      "no": 51,
       "level": 3,
       "tag": "AKG00240",
       "ja": "専従者控除",
@@ -493,7 +570,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 45,
+      "no": 52,
       "level": 3,
       "tag": "AKG00250",
       "ja": "所得金額（上段）",
@@ -504,18 +581,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 46,
+      "no": 53,
       "level": 3,
       "tag": "AKG00255",
       "ja": "所得金額（下段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKG00255-9-0Rtype",
+      "refType": "AKG00255-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 47,
+      "no": 54,
       "level": 3,
       "tag": "AKG00260",
       "ja": "土地等を取得するために要した負債の利子の額",
@@ -526,18 +603,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 48,
+      "no": 55,
       "level": 2,
       "tag": "AKG00270",
       "ja": "必要経費不算入損失額",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKG00270-9-0Rtype",
+      "refType": "AKG00270-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 49,
+      "no": 56,
       "level": 2,
       "tag": "AKH00000",
       "ja": "不動産所得の収入の内訳",
@@ -548,7 +625,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 50,
+      "no": 57,
       "level": 3,
       "tag": "AKH00010",
       "ja": "不動産所得の収入の内訳明細　繰り返し",
@@ -556,32 +633,32 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 10
+      "maxOccurs": 7
     },
     {
-      "no": 51,
+      "no": 58,
       "level": 4,
       "tag": "AKH00020",
       "ja": "貸家貸地等の別",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00020-9-0Rtype",
+      "refType": "AKH00020-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 52,
+      "no": 59,
       "level": 4,
       "tag": "AKH00025",
       "ja": "用途(住宅用、住宅用以外等の別)",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00025-9-0Rtype",
+      "refType": "AKH00025-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 53,
+      "no": 60,
       "level": 4,
       "tag": "AKH00030",
       "ja": "不動産の所在地",
@@ -592,7 +669,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 54,
+      "no": 61,
       "level": 4,
       "tag": "AKH00040",
       "ja": "賃借人の住所・氏名",
@@ -603,7 +680,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 55,
+      "no": 62,
       "level": 5,
       "tag": "AKH00050",
       "ja": "賃借人の住所",
@@ -614,7 +691,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 56,
+      "no": 63,
       "level": 5,
       "tag": "AKH00060",
       "ja": "賃借人の氏名",
@@ -625,7 +702,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 57,
+      "no": 64,
       "level": 4,
       "tag": "AKH00070",
       "ja": "賃貸契約期間",
@@ -636,7 +713,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 58,
+      "no": 65,
       "level": 5,
       "tag": "AKH00080",
       "ja": "賃貸契約期間（自）",
@@ -647,7 +724,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 59,
+      "no": 66,
       "level": 5,
       "tag": "AKH00090",
       "ja": "賃貸契約期間（至）",
@@ -658,18 +735,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 60,
+      "no": 67,
       "level": 4,
       "tag": "AKH00100",
       "ja": "貸付面積",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00100-9-0type",
+      "refType": "AKH00100-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 61,
+      "no": 68,
       "level": 4,
       "tag": "AKH00110",
       "ja": "本年中の収入金額",
@@ -680,7 +757,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 62,
+      "no": 69,
       "level": 5,
       "tag": "AKH00120",
       "ja": "賃貸料",
@@ -691,18 +768,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 63,
+      "no": 70,
       "level": 6,
       "tag": "AKH00130",
       "ja": "月額、__月分まで（上段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00130-9-0Rtype",
+      "refType": "AKH00130-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 64,
+      "no": 71,
       "level": 6,
       "tag": "AKH00140",
       "ja": "月額（上段）",
@@ -713,18 +790,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 65,
+      "no": 72,
       "level": 6,
       "tag": "AKH00150",
       "ja": "月額、__月分から（下段）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00150-9-0Rtype",
+      "refType": "AKH00150-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 66,
+      "no": 73,
       "level": 6,
       "tag": "AKH00160",
       "ja": "月額（下段）",
@@ -735,7 +812,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 67,
+      "no": 74,
       "level": 6,
       "tag": "AKH00170",
       "ja": "年額",
@@ -746,7 +823,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 68,
+      "no": 75,
       "level": 5,
       "tag": "AKH00180",
       "ja": "礼金",
@@ -757,7 +834,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 69,
+      "no": 76,
       "level": 5,
       "tag": "AKH00190",
       "ja": "権利金",
@@ -768,7 +845,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 70,
+      "no": 77,
       "level": 5,
       "tag": "AKH00200",
       "ja": "更新料",
@@ -779,7 +856,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 71,
+      "no": 78,
       "level": 5,
       "tag": "AKH00210",
       "ja": "名義書換料その他",
@@ -790,7 +867,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 72,
+      "no": 79,
       "level": 5,
       "tag": "AKH00220",
       "ja": "保証金・敷金（期末残高）",
@@ -801,7 +878,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 73,
+      "no": 80,
       "level": 3,
       "tag": "AKH00221",
       "ja": "次葉合計",
@@ -812,18 +889,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 74,
+      "no": 81,
       "level": 4,
       "tag": "AKH00222",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKH00222-9-0Rtype",
+      "refType": "AKH00222-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 75,
+      "no": 82,
       "level": 4,
       "tag": "AKH00223",
       "ja": "賃貸料の年額",
@@ -834,7 +911,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 76,
+      "no": 83,
       "level": 4,
       "tag": "AKH00224",
       "ja": "礼金・権利金・更新料",
@@ -845,7 +922,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 77,
+      "no": 84,
       "level": 4,
       "tag": "AKH00225",
       "ja": "名義書換料その他",
@@ -856,7 +933,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 78,
+      "no": 85,
       "level": 4,
       "tag": "AKH00226",
       "ja": "保証金・敷金（期末残高）",
@@ -867,7 +944,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 79,
+      "no": 86,
       "level": 3,
       "tag": "AKH00230",
       "ja": "計",
@@ -878,7 +955,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 80,
+      "no": 87,
       "level": 4,
       "tag": "AKH00240",
       "ja": "賃貸料の年額",
@@ -889,7 +966,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 81,
+      "no": 88,
       "level": 4,
       "tag": "AKH00250",
       "ja": "礼金・権利金・更新料",
@@ -900,7 +977,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 82,
+      "no": 89,
       "level": 4,
       "tag": "AKH00260",
       "ja": "名義書換料その他",
@@ -911,7 +988,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 83,
+      "no": 90,
       "level": 4,
       "tag": "AKH00270",
       "ja": "保証金・敷金（期末残高）",
@@ -922,7 +999,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 84,
+      "no": 91,
       "level": 2,
       "tag": "AKI00000",
       "ja": "給料賃金の内訳",
@@ -933,7 +1010,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 85,
+      "no": 92,
       "level": 3,
       "tag": "AKI00010",
       "ja": "給料賃金明細行",
@@ -944,7 +1021,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 86,
+      "no": 93,
       "level": 4,
       "tag": "AKI00020",
       "ja": "氏名",
@@ -955,29 +1032,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 87,
+      "no": 94,
       "level": 4,
       "tag": "AKI00030",
       "ja": "年齢",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKI00030-9-0type",
+      "refType": "AKI00030-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 88,
+      "no": 95,
       "level": 4,
       "tag": "AKI00040",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKI00040-9-0type",
+      "refType": "AKI00040-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 89,
+      "no": 96,
       "level": 4,
       "tag": "AKI00050",
       "ja": "給料賃金",
@@ -988,7 +1065,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 90,
+      "no": 97,
       "level": 4,
       "tag": "AKI00060",
       "ja": "賞与",
@@ -999,7 +1076,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 91,
+      "no": 98,
       "level": 4,
       "tag": "AKI00070",
       "ja": "合計",
@@ -1010,7 +1087,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 92,
+      "no": 99,
       "level": 4,
       "tag": "AKI00080",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1021,7 +1098,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 93,
+      "no": 100,
       "level": 3,
       "tag": "AKI00090",
       "ja": "その他",
@@ -1032,29 +1109,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 94,
+      "no": 101,
       "level": 4,
       "tag": "AKI00100",
       "ja": "人数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKI00100-9-0type",
+      "refType": "AKI00100-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 95,
+      "no": 102,
       "level": 4,
       "tag": "AKI00110",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKI00110-9-0type",
+      "refType": "AKI00110-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 96,
+      "no": 103,
       "level": 4,
       "tag": "AKI00120",
       "ja": "給料賃金",
@@ -1065,7 +1142,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 97,
+      "no": 104,
       "level": 4,
       "tag": "AKI00130",
       "ja": "賞与",
@@ -1076,7 +1153,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 98,
+      "no": 105,
       "level": 4,
       "tag": "AKI00140",
       "ja": "合計",
@@ -1087,7 +1164,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 99,
+      "no": 106,
       "level": 4,
       "tag": "AKI00150",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1098,7 +1175,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 100,
+      "no": 107,
       "level": 3,
       "tag": "AKI00160",
       "ja": "計",
@@ -1109,18 +1186,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 101,
+      "no": 108,
       "level": 4,
       "tag": "AKI00170",
       "ja": "延べ従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKI00170-9-0type",
+      "refType": "AKI00170-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 102,
+      "no": 109,
       "level": 4,
       "tag": "AKI00180",
       "ja": "給料賃金",
@@ -1131,7 +1208,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 103,
+      "no": 110,
       "level": 4,
       "tag": "AKI00190",
       "ja": "賞与",
@@ -1142,7 +1219,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 104,
+      "no": 111,
       "level": 4,
       "tag": "AKI00200",
       "ja": "合計",
@@ -1153,7 +1230,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 105,
+      "no": 112,
       "level": 4,
       "tag": "AKI00210",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -1164,7 +1241,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 106,
+      "no": 113,
       "level": 2,
       "tag": "AKJ00000",
       "ja": "事業専従者の氏名等",
@@ -1175,7 +1252,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 107,
+      "no": 114,
       "level": 3,
       "tag": "AKJ00010",
       "ja": "事業専従者明細　繰り返し",
@@ -1186,7 +1263,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 108,
+      "no": 115,
       "level": 4,
       "tag": "AKJ00020",
       "ja": "氏名",
@@ -1197,18 +1274,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 109,
+      "no": 116,
       "level": 4,
       "tag": "AKJ00030",
       "ja": "年齢",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKJ00030-9-0type",
+      "refType": "AKJ00030-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 110,
+      "no": 117,
       "level": 4,
       "tag": "AKJ00040",
       "ja": "続柄",
@@ -1219,18 +1296,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 111,
+      "no": 118,
       "level": 4,
       "tag": "AKJ00050",
       "ja": "従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKJ00050-9-0type",
+      "refType": "AKJ00050-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 112,
+      "no": 119,
       "level": 3,
       "tag": "AKJ00052",
       "ja": "次葉合計",
@@ -1241,40 +1318,40 @@
       "maxOccurs": 1
     },
     {
-      "no": 113,
+      "no": 120,
       "level": 4,
       "tag": "AKJ00054",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKJ00054-9-0Rtype",
+      "refType": "AKJ00054-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 114,
+      "no": 121,
       "level": 4,
       "tag": "AKJ00056",
       "ja": "月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKJ00056-9-0type",
+      "refType": "AKJ00056-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 115,
+      "no": 122,
       "level": 3,
       "tag": "AKJ00060",
       "ja": "延べ従事月数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKJ00060-9-0type",
+      "refType": "AKJ00060-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 116,
+      "no": 123,
       "level": 1,
       "tag": "KOA130-2",
       "ja": "２ページ目",
@@ -1285,7 +1362,7 @@
       "maxOccurs": "unbounded"
     },
     {
-      "no": 117,
+      "no": 124,
       "level": 2,
       "tag": "AKK00000",
       "ja": "減価償却費の計算",
@@ -1296,7 +1373,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 118,
+      "no": 125,
       "level": 3,
       "tag": "AKK00010",
       "ja": "減価償却費の明細　繰り返し",
@@ -1304,32 +1381,32 @@
       "idref": "",
       "refType": "",
       "minOccurs": 0,
-      "maxOccurs": 8
+      "maxOccurs": 7
     },
     {
-      "no": 119,
+      "no": 126,
       "level": 4,
       "tag": "AKK00020",
       "ja": "減価償却資産の名称等（繰延資産を含む）",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00020-9-0Rtype",
+      "refType": "AKK00020-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 120,
+      "no": 127,
       "level": 4,
       "tag": "AKK00030",
       "ja": "面積又は数量",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00030-9-0Rtype",
+      "refType": "AKK00030-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 121,
+      "no": 128,
       "level": 4,
       "tag": "AKK00050",
       "ja": "取得年月",
@@ -1340,7 +1417,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 122,
+      "no": 129,
       "level": 4,
       "tag": "AKK00060",
       "ja": "取得価額",
@@ -1351,7 +1428,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 123,
+      "no": 130,
       "level": 4,
       "tag": "AKK00065",
       "ja": "（償却保証額）",
@@ -1362,7 +1439,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 124,
+      "no": 131,
       "level": 4,
       "tag": "AKK00070",
       "ja": "償却の基礎になる金額",
@@ -1373,29 +1450,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 125,
+      "no": 132,
       "level": 4,
       "tag": "AKK00080",
       "ja": "償却方法",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00080-9-0Rtype",
+      "refType": "AKK00080-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 126,
+      "no": 133,
       "level": 4,
       "tag": "AKK00090",
       "ja": "耐用年数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00090-9-0type",
+      "refType": "AKK00090-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 127,
+      "no": 134,
       "level": 4,
       "tag": "AKK00100",
       "ja": "償却率又は改定償却率",
@@ -1406,29 +1483,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 128,
+      "no": 135,
       "level": 5,
       "tag": "AKK00110",
       "ja": "償却率又は改定償却率",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00110-9-0type",
+      "refType": "AKK00110-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 129,
+      "no": 136,
       "level": 4,
       "tag": "AKK00140",
       "ja": "本年中の償却期間",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00140-9-0type",
+      "refType": "AKK00140-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 130,
+      "no": 137,
       "level": 4,
       "tag": "AKK00150",
       "ja": "本年分の普通償却費",
@@ -1439,7 +1516,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 131,
+      "no": 138,
       "level": 4,
       "tag": "AKK00160",
       "ja": "割増（特別）償却費",
@@ -1450,7 +1527,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 132,
+      "no": 139,
       "level": 4,
       "tag": "AKK00170",
       "ja": "本年分の償却費合計",
@@ -1461,18 +1538,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 133,
+      "no": 140,
       "level": 4,
       "tag": "AKK00180",
       "ja": "貸付割合",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00180-9-0type",
+      "refType": "AKK00180-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 134,
+      "no": 141,
       "level": 4,
       "tag": "AKK00190",
       "ja": "本年分の必要経費算入額",
@@ -1483,7 +1560,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 135,
+      "no": 142,
       "level": 4,
       "tag": "AKK00200",
       "ja": "未償却残高（期末残高）",
@@ -1494,18 +1571,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 136,
+      "no": 143,
       "level": 4,
       "tag": "AKK00210",
       "ja": "摘要",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00210-9-0Rtype",
+      "refType": "AKK00210-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 137,
+      "no": 144,
       "level": 3,
       "tag": "AKK00211",
       "ja": "次葉合計",
@@ -1516,18 +1593,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 138,
+      "no": 145,
       "level": 4,
       "tag": "AKK00212",
       "ja": "項目名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00212-9-0Rtype",
+      "refType": "AKK00212-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 139,
+      "no": 146,
       "level": 4,
       "tag": "AKK00213",
       "ja": "本年分の普通償却費",
@@ -1538,7 +1615,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 140,
+      "no": 147,
       "level": 4,
       "tag": "AKK00214",
       "ja": "割増（特別）償却費",
@@ -1549,7 +1626,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 141,
+      "no": 148,
       "level": 4,
       "tag": "AKK00215",
       "ja": "本年分の償却費合計",
@@ -1560,7 +1637,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 142,
+      "no": 149,
       "level": 4,
       "tag": "AKK00216",
       "ja": "本年分の必要経費算入額",
@@ -1571,7 +1648,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 143,
+      "no": 150,
       "level": 4,
       "tag": "AKK00217",
       "ja": "未償却残高（期末残高）",
@@ -1582,7 +1659,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 144,
+      "no": 151,
       "level": 3,
       "tag": "AKK00220",
       "ja": "計",
@@ -1593,7 +1670,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 145,
+      "no": 152,
       "level": 4,
       "tag": "AKK00230",
       "ja": "本年分の普通償却費",
@@ -1604,7 +1681,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 146,
+      "no": 153,
       "level": 4,
       "tag": "AKK00240",
       "ja": "割増（特別）償却費",
@@ -1615,7 +1692,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 147,
+      "no": 154,
       "level": 4,
       "tag": "AKK00250",
       "ja": "本年分の償却費合計",
@@ -1626,7 +1703,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 148,
+      "no": 155,
       "level": 4,
       "tag": "AKK00260",
       "ja": "本年分の必要経費算入額",
@@ -1637,7 +1714,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 149,
+      "no": 156,
       "level": 4,
       "tag": "AKK00270",
       "ja": "未償却残高（期末残高）",
@@ -1648,18 +1725,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 150,
+      "no": 157,
       "level": 4,
       "tag": "AKK00280",
       "ja": "摘要",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKK00280-9-0Rtype",
+      "refType": "AKK00280-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 151,
+      "no": 158,
       "level": 2,
       "tag": "AKL00000",
       "ja": "借入金利子の内訳　繰り返し",
@@ -1670,7 +1747,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 152,
+      "no": 159,
       "level": 3,
       "tag": "AKL00010",
       "ja": "支払先の住所・氏名",
@@ -1681,7 +1758,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 153,
+      "no": 160,
       "level": 4,
       "tag": "AKL00020",
       "ja": "支払先の住所",
@@ -1692,7 +1769,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 154,
+      "no": 161,
       "level": 4,
       "tag": "AKL00030",
       "ja": "支払先の氏名",
@@ -1703,7 +1780,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 155,
+      "no": 162,
       "level": 3,
       "tag": "AKL00040",
       "ja": "期末現在の借入金等の金額",
@@ -1714,7 +1791,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 156,
+      "no": 163,
       "level": 3,
       "tag": "AKL00050",
       "ja": "本年中の借入金利子",
@@ -1725,7 +1802,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 157,
+      "no": 164,
       "level": 3,
       "tag": "AKL00060",
       "ja": "左のうち必要経費算入額",
@@ -1736,7 +1813,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 158,
+      "no": 165,
       "level": 2,
       "tag": "AKM00000",
       "ja": "修繕費の内訳　繰り返し",
@@ -1747,7 +1824,7 @@
       "maxOccurs": 3
     },
     {
-      "no": 159,
+      "no": 166,
       "level": 3,
       "tag": "AKM00010",
       "ja": "支払先の住所・氏名",
@@ -1758,7 +1835,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 160,
+      "no": 167,
       "level": 4,
       "tag": "AKM00020",
       "ja": "支払先の住所",
@@ -1769,7 +1846,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 161,
+      "no": 168,
       "level": 4,
       "tag": "AKM00030",
       "ja": "支払先の氏名",
@@ -1780,18 +1857,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 162,
+      "no": 169,
       "level": 3,
       "tag": "AKM00040",
       "ja": "工事名又は資材の品名",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKM00040-9-0Rtype",
+      "refType": "AKM00040-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 163,
+      "no": 170,
       "level": 3,
       "tag": "AKM00050",
       "ja": "支払年月日",
@@ -1802,7 +1879,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 164,
+      "no": 171,
       "level": 3,
       "tag": "AKM00060",
       "ja": "支払金額",
@@ -1813,7 +1890,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 165,
+      "no": 172,
       "level": 3,
       "tag": "AKM00070",
       "ja": "左のうち必要経費算入額",
@@ -1824,7 +1901,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 166,
+      "no": 173,
       "level": 2,
       "tag": "AKN00000",
       "ja": "貸付不動産の保有状況",
@@ -1835,7 +1912,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 167,
+      "no": 174,
       "level": 3,
       "tag": "AKN00010",
       "ja": "住宅用",
@@ -1846,7 +1923,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 168,
+      "no": 175,
       "level": 4,
       "tag": "AKN00020",
       "ja": "建物",
@@ -1857,29 +1934,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 169,
+      "no": 176,
       "level": 5,
       "tag": "AKN00030",
       "ja": "一戸建",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00030-9-0type",
+      "refType": "AKN00030-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 170,
+      "no": 177,
       "level": 5,
       "tag": "AKN00040",
       "ja": "一戸建以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00040-9-0type",
+      "refType": "AKN00040-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 171,
+      "no": 178,
       "level": 4,
       "tag": "AKN00050",
       "ja": "土地",
@@ -1890,29 +1967,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 172,
+      "no": 179,
       "level": 5,
       "tag": "AKN00060",
       "ja": "契約件数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00060-9-0type",
+      "refType": "AKN00060-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 173,
+      "no": 180,
       "level": 5,
       "tag": "AKN00070",
       "ja": "総面積",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00070-9-0type",
+      "refType": "AKN00070-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 174,
+      "no": 181,
       "level": 3,
       "tag": "AKN00080",
       "ja": "住宅用以外（事務所店舗等）",
@@ -1923,7 +2000,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 175,
+      "no": 182,
       "level": 4,
       "tag": "AKN00090",
       "ja": "建物",
@@ -1934,29 +2011,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 176,
+      "no": 183,
       "level": 5,
       "tag": "AKN00100",
       "ja": "一戸建",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00100-9-0type",
+      "refType": "AKN00100-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 177,
+      "no": 184,
       "level": 5,
       "tag": "AKN00110",
       "ja": "一戸建以外",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00110-9-0type",
+      "refType": "AKN00110-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 178,
+      "no": 185,
       "level": 4,
       "tag": "AKN00120",
       "ja": "土地",
@@ -1967,29 +2044,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 179,
+      "no": 186,
       "level": 5,
       "tag": "AKN00130",
       "ja": "契約件数",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00130-9-0type",
+      "refType": "AKN00130-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 180,
+      "no": 187,
       "level": 5,
       "tag": "AKN00140",
       "ja": "総面積",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00140-9-0type",
+      "refType": "AKN00140-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 181,
+      "no": 188,
       "level": 3,
       "tag": "AKN00150",
       "ja": "駐車場",
@@ -2000,29 +2077,29 @@
       "maxOccurs": 1
     },
     {
-      "no": 182,
+      "no": 189,
       "level": 4,
       "tag": "AKN00160",
       "ja": "屋根付",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00160-9-0type",
+      "refType": "AKN00160-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 183,
+      "no": 190,
       "level": 4,
       "tag": "AKN00170",
       "ja": "青空",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKN00170-9-0type",
+      "refType": "AKN00170-10-0type",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 184,
+      "no": 191,
       "level": 2,
       "tag": "AKO00000",
       "ja": "地代家賃の内訳　繰り返し",
@@ -2033,7 +2110,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 185,
+      "no": 192,
       "level": 3,
       "tag": "AKO00010",
       "ja": "支払先の住所・氏名",
@@ -2044,7 +2121,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 186,
+      "no": 193,
       "level": 4,
       "tag": "AKO00020",
       "ja": "支払先の住所",
@@ -2055,7 +2132,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 187,
+      "no": 194,
       "level": 4,
       "tag": "AKO00030",
       "ja": "支払先の氏名",
@@ -2066,18 +2143,18 @@
       "maxOccurs": 1
     },
     {
-      "no": 188,
+      "no": 195,
       "level": 3,
       "tag": "AKO00040",
       "ja": "賃借物件",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKO00040-9-0Rtype",
+      "refType": "AKO00040-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     },
     {
-      "no": 189,
+      "no": 196,
       "level": 3,
       "tag": "AKO00050",
       "ja": "本年中の賃借料・権利金等",
@@ -2088,7 +2165,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 190,
+      "no": 197,
       "level": 4,
       "tag": "AKO00060",
       "ja": "権利金",
@@ -2099,7 +2176,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 191,
+      "no": 198,
       "level": 4,
       "tag": "AKO00070",
       "ja": "更新料",
@@ -2110,7 +2187,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 192,
+      "no": 199,
       "level": 4,
       "tag": "AKO00080",
       "ja": "賃借料",
@@ -2121,7 +2198,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 193,
+      "no": 200,
       "level": 3,
       "tag": "AKO00090",
       "ja": "左の賃借料のうち必要経費算入額",
@@ -2132,7 +2209,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 194,
+      "no": 201,
       "level": 2,
       "tag": "AKP00000",
       "ja": "税理士・弁護士等の報酬・料金の内訳　繰り返し",
@@ -2143,7 +2220,7 @@
       "maxOccurs": 2
     },
     {
-      "no": 195,
+      "no": 202,
       "level": 3,
       "tag": "AKP00010",
       "ja": "支払先の住所・氏名",
@@ -2154,7 +2231,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 196,
+      "no": 203,
       "level": 4,
       "tag": "AKP00020",
       "ja": "支払先の住所",
@@ -2165,7 +2242,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 197,
+      "no": 204,
       "level": 4,
       "tag": "AKP00030",
       "ja": "支払先の氏名",
@@ -2176,7 +2253,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 198,
+      "no": 205,
       "level": 3,
       "tag": "AKP00040",
       "ja": "本年中の報酬等の金額",
@@ -2187,7 +2264,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 199,
+      "no": 206,
       "level": 3,
       "tag": "AKP00050",
       "ja": "左のうち必要経費算入額",
@@ -2198,7 +2275,7 @@
       "maxOccurs": 1
     },
     {
-      "no": 200,
+      "no": 207,
       "level": 3,
       "tag": "AKP00060",
       "ja": "所得税及び復興特別所得税の源泉徴収税額",
@@ -2209,13 +2286,123 @@
       "maxOccurs": 1
     },
     {
-      "no": 201,
+      "no": 208,
       "level": 2,
       "tag": "AKQ00000",
       "ja": "本年中における特殊事情・保証金等の運用状況",
       "kind": "leaf",
       "idref": "",
-      "refType": "AKQ00000-9-0Rtype",
+      "refType": "AKQ00000-10-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 209,
+      "level": 2,
+      "tag": "AKT00000",
+      "ja": "所得税の棚卸資産・有価証券・暗号資産の評価方法、減価償却資産の償却方法の届出・変更承認申請　繰り返し",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 3
+    },
+    {
+      "no": 210,
+      "level": 3,
+      "tag": "AKT00010",
+      "ja": "届出又は変更承認申請の別",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 211,
+      "level": 3,
+      "tag": "AKT00020",
+      "ja": "届出又は変更承認申請を行う資産の種別",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 212,
+      "level": 3,
+      "tag": "AKT00030",
+      "ja": "事業の種類又は資産・設備の種類",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKT00030-10-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 213,
+      "level": 3,
+      "tag": "AKT00040",
+      "ja": "資産の区分又は構造・用途・品目",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKT00040-10-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 214,
+      "level": 3,
+      "tag": "AKT00050",
+      "ja": "採用しようとする新たな評価方法又は償却方法",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKT00050-10-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 215,
+      "level": 3,
+      "tag": "AKT00060",
+      "ja": "現在の評価方法又は償却方法",
+      "kind": "branch",
+      "idref": "",
+      "refType": "",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 216,
+      "level": 4,
+      "tag": "AKT00070",
+      "ja": "現在の評価方法又は償却方法",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKT00070-10-0Rtype",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 217,
+      "level": 4,
+      "tag": "AKT00080",
+      "ja": "採用した年",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "gen:yy",
+      "minOccurs": 0,
+      "maxOccurs": 1
+    },
+    {
+      "no": 218,
+      "level": 3,
+      "tag": "AKT00090",
+      "ja": "摘要",
+      "kind": "leaf",
+      "idref": "",
+      "refType": "AKT00090-10-0Rtype",
       "minOccurs": 0,
       "maxOccurs": 1
     }
