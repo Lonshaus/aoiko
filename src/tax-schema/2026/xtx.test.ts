@@ -1,10 +1,11 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   buildXtx2026,
   INCOME_TAX_XTX_LAST_YEAR,
   IncomeTaxXtxYearUnsupportedError,
   personalDeductionsToCtx,
   RealEstateIncomeInputMissingError,
+  xtxDetailOverflow,
   type XtxContext,
 } from './xtx';
 import { buildFormFragment } from './xtx-document';
@@ -14,6 +15,11 @@ import type { BSReport, MonthlyReport, PLReport } from '../../domain/reports';
 import type { PersonalDeductionInput } from '../../db/types';
 import { D } from '../../lib/decimal';
 import type { RealEstateIncomeCtx } from './real-estate-income';
+import {
+  XtxFilingNoticeTextTooLongError,
+  type XtxFilingNotices,
+  type XtxMethodApplication,
+} from './xtx-filing-notices';
 // personalDeductions は各種 IncomeDeductionInput 系の必須項目を含む交差型のため、
 // realEstateIncome だけの部分オブジェクトは型を満たさない（xtx-mapping-koa220.test.ts と同じ事情）。
 function withRealEstate(
@@ -805,5 +811,350 @@ describe('所得控除画面の金額（全角・カンマ・負の値）', () =
         }),
       ),
     ).not.toThrow();
+  });
+});
+
+describe('xtxDetailOverflow（不動産の届出事項。不動産用の様式を出さないとき画面へ提示する）', () => {
+  const realEstateNotices: XtxFilingNotices = {
+    closureDate: '2026-03-31',
+    blueReturnWithdrawalYear: 2027,
+    methodApplications: [
+      {
+        kind: 'notice',
+        assetType: 'inventory',
+        businessOrAssetType: '賃貸業',
+        assetClass: '区分A',
+        newMethod: '最終仕入原価法',
+      },
+      {
+        kind: 'notice',
+        assetType: 'depreciable',
+        businessOrAssetType: '賃貸業',
+        assetClass: '区分B',
+        newMethod: '定額法',
+      },
+    ],
+  };
+  const noticeRows = (ctx: XtxContext) =>
+    xtxDetailOverflow(ctx).filter((r) => r.section === 'filingNotice');
+
+  test.each([
+    ['white', 'KOA130'],
+    ['blue', 'KOA220'],
+  ] as const)(
+    '不動産用の様式が無いとき（%s）、廃業・取りやめ・番号・明細を %s の行として全部提示する',
+    (filingType, formId) => {
+      const ctx = makeCtx();
+      ctx.filingType = filingType;
+      ctx.filingNotices = { realEstate: realEstateNotices };
+      expect(noticeRows(ctx)).toEqual([
+        { formId, section: 'filingNotice', label: '廃業（2026.03.31）' },
+        { formId, section: 'filingNotice', label: '青色申告の取りやめ（2027年分）' },
+        { formId, section: 'filingNotice', label: '棚卸資産の評価方法の届出' },
+        { formId, section: 'filingNotice', label: '減価償却資産の償却方法の届出' },
+        { formId, section: 'filingNotice', label: '区分A' },
+        { formId, section: 'filingNotice', label: '区分B' },
+      ]);
+    },
+  );
+
+  test.each(['white', 'blue'] as const)(
+    '不動産用の様式を出すとき（%s）は提示しない',
+    (filingType) => {
+      const ctx = makeCtx();
+      ctx.filingType = filingType;
+      ctx.realEstatePl = {
+        year: 2026,
+        revenue: [],
+        expense: [],
+        totalRevenue: '0',
+        totalExpense: '0',
+        netIncome: '0',
+        entryCount: 0,
+      };
+      ctx.personalDeductions = withRealEstate({ businessScale: false });
+      ctx.filingNotices = { realEstate: realEstateNotices };
+      expect(noticeRows(ctx)).toEqual([]);
+    },
+  );
+
+  test('事業用の届出事項は提示しない', () => {
+    const ctx = makeCtx();
+    ctx.filingNotices = { business: realEstateNotices };
+    expect(noticeRows(ctx)).toEqual([]);
+  });
+});
+
+describe('buildXtx2026（届出事項を様式へ書く）', () => {
+  const businessNotices: XtxFilingNotices = {
+    closureDate: '2026-06-30',
+    blueReturnWithdrawalYear: 2027,
+    methodApplications: [
+      {
+        kind: 'change',
+        assetType: 'inventory',
+        businessOrAssetType: '飲食業',
+        assetClass: '食材',
+        newMethod: '最終仕入原価法',
+        currentMethod: '総平均法',
+        currentAdoptedYear: 2015,
+        memo: '備考あり',
+      },
+      {
+        kind: 'notice',
+        assetType: 'depreciable',
+        businessOrAssetType: '飲食業',
+        assetClass: '機械装置',
+        newMethod: '定額法',
+      },
+    ],
+  };
+  const realEstateNotices: XtxFilingNotices = {
+    closureDate: '2026-09-30',
+    methodApplications: [
+      {
+        kind: 'notice',
+        assetType: 'securities',
+        businessOrAssetType: '賃貸業',
+        assetClass: '上場株式',
+        newMethod: '移動平均法',
+      },
+      {
+        kind: 'notice',
+        assetType: 'inventory',
+        businessOrAssetType: '賃貸業',
+        assetClass: '販売用不動産',
+        newMethod: '個別法',
+      },
+    ],
+  };
+  const forms = [
+    {
+      filingType: 'white',
+      business: {
+        page1: 'KOA110-1',
+        page2: 'KOA110-2',
+        head: 'AIS000',
+        block: 'AIT00000',
+        item: 'AIT000',
+      },
+      realEstate: {
+        page1: 'KOA130-1',
+        page2: 'KOA130-2',
+        head: 'AKS000',
+        block: 'AKT00000',
+        item: 'AKT000',
+      },
+    },
+    {
+      filingType: 'blue',
+      business: {
+        page1: 'KOA210-1',
+        page2: 'KOA210-4',
+        head: 'AMJ000',
+        block: 'AMM00000',
+        item: 'AMM000',
+      },
+      realEstate: {
+        page1: 'KOA220-1',
+        page2: 'KOA220-4',
+        head: 'ANI000',
+        block: 'ANG00700',
+        item: 'ANG007',
+      },
+    },
+  ] as const;
+  type FormTags = { page1: string; page2: string; head: string; block: string; item: string };
+
+  function withRealEstateForm(filingType: 'white' | 'blue', notices: XtxContext['filingNotices']) {
+    const ctx = makeCtx();
+    ctx.filingType = filingType;
+    ctx.aoiroDeductionKind = filingType === 'blue' ? 'electronic' : 'none';
+    ctx.realEstatePl = {
+      year: 2026,
+      revenue: [],
+      expense: [],
+      totalRevenue: '0',
+      totalExpense: '0',
+      netIncome: '0',
+      entryCount: 0,
+    };
+    ctx.personalDeductions = withRealEstate({ businessScale: false });
+    if (notices) {
+      ctx.filingNotices = notices;
+    }
+    return ctx;
+  }
+
+  function pageOf(xml: string, id: string): string {
+    const page = new RegExp(`<${id} page="\\d+">[\\s\\S]*?</${id}>`).exec(xml);
+    expect(page, `${id} not found`).not.toBeNull();
+    return page![0];
+  }
+
+  function blocksOf(xml: string, tag: string): string[] {
+    return xml.match(new RegExp(`<${tag}>[\\s\\S]*?</${tag}>`, 'g')) ?? [];
+  }
+
+  function detailTexts(
+    item: string,
+    kind: number,
+    assetType: number,
+    texts: [string, string, string],
+  ): string[] {
+    return [
+      `<${item}10><kubun_CD>${kind}</kubun_CD></${item}10>`,
+      `<${item}20><kubun_CD>${assetType}</kubun_CD></${item}20>`,
+      ...[30, 40, 50].map((n, i) => `<${item}${n}>${texts[i]}</${item}${n}>`),
+    ];
+  }
+
+  function expectNotices(
+    xml: string,
+    tags: FormTags,
+    closureDay: string,
+    expectedDetails: string[][],
+  ): string {
+    const page1 = pageOf(xml, tags.page1);
+    expect(page1).toContain(`<${tags.head}10><kubun_CD>1</kubun_CD></${tags.head}10>`);
+    expect(page1).toContain(`<${tags.head}20>${closureDay}</${tags.head}20>`);
+    const details = blocksOf(pageOf(xml, tags.page2), tags.block);
+    expect(details).toHaveLength(expectedDetails.length);
+    expectedDetails.forEach((texts, i) => {
+      for (const text of texts) {
+        expect(details[i], text).toContain(text);
+      }
+    });
+    return page1;
+  }
+
+  const businessClosure =
+    '<gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>6</gen:mm><gen:dd>30</gen:dd>';
+  const realEstateClosure =
+    '<gen:era>5</gen:era><gen:yy>8</gen:yy><gen:mm>9</gen:mm><gen:dd>30</gen:dd>';
+
+  test.each(forms)('事業用と不動産用の届出事項を各様式の欄へ書く（$filingType）', (form) => {
+    const xml = buildXtx2026(
+      withRealEstateForm(form.filingType, {
+        business: businessNotices,
+        realEstate: realEstateNotices,
+      }),
+    );
+    const b = form.business;
+    const bPage1 = expectNotices(xml, b, businessClosure, [
+      detailTexts(b.item, 2, 1, ['飲食業', '食材', '最終仕入原価法']),
+      detailTexts(b.item, 1, 4, ['飲食業', '機械装置', '定額法']),
+    ]);
+    expect(bPage1).toContain(
+      `<${b.head}30><kubun_CD>1</kubun_CD></${b.head}30><${b.head}40><gen:era>5</gen:era><gen:yy>9</gen:yy></${b.head}40>`,
+    );
+    const bPage2 = pageOf(xml, b.page2);
+    const bDetails = blocksOf(bPage2, b.block);
+    expect(bDetails[0]).toContain(
+      `<${b.item}60><${b.item}70>総平均法</${b.item}70><${b.item}80><gen:era>4</gen:era><gen:yy>27</gen:yy></${b.item}80></${b.item}60>`,
+    );
+    expect(bDetails[0]).toContain(`<${b.item}90>備考あり</${b.item}90>`);
+    const numbers = blocksOf(bPage1, `${b.head}50`).map((n) => /<kubun_CD>(\d)</.exec(n)![1]);
+    expect(numbers).toEqual(['4', '5']);
+
+    const r = form.realEstate;
+    const rPage1 = expectNotices(xml, r, realEstateClosure, [
+      detailTexts(r.item, 1, 2, ['賃貸業', '上場株式', '移動平均法']),
+      detailTexts(r.item, 1, 1, ['賃貸業', '販売用不動産', '個別法']),
+    ]);
+    expect(rPage1).not.toContain(`<${r.head}30>`);
+    expect(blocksOf(rPage1, `${r.head}50`).map((n) => /<kubun_CD>(\d)</.exec(n)![1])).toEqual([
+      '1',
+      '2',
+    ]);
+  });
+
+  test.each(forms)('出さない様式の届出事項は書かない（$filingType）', (form) => {
+    const ctx = makeCtx();
+    ctx.filingType = form.filingType;
+    ctx.aoiroDeductionKind = form.filingType === 'blue' ? 'electronic' : 'none';
+    ctx.filingNotices = { realEstate: realEstateNotices };
+    const xml = buildXtx2026(ctx);
+    expect(xml).not.toContain(`<${form.realEstate.head}10>`);
+    expect(xml).not.toContain(`<${form.realEstate.block}>`);
+    expect(xml).not.toContain('賃貸業');
+  });
+
+  test.each(forms)('届出事項が無いときは出力が変わらない（$filingType）', (form) => {
+    // 作成日は実時計から入るので、2 回の呼び出しの間に日付が変わらないよう固定する
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date('2027-01-04T12:00:00Z'));
+      const without = buildXtx2026(withRealEstateForm(form.filingType, undefined));
+      expect(buildXtx2026(withRealEstateForm(form.filingType, {}))).toBe(without);
+      expect(
+        buildXtx2026(
+          withRealEstateForm(form.filingType, {
+            business: { methodApplications: [] },
+            realEstate: { methodApplications: [] },
+          }),
+        ),
+      ).toBe(without);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  describe('上限を超えたとき', () => {
+    const apps: XtxMethodApplication[] = [
+      ['inventory', 'notice', 'ア'],
+      ['securities', 'notice', 'イ'],
+      ['crypto', 'notice', 'ウ'],
+      ['depreciable', 'notice', 'エ'],
+      ['inventory', 'change', 'オ'],
+    ].map(([assetType, kind, assetClass]) => ({
+      kind: kind as XtxMethodApplication['kind'],
+      assetType: assetType as XtxMethodApplication['assetType'],
+      businessOrAssetType: '事業',
+      assetClass: assetClass!,
+      newMethod: '方法',
+    }));
+
+    test.each(forms)('番号は4件・明細は3件だけ書き、残りを提示行にする（$filingType）', (form) => {
+      const ctx = withRealEstateForm(form.filingType, {
+        business: { methodApplications: apps },
+        realEstate: { methodApplications: apps },
+      });
+      const xml = buildXtx2026(ctx);
+      for (const f of [form.business, form.realEstate]) {
+        expect(blocksOf(pageOf(xml, f.page1), `${f.head}50`)).toHaveLength(4);
+        expect(blocksOf(pageOf(xml, f.page2), f.block)).toHaveLength(3);
+      }
+      const rows = xtxDetailOverflow(ctx).filter((r) => r.section === 'filingNotice');
+      const forEach = (formId: string) => [
+        { formId, section: 'filingNotice', label: '棚卸資産の評価方法の変更承認申請' },
+        { formId, section: 'filingNotice', label: 'エ' },
+        { formId, section: 'filingNotice', label: 'オ' },
+      ];
+      expect(rows).toEqual([
+        ...forEach(form.filingType === 'white' ? 'KOA110' : 'KOA210'),
+        ...forEach(form.filingType === 'white' ? 'KOA130' : 'KOA220'),
+      ]);
+    });
+  });
+
+  test.each(forms)('文字数が上限を超えると例外を投げる（$filingType）', (form) => {
+    const tooLong: XtxFilingNotices = {
+      methodApplications: [
+        {
+          kind: 'notice',
+          assetType: 'inventory',
+          businessOrAssetType: 'あ'.repeat(21),
+          assetClass: '区分',
+          newMethod: '方法',
+        },
+      ],
+    };
+    expect(() => buildXtx2026(withRealEstateForm(form.filingType, { business: tooLong }))).toThrow(
+      XtxFilingNoticeTextTooLongError,
+    );
+    expect(() =>
+      buildXtx2026(withRealEstateForm(form.filingType, { realEstate: tooLong })),
+    ).toThrow(XtxFilingNoticeTextTooLongError);
   });
 });

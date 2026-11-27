@@ -92,6 +92,7 @@
     type XtxDetailOverflowItem,
   } from '../tax-schema/2026/xtx';
   import { BsExtraAccountOverflowError } from '../tax-schema/2026/xtx-mapping-koa210';
+  import { XtxFilingNoticeTextTooLongError } from '../tax-schema/2026/xtx-filing-notices';
   import {
     hasInvalidXtxAmounts,
     hasInvalidXtxPropertyText,
@@ -1369,10 +1370,15 @@
     loanInterestPaid: () => m.reports_xtx_detail_overflow_loan_interest_paid(),
     professionalFee: () => m.reports_xtx_detail_overflow_professional_fee(),
     familyEmployee: () => m.reports_xtx_detail_overflow_family_employee(),
+    filingNotice: () => m.reports_xtx_detail_overflow_filing_notice(),
   } satisfies Record<XtxDetailOverflowItem['section'], () => string>;
   function detailOverflowText(item: XtxDetailOverflowItem): string {
-    const amount = formatJPY(item.amount);
-    const subject = item.label === '' ? amount : `${item.label}（${amount}）`;
+    const subject =
+      item.amount === undefined
+        ? item.label
+        : item.label === ''
+          ? formatJPY(item.amount)
+          : `${item.label}（${formatJPY(item.amount)}）`;
     return `${item.formId} ${DETAIL_OVERFLOW_SECTION_LABEL[item.section]()}：${subject}`;
   }
   // testReiwa7：令和8年分の e-Tax 様式・モジュールが未提供のため、実機検証は
@@ -1475,6 +1481,10 @@
           assetMax: e.assetMax,
           liabilityEquityMax: e.liabilityEquityMax,
         });
+        return;
+      }
+      if (e instanceof XtxFilingNoticeTextTooLongError) {
+        lockError = m.reports_xtx_filing_notice_too_long({ tag: e.tag, max: e.max });
         return;
       }
       lockError =
