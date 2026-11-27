@@ -31,6 +31,7 @@ import type { DepreciationMethod } from '../../db/types';
 import type { BSRow } from '../../domain/reports';
 import {
   maxOccursOf,
+  putStatementAddresses,
   stripClassificationSuffix,
   toKingaku,
   type XtxDetailOverflowRow,
@@ -203,6 +204,7 @@ export function koa210AdditionalExpenseOverflow(
 export function mapKoa210Values(ctx: XtxContext): XtxLeafValues {
   const { pl, bs, monthly } = ctx;
   const out: XtxLeafValues = {};
+  putStatementAddresses(out, ctx.filer, { domicile: 'AMB00010', businessPlace: 'AMB00050' });
   // 損益計算書（ページ1）
   const reversalRevenue = pl.revenue.find(
     (r) => r.accountName === BAD_DEBT_RESERVE_REVERSAL_ACCOUNT_NAME,

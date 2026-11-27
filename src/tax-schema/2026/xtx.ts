@@ -41,6 +41,7 @@ import type { XtxDetailOverflowRow } from './xtx-mapping-shared';
 import {
   koa020DetailOverflow,
   mapKoa020LeafValues,
+  mapKoa020RawValues,
   mapKoa020RepeatedValues,
   mapKoa020Values,
 } from './xtx-mapping-koa020';
@@ -90,12 +91,17 @@ export class IncomeTaxXtxYearUnsupportedError extends Error {
     this.year = year;
   }
 }
+// 納税地の区分。住所地（所得税法15条）・居所（同15条2号）・事業所等（同16条2項）
+export type TaxPlaceKind = 'domicile' | 'abode' | 'businessPlace';
 // 申告者情報（e-Tax 提出用）。IT部の定義側の必須・任意項目に対応する。
 export interface XtxFiler {
   riyoshaId: string; // 利用者識別番号（16桁）
   name: string; // 氏名・名称
   zip: string; // 郵便番号（7桁・ハイフン無し）
-  address: string; // 住所
+  address: string; // 納税地
+  taxPlaceKind?: TaxPlaceKind; // 納税地の区分。未指定は住所地
+  domicileAddress?: string; // 住所（納税地が住所地以外のとき）
+  businessPlaceAddress?: string; // 事業所所在地
   zeimushoCode: string; // 提出先税務署コード（5桁）
   zeimushoName: string; // 提出先税務署名
 }
@@ -443,6 +449,7 @@ export function buildXtx2026(ctx: XtxContext): string {
         values: mapKoa020Values(ctx),
         leafValues: mapKoa020LeafValues(ctx),
         repeats: mapKoa020RepeatedValues(ctx),
+        raw: mapKoa020RawValues(ctx),
       },
       businessStatementForm,
       ...(realEstateStatementForm ? [realEstateStatementForm] : []),

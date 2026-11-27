@@ -12,6 +12,7 @@
     normalizeFilerZip,
     normalizeRiyoshaId,
     readFilerField,
+    readTaxPlaceKind,
     type FilerFieldKind,
   } from '../lib/filer-fields';
   import {
@@ -149,7 +150,7 @@
     type SimplifiedTaxCategory,
   } from '../tax-schema/2026/simplified-tax';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
-  import type { FilingType } from '../tax-schema/2026/xtx';
+  import type { FilingType, TaxPlaceKind } from '../tax-schema/2026/xtx';
   import FilePicker from '../components/FilePicker.svelte';
   import ScrollX from '../components/ScrollX.svelte';
   import {
@@ -454,6 +455,9 @@
   let userFilerName = $state('');
   let userFilerZip = $state('');
   let userFilerAddress = $state('');
+  let userFilerTaxPlaceKind = $state<TaxPlaceKind | ''>('domicile');
+  let userFilerDomicileAddress = $state('');
+  let userFilerBusinessPlaceAddress = $state('');
   let userZeimushoCode = $state('');
   let userZeimushoName = $state('');
   let filingType = $state<FilingType>('blue');
@@ -617,6 +621,8 @@
   // 復元された申告者情報は型を検査していない。文字列にできない値と、桁が化けうる数値の識別番号は
   // 読めない値として示し、入力し直すまで保存しない
   const filerStoredUnreadable = new SvelteSet<string>();
+  // 読めなかった住所は入力中に誤りが消えても欄を残す
+  let domicileUnreadableOnLoad = $state(false);
   function loadFilerText(key: string, stored: unknown, kind: FilerFieldKind): string {
     const text = readFilerField(stored, kind);
     if (text === undefined) {
@@ -786,6 +792,24 @@
     userFilerAddress = loadFilerText(
       'userFilerAddress',
       await getSetting('userFilerAddress'),
+      'text',
+    );
+    const storedTaxPlaceKind = await getSetting('userFilerTaxPlaceKind');
+    const taxPlaceKind = readTaxPlaceKind(storedTaxPlaceKind);
+    if (taxPlaceKind === undefined) {
+      filerStoredUnreadable.add('userFilerTaxPlaceKind');
+    }
+    // 読めない区分は空の選択肢を選んだ状態にし、どの区分を選んでも change が起きるようにする
+    userFilerTaxPlaceKind = taxPlaceKind ?? '';
+    userFilerDomicileAddress = loadFilerText(
+      'userFilerDomicileAddress',
+      await getSetting('userFilerDomicileAddress'),
+      'text',
+    );
+    domicileUnreadableOnLoad = filerStoredUnreadable.has('userFilerDomicileAddress');
+    userFilerBusinessPlaceAddress = loadFilerText(
+      'userFilerBusinessPlaceAddress',
+      await getSetting('userFilerBusinessPlaceAddress'),
       'text',
     );
     userZeimushoCode = loadFilerText(
@@ -1128,7 +1152,8 @@
       zeimushoUnresolved ||
       riyoshaIdInvalid ||
       filerZipInvalid ||
-      filerStoredUnreadable.size > 0
+      filerStoredUnreadable.size > 0 ||
+      userFilerTaxPlaceKind === ''
     ) {
       return;
     }
@@ -1136,6 +1161,9 @@
     await setSetting('userFilerName', userFilerName.trim());
     await setSetting('userFilerZip', normalizeFilerZip(userFilerZip));
     await setSetting('userFilerAddress', userFilerAddress.trim());
+    await setSetting('userFilerTaxPlaceKind', userFilerTaxPlaceKind);
+    await setSetting('userFilerDomicileAddress', userFilerDomicileAddress.trim());
+    await setSetting('userFilerBusinessPlaceAddress', userFilerBusinessPlaceAddress.trim());
     await setSetting('userZeimushoCode', userZeimushoCode.trim());
     await setSetting('userZeimushoName', userZeimushoName.trim());
     await setSetting('filingType', filingType);
@@ -3139,7 +3167,76 @@
           oninput={() => filerStoredUnreadable.delete('userFilerAddress')}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
+        <span class="block mt-1 text-xs text-muted-foreground">
+          {m.settings_filer_address_hint()}
+        </span>
         {#if filerStoredUnreadable.has('userFilerAddress')}
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
+        {/if}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.settings_filer_tax_place_kind()}</span>
+        <select
+          name="filerTaxPlaceKind"
+          bind:value={userFilerTaxPlaceKind}
+          onchange={() => filerStoredUnreadable.delete('userFilerTaxPlaceKind')}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          {#if userFilerTaxPlaceKind === ''}
+            <option value="" disabled></option>
+          {/if}
+          <option value="domicile">{m.settings_filer_tax_place_domicile()}</option>
+          <option value="abode">{m.settings_filer_tax_place_abode()}</option>
+          <option value="businessPlace">{m.settings_filer_tax_place_business_place()}</option>
+        </select>
+        {#if filerStoredUnreadable.has('userFilerTaxPlaceKind')}
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
+        {/if}
+      </label>
+      {#if userFilerTaxPlaceKind !== 'domicile' || domicileUnreadableOnLoad}
+        <label class="block">
+          <span class="text-xs text-muted-foreground">{m.settings_filer_domicile_address()}</span>
+          <input
+            type="text"
+            name="filerDomicileAddress"
+            autocomplete="off"
+            bind:value={userFilerDomicileAddress}
+            oninput={() => filerStoredUnreadable.delete('userFilerDomicileAddress')}
+            class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+          />
+          {#if filerStoredUnreadable.has('userFilerDomicileAddress')}
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_filer_stored_unreadable()}
+            </span>
+          {:else if userFilerDomicileAddress.trim() === ''}
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_filer_domicile_required()}
+            </span>
+          {/if}
+          {#if userFilerTaxPlaceKind !== 'domicile'}
+            <span class="block mt-1 text-xs text-muted-foreground">
+              {m.settings_filer_domicile_real_estate_note()}
+            </span>
+          {/if}
+        </label>
+      {/if}
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.settings_filer_business_place_address()}
+        </span>
+        <input
+          type="text"
+          name="filerBusinessPlaceAddress"
+          autocomplete="off"
+          bind:value={userFilerBusinessPlaceAddress}
+          oninput={() => filerStoredUnreadable.delete('userFilerBusinessPlaceAddress')}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {#if filerStoredUnreadable.has('userFilerBusinessPlaceAddress')}
           <span class="block mt-1 text-xs text-destructive">
             {m.settings_filer_stored_unreadable()}
           </span>

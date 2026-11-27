@@ -1,6 +1,6 @@
 // aoiko 業務データ → KOA020（確定申告書）の値マップ。
 //
-// ⚠ 申告者情報（氏名・住所・税務署）は IT部（定義側）から第一表へ IDREF で反映される
+// ⚠ 申告者情報（氏名・納税地・税務署）は IT部（定義側）から第一表へ IDREF で反映される
 // （buildItPart が出力）。本モジュールは第一表の「事業」部分の直接値 leaf を扱う：
 // 営業等収入金額・事業所得（青色控除後）・青色申告特別控除額・所得金額（合計）。
 // 各種所得控除・税額計算（ABB00420〜ABB01040）は、利用者が個人情報を入力した場合
@@ -40,9 +40,14 @@ import {
 import { homeWorkerNecessaryExpenses } from './home-worker-expense';
 import type { AoiroDeductionOptions } from './aoiro-deduction';
 import type { XtxSchema } from './xtx-schema';
-import { maxOccursOf, toKingaku, type XtxDetailOverflowRow } from './xtx-mapping-shared';
+import {
+  filerDomicile,
+  maxOccursOf,
+  toKingaku,
+  type XtxDetailOverflowRow,
+} from './xtx-mapping-shared';
 import type { XtxContext } from './xtx';
-import type { XtxValues, XtxLeafValues, XtxRepeatedValues } from './xtx-document';
+import type { XtxValues, XtxLeafValues, XtxRawValues, XtxRepeatedValues } from './xtx-document';
 import type { PLReport } from '../../domain/reports';
 
 const SCHEMA = koa020 as XtxSchema;
@@ -360,6 +365,13 @@ export function combinedTotalIncomeAmount(ctx: IncomeCtx): Decimal {
 export function mapKoa020LeafValues(ctx: XtxContext): XtxLeafValues {
   const out: XtxLeafValues = {};
   const isWhite = ctx.filingType === 'white';
+  // ABA00090 の「住所（上段）」は納税地を指すため、住所地以外が納税地のときだけ下段に住所を書く
+  if ((ctx.filer.taxPlaceKind ?? 'domicile') !== 'domicile') {
+    const domicile = filerDomicile(ctx.filer);
+    if (domicile) {
+      out.ABA00095 = domicile;
+    }
+  }
   put(out, '営業等　金額', ctx.pl.totalRevenue);
   const businessIncome = totalIncomeAmount(ctx);
   put(out, '営業等', businessIncome.toString());
@@ -534,6 +546,17 @@ function familyEmployeeCandidates(ctx: XtxContext) {
     ...businessFamilyEmployeeDeductionResultForOutput(ctx).entries,
     ...realEstateFamilyEmployeeDeductionResult(ctx).entries,
   ];
+}
+// ABA00070「納税地区分」は居所（5）・事業所等（6）のときだけ書く。住所地は書かない。
+export function mapKoa020RawValues(ctx: XtxContext): XtxRawValues {
+  switch (ctx.filer.taxPlaceKind) {
+    case 'abode':
+      return { ABA00070: '<kubun_CD>5</kubun_CD>' };
+    case 'businessPlace':
+      return { ABA00070: '<kubun_CD>6</kubun_CD>' };
+    default:
+      return {};
+  }
 }
 
 export function mapKoa020RepeatedValues(ctx: XtxContext): XtxRepeatedValues {

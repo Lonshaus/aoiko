@@ -64,7 +64,14 @@ Required to load the `.xtx` into e-Tax software (download edition). Register the
 | User identification number | Your 16-digit e-Tax number |
 | Name | The name shown on your tax return |
 | Postal code (optional) | 7 digits, no hyphen |
-| Address | The address shown on your tax return |
+| Place for tax payment | The place for tax payment shown on your tax return. Usually your address |
+| Type of place for tax payment | Choose Domicile (default), Residence, or Business office, etc. |
+| Address (domicile) | Enter it only when the type is not Domicile (required) |
+| Business office location (optional) | The business office location shown on the financial statements |
+
+The place for tax payment is your domicile if you have one in Japan. If you also have a residence, or a business office or similar apart from your domicile and residence, you can use that location as the place for tax payment instead (Income Tax Act Arts. 15 and 16). In that case, enter that location in "Place for tax payment", choose "Residence" or "Business office, etc." under "Type of place for tax payment", and enter your address in "Address (domicile)". If the type is not Domicile and the address is blank, "Enter your address when the place for tax payment is not your domicile" appears below the address field.
+
+The `.xtx` carries the place for tax payment in the place-for-tax-payment field of tax return p.1. When the type is Residence or Business office, etc., it also writes that type to the "place for tax payment type" field of tax return p.1. Your address goes to the address field of the financial statements for business income and, when the place for tax payment is not your domicile, also to the lower address field of tax return p.1. The address field of the real-estate financial statements is, by the e-Tax form's rules, the field for the place for tax payment, so it carries the place for tax payment. The business office location goes to the business office location field of the financial statements for business income if you entered one; if you left it blank and the type is Business office, etc., the place for tax payment is used instead. The "address" fields on tax return pp.2 and later show the place for tax payment.
 
 > **Stored only on this device and excluded from backups by default** (see [11. Backup and restore](11-backup_en.md)).
 
@@ -74,7 +81,7 @@ If a saved value cannot be read, the field shows the following. "Save" cannot be
 
 | Field | Display |
 |---|---|
-| Name, address, tax office name | "The saved value cannot be read. Enter it again." |
+| Name, place for tax payment, type of place for tax payment, address, business office location, tax office name | "The saved value cannot be read. Enter it again." |
 | User identification number, postal code | The same error as for an invalid format |
 | Tax office code | "Not a valid tax office code (5 digits)" |
 

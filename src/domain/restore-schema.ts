@@ -27,7 +27,7 @@ import type {
 import type { AiEngine, ReceiptMethod, ReceiptRuleEngine, SettingsMap } from '../lib/settings';
 import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
 import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
-import type { FilingType } from '../tax-schema/2026/xtx';
+import type { FilingType, TaxPlaceKind } from '../tax-schema/2026/xtx';
 // 復元するバックアップの列の仕様。検証は restore-validate.ts が呼ぶ。
 export type Spec =
   | { readonly t: 'string'; readonly nonEmpty?: true }
@@ -722,6 +722,9 @@ const SETTING_VALUES: ReadonlyMap<string, Spec> = new Map<string, Spec>([
   ['userFilerName', str],
   ['userFilerZip', str],
   ['userFilerAddress', str],
+  ['userFilerTaxPlaceKind', enumOf<TaxPlaceKind>()(['domicile', 'abode', 'businessPlace'])],
+  ['userFilerDomicileAddress', str],
+  ['userFilerBusinessPlaceAddress', str],
   ['userZeimushoCode', str],
   ['userZeimushoName', str],
 ]);

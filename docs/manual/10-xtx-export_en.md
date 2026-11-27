@@ -34,7 +34,9 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 
 | Form | Source |
 |---|---|
-| Filer info (tax office, user identification number, name, address) | Settings > Filer info |
+| Filer info (tax office, user identification number, name, place for tax payment) | Settings > Filer info |
+| Tax return p.1: place-for-tax-payment type (when a residence or business office is the place for tax payment) | Settings > Filer info (type of place for tax payment) |
+| Address and business office location on the financial statements | Settings > Filer info (business income statements: address and business office location; the address field of the real-estate financial statements takes the place for tax payment, as the form requires) |
 | Tax return p.1: business (営業等) revenue | PL (sales) |
 | Tax return p.1: business income (①) | PL (after expenses; blue return further subtracts the blue-return special deduction. When the home-worker special provision under Special Taxation Measures Act Art. 27 ([14. Income & tax deductions](14-income-deductions_en.md)) applies, the expenses are the special-provision expenses, which already include family employee salary/deduction: total revenue − special-provision expenses, and for a blue return also − the blue-return special deduction) |
 
@@ -79,9 +81,9 @@ aoiko handles **business profit and loss**. The `.xtx` carries the financial sta
 
 ### 3-1. Pre-export checklist
 
-1. **Settings > Filer info** has tax office, user identification number, name, address (export is blocked if missing). Export is also blocked when a value you entered is incorrect or a saved value cannot be read, and "The filer info, business name or invoice registration number contains an incorrect or unreadable value. Fix it under Filer info and Basic info in Settings." appears. The items checked are as follows.
+1. **Settings > Filer info** has tax office, user identification number, name, place for tax payment (export is blocked if missing; when the place for tax payment is not your domicile, the address is also required). Export is also blocked when a value you entered is incorrect or a saved value cannot be read, and "The filer info, business name or invoice registration number contains an incorrect or unreadable value. Fix it under Filer info and Basic info in Settings." appears. The items checked are as follows.
    - The format of the user identification number, postal code, and tax office code
-   - Whether the name, address, tax office name, business name, and invoice registration number can be read
+   - Whether the name, place for tax payment, address, business office location, tax office name, business name, and invoice registration number can be read
 2. **Settings > Filing type** matches your actual filing (blue or white return)
 3. For blue return, **Settings > Filer info (for e-Tax submission) > Deduction type** is correct (three tiers from tax year 2027 (Reiwa 9) on — ¥750,000 / ¥650,000 / ¥100,000; ¥650,000 / ¥550,000 / ¥100,000 for tax year 2026)
 4. All journal entries for the year are **confirmed**
@@ -128,7 +130,7 @@ On desktop, a save dialog opens to choose the destination; on iPad/iPhone it's s
 5. Use **"帳票編集"** to verify (going through each page is recommended):
    - Blue return: statements p.1 P/L, p.2 monthly figures and depreciation schedule, and p.4 balance sheet match aoiko's reports and fixed-asset list (when the home-worker special provision applies, the statement's "pre-deduction income" won't match the Reports P/L's [pre-special-provision] business income — that's expected. Also confirm the small-asset summary row and any individually-shown ineligible assets match the fixed-asset list)
    - White return: the breakdown statement's revenue, expense categories, and pre-family-deduction income match aoiko's reports (same caveat when the home-worker special provision applies)
-   - Tax return p.1: business revenue, business income (blue return only: the blue-return deduction), name, address, tax office are correct
+   - Tax return p.1: business revenue, business income (blue return only: the blue-return deduction), name, place for tax payment, tax office are correct
 6. Enter remaining items in e-Tax (if [14. Income & tax deductions](14-income-deductions_en.md) is filled in, deductions and tax are already output; what remains is unentered deductions)
 7. **If loading errors out**: see [§ 6. Common errors](#6-common-errors).
 
@@ -148,7 +150,7 @@ This is a **separate file and separate procedure** from the income-tax `.xtx` ab
 ### Export steps
 
 1. Set **Settings > Consumption tax** to **"Taxable business"** (for simplified taxation, also choose **"Simplified taxation"** and the **"Simplified taxation category"**)
-2. Fill in **Settings > Filer info** (tax office, user identification number, name, address)
+2. Fill in **Settings > Filer info** (tax office, user identification number, name, place for tax payment)
 3. On the Reports page > **"Consumption tax"** section, confirm the desired method appears in the method list
 4. Click **"Export general-taxation .xtx"**, **"Export 20% special provision .xtx"**, or **"Export simplified-taxation .xtx"** (filename `aoiko-shohi-{year}.xtx`; for general taxation and simplified taxation, an interim filing is `aoiko-shohi-{year}-interim.xtx`)
 

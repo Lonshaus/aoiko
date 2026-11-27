@@ -1,4 +1,5 @@
 import type { XtxSchema } from './xtx-schema';
+import type { XtxFiler } from './xtx';
 import { D, Decimal } from '../../lib/decimal';
 import { readStoredAmount } from '../../lib/amount-input';
 import { m } from '../../paraglide/messages';
@@ -8,6 +9,34 @@ import { m } from '../../paraglide/messages';
 // 切り詰める（呼び出し側のバックストップ）。
 export function stripClassificationSuffix(name: string): string {
   return name.replace(/（[^（）]*）$/, '');
+}
+// 納税地が住所地以外のとき、住所は別に持つ。住所地なら納税地がそのまま住所
+export function filerDomicile(filer: XtxFiler): string {
+  return (filer.taxPlaceKind ?? 'domicile') === 'domicile'
+    ? filer.address
+    : (filer.domicileAddress ?? '');
+}
+// 事業所所在地は入力があればそれ、無ければ納税地が事業所等のときだけ納税地を使う
+export function filerBusinessPlace(filer: XtxFiler): string {
+  if (filer.businessPlaceAddress) {
+    return filer.businessPlaceAddress;
+  }
+  return filer.taxPlaceKind === 'businessPlace' ? filer.address : '';
+}
+// KOA110・KOA210 共通：決算書・収支内訳書の住所と事業所所在地
+export function putStatementAddresses(
+  out: Record<string, string>,
+  filer: XtxFiler,
+  tags: { domicile: string; businessPlace: string },
+): void {
+  const domicile = filerDomicile(filer);
+  if (domicile) {
+    out[tags.domicile] = domicile;
+  }
+  const businessPlace = filerBusinessPlace(filer);
+  if (businessPlace) {
+    out[tags.businessPlace] = businessPlace;
+  }
 }
 // 繰り返し欄の行数上限は様式 schema の maxOccurs が唯一の根拠。mapping 側に数値を持たない。
 export function maxOccursOf(schema: XtxSchema, tag: string): number {

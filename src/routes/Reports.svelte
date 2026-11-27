@@ -1303,7 +1303,7 @@
       lockError = describeStorageError(e);
     }
   }
-  // 申告者情報を設定から読む。IT部の必須項目（税務署・利用者識別番号・氏名・住所）が
+  // 申告者情報を設定から読む。IT部の必須項目（税務署・利用者識別番号・氏名・納税地）が
   // 欠けると .xtx は e-Tax に組み込めないため、欠落キーも返す。バックアップの復元などで
   // 型の違う値も入りうるので、読めない値は invalid として出力しない
   async function loadFiler() {
@@ -1313,6 +1313,9 @@
         userFilerName: await getSetting('userFilerName'),
         userFilerZip: await getSetting('userFilerZip'),
         userFilerAddress: await getSetting('userFilerAddress'),
+        userFilerTaxPlaceKind: await getSetting('userFilerTaxPlaceKind'),
+        userFilerDomicileAddress: await getSetting('userFilerDomicileAddress'),
+        userFilerBusinessPlaceAddress: await getSetting('userFilerBusinessPlaceAddress'),
         userZeimushoCode: await getSetting('userZeimushoCode'),
         userZeimushoName: await getSetting('userZeimushoName'),
         userBusinessName: await getSetting('userBusinessName'),

@@ -1,7 +1,7 @@
 import { db } from '../db/db';
 import type { SimplifiedTaxCategory } from '../tax-schema/2026/simplified-tax';
 import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
-import type { FilingType } from '../tax-schema/2026/xtx';
+import type { FilingType, TaxPlaceKind } from '../tax-schema/2026/xtx';
 import type { TaxFilingMethod, TaxRegistration } from '../db/types';
 import type { BackupRetentionCount, BlobRetentionDays } from '../backup/schedule';
 import type { NativeBackupFolder } from '../backup/native';
@@ -106,7 +106,10 @@ export type SettingsMap = {
   userRiyoshaId: string; // 利用者識別番号（16桁）
   userFilerName: string; // 氏名・名称（NOZEISHA_NM）
   userFilerZip: string; // 郵便番号（7桁・ハイフン無し、NOZEISHA_ZIP）
-  userFilerAddress: string; // 住所（NOZEISHA_ADR）
+  userFilerAddress: string; // 納税地（NOZEISHA_ADR）
+  userFilerTaxPlaceKind: TaxPlaceKind; // 納税地の区分。未設定は住所地
+  userFilerDomicileAddress: string; // 住所。納税地が住所地以外のとき
+  userFilerBusinessPlaceAddress: string; // 事業所所在地（任意）
   userZeimushoCode: string; // 提出先税務署コード（5桁、gen:zeimusho_CD）
   userZeimushoName: string; // 提出先税務署名（任意、gen:zeimusho_NM）
   // 確定申告方式（.xtx 出力の様式・青色申告特別控除の適用可否に影響）
