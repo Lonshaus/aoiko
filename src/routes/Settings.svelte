@@ -3167,9 +3167,9 @@
           oninput={() => filerStoredUnreadable.delete('userFilerAddress')}
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
-        <span class="block mt-1 text-xs text-muted-foreground"
-          >{m.settings_filer_address_hint()}</span
-        >
+        <span class="block mt-1 text-xs text-muted-foreground">
+          {m.settings_filer_address_hint()}
+        </span>
         {#if filerStoredUnreadable.has('userFilerAddress')}
           <span class="block mt-1 text-xs text-destructive">
             {m.settings_filer_stored_unreadable()}
@@ -3192,9 +3192,9 @@
           <option value="businessPlace">{m.settings_filer_tax_place_business_place()}</option>
         </select>
         {#if filerStoredUnreadable.has('userFilerTaxPlaceKind')}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.settings_filer_stored_unreadable()}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
         {/if}
       </label>
       {#if userFilerTaxPlaceKind !== 'domicile' || domicileUnreadableOnLoad}
@@ -3209,25 +3209,25 @@
             class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
           />
           {#if filerStoredUnreadable.has('userFilerDomicileAddress')}
-            <span class="block mt-1 text-xs text-destructive"
-              >{m.settings_filer_stored_unreadable()}</span
-            >
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_filer_stored_unreadable()}
+            </span>
           {:else if userFilerDomicileAddress.trim() === ''}
-            <span class="block mt-1 text-xs text-destructive"
-              >{m.settings_filer_domicile_required()}</span
-            >
+            <span class="block mt-1 text-xs text-destructive">
+              {m.settings_filer_domicile_required()}
+            </span>
           {/if}
           {#if userFilerTaxPlaceKind !== 'domicile'}
-            <span class="block mt-1 text-xs text-muted-foreground"
-              >{m.settings_filer_domicile_real_estate_note()}</span
-            >
+            <span class="block mt-1 text-xs text-muted-foreground">
+              {m.settings_filer_domicile_real_estate_note()}
+            </span>
           {/if}
         </label>
       {/if}
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.settings_filer_business_place_address()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.settings_filer_business_place_address()}
+        </span>
         <input
           type="text"
           name="filerBusinessPlaceAddress"
@@ -3237,9 +3237,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
         {#if filerStoredUnreadable.has('userFilerBusinessPlaceAddress')}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.settings_filer_stored_unreadable()}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.settings_filer_stored_unreadable()}
+          </span>
         {/if}
       </label>
       <label class="block sm:col-span-2 relative">
