@@ -1425,5 +1425,14 @@
   "common_scroll_more_right": "More to the right",
   "legacy_host_notice_dated": "This URL will stop working in {when}. Your data won't move to the new URL ({newUrl}) on its own, so export a backup first and restore it there.",
   "legacy_host_notice": "This URL will stop working soon. Your data won't move to the new URL ({newUrl}) on its own, so export a backup first and restore it there.",
-  "legacy_host_action_backup": "Open Settings →"
+  "legacy_host_action_backup": "Open Settings →",
+  "analysis_busy_other": "Another analysis is already running, so this one can't start.",
+  "analysis_cancel": "Stop analysis",
+  "analysis_cancelling": "Stopping…",
+  "analysis_cancelling_hint": "This method can't be interrupted. Please wait until it finishes.",
+  "analysis_badge_running": "Analyzing",
+  "analysis_badge_done": "Ready to review",
+  "analysis_badge_failed": "Failed",
+  "analysis_toast_done": "{name}: analysis finished. Select here to review the result.",
+  "analysis_toast_failed": "{name}: analysis failed. Select here to see the details."
 }

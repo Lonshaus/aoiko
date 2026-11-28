@@ -23,6 +23,28 @@ export function clearUnsavedGuard(owner: object): void {
 export function hasUnsavedChanges(): boolean {
   return dirtyOwners.size > 0;
 }
+// 状態を store に保持する画面は、app 内の移動では失われないので guard を登録しない。
+// 代わりにタブを閉じる・再読み込みする場合だけ、保持している内容があるかをここで問い合わせる。
+const unloadChecks = new Set<() => boolean>();
+
+export function registerUnloadCheck(check: () => boolean): () => void {
+  unloadChecks.add(check);
+  return () => {
+    unloadChecks.delete(check);
+  };
+}
+
+export function hasUnloadRisk(): boolean {
+  if (hasUnsavedChanges()) {
+    return true;
+  }
+  for (const check of unloadChecks) {
+    if (check()) {
+      return true;
+    }
+  }
+  return false;
+}
 
 class Router {
   path = $state('/');
@@ -46,7 +68,7 @@ class Router {
     });
     // 文言はブラウザ固定で自作できないため、独自メッセージは設定しない。
     window.addEventListener('beforeunload', (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges()) {
+      if (hasUnloadRisk()) {
         e.preventDefault();
       }
     });

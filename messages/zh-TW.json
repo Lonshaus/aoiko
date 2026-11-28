@@ -1425,5 +1425,14 @@
   "common_scroll_more_right": "右邊還有內容",
   "legacy_host_notice_dated": "此網址預計於 {when} 停止使用。資料不會自動移到新網址 {newUrl}。請先匯出備份，再到新網址還原。",
   "legacy_host_notice": "此網址即將停止使用。資料不會自動移到新網址 {newUrl}。請先匯出備份，再到新網址還原。",
-  "legacy_host_action_backup": "前往設定處理 →"
+  "legacy_host_action_backup": "前往設定處理 →",
+  "analysis_busy_other": "另一項解析正在進行中，目前無法開始。",
+  "analysis_cancel": "停止解析",
+  "analysis_cancelling": "正在停止…",
+  "analysis_cancelling_hint": "這種方式無法中途停止，請稍候至處理結束。",
+  "analysis_badge_running": "解析中",
+  "analysis_badge_done": "待確認",
+  "analysis_badge_failed": "失敗",
+  "analysis_toast_done": "「{name}」解析完成，點選這裡即可查看結果。",
+  "analysis_toast_failed": "「{name}」解析失敗，點選這裡即可查看原因。"
 }

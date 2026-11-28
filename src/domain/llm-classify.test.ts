@@ -3,12 +3,12 @@ import {
   buildPrompt,
   classifyWithLlm,
   counterpartCandidates,
+  shouldFillSuggestion,
   type ClassifyInput,
 } from './llm-classify';
 import type { LlmAdapter } from './llm';
 import type { Account } from '../db/types';
 import { AppleAiAdapter } from '../lib/apple-ai-adapter';
-import { shouldFillSuggestion } from '../routes/Import.svelte';
 
 const ACCOUNTS: Account[] = [
   { code: '4110', year: 2026, name: '売上高', category: 'revenue', displayOrder: 110 },
@@ -358,5 +358,36 @@ describe('counterpartCandidates（在庫運用の有無）', () => {
       .map((a) => a.code)
       .filter((c) => !withoutInventory.some((a) => a.code === c));
     expect(diff.sort()).toEqual(['1340', '5010', '5020', '5030']);
+  });
+});
+
+describe('classifyWithLlm の signal', () => {
+  const inputs: ClassifyInput[] = [{ ref: 'r1', description: 'amazon', amount: '2500' }];
+  const options = { knownAccountCode: '1130', knownSide: 'credit' as const, candidateAccounts: [] };
+  const body = { classifications: [] };
+
+  test('generateJson 経路：signal を第 3 引数で渡す', async () => {
+    const generateJson = vi.fn(async () => body);
+    const controller = new AbortController();
+    await classifyWithLlm({ external: false, destinationHost: '', generateJson }, inputs, options, {
+      signal: controller.signal,
+    });
+    expect(generateJson).toHaveBeenCalledWith(expect.any(String), undefined, {
+      signal: controller.signal,
+    });
+  });
+
+  test('runDataTask 経路：signal を第 3 引数で渡す', async () => {
+    const runDataTask = vi.fn(async () => body);
+    const controller = new AbortController();
+    await classifyWithLlm(
+      { external: false, destinationHost: '', generateJson: vi.fn(), runDataTask },
+      inputs,
+      options,
+      { signal: controller.signal },
+    );
+    expect(runDataTask).toHaveBeenCalledWith('classify', expect.anything(), {
+      signal: controller.signal,
+    });
   });
 });
