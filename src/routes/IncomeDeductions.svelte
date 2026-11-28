@@ -916,9 +916,9 @@
 
 {#snippet noticeTextError(value: string, max: number)}
   {#if isFilingNoticeTextTooLong(value, max)}
-    <span class="block mt-1 text-xs text-destructive"
-      >{m.income_filing_notices_text_too_long({ max })}</span
-    >
+    <span class="block mt-1 text-xs text-destructive">
+      {m.income_filing_notices_text_too_long({ max })}
+    </span>
   {/if}
 {/snippet}
 
@@ -943,13 +943,13 @@
         class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
       />
       {#if closureDateInvalid(part)}
-        <span class="block mt-1 text-xs text-destructive"
-          >{m.income_filing_notices_closure_date_invalid({ year })}</span
-        >
+        <span class="block mt-1 text-xs text-destructive">
+          {m.income_filing_notices_closure_date_invalid({ year })}
+        </span>
       {:else if key === 'business' && businessCloseDateSetting !== '' && part.closureDate !== businessCloseDateSetting}
-        <span class="block mt-1 text-xs text-amber-600"
-          >{m.income_filing_notices_closure_differs({ date: businessCloseDateSetting })}</span
-        >
+        <span class="block mt-1 text-xs text-amber-600">
+          {m.income_filing_notices_closure_differs({ date: businessCloseDateSetting })}
+        </span>
       {/if}
     </label>
   {/if}
@@ -977,8 +977,9 @@
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_filing_notices_app_asset_type()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_asset_type()}
+        </span>
         <select
           bind:value={app.assetType}
           name="filingNotice-{key}-app-{i}-assetType"
@@ -987,14 +988,15 @@
           <option value="inventory">{m.income_filing_notices_app_asset_type_inventory()}</option>
           <option value="securities">{m.income_filing_notices_app_asset_type_securities()}</option>
           <option value="crypto">{m.income_filing_notices_app_asset_type_crypto()}</option>
-          <option value="depreciable">{m.income_filing_notices_app_asset_type_depreciable()}</option
-          >
+          <option value="depreciable">
+            {m.income_filing_notices_app_asset_type_depreciable()}
+          </option>
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_filing_notices_app_business_or_asset_type()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_business_or_asset_type()}
+        </span>
         <input
           type="text"
           name="filingNotice-{key}-app-{i}-businessOrAssetType"
@@ -1005,9 +1007,9 @@
         {@render noticeTextError(app.businessOrAssetType, BUSINESS_OR_ASSET_TYPE_MAX)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_filing_notices_app_asset_class()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_asset_class()}
+        </span>
         <input
           type="text"
           name="filingNotice-{key}-app-{i}-assetClass"
@@ -1018,8 +1020,9 @@
         {@render noticeTextError(app.assetClass, ASSET_CLASS_MAX)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground">{m.income_filing_notices_app_new_method()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_new_method()}
+        </span>
         <input
           type="text"
           name="filingNotice-{key}-app-{i}-newMethod"
@@ -1030,9 +1033,9 @@
         {@render noticeTextError(app.newMethod, NEW_METHOD_MAX)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_filing_notices_app_current_method()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_current_method()}
+        </span>
         <input
           type="text"
           name="filingNotice-{key}-app-{i}-currentMethod"
@@ -1043,9 +1046,9 @@
         {@render noticeTextError(app.currentMethod, CURRENT_METHOD_MAX)}
       </label>
       <label class="block">
-        <span class="text-xs text-muted-foreground"
-          >{m.income_filing_notices_app_current_adopted_year()}</span
-        >
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_current_adopted_year()}
+        </span>
         <input
           type="number"
           name="filingNotice-{key}-app-{i}-currentAdoptedYear"
@@ -1058,9 +1061,9 @@
           class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
         />
         {#if adoptedYearInvalid(app.currentAdoptedYear)}
-          <span class="block mt-1 text-xs text-destructive"
-            >{m.common_integer_invalid({ min: ADOPTED_YEAR_MIN, max: year })}</span
-          >
+          <span class="block mt-1 text-xs text-destructive">
+            {m.common_integer_invalid({ min: ADOPTED_YEAR_MIN, max: year })}
+          </span>
         {/if}
       </label>
       <label class="block">
@@ -2225,9 +2228,9 @@
         </label>
         {#if withdrawalChecked}
           <label class="block pl-6 sm:max-w-xs">
-            <span class="text-xs text-muted-foreground"
-              >{m.income_filing_notices_withdrawal_year()}</span
-            >
+            <span class="text-xs text-muted-foreground">
+              {m.income_filing_notices_withdrawal_year()}
+            </span>
             <input
               type="number"
               name="filingNoticeWithdrawalYear"
@@ -2240,11 +2243,11 @@
               class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
             />
             {#if withdrawalYearInvalid}
-              <span class="block mt-1 text-xs text-destructive"
-                >{filingTypeCache === 'white'
+              <span class="block mt-1 text-xs text-destructive">
+                {filingTypeCache === 'white'
                   ? m.income_filing_notices_withdrawal_year_white({ year })
-                  : m.income_filing_notices_withdrawal_year_blue(withdrawalRange)}</span
-              >
+                  : m.income_filing_notices_withdrawal_year_blue(withdrawalRange)}
+              </span>
             {/if}
           </label>
         {/if}
