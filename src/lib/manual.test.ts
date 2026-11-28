@@ -260,10 +260,6 @@ describe('resolveManualLink', () => {
   });
 
   it('開発者向けの repo 相対リンクは GitHub の絶対 URL へ書き換え、外部扱いにする', () => {
-    expect(resolveManualLink('../../CONTRIBUTING.md')).toEqual({
-      href: 'https://github.com/Lonshaus/aoiko/blob/master/CONTRIBUTING.md',
-      external: true,
-    });
     expect(resolveManualLink('../../docs/xtx-spec/README.md')).toEqual({
       href: 'https://github.com/Lonshaus/aoiko/blob/master/docs/xtx-spec/README.md',
       external: true,

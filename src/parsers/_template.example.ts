@@ -8,8 +8,6 @@
 //   4. `fixtures/my-bank-sample.csv` を匿名化したサンプルとして作成
 //   5. `npm run test` で検証
 //   6. PR を投げる
-//
-// 詳細は CONTRIBUTING.md を参照。
 
 import { parseCsv } from '../lib/csv';
 import { buildRawRow, normalizeDate, optionalColumn, requireColumns, stripComma } from './_helpers';
