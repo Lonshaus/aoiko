@@ -46,10 +46,25 @@
     RealEstateProfessionalFeeDetail,
     RealEstateRentPaidDetail,
     RelativeDisability,
+    StoredFilingNotices,
+    StoredMethodApplication,
   } from '../db/types';
   import type { AoiroDeductionKind } from '../tax-schema/2026/aoiro-deduction';
   import { personalDeductionsToCtx, type FilingType } from '../tax-schema/2026/xtx';
-  import { validatePersonalDeductions } from '../domain/stored-value-checks';
+  import {
+    ADOPTED_YEAR_MIN,
+    FILING_NOTICE_YEAR_MAX,
+    isFilingNoticeDate,
+    isFilingNoticeTextTooLong,
+    validatePersonalDeductions,
+  } from '../domain/stored-value-checks';
+  import {
+    ASSET_CLASS_MAX,
+    BUSINESS_OR_ASSET_TYPE_MAX,
+    CURRENT_METHOD_MAX,
+    MEMO_MAX,
+    NEW_METHOD_MAX,
+  } from '../tax-schema/2026/xtx-filing-notices';
   import { ledger } from '../stores/ledger.svelte';
   import { m } from '../paraglide/messages';
 
@@ -152,6 +167,83 @@
     realEstateProfessionalFeesPaid = realEstateProfessionalFeesPaid.filter((r) => r.id !== id);
   }
 
+  type NoticeAppDraft = {
+    id: string;
+    kind: StoredMethodApplication['kind'];
+    assetType: StoredMethodApplication['assetType'];
+    businessOrAssetType: string;
+    assetClass: string;
+    newMethod: string;
+    currentMethod: string;
+    currentAdoptedYear: number | undefined;
+    memo: string;
+  };
+  type NoticePartDraft = { closureChecked: boolean; closureDate: string; apps: NoticeAppDraft[] };
+  type NoticePartKey = 'business' | 'realEstate';
+  const FILING_NOTICES_FIRST_YEAR = 2026;
+  const NOTICE_KINDS: StoredMethodApplication['kind'][] = ['notice', 'change'];
+  const NOTICE_ASSET_TYPES: StoredMethodApplication['assetType'][] = [
+    'inventory',
+    'securities',
+    'crypto',
+    'depreciable',
+  ];
+  const NOTICE_TEXT_FIELDS = [
+    ['businessOrAssetType', BUSINESS_OR_ASSET_TYPE_MAX],
+    ['assetClass', ASSET_CLASS_MAX],
+    ['newMethod', NEW_METHOD_MAX],
+    ['currentMethod', CURRENT_METHOD_MAX],
+    ['memo', MEMO_MAX],
+  ] as const;
+  const emptyNoticePart = (): NoticePartDraft => ({
+    closureChecked: false,
+    closureDate: '',
+    apps: [],
+  });
+  let withdrawalChecked = $state(false);
+  let withdrawalYear = $state<number | undefined>(undefined);
+  let businessNotices = $state<NoticePartDraft>(emptyNoticePart());
+  let realEstateNotices = $state<NoticePartDraft>(emptyNoticePart());
+  let businessCloseDateSetting = $state('');
+
+  function addNoticeApp(part: NoticePartDraft) {
+    part.apps = [
+      ...part.apps,
+      {
+        id: newId(),
+        kind: 'notice',
+        assetType: 'inventory',
+        businessOrAssetType: '',
+        assetClass: '',
+        newMethod: '',
+        currentMethod: '',
+        currentAdoptedYear: undefined,
+        memo: '',
+      },
+    ];
+  }
+  function removeNoticeApp(part: NoticePartDraft, id: string) {
+    part.apps = part.apps.filter((a) => a.id !== id);
+  }
+  // 廃業日の既定値は設定の廃業日。本年分でないときは入れない
+  function toggleClosure(part: NoticePartDraft, key: NoticePartKey, checked: boolean) {
+    part.closureChecked = checked;
+    if (
+      checked &&
+      key === 'business' &&
+      part.closureDate === '' &&
+      businessCloseDateSetting.startsWith(`${year}-`)
+    ) {
+      part.closureDate = businessCloseDateSetting;
+    }
+  }
+  function toggleWithdrawal(checked: boolean) {
+    withdrawalChecked = checked;
+    if (checked && withdrawalYear === undefined) {
+      withdrawalYear = withdrawalRange.min;
+    }
+  }
+
   let saved = $state(false);
   // 保存済みの値のうち読めない欄。.xtx は同じ判定で止まるため、ここでも名前を示す
   let storedIssues = $state<string[]>([]);
@@ -225,6 +317,33 @@
     realEstateRentPaid = [];
     realEstateLoanInterestPaid = [];
     realEstateProfessionalFeesPaid = [];
+    withdrawalChecked = false;
+    withdrawalYear = undefined;
+    businessNotices = emptyNoticePart();
+    realEstateNotices = emptyNoticePart();
+  }
+
+  function noticePartFromStored(part: StoredFilingNotices | undefined): NoticePartDraft {
+    if (!part) {
+      return emptyNoticePart();
+    }
+    const text = (v: unknown): string => (typeof v === 'string' ? v : '');
+    return {
+      closureChecked: part.closureDate !== undefined,
+      closureDate: text(part.closureDate),
+      apps: part.methodApplications.map((a) => ({
+        id: newId(),
+        kind: NOTICE_KINDS.includes(a.kind) ? a.kind : 'notice',
+        assetType: NOTICE_ASSET_TYPES.includes(a.assetType) ? a.assetType : 'inventory',
+        businessOrAssetType: text(a.businessOrAssetType),
+        assetClass: text(a.assetClass),
+        newMethod: text(a.newMethod),
+        currentMethod: text(a.currentMethod),
+        currentAdoptedYear:
+          typeof a.currentAdoptedYear === 'number' ? a.currentAdoptedYear : undefined,
+        memo: text(a.memo),
+      })),
+    };
   }
 
   function isLoadableShape(stored: PersonalDeductionInput): boolean {
@@ -232,6 +351,9 @@
     const isObj = (x: unknown) => typeof x === 'object' && x !== null && !Array.isArray(x);
     const isObjArray = (x: unknown) => Array.isArray(x) && x.every(isObj);
     const re = v.realEstateIncome as Record<string, unknown> | null | undefined;
+    const fn = v.filingNotices as Record<string, unknown> | null | undefined;
+    const isNoticePart = (x: unknown) =>
+      x == null || (isObj(x) && isObjArray((x as Record<string, unknown>).methodApplications));
     return (
       isObj(v.lifeInsurance) &&
       isObjArray(v.dependents) &&
@@ -241,7 +363,8 @@
         (isObj(re) &&
           ['rentPaid', 'loanInterestPaid', 'professionalFeesPaid'].every(
             (k) => !re[k] || isObjArray(re[k]),
-          )))
+          ))) &&
+      (fn == null || (isObj(fn) && isNoticePart(fn.business) && isNoticePart(fn.realEstate)))
     );
   }
 
@@ -321,6 +444,14 @@
         id: newId(),
       }),
     );
+    const notices = stored.filingNotices;
+    withdrawalChecked = notices?.blueReturnWithdrawalYear !== undefined;
+    withdrawalYear =
+      typeof notices?.blueReturnWithdrawalYear === 'number'
+        ? notices.blueReturnWithdrawalYear
+        : undefined;
+    businessNotices = noticePartFromStored(notices?.business);
+    realEstateNotices = noticePartFromStored(notices?.realEstate);
   }
 
   $effect(() => {
@@ -360,6 +491,7 @@
     const aoiroDeductionKind = ((await getSetting('aoiroDeductionKind')) ??
       'electronic') as AoiroDeductionKind;
     const cashBasisElection = (await getSetting('cashBasisElection')) ?? false;
+    const closeDate = (await getSetting('businessCloseDate')) ?? '';
     const realEstatePl = ledger.realEstateIncomeEnabled
       ? await buildPL(yr, undefined, 'realEstate')
       : undefined;
@@ -370,6 +502,7 @@
     filingTypeCache = filingType;
     aoiroDeductionKindCache = aoiroDeductionKind;
     cashBasisCache = cashBasisElection;
+    businessCloseDateSetting = closeDate;
     realEstatePlCache = realEstatePl;
     loadedYear = yr;
     // untrack しないと全入力欄がこの effect の依存になり、打鍵ごとに再ロードされる。
@@ -411,6 +544,44 @@
   function removeFamilyEmployee(id: string) {
     familyEmployees = familyEmployees.filter((f) => f.id !== id);
   }
+  function noticePartToStored(part: NoticePartDraft): StoredFilingNotices | undefined {
+    const closure = part.closureChecked && part.closureDate !== '';
+    if (!closure && part.apps.length === 0) {
+      return undefined;
+    }
+    return {
+      ...(closure ? { closureDate: part.closureDate } : {}),
+      methodApplications: part.apps.map((a): StoredMethodApplication => ({
+        kind: a.kind,
+        assetType: a.assetType,
+        businessOrAssetType: a.businessOrAssetType,
+        assetClass: a.assetClass,
+        newMethod: a.newMethod,
+        ...(a.currentMethod !== '' ? { currentMethod: a.currentMethod } : {}),
+        ...(a.currentAdoptedYear !== undefined ? { currentAdoptedYear: a.currentAdoptedYear } : {}),
+        ...(a.memo !== '' ? { memo: a.memo } : {}),
+      })),
+    };
+  }
+  const noticesVisible = $derived(year >= FILING_NOTICES_FIRST_YEAR);
+  const filingNoticesDraft = $derived.by((): PersonalDeductionInput['filingNotices'] => {
+    if (!noticesVisible) {
+      return undefined;
+    }
+    const withdrawal = withdrawalChecked ? withdrawalYear : undefined;
+    const business = noticePartToStored(businessNotices);
+    const realEstate = ledger.realEstateIncomeEnabled
+      ? noticePartToStored(realEstateNotices)
+      : undefined;
+    if (withdrawal === undefined && !business && !realEstate) {
+      return undefined;
+    }
+    return {
+      ...(withdrawal !== undefined ? { blueReturnWithdrawalYear: withdrawal } : {}),
+      ...(business ? { business } : {}),
+      ...(realEstate ? { realEstate } : {}),
+    };
+  });
   // 保存用（文字列）と試算用（Decimal）の二重管理を避けるため、まずこの文字列形状を
   // 1箇所で組み立て、personalDeductionsToCtx() で試算用 Decimal 形状に変換する
   // （xtx.ts 側と同じ変換ロジックを共有し、保存内容と試算・.xtx 出力の食い違いを防ぐ）。
@@ -498,6 +669,7 @@
     homeWorker,
     priorPriorBusinessRevenue,
     priorPriorRealEstateRevenue,
+    ...(filingNoticesDraft ? { filingNotices: filingNoticesDraft } : {}),
     ...(ledger.realEstateIncomeEnabled
       ? {
           realEstateIncome: {
@@ -512,6 +684,40 @@
   });
 
   const draftSignature = $derived(JSON.stringify(recordDraft));
+  // 取りやめの年分は申告方式で決まる。白色は本年分、青色は本年分の翌年以後
+  const withdrawalRange = $derived(
+    filingTypeCache === 'white'
+      ? { min: year, max: year }
+      : { min: year + 1, max: FILING_NOTICE_YEAR_MAX },
+  );
+  const withdrawalYearInvalid = $derived(
+    withdrawalChecked &&
+      (typeof withdrawalYear !== 'number' ||
+        !Number.isInteger(withdrawalYear) ||
+        withdrawalYear < withdrawalRange.min ||
+        withdrawalYear > withdrawalRange.max),
+  );
+  const closureDateInvalid = (part: NoticePartDraft): boolean =>
+    part.closureChecked &&
+    !(isFilingNoticeDate(part.closureDate) && part.closureDate.startsWith(`${year}-`));
+  const adoptedYearInvalid = (v: number | undefined): boolean =>
+    v !== undefined && (!Number.isInteger(v) || v < ADOPTED_YEAR_MIN || v > year);
+  const noticePartErrorCount = (part: NoticePartDraft): number =>
+    Number(closureDateInvalid(part)) +
+    part.apps.reduce(
+      (n, a) =>
+        n +
+        NOTICE_TEXT_FIELDS.filter(([k, max]) => isFilingNoticeTextTooLong(a[k], max)).length +
+        Number(adoptedYearInvalid(a.currentAdoptedYear)),
+      0,
+    );
+  const filingNoticeErrorCount = $derived(
+    noticesVisible
+      ? Number(withdrawalYearInvalid) +
+          noticePartErrorCount(businessNotices) +
+          (ledger.realEstateIncomeEnabled ? noticePartErrorCount(realEstateNotices) : 0)
+      : 0,
+  );
   const AGE_RANGE = { min: 0, max: 120 };
   const MONTHS_RANGE = { min: 0, max: 12 };
   // 復元された記録では年齢が文字列のこともあるため、数値以外は誤りとして数える
@@ -570,7 +776,7 @@
       count +=
         Number(intInvalid(f.age, AGE_RANGE)) + Number(intInvalid(f.monthsWorked, MONTHS_RANGE));
     }
-    return count;
+    return count + filingNoticeErrorCount;
   });
   // 保存済みの内容と一致しなくなったら未保存。約40項目あり、失うと打ち直しになる。
   const isDirty = $derived(savedSnapshot !== null && draftSignature !== savedSnapshot);
@@ -706,6 +912,180 @@
   <option value="specialCohabiting">
     {m.income_deductions_relative_disability_special_cohabiting()}
   </option>
+{/snippet}
+
+{#snippet noticeTextError(value: string, max: number)}
+  {#if isFilingNoticeTextTooLong(value, max)}
+    <span class="block mt-1 text-xs text-destructive">
+      {m.income_filing_notices_text_too_long({ max })}
+    </span>
+  {/if}
+{/snippet}
+
+{#snippet noticePartFields(part: NoticePartDraft, key: NoticePartKey)}
+  <label class="flex items-center gap-2 py-2">
+    <input
+      type="checkbox"
+      name="filingNotice-{key}-closureChecked"
+      checked={part.closureChecked}
+      onchange={(e) => toggleClosure(part, key, e.currentTarget.checked)}
+    />
+    <span class="text-sm">{m.income_filing_notices_closure_checkbox()}</span>
+  </label>
+  {#if part.closureChecked}
+    <label class="block pl-6 sm:max-w-xs">
+      <span class="text-xs text-muted-foreground">{m.income_filing_notices_closure_date()}</span>
+      <input
+        type="date"
+        name="filingNotice-{key}-closureDate"
+        autocomplete="off"
+        bind:value={part.closureDate}
+        class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+      />
+      {#if closureDateInvalid(part)}
+        <span class="block mt-1 text-xs text-destructive">
+          {m.income_filing_notices_closure_date_invalid({ year })}
+        </span>
+      {:else if key === 'business' && businessCloseDateSetting !== '' && part.closureDate !== businessCloseDateSetting}
+        <span class="block mt-1 text-xs text-amber-600">
+          {m.income_filing_notices_closure_differs({ date: businessCloseDateSetting })}
+        </span>
+      {/if}
+    </label>
+  {/if}
+  <div class="flex items-center justify-between pt-2 border-t">
+    <h5 class="text-sm font-semibold">{m.income_filing_notices_methods_title()}</h5>
+    <button
+      type="button"
+      onclick={() => addNoticeApp(part)}
+      class="px-3 py-1 text-sm bg-secondary text-secondary-foreground rounded hover:opacity-90"
+    >
+      {m.income_deductions_dependent_add()}
+    </button>
+  </div>
+  {#each part.apps as app, i (app.id)}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 items-end border-t pt-2">
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_filing_notices_app_kind()}</span>
+        <select
+          bind:value={app.kind}
+          name="filingNotice-{key}-app-{i}-kind"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          <option value="notice">{m.income_filing_notices_app_kind_notice()}</option>
+          <option value="change">{m.income_filing_notices_app_kind_change()}</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_asset_type()}
+        </span>
+        <select
+          bind:value={app.assetType}
+          name="filingNotice-{key}-app-{i}-assetType"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        >
+          <option value="inventory">{m.income_filing_notices_app_asset_type_inventory()}</option>
+          <option value="securities">{m.income_filing_notices_app_asset_type_securities()}</option>
+          <option value="crypto">{m.income_filing_notices_app_asset_type_crypto()}</option>
+          <option value="depreciable">
+            {m.income_filing_notices_app_asset_type_depreciable()}
+          </option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_business_or_asset_type()}
+        </span>
+        <input
+          type="text"
+          name="filingNotice-{key}-app-{i}-businessOrAssetType"
+          autocomplete="off"
+          bind:value={app.businessOrAssetType}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {@render noticeTextError(app.businessOrAssetType, BUSINESS_OR_ASSET_TYPE_MAX)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_asset_class()}
+        </span>
+        <input
+          type="text"
+          name="filingNotice-{key}-app-{i}-assetClass"
+          autocomplete="off"
+          bind:value={app.assetClass}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {@render noticeTextError(app.assetClass, ASSET_CLASS_MAX)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_new_method()}
+        </span>
+        <input
+          type="text"
+          name="filingNotice-{key}-app-{i}-newMethod"
+          autocomplete="off"
+          bind:value={app.newMethod}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {@render noticeTextError(app.newMethod, NEW_METHOD_MAX)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_current_method()}
+        </span>
+        <input
+          type="text"
+          name="filingNotice-{key}-app-{i}-currentMethod"
+          autocomplete="off"
+          bind:value={app.currentMethod}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {@render noticeTextError(app.currentMethod, CURRENT_METHOD_MAX)}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">
+          {m.income_filing_notices_app_current_adopted_year()}
+        </span>
+        <input
+          type="number"
+          name="filingNotice-{key}-app-{i}-currentAdoptedYear"
+          autocomplete="off"
+          value={app.currentAdoptedYear}
+          oninput={assignInputNumberOrEmpty((v) => (app.currentAdoptedYear = v))}
+          min={ADOPTED_YEAR_MIN}
+          max={year}
+          step="1"
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {#if adoptedYearInvalid(app.currentAdoptedYear)}
+          <span class="block mt-1 text-xs text-destructive">
+            {m.common_integer_invalid({ min: ADOPTED_YEAR_MIN, max: year })}
+          </span>
+        {/if}
+      </label>
+      <label class="block">
+        <span class="text-xs text-muted-foreground">{m.income_filing_notices_app_memo()}</span>
+        <input
+          type="text"
+          name="filingNotice-{key}-app-{i}-memo"
+          autocomplete="off"
+          bind:value={app.memo}
+          class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+        />
+        {@render noticeTextError(app.memo, MEMO_MAX)}
+      </label>
+      <button
+        type="button"
+        onclick={() => removeNoticeApp(part, app.id)}
+        class="px-3 py-2 text-sm text-destructive hover:opacity-80"
+      >
+        {m.income_deductions_dependent_remove()}
+      </button>
+    </div>
+  {/each}
 {/snippet}
 
 <div class="space-y-8">
@@ -1824,6 +2204,66 @@
       </label>
     </div>
   </section>
+
+  {#if noticesVisible}
+    <section
+      data-section="filing-notices"
+      class="space-y-4 border rounded-lg p-6 bg-card text-card-foreground"
+    >
+      <h3 class="text-lg font-semibold">{m.income_filing_notices_title()}</h3>
+      <p class="text-xs text-muted-foreground">{m.income_filing_notices_intro()}</p>
+      <p class="text-xs text-muted-foreground">{m.income_filing_notices_in_xtx()}</p>
+      <p class="text-xs text-muted-foreground">{m.income_filing_notices_deadline_note()}</p>
+      <div class="space-y-2 pt-2 border-t">
+        <h4 class="text-sm font-semibold">{m.income_filing_notices_withdrawal_title()}</h4>
+        <p class="text-xs text-muted-foreground">{m.income_filing_notices_withdrawal_hint()}</p>
+        <label class="flex items-center gap-2 py-2">
+          <input
+            type="checkbox"
+            name="filingNoticeWithdrawalChecked"
+            checked={withdrawalChecked}
+            onchange={(e) => toggleWithdrawal(e.currentTarget.checked)}
+          />
+          <span class="text-sm">{m.income_filing_notices_withdrawal_checkbox()}</span>
+        </label>
+        {#if withdrawalChecked}
+          <label class="block pl-6 sm:max-w-xs">
+            <span class="text-xs text-muted-foreground">
+              {m.income_filing_notices_withdrawal_year()}
+            </span>
+            <input
+              type="number"
+              name="filingNoticeWithdrawalYear"
+              autocomplete="off"
+              value={withdrawalYear}
+              oninput={assignInputNumberOrEmpty((v) => (withdrawalYear = v))}
+              min={withdrawalRange.min}
+              max={withdrawalRange.max}
+              step="1"
+              class="mt-1 w-full px-3 py-2 bg-background border rounded text-foreground"
+            />
+            {#if withdrawalYearInvalid}
+              <span class="block mt-1 text-xs text-destructive">
+                {filingTypeCache === 'white'
+                  ? m.income_filing_notices_withdrawal_year_white({ year })
+                  : m.income_filing_notices_withdrawal_year_blue(withdrawalRange)}
+              </span>
+            {/if}
+          </label>
+        {/if}
+      </div>
+      <div data-filing-notices-part="business" class="space-y-2 pt-2 border-t">
+        <h4 class="text-sm font-semibold">{m.income_filing_notices_business_title()}</h4>
+        {@render noticePartFields(businessNotices, 'business')}
+      </div>
+      {#if ledger.realEstateIncomeEnabled}
+        <div data-filing-notices-part="realEstate" class="space-y-2 pt-2 border-t">
+          <h4 class="text-sm font-semibold">{m.income_filing_notices_real_estate_title()}</h4>
+          {@render noticePartFields(realEstateNotices, 'realEstate')}
+        </div>
+      {/if}
+    </section>
+  {/if}
 
   {#if loadError === ''}
     <section class="space-y-2 border rounded-lg p-6 bg-card text-card-foreground">

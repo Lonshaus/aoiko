@@ -138,7 +138,8 @@ describe('不動産の届出事項の提示', () => {
 
     const el = await mountAndClickDownload();
     await waitFor(() => vi.mocked(saveTextFile).mock.calls.length > 0);
-    const prefix = m.reports_xtx_detail_overflow({ list: '' }).split('：')[0]!;
+    const prefix = m.reports_xtx_filing_notice_overflow({ list: '' }).split('：')[0]!;
+    const detailPrefix = m.reports_xtx_detail_overflow({ list: '' }).split('：')[0]!;
     await waitFor(() => (el.textContent ?? '').includes(prefix));
 
     const warning = Array.from(el.querySelectorAll('.border-amber-500')).find((e) =>
@@ -152,6 +153,7 @@ describe('不動産の届出事項の提示', () => {
     expect(text).toContain(`KOA220 ${section}：${m.xtx_filing_notice_number_4()}`);
     expect(text).toContain(`KOA220 ${section}：区分A`);
     expect(text).not.toContain('¥');
+    expect(el.textContent).not.toContain(detailPrefix);
     expect(vi.mocked(saveTextFile)).toHaveBeenCalledTimes(1);
   });
 });

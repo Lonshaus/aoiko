@@ -19,6 +19,7 @@ import type {
   ParserRuleMatchType,
   RelativeDisability,
   ReportSnapshot,
+  StoredMethodApplication,
   TaxCategory,
   TaxFilingMethod,
   TaxRegistration,
@@ -37,6 +38,7 @@ export type Spec =
   | { readonly t: 'enum'; readonly values: ReadonlySet<unknown> }
   | { readonly t: 'decimal' }
   | { readonly t: 'sha256' }
+  | { readonly t: 'isoDate' }
   | { readonly t: 'isoDateOrEmpty' }
   | { readonly t: 'nullable'; readonly of: Spec }
   | { readonly t: 'array'; readonly of: Spec }
@@ -165,6 +167,10 @@ function checkValue(spec: Spec, v: unknown, path: string): string | null {
       return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)
         ? null
         : `${path} が SHA-256 の形式ではありません（${describeValue(v)}）`;
+    case 'isoDate':
+      return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)
+        ? null
+        : `${path} が YYYY-MM-DD ではありません（${describeValue(v)}）`;
     case 'isoDateOrEmpty':
       return typeof v === 'string' && (v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v))
         ? null
@@ -232,6 +238,32 @@ const taxCategory = enumOf<TaxCategory>()([
   'badDebt',
   'badDebtRecovery',
 ]);
+const storedFilingNotices = obj(
+  opt('closureDate', { t: 'isoDate' }),
+  req(
+    'methodApplications',
+    arr(
+      obj(
+        req('kind', enumOf<StoredMethodApplication['kind']>()(['notice', 'change'])),
+        req(
+          'assetType',
+          enumOf<StoredMethodApplication['assetType']>()([
+            'inventory',
+            'securities',
+            'crypto',
+            'depreciable',
+          ]),
+        ),
+        req('businessOrAssetType', str),
+        req('assetClass', str),
+        req('newMethod', str),
+        opt('currentMethod', str),
+        opt('currentAdoptedYear', int),
+        opt('memo', str),
+      ),
+    ),
+  ),
+);
 const taxFilingMethod = enumOf<TaxFilingMethod>()([
   'general',
   'simplified',
@@ -560,6 +592,14 @@ const TABLE_FIELDS: ReadonlyMap<string, Fields> = new Map<string, Fields>([
         ),
       ),
       opt('homeWorker', bool),
+      opt(
+        'filingNotices',
+        obj(
+          opt('blueReturnWithdrawalYear', int),
+          opt('business', storedFilingNotices),
+          opt('realEstate', storedFilingNotices),
+        ),
+      ),
       req('updatedAt', num),
     ],
   ],

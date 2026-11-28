@@ -78,11 +78,25 @@ For home workers, door-to-door sales agents, bill collectors, and similar people
 - **Relationship with family employee salary/deduction**: Income Tax Act Art. 57 falls within Subsections 1–5 (目) that Special Taxation Measures Act Art. 27 replaces, so the "actual necessary expenses" compared against the floor includes blue-return family employee salary (already an expense on the books) and the white-return family employee deduction (deemed a necessary expense under Art. 57(3)). When the provision applies, business income = total revenue minus post-provision expenses, and the family employee salary/deduction isn't subtracted again (see [10. `.xtx` export](10-xtx-export_en.md)). The family employee's own status (exclusion from being a co-residing spouse/dependent) is judged on the facts and doesn't change based on whether this provision applies
 - Applies to both blue and white returns alike. The "pre-deduction business income" that the blue-return special deduction is based on is the post-provision amount (§ 3)
 
-## 5. Reflecting this in the `.xtx` export
+## 5. Filing notices
+
+From the 2026 tax year, the financial statements and income/expense statements have a section for filing new notices, and entering a notice there can take the place of submitting the notice form (2023 tax reform; Ministry of Finance, "Explanation of the FY2023 Tax Reform", Income Tax Act amendments). Under "Filing notices (entered in the financial statements and income/expense statements)" on this screen, you enter what goes into that section for each tax year and save it. It appears only when you select the 2026 tax year or later.
+
+- Withdrawal from blue-return filing: enter the tax year you withdraw from. This is a notice for the person, so there is only one entry. Under Article 151, paragraph 1 of the Income Tax Act, the deadline is the filing deadline of the tax year from which you stop filing blue returns. For a white return you can enter only the selected tax year; for a blue return, you can enter the year after the selected tax year up to 2117
+- Business closure: enter the date of closure separately for business and for real estate. The date must fall within the selected tax year. For business, if the closure date in Settings falls in the selected tax year, it is filled in as the default when you tick the box. If you enter a date different from the one in Settings, a notice appears, but you can still save
+- Valuation and depreciation methods: you can add any number of notices or applications for approval of a change, separately for business and for real estate. Enter the type (notice or application), the asset type (inventory, securities, crypto assets, depreciable assets), the type of business or type of asset or equipment, the asset category or structure, use and item, and the new method; the current method, the year the current method was adopted (Gregorian) and remarks are optional. The character limits are 20 for the type of business or asset or equipment, 40 for the asset category or structure, use and item, 20 for the new method, 20 for the current method, and 40 for remarks. The year adopted can be from 1926 up to the selected tax year
+
+The real estate fields appear only when real estate income is turned on in Settings. What you enter is saved as bookkeeping data and is included in backups. If a field has an error, the count is shown as on the other fields and "Save" cannot be pressed.
+
+> **The notices entered here go into the "Items newly notified" section of the financial statements and income/expense breakdown statements in the `.xtx`.** Business notices go into the business income statement, and real estate notices go into the real estate income statement. Withdrawal from blue-return filing goes into the business income statement, and also into the real estate income statement when that one is exported too. Applications for approval to change a valuation method and similar filings each have their own deadline.
+>
+> Notices beyond the section's limits (4 for the numbered notices, 3 for the valuation and depreciation method details), and real estate notices in a tax year where the real estate income statement is not exported, are not written to the `.xtx`. After the export, the top of the Reports screen shows "Some notices did not fit in the 'Items newly notified' section: <list>. For these notices, submit the notice form separately." The export itself is not blocked.
+
+## 6. Reflecting this in the `.xtx` export
 
 When generating the tax return `.xtx` in [10. `.xtx` export](10-xtx-export_en.md), if you've saved input on this screen, the income deduction/tax credit fields are automatically included. If nothing is saved (not entered), they're omitted as before, and you complete them yourself in e-Tax. If real estate income is entered, the real-estate financial statements (blue: KOA220, white: KOA130) are attached alongside the tax return (KOA020) in the same submission data.
 
-## 6. Next steps
+## 7. Next steps
 
 - Choosing a consumption tax method / interim filing → [07. Consumption tax](07-consumption-tax_en.md)
 - `.xtx` export (income tax / consumption tax) → [10. `.xtx` export](10-xtx-export_en.md)
