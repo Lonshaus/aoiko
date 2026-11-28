@@ -163,7 +163,7 @@ describe('届出事項の段落の表示', () => {
     const el = await render(2026);
     const text = section(el)?.textContent ?? '';
     expect(text).toContain(m.income_filing_notices_intro());
-    expect(text).toContain(m.income_filing_notices_not_in_xtx());
+    expect(text).toContain(m.income_filing_notices_in_xtx());
     expect(text).not.toContain('必要はありません');
     expect(text).not.toContain('書き込まれます');
   });

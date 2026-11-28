@@ -2212,7 +2212,7 @@
     >
       <h3 class="text-lg font-semibold">{m.income_filing_notices_title()}</h3>
       <p class="text-xs text-muted-foreground">{m.income_filing_notices_intro()}</p>
-      <p class="text-xs text-muted-foreground">{m.income_filing_notices_not_in_xtx()}</p>
+      <p class="text-xs text-muted-foreground">{m.income_filing_notices_in_xtx()}</p>
       <p class="text-xs text-muted-foreground">{m.income_filing_notices_deadline_note()}</p>
       <div class="space-y-2 pt-2 border-t">
         <h4 class="text-sm font-semibold">{m.income_filing_notices_withdrawal_title()}</h4>

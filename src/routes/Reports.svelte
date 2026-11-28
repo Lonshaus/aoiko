@@ -1458,7 +1458,10 @@
     try {
       // 少額特例の年合計上限の月割（措法28の2）に使う。年末の減価償却と同じ値を読む
       const businessDates = await loadEffectiveBusinessDates();
-      const filingNotices = xtxFilingNoticesOf(storedDeductions?.filingNotices);
+      const filingNotices = xtxFilingNoticesOf(
+        storedDeductions?.filingNotices,
+        realEstatePl !== undefined,
+      );
       xtxCtx = {
         year: exportYear,
         dataYear: filingYear,
@@ -1507,16 +1510,26 @@
           })
         : '',
       describeConversionBasisOverCost(fixedAssets),
-      xtxCtx.filingNotices ? m.reports_xtx_filing_notices_not_written() : '',
     ]
       .filter((t) => t !== '')
       .join(' ');
-    const detailOverflow = xtxDetailOverflow(xtxCtx);
-    if (detailOverflow.length > 0) {
-      xtxDetailOverflowWarning = m.reports_xtx_detail_overflow({
-        list: detailOverflow.map(detailOverflowText).join('、'),
-      });
-    }
+    const allOverflow = xtxDetailOverflow(xtxCtx);
+    const noticeOverflow = allOverflow.filter((o) => o.section === 'filingNotice');
+    const detailOverflow = allOverflow.filter((o) => o.section !== 'filingNotice');
+    xtxDetailOverflowWarning = [
+      detailOverflow.length > 0
+        ? m.reports_xtx_detail_overflow({
+            list: detailOverflow.map(detailOverflowText).join('、'),
+          })
+        : '',
+      noticeOverflow.length > 0
+        ? m.reports_xtx_filing_notice_overflow({
+            list: noticeOverflow.map(detailOverflowText).join('、'),
+          })
+        : '',
+    ]
+      .filter((t) => t !== '')
+      .join(' ');
     await saveTextFile(xml, `aoiko-${exportYear}.xtx`, 'application/xml');
   }
   function xtxNoticePart(
@@ -1533,12 +1546,16 @@
       methodApplications: apps,
     };
   }
-  // 青色申告の取りやめは人単位で、事業用の様式（KOA110・KOA210）にだけ載せる
+  // 青色申告の取りやめは人単位で、事業用の様式に載せる。不動産所得用の様式も出すときはそちらにも載せる
   function xtxFilingNoticesOf(
     stored: PersonalDeductionInput['filingNotices'],
+    realEstateEmitted: boolean,
   ): Parameters<typeof buildXtx2026>[0]['filingNotices'] {
     const business = xtxNoticePart(stored?.business, stored?.blueReturnWithdrawalYear);
-    const realEstate = xtxNoticePart(stored?.realEstate);
+    const realEstate = xtxNoticePart(
+      stored?.realEstate,
+      realEstateEmitted ? stored?.blueReturnWithdrawalYear : undefined,
+    );
     if (!business && !realEstate) {
       return undefined;
     }

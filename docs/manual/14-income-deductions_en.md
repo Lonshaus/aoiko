@@ -88,9 +88,9 @@ From the 2026 tax year, the financial statements and income/expense statements h
 
 The real estate fields appear only when real estate income is turned on in Settings. What you enter is saved as bookkeeping data and is included in backups. If a field has an error, the count is shown as on the other fields and "Save" cannot be pressed.
 
-> **The `.xtx` exported now does not include the notices entered here.** To file a notice, submit the notice form separately. Applications for approval to change a valuation method and similar filings each have their own deadline.
+> **The notices entered here go into the "Items newly notified" section of the financial statements and income/expense breakdown statements in the `.xtx`.** Business notices go into the business income statement, and real estate notices go into the real estate income statement. Withdrawal from blue-return filing goes into the business income statement, and also into the real estate income statement when that one is exported too. Applications for approval to change a valuation method and similar filings each have their own deadline.
 >
-> When you export the `.xtx` for a tax year in which you entered notices, the top of the Reports screen shows "This .xtx does not include the notices you entered. To file a notice, submit the notice form separately." The export itself is not blocked.
+> Notices beyond the section's limits (4 for the numbered notices, 3 for the valuation and depreciation method details), and real estate notices in a tax year where the real estate income statement is not exported, are not written to the `.xtx`. After the export, the top of the Reports screen shows "Some notices did not fit in the 'Items newly notified' section: <list>. For these notices, submit the notice form separately." The export itself is not blocked.
 
 ## 6. Reflecting this in the `.xtx` export
 

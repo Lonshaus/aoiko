@@ -1,5 +1,5 @@
 // 所得控除画面で入力した届出事項が、Reports の .xtx 書き出しで XtxContext.filingNotices に渡り、
-// 四つの様式へ書き込まれるまでの間は「入っていない」旨の提示を出すことを見る。
+// 青色申告の取りやめが不動産所得用の様式を出すときにだけ不動産用の部分にも入ることを見る。
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { mount, unmount } from 'svelte';
@@ -148,13 +148,20 @@ async function download(): Promise<HTMLElement> {
   return el;
 }
 
-const hint = m.reports_xtx_filing_notices_not_written();
+const overflowPrefix = m.reports_xtx_filing_notice_overflow({ list: '' }).split('：')[0]!;
 
-async function expectWritten(el: HTMLElement): Promise<void> {
+async function expectWritten(el: HTMLElement, noticeOverflow = false): Promise<void> {
   await waitFor(() => vi.mocked(saveTextFile).mock.calls.length > 0);
   expect(vi.mocked(saveTextFile)).toHaveBeenCalledTimes(1);
   expect(vi.mocked(saveTextFile).mock.calls[0]?.[1]).toBe('aoiko-2026.xtx');
-  expect(el.textContent).toContain(hint);
+  if (noticeOverflow) {
+    expect(el.textContent).toContain(overflowPrefix);
+    expect(el.textContent).not.toContain(
+      m.reports_xtx_detail_overflow({ list: '' }).split('：')[0]!,
+    );
+  } else {
+    expect(el.textContent).not.toContain(overflowPrefix);
+  }
 }
 
 beforeEach(async () => {
@@ -179,7 +186,13 @@ afterEach(async () => {
 });
 
 describe('届出事項が XtxContext.filingNotices に渡る', () => {
-  test('取りやめ・事業用・不動産用がそれぞれの部分に入り、取りやめは事業用だけに入る', async () => {
+  test('書き出していない旨の提示は無くなっている', () => {
+    const keys = Object.keys(m);
+    expect(keys).toContain('reports_xtx_filing_notice_overflow');
+    expect(keys.filter((k) => k.startsWith('reports_xtx_filing_notices_'))).toEqual([]);
+  });
+
+  test('不動産所得の様式を出さないとき、取りやめは事業用だけに入り、不動産用の届出は入りきらなかった届出として提示する', async () => {
     await setUp(2026);
     await db.personalDeductions.put(
       deductions(2026, {
@@ -191,7 +204,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
       }),
     );
     const el = await download();
-    await expectWritten(el);
+    await expectWritten(el, true);
 
     expect(captured.ctx?.filingNotices?.business).toEqual({
       closureDate: '2026-06-30',
@@ -205,7 +218,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     expect(captured.ctx?.filingNotices?.realEstate).not.toHaveProperty('blueReturnWithdrawalYear');
   });
 
-  test('取りやめだけのときは事業用に取りやめ年分と空の明細だけが入り、提示を出す', async () => {
+  test('取りやめだけのときは事業用に取りやめ年分と空の明細だけが入る', async () => {
     await setUp(2026);
     await db.personalDeductions.put(
       deductions(2026, { filingNotices: { blueReturnWithdrawalYear: 2027 } }),
@@ -218,7 +231,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     });
   });
 
-  test('事業用だけのとき、提示を出してもファイルは書き出す', async () => {
+  test('事業用だけのとき、ファイルを書き出す', async () => {
     await setUp(2026);
     await db.personalDeductions.put(
       deductions(2026, {
@@ -233,7 +246,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     });
   });
 
-  test('不動産用だけで不動産所得の様式も出すとき、提示を出してもファイルは書き出す', async () => {
+  test('不動産用だけで不動産所得の様式も出すとき、ファイルを書き出す', async () => {
     await setUp(2026);
     await setSetting('realEstateIncomeEnabled', true);
     await waitFor(() => ledger.realEstateIncomeEnabled);
@@ -252,7 +265,51 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     });
   });
 
-  test('届出事項が無いとき、filingNotices は無く提示も出ない', async () => {
+  test('取りやめがあり不動産所得の様式も出すとき、不動産用にも同じ取りやめ年分が入る', async () => {
+    await setUp(2026);
+    await setSetting('realEstateIncomeEnabled', true);
+    await waitFor(() => ledger.realEstateIncomeEnabled);
+    await db.personalDeductions.put(
+      deductions(2026, {
+        realEstateIncome: { businessScale: false, landLoanInterestAmount: '0' },
+        filingNotices: { blueReturnWithdrawalYear: 2027 },
+      }),
+    );
+    const el = await download();
+    await expectWritten(el);
+
+    expect(captured.ctx?.realEstatePl).toBeDefined();
+    expect(captured.ctx?.filingNotices).toEqual({
+      business: { blueReturnWithdrawalYear: 2027, methodApplications: [] },
+      realEstate: { blueReturnWithdrawalYear: 2027, methodApplications: [] },
+    });
+    const xml = String(vi.mocked(saveTextFile).mock.calls[0]?.[0]);
+    expect(xml).toContain(
+      '<ANI00030><kubun_CD>1</kubun_CD></ANI00030><ANI00040><gen:era>5</gen:era><gen:yy>9</gen:yy></ANI00040>',
+    );
+  });
+
+  test('白色申告でも、不動産所得用の収支内訳書に同じ取りやめ年分が入る', async () => {
+    await setUp(2026);
+    await setSetting('filingType', 'white');
+    await setSetting('realEstateIncomeEnabled', true);
+    await waitFor(() => ledger.realEstateIncomeEnabled);
+    await db.personalDeductions.put(
+      deductions(2026, {
+        realEstateIncome: { businessScale: false, landLoanInterestAmount: '0' },
+        filingNotices: { blueReturnWithdrawalYear: 2027 },
+      }),
+    );
+    const el = await download();
+    await expectWritten(el);
+
+    const xml = String(vi.mocked(saveTextFile).mock.calls[0]?.[0]);
+    expect(xml).toContain(
+      '<AKS00030><kubun_CD>1</kubun_CD></AKS00030><AKS00040><gen:era>5</gen:era><gen:yy>9</gen:yy></AKS00040>',
+    );
+  });
+
+  test('届出事項が無いとき、filingNotices は無い', async () => {
     await setUp(2026);
     await db.personalDeductions.put(deductions(2026));
     const el = await download();
@@ -260,11 +317,11 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
 
     expect(captured.ctx).toBeDefined();
     expect(captured.ctx?.filingNotices).toBeUndefined();
-    expect(el.textContent).not.toContain(hint);
+    expect(el.textContent).not.toContain(overflowPrefix);
     expect(vi.mocked(saveTextFile)).toHaveBeenCalledTimes(1);
   });
 
-  test('不動産用に内容が無いとき、不動産用は渡さず、事業用の内容があれば提示だけ出る', async () => {
+  test('不動産用に内容が無いとき、不動産用は渡さず、事業用だけを渡す', async () => {
     await setUp(2026);
     await db.personalDeductions.put(
       deductions(2026, {
@@ -281,7 +338,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     expect(captured.ctx?.filingNotices?.realEstate).toBeUndefined();
   });
 
-  test('不動産用だけで内容が無いときは、filingNotices を渡さず提示も出ない', async () => {
+  test('不動産用だけで内容が無いときは、filingNotices を渡さない', async () => {
     await setUp(2026);
     await db.personalDeductions.put(
       deductions(2026, { filingNotices: { realEstate: { methodApplications: [] } } }),
@@ -290,7 +347,7 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
     await waitFor(() => vi.mocked(saveTextFile).mock.calls.length > 0);
 
     expect(captured.ctx?.filingNotices).toBeUndefined();
-    expect(el.textContent).not.toContain(hint);
+    expect(el.textContent).not.toContain(overflowPrefix);
   });
 
   test('2025 年度は .xtx の書き出しが未対応で止まり、届出事項があっても buildXtx2026 を呼ばない', async () => {
@@ -307,6 +364,6 @@ describe('届出事項が XtxContext.filingNotices に渡る', () => {
 
     expect(captured.ctx).toBeUndefined();
     expect(saveTextFile).not.toHaveBeenCalled();
-    expect(el.textContent).not.toContain(hint);
+    expect(el.textContent).not.toContain(overflowPrefix);
   });
 });
