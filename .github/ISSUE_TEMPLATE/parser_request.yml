@@ -6,8 +6,7 @@ body:
     attributes:
       value: |
         対応してほしい明細フォーマットを教えてください。
-        ご自身で書ける方は [CONTRIBUTING.md](../../CONTRIBUTING.md) を参照して PR を歓迎します。
-        **金額・氏名・口座番号などは必ず匿名化してください**（匿名化の指針は CONTRIBUTING.md）。
+        **金額・氏名・口座番号などは必ず匿名化してください**。
   - type: input
     id: name
     attributes:
